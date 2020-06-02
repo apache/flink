@@ -47,35 +47,54 @@ run_mvn clean install $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-conv
 
 EXIT_CODE=$?
 
-if [ $EXIT_CODE == 0 ]; then
+if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
-    echo "Checking scala suffixes"
+    echo "Compiling Flink failed."
     echo "=============================================================================="
-
-    ${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}"
-    EXIT_CODE=$?
-else
-    echo "=============================================================================="
-    echo "Previous build failure detected, skipping scala-suffixes check."
-    echo "=============================================================================="
+    exit $EXIT_CODE
 fi
 
-if [ $EXIT_CODE == 0 ]; then
-    check_shaded_artifacts
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_s3_fs hadoop
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_s3_fs presto
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_connector_elasticsearch 5
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_connector_elasticsearch 6
-    EXIT_CODE=$(($EXIT_CODE+$?))
-else
-    echo "=============================================================================="
-    echo "Previous build failure detected, skipping shaded dependency check."
-    echo "=============================================================================="
+echo "============ Checking Javadocs ============"
+
+# use the same invocation as on buildbot (https://svn.apache.org/repos/infra/infrastructure/buildbot/aegis/buildmaster/master1/projects/flink.conf)
+run_mvn javadoc:aggregate -Paggregate-scaladoc -DadditionalJOption='-Xdoclint:none' \
+      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true \
+      -Dheader=someTestHeader > javadoc.out
+EXIT_CODE=$?
+if [ $EXIT_CODE != 0 ] ; then
+  echo "ERROR in Javadocs. Printing full output:"
+  cat javadoc.out ; rm javadoc.out
+  exit $EXIT_CODE
 fi
+
+echo "============ Checking Scaladocs ============"
+
+cd flink-scala
+run_mvn scala:doc 2> scaladoc.out
+EXIT_CODE=$?
+if [ $EXIT_CODE != 0 ] ; then
+  echo "ERROR in Scaladocs. Printing full output:"
+  cat scaladoc.out ; rm scaladoc.out
+  exit $EXIT_CODE
+fi
+cd ..
+
+echo "============ Checking scala suffixes ============"
+
+${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}" || exit $?
+
+echo "============ Checking shaded dependencies ============"
+
+check_shaded_artifacts
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_s3_fs hadoop
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_s3_fs presto
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_connector_elasticsearch 5
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_connector_elasticsearch 6
+EXIT_CODE=$(($EXIT_CODE+$?))
 
 exit $EXIT_CODE
 
