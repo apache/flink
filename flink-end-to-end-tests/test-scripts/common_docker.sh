@@ -35,7 +35,9 @@ function containers_health_check() {
 
 function build_image() {
     local image_name=${1:-flink-job}
-    local file_server_address=${2:-localhost}
+    local default_file_server_address="localhost"
+    [[ "${OS_TYPE}" != "linux" ]] && default_file_server_address="host.docker.internal"
+    local file_server_address=${2:-${default_file_server_address}}
 
     echo "Starting fileserver for Flink distribution"
     pushd ${FLINK_DIR}/..
