@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -35,6 +34,15 @@ import org.apache.hadoop.hbase.client.Scan;
 public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
+
+	/**
+	 * Constructs a {@link InputFormat} with hbase configuration to read data from hbase.
+	 * @param hConf The configuration that connect to hbase.
+	 *              At least hbase.zookeeper.quorum and zookeeper.znode.parent need to be set.
+	 */
+	public HBaseInputFormat(org.apache.hadoop.conf.Configuration hConf) {
+		super(hConf);
+	}
 
 	/**
 	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
@@ -79,8 +87,7 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 	 */
 	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");
-		//use files found in the classpath
-		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
+		org.apache.hadoop.conf.Configuration hConf = getHadoopConfiguration();
 
 		try {
 			return new HTable(hConf, getTableName());
