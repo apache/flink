@@ -57,6 +57,9 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -275,11 +278,17 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 					return convertToDate(object);
 				} else if (info == Types.SQL_TIME) {
 					return convertToTime(object);
+				} else if (info == Types.LOCAL_DATE) {
+					return convertToLocalDate(object);
+				} else if (info == Types.LOCAL_TIME) {
+					return convertToLocalTime(object);
 				}
 				return object;
 			case LONG:
 				if (info == Types.SQL_TIMESTAMP) {
 					return convertToTimestamp(object);
+				} else if (info == Types.LOCAL_DATE_TIME) {
+					return convertToLocalDateTime(object);
 				}
 				return object;
 			case FLOAT:
@@ -310,6 +319,22 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		return new Date(millis);
 	}
 
+	private java.time.LocalDate convertToLocalDate(Object object) {
+		final long millis;
+		if (object instanceof Integer) {
+			final Integer value = (Integer) object;
+			// adopted from Apache Calcite
+			final long t = (long) value * 86400000L;
+			millis = t - (long) LOCAL_TZ.getOffset(t);
+		} else {
+			// use 'provided' Joda time
+			final LocalDate value = (LocalDate) object;
+			millis = value.toDate().getTime();
+		}
+		long epochDay = millis / 86400000L;
+		return java.time.LocalDate.ofEpochDay(epochDay);
+	}
+
 	private Time convertToTime(Object object) {
 		final long millis;
 		if (object instanceof Integer) {
@@ -322,6 +347,18 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		return new Time(millis - LOCAL_TZ.getOffset(millis));
 	}
 
+	private java.time.LocalTime convertToLocalTime(Object object) {
+		final long millis;
+		if (object instanceof Integer) {
+			millis = (Integer) object;
+		} else {
+			// use 'provided' Joda time
+			final LocalTime value = (LocalTime) object;
+			millis = (long) value.get(DateTimeFieldType.millisOfDay());
+		}
+		return java.time.LocalTime.ofNanoOfDay(millis * 1_000_000L);
+	}
+
 	private Timestamp convertToTimestamp(Object object) {
 		final long millis;
 		if (object instanceof Long) {
@@ -332,6 +369,20 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 			millis = value.toDate().getTime();
 		}
 		return new Timestamp(millis - LOCAL_TZ.getOffset(millis));
+	}
+
+	private java.time.LocalDateTime convertToLocalDateTime(Object object) {
+		final long millis;
+		if (object instanceof Long) {
+			millis = (Long) object;
+		} else {
+			// use 'provided' Joda time
+			final DateTime value = (DateTime) object;
+			millis = value.toDate().getTime();
+		}
+		Instant instant = Instant.ofEpochMilli(millis);
+		ZonedDateTime zonedDateTime = instant.atZone(ZoneId.of(LOCAL_TZ.getID()));
+		return zonedDateTime.toLocalDateTime();
 	}
 
 	private Object[] convertToObjectArray(Schema elementSchema, TypeInformation<?> elementInfo, Object object) {
