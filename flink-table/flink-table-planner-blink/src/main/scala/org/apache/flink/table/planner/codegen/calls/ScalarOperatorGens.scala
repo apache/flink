@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.{DataFormatConverters, MapDataUtil}
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
@@ -1634,6 +1635,10 @@ object ScalarOperatorGens {
     GeneratedExpression(arrayTerm, GeneratedExpression.NEVER_NULL, code, arrayType)
   }
 
+  /**
+   * Return null when array index out of bounds which follows Calcite's behaviour.
+   * @see [[org.apache.calcite.sql.fun.SqlStdOperatorTable.ITEM]]
+   */
   def generateArrayElementAt(
       ctx: CodeGeneratorContext,
       array: GeneratedExpression,
@@ -1643,19 +1648,25 @@ object ScalarOperatorGens {
     val resultTypeTerm = primitiveTypeTermForType(componentInfo)
     val defaultTerm = primitiveDefaultValue(componentInfo)
 
+    index.literalValue match {
+      case Some(v: Int) if v < 1 =>
+        throw new ValidationException(
+          s"Array element access needs an index starting at 1 but was $v.")
+      case _ => //nothing
+    }
     val idxStr = s"${index.resultTerm} - 1"
     val arrayIsNull = s"${array.resultTerm}.isNullAt($idxStr)"
     val arrayGet =
       rowFieldReadAccess(ctx, idxStr, array.resultTerm, componentInfo)
 
     val arrayAccessCode =
-      s"""
-         |${array.code}
-         |${index.code}
-         |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} || $arrayIsNull;
-         |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
-         |""".stripMargin
-
+    s"""
+        |${array.code}
+        |${index.code}
+        |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} ||
+        |   $idxStr < 0 || $idxStr >= ${array.resultTerm}.size() || $arrayIsNull;
+        |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
+        |""".stripMargin
     GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, componentInfo)
   }
 
