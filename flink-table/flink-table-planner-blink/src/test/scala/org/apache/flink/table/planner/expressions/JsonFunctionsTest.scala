@@ -23,10 +23,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
-import org.hamcrest.Matchers.startsWith
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.rules.ExpectedException
 
 class JsonFunctionsTest extends ExpressionTestBase {
 
@@ -165,16 +163,17 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testSqlApi("json_exists(f9, 'strict $.info.\"type\"' unknown on error)", "null")
     testSqlApi("json_exists(f9, 'strict $.info.type' error on error)", "true")
 
-    verifyJsonExistsException("json_exists(f7, 'lax aa')", "SQL validation failed")
+    verifyJsonExistsException("json_exists(f7, 'lax aa')", classOf[ValidationException])
   }
 
   private def verifyJsonExistsException[T <: Exception](
        sqlExpr: String,
-       expectedMessage: String
+       expectedException: Class[T]
      ): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(startsWith(expectedMessage))
-    testSqlApi(sqlExpr, "null")
-    expectedException = ExpectedException.none()
+    try {
+      testSqlApi(sqlExpr, "null")
+    } catch {
+      case e: Exception => assertEquals(e.getClass, expectedException)
+    }
   }
 }
