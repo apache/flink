@@ -32,12 +32,11 @@ Table API 和 SQL 集成在同一套 API 中。这套 API 的核心概念是`Tab
 
 1. Blink 将批处理作业视作流处理的一种特例。严格来说，`Table` 和 `DataSet` 之间不支持相互转换，并且批处理作业也不会转换成 `DataSet` 程序而是转换成 `DataStream` 程序，流处理作业也一样。
 2. Blink 计划器不支持  `BatchTableSource`，而是使用有界的  `StreamTableSource` 来替代。
-3. Blink 计划器仅支持全新的 `Catalog` 不支持被弃用的 `ExternalCatalog`。
-4. 旧计划器和 Blink 计划器中 `FilterableTableSource` 的实现是不兼容的。旧计划器会将 `PlannerExpression` 下推至 `FilterableTableSource`，而 Blink 计划器则是将 `Expression` 下推。
-5. 基于字符串的键值配置选项仅在 Blink 计划器中使用。（详情参见 [配置]({{ site.baseurl }}/zh/dev/table/config.html) ）
-6. `PlannerConfig` 在两种计划器中的实现（`CalciteConfig`）是不同的。
-7. Blink 计划器会将多sink（multiple-sinks）优化成一张有向无环图（DAG）（仅支持 `TableEnvironment`，不支持 `StreamTableEnvironment`）。旧计划器总是将每个sink都优化成一个新的有向无环图，且所有图相互独立。
-8. 旧计划器目前不支持 catalog 统计数据，而 Blink 支持。
+3. 旧计划器和 Blink 计划器中 `FilterableTableSource` 的实现是不兼容的。旧计划器会将 `PlannerExpression` 下推至 `FilterableTableSource`，而 Blink 计划器则是将 `Expression` 下推。
+4. 基于字符串的键值配置选项仅在 Blink 计划器中使用。（详情参见 [配置]({{ site.baseurl }}/zh/dev/table/config.html) ）
+5. `PlannerConfig` 在两种计划器中的实现（`CalciteConfig`）是不同的。
+6. Blink 计划器会将多sink（multiple-sinks）优化成一张有向无环图（DAG）（仅支持 `TableEnvironment`，不支持 `StreamTableEnvironment`）。旧计划器总是将每个sink都优化成一个新的有向无环图，且所有图相互独立。
+7. 旧计划器目前不支持 catalog 统计数据，而 Blink 支持。
 
 
 Table API 和 SQL 程序的结构
