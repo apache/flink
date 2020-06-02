@@ -307,7 +307,7 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 <div data-lang="Java" markdown="1">
 {% highlight java %}
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -325,7 +325,7 @@ tableEnv.useCatalog("myhive");
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+val settings = EnvironmentSettings.newInstance().inBatchMode().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
