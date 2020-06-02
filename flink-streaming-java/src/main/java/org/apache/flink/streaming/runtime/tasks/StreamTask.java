@@ -207,6 +207,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected final MailboxProcessor mailboxProcessor;
 
+	final MailboxExecutor mainMailboxExecutor;
+
 	/**
 	 * TODO it might be replaced by the global IO executor on TaskManager level future.
 	 */
@@ -276,6 +278,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
 		this.mailboxProcessor.initMetric(environment.getMetricGroup());
+		this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 		this.asyncOperationsThreadPool = Executors.newCachedThreadPool(
 			new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
@@ -498,7 +501,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 
 			// Note that we must request partition after all the single gates finished recovery.
-			CompletableFuture.allOf(futures).thenRun(() -> mailboxProcessor.getMainMailboxExecutor().execute(
+			CompletableFuture.allOf(futures).thenRun(() -> mainMailboxExecutor.execute(
 				this::requestPartitions, "Input gates request partitions"));
 		}
 	}
@@ -778,7 +781,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			boolean advanceToEndOfEventTime) {
 
 		CompletableFuture<Boolean> result = new CompletableFuture<>();
-		mailboxProcessor.getMainMailboxExecutor().execute(
+		mainMailboxExecutor.execute(
 				() -> {
 					try {
 						result.complete(triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime));
@@ -830,7 +833,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		if (mailboxProcessor.isMailboxThread()) {
 			runnable.run();
 		} else {
-			mailboxProcessor.getMainMailboxExecutor().execute(runnable, descriptionFormat, descriptionArgs);
+			mainMailboxExecutor.execute(runnable, descriptionFormat, descriptionArgs);
 		}
 	}
 
@@ -966,7 +969,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	@Override
 	public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException {
 		try {
-			mailboxProcessor.getMainMailboxExecutor().execute(
+			mainMailboxExecutor.execute(
 				() -> {
 					try {
 						operatorChain.dispatchOperatorEvent(operator, event);
