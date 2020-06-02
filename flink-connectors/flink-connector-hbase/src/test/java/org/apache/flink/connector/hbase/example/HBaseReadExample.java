@@ -24,6 +24,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.hbase.source.HBaseInputFormat;
 
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -47,7 +48,7 @@ public class HBaseReadExample {
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		@SuppressWarnings("serial")
-		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new HBaseInputFormat<Tuple2<String, String>>() {
+		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new HBaseInputFormat<Tuple2<String, String>>(HBaseConfiguration.create()) {
 
 				@Override
 				public String getTableName() {

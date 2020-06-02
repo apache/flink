@@ -54,8 +54,6 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -312,7 +310,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple1<Integer>> result = env
-			.createInput(new InputFormatForTestTable())
+			.createInput(new InputFormatForTestTable(getConf()))
 			.reduce((ReduceFunction<Tuple1<Integer>>) (v1, v2) -> Tuple1.of(v1.f0 + v2.f0));
 
 		List<Tuple1<Integer>> resultSet = result.collect();
@@ -612,9 +610,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		properties.put(CONNECTOR_VERSION, CONNECTOR_VERSION_VALUE_143);
 		properties.put(CONNECTOR_PROPERTY_VERSION, "1");
 		properties.put(CONNECTOR_TABLE_NAME, TEST_TABLE_1);
-		// get zk quorum from "hbase-site.xml" in classpath
-		String hbaseZk = HBaseConfiguration.create().get(HConstants.ZOOKEEPER_QUORUM);
-		properties.put(CONNECTOR_ZK_QUORUM, hbaseZk);
+		properties.put(CONNECTOR_ZK_QUORUM, getZookeeperQuorum());
 		// schema
 		String[] columnNames = {FAMILY1, ROWKEY, FAMILY2, FAMILY3};
 		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{F1COL1}, Types.INT);
@@ -704,6 +700,10 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	 */
 	public static class InputFormatForTestTable extends HBaseInputFormat<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
+
+		public InputFormatForTestTable(org.apache.hadoop.conf.Configuration hConf) {
+			super(hConf);
+		}
 
 		@Override
 		protected Scan getScanner() {

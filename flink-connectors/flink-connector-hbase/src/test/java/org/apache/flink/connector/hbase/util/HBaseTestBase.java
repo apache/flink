@@ -74,7 +74,6 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
 	@BeforeClass
 	public static void activateHBaseCluster() throws IOException {
-		registerHBaseMiniClusterInClasspath();
 		prepareTables();
 	}
 

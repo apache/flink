@@ -24,8 +24,10 @@ import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.core.io.InputSplitAssigner;
 
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -59,6 +61,13 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 
 	protected byte[] currentRow;
 	protected long scannedRows;
+
+	// Configuration is not serializable
+	protected byte[] serializedConfig;
+
+	public AbstractTableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
+		serializedConfig = HBaseConfigurationUtil.serializeConfiguration(hConf);
+	}
 
 	/**
 	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
@@ -98,6 +107,10 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	 * @see Configuration
 	 */
 	public abstract void configure(Configuration parameters);
+
+	protected org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+		return HBaseConfigurationUtil.deserializeConfiguration(serializedConfig, HBaseConfiguration.create());
+	}
 
 	@Override
 	public void open(TableInputSplit split) throws IOException {

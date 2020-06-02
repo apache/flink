@@ -40,24 +40,13 @@ import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * By using this class as the super class of a set of tests you will have a HBase testing
@@ -82,8 +71,6 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
 	private static HBaseAdmin admin = null;
 	private static List<TableName> createdTables = new ArrayList<>();
-
-	private static boolean alreadyRegisteredTestCluster = false;
 
 	private static Configuration conf;
 
@@ -157,6 +144,7 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		TEST_UTIL.getConfiguration().setInt("hbase.master.info.port", -1);
 
 		// Make sure the zookeeper quorum value contains the right port number (varies per run).
+		LOG.info("Hbase minicluster client port: " + TEST_UTIL.getZkCluster().getClientPort());
 		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
 
 		conf = initialize(TEST_UTIL.getConfiguration());
@@ -170,75 +158,8 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		return "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
 	}
 
-	private static File hbaseSiteXmlDirectory;
-	private static File hbaseSiteXmlFile;
-
-	/**
-	 * This dynamically generates a hbase-site.xml file that is added to the classpath.
-	 * This way this HBaseMinicluster can be used by an unmodified application.
-	 * The downside is that this cannot be 'unloaded' so you can have only one per JVM.
-	 */
-	public static void registerHBaseMiniClusterInClasspath() {
-		if (alreadyRegisteredTestCluster) {
-			fail("You CANNOT register a second HBase Testing cluster in the classpath of the SAME JVM");
-		}
-		File baseDir = new File(System.getProperty("java.io.tmpdir", "/tmp/"));
-		hbaseSiteXmlDirectory = new File(baseDir, "unittest-hbase-minicluster-" + Math.abs(new Random().nextLong()) + "/");
-
-		if (!hbaseSiteXmlDirectory.mkdirs()) {
-			fail("Unable to create output directory " + hbaseSiteXmlDirectory + " for the HBase minicluster");
-		}
-
-		assertNotNull("The ZooKeeper for the HBase minicluster is missing", TEST_UTIL.getZkCluster());
-
-		createHBaseSiteXml(hbaseSiteXmlDirectory, TEST_UTIL.getConfiguration().get("hbase.zookeeper.quorum"));
-		addDirectoryToClassPath(hbaseSiteXmlDirectory);
-
-		// Avoid starting it again.
-		alreadyRegisteredTestCluster = true;
-	}
-
 	public static Configuration getConf() {
 		return conf;
-	}
-
-	private static void createHBaseSiteXml(File hbaseSiteXmlDirectory, String zookeeperQuorum) {
-		hbaseSiteXmlFile = new File(hbaseSiteXmlDirectory, "hbase-site.xml");
-		// Create the hbase-site.xml file for this run.
-		try {
-			String hbaseSiteXml = "<?xml version=\"1.0\"?>\n" +
-				"<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>\n" +
-				"<configuration>\n" +
-				"  <property>\n" +
-				"    <name>hbase.zookeeper.quorum</name>\n" +
-				"    <value>" + zookeeperQuorum + "</value>\n" +
-				"  </property>\n" +
-				"</configuration>";
-			OutputStream fos = new FileOutputStream(hbaseSiteXmlFile);
-			fos.write(hbaseSiteXml.getBytes(StandardCharsets.UTF_8));
-			fos.close();
-		} catch (IOException e) {
-			fail("Unable to create " + hbaseSiteXmlFile);
-		}
-	}
-
-	private static void addDirectoryToClassPath(File directory) {
-		try {
-			// Get the classloader actually used by HBaseConfiguration
-			ClassLoader classLoader = HBaseConfiguration.create().getClassLoader();
-			if (!(classLoader instanceof URLClassLoader)) {
-				fail("We should get a URLClassLoader");
-			}
-
-			// Make the addURL method accessible
-			Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-			method.setAccessible(true);
-
-			// Add the directory where we put the hbase-site.xml to the classpath
-			method.invoke(classLoader, directory.toURI().toURL());
-		} catch (MalformedURLException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			fail("Unable to add " + directory + " to classpath because of this exception: " + e.getMessage());
-		}
 	}
 
 	@AfterClass
@@ -249,8 +170,6 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		}
 		LOG.info("HBase minicluster: Shutting down");
 		deleteTables();
-		hbaseSiteXmlFile.delete();
-		hbaseSiteXmlDirectory.delete();
 		TEST_UTIL.shutdownMiniCluster();
 		LOG.info("HBase minicluster: Down");
 	}
