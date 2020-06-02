@@ -43,12 +43,12 @@ import java.util.List;
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
 	/** The savepoint metadata, which maintains the current set of existing / newly added operator states. */
-	protected final SavepointMetadata metadata;
+	public final SavepointMetadata metadata;
 
 	/** The state backend to use when writing this savepoint. */
-	protected final StateBackend stateBackend;
+	public final StateBackend stateBackend;
 
-	WritableSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {
+	public WritableSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {
 		Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 		this.metadata = metadata;

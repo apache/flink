@@ -25,25 +25,27 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction
 import org.apache.flink.state.api.{WritableSavepoint, ExistingSavepoint => JExistingSavepoint}
 
+import scala.reflect.ClassTag
+
 class ExistingSavepoint(existingSavepoint: JExistingSavepoint)
   extends WritableSavepoint(existingSavepoint.metadata, existingSavepoint.stateBackend) {
 
-  def readListState[T: TypeInformation](uid: String, name: String): DataSet[T] = {
+  def readListState[T: TypeInformation : ClassTag](uid: String, name: String): DataSet[T] = {
     val dataSet = existingSavepoint.readListState(uid, name, implicitly[TypeInformation[T]])
     asScalaDataSet(dataSet)
   }
 
-  def readListState[T: TypeInformation](uid: String, name: String, serializer: TypeSerializer[T]): DataSet[T] = {
+  def readListState[T: TypeInformation : ClassTag](uid: String, name: String, serializer: TypeSerializer[T]): DataSet[T] = {
     val dataSet = existingSavepoint.readListState(uid, name, implicitly[TypeInformation[T]], serializer)
     asScalaDataSet(dataSet)
   }
 
-  def readUnionState[T: TypeInformation](uid: String, name: String): DataSet[T] = {
+  def readUnionState[T: TypeInformation : ClassTag](uid: String, name: String): DataSet[T] = {
     val dataSet = existingSavepoint.readUnionState(uid, name, implicitly[TypeInformation[T]])
     asScalaDataSet(dataSet)
   }
 
-  def readUnionState[T: TypeInformation](uid: String, name: String, serializer: TypeSerializer[T]): DataSet[T] = {
+  def readUnionState[T: TypeInformation : ClassTag](uid: String, name: String, serializer: TypeSerializer[T]): DataSet[T] = {
     val dataSet = existingSavepoint.readUnionState(uid, name, implicitly[TypeInformation[T]], serializer)
     asScalaDataSet(dataSet)
   }
@@ -59,7 +61,7 @@ class ExistingSavepoint(existingSavepoint: JExistingSavepoint)
     asScalaDataSet(dataSet)
   }
 
-  def readKeyedState[K: TypeInformation, OUT: TypeInformation](uid: String, function: KeyedStateReaderFunction[K, OUT]): DataSet[OUT] = {
+  def readKeyedState[K: TypeInformation, OUT: TypeInformation : ClassTag](uid: String, function: KeyedStateReaderFunction[K, OUT]): DataSet[OUT] = {
     val dataSet = existingSavepoint.readKeyedState(uid, function, implicitly[TypeInformation[K]], implicitly[TypeInformation[OUT]])
     asScalaDataSet(dataSet)
   }

@@ -24,8 +24,9 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.state.api.functions.{BroadcastStateBootstrapFunction, StateBootstrapFunction}
 import org.apache.flink.state.api.{SavepointWriterOperatorFactory, OneInputOperatorTransformation => JOneInputOperatorTransformation}
+import org.apache.flink.api.scala.createTypeInformation
 
-class OneInputOperatorTransformation[T](oneInputOperatorTransformation: JOneInputOperatorTransformation[T]) {
+class OneInputOperatorTransformation[T: TypeInformation](oneInputOperatorTransformation: JOneInputOperatorTransformation[T]) {
   def setMaxParallelism(maxParallelism: Int): OneInputOperatorTransformation[T] = {
     val result = oneInputOperatorTransformation.setMaxParallelism(maxParallelism)
     asScalaOneInputOperatorTransformation(result)
@@ -46,17 +47,17 @@ class OneInputOperatorTransformation[T](oneInputOperatorTransformation: JOneInpu
     asScalaBootstrapTransformation(bootstrapTransformation)
   }
 
-  def keyBy[K](keySelector: KeySelector[T, K]): KeyedOperatorTransformation[K, T] = {
+  def keyBy[K: TypeInformation](keySelector: KeySelector[T, K]): KeyedOperatorTransformation[K, T] = {
     val keyedOperatorTransformation = oneInputOperatorTransformation.keyBy(keySelector, implicitly[TypeInformation[K]])
     asScalaKeyedOperatorTransformation(keyedOperatorTransformation)
   }
 
-  def keyBy(fields: Int*): KeyedOperatorTransformation[Tuple, T] = {
+  def keyBy(fields: List[Int])(implicit ignore: Int): KeyedOperatorTransformation[Tuple, T] = {
     val keyedOperatorTransformation = oneInputOperatorTransformation.keyBy(fields: _*)
     asScalaKeyedOperatorTransformation(keyedOperatorTransformation)
   }
 
-  def keyBy(fields: String*): KeyedOperatorTransformation[Tuple, T] = {
+  def keyBy(fields: List[String])(implicit ignore: String): KeyedOperatorTransformation[Tuple, T] = {
     val keyedOperatorTransformation = oneInputOperatorTransformation.keyBy(fields: _*)
     asScalaKeyedOperatorTransformation(keyedOperatorTransformation)
   }

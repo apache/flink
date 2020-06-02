@@ -111,7 +111,7 @@ public class BootstrapTransformation<T> {
 	/**
 	 * @return The max parallelism for this operator.
 	 */
-	int getMaxParallelism(int globalMaxParallelism) {
+	public int getMaxParallelism(int globalMaxParallelism) {
 		return operatorMaxParallelism.orElse(globalMaxParallelism);
 	}
 
@@ -122,7 +122,7 @@ public class BootstrapTransformation<T> {
 	 * @param savepointPath The path where the savepoint will be written.
 	 * @return The operator subtask states for this bootstrap transformation.
 	 */
-	DataSet<OperatorState> writeOperatorState(
+	public DataSet<OperatorState> writeOperatorState(
 		OperatorID operatorID,
 		StateBackend stateBackend,
 		int globalMaxParallelism,
@@ -135,7 +135,7 @@ public class BootstrapTransformation<T> {
 	}
 
 	@VisibleForTesting
-	MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
+	public MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
 		OperatorID operatorID,
 		StateBackend stateBackend,
 		Path savepointPath,
@@ -174,7 +174,7 @@ public class BootstrapTransformation<T> {
 	}
 
 	@VisibleForTesting
-	StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
+	public StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
 		// Eagerly perform a deep copy of the configuration, otherwise it will result in undefined behavior
 		// when deploying with multiple bootstrap transformations.
 		Configuration deepCopy = new Configuration(dataSet.getExecutionEnvironment().getConfiguration());
