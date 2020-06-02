@@ -24,6 +24,7 @@ import org.apache.flink.table.runtime.functions._
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
+
 import org.apache.calcite.sql.SqlJsonExistsErrorBehavior
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
