@@ -70,7 +70,7 @@ public class CheckpointBarrierUnalignerCancellationTest {
 				new Object[]{true, false, Arrays.asList(checkpoint(20), checkpoint(10)), 1, 0},
 				new Object[]{true, true, Arrays.asList(checkpoint(10), cancel(10)), 1, 0},
 				new Object[]{true, true, Arrays.asList(checkpoint(10), cancel(20)), 1, 0},
-				new Object[]{true, true, Arrays.asList(checkpoint(20), cancel(10)), 1, 0},
+				new Object[]{true, false, Arrays.asList(checkpoint(20), cancel(10)), 1, 0},
 		};
 	}
 
