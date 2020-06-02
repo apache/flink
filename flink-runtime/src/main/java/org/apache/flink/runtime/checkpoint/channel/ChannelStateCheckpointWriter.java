@@ -108,15 +108,15 @@ class ChannelStateCheckpointWriter {
 		runWithChecks(() -> serializer.writeHeader(dataStream));
 	}
 
-	void writeInput(InputChannelInfo info, Buffer... flinkBuffers) throws Exception {
-		write(inputChannelOffsets, info, flinkBuffers, !allInputsReceived);
+	void writeInput(InputChannelInfo info, Buffer buffer) throws Exception {
+		write(inputChannelOffsets, info, buffer, !allInputsReceived);
 	}
 
-	void writeOutput(ResultSubpartitionInfo info, Buffer... flinkBuffers) throws Exception {
-		write(resultSubpartitionOffsets, info, flinkBuffers, !allOutputsReceived);
+	void writeOutput(ResultSubpartitionInfo info, Buffer buffer) throws Exception {
+		write(resultSubpartitionOffsets, info, buffer, !allOutputsReceived);
 	}
 
-	private <K> void write(Map<K, StateContentMetaInfo> offsets, K key, Buffer[] flinkBuffers, boolean precondition) throws Exception {
+	private <K> void write(Map<K, StateContentMetaInfo> offsets, K key, Buffer buffer, boolean precondition) throws Exception {
 		try {
 			if (result.isDone()) {
 				return;
@@ -124,16 +124,14 @@ class ChannelStateCheckpointWriter {
 			runWithChecks(() -> {
 				checkState(precondition);
 				long offset = checkpointStream.getPos();
-				serializer.writeData(dataStream, flinkBuffers);
+				serializer.writeData(dataStream, buffer);
 				long size = checkpointStream.getPos() - offset;
 				offsets
 					.computeIfAbsent(key, unused -> new StateContentMetaInfo())
 					.withDataAdded(offset, size);
 			});
 		} finally {
-			for (Buffer flinkBuffer : flinkBuffers) {
-				flinkBuffer.recycleBuffer();
-			}
+			buffer.recycleBuffer();
 		}
 	}
 
