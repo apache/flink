@@ -136,8 +136,7 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 			config.getBulkFlushBackoffRetries().ifPresent(builder::setBulkFlushBackoffRetries);
 			config.getBulkFlushBackoffDelay().ifPresent(builder::setBulkFlushBackoffDelay);
 
-			config.getPathPrefix()
-				.ifPresent(pathPrefix -> builder.setRestClientFactory(new DefaultRestClientFactory(pathPrefix)));
+			builder.setRestClientFactory(new DefaultRestClientFactory(config.getPathPrefix().orElse(null)));
 
 			final ElasticsearchSink<RowData> sink = builder.build();
 
