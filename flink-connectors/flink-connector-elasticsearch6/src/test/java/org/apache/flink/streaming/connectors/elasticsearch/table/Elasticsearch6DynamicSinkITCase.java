@@ -219,17 +219,21 @@ public class Elasticsearch6DynamicSinkITCase {
 
 		// search API does not return documents that were not indexed, we might need to query
 		// the index a few times
-		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(1));
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
 		SearchHits hits;
 		do {
 			hits = client.prepareSearch(index)
 				.execute()
 				.actionGet()
 				.getHits();
-			if (hits.getTotalHits() == 0) {
-				Thread.sleep(100);
+			if (hits.getTotalHits() < 1) {
+				Thread.sleep(200);
 			}
-		} while (hits.getTotalHits() == 0 && deadline.hasTimeLeft());
+		} while (hits.getTotalHits() < 1 && deadline.hasTimeLeft());
+
+		if (hits.getTotalHits() < 1) {
+			throw new AssertionError("Could not retrieve results from Elasticsearch.");
+		}
 
 		Map<String, Object> result = hits.getAt(0).getSourceAsMap();
 		Map<Object, Object> expectedMap = new HashMap<>();
