@@ -468,15 +468,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			@Nullable JobGraph jobGraph,
 			boolean detached) throws Exception {
 
-		if (UserGroupInformation.isSecurityEnabled()) {
-			// note: UGI::hasKerberosCredentials inaccurately reports false
-			// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
-			// so we check only in ticket cache scenario.
+		final UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
+		if (HadoopUtils.isKerberosSecurityEnabled(currentUser)) {
 			boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
 
-			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(
-				UserGroupInformation.getCurrentUser(), useTicketCache);
-			if (!isCredentialsConfigured) {
+			if (!HadoopUtils.areKerberosCredentialsValid(currentUser, useTicketCache)) {
 				throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
 					"does not have Kerberos credentials or delegation tokens!");
 			}
