@@ -311,7 +311,7 @@ Take Hive version 2.3.4 for example:
 <div data-lang="Java" markdown="1">
 {% highlight java %}
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -329,7 +329,7 @@ tableEnv.useCatalog("myhive");
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+val settings = EnvironmentSettings.newInstance().inBatchMode().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"

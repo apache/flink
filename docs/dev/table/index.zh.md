@@ -38,7 +38,7 @@ Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream 和 DataSet 
 Planner 的作用主要是把关系型的操作翻译成可执行的、经过优化的 Flink 任务。两种 Planner 所使用的优化规则以及运行时类都不一样。
 它们在支持的功能上也有些差异。
 
-<span class="label label-danger">注意</span> 对于生产环境，我们建议使用在1.9之前就已经存在的 Old Planner。
+<span class="label label-danger">注意</span> 对于生产环境，我们建议使用在1.11版本之后已经变成默认的Blink Planner。
 
 所有的 Table API 和 SQL 的代码都在 `flink-table` 或者 `flink-table-blink` Maven artifacts 下。
 
@@ -49,8 +49,8 @@ Planner 的作用主要是把关系型的操作翻译成可执行的、经过优
 * `flink-table-api-scala`: Table 和 SQL API，使用 Scala 语言编写的，给纯 table 程序使用（还在早期开发阶段，不建议使用）
 * `flink-table-api-java-bridge`: Table 和 SQL API 结合 DataStream/DataSet API 一起使用，给 Java 语言使用。
 * `flink-table-api-scala-bridge`: Table 和 SQL API 结合 DataStream/DataSet API 一起使用，给 Scala 语言使用。
-* `flink-table-planner`: table Planner 和运行时。这是在1.9之前 Flink 的唯一的 Planner，现在仍然建议使用这个。
-* `flink-table-planner-blink`: 新的 Blink Planner。
+* `flink-table-planner`: table Planner 和运行时。这是在1.9之前 Flink 的唯一的 Planner，但是从1.11版本开始我们不推荐继续使用。
+* `flink-table-planner-blink`: 新的 Blink Planner，从1.11版本开始成为默认的 Planner。
 * `flink-table-runtime-blink`: 新的 Blink 运行时。
 * `flink-table-uber`: 把上述模块以及 Old Planner 打包到一起，可以在大部分 Table & SQL API 场景下使用。打包到一起的 jar 文件 `flink-table-*.jar` 默认会直接放到 Flink 发行版的 `/lib` 目录下。
 * `flink-table-uber-blink`: 把上述模块以及 Blink Planner 打包到一起，可以在大部分 Table & SQL API 场景下使用。打包到一起的 jar 文件 `flink-table-blink-*.jar` 默认会放到 Flink 发行版的 `/lib` 目录下。
