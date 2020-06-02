@@ -129,7 +129,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 			info,
 			startSeqNum,
 			data == null ? 0 : data.length);
-		enqueue(write(checkpointId, info, checkBufferType(data)), false);
+		enqueue(write(checkpointId, info, data), false);
 	}
 
 	@Override
@@ -194,27 +194,6 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 			}
 			throw wrapped;
 		}
-	}
-
-	private static Buffer[] checkBufferType(Buffer... data) {
-		if (data == null) {
-			return new Buffer[0];
-		}
-		try {
-			for (Buffer buffer : data) {
-				if (!buffer.isBuffer()) {
-					throw new IllegalArgumentException(buildBufferTypeErrorMessage(buffer));
-				}
-			}
-		} catch (Exception e) {
-			for (Buffer buffer : data) {
-				if (buffer.isBuffer()) {
-					buffer.recycleBuffer();
-				}
-			}
-			throw e;
-		}
-		return data;
 	}
 
 	private static String buildBufferTypeErrorMessage(Buffer buffer) {

@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,6 +32,7 @@ import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRe
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.EXECUTING;
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.FAILED;
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.NEW;
+import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,8 +50,20 @@ interface ChannelStateWriteRequest {
 	}
 
 	static ChannelStateWriteRequest write(long checkpointId, InputChannelInfo info, CloseableIterator<Buffer> iterator) {
+		return buildWriteRequest(checkpointId, "writeInput", iterator, (writer, buffer) -> writer.writeInput(info, buffer));
+	}
+
+	static ChannelStateWriteRequest write(long checkpointId, ResultSubpartitionInfo info, Buffer... buffers) {
+		return buildWriteRequest(checkpointId, "writeOutput", ofElements(Buffer::recycleBuffer, buffers), (writer, buffer) -> writer.writeOutput(info, buffer));
+	}
+
+	static ChannelStateWriteRequest buildWriteRequest(
+			long checkpointId,
+			String name,
+			CloseableIterator<Buffer> iterator,
+			BiConsumerWithException<ChannelStateCheckpointWriter, Buffer, Exception> bufferConsumer) {
 		return new CheckpointInProgressRequest(
-			"writeInput",
+			name,
 			checkpointId,
 			writer -> {
 				while (iterator.hasNext()) {
@@ -60,15 +74,11 @@ interface ChannelStateWriteRequest {
 						buffer.recycleBuffer();
 						throw e;
 					}
-					writer.writeInput(info, buffer);
+					bufferConsumer.accept(writer, buffer);
 				}
 			},
 			throwable -> iterator.close(),
 			false);
-	}
-
-	static ChannelStateWriteRequest write(long checkpointId, ResultSubpartitionInfo info, Buffer... flinkBuffers) {
-		return new CheckpointInProgressRequest("writeOutput", checkpointId, writer -> writer.writeOutput(info, flinkBuffers), recycle(flinkBuffers), false);
 	}
 
 	static ChannelStateWriteRequest start(long checkpointId, ChannelStateWriteResult targetResult, CheckpointStorageLocationReference locationReference) {
