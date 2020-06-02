@@ -95,7 +95,7 @@ public class ChannelStateWriteRequestDispatcherTest {
 	}
 
 	private static ChannelStateWriteRequest writeOut() {
-		return write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1));
+		return write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1), new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1), FreeingBufferRecycler.INSTANCE));
 	}
 
 	private static CheckpointStartRequest start() {
