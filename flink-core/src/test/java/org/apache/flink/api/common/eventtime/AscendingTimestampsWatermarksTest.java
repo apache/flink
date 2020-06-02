@@ -30,10 +30,7 @@ public class AscendingTimestampsWatermarksTest {
 	@Test
 	public void testWatermarkBeforeRecords() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final WatermarkGenerator<Object> watermarks =
-				WatermarkStrategy
-						.forMonotonousTimestamps()
-						.createWatermarkGenerator(() -> null);
+		final AscendingTimestampsWatermarks<Object> watermarks = new AscendingTimestampsWatermarks<>();
 
 		watermarks.onPeriodicEmit(output);
 
@@ -43,10 +40,7 @@ public class AscendingTimestampsWatermarksTest {
 	@Test
 	public void testWatermarkAfterEvent() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final WatermarkGenerator<Object> watermarks =
-				WatermarkStrategy
-						.forMonotonousTimestamps()
-						.createWatermarkGenerator(() -> null);
+		final AscendingTimestampsWatermarks<Object> watermarks = new AscendingTimestampsWatermarks<>();
 
 		watermarks.onEvent(new Object(), 1337L, output);
 		watermarks.onPeriodicEmit(output);
@@ -57,10 +51,7 @@ public class AscendingTimestampsWatermarksTest {
 	@Test
 	public void testWatermarkAfterEventWithLowerTimestamp() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final WatermarkGenerator<Object> watermarks =
-				WatermarkStrategy
-						.forMonotonousTimestamps()
-						.createWatermarkGenerator(() -> null);
+		final AscendingTimestampsWatermarks<Object> watermarks = new AscendingTimestampsWatermarks<>();
 
 		watermarks.onEvent(new Object(), 12345L, output);
 		watermarks.onEvent(new Object(), 12340L, output);
