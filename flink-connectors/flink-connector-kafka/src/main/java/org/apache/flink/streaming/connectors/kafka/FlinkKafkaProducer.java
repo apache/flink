@@ -759,10 +759,19 @@ public class FlinkKafkaProducer<IN>
 		}
 
 		if (kafkaSchema != null) {
-			kafkaSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+			kafkaSchema.open(createSerializationInitContext());
+		}
+
+		if (keyedSchema != null && keyedSchema instanceof KeyedSerializationSchemaWrapper) {
+			((KeyedSerializationSchemaWrapper<IN>) keyedSchema).getSerializationSchema()
+				.open(createSerializationInitContext());
 		}
 
 		super.open(configuration);
+	}
+
+	private SerializationSchema.InitializationContext createSerializationInitContext() {
+		return () -> getRuntimeContext().getMetricGroup().addGroup("user");
 	}
 
 	@Override
