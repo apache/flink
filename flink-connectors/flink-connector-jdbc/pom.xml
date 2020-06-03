@@ -123,6 +123,16 @@ under the License.
 			<version>2.4.0</version>
 			<scope>test</scope>
 		</dependency>
+		<!-- ch.vorburger.mariaDB4j:mariaDB4j has a dependency of mariadb-java-client:2.3.0,
+		 but we want to bump mariadb-java-client to 2.5.4 which fix a few notable bugs,
+		 see: https://mariadb.com/kb/en/mariadb-connector-j-release-notes/
+		 and the lower version may cause the test stability issue FLINK-18082.-->
+		<dependency>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+			<version>2.5.4</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
