@@ -21,8 +21,10 @@ package org.apache.flink.runtime.io.network.api.writer;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
+import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
@@ -30,7 +32,9 @@ import org.apache.flink.testutils.serialization.types.Util;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
@@ -108,5 +112,55 @@ public class BroadcastRecordWriterTest extends RecordWriterTest {
 				numberOfCreatedBuffers,
 				numberOfTotalRecords);
 		}
+	}
+
+	/**
+	 * FLINK-17780: Tests that a shared buffer(or memory segment) of a buffer builder is only freed when all consumers
+	 * are closed.
+	 */
+	@Test
+	public void testRandomEmitAndBufferRecycling() throws Exception {
+		int recordSize = 8;
+
+		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(2, 2 * recordSize);
+		final KeepingPartitionWriter partitionWriter = new KeepingPartitionWriter(bufferProvider) {
+			@Override
+			public int getNumberOfSubpartitions() {
+				return 2;
+			}
+		};
+		final BroadcastRecordWriter<SerializationTestType> writer = new BroadcastRecordWriter<>(partitionWriter, 0, "test");
+
+		// force materialization of both buffers for easier availability tests
+		List<Buffer> buffers = Arrays.asList(bufferProvider.requestBuffer(), bufferProvider.requestBuffer());
+		buffers.forEach(Buffer::recycleBuffer);
+		assertEquals(2, bufferProvider.getNumberOfAvailableBuffers());
+
+		// fill first buffer
+		writer.randomEmit(new IntType(1), 0);
+		writer.broadcastEmit(new IntType(2));
+		assertEquals(1, bufferProvider.getNumberOfAvailableBuffers());
+
+		// simulate consumption of first buffer consumer; this should not free buffers
+		assertEquals(1, partitionWriter.getAddedBufferConsumers(0).size());
+		closeConsumer(partitionWriter, 0, 2 * recordSize);
+		assertEquals(1, bufferProvider.getNumberOfAvailableBuffers());
+
+		// use second buffer
+		writer.broadcastEmit(new IntType(3));
+		assertEquals(0, bufferProvider.getNumberOfAvailableBuffers());
+
+		// fully free first buffer
+		assertEquals(2, partitionWriter.getAddedBufferConsumers(1).size());
+		closeConsumer(partitionWriter, 1, recordSize);
+		assertEquals(1, bufferProvider.getNumberOfAvailableBuffers());
+	}
+
+	public void closeConsumer(KeepingPartitionWriter partitionWriter, int subpartitionIndex, int expectedSize) {
+		BufferConsumer bufferConsumer = partitionWriter.getAddedBufferConsumers(subpartitionIndex).get(0);
+		Buffer buffer = bufferConsumer.build();
+		bufferConsumer.close();
+		assertEquals(expectedSize, buffer.getSize());
+		buffer.recycleBuffer();
 	}
 }

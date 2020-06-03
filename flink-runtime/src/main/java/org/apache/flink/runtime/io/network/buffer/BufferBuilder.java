@@ -123,6 +123,10 @@ public class BufferBuilder {
 		return getMaxCapacity() - positionMarker.getCached();
 	}
 
+	public int getCommittedBytes() {
+		return positionMarker.getCached();
+	}
+
 	public int getMaxCapacity() {
 		return memorySegment.size();
 	}
@@ -167,7 +171,7 @@ public class BufferBuilder {
 	 *
 	 * <p>Remember to commit the {@link SettablePositionMarker} to make the changes visible.
 	 */
-	private static class SettablePositionMarker implements PositionMarker {
+	static class SettablePositionMarker implements PositionMarker {
 		private volatile int position = 0;
 
 		/**

@@ -25,6 +25,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Closeable;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -79,6 +80,7 @@ public class BufferConsumer implements Closeable {
 	private BufferConsumer(Buffer buffer, BufferBuilder.PositionMarker currentWriterPosition, int currentReaderPosition) {
 		this.buffer = checkNotNull(buffer);
 		this.writerPosition = new CachedPositionMarker(checkNotNull(currentWriterPosition));
+		checkArgument(currentReaderPosition <= writerPosition.getCached(), "Reader position larger than writer position");
 		this.currentReaderPosition = currentReaderPosition;
 	}
 
@@ -116,6 +118,18 @@ public class BufferConsumer implements Closeable {
 	 */
 	public BufferConsumer copy() {
 		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition);
+	}
+
+	/**
+	 * Returns a retained copy with separate indexes and sets the reader position to the given value. This allows to
+	 * read from the same {@link MemorySegment} twice starting from the supplied position.
+	 *
+	 * @param readerPosition the new reader position. Can be less than the {@link #currentReaderPosition}, but may not
+	 * 						 exceed the current writer's position.
+	 * @return a retained copy of self with separate indexes
+	 */
+	public BufferConsumer copyWithReaderPosition(int readerPosition) {
+		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, readerPosition);
 	}
 
 	public boolean isBuffer() {
