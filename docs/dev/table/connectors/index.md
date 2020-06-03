@@ -89,7 +89,7 @@ Flink natively support various connectors. The following tables list all availab
 How to use connectors
 --------
 
-Flink supports to use SQL CREATE TABLE statement to register a table. One can define the name of the table, the schema of the table, the connector options for connecting to an external system.
+Flink supports to use SQL CREATE TABLE statement to register a table. One can define the table name, the table schema, and the table options for connecting to an external system.
 
 The following code shows a full example of how to connect to Kafka for reading Json records.
 
@@ -115,7 +115,7 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-In this ways the desired connection properties are converted into normalized, string-based key-value pairs. So-called [table factories](sourceSinks.html#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
+In this way the desired connection properties are converted into string-based key-value pairs. So-called [table factories](sourceSinks.html#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
 
 If no factory can be found or multiple factories match for the given properties, an exception will be thrown with additional information about considered factories and supported properties.
 
@@ -144,11 +144,11 @@ CREATE TABLE MyTable (
 
 ### Primary Key
 
-Primary key constraints tell that a column or a set of columns of a table are unique and they do not contain nulls. Primary key uniquely identify a row in a table.
+Primary key constraints tell that a column or a set of columns of a table are unique and they do not contain nulls. Primary key uniquely identifies a row in a table.
 
 The primary key of a source table is a metadata information for optimization. The primary key of a sink table is usually used by the sink implementation for upserting.
 
-SQL standard specifies that a constraint can either be ENFORCED or NOT ENFORCED. This controls if the constraint checks are performed on the incoming/outgoing data. Flink does not own the data therefore the only mode we want to support is the NOT ENFORCED mode. Its up to the user to ensure that the query enforces key integrity.
+SQL standard specifies that a constraint can either be ENFORCED or NOT ENFORCED. This controls if the constraint checks are performed on the incoming/outgoing data. Flink does not own the data the only mode we want to support is the NOT ENFORCED mode. Its up to the user to ensure that the query enforces key integrity.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
