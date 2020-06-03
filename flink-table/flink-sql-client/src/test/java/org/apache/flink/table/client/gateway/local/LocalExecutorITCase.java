@@ -154,8 +154,19 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		executor.addView(sessionId, "AdditionalView1", "SELECT 1");
-		executor.addView(sessionId, "AdditionalView2", "SELECT * FROM AdditionalView1");
+		executor.executeSql(sessionId,
+				"CREATE TEMPORARY VIEW IF NOT EXISTS AdditionalView1 AS SELECT 1");
+		try {
+			executor.executeSql(sessionId,
+					"CREATE TEMPORARY VIEW AdditionalView1 AS SELECT 2");
+			fail("unexpected exception");
+		} catch (Exception var1) {
+			assertThat(var1.getCause().getMessage(),
+					is("Temporary table '`default_catalog`.`default_database`.`AdditionalView1`' already exists"));
+		}
+		executor.executeSql(sessionId, "CREATE VIEW AdditionalView1 AS SELECT 2");
+		executor.executeSql(sessionId,
+				"CREATE TEMPORARY VIEW IF NOT EXISTS AdditionalView2 AS SELECT * FROM AdditionalView1");
 
 		List<String> actualTables = executor.listTables(sessionId);
 		List<String> expectedTables = Arrays.asList(
@@ -168,16 +179,19 @@ public class LocalExecutorITCase extends TestLogger {
 				"TestView2");
 		assertEquals(expectedTables, actualTables);
 
+		// Although AdditionalView2 needs AdditionalView1, dropping AdditionalView1 first does not
+		// throw.
 		try {
-			executor.removeView(sessionId, "AdditionalView1");
-			fail();
-		} catch (SqlExecutionException e) {
-			// AdditionalView2 needs AdditionalView1
+			executor.executeSql(sessionId, "DROP VIEW AdditionalView1");
+			fail("unexpected exception");
+		} catch (Exception var1) {
+			assertThat(var1.getCause().getMessage(),
+					is("Temporary view with identifier '`default_catalog`.`default_database`.`AdditionalView1`' exists. "
+							+ "Drop it first before removing the permanent view."));
 		}
-
-		executor.removeView(sessionId, "AdditionalView2");
-
-		executor.removeView(sessionId, "AdditionalView1");
+		executor.executeSql(sessionId, "DROP TEMPORARY VIEW AdditionalView1");
+		executor.executeSql(sessionId, "DROP VIEW AdditionalView1");
+		executor.executeSql(sessionId, "DROP TEMPORARY VIEW AdditionalView2");
 
 		actualTables = executor.listTables(sessionId);
 		expectedTables = Arrays.asList(
