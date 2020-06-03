@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.JobStatus
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -93,13 +94,32 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
       Row.of(Integer.valueOf(4), "Peter Smith"),
       Row.of(Integer.valueOf(6), "Sally Miller"),
       Row.of(Integer.valueOf(8), "Kelly Williams"))
-    val actual = Lists.newArrayList(tableResult.collect())
+    val it = tableResult.collect()
+    val actual = Lists.newArrayList(it)
+    // actively close the job even it is finished
+    it.close()
     actual.sort(new util.Comparator[Row]() {
       override def compare(o1: Row, o2: Row): Int = {
         o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
       }
     })
     assertEquals(expected, actual)
+  }
+
+  @Test
+  def testCollectWithClose(): Unit = {
+    val query =
+      """
+        |select id, concat(concat(`first`, ' '), `last`) as `full name`
+        |from MyTable where mod(id, 2) = 0
+      """.stripMargin
+    val table = tEnv.sqlQuery(query)
+    val tableResult = table.execute()
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    val it = tableResult.collect()
+    it.close()
+    assertEquals(JobStatus.CANCELED, tableResult.getJobClient.get().getJobStatus().get())
   }
 
   @Test

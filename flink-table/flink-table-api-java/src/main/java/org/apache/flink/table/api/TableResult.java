@@ -21,8 +21,8 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
-import java.util.Iterator;
 import java.util.Optional;
 
 /**
@@ -49,9 +49,33 @@ public interface TableResult {
 	ResultKind getResultKind();
 
 	/**
-	 * Get the result contents as a row iterator.
+	 * Get the result contents as a closeable row iterator.
+	 *
+	 * <p><strong>NOTE:</strong>If this result corresponds to a flink job,
+	 * the job will not be finished unless all result data has been collected.
+	 * So we should actively close the job to avoid resource leak.
+	 *
+	 * <p>There are two approaches to close a job:
+	 * 1. close the job through JobClient, for example:
+	 <pre>{@code
+	 *  TableResult result = tEnv.execute("select ...");
+	 *  CloseableIterator<Row> it = result.collect();
+	 *  it... // collect same data
+	 *  result.getJobClient().get().cancel();
+	 * }</pre>
+	 *
+	 * 2. close the job through CloseableIterator
+	 * (calling CloseableIterator#close method will trigger JobClient#cancel method),
+	 * for example:
+	 <pre>{@code
+	 *  TableResult result = tEnv.execute("select ...");
+	 *  // using try-with-resources statement
+	 *  try (CloseableIterator<Row> it = result.collect()) {
+	 *      it... // collect same data
+	 *  }
+	 * }</pre>
 	 */
-	Iterator<Row> collect();
+	CloseableIterator<Row> collect();
 
 	/**
 	 * Print the result contents as tableau form to client console.
