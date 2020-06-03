@@ -23,7 +23,6 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions._
-import org.apache.flink.table.planner.expressions.{E => PlannerE, UUID => PlannerUUID}
 import org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL}
@@ -313,10 +312,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             ToBase64(args.head)
 
-          case BuiltInFunctionDefinitions.UUID =>
-            assert(args.isEmpty)
-            PlannerUUID()
-
           case LTRIM =>
             assert(args.size == 1)
             LTrim(args.head)
@@ -332,182 +327,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           case REGEXP_REPLACE =>
             assert(args.size == 3)
             RegexpReplace(args.head, args(1), args.last)
-
-          case PLUS =>
-            assert(args.size == 2)
-            Plus(args.head, args.last)
-
-          case MINUS =>
-            assert(args.size == 2)
-            Minus(args.head, args.last)
-
-          case DIVIDE =>
-            assert(args.size == 2)
-            Div(args.head, args.last)
-
-          case TIMES =>
-            assert(args.size == 2)
-            Mul(args.head, args.last)
-
-          case ABS =>
-            assert(args.size == 1)
-            Abs(args.head)
-
-          case CEIL =>
-            assert(args.size == 1 || args.size == 2)
-            if (args.size == 1) {
-              Ceil(args.head)
-            } else {
-              TemporalCeil(args.head, args.last)
-            }
-
-          case EXP =>
-            assert(args.size == 1)
-            Exp(args.head)
-
-          case FLOOR =>
-            assert(args.size == 1 || args.size == 2)
-            if (args.size == 1) {
-              Floor(args.head)
-            } else {
-              TemporalFloor(args.head, args.last)
-            }
-
-          case LOG10 =>
-            assert(args.size == 1)
-            Log10(args.head)
-
-          case LOG2 =>
-            assert(args.size == 1)
-            Log2(args.head)
-
-          case LN =>
-            assert(args.size == 1)
-            Ln(args.head)
-
-          case LOG =>
-            assert(args.size == 1 || args.size == 2)
-            if (args.size == 1) {
-              Log(args.head)
-            } else {
-              Log(args.head, args.last)
-            }
-
-          case POWER =>
-            assert(args.size == 2)
-            Power(args.head, args.last)
-
-          case MOD =>
-            assert(args.size == 2)
-            Mod(args.head, args.last)
-
-          case SQRT =>
-            assert(args.size == 1)
-            Sqrt(args.head)
-
-          case MINUS_PREFIX =>
-            assert(args.size == 1)
-            UnaryMinus(args.head)
-
-          case SIN =>
-            assert(args.size == 1)
-            Sin(args.head)
-
-          case COS =>
-            assert(args.size == 1)
-            Cos(args.head)
-
-          case SINH =>
-            assert(args.size == 1)
-            Sinh(args.head)
-
-          case TAN =>
-            assert(args.size == 1)
-            Tan(args.head)
-
-          case TANH =>
-            assert(args.size == 1)
-            Tanh(args.head)
-
-          case COT =>
-            assert(args.size == 1)
-            Cot(args.head)
-
-          case ASIN =>
-            assert(args.size == 1)
-            Asin(args.head)
-
-          case ACOS =>
-            assert(args.size == 1)
-            Acos(args.head)
-
-          case ATAN =>
-            assert(args.size == 1)
-            Atan(args.head)
-
-          case ATAN2 =>
-            assert(args.size == 2)
-            Atan2(args.head, args.last)
-
-          case COSH =>
-            assert(args.size == 1)
-            Cosh(args.head)
-
-          case DEGREES =>
-            assert(args.size == 1)
-            Degrees(args.head)
-
-          case RADIANS =>
-            assert(args.size == 1)
-            Radians(args.head)
-
-          case SIGN =>
-            assert(args.size == 1)
-            Sign(args.head)
-
-          case ROUND =>
-            assert(args.size == 2)
-            Round(args.head, args.last)
-
-          case PI =>
-            assert(args.isEmpty)
-            Pi()
-
-          case BuiltInFunctionDefinitions.E =>
-            assert(args.isEmpty)
-            PlannerE()
-
-          case RAND =>
-            assert(args.isEmpty || args.size == 1)
-            if (args.isEmpty) {
-              new Rand()
-            } else {
-              Rand(args.head)
-            }
-
-          case RAND_INTEGER =>
-            assert(args.size == 1 || args.size == 2)
-            if (args.size == 1) {
-              new RandInteger(args.head)
-            } else {
-              RandInteger(args.head, args.last)
-            }
-
-          case BIN =>
-            assert(args.size == 1)
-            Bin(args.head)
-
-          case HEX =>
-            assert(args.size == 1)
-            Hex(args.head)
-
-          case TRUNCATE =>
-            assert(args.size == 1 || args.size == 2)
-            if (args.size == 1) {
-              new Truncate(args.head)
-            } else {
-              Truncate(args.head, args.last)
-            }
 
           case EXTRACT =>
             assert(args.size == 2)
@@ -540,10 +359,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
               args(1),
               args(2),
               args.last)
-
-          case DATE_TIME_PLUS =>
-            assert(args.size == 2)
-            Plus(args.head, args.last)
 
           case DATE_FORMAT =>
             assert(args.size == 2)

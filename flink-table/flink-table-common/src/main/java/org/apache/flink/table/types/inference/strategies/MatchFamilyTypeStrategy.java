@@ -22,36 +22,53 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
-import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.util.Preconditions;
 
-import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 
 /**
- * Type strategy that returns a common, least restrictive type of all arguments.
+ * Type strategy that returns the given argument if it is of the same logical type family.
  */
 @Internal
-public final class CommonTypeStrategy implements TypeStrategy {
+public final class MatchFamilyTypeStrategy implements TypeStrategy {
+
+	private final int argumentPos;
+
+	private final LogicalTypeFamily matchingTypeFamily;
+
+	public MatchFamilyTypeStrategy(int argumentPos, LogicalTypeFamily matchingTypeFamily) {
+		this.argumentPos = argumentPos;
+		this.matchingTypeFamily = Preconditions.checkNotNull(matchingTypeFamily);
+	}
 
 	@Override
 	public Optional<DataType> inferType(CallContext callContext) {
-		final List<LogicalType> actualTypes = callContext.getArgumentDataTypes().stream()
-			.map(DataType::getLogicalType)
-			.collect(Collectors.toList());
-		return LogicalTypeMerging.findCommonType(actualTypes)
-			.map(TypeConversions::fromLogicalToDataType);
+		final DataType argumentDataType = callContext.getArgumentDataTypes().get(argumentPos);
+		if (hasFamily(argumentDataType.getLogicalType(), matchingTypeFamily)) {
+			return Optional.of(argumentDataType);
+		}
+		return Optional.empty();
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o instanceof CommonTypeStrategy;
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		MatchFamilyTypeStrategy that = (MatchFamilyTypeStrategy) o;
+		return argumentPos == that.argumentPos &&
+			matchingTypeFamily == that.matchingTypeFamily;
 	}
 
 	@Override
 	public int hashCode() {
-		return CommonTypeStrategy.class.hashCode();
+		return Objects.hash(argumentPos, matchingTypeFamily);
 	}
 }

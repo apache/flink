@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -103,14 +104,10 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFa
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
- * Utilities for finding a common, more general {@link LogicalType} for a given set of types. If such
- * a type exists, all given types can be casted to this more general type.
- *
- * <p>This class aims to be compatible with the SQL standard. It is inspired by Apache Calcite's
- * {@code SqlTypeFactoryImpl#leastRestrictive} method.
+ * Utilities for merging multiple {@link LogicalType}.
  */
 @Internal
-public final class LogicalTypeGeneralization {
+public final class LogicalTypeMerging {
 
 	// mappings for interval generalization
 	private static final Map<YearMonthResolution, List<YearMonthResolution>> YEAR_MONTH_RES_TO_BOUNDARIES = new HashMap<>();
@@ -149,10 +146,13 @@ public final class LogicalTypeGeneralization {
 	}
 
 	/**
-	 * Returns the most common type of a set of types. It determines a type to which all given types
-	 * can be casted.
+	 * Returns the most common, more general {@link LogicalType} for a given set of types. If such
+	 * a type exists, all given types can be casted to this more general type.
 	 *
 	 * <p>For example: {@code [INT, BIGINT, DECIMAL(2, 2)]} would lead to {@code DECIMAL(21, 2)}.
+	 *
+	 * <p>This class aims to be compatible with the SQL standard. It is inspired by Apache Calcite's
+	 * {@code SqlTypeFactoryImpl#leastRestrictive} method.
 	 */
 	public static Optional<LogicalType> findCommonType(List<LogicalType> types) {
 		Preconditions.checkArgument(types.size() > 0, "List of types must not be empty.");
@@ -192,6 +192,71 @@ public final class LogicalTypeGeneralization {
 		}
 		return Optional.empty();
 	}
+
+	/**
+	 * Finds the result type of a decimal division operation.
+	 */
+	public static DecimalType findDivisionDecimalType(int precision1, int scale1, int precision2, int scale2) {
+		// adopted from https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
+		int scale = Math.max(6, scale1 + precision2 + 1);
+		int precision = precision1 - scale1 + scale2 + scale;
+		if (precision > DecimalType.MAX_PRECISION) {
+			scale = Math.max(6, DecimalType.MAX_PRECISION - (precision - scale));
+			precision = DecimalType.MAX_PRECISION;
+		}
+		return new DecimalType(false, precision, scale);
+	}
+
+	/**
+	 * Finds the result type of a decimal modulo operation.
+	 */
+	public static DecimalType findModuloDecimalType(int precision1, int scale1, int precision2, int scale2) {
+		// adopted from Calcite
+		final int scale = Math.max(scale1, scale2);
+		int precision = Math.min(precision1 - scale1, precision2 - scale2) + Math.max(scale1, scale2);
+		precision = Math.min(precision, DecimalType.MAX_PRECISION);
+		return new DecimalType(false, precision, scale);
+	}
+
+	/**
+	 * Finds the result type of a decimal multiplication operation.
+	 */
+	public static DecimalType findMultiplicationDecimalType(int precision1, int scale1, int precision2, int scale2) {
+		// adopted from Calcite
+		int scale = scale1 + scale2;
+		scale = Math.min(scale, DecimalType.MAX_PRECISION);
+		int precision = precision1 + precision2;
+		precision = Math.min(precision, DecimalType.MAX_PRECISION);
+		return new DecimalType(false, precision, scale);
+	}
+
+	/**
+	 * Finds the result type of a decimal addition operation.
+	 */
+	public static DecimalType findAdditionDecimalType(int precision1, int scale1, int precision2, int scale2) {
+		// adopted from Calcite
+		final int scale = Math.max(scale1, scale2);
+		int precision = Math.max(precision1 - scale1, precision2 - scale2) + scale + 1;
+		precision = Math.min(precision, DecimalType.MAX_PRECISION);
+		return new DecimalType(false, precision, scale);
+	}
+
+	/**
+	 * Finds the result type of a decimal rounding operation.
+	 */
+	public static DecimalType findRoundDecimalType(int precision, int scale, int round) {
+		if (round >= scale) {
+			return new DecimalType(false, precision, scale);
+		}
+		if (round < 0) {
+			return new DecimalType(false, Math.min(DecimalType.MAX_PRECISION, 1 + precision - scale), 0);
+		}
+		// 0 <= r < s
+		// NOTE: rounding may increase the digits by 1, therefore we need +1 on precisions.
+		return new DecimalType(false, 1 + precision - scale + round, round);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	private static @Nullable LogicalType findCommonCastableType(List<LogicalType> normalizedTypes) {
 		LogicalType resultType = normalizedTypes.get(0);
@@ -315,6 +380,14 @@ public final class LogicalTypeGeneralization {
 						// enforce an approximate result
 						resultType = type;
 					}
+				} else {
+					return null;
+				}
+			}
+			// for DATE
+			else if (hasRoot(type, DATE)) {
+				if (hasRoot(resultType, DATE)) {
+					resultType = new DateType(); // for enabling findCommonTypePattern
 				} else {
 					return null;
 				}
@@ -667,7 +740,7 @@ public final class LogicalTypeGeneralization {
 		}
 	}
 
-	private LogicalTypeGeneralization() {
+	private LogicalTypeMerging() {
 		// no instantiation
 	}
 }

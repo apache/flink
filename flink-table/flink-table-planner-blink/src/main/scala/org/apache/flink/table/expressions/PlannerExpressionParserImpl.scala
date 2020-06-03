@@ -309,13 +309,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val suffixFloor: PackratParser[Expression] =
     composite ~ "." ~ FLOOR ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, operand, unit)
     }
 
   lazy val suffixCeil: PackratParser[Expression] =
     composite ~ "." ~ CEIL ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.CEIL, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.CEIL, operand, unit)
     }
 
   // required because op.log(base) changes order of a parameters
@@ -500,13 +500,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val prefixFloor: PackratParser[Expression] =
     FLOOR ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, operand, unit)
     }
 
   lazy val prefixCeil: PackratParser[Expression] =
     CEIL ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.CEIL, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.CEIL, operand, unit)
     }
 
   lazy val prefixGet: PackratParser[Expression] =

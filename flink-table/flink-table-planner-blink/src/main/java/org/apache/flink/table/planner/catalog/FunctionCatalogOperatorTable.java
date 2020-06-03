@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
@@ -197,6 +198,12 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 	private boolean verifyFunctionKind(
 			@Nullable SqlFunctionCategory category,
 			FunctionDefinition definition) {
+
+		// for now, we don't allow other functions than user-defined ones
+		// all built-in functions need to be mapped to Calcite's SqlFunctions
+		if (!(definition instanceof UserDefinedFunction)) {
+			return false;
+		}
 
 		// it would be nice to give a more meaningful exception when a scalar function is used instead
 		// of a table function and vice versa, but we can do that only once FLIP-51 is implemented
