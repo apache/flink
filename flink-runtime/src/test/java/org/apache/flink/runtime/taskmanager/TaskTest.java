@@ -50,6 +50,7 @@ import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -60,6 +61,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.MDC;
 
 import javax.annotation.Nonnull;
 
@@ -69,10 +71,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -968,6 +967,35 @@ public class TaskTest extends TestLogger {
 		assertFalse(task.isBackPressured());
 	}
 
+	@Test
+	public void testJobNameIsConfiguredOnTaskInstanceAndUsedForMDCWhileRunningTheJob() throws Exception {
+		String myTestJob = "MyTestJob";
+		final Task task = createTaskBuilder()
+			.setInvokable(InvokableWithJobName.class)
+			.setJobName(myTestJob)
+			.setTaskManagerActions(new NoOpTaskManagerActions())
+			.build();
+
+		assertEquals(myTestJob, task.getJobName());
+
+		// run the task asynchronous
+		task.startTaskThread();
+
+		// wait till the task is in invoked
+		awaitLatch.await();
+
+		assertNull("Expected null jobName on executing thread", MDC.get("jobName"));
+
+		InvokableWithJobName invokable = (InvokableWithJobName) task.getInvokable();
+		assertNotNull(invokable);
+
+		assertEquals(myTestJob, invokable.jobName);
+
+		triggerLatch.trigger();
+
+		task.getExecutingThread().join();
+	}
+
 	// ------------------------------------------------------------------------
 	//  customized TaskManagerActions
 	// ------------------------------------------------------------------------
@@ -1236,6 +1264,25 @@ public class TaskTest extends TestLogger {
 
 		@Override
 		public void cancel() {
+		}
+	}
+
+	private static final class InvokableWithJobName extends AbstractInvokable {
+		ExecutorService executorService = java.util.concurrent.Executors.newSingleThreadExecutor(new ExecutorThreadFactory("child-invokable"));
+
+		volatile String jobName;
+		public InvokableWithJobName(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			executorService.submit(() -> {
+				jobName = MDC.get("jobName");
+				awaitLatch.trigger();
+			});
+
+			triggerLatch.await();
 		}
 	}
 

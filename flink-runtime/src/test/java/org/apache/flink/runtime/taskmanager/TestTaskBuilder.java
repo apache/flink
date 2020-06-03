@@ -83,6 +83,7 @@ public final class TestTaskBuilder {
 	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
 	private Collection<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
 	private Collection<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
+	private String jobName = "Test Job";
 	private JobID jobId = new JobID();
 	private AllocationID allocationID = new AllocationID();
 	private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
@@ -151,6 +152,11 @@ public final class TestTaskBuilder {
 		return this;
 	}
 
+	public TestTaskBuilder setJobName(String jobName) {
+		this.jobName = jobName;
+		return this;
+	}
+
 	public TestTaskBuilder setJobId(JobID jobId) {
 		this.jobId = jobId;
 		return this;
@@ -173,7 +179,7 @@ public final class TestTaskBuilder {
 
 		final JobInformation jobInformation = new JobInformation(
 			jobId,
-			"Test Job",
+			jobName,
 			serializedExecutionConfig,
 			new Configuration(),
 			requiredJarFileBlobKeys,

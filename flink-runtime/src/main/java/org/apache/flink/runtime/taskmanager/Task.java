@@ -82,6 +82,7 @@ import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -143,6 +144,9 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	/** The job that the task belongs to. */
 	private final JobID jobId;
+
+	/** The job name which was used while submitting. */
+	private final String jobName;
 
 	/** The vertex in the JobGraph whose code the task executes. */
 	private final JobVertexID vertexId;
@@ -319,6 +323,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				String.valueOf(slotAllocationId));
 
 		this.jobId = jobInformation.getJobId();
+		this.jobName = jobInformation.getJobName();
 		this.vertexId = taskInformation.getJobVertexId();
 		this.executionId  = Preconditions.checkNotNull(executionAttemptID);
 		this.allocationId = Preconditions.checkNotNull(slotAllocationId);
@@ -407,6 +412,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	@Override
 	public JobID getJobID() {
 		return jobId;
+	}
+
+	public String getJobName() {
+		return jobName;
 	}
 
 	public JobVertexID getJobVertexId() {
@@ -530,8 +539,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	@Override
 	public void run() {
 		try {
+			MDC.put("jobName", this.jobName);
 			doRun();
 		} finally {
+			MDC.remove("jobName");
 			terminationFuture.complete(executionState);
 		}
 	}

@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.util;
 
+import org.slf4j.MDC;
+
 import javax.annotation.Nullable;
 
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -106,6 +109,8 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
 	@Override
 	public Thread newThread(Runnable runnable) {
+		runnable = new RunnableMDCWrapper(runnable);
+
 		Thread t = new Thread(group, runnable, namePrefix + threadNumber.getAndIncrement());
 		t.setDaemon(true);
 
@@ -143,6 +148,34 @@ public class ExecutorThreadFactory implements ThreadFactory {
 		
 		public ExecutorThreadFactory build() {
 			return new ExecutorThreadFactory(poolName, priority, exceptionHandler);
+		}
+	}
+}
+
+class RunnableMDCWrapper implements Runnable {
+	private final Map<String, String> mdcContext = MDC.getCopyOfContextMap();
+	private final Runnable delegate;
+
+	RunnableMDCWrapper(Runnable delegate) {
+		this.delegate = delegate;
+	}
+
+	@Override
+	public void run() {
+		Map<String, String> previous = MDC.getCopyOfContextMap();
+		if (mdcContext == null) {
+			MDC.clear();
+		} else {
+			MDC.setContextMap(mdcContext);
+		}
+		try {
+			delegate.run();
+		} finally {
+			if (previous == null) {
+				MDC.clear();
+			} else {
+				MDC.setContextMap(previous);
+			}
 		}
 	}
 }
