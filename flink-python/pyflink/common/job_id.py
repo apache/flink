@@ -26,6 +26,8 @@ class JobID(object):
     Jobs act simultaneously as sessions, because jobs can be created and submitted incrementally
     in different parts. Newer fragments of a graph can be attached to existing graphs, thereby
     extending the current data flow graphs.
+
+    .. versionadded:: 1.11.0
     """
 
     def __init__(self, j_job_id):

@@ -1182,6 +1182,8 @@ class RowType(DataType):
     def field_types(self):
         """
         Returns all field types in a list.
+
+        .. versionadded:: 1.11.0
         """
         return list([f.data_type for f in self.fields])
 

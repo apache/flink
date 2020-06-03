@@ -27,6 +27,8 @@ class CompletableFuture(Future):
 
     When two or more threads attempt to set_result, set_exception, or cancel a CompletableFuture,
     only one of them succeeds.
+
+    .. versionadded:: 1.11.0
     """
 
     def __init__(self, j_completable_future, py_class=None):

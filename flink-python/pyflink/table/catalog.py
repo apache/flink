@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
 
 from py4j.java_gateway import java_import
 
@@ -626,6 +627,8 @@ class CatalogBaseTable(object):
         configuration for accessing the data in the external system.
 
         :return: Property map of the table/view.
+
+        .. versionadded:: 1.11.0
         """
         return dict(self._j_catalog_base_table.getOptions())
 
@@ -633,10 +636,13 @@ class CatalogBaseTable(object):
         """
         Get the properties of the table.
 
-        This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options` instead.
-
         :return: Property map of the table/view.
+
+        .. note:: This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options`
+                  instead.
         """
+        warnings.warn("Deprecated in 1.11. Use CatalogBaseTable#get_options instead.",
+                      DeprecationWarning)
         return dict(self._j_catalog_base_table.getProperties())
 
     def get_schema(self):

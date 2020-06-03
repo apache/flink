@@ -27,6 +27,8 @@ class MLEnvironment(object):
     will be associated with a unique ID. The operations associated with the same
     MLEnvironment ID will share the same Flink job context. Both MLEnvironment
     ID and MLEnvironment can only be retrieved from MLEnvironmentFactory.
+
+    .. versionadded:: 1.11.0
     """
 
     def __init__(self, exe_env=None, stream_exe_env=None, batch_tab_env=None, stream_tab_env=None):
@@ -41,6 +43,8 @@ class MLEnvironment(object):
         it initial the ExecutionEnvironment with default Configuration.
 
         :return: the batch ExecutionEnvironment.
+
+        .. versionadded:: 1.11.0
         """
         if self._exe_env is None:
             self._exe_env = ExecutionEnvironment.get_execution_environment()
@@ -52,6 +56,8 @@ class MLEnvironment(object):
         set, it initial the StreamExecutionEnvironment with default Configuration.
 
         :return: the StreamExecutionEnvironment.
+
+        .. versionadded:: 1.11.0
         """
         if self._stream_exe_env is None:
             self._stream_exe_env = StreamExecutionEnvironment.get_execution_environment()
@@ -63,6 +69,8 @@ class MLEnvironment(object):
         it initial the BatchTableEnvironment with default Configuration.
 
         :return: the BatchTableEnvironment.
+
+        .. versionadded:: 1.11.0
         """
         if self._batch_tab_env is None:
             self._batch_tab_env = BatchTableEnvironment.create(
@@ -75,6 +83,8 @@ class MLEnvironment(object):
         it initial the StreamTableEnvironment with default Configuration.
 
         :return: the StreamTableEnvironment.
+
+        .. versionadded:: 1.11.0
         """
         if self._stream_tab_env is None:
             self._stream_tab_env = StreamTableEnvironment.create(

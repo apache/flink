@@ -64,6 +64,8 @@ class JobStatus(object):
     :data:`RECONCILING`:
 
     The job is currently reconciling and waits for task execution report to recover state.
+
+    .. versionadded:: 1.11.0
     """
 
     CREATED = 0
@@ -91,6 +93,8 @@ class JobStatus(object):
         dropped from the high-availability services.
 
         :return: ``True`` if this job status is globally terminal, ``False`` otherwise.
+
+        .. versionadded:: 1.11.0
         """
         return self._j_job_status.isGloballyTerminalState()
 
@@ -104,6 +108,8 @@ class JobStatus(object):
         which is typically entered when the executing JobManager looses its leader status.
 
         :return: ``True`` if this job status is terminal, ``False`` otherwise.
+
+        .. versionadded:: 1.11.0
         """
         return self._j_job_status.isTerminalState()
 

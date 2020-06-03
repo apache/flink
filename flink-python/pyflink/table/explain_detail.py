@@ -22,6 +22,8 @@ __all__ = ['ExplainDetail']
 class ExplainDetail(object):
     """
     ExplainDetail defines the types of details for explain result.
+
+    .. versionadded:: 1.11.0
     """
 
     # The cost information on physical rel node estimated by optimizer.
