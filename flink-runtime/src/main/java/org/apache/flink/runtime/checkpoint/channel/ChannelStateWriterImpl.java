@@ -98,7 +98,6 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public void start(long checkpointId, CheckpointOptions checkpointOptions) {
-		results.keySet().forEach(oldCheckpointId -> abort(oldCheckpointId, new Exception("Starting new checkpoint " + checkpointId)));
 		LOG.debug("{} starting checkpoint {} ({})", taskName, checkpointId, checkpointOptions);
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		ChannelStateWriteResult put = results.computeIfAbsent(checkpointId, id -> {
