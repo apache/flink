@@ -34,8 +34,8 @@ import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.CloseableIterator;
 
 import java.util.UUID;
 

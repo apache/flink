@@ -57,17 +57,17 @@ public interface TableResult {
 	 *
 	 * <p>There are two approaches to close a job:
 	 * 1. close the job through JobClient, for example:
-	 <pre>{@code
+	 * <pre>{@code
 	 *  TableResult result = tEnv.execute("select ...");
 	 *  CloseableIterator<Row> it = result.collect();
 	 *  it... // collect same data
 	 *  result.getJobClient().get().cancel();
 	 * }</pre>
 	 *
-	 * 2. close the job through CloseableIterator
+	 * <p>2. close the job through CloseableIterator
 	 * (calling CloseableIterator#close method will trigger JobClient#cancel method),
 	 * for example:
-	 <pre>{@code
+	 * <pre>{@code
 	 *  TableResult result = tEnv.execute("select ...");
 	 *  // using try-with-resources statement
 	 *  try (CloseableIterator<Row> it = result.collect()) {
