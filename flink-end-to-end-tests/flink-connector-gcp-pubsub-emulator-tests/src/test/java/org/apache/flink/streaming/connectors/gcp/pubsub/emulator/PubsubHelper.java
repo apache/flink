@@ -153,7 +153,10 @@ public class PubsubHelper {
 		}
 	}
 
+	//
 	// Mostly copied from the example on https://cloud.google.com/pubsub/docs/pull
+	// Licensed under the Apache 2.0 License to "Google LLC" from https://github.com/googleapis/google-cloud-java/blob/master/google-cloud-examples/src/main/java/com/google/cloud/examples/pubsub/snippets/SubscriberSnippets.java.
+	//
 	public List<ReceivedMessage> pullMessages(String projectId, String subscriptionId, int maxNumberOfMessages) throws Exception {
 		SubscriberStubSettings subscriberStubSettings =
 			SubscriberStubSettings.newBuilder()
