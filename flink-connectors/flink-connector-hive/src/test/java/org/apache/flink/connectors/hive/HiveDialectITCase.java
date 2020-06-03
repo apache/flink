@@ -71,7 +71,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test Hive syntax when Hive dialect is used.
  */
-public class HiveDialectTest {
+public class HiveDialectITCase {
 
 	private TableEnvironment tableEnv;
 	private HiveCatalog hiveCatalog;
