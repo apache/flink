@@ -56,10 +56,11 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 	public static final String IDENTIFIER = "datagen";
+	public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
 
 	public static final ConfigOption<Long> ROWS_PER_SECOND = key("rows-per-second")
 			.longType()
-			.defaultValue(Long.MAX_VALUE)
+			.defaultValue(ROWS_PER_SECOND_DEFAULT_VALUE)
 			.withDescription("Rows per second to control the emit rate.");
 
 	public static final String FIELDS = "fields";
