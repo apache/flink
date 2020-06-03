@@ -72,14 +72,14 @@ public class PrintUtils {
 	/**
 	 * Displays the result in a tableau form.
 	 *
-	 * <p>For example: (printChangeMode is true)
+	 * <p>For example: (printRowKind is true)
 	 * +-------------+-------------+---------+-------------+
-	 * | change_mode | boolean_col | int_col | varchar_col |
+	 * | row_kind | boolean_col | int_col | varchar_col |
 	 * +-------------+-------------+---------+-------------+
-	 * |          +I |        true |       1 |         abc |
-	 * |          -U |       false |       2 |         def |
-	 * |          +U |       false |       3 |         def |
-	 * |          -D |      (NULL) |  (NULL) |      (NULL) |
+	 * |       +I |        true |       1 |         abc |
+	 * |       -U |       false |       2 |         def |
+	 * |       +U |       false |       3 |         def |
+	 * |       -D |      (NULL) |  (NULL) |      (NULL) |
 	 * +-------------+-------------+---------+-------------+
 	 * 4 rows in result
 	 */
@@ -89,14 +89,14 @@ public class PrintUtils {
 			PrintWriter printWriter,
 			int maxColumnWidth,
 			String nullColumn,
-			boolean printChangeMode) {
+			boolean printRowKind) {
 		List<String[]> rows = new ArrayList<>();
 
 		// fill field names first
 		final List<TableColumn> columns;
-		if (printChangeMode) {
+		if (printRowKind) {
 			columns = Stream.concat(
-					Stream.of(TableColumn.of("change_mode", DataTypes.STRING())),
+					Stream.of(TableColumn.of("row_kind", DataTypes.STRING())),
 					tableSchema.getTableColumns().stream()
 			).collect(Collectors.toList());
 		} else {
@@ -105,7 +105,7 @@ public class PrintUtils {
 
 		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
 		while (it.hasNext()) {
-			rows.add(rowToString(it.next(), nullColumn, printChangeMode));
+			rows.add(rowToString(it.next(), nullColumn, printRowKind));
 		}
 
 		int[] colWidths = columnWidthsByContent(columns, rows, maxColumnWidth);
@@ -137,10 +137,10 @@ public class PrintUtils {
 		return rowToString(row, NULL_COLUMN, false);
 	}
 
-	public static String[] rowToString(Row row, String nullColumn, boolean printChangeMode) {
-		final int len = printChangeMode ? row.getArity() + 1 : row.getArity();
+	public static String[] rowToString(Row row, String nullColumn, boolean printRowKind) {
+		final int len = printRowKind ? row.getArity() + 1 : row.getArity();
 		final List<String> fields = new ArrayList<>(len);
-		if (printChangeMode) {
+		if (printRowKind) {
 			fields.add(row.getKind().shortString());
 		}
 		for (int i = 0; i < row.getArity(); i++) {
