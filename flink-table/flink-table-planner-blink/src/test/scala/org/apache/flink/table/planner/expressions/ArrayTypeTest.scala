@@ -380,7 +380,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
   def testArrayIndexStaticCheckForTable(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
-    testTableApi( 'f2.at(0), "1")
+    testTableApi('f2.at(0), "1")
   }
 
   @Test
