@@ -44,7 +44,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiFunctionWithException;
 
 import org.slf4j.Logger;
@@ -57,10 +56,12 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -183,6 +184,16 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	@Override
 	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException {
 		LOG.debug("Aborting checkpoint via cancel-barrier {} for task {}", checkpointId, taskName);
+		lastCheckpointId = Math.max(lastCheckpointId, checkpointId);
+		Iterator<Long> iterator = abortedCheckpointIds.iterator();
+		while (iterator.hasNext()) {
+			long next = iterator.next();
+			if (next < lastCheckpointId) {
+				iterator.remove();
+			} else {
+				break;
+			}
+		}
 
 		checkpointStorage.clearCacheFor(checkpointId);
 
@@ -221,9 +232,14 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		// We generally try to emit the checkpoint barrier as soon as possible to not affect downstream
 		// checkpoint alignments
 
+		if (lastCheckpointId >= metadata.getCheckpointId()) {
+			LOG.info("Out of order checkpoint barrier (aborted previously?): {} >= {}", lastCheckpointId, metadata.getCheckpointId());
+			channelStateWriter.abort(metadata.getCheckpointId(), new CancellationException(), true);
+			checkAndClearAbortedStatus(metadata.getCheckpointId());
+			return;
+		}
+
 		// Step (0): Record the last triggered checkpointId.
-		Preconditions.checkArgument(lastCheckpointId < metadata.getCheckpointId(), String.format(
-			"Unexpected current checkpoint-id: %s vs last checkpoint-id: %s", metadata.getCheckpointId(), lastCheckpointId));
 		lastCheckpointId = metadata.getCheckpointId();
 		if (checkAndClearAbortedStatus(metadata.getCheckpointId())) {
 			LOG.info("Checkpoint {} has been notified as aborted, would not trigger any checkpoint.", metadata.getCheckpointId());
