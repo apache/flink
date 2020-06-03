@@ -32,10 +32,8 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -287,17 +285,14 @@ public class SqlCommandParserTest {
 	}
 
 	private void runTestItem(TestItem item) {
-		Tuple2<Boolean, Optional<SqlCommandCall>> checkFlagAndActualCall = parseSqlAndCheckException(item);
+		Tuple2<Boolean, SqlCommandCall> checkFlagAndActualCall = parseSqlAndCheckException(item);
 		if (!checkFlagAndActualCall.f0) {
 			return;
 		}
-		Optional<SqlCommandCall> actualCall = checkFlagAndActualCall.f1;
-		if (!actualCall.isPresent()) {
-			fail("test statement: " + item.sql);
-		}
+		SqlCommandCall actualCall = checkFlagAndActualCall.f1;
 		assertNotNull(item.expectedCmd);
 		assertEquals("test statement: " + item.sql,
-				new SqlCommandCall(item.expectedCmd, item.expectedOperands), actualCall.get());
+				new SqlCommandCall(item.expectedCmd, item.expectedOperands), actualCall);
 
 		String stmtWithComment = "-- comments \n " + item.sql;
 		try {
@@ -308,18 +303,11 @@ public class SqlCommandParserTest {
 			}
 			return;
 		}
-		if (item.cannotParseComment) {
-			assertFalse(actualCall.isPresent());
-		} else {
-			if (!actualCall.isPresent()) {
-				fail("test statement: " + item.sql);
-			}
-			assertEquals(item.expectedCmd, actualCall.get().command);
-		}
+		assertEquals(item.expectedCmd, actualCall.command);
 	}
 
-	private Tuple2<Boolean, Optional<SqlCommandCall>> parseSqlAndCheckException(TestItem item) {
-		Optional<SqlCommandCall> call = Optional.empty();
+	private Tuple2<Boolean, SqlCommandCall> parseSqlAndCheckException(TestItem item) {
+		SqlCommandCall call = null;
 		Throwable actualException = null;
 		try {
 			call = SqlCommandParser.parse(parser, item.sql);
@@ -350,7 +338,7 @@ public class SqlCommandParserTest {
 						"test statement: " + item.sql);
 			}
 		}
-		return Tuple2.of(false, Optional.empty());
+		return Tuple2.of(false, null);
 	}
 
 	private static class TestItem {
