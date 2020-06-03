@@ -75,8 +75,6 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.NOT_BETWEEN, CustomizedConvertRule::convertNotBetween);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.REPLACE, CustomizedConvertRule::convertReplace);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.PLUS, CustomizedConvertRule::convertPlus);
-		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.CEIL, CustomizedConvertRule::convertCeil);
-		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.FLOOR, CustomizedConvertRule::convertFloor);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS, CustomizedConvertRule::convertTemporalOverlaps);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.TIMESTAMP_DIFF, CustomizedConvertRule::convertTimestampDiff);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.ARRAY, CustomizedConvertRule::convertArray);
@@ -97,11 +95,12 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 
 	private static RexNode convertCast(CallExpression call, ConvertContext context) {
 		checkArgumentNumber(call, 2);
-		RexNode child = context.toRexNode(call.getChildren().get(0));
-		TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
+		final RexNode child = context.toRexNode(call.getChildren().get(0));
+		final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
+		final RelDataType targetRelDataType = context.getTypeFactory()
+			.createFieldTypeFromLogicalType(targetType.getOutputDataType().getLogicalType());
 		return context.getRelBuilder().getRexBuilder().makeAbstractCast(
-			context.getTypeFactory().createFieldTypeFromLogicalType(
-				type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+			targetRelDataType,
 			child);
 	}
 
@@ -138,28 +137,6 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 		return context.getRelBuilder().and(
 			context.getRelBuilder().call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, expr, lowerBound),
 			context.getRelBuilder().call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, expr, upperBound));
-	}
-
-	private static RexNode convertCeil(CallExpression call, ConvertContext context) {
-		checkArgumentNumber(call, 1, 2);
-		List<Expression> children = call.getChildren();
-		List<RexNode> childrenRexNode = toRexNodes(context, children);
-		if (children.size() == 1) {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.CEIL, childrenRexNode);
-		} else {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.CEIL, childrenRexNode.get(1), childrenRexNode.get(0));
-		}
-	}
-
-	private static RexNode convertFloor(CallExpression call, ConvertContext context) {
-		checkArgumentNumber(call, 1, 2);
-		List<Expression> children = call.getChildren();
-		List<RexNode> childrenRexNode = toRexNodes(context, children);
-		if (children.size() == 1) {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.FLOOR, childrenRexNode);
-		} else {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.FLOOR, childrenRexNode.get(1), childrenRexNode.get(0));
-		}
 	}
 
 	private static RexNode convertArray(CallExpression call, ConvertContext context) {

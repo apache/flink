@@ -999,7 +999,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * <p>e.g. lit("12:44:31").toDate().floor(MINUTE) leads to 12:44:00
 	 */
 	public OutType floor(TimeIntervalUnit timeIntervalUnit) {
-		return toApiSpecificExpression(unresolvedCall(FLOOR, valueLiteral(timeIntervalUnit), toExpr()));
+		return toApiSpecificExpression(unresolvedCall(FLOOR, toExpr(), valueLiteral(timeIntervalUnit)));
 	}
 
 	/**
@@ -1010,8 +1010,8 @@ public abstract class BaseExpressions<InType, OutType> {
 	public OutType ceil(TimeIntervalUnit timeIntervalUnit) {
 		return toApiSpecificExpression(unresolvedCall(
 			CEIL,
-			valueLiteral(timeIntervalUnit),
-			toExpr()));
+			toExpr(),
+			valueLiteral(timeIntervalUnit)));
 	}
 
 	// Advanced type helper functions

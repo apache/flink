@@ -233,7 +233,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testTableApi(12.toExpr <= 'f8, "12 <= f8", "false")
 
     // string arithmetic
-    testTableApi(42.toExpr + 'f10 + 'f9, "42 + f10 + f9", "42String10")
     testTableApi('f10 + 'f9, "f10 + f9", "String10")
   }
 

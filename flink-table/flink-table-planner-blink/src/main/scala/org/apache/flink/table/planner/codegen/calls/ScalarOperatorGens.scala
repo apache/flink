@@ -38,9 +38,15 @@ import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
-
 import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.charset.StandardCharsets
+import java.util
+import java.util.Arrays.asList
+
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 
 import scala.collection.JavaConversions._
 
@@ -299,9 +305,8 @@ object ScalarOperatorGens {
     if (haystack.forall(_.literal)) {
 
       // determine common numeric type
-      val widerType = TypeCoercion.widerTypeOf(
-        needle.resultType,
-        haystack.head.resultType)
+      val widerType = toScala(findCommonType(asList(needle.resultType, haystack.head.resultType)))
+        .orElse(throw new CodeGenException(s"Unable to find common type of $needle and $haystack."))
 
       // we need to normalize the values for the hash set
       val castNumeric = widerType match {
