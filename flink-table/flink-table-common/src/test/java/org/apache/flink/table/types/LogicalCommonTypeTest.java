@@ -42,7 +42,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,10 +58,10 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link LogicalTypeGeneralization}.
+ * Tests for {@link LogicalTypeMerging#findCommonType(List)}.
  */
 @RunWith(Parameterized.class)
-public class LogicalTypeGeneralizationTest {
+public class LogicalCommonTypeTest {
 
 	@Parameters(name = "{index}: [Types: {0}, To: {1}]")
 	public static List<Object[]> testData() {
@@ -276,6 +276,12 @@ public class LogicalTypeGeneralizationTest {
 					new TimeType()
 				},
 
+				// DATETIME + INTERVAL
+				{
+					Arrays.asList(new DateType(), new DayTimeIntervalType(DayTimeResolution.DAY)),
+					new DateType()
+				},
+
 				// EXACT_NUMERIC + DATE
 				{
 					Arrays.asList(new IntType(), new DateType()),
@@ -322,8 +328,7 @@ public class LogicalTypeGeneralizationTest {
 						new YearMonthIntervalType(YearMonthResolution.MONTH),
 						new YearMonthIntervalType(YearMonthResolution.YEAR)),
 					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH)
-				},
-
+				}
 			}
 		);
 	}
@@ -337,7 +342,7 @@ public class LogicalTypeGeneralizationTest {
 	@Test
 	public void testCommonType() {
 		assertThat(
-			LogicalTypeGeneralization.findCommonType(types),
+			LogicalTypeMerging.findCommonType(types),
 			equalTo(Optional.ofNullable(commonType)));
 	}
 }

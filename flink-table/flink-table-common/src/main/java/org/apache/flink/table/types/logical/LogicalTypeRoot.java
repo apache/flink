@@ -78,21 +78,25 @@ public enum LogicalTypeRoot {
 	TINYINT(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	SMALLINT(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	INTEGER(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	BIGINT(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	FLOAT(
