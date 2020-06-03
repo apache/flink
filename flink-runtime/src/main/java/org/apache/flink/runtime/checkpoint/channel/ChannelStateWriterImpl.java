@@ -102,11 +102,11 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 		LOG.debug("{} starting checkpoint {} ({})", taskName, checkpointId, checkpointOptions);
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		ChannelStateWriteResult put = results.computeIfAbsent(checkpointId, id -> {
-			Preconditions.checkState(results.size() < maxCheckpoints, "results.size() > maxCheckpoints", results.size(), maxCheckpoints);
+			Preconditions.checkState(results.size() < maxCheckpoints, String.format("%s can't start %d, results.size() > maxCheckpoints: %d > %d", taskName, checkpointId, results.size(), maxCheckpoints));
 			enqueue(new CheckpointStartRequest(checkpointId, result, checkpointOptions.getTargetLocation()), false);
 			return result;
 		});
-		Preconditions.checkArgument(put == result, "result future already present for checkpoint " + checkpointId);
+		Preconditions.checkArgument(put == result, taskName + " result future already present for checkpoint " + checkpointId);
 	}
 
 	@Override
@@ -156,7 +156,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	public ChannelStateWriteResult getWriteResult(long checkpointId) {
 		LOG.debug("{} requested write result, checkpoint {}", taskName, checkpointId);
 		ChannelStateWriteResult result = results.get(checkpointId);
-		Preconditions.checkArgument(result != null, "channel state write result not found for checkpoint " + checkpointId);
+		Preconditions.checkArgument(result != null, taskName + " channel state write result not found for checkpoint " + checkpointId);
 		return result;
 	}
 
