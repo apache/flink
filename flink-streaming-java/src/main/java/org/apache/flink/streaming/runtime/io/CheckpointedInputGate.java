@@ -185,7 +185,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @return The ID of the pending of completed checkpoint.
 	 */
-	public long getLatestCheckpointId() {
+	@VisibleForTesting
+	long getLatestCheckpointId() {
 		return barrierHandler.getLatestCheckpointId();
 	}
 
