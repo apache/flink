@@ -148,6 +148,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
@@ -967,6 +968,34 @@ public class StreamTaskTest extends TestLogger {
 		harness.streamTask.runMailboxStep();
 		assertEquals(1, operator.notified.get());
 		assertEquals(true, operator.closed.get());
+	}
+
+	@Test
+	public void testFailToConfirmCheckpointCompleted() throws Exception {
+		testFailToConfirmCheckpointMessage(streamTask -> streamTask.notifyCheckpointCompleteAsync(1L));
+	}
+
+	@Test
+	public void testFailToConfirmCheckpointAborted() throws Exception {
+		testFailToConfirmCheckpointMessage(streamTask -> streamTask.notifyCheckpointAbortAsync(1L));
+	}
+
+	private void testFailToConfirmCheckpointMessage(Consumer<StreamTask<?, ?>> consumer) throws Exception {
+		FailOnNotifyCheckpointOperator<Integer> operator = new FailOnNotifyCheckpointOperator<>();
+		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
+			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+				.addInput(BasicTypeInfo.INT_TYPE_INFO);
+		StreamTaskMailboxTestHarness<Integer> harness = builder
+			.setupOutputForSingletonOperatorChain(operator)
+			.build();
+
+		try {
+			consumer.accept(harness.streamTask);
+			harness.streamTask.runMailboxStep();
+			fail();
+		} catch (ExpectedTestException expected) {
+			// expected exception
+		}
 	}
 
 	/**
@@ -2015,6 +2044,25 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		public void processElement(StreamRecord<T> element) throws Exception {
+		}
+	}
+
+	private static class FailOnNotifyCheckpointOperator<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			super.notifyCheckpointComplete(checkpointId);
+			throw new ExpectedTestException();
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) throws Exception {
+			super.notifyCheckpointAborted(checkpointId);
+			throw new ExpectedTestException();
+		}
+
+		@Override
+		public void processElement(StreamRecord<T> element) throws Exception {
+
 		}
 	}
 }
