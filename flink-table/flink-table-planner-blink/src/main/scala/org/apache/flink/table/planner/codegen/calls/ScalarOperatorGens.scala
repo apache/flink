@@ -1635,6 +1635,10 @@ object ScalarOperatorGens {
     GeneratedExpression(arrayTerm, GeneratedExpression.NEVER_NULL, code, arrayType)
   }
 
+  /**
+   * Return null when array index out of bounds which follows Calcite's behaviour.
+   * @see [[org.apache.calcite.sql.fun.SqlStdOperatorTable.ITEM]]
+   */
   def generateArrayElementAt(
       ctx: CodeGeneratorContext,
       array: GeneratedExpression,
@@ -1644,21 +1648,17 @@ object ScalarOperatorGens {
     val resultTypeTerm = primitiveTypeTermForType(componentInfo)
     val defaultTerm = primitiveDefaultValue(componentInfo)
 
-    if (index.literalValue.isDefined &&
-        index.literalValue.get.isInstanceOf[Int] &&
-        index.literalValue.get.asInstanceOf[Int] < 1) {
-      throw new ValidationException(s"Array element access needs an index starting at 1 but was " +
-        s"${index.literalValue.get.asInstanceOf[Int]}.")
+    index.literalValue match {
+      case Some(v: Int) if v < 1 =>
+        throw new ValidationException(
+          s"Array element access needs an index starting at 1 but was $v.")
+      case _ => //nothing
     }
     val idxStr = s"${index.resultTerm} - 1"
     val arrayIsNull = s"${array.resultTerm}.isNullAt($idxStr)"
     val arrayGet =
       rowFieldReadAccess(ctx, idxStr, array.resultTerm, componentInfo)
 
-    /**
-     * Return null when array index out of bounds which follows Calcite's behaviour.
-     * @see org.apache.calcite.sql.fun.SqlStdOperatorTable
-     */
     val arrayAccessCode =
     s"""
         |${array.code}
