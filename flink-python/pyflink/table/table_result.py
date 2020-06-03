@@ -52,6 +52,49 @@ class TableResult(object):
         """
         Get the schema of result.
 
+        The schema of DDL, USE, SHOW, EXPLAIN:
+        ::
+
+            +-------------+-------------+----------+
+            | column name | column type | comments |
+            +-------------+-------------+----------+
+            | result      | STRING      |          |
+            +-------------+-------------+----------+
+
+        The schema of DESCRIBE:
+        ::
+
+            +------------------+-------------+-------------------------------------------------+
+            | column name      | column type |                 comments                        |
+            +------------------+-------------+-------------------------------------------------+
+            | name             | STRING      | field name                                      |
+            +------------------+-------------+-------------------------------------------------+
+            | type             | STRING      | field type expressed as a String                |
+            +------------------+-------------+-------------------------------------------------+
+            | null             | BOOLEAN     | field nullability: true if a field is nullable, |
+            |                  |             | else false                                      |
+            +------------------+-------------+-------------------------------------------------+
+            | key              | BOOLEAN     | key constraint: 'PRI' for primary keys,         |
+            |                  |             | 'UNQ' for unique keys, else null                |
+            +------------------+-------------+-------------------------------------------------+
+            | computed column  | STRING      | computed column: string expression              |
+            |                  |             | if a field is computed column, else null        |
+            +------------------+-------------+-------------------------------------------------+
+            | watermark        | STRING      | watermark: string expression if a field is      |
+            |                  |             | watermark, else null                            |
+            +------------------+-------------+-------------------------------------------------+
+
+        The schema of INSERT: (one column per one sink)
+        ::
+
+            +----------------------------+-------------+-----------------------+
+            | column name                | column type | comments              |
+            +----------------------------+-------------+-----------------------+
+            | (name of the insert table) | BIGINT      | the insert table name |
+            +----------------------------+-------------+-----------------------+
+
+        The schema of SELECT is the selected field names and types.
+
         :return: The schema of result.
         :rtype: pyflink.table.TableSchema
 
@@ -63,6 +106,9 @@ class TableResult(object):
         """
         Return the ResultKind which represents the result type.
 
+         For DDL operation and USE operation, the result kind is always SUCCESS.
+         For other operations, the result kind is always SUCCESS_WITH_CONTENT.
+
         :return: The result kind.
         :rtype: pyflink.table.ResultKind
 
@@ -73,6 +119,9 @@ class TableResult(object):
     def print(self):
         """
         Print the result contents as tableau form to client console.
+
+        NOTE: please make sure the result data to print should be small.
+        Because all data will be collected to local first, and then print them to console.
 
         .. versionadded:: 1.11.0
         """

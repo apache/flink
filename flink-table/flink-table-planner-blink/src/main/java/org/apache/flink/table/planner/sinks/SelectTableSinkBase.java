@@ -37,8 +37,8 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
-import java.util.Iterator;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -89,7 +89,7 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 			}
 
 			@Override
-			public Iterator<Row> getResultIterator() {
+			public CloseableIterator<Row> getResultIterator() {
 				return new RowIteratorWrapper(iterator);
 			}
 		};
@@ -98,7 +98,7 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 	/**
 	 * An Iterator wrapper class that converts Iterator&lt;T&gt; to Iterator&lt;Row&gt;.
 	 */
-	private class RowIteratorWrapper implements Iterator<Row>, AutoCloseable {
+	private class RowIteratorWrapper implements CloseableIterator<Row> {
 		private final CollectResultIterator<T> iterator;
 
 		public RowIteratorWrapper(CollectResultIterator<T> iterator) {
