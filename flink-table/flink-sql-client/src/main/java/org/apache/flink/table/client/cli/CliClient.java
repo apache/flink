@@ -596,42 +596,22 @@ public class CliClient {
 	}
 
 	private void callCreateView(SqlCommandCall cmdCall) {
-		final String name = cmdCall.operands[0];
-		final String query = cmdCall.operands[1];
-
-		final ViewEntry previousView = executor.listViews(sessionId).get(name);
-		if (previousView != null) {
-			printExecutionError(CliStrings.MESSAGE_VIEW_ALREADY_EXISTS);
-			return;
-		}
-
 		try {
 			// perform and validate change
-			executor.addView(sessionId, name, query);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
 		} catch (SqlExecutionException e) {
-			// rollback change
-			executor.removeView(sessionId, name);
 			printExecutionException(e);
 		}
 	}
 
 	private void callDropView(SqlCommandCall cmdCall) {
-		final String name = cmdCall.operands[0];
-		final ViewEntry view = executor.listViews(sessionId).get(name);
-		if (view == null) {
-			printExecutionError(CliStrings.MESSAGE_VIEW_NOT_FOUND);
-			return;
-		}
-
 		try {
 			// perform and validate change
-			executor.removeView(sessionId, name);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_VIEW_REMOVED);
 		} catch (SqlExecutionException e) {
-			// rollback change
-			executor.addView(sessionId, view.getName(), view.getQuery());
-			printExecutionException(CliStrings.MESSAGE_VIEW_NOT_REMOVED, e);
+			printExecutionException(e);
 		}
 	}
 

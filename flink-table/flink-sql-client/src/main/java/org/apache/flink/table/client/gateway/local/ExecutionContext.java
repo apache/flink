@@ -697,7 +697,7 @@ public class ExecutionContext<ClusterID> {
 
 	private void registerView(ViewEntry viewEntry) {
 		try {
-			tableEnv.registerTable(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
+			tableEnv.createTemporaryView(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
 		} catch (Exception e) {
 			throw new SqlExecutionException(
 				"Invalid view '" + viewEntry.getName() + "' with query:\n" + viewEntry.getQuery()
