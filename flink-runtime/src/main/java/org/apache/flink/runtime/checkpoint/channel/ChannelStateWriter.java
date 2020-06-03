@@ -139,7 +139,7 @@ public interface ChannelStateWriter extends Closeable {
 	 * Aborts the checkpoint and fails pending result for this checkpoint.
 	 * @param cleanup true if {@link #getAndRemoveWriteResult(long)} is not supposed to be called afterwards.
 	 */
-	void abort(long checkpointId, Throwable cause);
+	void abort(long checkpointId, Throwable cause, boolean cleanup);
 
 	/**
 	 * Must be called after {@link #start(long, CheckpointOptions)} once.
@@ -174,7 +174,7 @@ public interface ChannelStateWriter extends Closeable {
 		}
 
 		@Override
-		public void abort(long checkpointId, Throwable cause) {
+		public void abort(long checkpointId, Throwable cause, boolean cleanup) {
 		}
 
 		@Override
