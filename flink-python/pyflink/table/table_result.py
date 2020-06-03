@@ -25,6 +25,8 @@ __all__ = ['TableResult']
 class TableResult(object):
     """
     A :class:`~pyflink.table.TableResult` is the representation of the statement execution result.
+
+    .. versionadded:: 1.11.0
     """
 
     def __init__(self, j_table_result):
@@ -37,6 +39,8 @@ class TableResult(object):
 
         :return: The job client, optional.
         :rtype: pyflink.common.JobClient
+
+        .. versionadded:: 1.11.0
         """
         job_client = self._j_table_result.getJobClient()
         if job_client.isPresent():
@@ -50,6 +54,8 @@ class TableResult(object):
 
         :return: The schema of result.
         :rtype: pyflink.table.TableSchema
+
+        .. versionadded:: 1.11.0
         """
         return TableSchema(j_table_schema=self._j_table_result.getTableSchema())
 
@@ -59,11 +65,15 @@ class TableResult(object):
 
         :return: The result kind.
         :rtype: pyflink.table.ResultKind
+
+        .. versionadded:: 1.11.0
         """
         return ResultKind._from_j_result_kind(self._j_table_result.getResultKind())
 
     def print(self):
         """
         Print the result contents as tableau form to client console.
+
+        .. versionadded:: 1.11.0
         """
         self._j_table_result.print()

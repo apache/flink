@@ -22,6 +22,16 @@ from typing import Callable
 
 
 class MetricGroup(abc.ABC):
+    """
+    A MetricGroup is a named container for metrics and further metric subgroups.
+
+    Instances of this class can be used to register new metrics with Flink and to create a nested
+    hierarchy based on the group names.
+
+    A MetricGroup is uniquely identified by it's place in the hierarchy and name.
+
+    .. versionadded:: 1.11.0
+    """
 
     def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
         """
@@ -31,24 +41,32 @@ class MetricGroup(abc.ABC):
         The key group is added to this group's sub-groups, while the value
         group is added to the key group's sub-groups. In this case,
         the value group will be returned and a user variable will be defined.
+
+        .. versionadded:: 1.11.0
         """
         pass
 
     def counter(self, name: str) -> 'Counter':
         """
         Registers a new `Counter` with Flink.
+
+        .. versionadded:: 1.11.0
         """
         pass
 
     def gauge(self, name: str, obj: Callable[[], int]) -> None:
         """
         Registers a new `Gauge` with Flink.
+
+        .. versionadded:: 1.11.0
         """
         pass
 
     def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
         """
         Registers a new `Meter` with Flink.
+
+        .. versionadded:: 1.11.0
         """
         # There is no meter type in Beam, use counter to implement meter
         pass
@@ -56,6 +74,8 @@ class MetricGroup(abc.ABC):
     def distribution(self, name: str) -> 'Distribution':
         """
         Registers a new `Distribution` with Flink.
+
+        .. versionadded:: 1.11.0
         """
         pass
 
@@ -139,54 +159,100 @@ class GenericMetricGroup(MetricGroup):
 
 
 class Metric(object):
-    """Base interface of a metric object."""
+    """
+    Base interface of a metric object.
+
+    .. versionadded:: 1.11.0
+    """
     pass
 
 
 class Counter(Metric):
-    """Counter metric interface. Allows a count to be incremented/decremented
-    during pipeline execution."""
+    """
+    Counter metric interface. Allows a count to be incremented/decremented
+    during pipeline execution.
+
+    .. versionadded:: 1.11.0
+    """
 
     def __init__(self, inner_counter):
         self._inner_counter = inner_counter
 
     def inc(self, n=1):
+        """
+        Increment the current count by the given value.
+
+        .. versionadded:: 1.11.0
+        """
         self._inner_counter.inc(n)
 
     def dec(self, n=1):
+        """
+        Decrement the current count by 1.
+
+        .. versionadded:: 1.11.0
+        """
         self.inc(-n)
 
     def get_count(self):
+        """
+        Returns the current count.
+
+        .. versionadded:: 1.11.0
+        """
         from apache_beam.metrics.execution import MetricsEnvironment
         container = MetricsEnvironment.current_container()
         return container.get_counter(self._inner_counter.metric_name).get_cumulative()
 
 
 class Distribution(Metric):
-    """Distribution Metric interface.
+    """
+    Distribution Metric interface.
 
     Allows statistics about the distribution of a variable to be collected during
-    pipeline execution."""
+    pipeline execution.
+
+    .. versionadded:: 1.11.0
+    """
 
     def __init__(self, inner_distribution):
         self._inner_distribution = inner_distribution
 
     def update(self, value):
+        """
+        Updates the distribution value.
+
+        .. versionadded:: 1.11.0
+        """
         self._inner_distribution.update(value)
 
 
 class Meter(Metric):
-    """Meter Metric interface.
+    """
+    Meter Metric interface.
 
-    Metric for measuring throughput."""
+    Metric for measuring throughput.
+
+    .. versionadded:: 1.11.0
+    """
 
     def __init__(self, inner_counter):
         self._inner_counter = inner_counter
 
     def mark_event(self, value=1):
+        """
+        Mark occurrence of the specified number of events.
+
+        .. versionadded:: 1.11.0
+        """
         self._inner_counter.inc(value)
 
     def get_count(self):
+        """
+        Get number of events marked on the meter.
+
+        .. versionadded:: 1.11.0
+        """
         from apache_beam.metrics.execution import MetricsEnvironment
         container = MetricsEnvironment.current_container()
         return container.get_counter(self._inner_counter.metric_name).get_cumulative()
