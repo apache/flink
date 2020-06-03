@@ -285,7 +285,7 @@ CREATE TABLE Orders_in_file (
     product STRING,
     order_time_string STRING,
     order_time AS to_timestamp(order_time)
-
+    
 )
 PARTITIONED BY user 
 WITH ( 
