@@ -110,7 +110,7 @@ public class ChannelPersistenceITCase {
 				writer.addOutputData(checkpointId, e.getKey(), SEQUENCE_NUMBER_UNKNOWN, e.getValue());
 			}
 			writer.finishOutput(checkpointId);
-			ChannelStateWriteResult result = writer.getWriteResult(checkpointId);
+			ChannelStateWriteResult result = writer.getAndRemoveWriteResult(checkpointId);
 			result.getResultSubpartitionStateHandles().join(); // prevent abnormal complete in close
 			return result;
 		}
