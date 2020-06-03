@@ -46,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED;
 import static org.apache.flink.util.CloseableIterator.ofElement;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -331,21 +332,21 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 		private synchronized void handleNewCheckpoint(CheckpointBarrier barrier) throws IOException {
 			long barrierId = barrier.getId();
-			if (!allBarriersReceivedFuture.isDone() && isCheckpointPending()) {
-				// we did not complete the current checkpoint, another started before
-				LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
-						"Skipping current checkpoint.",
-					handler.taskName,
-					barrierId,
-					currentReceivedCheckpointId);
+			if (!allBarriersReceivedFuture.isDone()) {
+				CheckpointException exception = new CheckpointException("Barrier id: " + barrierId, CHECKPOINT_DECLINED_SUBSUMED);
+				if (isCheckpointPending()) {
+					// we did not complete the current checkpoint, another started before
+					LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
+							"Skipping current checkpoint.",
+						handler.taskName,
+						barrierId,
+						currentReceivedCheckpointId);
 
-				// let the task know we are not completing this
-				long currentCheckpointId = currentReceivedCheckpointId;
-				handler.executeInTaskThread(() ->
-					handler.notifyAbort(
-						currentCheckpointId,
-						new CheckpointException("Barrier id: " + barrierId, CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)),
-						"notifyAbort");
+					// let the task know we are not completing this
+					final long currentCheckpointId = currentReceivedCheckpointId;
+					handler.executeInTaskThread(() -> handler.notifyAbort(currentCheckpointId, exception), "notifyAbort");
+				}
+				allBarriersReceivedFuture.completeExceptionally(exception);
 			}
 
 			currentReceivedCheckpointId = barrierId;

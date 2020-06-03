@@ -144,11 +144,13 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	}
 
 	@Override
-	public void abort(long checkpointId, Throwable cause) {
+	public void abort(long checkpointId, Throwable cause, boolean cleanup) {
 		LOG.debug("{} aborting, checkpoint {}", taskName, checkpointId);
 		enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), true); // abort already started
 		enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), false); // abort enqueued but not started
-		results.remove(checkpointId);
+		if (cleanup) {
+			results.remove(checkpointId);
+		}
 	}
 
 	@Override

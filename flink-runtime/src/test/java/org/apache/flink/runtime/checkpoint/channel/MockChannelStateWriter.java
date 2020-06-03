@@ -106,7 +106,7 @@ public class MockChannelStateWriter implements ChannelStateWriter {
 	}
 
 	@Override
-	public void abort(long checkpointId, Throwable cause) {
+	public void abort(long checkpointId, Throwable cause, boolean cleanup) {
 		checkCheckpointId(checkpointId);
 		channelStateWriteResult.getInputChannelStateHandles().cancel(false);
 		channelStateWriteResult.getResultSubpartitionStateHandles().cancel(false);

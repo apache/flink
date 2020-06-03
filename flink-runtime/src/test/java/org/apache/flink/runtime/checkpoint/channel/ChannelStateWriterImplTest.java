@@ -290,7 +290,7 @@ public class ChannelStateWriterImplTest {
 	}
 
 	private void callAbort(ChannelStateWriter writer) {
-		writer.abort(CHECKPOINT_ID, new TestException());
+		writer.abort(CHECKPOINT_ID, new TestException(), false);
 	}
 
 	private void callFinish(ChannelStateWriter writer) {
