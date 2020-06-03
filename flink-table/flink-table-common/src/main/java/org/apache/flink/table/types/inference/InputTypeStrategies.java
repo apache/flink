@@ -67,15 +67,9 @@ public final class InputTypeStrategies {
 	public static final WildcardInputTypeStrategy WILDCARD = new WildcardInputTypeStrategy();
 
 	/**
-	 * An strategy that lets you apply other strategies for subsequences of
-	 * the actual arguments.
-	 *
-	 * <p>The {@link #sequence(ArgumentTypeStrategy...)} should be preferred in most of the cases. Use this strategy
-	 * only if you need to apply a common logic to a subsequence of the arguments.
+	 * Strategy that does not expect any arguments.
 	 */
-	public static SubsequenceStrategyBuilder compositeSequence() {
-		return new SubsequenceStrategyBuilder();
-	}
+	public static final InputTypeStrategy NO_ARGS = sequence();
 
 	/**
 	 * Strategy for a function signature like {@code f(STRING, NUMERIC)} using a sequence of
@@ -137,6 +131,17 @@ public final class InputTypeStrategies {
 			.map(InputTypeStrategies::explicit)
 			.collect(Collectors.toList());
 		return new SequenceInputTypeStrategy(strategies, Arrays.asList(argumentNames));
+	}
+
+	/**
+	 * An strategy that lets you apply other strategies for subsequences of
+	 * the actual arguments.
+	 *
+	 * <p>The {@link #sequence(ArgumentTypeStrategy...)} should be preferred in most of the cases. Use this strategy
+	 * only if you need to apply a common logic to a subsequence of the arguments.
+	 */
+	public static SubsequenceStrategyBuilder compositeSequence() {
+		return new SubsequenceStrategyBuilder();
 	}
 
 	/**

@@ -23,6 +23,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -54,6 +55,7 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 		// "fallback" root for a NULL literals,
 		// they receive the smallest precision possible for having little impact when finding a common type.
 		familyToRoot.put(LogicalTypeFamily.NUMERIC, LogicalTypeRoot.TINYINT);
+		familyToRoot.put(LogicalTypeFamily.INTEGER_NUMERIC, LogicalTypeRoot.TINYINT);
 		familyToRoot.put(LogicalTypeFamily.EXACT_NUMERIC, LogicalTypeRoot.TINYINT);
 		familyToRoot.put(LogicalTypeFamily.CHARACTER_STRING, LogicalTypeRoot.VARCHAR);
 		familyToRoot.put(LogicalTypeFamily.BINARY_STRING, LogicalTypeRoot.VARBINARY);
@@ -63,10 +65,7 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 	}
 
 	public FamilyArgumentTypeStrategy(LogicalTypeFamily expectedFamily, @Nullable Boolean expectedNullability) {
-		Preconditions.checkArgument(
-			familyToRoot.containsKey(expectedFamily),
-			"Unsupported family for argument type strategy.");
-		this.expectedFamily = expectedFamily;
+		this.expectedFamily = Preconditions.checkNotNull(expectedFamily);
 		this.expectedNullability = expectedNullability;
 	}
 
@@ -74,6 +73,11 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
 		final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
 		final LogicalType actualType = actualDataType.getLogicalType();
+
+		// a hack to make legacy types possible until we drop them
+		if (actualType instanceof LegacyTypeInformationType) {
+			return Optional.of(actualDataType);
+		}
 
 		if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
 			if (throwOnFailure) {
@@ -92,12 +96,17 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 
 		// find a type for the family
 		final LogicalTypeRoot expectedRoot = familyToRoot.get(expectedFamily);
-		final Optional<DataType> inferredDataType = findDataType(
-			callContext,
-			false,
-			actualDataType,
-			expectedRoot,
-			expectedNullability);
+		final Optional<DataType> inferredDataType;
+		if (expectedRoot == null) {
+			inferredDataType = Optional.empty();
+		} else {
+			inferredDataType = findDataType(
+				callContext,
+				false,
+				actualDataType,
+				expectedRoot,
+				expectedNullability);
+		}
 		if (!inferredDataType.isPresent() && throwOnFailure) {
 			throw callContext.newValidationError(
 					"Unsupported argument type. Expected type of family '%s' but actual type was '%s'.",

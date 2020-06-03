@@ -65,7 +65,7 @@ class OverWindowTest extends TableTestBase {
         ),
         term("select",
              s"Func1$$(w0$$o0) AS d",
-             "EXP(CAST(w0$o1)) AS _c1",
+             "EXP(w0$o1) AS _c1",
              "+(w0$o2, 1:BIGINT) AS _c2",
              "||('AVG:', CAST(w0$o2)) AS _c3",
              "ARRAY(w0$o2, w0$o1) AS _c4")

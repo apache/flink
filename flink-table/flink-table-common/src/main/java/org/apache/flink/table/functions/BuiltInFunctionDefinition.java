@@ -46,13 +46,17 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 	private final TypeInference typeInference;
 
+	private final boolean isDeterministic;
+
 	private BuiltInFunctionDefinition(
 			String name,
 			FunctionKind kind,
-			TypeInference typeInference) {
+			TypeInference typeInference,
+			boolean isDeterministic) {
 		this.name = Preconditions.checkNotNull(name, "Name must not be null.");
 		this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
 		this.typeInference = Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
+		this.isDeterministic = isDeterministic;
 	}
 
 	/**
@@ -77,6 +81,11 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 	}
 
 	@Override
+	public boolean isDeterministic() {
+		return isDeterministic;
+	}
+
+	@Override
 	public String toString() {
 		return name;
 	}
@@ -93,6 +102,8 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		private FunctionKind kind;
 
 		private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
+
+		private boolean isDeterministic = true;
 
 		public Builder() {
 			// default constructor to allow a fluent definition
@@ -133,8 +144,17 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 			return this;
 		}
 
+		public Builder notDeterministic() {
+			this.isDeterministic = false;
+			return this;
+		}
+
 		public BuiltInFunctionDefinition build() {
-			return new BuiltInFunctionDefinition(name, kind, typeInferenceBuilder.build());
+			return new BuiltInFunctionDefinition(
+				name,
+				kind,
+				typeInferenceBuilder.build(),
+				isDeterministic);
 		}
 	}
 }

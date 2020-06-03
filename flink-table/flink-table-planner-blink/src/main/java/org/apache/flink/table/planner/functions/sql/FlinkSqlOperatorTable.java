@@ -591,7 +591,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction UUID = new SqlFunction(
 		"UUID",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.VARCHAR_2000,
+		ReturnTypes.explicit(SqlTypeName.CHAR, 36),
 		null,
 		OperandTypes.NILADIC,
 		SqlFunctionCategory.STRING) {

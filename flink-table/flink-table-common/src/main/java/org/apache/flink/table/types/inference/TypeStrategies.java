@@ -23,17 +23,32 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MatchFamilyTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.NullableTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasScale;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
  * Strategies for inferring an output or accumulator data type of a function call.
@@ -69,6 +84,13 @@ public final class TypeStrategies {
 	 */
 	public static TypeStrategy first(TypeStrategy... strategies) {
 		return new FirstTypeStrategy(Arrays.asList(strategies));
+	}
+
+	/**
+	 * Type strategy that returns the given argument if it is of the same logical type family.
+	 */
+	public static TypeStrategy matchFamily(int argumentPos, LogicalTypeFamily family) {
+		return new MatchFamilyTypeStrategy(argumentPos, family);
 	}
 
 	/**
@@ -135,7 +157,175 @@ public final class TypeStrategies {
 		return Optional.of(DataTypes.ARRAY(argumentDataTypes.get(0)).notNull());
 	};
 
+	/**
+	 * Type strategy that returns the sum of an exact numeric addition that includes at least one decimal.
+	 */
+	public static final TypeStrategy DECIMAL_PLUS = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType addend1 = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType addend2 = argumentDataTypes.get(1).getLogicalType();
+		// a hack to make legacy types possible until we drop them
+		if (addend1 instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(0));
+		}
+		if (addend2 instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(1));
+		}
+		if (!isDecimalComputation(addend1, addend2)) {
+			return Optional.empty();
+		}
+		final DecimalType decimalType = LogicalTypeMerging.findAdditionDecimalType(
+			getPrecision(addend1),
+			getScale(addend1),
+			getPrecision(addend2),
+			getScale(addend2));
+		return Optional.of(fromLogicalToDataType(decimalType));
+	};
+
+	/**
+	 * Type strategy that returns the quotient of an exact numeric division that includes at least
+	 * one decimal.
+	 */
+	public static final TypeStrategy DECIMAL_DIVIDE = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType dividend = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType divisor = argumentDataTypes.get(1).getLogicalType();
+		// a hack to make legacy types possible until we drop them
+		if (dividend instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(0));
+		}
+		if (divisor instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(1));
+		}
+		if (!isDecimalComputation(dividend, divisor)) {
+			return Optional.empty();
+		}
+		final DecimalType decimalType = LogicalTypeMerging.findDivisionDecimalType(
+			getPrecision(dividend),
+			getScale(dividend),
+			getPrecision(divisor),
+			getScale(divisor));
+		return Optional.of(fromLogicalToDataType(decimalType));
+	};
+
+	/**
+	 * Type strategy that returns the product of an exact numeric multiplication that includes at least
+	 * one decimal.
+	 */
+	public static final TypeStrategy DECIMAL_TIMES = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType factor1 = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType factor2 = argumentDataTypes.get(1).getLogicalType();
+		// a hack to make legacy types possible until we drop them
+		if (factor1 instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(0));
+		}
+		if (factor2 instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(1));
+		}
+		if (!isDecimalComputation(factor1, factor2)) {
+			return Optional.empty();
+		}
+		final DecimalType decimalType = LogicalTypeMerging.findMultiplicationDecimalType(
+			getPrecision(factor1),
+			getScale(factor1),
+			getPrecision(factor2),
+			getScale(factor2));
+		return Optional.of(fromLogicalToDataType(decimalType));
+	};
+
+	/**
+	 * Type strategy that returns the modulo of an exact numeric division that includes at least
+	 * one decimal.
+	 */
+	public static final TypeStrategy DECIMAL_MOD = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType dividend = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType divisor = argumentDataTypes.get(1).getLogicalType();
+		// a hack to make legacy types possible until we drop them
+		if (dividend instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(0));
+		}
+		if (divisor instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes.get(1));
+		}
+		if (!isDecimalComputation(dividend, divisor)) {
+			return Optional.empty();
+		}
+		final int dividendScale = getScale(dividend);
+		final int divisorScale = getScale(divisor);
+		if (dividendScale == 0 && divisorScale == 0) {
+			return Optional.of(argumentDataTypes.get(1));
+		}
+		final DecimalType decimalType = LogicalTypeMerging.findModuloDecimalType(
+			getPrecision(dividend),
+			dividendScale,
+			getPrecision(divisor),
+			divisorScale);
+		return Optional.of(fromLogicalToDataType(decimalType));
+	};
+
+	/**
+	 * Strategy that returns a decimal type but with a scale of 0.
+	 */
+	public static final TypeStrategy DECIMAL_SCALE0 = callContext -> {
+		final DataType argumentDataType = callContext.getArgumentDataTypes().get(0);
+		final LogicalType argumentType = argumentDataType.getLogicalType();
+		// a hack to make legacy types possible until we drop them
+		if (argumentType instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataType);
+		}
+		if (hasRoot(argumentType, LogicalTypeRoot.DECIMAL)) {
+			if (hasScale(argumentType, 0)) {
+				return Optional.of(argumentDataType);
+			}
+			final LogicalType inferredType = new DecimalType(argumentType.isNullable(), getPrecision(argumentType), 0);
+			return Optional.of(fromLogicalToDataType(inferredType));
+		}
+		return Optional.empty();
+	};
+
+	/**
+	 * Type strategy that returns the result of a rounding operation.
+	 */
+	public static final TypeStrategy ROUND = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final DataType argumentDataType = callContext.getArgumentDataTypes().get(0);
+		final LogicalType argumentType = argumentDataType.getLogicalType();
+		// a hack to make legacy types possible until we drop them
+		if (argumentType instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataType);
+		}
+		if (!hasRoot(argumentType, LogicalTypeRoot.DECIMAL)) {
+			return Optional.of(argumentDataType);
+		}
+		final BigDecimal roundLength;
+		if (argumentDataTypes.size() == 2) {
+			if (!callContext.isArgumentLiteral(1) || callContext.isArgumentNull(1)) {
+				return Optional.of(argumentDataType);
+			}
+			roundLength = callContext.getArgumentValue(1, BigDecimal.class).orElseThrow(AssertionError::new);
+		} else {
+			roundLength = BigDecimal.ZERO;
+		}
+		final LogicalType inferredType = LogicalTypeMerging.findRoundDecimalType(
+			getPrecision(argumentType),
+			getScale(argumentType),
+			roundLength.intValueExact());
+		return Optional.of(fromLogicalToDataType(inferredType));
+	};
+
 	// --------------------------------------------------------------------------------------------
+
+	@SuppressWarnings("BooleanMethodIsAlwaysInverted")
+	private static boolean isDecimalComputation(LogicalType type1, LogicalType type2) {
+		// both must be exact numeric
+		if (!hasFamily(type1, LogicalTypeFamily.EXACT_NUMERIC) || !hasFamily(type2, LogicalTypeFamily.EXACT_NUMERIC)) {
+			return false;
+		}
+		// one decimal must be present
+		return hasRoot(type1, LogicalTypeRoot.DECIMAL) || hasRoot(type2, LogicalTypeRoot.DECIMAL);
+	}
 
 	private TypeStrategies() {
 		// no instantiation

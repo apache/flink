@@ -467,7 +467,7 @@ class PlannerExpressionConverter private
             if (args.size == 1) {
               Ceil(args.head)
             } else {
-              TemporalCeil(args.head, args.last)
+              TemporalCeil(args.last, args.head)
             }
 
           case EXP =>
@@ -479,7 +479,7 @@ class PlannerExpressionConverter private
             if (args.size == 1) {
               Floor(args.head)
             } else {
-              TemporalFloor(args.head, args.last)
+              TemporalFloor(args.last, args.head)
             }
 
           case LOG10 =>
@@ -649,10 +649,6 @@ class PlannerExpressionConverter private
               args(1),
               args(2),
               args.last)
-
-          case DATE_TIME_PLUS =>
-            assert(args.size == 2)
-            Plus(args.head, args.last)
 
           case DATE_FORMAT =>
             assert(args.size == 2)

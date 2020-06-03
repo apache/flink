@@ -38,7 +38,7 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import javax.annotation.Nullable;
@@ -64,7 +64,7 @@ class ValuesOperationFactory {
 	/**
 	 * Creates a valid {@link ValuesQueryOperation} operation.
 	 *
-	 * <p>It derives a row type based on {@link LogicalTypeGeneralization}. It flattens any
+	 * <p>It derives a row type based on {@link LogicalTypeMerging}. It flattens any
 	 * row constructors. It does not flatten ROWs which are a result of e.g. a function call.
 	 *
 	 * <p>The resulting schema can be provided manually. If it is not, the schema will be automatically derived from
@@ -319,7 +319,7 @@ class ValuesOperationFactory {
 	private DataType findCommonTypeAtPosition(List<List<ResolvedExpression>> resolvedRows, int i) {
 		List<LogicalType> typesAtIPosition = extractLogicalTypesAtPosition(resolvedRows, i);
 
-		LogicalType logicalType = LogicalTypeGeneralization.findCommonType(typesAtIPosition)
+		LogicalType logicalType = LogicalTypeMerging.findCommonType(typesAtIPosition)
 			.orElseThrow(() -> {
 				Set<DataType> columnTypes = resolvedRows.stream()
 					.map(row -> row.get(i).getOutputDataType())

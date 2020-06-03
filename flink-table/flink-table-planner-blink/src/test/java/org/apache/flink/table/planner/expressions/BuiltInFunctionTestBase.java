@@ -223,6 +223,12 @@ public abstract class BuiltInFunctionTestBase {
 			return this;
 		}
 
+		TestSpec testResult(Expression expression, String sqlExpression, Object result, AbstractDataType<?> dataType) {
+			testItems.add(new TableApiResultTestItem(expression, result, dataType));
+			testItems.add(new SqlResultTestItem(sqlExpression, result, dataType));
+			return this;
+		}
+
 		@Override
 		public String toString() {
 			return definition.getName();

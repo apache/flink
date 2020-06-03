@@ -27,7 +27,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.ArrayList;
@@ -86,8 +86,8 @@ public final class MapInputTypeStrategy implements InputTypeStrategy {
 				valueTypes.add(logicalType);
 			}
 		}
-		Optional<LogicalType> commonKeyType = LogicalTypeGeneralization.findCommonType(keyTypes);
-		Optional<LogicalType> commonValueType = LogicalTypeGeneralization.findCommonType(valueTypes);
+		Optional<LogicalType> commonKeyType = LogicalTypeMerging.findCommonType(keyTypes);
+		Optional<LogicalType> commonValueType = LogicalTypeMerging.findCommonType(valueTypes);
 
 		if (!commonKeyType.isPresent() || !commonValueType.isPresent()) {
 			return Optional.empty();
