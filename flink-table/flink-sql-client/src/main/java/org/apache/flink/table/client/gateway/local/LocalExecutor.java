@@ -45,8 +45,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.TableEntry;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -302,47 +300,6 @@ public class LocalExecutor implements Executor {
 				.sessionState(context.getSessionState())
 				.build();
 		this.contextMap.put(sessionId, newContext);
-	}
-
-	@Override
-	public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-		ExecutionContext<?> context = getExecutionContext(sessionId);
-		TableEnvironment tableEnv = context.getTableEnvironment();
-		tableEnv.createTemporaryView(name, tableEnv.sqlQuery(query));
-		// Also attach the view to ExecutionContext#environment.
-		context.getEnvironment().getTables().put(name, ViewEntry.create(name, query));
-	}
-
-	@Override
-	public void removeView(String sessionId, String name) throws SqlExecutionException {
-		// Here we rebuild the ExecutionContext because we want to ensure that all the remaining views can work fine.
-		// Assume the case:
-		//   view1=select 1;
-		//   view2=select * from view1;
-		// If we delete view1 successfully, then query view2 will throw exception because view1 does not exist. we want
-		// all the remaining views are OK, so do the ExecutionContext rebuilding to avoid breaking the view dependency.
-		ExecutionContext<?> context = getExecutionContext(sessionId);
-		Environment env = context.getEnvironment();
-		Environment newEnv = env.clone();
-		if (newEnv.getTables().remove(name) != null) {
-			// Renew the ExecutionContext.
-			this.contextMap.put(
-					sessionId,
-					createExecutionContextBuilder(context.getOriginalSessionContext())
-							.env(newEnv).build());
-		}
-	}
-
-	@Override
-	public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-		Map<String, ViewEntry> views = new HashMap<>();
-		Map<String, TableEntry> tables = getExecutionContext(sessionId).getEnvironment().getTables();
-		for (Map.Entry<String, TableEntry> entry : tables.entrySet()) {
-			if (entry.getValue() instanceof ViewEntry) {
-				views.put(entry.getKey(), (ViewEntry) entry.getValue());
-			}
-		}
-		return views;
 	}
 
 	@Override

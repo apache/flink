@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -322,10 +321,10 @@ public class CliClient {
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_TABLE_REMOVED);
 				break;
 			case CREATE_VIEW:
-				callCreateView(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_VIEW_CREATED);
 				break;
 			case DROP_VIEW:
-				callDropView(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_VIEW_REMOVED);
 				break;
 			case CREATE_FUNCTION:
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_CREATED);
@@ -603,46 +602,6 @@ public class CliClient {
 			return false;
 		}
 		return true;
-	}
-
-	private void callCreateView(SqlCommandCall cmdCall) {
-		final String name = cmdCall.operands[0];
-		final String query = cmdCall.operands[1];
-
-		final ViewEntry previousView = executor.listViews(sessionId).get(name);
-		if (previousView != null) {
-			printExecutionError(CliStrings.MESSAGE_VIEW_ALREADY_EXISTS);
-			return;
-		}
-
-		try {
-			// perform and validate change
-			executor.addView(sessionId, name, query);
-			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
-		} catch (SqlExecutionException e) {
-			// rollback change
-			executor.removeView(sessionId, name);
-			printExecutionException(e);
-		}
-	}
-
-	private void callDropView(SqlCommandCall cmdCall) {
-		final String name = cmdCall.operands[0];
-		final ViewEntry view = executor.listViews(sessionId).get(name);
-		if (view == null) {
-			printExecutionError(CliStrings.MESSAGE_VIEW_NOT_FOUND);
-			return;
-		}
-
-		try {
-			// perform and validate change
-			executor.removeView(sessionId, name);
-			printInfo(CliStrings.MESSAGE_VIEW_REMOVED);
-		} catch (SqlExecutionException e) {
-			// rollback change
-			executor.addView(sessionId, view.getName(), view.getQuery());
-			printExecutionException(CliStrings.MESSAGE_VIEW_NOT_REMOVED, e);
-		}
 	}
 
 	private void callSource(SqlCommandCall cmdCall) {

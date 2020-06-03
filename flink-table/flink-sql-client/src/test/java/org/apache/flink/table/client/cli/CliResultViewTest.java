@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -154,21 +153,6 @@ public class CliResultViewTest {
 		@Override
 		public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
 
-		}
-
-		@Override
-		public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void removeView(String sessionId, String name) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-			return null;
 		}
 
 		@Override

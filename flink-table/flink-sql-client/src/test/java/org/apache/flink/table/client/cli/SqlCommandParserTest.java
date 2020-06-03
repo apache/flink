@@ -112,18 +112,17 @@ public class SqlCommandParserTest {
 				// create view xx
 				TestItem.validSql("CREATE VIEW x AS SELECT 1+1",
 						SqlCommand.CREATE_VIEW,
-						"`default_catalog`.`default_database`.`x`", "SELECT 1 + 1"),
+						"CREATE VIEW x AS SELECT 1+1"),
 				TestItem.validSql("CREATE   VIEW    x   AS     SELECT 1+1 FROM MyTable",
 						SqlCommand.CREATE_VIEW,
-						"`default_catalog`.`default_database`.`x`",
-						"SELECT 1 + 1\nFROM `default_catalog`.`default_database`.`MyTable` AS `MyTable`"),
+						"CREATE   VIEW    x   AS     SELECT 1+1 FROM MyTable"),
 				TestItem.invalidSql("CREATE VIEW x SELECT 1+1 ", // missing AS
 						SqlExecutionException.class,
 						"Encountered \"SELECT\""),
 				// drop view xx
 				TestItem.validSql("DROP VIEW TestView1",
 						SqlCommand.DROP_VIEW,
-						"`default_catalog`.`default_database`.`TestView1`"),
+						"DROP VIEW TestView1"),
 				TestItem.invalidSql("DROP VIEW ", // missing name
 						SqlExecutionException.class,
 						"Encountered \"<EOF>\""),

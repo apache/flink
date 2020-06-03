@@ -21,7 +21,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -153,19 +152,6 @@ class TestingExecutor implements Executor {
 	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
 		numSetSessionPropertyCalls++;
 		setSessionPropertyFunction.apply(sessionId, key, value);
-	}
-
-	@Override
-	public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-	}
-
-	@Override
-	public void removeView(String sessionId, String name) throws SqlExecutionException {
-	}
-
-	@Override
-	public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
 	}
 
 	@Override

@@ -20,7 +20,6 @@ package org.apache.flink.table.calcite
 
 import java.util
 import java.nio.charset.Charset
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._
@@ -37,6 +36,9 @@ import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, Objec
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory.typeInfoToSqlTypeName
 import org.apache.flink.table.plan.schema._
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType}
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isSimple
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
@@ -180,7 +182,37 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     * @return a struct type with the input fieldNames, input fieldTypes, and system fields
     */
   def buildLogicalRowType(tableSchema: TableSchema): RelDataType = {
-    buildLogicalRowType(tableSchema.getFieldNames, tableSchema.getFieldTypes)
+    buildLogicalRowType(tableSchema.getFieldNames, tableSchema.getFieldDataTypes)
+  }
+
+  /**
+   * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
+   *
+   * @param fieldNames field names
+   * @param fieldTypes field types, every element is Flink's [[DataType]]
+   * @return a struct type with the input fieldNames, input fieldTypes, and system fields
+   */
+  def buildLogicalRowType(
+    fieldNames: Array[String],
+    fieldTypes: Array[DataType])
+  : RelDataType = {
+    val logicalRowTypeBuilder = builder
+
+    val fields = fieldNames.zip(fieldTypes)
+    fields.foreach(f => {
+      // time indicators are not nullable
+      val logicalType = f._2.getLogicalType
+      val nullable  = if (FlinkTypeFactory.isTimeIndicatorType(logicalType)) {
+        false
+      } else {
+        logicalType.isNullable
+      }
+
+      logicalRowTypeBuilder.add(f._1,
+        createTypeFromTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(f._2), nullable))
+    })
+
+    logicalRowTypeBuilder.build
   }
 
   /**
@@ -387,6 +419,12 @@ object FlinkTypeFactory {
 
   def isRowtimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
     case ti: TimeIndicatorTypeInfo if ti.isEventTime => true
+    case _ => false
+  }
+
+  def isTimeIndicatorType(t: LogicalType): Boolean = t match {
+    case t: TimestampType
+      if t.getKind == TimestampKind.ROWTIME || t.getKind == TimestampKind.PROCTIME => true
     case _ => false
   }
 

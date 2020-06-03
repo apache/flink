@@ -116,12 +116,8 @@ public final class SqlCommandParser {
 			cmd = SqlCommand.ALTER_TABLE;
 		} else if (operation instanceof CreateViewOperation) {
 			cmd = SqlCommand.CREATE_VIEW;
-			CreateViewOperation op = (CreateViewOperation) operation;
-			operands = new String[] { op.getViewIdentifier().asSerializableString(),
-					op.getCatalogView().getOriginalQuery() };
 		} else if (operation instanceof DropViewOperation) {
 			cmd = SqlCommand.DROP_VIEW;
-			operands = new String[] { ((DropViewOperation) operation).getViewIdentifier().asSerializableString() };
 		} else if (operation instanceof CreateDatabaseOperation) {
 			cmd = SqlCommand.CREATE_DATABASE;
 		} else if (operation instanceof DropDatabaseOperation) {
