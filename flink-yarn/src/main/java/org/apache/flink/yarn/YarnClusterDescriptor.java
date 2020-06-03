@@ -744,7 +744,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (jobGraph != null) {
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry : jobGraph.getUserArtifacts().entrySet()) {
 				// only upload local files
-				if (Utils.isRemotePath(entry.getValue().filePath)) {
+				if (!Utils.isRemotePath(entry.getValue().filePath)) {
 					Path localPath = new Path(entry.getValue().filePath);
 					Tuple2<Path, Long> remoteFileInfo =
 							fileUploader.uploadLocalFileToRemote(localPath, entry.getKey());
