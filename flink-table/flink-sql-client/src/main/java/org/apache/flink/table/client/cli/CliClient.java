@@ -344,8 +344,8 @@ public class CliClient {
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_DATABASE_REMOVED);
 				break;
 			case ALTER_DATABASE:
-				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED,
-						CliStrings.MESSAGE_DATABASE_ALTER_FAILED);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_DATABASE_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_DATABASE_FAILED);
 				break;
 			case ALTER_TABLE:
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED,

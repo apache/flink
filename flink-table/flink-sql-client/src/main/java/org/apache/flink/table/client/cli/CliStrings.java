@@ -164,9 +164,9 @@ public final class CliStrings {
 
 	public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
 
-	public static final String MESSAGE_DATABASE_ALTER_SUCCEEDED = "Alter database succeeded!";
+	public static final String MESSAGE_ALTER_DATABASE_SUCCEEDED = "Alter database succeeded!";
 
-	public static final String MESSAGE_DATABASE_ALTER_FAILED = "Alter database failed!";
+	public static final String MESSAGE_ALTER_DATABASE_FAILED = "Alter database failed!";
 
 	public static final String MESSAGE_CATALOG_CREATED = "Catalog has been created.";
 
