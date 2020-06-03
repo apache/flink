@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
-from pyflink.table.function_definition import FunctionDefinition
 
 __all__ = ['Module', 'HiveModule']
 
@@ -31,37 +30,6 @@ class Module(object):
 
     def __init__(self, j_module):
         self._j_module = j_module
-
-    @staticmethod
-    def _get(j_module):
-        if j_module.getClass().getName() == 'org.apache.flink.table.module.hive.HiveModule':
-            return HiveModule(j_hive_module=j_module)
-        else:
-            return Module(j_module)
-
-    def list_functions(self):
-        """
-        List names of all functions in this module.
-
-        :return: A set of function names.
-        :rtype: set
-        """
-        return self._j_module.listFunctions()
-
-    def get_function_definition(self, name):
-        """
-        Get an optional of :class:`~pyflink.table.FunctionDefinition` by a given name.
-
-        :param name: Name of the :class:`~pyflink.table.FunctionDefinition`.
-        :type name: str
-        :return: An optional function definition.
-        :rtype: pyflink.table.FunctionDefinition
-        """
-        function_definition = self._j_module.getFunctionDefinition(name)
-        if function_definition.isPresent():
-            return FunctionDefinition(function_definition.get())
-        else:
-            return None
 
 
 class HiveModule(Module):

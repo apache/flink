@@ -157,6 +157,8 @@ class TableEnvironment(object):
         :type module_name: str
         :param module: The module instance.
         :type module: pyflink.table.Module
+
+        .. versionadded:: 1.12.0
         """
         self._j_tenv.loadModule(module_name, module._j_module)
 
@@ -167,6 +169,8 @@ class TableEnvironment(object):
 
         :param module_name: Name of the :class:`~pyflink.table.Module`.
         :type module_name: str
+
+        .. versionadded:: 1.12.0
         """
         self._j_tenv.unloadModule(module_name)
 
