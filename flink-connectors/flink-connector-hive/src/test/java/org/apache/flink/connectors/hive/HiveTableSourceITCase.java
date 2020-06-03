@@ -99,7 +99,7 @@ import static org.mockito.Mockito.spy;
  * Tests {@link HiveTableSource}.
  */
 @RunWith(FlinkStandaloneHiveRunner.class)
-public class HiveTableSourceTest extends BatchAbstractTestBase {
+public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;
@@ -561,7 +561,7 @@ public class HiveTableSourceTest extends BatchAbstractTestBase {
 
 		Runnable runnable = () -> {
 			for (int i = 0; i < 3; ++i) {
-				hiveShell.execute("insert into source_db." + tblName + " values (1,'a'), (2,'b')");
+				hiveShell.execute("insert into table source_db." + tblName + " values (1,'a'), (2,'b')");
 				try {
 					Thread.sleep(2_000);
 				} catch (InterruptedException e) {

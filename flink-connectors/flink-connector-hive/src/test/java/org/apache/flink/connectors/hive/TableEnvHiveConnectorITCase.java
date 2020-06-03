@@ -73,7 +73,7 @@ import static org.junit.Assert.assertTrue;
  * Test hive connector with table API.
  */
 @RunWith(FlinkStandaloneHiveRunner.class)
-public class TableEnvHiveConnectorTest {
+public class TableEnvHiveConnectorITCase {
 
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;

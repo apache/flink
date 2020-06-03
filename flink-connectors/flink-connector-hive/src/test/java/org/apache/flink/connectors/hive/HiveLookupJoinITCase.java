@@ -30,16 +30,14 @@ import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import com.klarna.hiverunner.HiveShell;
-import com.klarna.hiverunner.annotations.HiveSQL;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -50,8 +48,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test lookup join of hive tables.
  */
-@RunWith(FlinkStandaloneHiveRunner.class)
-public class HiveLookupJoinTest {
+public class HiveLookupJoinITCase {
 
 	private TableEnvironment tableEnv;
 	private HiveCatalog hiveCatalog;
@@ -60,7 +57,7 @@ public class HiveLookupJoinTest {
 	public void setup() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
 		tableEnv = TableEnvironment.create(settings);
-		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveShell.getHiveConf());
+		hiveCatalog = HiveTestUtils.createHiveCatalog();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tableEnv.useCatalog(hiveCatalog.getName());
 	}
@@ -71,9 +68,6 @@ public class HiveLookupJoinTest {
 			hiveCatalog.close();
 		}
 	}
-
-	@HiveSQL(files = {})
-	private static HiveShell hiveShell;
 
 	@Test
 	public void test() throws Exception {
@@ -92,12 +86,8 @@ public class HiveLookupJoinTest {
 		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
 
 		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "build")
-					.addRow(new Object[]{1, "a", 10})
-					.addRow(new Object[]{2, "a", 21})
-					.addRow(new Object[]{2, "b", 22})
-					.addRow(new Object[]{3, "c", 33})
-					.commit();
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
+					"insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)");
 
 			TestCollectionTableFactory.initData(
 					Arrays.asList(Row.of(1, "a"), Row.of(1, "c"), Row.of(2, "b"), Row.of(2, "c"), Row.of(3, "c"), Row.of(4, "d")));
