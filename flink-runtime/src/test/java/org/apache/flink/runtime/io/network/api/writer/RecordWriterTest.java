@@ -68,7 +68,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -78,7 +80,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.apache.flink.runtime.io.AvailabilityProvider.AVAILABLE;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -655,6 +656,76 @@ public class RecordWriterTest {
 		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 			bufferConsumer.close();
 			return true;
+		}
+
+		@Override
+		public void flushAll() {
+		}
+
+		@Override
+		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CompletableFuture<?> getAvailableFuture() {
+			return AVAILABLE;
+		}
+
+		@Override
+		public void close() {
+		}
+	}
+
+	static class KeepingPartitionWriter implements ResultPartitionWriter {
+		private final BufferProvider bufferProvider;
+		private Map<Integer, List<BufferConsumer>> produced = new HashMap<>();
+
+		KeepingPartitionWriter(BufferProvider bufferProvider) {
+			this.bufferProvider = bufferProvider;
+		}
+
+		@Override
+		public void setup() {
+		}
+
+		@Override
+		public ResultPartitionID getPartitionId() {
+			return null;
+		}
+
+		@Override
+		public int getNumberOfSubpartitions() {
+			return 1;
+		}
+
+		@Override
+		public int getNumTargetKeyGroups() {
+			return 1;
+		}
+
+		@Override
+		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking();
+		}
+
+		@Override
+		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) {
+			produced.computeIfAbsent(targetChannel, channel -> new ArrayList<>()).add(bufferConsumer);
+			return true;
+		}
+
+		public List<BufferConsumer> getAddedBufferConsumers(int subpartitionIndex) {
+			return produced.get(subpartitionIndex);
 		}
 
 		@Override

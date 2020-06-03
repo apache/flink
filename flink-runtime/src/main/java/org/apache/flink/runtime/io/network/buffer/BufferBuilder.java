@@ -121,6 +121,10 @@ public class BufferBuilder {
 		return memorySegment.size();
 	}
 
+	public int getCommittedBytes() {
+		return positionMarker.getCached();
+	}
+
 	/**
 	 * Holds a reference to the current writer position. Negative values indicate that writer ({@link BufferBuilder}
 	 * has finished. Value {@code Integer.MIN_VALUE} represents finished empty buffer.
