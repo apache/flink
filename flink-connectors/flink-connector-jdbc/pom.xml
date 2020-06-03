@@ -124,6 +124,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+			<version>2.5.4</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
 			<version>8.0.20</version>
