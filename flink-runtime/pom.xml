@@ -155,6 +155,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Transitive dependency of akka-remote that we explicitly define to pin
+		 	its version (our Hadoop dependency has overridden the netty version in the past) -->
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty</artifactId>
+			<version>3.10.6.Final</version>
+		</dependency>
+
 		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
 			visible after the shading (without relocation!) of akka-remote -->
 		<dependency>
