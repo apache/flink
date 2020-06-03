@@ -686,11 +686,11 @@ public class RecordWriterTest {
 		}
 	}
 
-	private static class KeepingPartitionWriter extends MockResultPartitionWriter {
+	static class KeepingPartitionWriter extends MockResultPartitionWriter {
 		private final BufferProvider bufferProvider;
 		private Map<Integer, List<BufferConsumer>> produced = new HashMap<>();
 
-		private KeepingPartitionWriter(BufferProvider bufferProvider) {
+		KeepingPartitionWriter(BufferProvider bufferProvider) {
 			this.bufferProvider = bufferProvider;
 		}
 
@@ -710,6 +710,10 @@ public class RecordWriterTest {
 			produced.putIfAbsent(targetChannel, new ArrayList<>());
 			produced.get(targetChannel).add(bufferConsumer);
 			return true;
+		}
+
+		public List<BufferConsumer> getAddedBufferConsumers(int subpartitionIndex) {
+			return produced.get(subpartitionIndex);
 		}
 
 		@Override
