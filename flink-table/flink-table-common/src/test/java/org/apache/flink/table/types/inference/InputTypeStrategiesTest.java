@@ -465,6 +465,21 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectErrorMessage("Invalid number of arguments. 3 arguments passed."),
 
+			TestSpec.forStrategy(
+					"Cast strategy",
+					InputTypeStrategies.SPECIFIC_FOR_CAST)
+				.calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
+				.calledWithLiteralAt(1, DataTypes.BIGINT())
+				.expectSignature("f(<ANY>, <TYPE LITERAL>)")
+				.expectArgumentTypes(DataTypes.INT(), DataTypes.BIGINT()),
+
+			TestSpec.forStrategy(
+					"Cast strategy for invalid target type",
+					InputTypeStrategies.SPECIFIC_FOR_CAST)
+				.calledWithArgumentTypes(DataTypes.BOOLEAN(), DataTypes.DATE())
+				.calledWithLiteralAt(1, DataTypes.DATE())
+				.expectErrorMessage("Unsupported cast from 'BOOLEAN' to 'DATE'."),
+
 			TestSpec
 				.forStrategy(
 					"Logical type roots instead of concrete data types",

@@ -27,50 +27,59 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
 
 /**
- * {@link InputTypeStrategy} specific for {@link BuiltInFunctionDefinitions#ARRAY}.
+ * {@link InputTypeStrategy} specific for {@link BuiltInFunctionDefinitions#CAST}.
  *
- * <p>It expects at least one argument. All the arguments must have a common super type.
+ * <p>It expects two arguments where the type of first one must be castable to the type of the second
+ * one. The second one must be a type literal.
  */
 @Internal
-public final class ArrayInputTypeStrategy implements InputTypeStrategy {
+public final class CastInputTypeStrategy implements InputTypeStrategy {
+
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.from(1);
+		return ConstantArgumentCount.of(2);
 	}
 
 	@Override
-	public Optional<List<DataType>> inferInputTypes(
-		CallContext callContext,
-		boolean throwOnFailure) {
-		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		if (argumentDataTypes.size() == 0) {
+	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
+		// check for type literal
+		if (!callContext.isArgumentLiteral(1) || !callContext.getArgumentValue(1, DataType.class).isPresent()) {
 			return Optional.empty();
 		}
 
-		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(
-			argumentDataTypes
-				.stream()
-				.map(DataType::getLogicalType)
-				.collect(Collectors.toList())
-		);
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType fromType = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType toType = argumentDataTypes.get(1).getLogicalType();
 
-		return commonType.map(type -> Collections.nCopies(
-			argumentDataTypes.size(),
-			TypeConversions.fromLogicalToDataType(type)));
+		// A hack to support legacy types. To be removed when we drop the legacy types.
+		if (fromType instanceof LegacyTypeInformationType) {
+			return Optional.of(argumentDataTypes);
+		}
+		if (!supportsExplicitCast(fromType, toType)) {
+			if (throwOnFailure) {
+				throw callContext.newValidationError(
+					"Unsupported cast from '%s' to '%s'.",
+					fromType,
+					toType);
+			}
+			return Optional.empty();
+		}
+		return Optional.of(argumentDataTypes);
 	}
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
+		return Collections.singletonList(
+			Signature.of(Signature.Argument.of("<ANY>"), Signature.Argument.of("<TYPE LITERAL>")));
 	}
 }
