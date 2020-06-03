@@ -43,7 +43,7 @@ echo "==========================================================================
 EXIT_CODE=0
 
 run_mvn clean install $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
-    -Dflink.forkCountTestPackage=2 -U -DskipTests
+    -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests
 
 EXIT_CODE=$?
 
@@ -54,10 +54,22 @@ if [ $EXIT_CODE != 0 ]; then
     exit $EXIT_CODE
 fi
 
-echo "============ Checking Scaladocs ============"
+echo "============ Checking Javadocs and Scaladocs ============"
+
+# use the same invocation as on buildbot (https://svn.apache.org/repos/infra/infrastructure/buildbot/aegis/buildmaster/master1/projects/flink.conf)
+run_mvn javadoc:aggregate -Paggregate-scaladoc -DadditionalJOption='-Xdoclint:none' \
+      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true \
+      -Dheader=someTestHeader || exit $?
 
 cd flink-scala
-run_mvn scala:doc || exit $?
+run_mvn scala:doc 2> scaladoc.out
+EXIT_CODE=$?
+if [ $EXIT_CODE != 0 ] ; then
+  echo "ERROR in Scaladocs. Printing full output:"
+  cat scaladoc.out
+  rm scaladoc.out
+  exit $EXIT_CODE
+fi
 cd ..
 
 echo "============ Checking scala suffixes ============"
