@@ -186,7 +186,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 		checkpointStorage.clearCacheFor(checkpointId);
 
-		channelStateWriter.abort(checkpointId, cause);
+		channelStateWriter.abort(checkpointId, cause, true);
 
 		// notify the coordinator that we decline this checkpoint
 		env.declineCheckpoint(checkpointId, cause);
@@ -391,7 +391,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			CheckpointMetrics metrics,
 			Exception ex) {
 
-		channelStateWriter.abort(metadata.getCheckpointId(), ex);
+		channelStateWriter.abort(metadata.getCheckpointId(), ex, true);
 		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
 			if (operatorSnapshotResult != null) {
 				try {
@@ -412,9 +412,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	}
 
 	private void prepareInflightDataSnapshot(long checkpointId) throws IOException {
-		prepareInputSnapshot.apply(channelStateWriter, checkpointId)
-			.thenAccept(unused -> channelStateWriter.finishInput(checkpointId));
-
 		ResultPartitionWriter[] writers = env.getAllWriters();
 		for (ResultPartitionWriter writer : writers) {
 			for (int i = 0; i < writer.getNumberOfSubpartitions(); i++) {
@@ -427,6 +424,14 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			}
 		}
 		channelStateWriter.finishOutput(checkpointId);
+		prepareInputSnapshot.apply(channelStateWriter, checkpointId)
+			.whenComplete((unused, ex) -> {
+				if (ex != null) {
+					channelStateWriter.abort(checkpointId, ex, false /* result is needed and cleaned by getWriteResult */);
+				} else {
+					channelStateWriter.finishInput(checkpointId);
+				}
+			});
 	}
 
 	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
