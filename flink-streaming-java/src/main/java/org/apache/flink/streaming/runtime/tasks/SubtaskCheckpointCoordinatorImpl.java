@@ -28,7 +28,6 @@ import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -65,7 +64,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -432,22 +430,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	}
 
 	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
-		final Future<?> channelWrittenFuture;
-		if (includeChannelState(options)) {
-			ChannelStateWriteResult writeResult = channelStateWriter.getWriteResult(metadata.getCheckpointId());
-			channelWrittenFuture = CompletableFuture.allOf(
-					writeResult.getInputChannelStateHandles(),
-					writeResult.getResultSubpartitionStateHandles())
-				.whenComplete((dummy, ex) -> channelStateWriter.stop(metadata.getCheckpointId()));
-		} else {
-			channelWrittenFuture = FutureUtils.completedVoidFuture();
-		}
 		// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
 		executorService.execute(new AsyncCheckpointRunnable(
 			snapshotFutures,
 			metadata,
 			metrics,
-			channelWrittenFuture,
 			System.nanoTime(),
 			taskName,
 			registerConsumer(),
@@ -490,7 +477,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		long started = System.nanoTime();
 
 		ChannelStateWriteResult channelStateWriteResult = includeChannelState(checkpointOptions) ?
-								channelStateWriter.getWriteResult(checkpointId) :
+								channelStateWriter.getAndRemoveWriteResult(checkpointId) :
 								ChannelStateWriteResult.EMPTY;
 
 		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(checkpointId, checkpointOptions.getTargetLocation());
