@@ -56,7 +56,7 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteReque
 public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ChannelStateWriterImpl.class);
-	private static final int DEFAULT_MAX_CHECKPOINTS = 5; // currently, only single in-flight checkpoint is supported
+	private static final int DEFAULT_MAX_CHECKPOINTS = 1000; // includes max-concurrent-checkpoints + checkpoints to be aborted (scheduled via mailbox)
 
 	private final String taskName;
 	private final ChannelStateWriteRequestExecutor executor;
