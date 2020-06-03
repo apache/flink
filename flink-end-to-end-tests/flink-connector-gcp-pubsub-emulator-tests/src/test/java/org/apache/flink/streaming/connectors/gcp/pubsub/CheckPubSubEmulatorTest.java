@@ -50,10 +50,11 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 	private static final String TOPIC_NAME = "Topic";
 	private static final String SUBSCRIPTION_NAME = "Subscription";
 
-	private static PubsubHelper pubsubHelper = getPubsubHelper();
+	private static PubsubHelper pubsubHelper;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
+		pubsubHelper = getPubsubHelper();
 		pubsubHelper.createTopic(PROJECT_NAME, TOPIC_NAME);
 		pubsubHelper.createSubscription(PROJECT_NAME, SUBSCRIPTION_NAME, PROJECT_NAME, TOPIC_NAME);
 	}
@@ -78,7 +79,7 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 
 		//TODO this is just to test if we need to wait longer, or if something has gone wrong and the message will never arrive
 		if (receivedMessages.isEmpty()) {
-			LOG.error("Message did not arrive, gonna wait 60s and try to pull again.");
+			LOG.error("Message did not arrive, gonna wait 30s and try to pull again.");
 			Thread.sleep(30 * 1000);
 			receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 1);
 		}
@@ -108,7 +109,7 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 
 		LOG.info("Waiting a while to receive the message...");
 
-		waitUntill(() -> receivedMessages.size() > 0);
+		waitUntil(() -> receivedMessages.size() > 0);
 
 		assertEquals(1, receivedMessages.size());
 		assertEquals("Hello World", receivedMessages.get(0).getData().toStringUtf8());
@@ -116,7 +117,7 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 		try {
 			subscriber.stopAsync().awaitTerminated(100, MILLISECONDS);
 		} catch (TimeoutException tme) {
-			// Yeah, whatever. Don't care about clean shutdown here.
+			LOG.info("Timeout during shutdown", tme);
 		}
 		publisher.shutdown();
 	}
@@ -124,14 +125,12 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 	/*
 	 * Returns when predicate returns true or if 10 seconds have passed
 	 */
-	private void waitUntill(Supplier<Boolean> predicate) {
+	private void waitUntil(Supplier<Boolean> predicate) throws InterruptedException {
 		int retries = 0;
 
 		while (!predicate.get() && retries < 100) {
 			retries++;
-			try {
-				Thread.sleep(10);
-			} catch (InterruptedException e) { }
+			Thread.sleep(10);
 		}
 	}
 

@@ -27,6 +27,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import java.io.Serializable;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudEmulatorManager.getDockerIpAddress;
@@ -44,6 +45,9 @@ public class GCloudUnitTestBase implements Serializable {
 
 	@AfterClass
 	public static void terminateGCloudEmulator() throws DockerException, InterruptedException {
+		channel.shutdownNow();
+		channel.awaitTermination(1, TimeUnit.MINUTES);
+		channel = null;
 		GCloudEmulatorManager.terminateDocker();
 	}
 

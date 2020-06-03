@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+# This test is a Java end to end test, but it requires Docker. Therefore, we run it from bash.
+
 cd "${END_TO_END_DIR}/flink-connector-gcp-pubsub-emulator-tests"
 
 run_mvn test -DskipTests=false
