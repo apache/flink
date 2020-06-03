@@ -32,11 +32,11 @@ import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -80,7 +80,7 @@ public class BatchSelectTableSink implements BatchTableSink<Row>, SelectTableSin
 	}
 
 	@Override
-	public Iterator<Row> getResultIterator() {
+	public CloseableIterator<Row> getResultIterator() {
 		Preconditions.checkNotNull(jobClient, "jobClient is null, please call setJobClient first.");
 		JobExecutionResult jobExecutionResult;
 		try {
@@ -100,7 +100,7 @@ public class BatchSelectTableSink implements BatchTableSink<Row>, SelectTableSin
 		} catch (IOException | ClassNotFoundException e) {
 			throw new TableException("Failed to deserialize the result.", e);
 		}
-		return rowList.iterator();
+		return CloseableIterator.adapterForIterator(rowList.iterator());
 	}
 
 }

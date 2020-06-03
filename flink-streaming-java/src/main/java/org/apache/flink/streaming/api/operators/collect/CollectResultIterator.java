@@ -22,9 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.util.CloseableIterator;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -32,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>NOTE: After using this iterator, the close method MUST be called in order to release job related resources.
  */
-public class CollectResultIterator<T> implements Iterator<T>, AutoCloseable {
+public class CollectResultIterator<T> implements CloseableIterator<T> {
 
 	private final CollectResultFetcher<T> fetcher;
 	private T bufferedResult;
