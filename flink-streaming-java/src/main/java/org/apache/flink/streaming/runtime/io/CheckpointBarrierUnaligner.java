@@ -348,10 +348,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			allBarriersReceivedFuture.cancel(false);
 		}
 
-		boolean isCheckpointPending() {
-			return numBarriersReceived > 0;
-		}
-
 		private synchronized void handleNewCheckpoint(CheckpointBarrier barrier) throws IOException {
 			long barrierId = barrier.getId();
 			if (!allBarriersReceivedFuture.isDone() && isCheckpointPending()) {
@@ -410,8 +406,14 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			return numOpenChannels;
 		}
 
+		@VisibleForTesting
 		synchronized long getCurrentCheckpointId() {
 			return currentReceivedCheckpointId;
+		}
+
+		@VisibleForTesting
+		boolean isCheckpointPending() {
+			return numBarriersReceived > 0;
 		}
 	}
 }
