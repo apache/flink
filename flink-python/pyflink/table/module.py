@@ -37,9 +37,11 @@ class HiveModule(Module):
     Module to provide Hive built-in metadata.
     """
 
-    def __init__(self, j_hive_module=None):
+    def __init__(self, hive_version=None):
         gateway = get_gateway()
 
-        if j_hive_module is None:
+        if hive_version is None:
             j_hive_module = gateway.jvm.org.apache.flink.table.module.hive.HiveModule()
+        else:
+            j_hive_module = gateway.jvm.org.apache.flink.table.module.hive.HiveModule(hive_version)
         super(HiveModule, self).__init__(j_hive_module)
