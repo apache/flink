@@ -40,6 +40,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -287,7 +288,12 @@ public class LocalExecutor implements Executor {
 	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		Environment env = context.getEnvironment();
-		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
+		Environment newEnv;
+		try {
+			newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
+		} catch (ValidationException e) {
+			throw new SqlExecutionException("Failed to enrich properties", e);
+		}
 
 		// Renew the ExecutionContext by new environment.
 		// Book keep all the session states of current ExecutionContext then

@@ -152,9 +152,7 @@ public class DeploymentEntry extends ConfigEntry {
 	 * Creates a new deployment entry enriched with additional properties that are prefixed with
 	 * {@link Environment#DEPLOYMENT_ENTRY}.
 	 */
-	public static DeploymentEntry enrich(
-			DeploymentEntry deployment,
-			Map<String, String> prefixedProperties) throws SqlExecutionException {
+	public static DeploymentEntry enrich(DeploymentEntry deployment, Map<String, String> prefixedProperties) {
 		final Map<String, String> enrichedProperties = new HashMap<>(deployment.asMap());
 
 		prefixedProperties.forEach((k, v) -> {
@@ -165,11 +163,7 @@ public class DeploymentEntry extends ConfigEntry {
 		});
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
-		try {
-			properties.putProperties(enrichedProperties);
-		} catch (ValidationException e) {
-			throw new SqlExecutionException("Failed to enrich properties", e);
-		}
+		properties.putProperties(enrichedProperties);
 
 		return new DeploymentEntry(properties);
 	}

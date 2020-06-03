@@ -378,9 +378,7 @@ public class ExecutionEntry extends ConfigEntry {
 	 * Creates a new execution entry enriched with additional properties that are prefixed with
 	 * {@link Environment#EXECUTION_ENTRY}.
 	 */
-	public static ExecutionEntry enrich(
-			ExecutionEntry execution,
-			Map<String, String> prefixedProperties) throws SqlExecutionException {
+	public static ExecutionEntry enrich(ExecutionEntry execution, Map<String, String> prefixedProperties) {
 		final Map<String, String> enrichedProperties = new HashMap<>(execution.asMap());
 
 		prefixedProperties.forEach((k, v) -> {
@@ -391,11 +389,7 @@ public class ExecutionEntry extends ConfigEntry {
 		});
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
-		try {
-			properties.putProperties(enrichedProperties);
-		} catch (ValidationException e) {
-			throw new SqlExecutionException("Failed to enrich properties", e);
-		}
+		properties.putProperties(enrichedProperties);
 
 		return new ExecutionEntry(properties);
 	}
