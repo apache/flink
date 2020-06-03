@@ -179,7 +179,9 @@ public interface ChannelStateWriter extends Closeable {
 
 		@Override
 		public ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId) {
-			return ChannelStateWriteResult.EMPTY;
+			return new ChannelStateWriteResult(
+				CompletableFuture.completedFuture(Collections.emptyList()),
+				CompletableFuture.completedFuture(Collections.emptyList()));
 		}
 
 		@Override
