@@ -123,7 +123,7 @@ public interface ChannelStateWriter extends Closeable {
 	 * Finalize write of channel state data for the given checkpoint id.
 	 * Must be called after {@link #start(long, CheckpointOptions)} and all of the input data of the given checkpoint added.
 	 * When both {@link #finishInput} and {@link #finishOutput} were called the results can be (eventually) obtained
-	 * using {@link #getWriteResult}
+	 * using {@link #getAndRemoveWriteResult}
 	 */
 	void finishInput(long checkpointId);
 
@@ -131,24 +131,21 @@ public interface ChannelStateWriter extends Closeable {
 	 * Finalize write of channel state data for the given checkpoint id.
 	 * Must be called after {@link #start(long, CheckpointOptions)} and all of the output data of the given checkpoint added.
 	 * When both {@link #finishInput} and {@link #finishOutput} were called the results can be (eventually) obtained
-	 * using {@link #getWriteResult}
+	 * using {@link #getAndRemoveWriteResult}
 	 */
 	void finishOutput(long checkpointId);
 
 	/**
 	 * Aborts the checkpoint and fails pending result for this checkpoint.
+	 * @param cleanup true if {@link #getAndRemoveWriteResult(long)} is not supposed to be called afterwards.
 	 */
 	void abort(long checkpointId, Throwable cause);
 
 	/**
-	 * Must be called after {@link #start(long, CheckpointOptions)}.
+	 * Must be called after {@link #start(long, CheckpointOptions)} once.
+	 * @throws IllegalArgumentException if the passed checkpointId is not known.
 	 */
-	ChannelStateWriteResult getWriteResult(long checkpointId);
-
-	/**
-	 * Cleans up the internal state for the given checkpoint.
-	 */
-	void stop(long checkpointId);
+	ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId) throws IllegalArgumentException;
 
 	ChannelStateWriter NO_OP = new NoOpChannelStateWriter();
 
@@ -181,16 +178,12 @@ public interface ChannelStateWriter extends Closeable {
 		}
 
 		@Override
-		public ChannelStateWriteResult getWriteResult(long checkpointId) {
+		public ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId) {
 			return ChannelStateWriteResult.EMPTY;
 		}
 
 		@Override
 		public void close() {
-		}
-
-		@Override
-		public void stop(long checkpointId) {
 		}
 	}
 }

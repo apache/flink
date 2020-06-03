@@ -81,11 +81,6 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
 		return lastFinishedCheckpointId;
 	}
 
-	@Override
-	public void stop(long checkpointId) {
-		lastFinishedCheckpointId = checkpointId;
-	}
-
 	public ListMultimap<InputChannelInfo, Buffer> getAddedInput() {
 		return addedInput;
 	}

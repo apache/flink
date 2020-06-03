@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.Map;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -60,7 +59,6 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 	private final Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress;
 	private final CheckpointMetaData checkpointMetaData;
 	private final CheckpointMetrics checkpointMetrics;
-	private final Future<?> channelWrittenFuture;
 	private final long asyncStartNanos;
 	private final AtomicReference<AsyncCheckpointState> asyncCheckpointState = new AtomicReference<>(AsyncCheckpointState.RUNNING);
 
@@ -68,7 +66,6 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData checkpointMetaData,
 			CheckpointMetrics checkpointMetrics,
-			Future<?> channelWrittenFuture,
 			long asyncStartNanos,
 			String taskName,
 			Consumer<AsyncCheckpointRunnable> register,
@@ -79,7 +76,6 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 		this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
 		this.checkpointMetaData = checkNotNull(checkpointMetaData);
 		this.checkpointMetrics = checkNotNull(checkpointMetrics);
-		this.channelWrittenFuture = checkNotNull(channelWrittenFuture);
 		this.asyncStartNanos = asyncStartNanos;
 		this.taskName = checkNotNull(taskName);
 		this.registerConsumer = register;
@@ -119,8 +115,6 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000L;
 
 			checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
-
-			channelWrittenFuture.get();
 
 			if (asyncCheckpointState.compareAndSet(AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
 
