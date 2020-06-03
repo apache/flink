@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.inference.strategies.SubSequenceInputTypeStrategy;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.junit.runners.Parameterized;
@@ -27,12 +28,14 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 import static java.util.Arrays.asList;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /**
- * Tests for {@link SubSequenceInputTypeStrategy}
+ * Tests for {@link SubSequenceInputTypeStrategy}.
  */
 public class SubSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 	@Parameterized.Parameters(name = "{index}: {0}")
@@ -41,10 +44,10 @@ public class SubSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBas
 			TestSpec
 				.forStrategy(
 					"A strategy used for IF ELSE with valid arguments",
-					InputTypeStrategies.startSequences()
+					InputTypeStrategies.compositeSequence()
 						.argument(logical(LogicalTypeRoot.BOOLEAN))
-					.subSequence(commonType(2))
-					.finish()
+						.subSequence(commonType(2))
+						.finish()
 				)
 				.calledWithArgumentTypes(
 					DataTypes.BOOLEAN(),
@@ -62,7 +65,7 @@ public class SubSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBas
 			TestSpec
 				.forStrategy(
 					"Strategy fails if any of the nested strategies fail",
-					InputTypeStrategies.startSequences()
+					InputTypeStrategies.compositeSequence()
 						.argument(logical(LogicalTypeRoot.BOOLEAN))
 						.subSequence(commonType(2))
 						.finish()
@@ -77,10 +80,10 @@ public class SubSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBas
 			TestSpec
 				.forStrategy(
 					"Strategy with a varying argument",
-					InputTypeStrategies.startSequences()
+					InputTypeStrategies.compositeSequence()
 						.argument(logical(LogicalTypeRoot.BOOLEAN))
 						.subSequence(commonType(2))
-						.finishWithvarying(varyingSequence(logical(LogicalTypeRoot.BIGINT)))
+						.finishWithVarying(varyingSequence(logical(LogicalTypeRoot.BIGINT)))
 				)
 				.calledWithArgumentTypes(
 					DataTypes.BOOLEAN(),
@@ -98,6 +101,41 @@ public class SubSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBas
 					DataTypes.DECIMAL(10, 2),
 					DataTypes.BIGINT(),
 					DataTypes.BIGINT(),
+					DataTypes.BIGINT()
+				),
+
+			TestSpec
+				.forStrategy(
+					"A complex strategy with few sub sequences",
+					InputTypeStrategies.compositeSequence()
+						.argument(logical(LogicalTypeRoot.BOOLEAN))
+						.subSequence(commonType(2))
+						.argument(explicit(DataTypes.TIME().notNull()))
+						.subSequence(commonType(2))
+						.finishWithVarying(varyingSequence(logical(LogicalTypeFamily.TIMESTAMP), ANY))
+				)
+				.calledWithArgumentTypes(
+					DataTypes.BOOLEAN(),
+					DataTypes.SMALLINT(),
+					DataTypes.DECIMAL(10, 2),
+					DataTypes.TIME().notNull(),
+					DataTypes.TINYINT().notNull(),
+					DataTypes.DECIMAL(13, 3).notNull(),
+					DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().notNull(),
+					DataTypes.SMALLINT(),
+					DataTypes.BIGINT()
+				)
+				.expectSignature(
+					"f(<BOOLEAN>, <COMMON>, <COMMON>, TIME(0) NOT NULL, <COMMON>, <COMMON>, <TIMESTAMP>, <ANY>...)")
+				.expectArgumentTypes(
+					DataTypes.BOOLEAN(),
+					DataTypes.DECIMAL(10, 2),
+					DataTypes.DECIMAL(10, 2),
+					DataTypes.TIME().notNull(),
+					DataTypes.DECIMAL(13, 3).notNull(),
+					DataTypes.DECIMAL(13, 3).notNull(),
+					DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().notNull(),
+					DataTypes.SMALLINT(),
 					DataTypes.BIGINT()
 				)
 		);

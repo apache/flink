@@ -46,10 +46,10 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.TWO_FUL
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.compositeSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.startSequences;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
@@ -101,7 +101,7 @@ public final class BuiltInFunctionDefinitions {
 			.name("ifThenElse")
 			.kind(SCALAR)
 			.inputTypeStrategy(
-				startSequences()
+				compositeSequence()
 					.argument(logical(LogicalTypeRoot.BOOLEAN))
 					.subSequence(commonType(2))
 					.finish()

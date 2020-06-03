@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
@@ -29,6 +28,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -50,11 +50,11 @@ import java.util.stream.Collectors;
 public final class SubSequenceInputTypeStrategy implements InputTypeStrategy {
 
 	private final List<ArgumentsSplit> argumentsSplits;
-	private final ArgumentCount argumentCount;
+	private final ConstantArgumentCount argumentCount;
 
-	private SubSequenceInputTypeStrategy(List<ArgumentsSplit> argumentsSplits, ArgumentCount argumentCount) {
-		this.argumentsSplits = argumentsSplits;
-		this.argumentCount = argumentCount;
+	private SubSequenceInputTypeStrategy(List<ArgumentsSplit> argumentsSplits, ConstantArgumentCount argumentCount) {
+		this.argumentsSplits = Preconditions.checkNotNull(argumentsSplits);
+		this.argumentCount = Preconditions.checkNotNull(argumentCount);
 	}
 
 	@Override
@@ -195,7 +195,6 @@ public final class SubSequenceInputTypeStrategy implements InputTypeStrategy {
 	/**
 	 * A Builder for {@link SubSequenceInputTypeStrategy}.
 	 */
-	@PublicEvolving
 	public static final class SubSequenceStrategyBuilder {
 		private final List<ArgumentsSplit> argumentsSplits = new ArrayList<>();
 		private int currentPos = 0;
@@ -216,9 +215,10 @@ public final class SubSequenceInputTypeStrategy implements InputTypeStrategy {
 		 * input strategy must expect a constant number of arguments. That means that both
 		 * the minimum and maximum number of arguments must be defined and equal to each other.
 		 *
-		 * <p>If you need a varying logic use {@link #finishWithvarying(InputTypeStrategy)}.
+		 * <p>If you need a varying logic use {@link #finishWithVarying(InputTypeStrategy)}.
 		 */
 		public SubSequenceStrategyBuilder subSequence(InputTypeStrategy inputTypeStrategy) {
+			Preconditions.checkArgument(inputTypeStrategy.getArgumentCount() instanceof ConstantArgumentCount);
 			Optional<Integer> maxCount = inputTypeStrategy.getArgumentCount().getMaxCount();
 			Optional<Integer> minCount = inputTypeStrategy.getArgumentCount().getMinCount();
 			if (!maxCount.isPresent() || !minCount.isPresent() || !maxCount.get().equals(minCount.get())) {
@@ -235,18 +235,14 @@ public final class SubSequenceInputTypeStrategy implements InputTypeStrategy {
 		 * input strategy must expect a varying number of arguments. That means that the
 		 * maximum number of arguments must not be defined.
 		 */
-		public InputTypeStrategy finishWithvarying(InputTypeStrategy inputTypeStrategy) {
+		public InputTypeStrategy finishWithVarying(InputTypeStrategy inputTypeStrategy) {
+			Preconditions.checkArgument(inputTypeStrategy.getArgumentCount() instanceof ConstantArgumentCount);
 			ArgumentCount strategyArgumentCount = inputTypeStrategy.getArgumentCount();
-			Optional<Integer> maxCount = strategyArgumentCount.getMaxCount();
-			if (maxCount.isPresent()) {
+			strategyArgumentCount.getMaxCount().ifPresent(c -> {
 				throw new IllegalArgumentException("The maximum number of arguments must not be defined.");
-			}
+			});
 			argumentsSplits.add(new ArgumentsSplit(currentPos, null, inputTypeStrategy));
-			int minCount = currentPos;
-			Optional<Integer> strategyMinCount = strategyArgumentCount.getMinCount();
-			if (strategyMinCount.isPresent()) {
-				minCount += strategyMinCount.get();
-			}
+			int minCount = currentPos + strategyArgumentCount.getMinCount().orElse(0);
 			return new SubSequenceInputTypeStrategy(argumentsSplits, ConstantArgumentCount.from(minCount));
 		}
 

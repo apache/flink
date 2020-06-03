@@ -41,11 +41,11 @@ import java.util.stream.IntStream;
  * An {@link InputTypeStrategy} that expects that all arguments have a common type.
  */
 @Internal
-public final class SameArgumentsInputTypeStrategy implements InputTypeStrategy {
+public final class CommonInputTypeStrategy implements InputTypeStrategy {
 	private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.of("<COMMON>");
 	private final ArgumentCount argumentCount;
 
-	public SameArgumentsInputTypeStrategy(ArgumentCount argumentCount) {
+	public CommonInputTypeStrategy(ArgumentCount argumentCount) {
 		this.argumentCount = argumentCount;
 	}
 
@@ -59,26 +59,28 @@ public final class SameArgumentsInputTypeStrategy implements InputTypeStrategy {
 			CallContext callContext,
 			boolean throwOnFailure) {
 		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		List<LogicalType> argumentTypes = argumentDataTypes
+			.stream()
+			.map(DataType::getLogicalType)
+			.collect(Collectors.toList());
 
-		if (callContext.getArgumentDataTypes()
-				.stream()
-				.anyMatch(dataType -> dataType.getLogicalType() instanceof LegacyTypeInformationType)) {
-			return Optional.of(callContext.getArgumentDataTypes());
+		if (argumentTypes.stream().anyMatch(CommonInputTypeStrategy::isLegacyType)) {
+			return Optional.of(argumentDataTypes);
 		}
 
-		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(
-			argumentDataTypes
-				.stream()
-				.map(DataType::getLogicalType)
-				.collect(Collectors.toList())
-		);
+		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(argumentTypes);
 
 		if (!commonType.isPresent()) {
-			throw callContext.newValidationError("Could not find a common type for arguments: %s", argumentDataTypes);
+			if (throwOnFailure) {
+				throw callContext.newValidationError(
+					"Could not find a common type for arguments: %s",
+					argumentDataTypes);
+			}
+			return Optional.empty();
 		}
 
 		return commonType.map(type -> Collections.nCopies(
-			argumentDataTypes.size(),
+			argumentTypes.size(),
 			TypeConversions.fromLogicalToDataType(type)));
 	}
 
@@ -87,19 +89,12 @@ public final class SameArgumentsInputTypeStrategy implements InputTypeStrategy {
 		Optional<Integer> minCount = argumentCount.getMinCount();
 		Optional<Integer> maxCount = argumentCount.getMaxCount();
 
-		int numberOfMandatoryArguments = 0;
-		if (minCount.isPresent()) {
-			numberOfMandatoryArguments = minCount.get();
-		}
+		int numberOfMandatoryArguments = minCount.orElse(0);
 
 		if (maxCount.isPresent()) {
-			List<Signature> signatures = new ArrayList<>();
-			IntStream.range(numberOfMandatoryArguments, maxCount.get() + 1)
-				.forEach(count -> {
-						signatures.add(Signature.of(Collections.nCopies(count, COMMON_ARGUMENT)));
-					}
-				);
-			return signatures;
+			return IntStream.range(numberOfMandatoryArguments, maxCount.get() + 1)
+				.mapToObj(count -> Signature.of(Collections.nCopies(count, COMMON_ARGUMENT)))
+				.collect(Collectors.toList());
 		}
 
 		List<Signature.Argument> arguments = new ArrayList<>(
@@ -108,5 +103,9 @@ public final class SameArgumentsInputTypeStrategy implements InputTypeStrategy {
 				COMMON_ARGUMENT));
 		arguments.add(Signature.Argument.of("<COMMON>..."));
 		return Collections.singletonList(Signature.of(arguments));
+	}
+
+	private static boolean isLegacyType(LogicalType type) {
+		return type instanceof LegacyTypeInformationType;
 	}
 }

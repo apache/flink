@@ -24,6 +24,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
@@ -34,7 +35,6 @@ import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.SameArgumentsInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SubSequenceInputTypeStrategy.SubSequenceStrategyBuilder;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
@@ -70,10 +70,10 @@ public final class InputTypeStrategies {
 	 * An strategy that lets you apply other strategies for subsequences of
 	 * the actual arguments.
 	 *
-	 * <p>The {@link SequenceInputTypeStrategy} should be preferred in most of the cases. Use this strategy
+	 * <p>The {@link #sequence(ArgumentTypeStrategy...)} should be preferred in most of the cases. Use this strategy
 	 * only if you need to apply a common logic to a subsequence of the arguments.
 	 */
-	public static SubSequenceStrategyBuilder startSequences() {
+	public static SubSequenceStrategyBuilder compositeSequence() {
 		return new SubSequenceStrategyBuilder();
 	}
 
@@ -276,7 +276,7 @@ public final class InputTypeStrategies {
 	 * An {@link InputTypeStrategy} that expects {@code count} arguments that have a common type.
 	 */
 	public static InputTypeStrategy commonType(int count) {
-		return new SameArgumentsInputTypeStrategy(ConstantArgumentCount.of(count));
+		return new CommonInputTypeStrategy(ConstantArgumentCount.of(count));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -293,7 +293,7 @@ public final class InputTypeStrategies {
 	 *
 	 * <p>It expects at least one argument. All the arguments must have a common super type.
 	 */
-	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new SameArgumentsInputTypeStrategy(
+	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new CommonInputTypeStrategy(
 		ConstantArgumentCount.from(1)
 	);
 
