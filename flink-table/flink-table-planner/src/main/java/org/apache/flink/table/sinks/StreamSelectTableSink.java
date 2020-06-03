@@ -35,8 +35,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.CloseableIterator;
 
-import java.util.Iterator;
 import java.util.UUID;
 
 /**
@@ -92,7 +92,7 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 			}
 
 			@Override
-			public Iterator<Row> getResultIterator() {
+			public CloseableIterator<Row> getResultIterator() {
 				return new RowIteratorWrapper(iterator);
 			}
 		};
@@ -101,7 +101,7 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 	/**
 	 * An Iterator wrapper class that converts Iterator&lt;Tuple2&lt;Boolean, Row&gt;&gt; to Iterator&lt;Row&gt;.
 	 */
-	private static class RowIteratorWrapper implements Iterator<Row>, AutoCloseable {
+	private static class RowIteratorWrapper implements CloseableIterator<Row> {
 		private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
 		public RowIteratorWrapper(CollectResultIterator<Tuple2<Boolean, Row>> iterator) {
 			this.iterator = iterator;

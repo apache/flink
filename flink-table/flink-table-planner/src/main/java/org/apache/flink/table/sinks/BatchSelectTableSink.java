@@ -33,11 +33,11 @@ import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -89,14 +89,14 @@ public class BatchSelectTableSink implements BatchTableSink<Row> {
 			}
 
 			@Override
-			public Iterator<Row> getResultIterator() {
+			public CloseableIterator<Row> getResultIterator() {
 				Preconditions.checkNotNull(jobClient, "jobClient is null, please call setJobClient first.");
 				return collectResult(jobClient);
 			}
 		};
 	}
 
-	private Iterator<Row> collectResult(JobClient jobClient) {
+	private CloseableIterator<Row> collectResult(JobClient jobClient) {
 		JobExecutionResult jobExecutionResult;
 		try {
 			jobExecutionResult = jobClient.getJobExecutionResult(
@@ -115,7 +115,7 @@ public class BatchSelectTableSink implements BatchTableSink<Row> {
 		} catch (IOException | ClassNotFoundException e) {
 			throw new TableException("Failed to deserialize the result.", e);
 		}
-		return rowList.iterator();
+		return CloseableIterator.adapterForIterator(rowList.iterator());
 	}
 
 }
