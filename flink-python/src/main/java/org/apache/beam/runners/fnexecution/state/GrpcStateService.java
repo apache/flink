@@ -142,7 +142,10 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
 
     @Override
     public void onError(Throwable t) {
-      outboundObserver.onCompleted();
+      if (!t.getMessage().contains("cancelled before receiving half close")) {
+        // ignore the exception "cancelled before receiving half close" as we don't care about it.
+        outboundObserver.onError(t);
+      }
     }
 
     @Override
