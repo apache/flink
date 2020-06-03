@@ -68,7 +68,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
 
 	@Override
 	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) {
-		channelStateWriter.abort(checkpointId, cause);
+		channelStateWriter.abort(checkpointId, cause, true);
 	}
 
 	@Override
