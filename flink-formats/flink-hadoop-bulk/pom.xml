@@ -25,7 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
+<<<<<<< HEAD
 		<version>1.12-SNAPSHOT</version>
+=======
+		<version>1.11-SNAPSHOT</version>
+>>>>>>> update/release-1.11
 		<relativePath>..</relativePath>
 	</parent>
 

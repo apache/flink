@@ -40,6 +40,9 @@ public class DummyNoOpOperator<IN> extends NoOpOperator<IN> {
 		setInput(input);
 	}
 
+	/**
+	 * Dummy file input format implementation.
+	 */
 	public static class DummyInputFormat<IN> extends FileInputFormat<IN> {
 
 		@Override

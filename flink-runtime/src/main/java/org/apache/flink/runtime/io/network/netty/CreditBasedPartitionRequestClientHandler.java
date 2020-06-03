@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
@@ -236,7 +237,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 	/**
 	 * Checks for an error and rethrows it if one was reported.
 	 */
-	private void checkError() throws IOException {
+	@VisibleForTesting
+	void checkError() throws IOException {
 		final Throwable t = channelError.get();
 
 		if (t != null) {
@@ -264,7 +266,12 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 				return;
 			}
 
-			decodeBufferOrEvent(inputChannel, bufferOrEvent);
+			try {
+				decodeBufferOrEvent(inputChannel, bufferOrEvent);
+			} catch (Throwable t) {
+				inputChannel.onError(t);
+			}
+
 
 		} else if (msgClazz == NettyMessage.ErrorResponse.class) {
 			// ---- Error ---------------------------------------------------------

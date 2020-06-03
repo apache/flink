@@ -24,7 +24,11 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Test;
 
+<<<<<<< HEAD
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+=======
+import static org.apache.flink.util.CoreMatchers.containsCause;
+>>>>>>> update/release-1.11
 
 /**
  * Plan tests for HBase connector, for example, testing projection push down.

@@ -37,7 +37,10 @@ import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTyp
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+<<<<<<< HEAD
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+=======
+>>>>>>> update/release-1.11
 
 import java.util.Arrays;
 import java.util.List;

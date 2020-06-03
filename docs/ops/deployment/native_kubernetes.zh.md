@@ -30,7 +30,11 @@ under the License.
 {:toc}
 
 <div class="alert alert-warning">
+<<<<<<< HEAD
 Flink 的原生 Kubernetes 集成仍处于试验阶段。在以后的版本中，配置和 CLI flags 可能会发生变化。
+=======
+Flink's native Kubernetes integration is still experimental. There may be changes in the configuration and CLI flags in latter versions.
+>>>>>>> update/release-1.11
 </div>
 
 ## 要求
@@ -168,6 +172,45 @@ appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m
 如果 pod 正在运行，可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
 
 ## Flink Kubernetes Application
+<<<<<<< HEAD
+=======
+
+### Start Flink Application
+
+Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized](docker.html#customize-flink-image) for any use case.
+
+{% highlight dockerfile %}
+FROM flink
+RUN mkdir -p $FLINK_HOME/usrlib
+COPY /path/of/my-flink-job-*.jar $FLINK_HOME/usrlib/my-flink-job.jar
+{% endhighlight %}
+
+Use the following command to start a Flink application.
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dkubernetes.container.image=<CustomImageName> \
+  local:///opt/flink/usrlib/my-flink-job.jar
+{% endhighlight %}
+
+Note: Only "local" is supported as schema for application mode. This assumes that the jar is located in the image, not the Flink client.
+
+Note: All the jars in the "$FLINK_HOME/usrlib" directory in the image will be added to user classpath.
+
+### Stop Flink Application
+
+When an application is stopped, all Flink cluster resources are automatically destroyed.
+As always, Jobs may stop when manually canceled or, in the case of bounded Jobs, complete.
+
+{% highlight bash %}
+$ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
+{% endhighlight %}
+
+## Kubernetes concepts
+>>>>>>> update/release-1.11
 
 ### 启动 Flink Application
 
