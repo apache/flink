@@ -50,6 +50,8 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 	 */
 	private boolean randomTriggered;
 
+	private BufferConsumer randomTriggeredConsumer;
+
 	BroadcastRecordWriter(
 			ResultPartitionWriter writer,
 			long timeout,
@@ -84,7 +86,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 		if (bufferBuilder != null) {
 			for (int index = 0; index < numberOfChannels; index++) {
 				if (index != targetChannelIndex) {
-					addBufferConsumer(bufferBuilder.createBufferConsumer(), index);
+					addBufferConsumer(randomTriggeredConsumer.copyWithReaderPosition(bufferBuilder.getCommittedBytes()), index);
 				}
 			}
 		}
@@ -130,7 +132,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 
 		BufferBuilder builder = super.requestNewBufferBuilder(targetChannel);
 		if (randomTriggered) {
-			addBufferConsumer(builder.createBufferConsumer(), targetChannel);
+			addBufferConsumer(randomTriggeredConsumer = builder.createBufferConsumer(), targetChannel);
 		} else {
 			try (BufferConsumer bufferConsumer = builder.createBufferConsumer()) {
 				for (int channel = 0; channel < numberOfChannels; channel++) {
