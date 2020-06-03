@@ -18,7 +18,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
@@ -40,7 +40,7 @@ class TestingExecutorBuilder {
 	private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier = Collections.emptyList();
 	private BiConsumerWithException<String, String, SqlExecutionException> setUseCatalogConsumer = (ignoredA, ignoredB) -> {};
 	private BiConsumerWithException<String, String, SqlExecutionException> setUseDatabaseConsumer = (ignoredA, ignoredB) -> {};
-	private BiFunctionWithException<String, String, ProgramTargetDescriptor, SqlExecutionException> setExecuteUpdateConsumer = (ignoredA, ignoredB) -> null;
+	private BiFunctionWithException<String, String, TableResult, SqlExecutionException> setExecuteSqlConsumer = (ignoredA, ignoredB) -> null;
 
 	@SafeVarargs
 	public final TestingExecutorBuilder setResultChangesSupplier(SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException> ... resultChangesSupplier) {
@@ -70,9 +70,9 @@ class TestingExecutorBuilder {
 		return this;
 	}
 
-	public final TestingExecutorBuilder setExecuteUpdateConsumer(
-			BiFunctionWithException<String, String, ProgramTargetDescriptor, SqlExecutionException> setExecuteUpdateConsumer) {
-		this.setExecuteUpdateConsumer = setExecuteUpdateConsumer;
+	public final TestingExecutorBuilder setExecuteSqlConsumer(
+			BiFunctionWithException<String, String, TableResult, SqlExecutionException> setExecuteUpdateConsumer) {
+		this.setExecuteSqlConsumer = setExecuteUpdateConsumer;
 		return this;
 	}
 
@@ -83,6 +83,6 @@ class TestingExecutorBuilder {
 			resultPagesSupplier,
 			setUseCatalogConsumer,
 			setUseDatabaseConsumer,
-			setExecuteUpdateConsumer);
+			setExecuteSqlConsumer);
 	}
 }

@@ -228,24 +228,24 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testCreateCatalog() throws Exception {
-		testDDL("create catalog c1 with('type'='generic_in_memory');");
+		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		testExecuteSql(executor, "create catalog c1 with('type'='generic_in_memory');");
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
 
 	@Test
 	public void testDropCatalog() throws Exception {
-		testDDL("drop catalog c1;");
+		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		testExecuteSql(executor, "drop catalog c1;");
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
 
-	private void testDDL(String ddl) throws Exception {
-		TestingExecutor executor = new TestingExecutorBuilder().setExecuteUpdateConsumer((s, s2) -> null).build();
-
-		InputStream inputStream = new ByteArrayInputStream((ddl + "\n").getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
+	/**
+	 * execute a sql statement and return the terminal output as string.
+	 */
+	private String testExecuteSql(TestingExecutor executor, String sql) throws IOException {
+		InputStream inputStream = new ByteArrayInputStream((sql + "\n").getBytes());
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
 		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
@@ -253,7 +253,7 @@ public class CliClientTest extends TestLogger {
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
-			assertThat(executor.getNumExecuteUpdateCalls(), is(1));
+			return new String(outputStream.toByteArray());
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();

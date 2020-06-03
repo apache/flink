@@ -59,8 +59,8 @@ class TestingExecutor implements Executor {
 	private int numUseDatabaseCalls = 0;
 	private BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
 
-	private int numExecuteUpdateCalls = 0;
-	private BiFunctionWithException<String, String, ProgramTargetDescriptor, SqlExecutionException> executeUpdateConsumer;
+	private int numExecuteSqlCalls = 0;
+	private BiFunctionWithException<String, String, TableResult, SqlExecutionException> executeUpdateConsumer;
 
 	private final SqlParserHelper helper;
 
@@ -70,7 +70,7 @@ class TestingExecutor implements Executor {
 			List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages,
 			BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer,
 			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer,
-			BiFunctionWithException<String, String, ProgramTargetDescriptor, SqlExecutionException> executeUpdateConsumer) {
+			BiFunctionWithException<String, String, TableResult, SqlExecutionException> executeUpdateConsumer) {
 		this.resultChanges = resultChanges;
 		this.snapshotResults = snapshotResults;
 		this.resultPages = resultPages;
@@ -182,7 +182,8 @@ class TestingExecutor implements Executor {
 
 	@Override
 	public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-		return null;
+		numExecuteSqlCalls++;
+		return executeUpdateConsumer.apply(sessionId, statement);
 	}
 
 	@Override
@@ -217,8 +218,7 @@ class TestingExecutor implements Executor {
 
 	@Override
 	public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
-		numExecuteUpdateCalls++;
-		return executeUpdateConsumer.apply(sessionId, statement);
+		throw new UnsupportedOperationException("Not implemented.");
 	}
 
 	public int getNumCancelCalls() {
@@ -245,7 +245,7 @@ class TestingExecutor implements Executor {
 		return numUseDatabaseCalls;
 	}
 
-	public int getNumExecuteUpdateCalls() {
-		return numExecuteUpdateCalls;
+	public int getNumExecuteSqlCalls() {
+		return numExecuteSqlCalls;
 	}
 }
