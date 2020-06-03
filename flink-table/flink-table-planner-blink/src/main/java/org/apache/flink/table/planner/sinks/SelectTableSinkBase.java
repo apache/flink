@@ -32,8 +32,8 @@ import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
-import java.util.Iterator;
 import java.util.UUID;
 
 /**
@@ -82,7 +82,7 @@ public class SelectTableSinkBase implements SelectTableSink {
 	}
 
 	@Override
-	public Iterator<Row> getResultIterator() {
+	public CloseableIterator<Row> getResultIterator() {
 		return iterator;
 	}
 }

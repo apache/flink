@@ -23,8 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-
-import java.util.Iterator;
+import org.apache.flink.util.CloseableIterator;
 
 /**
  * An internal special {@link TableSink} to collect the select query result to local client.
@@ -46,5 +45,5 @@ public interface SelectTableSink extends TableSink<Row> {
 	/**
 	 * Returns the select result as row iterator.
 	 */
-	Iterator<Row> getResultIterator();
+	CloseableIterator<Row> getResultIterator();
 }

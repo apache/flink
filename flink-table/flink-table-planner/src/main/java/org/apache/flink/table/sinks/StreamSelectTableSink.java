@@ -31,8 +31,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
-import java.util.Iterator;
 import java.util.UUID;
 
 /**
@@ -81,7 +81,7 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	}
 
 	@Override
-	public Iterator<Row> getResultIterator() {
+	public CloseableIterator<Row> getResultIterator() {
 		return iterator;
 	}
 }
