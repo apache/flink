@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub.emulator;
 
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.LogStream;
 import com.spotify.docker.client.exceptions.ContainerNotFoundException;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
@@ -116,7 +117,7 @@ public class GCloudEmulatorManager {
 			.hostConfig(hostConfig)
 			.exposedPorts(INTERNAL_PUBSUB_PORT)
 			.image(DOCKER_IMAGE_NAME)
-			.cmd("sh", "-c", "mkdir -p /opt/data/pubsub ; gcloud beta emulators pubsub start --data-dir=/opt/data/pubsub  --host-port=0.0.0.0:" + INTERNAL_PUBSUB_PORT)
+			.cmd("sh", "-c", "mkdir -p /opt/data/pubsub ; gcloud beta emulators pubsub start --data-dir=/opt/data/pubsub --host-port=0.0.0.0:" + INTERNAL_PUBSUB_PORT)
 			.build();
 
 		final ContainerCreation creation = docker.createContainer(containerConfig, CONTAINER_NAME_JUNIT);
@@ -220,7 +221,7 @@ public class GCloudEmulatorManager {
 			containerInfo = docker.inspectContainer(CONTAINER_NAME_JUNIT);
 			// Already have this container running.
 
-			assertNotNull("We should either we get containerInfo or we get an exception", containerInfo);
+			assertNotNull("We should either get a containerInfo or we get an exception", containerInfo);
 
 			LOG.info("");
 			LOG.info("/===========================================");
@@ -228,7 +229,16 @@ public class GCloudEmulatorManager {
 				LOG.warn("|    >>> FOUND OLD EMULATOR INSTANCE RUNNING <<< ");
 				LOG.warn("| Destroying that one to keep tests running smoothly.");
 			}
-			LOG.info("| Cleanup of GCloud Emulator");
+			LOG.info("| Cleanup of GCloud Emulator. Log output of container: ");
+
+			if (LOG.isInfoEnabled()) {
+				try (LogStream stream = docker.logs(
+					containerInfo.id(),
+					DockerClient.LogsParam.stdout(),
+					DockerClient.LogsParam.stderr())) {
+					LOG.info("| > {}", stream.readFully());
+				}
+			}
 
 			// We REQUIRE 100% accurate side effect free unit tests
 			// So we completely discard this one.
