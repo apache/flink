@@ -66,7 +66,7 @@ public enum TestUtils {
 				case 0:
 					throw new RuntimeException(
 						new FileNotFoundException(
-							String.format("No jar could be found that matches the pattern %s.", jarNameRegex)
+							String.format("No jar could be found that matches the pattern %s. This could mean that the test module must be rebuilt via maven.", jarNameRegex)
 						)
 					);
 				case 1:
