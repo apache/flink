@@ -377,7 +377,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
   }
 
   @Test
-  def testArrayIndexStaticCheckForTable(): Unit = {
+  def testArrayLowerIndexStaticCheckForTable(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
     testTableApi('f2.at(0), "1")
@@ -391,11 +391,20 @@ class ArrayTypeTest extends ArrayTypeTestBase {
   }
 
   @Test
-  def testReturnNullWhenArrayIndexOutOfBounds(): Unit = {
+  def testReturnNullWhenPrimativeArrayIndexOutOfBounds(): Unit = {
     testAllApis(
       'f2.at(4),
       "f2.at(4)",
       "f2[4]",
+      "null")
+  }
+
+  @Test
+  def testReturnNullWhenArrayIndexOutOfBounds(): Unit = {
+    testAllApis(
+      'f11.at(3),
+      "f11.at(3)",
+      "f11[4]",
       "null")
   }
 }
