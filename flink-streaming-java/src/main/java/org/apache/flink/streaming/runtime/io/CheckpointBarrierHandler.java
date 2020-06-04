@@ -76,7 +76,9 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
 	public abstract long getLatestCheckpointId();
 
-	public abstract long getAlignmentDurationNanos();
+	public long getAlignmentDurationNanos() {
+		return 0;
+	}
 
 	public long getCheckpointStartDelayNanos() {
 		return latestCheckpointStartDelayNanos;
