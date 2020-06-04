@@ -41,12 +41,20 @@ import java.util.function.Supplier;
 @Internal
 interface SubtaskCheckpointCoordinator extends Closeable {
 
+	/**
+	 * Initialize new checkpoint.
+	 */
+	void initCheckpoint(long id, CheckpointOptions checkpointOptions);
+
 	ChannelStateWriter getChannelStateWriter();
 
 	CheckpointStorageWorkerView getCheckpointStorage();
 
 	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException;
 
+	/**
+	 * Must be called after {@link #initCheckpoint(long, CheckpointOptions)}.
+	 */
 	void checkpointState(
 		CheckpointMetaData checkpointMetaData,
 		CheckpointOptions checkpointOptions,
