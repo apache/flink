@@ -603,7 +603,7 @@ public class ExecutionContext<ClusterID> {
 			// it means that it accesses tables that are not available anymore
 			if (entry instanceof ViewEntry) {
 				final ViewEntry viewEntry = (ViewEntry) entry;
-				registerView(viewEntry);
+				registerTemporaryView(viewEntry);
 			}
 		});
 
@@ -695,7 +695,7 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private void registerView(ViewEntry viewEntry) {
+	private void registerTemporaryView(ViewEntry viewEntry) {
 		try {
 			tableEnv.createTemporaryView(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
 		} catch (Exception e) {

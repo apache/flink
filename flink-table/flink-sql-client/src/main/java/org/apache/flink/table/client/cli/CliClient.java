@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
