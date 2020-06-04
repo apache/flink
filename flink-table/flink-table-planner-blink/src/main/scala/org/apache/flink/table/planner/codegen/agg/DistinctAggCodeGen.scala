@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.DistinctInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
@@ -63,6 +64,7 @@ class DistinctAggCodeGen(
   distinctIndex: Int,
   innerAggCodeGens: Array[AggCodeGen],
   filterExpressions: Array[Option[Expression]],
+  constantExpressions: Seq[GeneratedExpression],
   mergedAccOffset: Int,
   aggBufferOffset: Int,
   aggBufferSize: Int,
@@ -371,13 +373,22 @@ class DistinctAggCodeGen(
   private def generateKeyExpression(
       ctx: CodeGeneratorContext,
       generator: ExprCodeGenerator): GeneratedExpression = {
-    val fieldExprs = distinctInfo.argIndexes.map(generateInputAccess(
-      ctx,
-      generator.input1Type,
-      generator.input1Term,
-      _,
-      nullableInput = false,
-      deepCopy = inputFieldCopy))
+    val fieldExprs = distinctInfo.argIndexes.map(argIndex => {
+      val inputFieldCount = LogicalTypeChecks.getFieldCount(generator.input1Type)
+      if (argIndex >= inputFieldCount) {
+        // arg index to constant
+        constantExpressions(argIndex - inputFieldCount)
+      } else {
+        // arg index to input field
+        generateInputAccess(
+          ctx,
+          generator.input1Type,
+          generator.input1Term,
+          argIndex,
+          nullableInput = false,
+          deepCopy = inputFieldCopy)
+      }
+    })
 
     // the key expression of MapView
     if (fieldExprs.length > 1) {

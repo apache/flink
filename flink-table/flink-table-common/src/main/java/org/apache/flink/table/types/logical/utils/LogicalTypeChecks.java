@@ -30,7 +30,9 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -65,6 +67,8 @@ public final class LogicalTypeChecks {
 	private static final FractionalPrecisionExtractor FRACTIONAL_PRECISION_EXTRACTOR = new FractionalPrecisionExtractor();
 
 	private static final SingleFieldIntervalExtractor SINGLE_FIELD_INTERVAL_EXTRACTOR = new SingleFieldIntervalExtractor();
+
+	private static final FieldCountExtractor FIELD_COUNT_EXTRACTOR = new FieldCountExtractor();
 
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
@@ -103,6 +107,13 @@ public final class LogicalTypeChecks {
 
 	public static int getLength(LogicalType logicalType) {
 		return logicalType.accept(LENGTH_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field count of row and structured types.
+	 */
+	public static int getFieldCount(LogicalType logicalType) {
+		return logicalType.accept(FIELD_COUNT_EXTRACTOR);
 	}
 
 	public static boolean hasLength(LogicalType logicalType, int length) {
@@ -337,6 +348,30 @@ public final class LogicalTypeChecks {
 		@Override
 		public TimestampKind visit(LocalZonedTimestampType localZonedTimestampType) {
 			return localZonedTimestampType.getKind();
+		}
+	}
+
+	private static class FieldCountExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(RowType rowType) {
+			return rowType.getFieldCount();
+		}
+
+		@Override
+		public Integer visit(StructuredType structuredType) {
+			int fieldCount = 0;
+			StructuredType currentType = structuredType;
+			while (currentType != null) {
+				fieldCount += currentType.getAttributes().size();
+				currentType = currentType.getSuperType().orElse(null);
+			}
+			return fieldCount;
+		}
+
+		@Override
+		public Integer visit(DistinctType distinctType) {
+			return distinctType.getSourceType().accept(this);
 		}
 	}
 

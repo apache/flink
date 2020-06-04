@@ -259,6 +259,7 @@ class AggsHandlerCodeGenerator(
           index,
           innerCodeGens,
           filterExpr.toArray,
+          constantExprs,
           mergedAccOffset,
           aggBufferOffset,
           aggBufferSize,
