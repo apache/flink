@@ -26,9 +26,7 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.util.Arrays;
 import java.util.List;
@@ -43,18 +41,13 @@ import static org.junit.Assert.assertFalse;
  */
 public class ExecutorCLITest {
 
-	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
-
 	private Options testOptions;
 
 	@Before
 	public void initOptions() {
 		testOptions = new Options();
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
-				new Configuration(),
-				tmp.getRoot().getAbsolutePath());
+		final ExecutorCLI cliUnderTest = new ExecutorCLI(new Configuration());
 		cliUnderTest.addGeneralOptions(testOptions);
 	}
 
@@ -64,9 +57,7 @@ public class ExecutorCLITest {
 		final Configuration loadedConfig = new Configuration();
 		loadedConfig.set(DeploymentOptions.TARGET, expectedExecutorName);
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
-				loadedConfig,
-				tmp.getRoot().getAbsolutePath());
+		final ExecutorCLI cliUnderTest = new ExecutorCLI(loadedConfig);
 		final CommandLine emptyCommandLine = CliFrontendParser.parse(testOptions, new String[0], true);
 
 		final Configuration configuration = cliUnderTest.applyCommandLineOptionsToConfiguration(emptyCommandLine);
@@ -96,9 +87,7 @@ public class ExecutorCLITest {
 				"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5"
 		};
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
-				loadedConfig,
-				tmp.getRoot().getAbsolutePath());
+		final ExecutorCLI cliUnderTest = new ExecutorCLI(loadedConfig);
 		final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
 
 		final Configuration configuration = cliUnderTest.applyCommandLineOptionsToConfiguration(commandLine);
@@ -124,9 +113,7 @@ public class ExecutorCLITest {
 		final ConfigOption<Integer> configOption = key("test.int").intType().noDefaultValue();
 		final int expectedValue = 42;
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
-				new Configuration(),
-				tmp.getRoot().getAbsolutePath());
+		final ExecutorCLI cliUnderTest = new ExecutorCLI(new Configuration());
 
 		final String[] args = {executorOption, expectedExecutorName, "-D" + configOption.key() + "=" + expectedValue};
 		final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
