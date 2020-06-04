@@ -16,36 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.hadoop.bulk;
-
-import org.apache.flink.formats.hadoop.bulk.committer.HadoopRenameFileCommitter;
+package org.apache.flink.formats.hadoop.bulk.committer.cluster;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.UUID;
 
 /**
- * The default hadoop file committer factory which always use {@link HadoopRenameFileCommitter}.
+ * Utility class for testing with HDFS FileSystem.
  */
-public class DefaultHadoopFileCommitterFactory implements HadoopFileCommitterFactory {
+public class HDFSCluster {
 
-	private static final long serialVersionUID = 1L;
+	public final MiniDFSCluster miniCluster;
 
-	@Override
-	public HadoopFileCommitter create(
-		Configuration configuration,
-		Path targetFilePath) throws IOException {
-
-		return new HadoopRenameFileCommitter(configuration, targetFilePath);
+	public HDFSCluster(File tmpDir) throws IOException {
+		Configuration hdfsConfig = new Configuration();
+		hdfsConfig.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpDir.getAbsolutePath());
+		miniCluster = new MiniDFSCluster.Builder(hdfsConfig).build();
 	}
 
-	@Override
-	public HadoopFileCommitter recoverForCommit(
-		Configuration configuration,
-		Path targetFilePath,
-		Path tempFilePath) throws IOException {
+	public void shutdown() {
+		miniCluster.shutdown();
+	}
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
+	public Path newFolder() {
+		return new Path(
+			new Path(miniCluster.getURI() + "/"),
+			UUID.randomUUID().toString());
 	}
 }

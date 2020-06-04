@@ -63,7 +63,8 @@ public class HadoopPathBasedPartFileWriterTest extends AbstractTestBase {
 	@Test
 	public void testPendingFileRecoverableSerializer() throws IOException {
 		HadoopPathBasedPendingFileRecoverable recoverable = new HadoopPathBasedPendingFileRecoverable(
-			new Path("hdfs://fake/path"));
+			new Path("hdfs://fake/path"),
+			new Path("hdfs://fake/path.inprogress.uuid"));
 		HadoopPathBasedPendingFileRecoverableSerializer serializer =
 			new HadoopPathBasedPendingFileRecoverableSerializer();
 
@@ -72,7 +73,8 @@ public class HadoopPathBasedPartFileWriterTest extends AbstractTestBase {
 			serializer.getVersion(),
 			serializedBytes);
 
-		assertEquals(recoverable.getPath(), deSerialized.getPath());
+		assertEquals(recoverable.getTargetFilePath(), deSerialized.getTargetFilePath());
+		assertEquals(recoverable.getTempFilePath(), deSerialized.getTempFilePath());
 	}
 
 	@Test
