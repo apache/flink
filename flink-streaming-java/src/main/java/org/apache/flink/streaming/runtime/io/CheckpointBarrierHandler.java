@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
@@ -88,7 +89,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
 	 * that channel.
 	 */
-	public boolean hasInflightData(long checkpointId, int channelIndex) {
+	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
 		return false;
 	}
 
