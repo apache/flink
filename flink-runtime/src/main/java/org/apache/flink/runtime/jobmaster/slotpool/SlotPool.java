@@ -187,6 +187,14 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 		@Nonnull ResourceProfile resourceProfile);
 
 	/**
+	 * Disables batch slot request timeout check. Invoked when someone else wants to
+	 * take over the timeout check responsibility.
+	 */
+	default void disableBatchSlotRequestTimeoutCheck() {
+		throw new UnsupportedOperationException("Not properly implemented.");
+	}
+
+	/**
 	 * Create report about the allocated slots belonging to the specified task manager.
 	 *
 	 * @param taskManagerId identifies the task manager
