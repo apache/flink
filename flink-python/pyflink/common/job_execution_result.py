@@ -104,7 +104,7 @@ class JobExecutionResult(object):
             accumulators[key] = j_result_map[key]
         return accumulators
 
-    def to_string(self):
+    def __str__(self):
         """
         Convert JobExecutionResult to a string, if possible.
 

@@ -17,6 +17,10 @@
 ################################################################################
 from asyncio import Future
 
+from py4j.protocol import Py4JJavaError
+
+from pyflink.util.exceptions import convert_py4j_exception
+
 __all__ = ['CompletableFuture']
 
 
@@ -52,14 +56,19 @@ class CompletableFuture(Future):
             return self._py_class(self._j_completable_future.get())
 
     def exception(self):
-        return self._exception
+        if self._j_completable_future.isCompletedExceptionally():
+            try:
+                self._j_completable_future.getNow(None)
+            except Py4JJavaError as e:
+                return convert_py4j_exception(e)
+        else:
+            return None
 
     def set_result(self, result):
-        return self._j_completable_future.complete(result)
+        raise NotImplementedError("The method set_result should never be called")
 
     def set_exception(self, exception):
-        self._exception = exception
-        return self._j_completable_future.completeExceptionally(exception)
+        raise NotImplementedError("The method set_exception should never be called")
 
     def __str__(self):
         return self._j_completable_future.toString()

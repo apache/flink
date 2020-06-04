@@ -184,3 +184,20 @@ def install_py4j_hooks():
             "command line argument '--jarfile' or the config option 'pipeline.jars'" % self._fqn)
 
     setattr(py4j.java_gateway.JavaPackage, '__call__', wrapped_call)
+
+
+def convert_py4j_exception(e: Py4JJavaError) -> JavaException:
+    """
+    Convert Py4J exception to JavaException.
+    """
+    def extract_java_stack_trace(java_stack_trace):
+        return '\n\t at '.join(map(lambda x: x.toString(), java_stack_trace))
+
+    s = e.java_exception.toString()
+    cause = e.java_exception.getCause()
+    stack_trace = extract_java_stack_trace(e.java_exception.getStackTrace())
+    while cause is not None:
+        stack_trace += '\nCaused by: %s: %s' % (cause.getClass().getName(), cause.getMessage())
+        stack_trace += "\n\t at " + extract_java_stack_trace(cause.getStackTrace())
+        cause = cause.getCause()
+    return JavaException(s.split(': ', 1)[1], stack_trace)
