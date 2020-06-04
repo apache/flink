@@ -97,7 +97,7 @@ public class PartitionTempFileManager {
 	}
 
 	private String newFileName() {
-		return String.format("%s%s-%s-file-%d%s",
+		return String.format("%s-%s-%s-file-%d%s",
 				outputFileConfig.getPartPrefix(), checkpointName(checkpointId),
 				taskName(taskNumber), nameCounter++, outputFileConfig.getPartSuffix());
 	}

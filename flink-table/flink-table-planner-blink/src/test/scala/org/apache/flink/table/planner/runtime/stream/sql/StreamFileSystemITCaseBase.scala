@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSink
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Before
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -55,4 +55,8 @@ abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSys
       expectedResult.map(TestSinkUtil.rowToString(_)).sorted,
       sink.getAppendResults.sorted)
   }
+
+  // Streaming mode not support overwrite
+  @Test
+  override def testInsertOverwrite(): Unit = {}
 }
