@@ -243,11 +243,12 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 			BulkWriter<GenericRecord> writer = factory.create(out);
 			AvroRowDataSerializationSchema.SerializationRuntimeConverter converter =
 					AvroRowDataSerializationSchema.createRowConverter(rowType);
+			Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 			return new BulkWriter<RowData>() {
 
 				@Override
 				public void addElement(RowData element) throws IOException {
-					GenericRecord record = (GenericRecord) converter.convert(element);
+					GenericRecord record = (GenericRecord) converter.convert(schema, element);
 					writer.addElement(record);
 				}
 
