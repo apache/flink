@@ -60,7 +60,9 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	 * @param channelIndex The channel index to check.
 	 * @return True if the channel is blocked, false if not.
 	 */
-	public abstract boolean isBlocked(int channelIndex);
+	public boolean isBlocked(int channelIndex) {
+		return false;
+	}
 
 	@Override
 	public void close() throws IOException {
