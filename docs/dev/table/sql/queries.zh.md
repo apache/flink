@@ -566,15 +566,15 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p><b>注意：</b> 时间窗口 join 是常规 join 的子集，可以使用流的方式进行处理。</p>
+        <p><b>注意：</b>Interval join （时间区间关联）是常规 join 的子集，可以使用流的方式进行处理。</p>
 
-        <p>时间窗口join需要至少一个 equi-join 谓词和一个限制了双方时间的 join 条件。例如使用两个适当的范围谓词（<code>&lt;, &lt;=, &gt;=, &gt;</code>），一个 <code>BETWEEN</code> 谓词或一个比较两个输入表中相同类型的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性</a> （即处理时间和事件时间）的相等谓词</p>
-        <p>比如，以下谓词是合法的窗口 join 条件：</p>
+        <p>Interval join需要至少一个 equi-join 谓词和一个限制了双方时间的 join 条件。例如使用两个适当的范围谓词（<code>&lt;, &lt;=, &gt;=, &gt;</code>），一个 <code>BETWEEN</code> 谓词或一个比较两个输入表中相同类型的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性</a> （即处理时间和事件时间）的相等谓词</p>
+        <p>比如，以下谓词是合法的 interval join 条件：</p>
 
         <ul>
           <li><code>ltime = rtime</code></li>

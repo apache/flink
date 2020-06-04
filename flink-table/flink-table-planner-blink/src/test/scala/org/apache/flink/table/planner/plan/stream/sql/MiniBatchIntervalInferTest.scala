@@ -108,7 +108,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   }
 
   @Test
-  def testWindowJoinWithMiniBatch(): Unit = {
+  def testIntervalJoinWithMiniBatch(): Unit = {
     util.addTableWithWatermark("LeftT", util.tableEnv.from("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RightT", util.tableEnv.from("MyTable2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(

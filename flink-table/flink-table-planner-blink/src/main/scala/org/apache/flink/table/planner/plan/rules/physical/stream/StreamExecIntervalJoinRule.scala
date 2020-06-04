@@ -22,8 +22,8 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecWindowJoin
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecIntervalJoin
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, IntervalJoinUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -35,14 +35,14 @@ import scala.collection.JavaConversions._
 
 /**
   * Rule that converts non-SEMI/ANTI [[FlinkLogicalJoin]] with window bounds in join condition
-  * to [[StreamExecWindowJoin]].
+  * to [[StreamExecIntervalJoin]].
   */
-class StreamExecWindowJoinRule
+class StreamExecIntervalJoinRule
   extends ConverterRule(
     classOf[FlinkLogicalJoin],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecWindowJoinRule") {
+    "StreamExecIntervalJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
@@ -56,7 +56,7 @@ class StreamExecWindowJoinRule
     }
 
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+    val (windowBounds, _) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       joinRowType,
@@ -112,14 +112,14 @@ class StreamExecWindowJoinRule
       .getContext
       .unwrap(classOf[FlinkContext])
       .getTableConfig
-    val (windowBounds, remainCondition) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+    val (windowBounds, remainCondition) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       left.getRowType.getFieldCount,
       joinRowType,
       join.getCluster.getRexBuilder,
       tableConfig)
 
-    new StreamExecWindowJoin(
+    new StreamExecIntervalJoin(
       rel.getCluster,
       providedTraitSet,
       newLeft,
@@ -136,6 +136,6 @@ class StreamExecWindowJoinRule
   }
 }
 
-object StreamExecWindowJoinRule {
-  val INSTANCE: RelOptRule = new StreamExecWindowJoinRule
+object StreamExecIntervalJoinRule {
+  val INSTANCE: RelOptRule = new StreamExecIntervalJoinRule
 }

@@ -29,11 +29,11 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, IntervalJoinUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.generated.GeneratedFunction
-import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
+import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeIntervalStreamJoin, RowTimeIntervalStreamJoin}
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.util.Collector
 
@@ -48,9 +48,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for a time windowed stream join.
+  * Stream physical RelNode for a time interval stream join.
   */
-class StreamExecWindowJoin(
+class StreamExecIntervalJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     leftRel: RelNode,
@@ -82,7 +82,7 @@ class StreamExecWindowJoin(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecWindowJoin(
+    new StreamExecIntervalJoin(
       cluster,
       traitSet,
       inputs.get(0),
@@ -140,7 +140,7 @@ class StreamExecWindowJoin(
 
         val relativeWindowSize = leftUpperBound - leftLowerBound
         if (relativeWindowSize < 0) {
-          LOG.warn(s"The relative window size $relativeWindowSize is negative," +
+          LOG.warn(s"The relative time interval size $relativeWindowSize is negative," +
             " please check the join conditions.")
           createNegativeWindowSizeJoin(
             leftPlan,
@@ -155,14 +155,14 @@ class StreamExecWindowJoin(
           val rightKeys = joinInfo.rightKeys.toIntArray
 
           // generate join function
-          val joinFunction = WindowJoinUtil.generateJoinFunction(
+          val joinFunction = IntervalJoinUtil.generateJoinFunction(
             planner.getTableConfig,
             joinType,
             leftRowType,
             rightRowType,
             getRowType,
             remainCondition,
-            "WindowJoinFunction")
+            "IntervalJoinFunction")
 
           if (isRowTime) {
             createRowTimeJoin(
@@ -184,12 +184,12 @@ class StreamExecWindowJoin(
         }
       case FlinkJoinType.ANTI =>
         throw new TableException(
-          "Window Join: {Anti Join} between stream and stream is not supported yet.\n" +
-            "please re-check window join statement according to description above.")
+          "Interval Join: {Anti Join} between stream and stream is not supported yet.\n" +
+            "please re-check interval join statement according to description above.")
       case FlinkJoinType.SEMI =>
         throw new TableException(
-          "Window Join: {Semi Join} between stream and stream is not supported yet.\n" +
-            "please re-check window join statement according to description above.")
+          "Interval Join: {Semi Join} between stream and stream is not supported yet.\n" +
+            "please re-check interval join statement according to description above.")
     }
   }
 
@@ -275,7 +275,7 @@ class StreamExecWindowJoin(
       rightKeys: Array[Int]): Transformation[RowData] = {
     val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
     val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val procJoinFunc = new ProcTimeBoundedStreamJoin(
+    val procJoinFunc = new ProcTimeIntervalStreamJoin(
       flinkJoinType,
       leftLowerBound,
       leftUpperBound,
@@ -316,7 +316,7 @@ class StreamExecWindowJoin(
   ): Transformation[RowData] = {
     val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
     val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val rowJoinFunc = new RowTimeBoundedStreamJoin(
+    val rowJoinFunc = new RowTimeIntervalStreamJoin(
       flinkJoinType,
       leftLowerBound,
       leftUpperBound,
