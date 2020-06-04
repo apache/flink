@@ -75,6 +75,11 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	private final SerializationRuntimeConverter runtimeConverter;
 
 	/**
+	 * Avro serialization schema.
+	 */
+	private transient Schema schema;
+
+	/**
 	 * Writer to serialize Avro record into a Avro bytes.
 	 */
 	private transient DatumWriter<IndexedRecord> datumWriter;
@@ -99,7 +104,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 
 	@Override
 	public void open(InitializationContext context) throws Exception {
-		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		this.schema = AvroSchemaConverter.convertToSchema(rowType);
 		datumWriter = new SpecificDatumWriter<>(schema);
 		arrayOutputStream = new ByteArrayOutputStream();
 		encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
@@ -109,7 +114,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	public byte[] serialize(RowData row) {
 		try {
 			// convert to record
-			final GenericRecord record = (GenericRecord) runtimeConverter.convert(row);
+			final GenericRecord record = (GenericRecord) runtimeConverter.convert(schema, row);
 			arrayOutputStream.reset();
 			datumWriter.write(record, encoder);
 			encoder.flush();
@@ -145,33 +150,43 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	 * to corresponding Avro data structures.
 	 */
 	interface SerializationRuntimeConverter extends Serializable {
-		Object convert(Object object);
+		Object convert(Schema schema, Object object);
 	}
 
 	static SerializationRuntimeConverter createRowConverter(RowType rowType) {
 		final SerializationRuntimeConverter[] fieldConverters = rowType.getChildren().stream()
 			.map(AvroRowDataSerializationSchema::createConverter)
 			.toArray(SerializationRuntimeConverter[]::new);
-		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 		final LogicalType[] fieldTypes = rowType.getFields().stream()
 			.map(RowType.RowField::getType)
 			.toArray(LogicalType[]::new);
+		final RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			fieldGetters[i] = RowData.createFieldGetter(fieldTypes[i], i);
+		}
 		final int length = rowType.getFieldCount();
 
-		return object -> {
+		return (schema, object) -> {
 			final RowData row = (RowData) object;
+			final List<Schema.Field> fields = schema.getFields();
 			final GenericRecord record = new GenericData.Record(schema);
 			for (int i = 0; i < length; ++i) {
-				record.put(i, fieldConverters[i].convert(RowData.get(row, i, fieldTypes[i])));
+				final Schema.Field schemaField = fields.get(i);
+				Object avroObject = fieldConverters[i].convert(
+					schemaField.schema(),
+					fieldGetters[i].getFieldOrNull(row));
+				record.put(i, avroObject);
 			}
 			return record;
 		};
 	}
 
 	private static SerializationRuntimeConverter createConverter(LogicalType type) {
+		final SerializationRuntimeConverter converter;
 		switch (type.getTypeRoot()) {
 			case NULL:
-				return object -> null;
+				converter = (schema, object) -> null;
+				break;
 			case BOOLEAN: // boolean
 			case INTEGER: // int
 			case INTERVAL_YEAR_MONTH: // long
@@ -181,39 +196,74 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 			case DOUBLE: // double
 			case TIME_WITHOUT_TIME_ZONE: // int
 			case DATE: // int
-				return avroObject -> avroObject;
+				converter = (schema, object) -> object;
+				break;
 			case CHAR:
 			case VARCHAR:
-				return object -> new Utf8(object.toString());
+				converter = (schema, object) -> new Utf8(object.toString());
+				break;
 			case BINARY:
 			case VARBINARY:
-				return object -> ByteBuffer.wrap((byte[]) object);
+				converter = (schema, object) -> ByteBuffer.wrap((byte[]) object);
+				break;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return object -> ((TimestampData) object).toTimestamp().getTime();
+				converter = (schema, object) -> ((TimestampData) object).toTimestamp().getTime();
+				break;
 			case DECIMAL:
-				return object -> ByteBuffer.wrap(((DecimalData) object).toUnscaledBytes());
+				converter = (schema, object) -> ByteBuffer.wrap(((DecimalData) object).toUnscaledBytes());
+				break;
 			case ARRAY:
-				return createArrayConverter((ArrayType) type);
+				converter = createArrayConverter((ArrayType) type);
+				break;
 			case ROW:
-				return createRowConverter((RowType) type);
+				converter = createRowConverter((RowType) type);
+				break;
 			case MAP:
 			case MULTISET:
-				return createMapConverter(type);
+				converter = createMapConverter(type);
+				break;
 			case RAW:
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}
+
+		// wrap into nullable converter
+		return (schema, object) -> {
+			if (object == null) {
+				return null;
+			}
+
+			// get actual schema if it is a nullable schema
+			Schema actualSchema;
+			if (schema.getType() == Schema.Type.UNION) {
+				List<Schema> types = schema.getTypes();
+				int size = types.size();
+				if (size == 2 && types.get(1).getType() == Schema.Type.NULL) {
+					actualSchema = types.get(0);
+				} else if (size == 2 && types.get(0).getType() == Schema.Type.NULL) {
+					actualSchema = types.get(1);
+				} else {
+					throw new IllegalArgumentException(
+						"The Avro schema is not a nullable type: " + schema.toString());
+				}
+			} else {
+				actualSchema = schema;
+			}
+			return converter.convert(actualSchema, object);
+		};
 	}
 
 	private static SerializationRuntimeConverter createArrayConverter(ArrayType arrayType) {
+		LogicalType elementType = arrayType.getElementType();
+		final ArrayData.ElementGetter elementGetter = ArrayData.createElementGetter(elementType);
 		final SerializationRuntimeConverter elementConverter = createConverter(arrayType.getElementType());
-		final LogicalType elementType = arrayType.getElementType();
 
-		return object -> {
+		return (schema, object) -> {
+			final Schema elementSchema = schema.getElementType();
 			ArrayData arrayData = (ArrayData) object;
 			List<Object> list = new ArrayList<>();
 			for (int i = 0; i < arrayData.size(); ++i) {
-				list.add(elementConverter.convert(ArrayData.get(arrayData, i, elementType)));
+				list.add(elementConverter.convert(elementSchema, elementGetter.getElementOrNull(arrayData, i)));
 			}
 			return list;
 		};
@@ -221,16 +271,18 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 
 	private static SerializationRuntimeConverter createMapConverter(LogicalType type) {
 		LogicalType valueType = extractValueTypeToAvroMap(type);
+		final ArrayData.ElementGetter valueGetter = ArrayData.createElementGetter(valueType);
 		final SerializationRuntimeConverter valueConverter = createConverter(valueType);
 
-		return object -> {
+		return (schema, object) -> {
+			final Schema valueSchema = schema.getValueType();
 			final MapData mapData = (MapData) object;
 			final ArrayData keyArray = mapData.keyArray();
 			final ArrayData valueArray = mapData.valueArray();
 			final Map<Object, Object> map = new HashMap<>(mapData.size());
 			for (int i = 0; i < mapData.size(); ++i) {
 				final String key = keyArray.getString(i).toString();
-				final Object value = valueConverter.convert(ArrayData.get(valueArray, i, valueType));
+				final Object value = valueConverter.convert(valueSchema, valueGetter.getElementOrNull(valueArray, i));
 				map.put(key, value);
 			}
 			return map;
