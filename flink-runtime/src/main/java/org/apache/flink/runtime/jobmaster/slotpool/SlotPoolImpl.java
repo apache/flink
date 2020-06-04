@@ -134,6 +134,8 @@ public class SlotPoolImpl implements SlotPool {
 
 	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
+	private boolean batchSlotRequestTimeoutCheckEnabled;
+
 	// ------------------------------------------------------------------------
 
 	public SlotPoolImpl(
@@ -160,6 +162,8 @@ public class SlotPoolImpl implements SlotPool {
 		this.jobManagerAddress = null;
 
 		this.componentMainThreadExecutor = null;
+
+		this.batchSlotRequestTimeoutCheckEnabled = true;
 	}
 
 	// ------------------------------------------------------------------------
@@ -451,6 +455,11 @@ public class SlotPoolImpl implements SlotPool {
 
 		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply(Function.identity());
+	}
+
+	@Override
+	public void disableBatchSlotRequestTimeoutCheck() {
+		batchSlotRequestTimeoutCheckEnabled = false;
 	}
 
 	@Override
@@ -874,6 +883,10 @@ public class SlotPoolImpl implements SlotPool {
 	}
 
 	protected void checkBatchSlotTimeout() {
+		if (!batchSlotRequestTimeoutCheckEnabled) {
+			return;
+		}
+
 		final Collection<PendingRequest> pendingBatchRequests = getPendingBatchRequests();
 
 		if (!pendingBatchRequests.isEmpty()) {
