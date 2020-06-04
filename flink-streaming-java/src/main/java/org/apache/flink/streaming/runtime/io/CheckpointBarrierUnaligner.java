@@ -200,11 +200,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public long getAlignmentDurationNanos() {
-		return 0;
-	}
-
-	@Override
 	public String toString() {
 		return String.format("%s: last checkpoint: %d", taskName, currentConsumedCheckpointId);
 	}
