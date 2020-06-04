@@ -63,15 +63,16 @@ public interface KafkaResource extends ExternalResource {
 	InetSocketAddress getZookeeperAddress();
 
 	/**
-	 * Reads up to {@code maxNumMessages} from the given topic.
+	 * Reads {@code expectedNumMessages} from the given topic. If we can't read the expected number
+	 * of messages we throw an exception.
 	 *
-	 * @param maxNumMessages maximum number of messages that should be read
+	 * @param expectedNumMessages expected number of messages that should be read
 	 * @param groupId group id to identify consumer
 	 * @param topic topic name
 	 * @return read messages
 	 * @throws IOException
 	 */
-	List<String> readMessage(int maxNumMessages, String groupId, String topic) throws IOException;
+	List<String> readMessage(int expectedNumMessages, String groupId, String topic) throws IOException;
 
 	/**
 	 * Modifies the number of partitions for the given topic.
