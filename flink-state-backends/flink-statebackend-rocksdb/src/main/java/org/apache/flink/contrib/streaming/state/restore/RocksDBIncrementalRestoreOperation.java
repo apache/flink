@@ -51,6 +51,7 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
@@ -309,7 +310,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 						null, tmpRestoreDBInfo.stateMetaInfoSnapshots.get(i))
 						.columnFamilyHandle;
 
-					try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(tmpRestoreDBInfo.db, tmpColumnFamilyHandle)) {
+					try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(tmpRestoreDBInfo.db, tmpColumnFamilyHandle, tmpRestoreDBInfo.readOptions)) {
 
 						iterator.seek(startKeyGroupPrefixBytes);
 
@@ -376,6 +377,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		@Nonnull
 		private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
+		private final ReadOptions readOptions;
+
 		private RestoredDBInstance(
 			@Nonnull RocksDB db,
 			@Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
@@ -386,6 +389,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			this.columnFamilyHandles = columnFamilyHandles;
 			this.columnFamilyDescriptors = columnFamilyDescriptors;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+			this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
 		}
 
 		@Override
@@ -397,6 +401,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			IOUtils.closeAllQuietly(columnFamilyHandles);
 			IOUtils.closeQuietly(db);
 			IOUtils.closeAllQuietly(columnFamilyOptions);
+			IOUtils.closeQuietly(readOptions);
 		}
 	}
 
