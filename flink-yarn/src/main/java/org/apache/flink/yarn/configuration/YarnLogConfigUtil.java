@@ -47,12 +47,12 @@ public class YarnLogConfigUtil {
 			final Configuration configuration,
 			final String configurationDirectory) {
 
-		if (configuration.get(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
+		if (configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
 			return configuration;
 		}
 
 		discoverLogConfigFile(configurationDirectory).ifPresent(file ->
-				configuration.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath()));
+				configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath()));
 		return configuration;
 	}
 

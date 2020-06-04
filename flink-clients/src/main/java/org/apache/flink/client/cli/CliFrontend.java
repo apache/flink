@@ -1045,7 +1045,7 @@ public class CliFrontend {
 
 	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
 		List<CustomCommandLine> customCommandLines = new ArrayList<>();
-		customCommandLines.add(new ExecutorCLI(configuration, configurationDirectory));
+		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.

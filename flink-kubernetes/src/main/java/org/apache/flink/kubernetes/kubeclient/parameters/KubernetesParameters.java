@@ -32,8 +32,6 @@ import java.util.Optional;
  */
 public interface KubernetesParameters {
 
-	String getConfigDirectory();
-
 	String getClusterId();
 
 	String getNamespace();

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.ExecutorCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
@@ -69,14 +68,14 @@ public class KubernetesSessionCli {
 	private final ExecutorCLI cli;
 	private final ClusterClientServiceLoader clusterClientServiceLoader;
 
-	public KubernetesSessionCli(Configuration configuration, String configDir) {
-		this(configuration, new DefaultClusterClientServiceLoader(), configDir);
+	public KubernetesSessionCli(Configuration configuration) {
+		this(configuration, new DefaultClusterClientServiceLoader());
 	}
 
-	public KubernetesSessionCli(Configuration configuration, ClusterClientServiceLoader clusterClientServiceLoader, String configDir) {
+	public KubernetesSessionCli(Configuration configuration, ClusterClientServiceLoader clusterClientServiceLoader) {
 		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
 		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
-		this.cli = new ExecutorCLI(baseConfiguration, configDir);
+		this.cli = new ExecutorCLI(baseConfiguration);
 	}
 
 	public Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
@@ -179,12 +178,10 @@ public class KubernetesSessionCli {
 	public static void main(String[] args) {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 
-		final String configDir = CliFrontend.getConfigurationDirectoryFromEnv();
-
 		int retCode;
 
 		try {
-			final KubernetesSessionCli cli = new KubernetesSessionCli(configuration, configDir);
+			final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
 			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
 		} catch (CliArgsException e) {
 			retCode = AbstractCustomCommandLine.handleCliArgsException(e, LOG);

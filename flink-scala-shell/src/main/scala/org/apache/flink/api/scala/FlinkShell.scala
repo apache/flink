@@ -140,7 +140,10 @@ object FlinkShell {
   }
 
   private def getConfigDir(config: Config) = {
-    config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
+    config.configDir match {
+      case Some(confDir) => confDir
+      case None => CliFrontend.getConfigurationDirectoryFromEnv
+    }
   }
 
   private def getGlobalConfig(config: Config) = {
@@ -229,7 +232,8 @@ object FlinkShell {
     val effectiveConfig = new Configuration(flinkConfig)
     val args = parseYarnArgList(config, "yarn-cluster")
 
-    val configurationDirectory = getConfigDir(config)
+    val configurationDirectory =
+      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
 
     val frontend = new CliFrontend(
       effectiveConfig,
@@ -267,7 +271,8 @@ object FlinkShell {
     val effectiveConfig = new Configuration(flinkConfig)
     val args = parseYarnArgList(config, mode)
 
-    val configurationDirectory = getConfigDir(config)
+    val configurationDirectory =
+      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
 
     val frontend = new CliFrontend(
       effectiveConfig,

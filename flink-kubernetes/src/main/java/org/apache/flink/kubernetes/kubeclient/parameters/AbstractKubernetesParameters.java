@@ -18,8 +18,8 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
 
@@ -52,13 +52,6 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	public Configuration getFlinkConfiguration() {
 		return flinkConfig;
-	}
-
-	@Override
-	public String getConfigDirectory() {
-		final String configDir = flinkConfig.get(DeploymentOptionsInternal.CONF_DIR);
-		checkNotNull(configDir);
-		return configDir;
 	}
 
 	@Override
@@ -137,14 +130,14 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	@Override
 	public boolean hasLogback() {
-		final String confDir = getConfigDirectory();
+		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
 		final File logbackFile = new File(confDir, CONFIG_FILE_LOGBACK_NAME);
 		return logbackFile.exists();
 	}
 
 	@Override
 	public boolean hasLog4j() {
-		final String confDir = getConfigDirectory();
+		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
 		final File log4jFile = new File(confDir, CONFIG_FILE_LOG4J_NAME);
 		return log4jFile.exists();
 	}
