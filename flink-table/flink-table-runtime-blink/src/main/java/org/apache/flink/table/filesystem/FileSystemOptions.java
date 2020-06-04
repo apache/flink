@@ -157,8 +157,8 @@ public class FileSystemOptions {
 					.withDescription("Policy to commit a partition is to notify the downstream" +
 							" application that the partition has finished writing, the partition" +
 							" is ready to be read." +
-							" metastore: add partition to metastore. Only work with hive table," +
-							" it is empty implementation for file system table." +
+							" metastore: add partition to metastore. Only hive table supports metastore" +
+							" policy, file system manages partitions through directory structure." +
 							" success-file: add '_success' file to directory." +
 							" Both can be configured at the same time: 'metastore,success-file'." +
 							" custom: use policy class to create a commit policy." +
