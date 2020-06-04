@@ -43,6 +43,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +66,8 @@ public class StreamingKafkaITCase extends TestLogger {
 
 	private final Path kafkaExampleJar;
 
+	private final String kafkaVersion;
+
 	@Rule
 	public final KafkaResource kafka;
 
@@ -81,14 +84,15 @@ public class StreamingKafkaITCase extends TestLogger {
 	public StreamingKafkaITCase(final String kafkaExampleJarPattern, final String kafkaVersion) {
 		this.kafkaExampleJar = TestUtils.getResourceJar(kafkaExampleJarPattern);
 		this.kafka = KafkaResource.get(kafkaVersion);
+		this.kafkaVersion = kafkaVersion;
 	}
 
 	@Test
 	public void testKafka() throws Exception {
 		try (final ClusterController clusterController = flink.startCluster(1)) {
 
-			final String inputTopic = "test-input";
-			final String outputTopic = "test-output";
+			final String inputTopic = "test-input-" + kafkaVersion + "-" + UUID.randomUUID().toString();
+			final String outputTopic = "test-output" + kafkaVersion + "-" + UUID.randomUUID().toString();
 
 			// create the required topics
 			kafka.createTopic(1, 1, inputTopic);
