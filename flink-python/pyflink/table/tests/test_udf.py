@@ -476,6 +476,20 @@ class UserDefinedFunctionTests(object):
                             "{1=flink, 2=pyflink},1000000000000000000.050000000000000000,"
                             "1000000000000000000.059999999999999999"])
 
+    def test_create_and_drop_function(self):
+        t_env = self.t_env
+
+        t_env.create_temporary_system_function(
+            "add_one_func", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+        t_env.create_temporary_function(
+            "subtract_one_func", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+        self.assert_equals(t_env.list_user_defined_functions(),
+                           ['add_one_func', 'subtract_one_func'])
+
+        t_env.drop_temporary_system_function("add_one_func")
+        t_env.drop_temporary_function("subtract_one_func")
+        self.assert_equals(t_env.list_user_defined_functions(), [])
+
 
 # decide whether two floats are equal
 def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):

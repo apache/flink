@@ -95,6 +95,23 @@ class TableEnvironmentTest(object):
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
         self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
 
+    def test_create_and_drop_java_function(self):
+        t_env = self.t_env
+
+        t_env.create_java_temporary_system_function(
+            "scalar_func", "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.create_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.create_java_temporary_function(
+            "table_func", "org.apache.flink.table.utils.TableFunc1")
+        self.assert_equals(t_env.list_user_defined_functions(),
+                           ['scalar_func', 'agg_func', 'table_func'])
+
+        t_env.drop_temporary_system_function("scalar_func")
+        t_env.drop_function("agg_func")
+        t_env.drop_temporary_function("table_func")
+        self.assert_equals(t_env.list_user_defined_functions(), [])
+
 
 class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
 
@@ -683,3 +700,20 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
         self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
+
+    def test_create_and_drop_java_function(self):
+        t_env = self.t_env
+
+        t_env.create_java_temporary_system_function(
+            "scalar_func", "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.create_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.create_java_temporary_function(
+            "table_func", "org.apache.flink.table.utils.TableFunc1")
+        self.assert_equals(t_env.list_user_defined_functions(),
+                           ['scalar_func', 'agg_func', 'table_func'])
+
+        t_env.drop_temporary_system_function("scalar_func")
+        t_env.drop_function("agg_func")
+        t_env.drop_temporary_function("table_func")
+        self.assert_equals(t_env.list_user_defined_functions(), [])
