@@ -28,7 +28,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings, Module
+from pyflink.table import Table, EnvironmentSettings
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
@@ -147,29 +147,184 @@ class TableEnvironment(object):
         else:
             return None
 
-    def load_module(self, module_name: str, module: Module):
+    def load_module(self, module_name, module):
         """
         Loads a :class:`~pyflink.table.Module` under a unique name. Modules will be kept
         in the loaded order.
         ValidationException is thrown when there is already a module with the same name.
 
         :param module_name: Name of the :class:`~pyflink.table.Module`.
+        :type module_name: str
         :param module: The module instance.
+        :type module: pyflink.table.Module
 
         .. versionadded:: 1.12.0
         """
         self._j_tenv.loadModule(module_name, module._j_module)
 
-    def unload_module(self, module_name: str):
+    def unload_module(self, module_name):
         """
         Unloads a :class:`~pyflink.table.Module` with given name.
         ValidationException is thrown when there is no module with the given name.
 
         :param module_name: Name of the :class:`~pyflink.table.Module`.
+        :type module_name: str
 
         .. versionadded:: 1.12.0
         """
         self._j_tenv.unloadModule(module_name)
+
+    def create_temporary_system_function(self, name, function_class_name):
+        """
+        Registers a java user defined function class as a temporary system function.
+
+        Compared to .. seealso:: :func:`create_temporary_function`, system functions are identified
+        by a global name that is independent of the current catalog and current database. Thus,
+        this method allows to extend the set of built-in system functions like TRIM, ABS, etc.
+
+        Temporary functions can shadow permanent ones. If a permanent function under a given name
+        exists, it will be inaccessible in the current session. To make the permanent function
+        available again one can drop the corresponding temporary system function.
+
+        Example:
+        ::
+
+            >>> table_env.create_temporary_system_function("func", "user.defined.function.class")
+
+        :param name: The name under which the function will be registered globally.
+        :type name: str
+        :param function_class_name: The java full qualified class name of the function class
+                                    containing the implementation. The function must have a
+                                    public no-argument constructor and can be founded in current
+                                    Java classloader.
+        :type function_class_name: str
+
+        .. versionadded:: 1.12.0
+        """
+        gateway = get_gateway()
+        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
+            .loadClass(function_class_name)
+        self._j_tenv.createTemporarySystemFunction(name, java_function)
+
+    def drop_temporary_system_function(self, name):
+        """
+        Drops a temporary system function registered under the given name.
+
+        If a permanent function with the given name exists, it will be used from now on for any
+        queries that reference this name.
+
+        :param name: The name under which the function has been registered globally.
+        :type name: str
+        :return: true if a function existed under the given name and was removed.
+        :rtype: bool
+
+        .. versionadded:: 1.12.0
+        """
+        return self._j_tenv.dropTemporarySystemFunction(name)
+
+    def create_function(self, path, function_class_name, ignore_if_exists=None):
+        """
+        Registers a java user defined function class as a catalog function in the given path.
+
+        Compared to system functions with a globally defined name, catalog functions are always
+        (implicitly or explicitly) identified by a catalog and database.
+
+        There must not be another function (temporary or permanent) registered under the same path.
+
+        Example:
+        ::
+
+            >>> table_env.create_function("func", "user.defined.function.class")
+
+        :param path: The path under which the function will be registered.
+                     See also the :class:`~pyflink.table.TableEnvironment` class description for
+                     the format of the path.
+        :type path: str
+        :param function_class_name: The java full qualified class name of the function class
+                                    containing the implementation. The function must have a
+                                    public no-argument constructor and can be founded in current
+                                    Java classloader.
+        :type function_class_name: str
+        :param ignore_if_exists: If a function exists under the given path and this flag is set,
+                                 no operation is executed. An exception is thrown otherwise.
+        :type ignore_if_exists: bool
+
+        .. versionadded:: 1.12.0
+        """
+        gateway = get_gateway()
+        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
+            .loadClass(function_class_name)
+        if ignore_if_exists is None:
+            self._j_tenv.createFunction(path, java_function)
+        else:
+            self._j_tenv.createFunction(path, java_function, ignore_if_exists)
+
+    def drop_function(self, path):
+        """
+        Drops a catalog function registered in the given path.
+
+        :param path: The path under which the function will be registered.
+                     See also the :class:`~pyflink.table.TableEnvironment` class description for
+                     the format of the path.
+        :type path: str
+        :return: true if a function existed in the given path and was removed.
+        :rtype: bool
+
+        .. versionadded:: 1.12.0
+        """
+        return self._j_tenv.dropFunction(path)
+
+    def create_temporary_function(self, path, function_class_name):
+        """
+        Registers a java user defined function class as a temporary catalog function.
+
+        Compared to .. seealso:: :func:`create_temporary_system_function` with a globally defined
+        name, catalog functions are always (implicitly or explicitly) identified by a catalog and
+        database.
+
+        Temporary functions can shadow permanent ones. If a permanent function under a given name
+        exists, it will be inaccessible in the current session. To make the permanent function
+        available again one can drop the corresponding temporary function.
+
+        Example:
+        ::
+
+            >>> table_env.create_temporary_function("func", "user.defined.function.class")
+
+        :param path: The path under which the function will be registered.
+                     See also the :class:`~pyflink.table.TableEnvironment` class description for
+                     the format of the path.
+        :type path: str
+        :param function_class_name: The java full qualified class name of the function class
+                                    containing the implementation. The function must have a
+                                    public no-argument constructor and can be founded in current
+                                    Java classloader.
+        :type function_class_name: str
+
+        .. versionadded:: 1.12.0
+        """
+        gateway = get_gateway()
+        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
+            .loadClass(function_class_name)
+        self._j_tenv.createTemporaryFunction(path, java_function)
+
+    def drop_temporary_function(self, path):
+        """
+        Drops a temporary system function registered under the given name.
+
+        If a permanent function with the given name exists, it will be used from now on for any
+        queries that reference this name.
+
+        :param path: The path under which the function will be registered.
+                     See also the :class:`~pyflink.table.TableEnvironment` class description for
+                     the format of the path.
+        :type path: str
+        :return: true if a function existed in the given path and was removed.
+        :rtype: bool
+
+        .. versionadded:: 1.12.0
+        """
+        return self._j_tenv.dropTemporaryFunction(path)
 
     def register_table(self, name, table):
         """
