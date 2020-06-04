@@ -306,6 +306,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 				}
 			}
 
+			channelStateWriter.abort(checkpointId, new CancellationException("checkpoint aborted via notification"), false);
+
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
 				try {
 					operatorWrapper.getStreamOperator().notifyCheckpointAborted(checkpointId);
