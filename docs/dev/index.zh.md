@@ -5,7 +5,6 @@ nav-title: '<i class="fa fa-code title maindish" aria-hidden="true"></i> 应用�
 nav-parent_id: root
 nav-pos: 5
 section-break: true
-always-expand: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
