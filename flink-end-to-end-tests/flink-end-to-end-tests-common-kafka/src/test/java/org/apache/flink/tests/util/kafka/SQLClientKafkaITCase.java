@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.kafka;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
@@ -52,6 +53,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -234,8 +236,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	private void checkCsvResultFile() throws Exception {
 		boolean success = false;
-		long maxRetries = 10, duration = 5000L;
-		for (int i = 0; i < maxRetries; i++) {
+		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+		while (!success && deadline.hasTimeLeft()) {
 			if (Files.exists(result)) {
 				byte[] bytes = Files.readAllBytes(result);
 				String[] lines = new String(bytes, Charsets.UTF_8).split("\n");
@@ -255,8 +257,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 			} else {
 				LOG.info("The target CSV {} does not exist now", result);
 			}
-			Thread.sleep(duration);
+			Thread.sleep(500);
 		}
-		Assert.assertTrue("Timeout(" + (maxRetries * duration) + " sec) to read the correct CSV results.", success);
+		Assert.assertTrue("Did not get expected results before timeout.", success);
 	}
 }
