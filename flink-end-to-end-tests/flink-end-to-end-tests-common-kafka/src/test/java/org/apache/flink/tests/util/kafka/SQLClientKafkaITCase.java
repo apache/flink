@@ -58,6 +58,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -92,6 +93,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
+	private final String kafkaVersion;
 	private final String kafkaSQLVersion;
 	private Path result;
 	private Path sqlClientSessionConf;
@@ -107,6 +109,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	public SQLClientKafkaITCase(String kafkaVersion, String kafkaSQLVersion, String kafkaSQLJarPattern) {
 		this.kafka = KafkaResource.get(kafkaVersion);
+		this.kafkaVersion = kafkaVersion;
 		this.kafkaSQLVersion = kafkaSQLVersion;
 
 		this.sqlConnectorKafkaJar = TestUtils.getResourceJar(kafkaSQLJarPattern);
@@ -129,8 +132,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 	public void testKafka() throws Exception {
 		try (ClusterController clusterController = flink.startCluster(2)) {
 			// Create topic and send message
-			String testJsonTopic = "test-json";
-			String testAvroTopic = "test-avro";
+			String testJsonTopic = "test-json-" + kafkaVersion + "-" + UUID.randomUUID().toString();
+			String testAvroTopic = "test-avro-" + kafkaVersion + "-" + UUID.randomUUID().toString();
 			kafka.createTopic(1, 1, testJsonTopic);
 			String[] messages = new String[]{
 					"{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
