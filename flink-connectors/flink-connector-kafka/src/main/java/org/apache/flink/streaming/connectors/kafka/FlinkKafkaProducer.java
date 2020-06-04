@@ -42,7 +42,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaInternalProducer;
 import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGenerator;
 import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMutableWrapper;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
@@ -378,9 +378,9 @@ public class FlinkKafkaProducer<IN>
 			int kafkaProducersPoolSize) {
 		this(
 			topicId,
-			new KeyedSerializationSchemaWrapper<>(serializationSchema),
-			customPartitioner,
 			null,
+			null,
+			new KafkaSerializationSchemaWrapper<>(topicId, customPartitioner, false, serializationSchema),
 			producerConfig,
 			semantic,
 			kafkaProducersPoolSize
@@ -471,10 +471,10 @@ public class FlinkKafkaProducer<IN>
 	 */
 	@Deprecated
 	public FlinkKafkaProducer(
-		String topicId,
-		KeyedSerializationSchema<IN> serializationSchema,
-		Properties producerConfig,
-		FlinkKafkaProducer.Semantic semantic) {
+			String topicId,
+			KeyedSerializationSchema<IN> serializationSchema,
+			Properties producerConfig,
+			FlinkKafkaProducer.Semantic semantic) {
 		this(topicId,
 			serializationSchema,
 			producerConfig,
@@ -728,6 +728,9 @@ public class FlinkKafkaProducer<IN>
 	 */
 	public void setWriteTimestampToKafka(boolean writeTimestampToKafka) {
 		this.writeTimestampToKafka = writeTimestampToKafka;
+		if (kafkaSchema instanceof KafkaSerializationSchemaWrapper) {
+			((KafkaSerializationSchemaWrapper<IN>) kafkaSchema).setWriteTimestamp(writeTimestampToKafka);
+		}
 	}
 
 	/**
@@ -789,19 +792,10 @@ public class FlinkKafkaProducer<IN>
 		}
 
 		if (kafkaSchema != null) {
-			kafkaSchema.open(createSerializationInitContext());
-		}
-
-		if (keyedSchema != null && keyedSchema instanceof KeyedSerializationSchemaWrapper) {
-			((KeyedSerializationSchemaWrapper<IN>) keyedSchema).getSerializationSchema()
-				.open(createSerializationInitContext());
+			kafkaSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		}
 
 		super.open(configuration);
-	}
-
-	private SerializationSchema.InitializationContext createSerializationInitContext() {
-		return () -> getRuntimeContext().getMetricGroup().addGroup("user");
 	}
 
 	@Override

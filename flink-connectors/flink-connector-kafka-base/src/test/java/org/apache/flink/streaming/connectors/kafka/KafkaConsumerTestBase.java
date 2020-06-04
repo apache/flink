@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -64,7 +65,6 @@ import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
@@ -418,9 +418,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
-		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
-			new KeyedSerializationSchemaWrapper<>(
-				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+		final SerializationSchema<Tuple2<Integer, Integer>> serSchema =
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig());
 
 		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 			new KafkaDeserializationSchemaWrapper<>(
@@ -747,7 +746,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
 		producerProperties.putAll(secureProps);
-		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
+		kafkaServer.produceIntoKafka(stream, topic, sinkSchema, producerProperties, null);
 
 		// ----------- add consumer dataflow ----------
 
@@ -1302,7 +1301,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			}
 		});
 
-		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(serSchema), producerProps, null);
+		kafkaServer.produceIntoKafka(stream, topic, serSchema, producerProps, null);
 
 		tryExecute(env, "big topology test");
 		deleteTestTopic(topic);
@@ -1651,7 +1650,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			}
 		});
 
-		kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
+		kafkaServer.produceIntoKafka(fromGen, topic, schema, standardProps, null);
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env1.getStreamGraph());
 		final JobID jobId = jobGraph.getJobID();
@@ -1939,9 +1938,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
-		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
-				new KeyedSerializationSchemaWrapper<>(
-						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+		final SerializationSchema<Tuple2<Integer, Integer>> serSchema =
+					new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig());
 
 		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 				new KafkaDeserializationSchemaWrapper<>(
@@ -2035,9 +2033,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
-		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
-			new KeyedSerializationSchemaWrapper<>(
-				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+		final SerializationSchema<Tuple2<Integer, Integer>> serSchema =
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig());
 
 		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 			new KafkaDeserializationSchemaWrapper<>(
