@@ -24,7 +24,7 @@ under the License.
 
 In this section you will learn about the APIs that Flink provides for writing
 stateful programs. Please take a look at [Stateful Stream
-Processing]({% link concepts/stateful-stream-processing.md %})
+Processing]({% link concepts/stateful-stream-processing.zh.md %})
 to learn about the concepts behind stateful stream processing.
 
 * 目录
@@ -107,23 +107,17 @@ keyed state 接口提供不同类型状态的访问接口，这些状态都作�
 * `AggregatingState<IN, OUT>`: 保留一个单值，表示添加到状态的所有值的聚合。和 `ReducingState` 相反的是, 聚合类型可能与 添加到状态的元素的类型不同。
 接口与 `ListState` 类似，但使用 `add(IN)` 添加的元素会用指定的 `AggregateFunction` 进行聚合。
 
-* `FoldingState<T, ACC>`: 保留一个单值，表示添加到状态的所有值的聚合。 与 `ReducingState` 相反，聚合类型可能与添加到状态的元素类型不同。 
-接口与 `ListState` 类似，但使用`add（T）`添加的元素会用指定的 `FoldFunction` 折叠成聚合值。
-
 * `MapState<UK, UV>`: 维护了一个映射列表。 你可以添加键值对到状态中，也可以获得反映当前所有映射的迭代器。使用 `put(UK，UV)` 或者 `putAll(Map<UK，UV>)` 添加映射。
  使用 `get(UK)` 检索特定 key。 使用 `entries()`，`keys()` 和 `values()` 分别检索映射、键和值的可迭代视图。你还可以通过 `isEmpty()` 来判断是否包含任何键值对。
 
 所有类型的状态还有一个`clear()` 方法，清除当前 key 下的状态数据，也就是当前输入元素的 key。
-
-<span class="label label-danger">注意</span> `FoldingState` 和 `FoldingStateDescriptor` 从 Flink 1.4 开始就已经被启用，将会在未来被删除。
-作为替代请使用 `AggregatingState` 和 `AggregatingStateDescriptor`。
 
 请牢记，这些状态对象仅用于与状态交互。状态本身不一定存储在内存中，还可能在磁盘或其他位置。
 另外需要牢记的是从状态中获取的值取决于输入元素所代表的 key。 因此，在不同 key 上调用同一个接口，可能得到不同的值。
 
 你必须创建一个 `StateDescriptor`，才能得到对应的状态句柄。 这保存了状态名称（正如我们稍后将看到的，你可以创建多个状态，并且它们必须具有唯一的名称以便可以引用它们），
 状态所持有值的类型，并且可能包含用户指定的函数，例如`ReduceFunction`。 根据不同的状态类型，可以创建`ValueStateDescriptor`，`ListStateDescriptor`，
-`ReducingStateDescriptor`，`FoldingStateDescriptor` 或 `MapStateDescriptor`。
+`ReducingStateDescriptor` 或 `MapStateDescriptor`。
 
 状态通过 `RuntimeContext` 进行访问，因此只能在 *rich functions* 中使用。请参阅[这里]({% link dev/user_defined_functions.zh.md %}#rich-functions)获取相关信息，
 但是我们很快也会看到一个例子。`RichFunction` 中 `RuntimeContext` 提供如下方法：
@@ -132,7 +126,6 @@ keyed state 接口提供不同类型状态的访问接口，这些状态都作�
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
 * `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
-* `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
 下面是一个 `FlatMapFunction` 的例子，展示了如何将这些部分组合起来：
@@ -498,7 +491,7 @@ val counts: DataStream[(String, Int)] = stream
 
 *Operator State* (or *non-keyed state*) is state that is is bound to one
 parallel operator instance. The [Kafka Connector]({% link
-dev/connectors/kafka.md %}) is a good motivating example for the use of
+dev/connectors/kafka.zh.md %}) is a good motivating example for the use of
 Operator State in Flink. Each parallel instance of the Kafka consumer maintains
 a map of topic partitions and offsets as its Operator State.
 

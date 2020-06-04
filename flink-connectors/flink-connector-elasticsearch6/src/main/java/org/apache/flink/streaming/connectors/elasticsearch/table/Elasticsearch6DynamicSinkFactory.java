@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -84,7 +84,7 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 		ElasticsearchValidationUtils.validatePrimaryKey(tableSchema);
 		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-		final SinkFormat<SerializationSchema<RowData>> format = helper.discoverSinkFormat(
+		final EncodingFormat<SerializationSchema<RowData>> format = helper.discoverEncodingFormat(
 			SerializationFormatFactory.class,
 			FORMAT_OPTION);
 

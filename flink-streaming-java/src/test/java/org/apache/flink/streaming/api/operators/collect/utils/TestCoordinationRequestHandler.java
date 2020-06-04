@@ -168,22 +168,18 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 				subList.add(iterator.next());
 			}
 		}
+		List<byte[]> nextBatch = CollectTestUtils.toBytesList(subList, serializer);
 
 		CoordinationResponse response;
-		try {
-			if (random.nextBoolean()) {
-				// with 50% chance we return valid result
-				response = new CollectCoordinationResponse<>(version, checkpointedOffset, subList, serializer);
-			} else {
-				// with 50% chance we return invalid result
-				response = new CollectCoordinationResponse<>(
-					collectRequest.getVersion(),
-					-1,
-					Collections.emptyList(),
-					serializer);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+		if (random.nextBoolean()) {
+			// with 50% chance we return valid result
+			response = new CollectCoordinationResponse(version, checkpointedOffset, nextBatch);
+		} else {
+			// with 50% chance we return invalid result
+			response = new CollectCoordinationResponse(
+				collectRequest.getVersion(),
+				-1,
+				Collections.emptyList());
 		}
 		return CompletableFuture.completedFuture(response);
 	}
@@ -197,12 +193,11 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 	}
 
 	private void buildAccumulatorResults() {
-		List<T> finalResults = new ArrayList<>(buffered);
+		List<byte[]> finalResults = CollectTestUtils.toBytesList(buffered, serializer);
 		SerializedListAccumulator<byte[]> listAccumulator = new SerializedListAccumulator<>();
 		try {
 			byte[] serializedResult =
-				CollectSinkFunction.serializeAccumulatorResult(
-					offset, version, checkpointedOffset, finalResults, serializer);
+				CollectSinkFunction.serializeAccumulatorResult(offset, version, checkpointedOffset, finalResults);
 			listAccumulator.add(serializedResult, BytePrimitiveArraySerializer.INSTANCE);
 		} catch (IOException e) {
 			throw new RuntimeException(e);

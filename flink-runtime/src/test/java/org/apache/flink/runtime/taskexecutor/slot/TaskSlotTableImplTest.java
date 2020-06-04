@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -41,16 +42,19 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link TaskSlotTable}.
  */
-public class TaskSlotTableTest extends TestLogger {
+public class TaskSlotTableImplTest extends TestLogger {
 	private static final Time SLOT_TIMEOUT = Time.seconds(100L);
 
 	/**
@@ -211,8 +215,10 @@ public class TaskSlotTableTest extends TestLogger {
 	public void testAllocateSlot() throws Exception {
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable =
-				 createTaskSlotTableWithAllocatedSlot(jobId, allocationId, new TestingSlotActionsBuilder().build())) {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithAllocatedSlot(
+				jobId,
+				allocationId,
+				new TestingSlotActionsBuilder().build())) {
 			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			TaskSlot<TaskSlotPayload> nextSlot = allocatedSlots.next();
 			assertThat(nextSlot.getIndex(), is(0));
@@ -273,6 +279,50 @@ public class TaskSlotTableTest extends TestLogger {
 		assertThat(closingFuture.isDone(), is(false));
 		task.terminate();
 		closingFuture.get();
+	}
+
+	@Test
+	public void testAllocatedSlotTimeout() throws Exception {
+		final CompletableFuture<AllocationID> timeoutFuture = new CompletableFuture<>();
+		final TestingSlotActions testingSlotActions = new TestingSlotActionsBuilder()
+			.setTimeoutSlotConsumer((allocationID, uuid) -> timeoutFuture.complete(allocationID))
+			.build();
+
+		try (final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(1, testingSlotActions)) {
+			final AllocationID allocationId = new AllocationID();
+			assertThat(taskSlotTable.allocateSlot(0, new JobID(), allocationId, Time.milliseconds(1L)), is(true));
+			assertThat(timeoutFuture.join(), is(allocationId));
+		}
+	}
+
+	@Test
+	public void testMarkSlotActiveDeactivatesSlotTimeout() throws Exception {
+		runDeactivateSlotTimeoutTest((taskSlotTable, jobId, allocationId) -> taskSlotTable.markSlotActive(allocationId));
+	}
+
+	@Test
+	public void testTryMarkSlotActiveDeactivatesSlotTimeout() throws Exception {
+		runDeactivateSlotTimeoutTest(TaskSlotTable::tryMarkSlotActive);
+	}
+
+	private void runDeactivateSlotTimeoutTest(TriFunctionWithException<TaskSlotTable<TaskSlotPayload>, JobID, AllocationID, Boolean, SlotNotFoundException> taskSlotTableAction) throws Exception {
+		final CompletableFuture<AllocationID> timeoutFuture = new CompletableFuture<>();
+		final TestingSlotActions testingSlotActions = new TestingSlotActionsBuilder()
+			.setTimeoutSlotConsumer((allocationID, uuid) -> timeoutFuture.complete(allocationID))
+			.build();
+
+		try (final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(1, testingSlotActions)) {
+			final AllocationID allocationId = new AllocationID();
+			final long timeout = 50L;
+			final JobID jobId = new JobID();
+			assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId, Time.milliseconds(timeout)), is(true));
+			assertThat(taskSlotTableAction.apply(taskSlotTable, jobId, allocationId), is(true));
+
+			try {
+				timeoutFuture.get(timeout, TimeUnit.MILLISECONDS);
+				fail("The slot timeout should have been deactivated.");
+			} catch (TimeoutException expected) {}
+		}
 	}
 
 	private static TaskSlotTable<TaskSlotPayload> createTaskSlotTableWithStartedTask(

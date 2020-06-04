@@ -55,9 +55,9 @@ The Flink runtime consists of two types of processes:
 
 The Flink Master and TaskManagers can be started in various ways: directly on
 the machines as a [standalone cluster]({% link
-ops/deployment/cluster_setup.md %}), in containers, or managed by resource
-frameworks like [YARN]({% link ops/deployment/yarn_setup.md
-%}) or [Mesos]({% link ops/deployment/mesos.md %}).
+ops/deployment/cluster_setup.zh.md %}), in containers, or managed by resource
+frameworks like [YARN]({% link ops/deployment/yarn_setup.zh.md
+%}) or [Mesos]({% link ops/deployment/mesos.zh.md %}).
 TaskManagers connect to Flink Masters, announcing themselves as available, and
 are assigned work.
 
@@ -78,7 +78,7 @@ For distributed execution, Flink *chains* operator subtasks together into
 tasks is a useful optimization: it reduces the overhead of thread-to-thread
 handover and buffering, and increases overall throughput while decreasing
 latency.  The chaining behavior can be configured; see the [chaining docs]({%
-link dev/stream/operators/index.md %}#task-chaining-and-resource-groups) for
+link dev/stream/operators/index.zh.md %}#task-chaining-and-resource-groups) for
 details.
 
 The sample dataflow in the figure below is executed with five subtasks, and

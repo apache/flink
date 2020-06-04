@@ -16,22 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector.format;
+package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
- * A {@link Format} for a {@link DynamicTableSink}.
- *
- * @param <I> runtime interface needed by the table sink
+ * An interface to access basic properties of an operator in the context of its coordinator.
  */
-@PublicEvolving
-public interface SinkFormat<I> extends Format {
+public interface OperatorInfo {
 
-	/**
-	 * Creates runtime implementation that is configured to consume data of the given data type.
-	 */
-	I createSinkFormat(DynamicTableSink.Context context, DataType consumedDataType);
+	OperatorID operatorId();
+
+	int maxParallelism();
+
+	int currentParallelism();
+
+	// ------------------------------------------------------------------------
+	//  utils
+	// ------------------------------------------------------------------------
+
+	static Collection<OperatorID> getIds(Collection<? extends OperatorInfo> infos) {
+		return infos.stream()
+			.map(OperatorInfo::operatorId)
+			.collect(Collectors.toList());
+	}
 }

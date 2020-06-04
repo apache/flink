@@ -31,6 +31,7 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
@@ -114,7 +115,7 @@ public interface TableEnvironment {
 	 * <p>The method will derive the types automatically from the input expressions. If types
 	 * at a certain position differ, the method will try to find a common super type for all types. If a common
 	 * super type does not exist, an exception will be thrown. If you want to specify the requested type explicitly
-	 * see {@link #fromValues(DataType, Object...)}.
+	 * see {@link #fromValues(AbstractDataType, Object...)}.
 	 *
 	 * <p>It is also possible to use {@link org.apache.flink.types.Row} object instead of
 	 * {@code row} expressions.
@@ -193,7 +194,7 @@ public interface TableEnvironment {
 	 * @param values Expressions for constructing rows of the VALUES table.
 	 * @see #fromValues(Object...)
 	 */
-	default Table fromValues(DataType rowType, Object... values) {
+	default Table fromValues(AbstractDataType<?> rowType, Object... values) {
 		// It is necessary here to implement TableEnvironment#fromValues(Object...) for BatchTableEnvImpl.
 		// In scala varargs are translated to Seq. Due to the type erasure Seq<Expression> and Seq<Object>
 		// are the same. It is not a problem in java as varargs in java are translated to an array.
@@ -297,7 +298,7 @@ public interface TableEnvironment {
 	 * @param values Expressions for constructing rows of the VALUES table.
 	 * @see #fromValues(Expression...)
 	 */
-	Table fromValues(DataType rowType, Expression... values);
+	Table fromValues(AbstractDataType<?> rowType, Expression... values);
 
 	/**
 	 * Creates a Table from given collection of objects.
@@ -312,13 +313,13 @@ public interface TableEnvironment {
 	/**
 	 * Creates a Table from given collection of objects with a given row type.
 	 *
-	 * <p>See {@link #fromValues(DataType, Object...)} for more explanation.
+	 * <p>See {@link #fromValues(AbstractDataType, Object...)} for more explanation.
 	 *
 	 * @param rowType Expected row type for the values.
 	 * @param values Expressions for constructing rows of the VALUES table.
-	 * @see #fromValues(DataType, Object...)
+	 * @see #fromValues(AbstractDataType, Object...)
 	 */
-	Table fromValues(DataType rowType, Iterable<?> values);
+	Table fromValues(AbstractDataType<?> rowType, Iterable<?> values);
 
 	/**
 	 * Creates a table from a table source.
@@ -357,7 +358,7 @@ public interface TableEnvironment {
 
 	/**
 	 * Unloads a {@link Module} with given name.
-	 * ValidationException is thrown when there is no module with the given name
+	 * ValidationException is thrown when there is no module with the given name.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 */

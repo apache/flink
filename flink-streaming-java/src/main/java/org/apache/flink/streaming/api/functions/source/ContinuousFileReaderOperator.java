@@ -23,10 +23,12 @@ import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -37,6 +39,7 @@ import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
@@ -205,7 +208,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 
 	private transient InputFormat<OUT, ? super T> format;
 	private TypeSerializer<OUT> serializer;
-	private transient MailboxExecutor executor;
+	private transient MailboxExecutorImpl executor;
 	private transient OUT reusedRecord;
 	private transient SourceFunction.SourceContext<OUT> sourceContext;
 	private transient ListState<T> checkpointedState;
@@ -233,7 +236,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 
 		this.format = checkNotNull(format);
 		this.processingTimeService = checkNotNull(processingTimeService);
-		this.executor = checkNotNull(mailboxExecutor);
+		this.executor = (MailboxExecutorImpl) checkNotNull(mailboxExecutor);
 	}
 
 	@Override
@@ -242,7 +245,11 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 
 		checkState(checkpointedState == null, "The reader state has already been initialized.");
 
-		checkpointedState = context.getOperatorStateStore().getSerializableListState("splits");
+		// We are using JavaSerializer from the flink-runtime module here. This is very naughty and
+		// we shouldn't be doing it because ideally nothing in the API modules/connector depends
+		// directly on flink-runtime. We are doing it here because we need to maintain backwards
+		// compatibility with old state and because we will have to rework/remove this code soon.
+		checkpointedState = context.getOperatorStateStore().getListState(new ListStateDescriptor<>("splits", new JavaSerializer<>()));
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 		if (!context.isRestored()) {
@@ -311,17 +318,19 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 	}
 
 	private void processRecord() throws IOException {
-		if (!state.prepareToProcessRecord(this)) {
-			return;
-		}
+		do {
+			if (!state.prepareToProcessRecord(this)) {
+				return;
+			}
 
-		readAndCollectRecord();
+			readAndCollectRecord();
 
-		if (format.reachedEnd()) {
-			onSplitProcessed();
-		} else {
-			enqueueProcessRecord();
-		}
+			if (format.reachedEnd()) {
+				onSplitProcessed();
+				return;
+			}
+		} while (executor.isIdle()); // todo: consider moving this loop into MailboxProcessor (return boolean "re-execute" from enqueued action)
+		enqueueProcessRecord();
 	}
 
 	private void onSplitProcessed() throws IOException {

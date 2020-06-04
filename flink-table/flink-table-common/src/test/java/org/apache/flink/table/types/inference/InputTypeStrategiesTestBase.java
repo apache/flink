@@ -41,7 +41,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.util.CoreMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -94,6 +94,10 @@ public abstract class InputTypeStrategiesTestBase {
 		callContextMock.argumentDataTypes = actualArgumentTypes;
 		callContextMock.argumentLiterals = IntStream.range(0, actualArgumentTypes.size())
 			.mapToObj(i -> testSpec.literalPos != null && i == testSpec.literalPos)
+			.collect(Collectors.toList());
+		callContextMock.argumentValues = IntStream.range(0, actualArgumentTypes.size())
+			.mapToObj(i -> (testSpec.literalPos != null && i == testSpec.literalPos) ?
+				Optional.ofNullable(testSpec.literalValue) : Optional.empty())
 			.collect(Collectors.toList());
 		callContextMock.argumentNulls = IntStream.range(0, actualArgumentTypes.size())
 			.mapToObj(i -> false)
@@ -156,6 +160,8 @@ public abstract class InputTypeStrategiesTestBase {
 
 		private @Nullable Integer literalPos;
 
+		private @Nullable Object literalValue;
+
 		private @Nullable InputTypeStrategy surroundingStrategy;
 
 		private @Nullable String expectedSignature;
@@ -199,6 +205,12 @@ public abstract class InputTypeStrategiesTestBase {
 
 		TestSpec calledWithLiteralAt(int pos) {
 			this.literalPos = pos;
+			return this;
+		}
+
+		TestSpec calledWithLiteralAt(int pos, Object value) {
+			this.literalPos = pos;
+			this.literalValue = value;
 			return this;
 		}
 

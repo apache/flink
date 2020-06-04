@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.internal.SelectTableSink
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
@@ -31,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
-import org.apache.flink.table.planner.sinks.BatchSelectTableSink
+import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
@@ -80,7 +79,7 @@ class BatchPlanner(
     }
   }
 
-  override def createSelectTableSink(tableSchema: TableSchema): SelectTableSink = {
+  override protected def createSelectTableSink(tableSchema: TableSchema): SelectTableSinkBase[_] = {
     new BatchSelectTableSink(tableSchema)
   }
 

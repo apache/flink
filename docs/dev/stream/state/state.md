@@ -115,11 +115,6 @@ added to the state. Contrary to `ReducingState`, the aggregate type may be diffe
 of elements that are added to the state. The interface is the same as for `ListState` but elements
 added using `add(IN)` are aggregated using a specified `AggregateFunction`.
 
-* `FoldingState<T, ACC>`: This keeps a single value that represents the aggregation of all values
-added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
-of elements that are added to the state. The interface is similar to `ListState` but elements
-added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
-
 * `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and
 retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
@@ -128,8 +123,6 @@ You can also use `isEmpty()` to check whether this map contains any key-value ma
 
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
-
-<span class="label label-danger">Attention</span> `FoldingState` and `FoldingStateDescriptor` have been deprecated in Flink 1.4 and will be completely removed in the future. Please use `AggregatingState` and `AggregatingStateDescriptor` instead.
 
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
@@ -142,7 +135,7 @@ To get a state handle, you have to create a `StateDescriptor`. This holds the na
 that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
 want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`,
-a `ReducingStateDescriptor`, a `FoldingStateDescriptor` or a `MapStateDescriptor`.
+a `ReducingStateDescriptor`, or a `MapStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
 Please see [here]({% link dev/user_defined_functions.md %}#rich-functions) for
@@ -153,7 +146,6 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
 * `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
-* `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
 This is an example `FlatMapFunction` that shows how all of the parts fit together:

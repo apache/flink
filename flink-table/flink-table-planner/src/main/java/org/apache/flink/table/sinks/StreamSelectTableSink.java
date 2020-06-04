@@ -19,7 +19,11 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -28,29 +32,28 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.util.Iterator;
 import java.util.UUID;
 
 /**
- * A {@link SelectTableSink} for streaming select job.
- *
- * <p><strong>NOTES:</strong> Currently, only insert changes is supported.
- * Once FLINK-16998 is finished, all kinds of changes will be supported.
+ * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
  */
-public class StreamSelectTableSink implements AppendStreamTableSink<Row>, SelectTableSink {
+public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 
 	private final TableSchema tableSchema;
-	private final CollectSinkOperatorFactory<Row> factory;
-	private final CollectResultIterator<Row> iterator;
+	private final CollectSinkOperatorFactory<Tuple2<Boolean, Row>> factory;
+	private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
 
 	public StreamSelectTableSink(TableSchema tableSchema) {
 		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
 
-		TypeSerializer<Row> typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
+		TypeInformation<Tuple2<Boolean, Row>> tupleTypeInfo =
+				new TupleTypeInfo<>(Types.BOOLEAN, this.tableSchema.toRowType());
+		TypeSerializer<Tuple2<Boolean, Row>> typeSerializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
 		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
 
 		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
@@ -59,8 +62,8 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	}
 
 	@Override
-	public DataType getConsumedDataType() {
-		return tableSchema.toRowDataType();
+	public TypeInformation<Row> getRecordType() {
+		return tableSchema.toRowType();
 	}
 
 	@Override
@@ -69,19 +72,59 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	}
 
 	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		CollectStreamSink<Row> sink = new CollectStreamSink<>(dataStream, factory);
+	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+		CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
 		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
 		return sink.name("Streaming select table sink");
 	}
 
-	@Override
-	public void setJobClient(JobClient jobClient) {
-		iterator.setJobClient(jobClient);
+	public SelectResultProvider getSelectResultProvider() {
+		return new SelectResultProvider() {
+
+			@Override
+			public void setJobClient(JobClient jobClient) {
+				iterator.setJobClient(jobClient);
+			}
+
+			@Override
+			public Iterator<Row> getResultIterator() {
+				return new RowIteratorWrapper(iterator);
+			}
+		};
 	}
 
-	@Override
-	public Iterator<Row> getResultIterator() {
-		return iterator;
+	/**
+	 * An Iterator wrapper class that converts Iterator&lt;Tuple2&lt;Boolean, Row&gt;&gt; to Iterator&lt;Row&gt;.
+	 */
+	private static class RowIteratorWrapper implements Iterator<Row>, AutoCloseable {
+		private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
+		public RowIteratorWrapper(CollectResultIterator<Tuple2<Boolean, Row>> iterator) {
+			this.iterator = iterator;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return iterator.hasNext();
+		}
+
+		@Override
+		public Row next() {
+			// convert Tuple2<Boolean, Row> to Row
+			Tuple2<Boolean, Row> tuple2 = iterator.next();
+			RowKind rowKind = tuple2.f0 ? RowKind.INSERT : RowKind.DELETE;
+			Row row = tuple2.f1;
+			row.setKind(rowKind);
+			return row;
+		}
+
+		@Override
+		public void close() throws Exception {
+			iterator.close();
+		}
 	}
 }

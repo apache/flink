@@ -712,6 +712,8 @@ class Table(object):
             >>> table.filter("a > 0.5").to_pandas()
 
         :return: the result pandas DataFrame.
+
+        .. versionadded:: 1.11.0
         """
         self._t_env._before_execute()
         gateway = get_gateway()
@@ -774,6 +776,8 @@ class Table(object):
                existing data or not.
         :type overwrite: bool
         :return: The table result.
+
+        .. versionadded:: 1.11.0
         """
         self._t_env._before_execute()
         return TableResult(self._j_table.executeInsert(table_path, overwrite))
@@ -788,6 +792,8 @@ class Table(object):
             >>> tab.execute()
 
         :return: The content of the table.
+
+        .. versionadded:: 1.11.0
         """
         self._t_env._before_execute()
         return TableResult(self._j_table.execute())
@@ -801,6 +807,8 @@ class Table(object):
         :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: The statement for which the AST and execution plan will be returned.
         :rtype: str
+
+        .. versionadded:: 1.11.0
         """
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_table.explain(j_extra_details)

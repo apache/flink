@@ -42,7 +42,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.apache.flink.util.CoreMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -74,8 +74,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
 				(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.sourceValueFormat
-				.createScanFormat(
+		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
+				.createRuntimeDecoder(
 						ScanRuntimeProviderContext.INSTANCE,
 						SCHEMA.toRowDataType());
 

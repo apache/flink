@@ -75,13 +75,9 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
-		final CompletableFuture<byte[]> coordinatorStateFuture = new CompletableFuture<>();
-
-		boolean added = triggeredCheckpoints.offer(coordinatorStateFuture);
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+		boolean added = triggeredCheckpoints.offer(result);
 		assert added; // guard the test assumptions
-
-		return coordinatorStateFuture;
 	}
 
 	@Override
@@ -121,8 +117,16 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 		return triggeredCheckpoints.take();
 	}
 
+	public boolean hasTriggeredCheckpoint() {
+		return !triggeredCheckpoints.isEmpty();
+	}
+
 	public long getLastCheckpointComplete() throws InterruptedException {
 		return lastCheckpointComplete.take();
+	}
+
+	public boolean hasCompleteCheckpoint() throws InterruptedException {
+		return !lastCheckpointComplete.isEmpty();
 	}
 
 	// ------------------------------------------------------------------------

@@ -49,7 +49,7 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		throw new UnsupportedOperationException();
 	}
 

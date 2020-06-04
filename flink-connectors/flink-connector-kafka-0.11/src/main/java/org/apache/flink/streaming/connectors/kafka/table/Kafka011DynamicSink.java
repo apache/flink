@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -43,13 +43,13 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			SinkFormat<SerializationSchema<RowData>> sinkFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
 		super(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				sinkFormat);
+				encodingFormat);
 	}
 
 	@Override
@@ -72,7 +72,7 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 				this.topic,
 				this.properties,
 				this.partitioner,
-				this.sinkFormat);
+				this.encodingFormat);
 	}
 
 	@Override
