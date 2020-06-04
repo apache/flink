@@ -54,22 +54,22 @@ object SinkCodeGenerator {
       sink.getConsumedDataType,
       inputRowType,
       withChangeFlag)
+    val physicalTypeInfo = fromDataTypeToTypeInfo(physicalOutputType)
 
     val outputTypeInfo = if (withChangeFlag) {
-      val typeInfo = fromDataTypeToTypeInfo(physicalOutputType)
       val consumedClass = sink.getConsumedDataType.getConversionClass
       if (consumedClass == classOf[(_, _)]) {
-        createTuple2TypeInformation(Types.BOOLEAN, typeInfo)
+        createTuple2TypeInformation(Types.BOOLEAN, physicalTypeInfo)
       } else if (consumedClass == classOf[JTuple2[_, _]]) {
-        new TupleTypeInfo(Types.BOOLEAN, typeInfo)
+        new TupleTypeInfo(Types.BOOLEAN, physicalTypeInfo)
       }
     } else {
-      fromDataTypeToTypeInfo(physicalOutputType)
+      physicalTypeInfo
     }
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     var afterIndexModify = inputTerm
-    val fieldIndexProcessCode = outputTypeInfo match {
+    val fieldIndexProcessCode = physicalTypeInfo match {
       case pojo: PojoTypeInfo[_] =>
         val mapping = pojo.getFieldNames.map { name =>
           val index = inputRowType.getFieldIndex(name)
