@@ -278,7 +278,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			.setStdoutProcessor(messages::add)
 			.runNonBlocking()) {
 
-			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
+			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
 			while (deadline.hasTimeLeft() && messages.size() < expectedNumMessages) {
 				try {
 					LOG.info("Waiting for messages. Received {}/{}.", messages.size(),
