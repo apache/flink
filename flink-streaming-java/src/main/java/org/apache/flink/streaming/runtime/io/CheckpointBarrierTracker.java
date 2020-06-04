@@ -80,11 +80,6 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public boolean isBlocked(int channelIndex) {
-		return false;
-	}
-
-	@Override
 	public void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 

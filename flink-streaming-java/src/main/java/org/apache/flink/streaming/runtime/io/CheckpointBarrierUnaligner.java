@@ -130,14 +130,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	/**
-	 * For unaligned checkpoint, it never blocks processing from the task aspect.
-	 */
-	@Override
-	public boolean isBlocked(int channelIndex) {
-		return false;
-	}
-
-	/**
 	 * We still need to trigger checkpoint via {@link ThreadSafeUnaligner#notifyBarrierReceived(CheckpointBarrier, InputChannelInfo)}
 	 * while reading the first barrier from one channel, because this might happen
 	 * earlier than the previous async trigger via mailbox by netty thread.
