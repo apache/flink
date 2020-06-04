@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -155,13 +156,26 @@ public abstract class KafkaTestEnvironment {
 			int partition,
 			long timeout);
 
-	public abstract <T> StreamSink<T> getProducerSink(String topic,
-			KeyedSerializationSchema<T> serSchema, Properties props,
+	public abstract <T> StreamSink<T> getProducerSink(
+			String topic,
+			SerializationSchema<T> serSchema,
+			Properties props,
 			FlinkKafkaPartitioner<T> partitioner);
 
-	public abstract <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
-														KeyedSerializationSchema<T> serSchema, Properties props,
-														FlinkKafkaPartitioner<T> partitioner);
+	@Deprecated
+	public abstract <T> DataStreamSink<T> produceIntoKafka(
+		DataStream<T> stream,
+		String topic,
+		KeyedSerializationSchema<T> serSchema,
+		Properties props,
+		FlinkKafkaPartitioner<T> partitioner);
+
+	public abstract <T> DataStreamSink<T> produceIntoKafka(
+		DataStream<T> stream,
+		String topic,
+		SerializationSchema<T> serSchema,
+		Properties props,
+		FlinkKafkaPartitioner<T> partitioner);
 
 	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
 			KafkaSerializationSchema<T> serSchema, Properties props) {
