@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -114,40 +113,31 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		this.terminationFuture = new CompletableFuture<>();
 		this.leadershipOperation = CompletableFuture.completedFuture(null);
 
-		// make sure we cleanly shut down out JobManager services if initialization fails
+		this.jobGraph = checkNotNull(jobGraph);
+		this.classLoaderLease = checkNotNull(classLoaderLease);
+		this.executor = checkNotNull(executor);
+		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+
+		checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
+
+		// libraries and class loader first
+		final ClassLoader userCodeLoader;
 		try {
-			this.jobGraph = checkNotNull(jobGraph);
-			this.classLoaderLease = checkNotNull(classLoaderLease);
-			this.executor = checkNotNull(executor);
-			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-
-			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
-
-			// libraries and class loader first
-			final ClassLoader userCodeLoader;
-			try {
-				userCodeLoader = classLoaderLease.getOrResolveClassLoader(
-					jobGraph.getUserJarBlobKeys(),
-					jobGraph.getClasspaths());
-			} catch (IOException e) {
-				throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
-			}
-
-			// high availability services next
-			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
-			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
-
-			this.leaderGatewayFuture = new CompletableFuture<>();
-
-			// now start the JobManager
-			this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
+			userCodeLoader = classLoaderLease.getOrResolveClassLoader(
+				jobGraph.getUserJarBlobKeys(),
+				jobGraph.getClasspaths());
+		} catch (IOException e) {
+			throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
 		}
-		catch (Throwable t) {
-			terminationFuture.completeExceptionally(t);
-			resultFuture.completeExceptionally(t);
 
-			throw new JobExecutionException(jobGraph.getJobID(), "Could not set up JobManager", t);
-		}
+		// high availability services next
+		this.runningJobsRegistry = haServices.getRunningJobsRegistry();
+		this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
+
+		this.leaderGatewayFuture = new CompletableFuture<>();
+
+		// now start the JobManager
+		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
 	}
 
 	//----------------------------------------------------------------------------------------------
