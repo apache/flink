@@ -41,6 +41,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
@@ -56,6 +57,7 @@ import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -460,7 +462,18 @@ public class LocalExecutor implements Executor {
 	public Parser getSqlParser(String sessionId) {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
-		return ((TableEnvironmentInternal) tableEnv).getParser();
+		final Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
+		return new Parser() {
+			@Override
+			public List<Operation> parse(String statement) {
+				return context.wrapClassLoader(() -> parser.parse(statement));
+			}
+
+			@Override
+			public UnresolvedIdentifier parseIdentifier(String identifier) {
+				return context.wrapClassLoader(() -> parser.parseIdentifier(identifier));
+			}
+		};
 	}
 
 	@Override
