@@ -1663,8 +1663,8 @@ object ScalarOperatorGens {
     s"""
         |${array.code}
         |${index.code}
-        |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} || $arrayIsNull ||
-        |   ${idxStr} < 0 || ${idxStr} >= ${array.resultTerm}.size();
+        |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} ||
+        |   $idxStr < 0 || $idxStr >= ${array.resultTerm}.size() || $arrayIsNull;
         |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
         |""".stripMargin
     GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, componentInfo)
