@@ -419,25 +419,27 @@ public class SlotPoolImpl implements SlotPool {
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 			@Nonnull SlotRequestId slotRequestId,
 			@Nonnull ResourceProfile resourceProfile,
-			Time timeout) {
+			@Nullable Time timeout) {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
 		final PendingRequest pendingRequest = PendingRequest.createStreamingRequest(slotRequestId, resourceProfile);
 
-		// register request timeout
-		FutureUtils
-			.orTimeout(
-				pendingRequest.getAllocatedSlotFuture(),
-				timeout.toMilliseconds(),
-				TimeUnit.MILLISECONDS,
-				componentMainThreadExecutor)
-			.whenComplete(
-				(AllocatedSlot ignored, Throwable throwable) -> {
-					if (throwable instanceof TimeoutException) {
-						timeoutPendingSlotRequest(slotRequestId);
-					}
-				});
+		if (timeout != null) {
+			// register request timeout
+			FutureUtils
+				.orTimeout(
+					pendingRequest.getAllocatedSlotFuture(),
+					timeout.toMilliseconds(),
+					TimeUnit.MILLISECONDS,
+					componentMainThreadExecutor)
+				.whenComplete(
+					(AllocatedSlot ignored, Throwable throwable) -> {
+						if (throwable instanceof TimeoutException) {
+							timeoutPendingSlotRequest(slotRequestId);
+						}
+					});
+		}
 
 		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply((Function.identity()));
