@@ -60,6 +60,7 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends Intern
 				keyGroupId,
 				keyGroupPrefixBytes,
 				rocksDBResource.getRocksDB(),
+				rocksDBResource.getReadOptions(),
 				rocksDBResource.getDefaultColumnFamily(),
 				TestElementSerializer.INSTANCE,
 				outputStreamWithPos,

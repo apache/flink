@@ -101,7 +101,7 @@ public class RocksDBResource extends ExternalResource {
 					LOG.error("Close previous ColumnOptions's instance failed.", e);
 				}
 
-				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions(handlesToClose);
+				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions(handlesToClose).optimizeForPointLookup(40960);
 			}
 		});
 	}
@@ -155,7 +155,7 @@ public class RocksDBResource extends ExternalResource {
 			PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose), handlesToClose);
 		this.writeOptions = new WriteOptions();
 		this.writeOptions.disableWAL();
-		this.readOptions = new ReadOptions();
+		this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.rocksDB = RocksDB.open(
 			dbOptions,
