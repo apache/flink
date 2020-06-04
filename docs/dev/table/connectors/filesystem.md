@@ -1,7 +1,7 @@
 ---
 title: "FileSystem Connector"
 nav-title: FileSystem Connector
-nav-parent_id: connectors-table
+nav-parent_id: sql-connectors
 nav-pos: 1
 ---
 <!--
@@ -98,6 +98,9 @@ The file system connector supports multiple formats:
 
 The file system connector supports streaming writes, based on Flink's [Streaming File Sink]({{ site.baseurl }}/dev/connectors/streamfile_sink.html)
 to write records to file. Row-encoded Formats are csv and json. Bulk-encoded Formats are parquet, orc and avro.
+
+You can write SQL directly, insert the stream data into the non-partitioned table.
+If it is a partitioned table, you can configure partition related operations. See [Partition Commit](filesystem.html#partition-commit) for details.
 
 ### Rolling Policy
 
@@ -345,7 +348,7 @@ CREATE TABLE fs_table (
   'format'='parquet',
   'partition.time-extractor.timestamp-pattern'='$dt $hour:00:00',
   'sink.partition-commit.delay'='1 h',
-  'sink.partition-commit.policy.kind'='success-file')
+  'sink.partition-commit.policy.kind'='success-file'
 );
 
 -- streaming sql, insert into file system table
