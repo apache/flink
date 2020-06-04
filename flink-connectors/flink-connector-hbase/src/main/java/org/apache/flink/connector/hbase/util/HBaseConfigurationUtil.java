@@ -42,7 +42,6 @@ public class HBaseConfigurationUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HBaseConfigurationUtil.class);
 
-	@SuppressWarnings("deprecation")
 	public static Configuration getHBaseConfiguration() {
 
 		// Instantiate an HBaseConfiguration to load the hbase-default.xml and hbase-site.xml from the classpath.

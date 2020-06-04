@@ -38,7 +38,6 @@ import static org.junit.Assert.assertTrue;
  * Tests that validate the loading of the HBase configuration, relative to
  * entries in the Flink configuration and the environment variables.
  */
-@SuppressWarnings("deprecation")
 public class HBaseConfigLoadingTest {
 
 	private static final String IN_HBASE_CONFIG_KEY = "hbase_conf_key";
