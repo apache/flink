@@ -52,7 +52,7 @@ Flink natively support various connectors. The following tables list all availab
     </thead>
     <tbody>
     <tr>
-      <td>Filesystem</td>
+      <td><a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
       <td></td>
       <td>Bounded and Unbounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
@@ -64,7 +64,7 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td>Apache Kafka</td>
+      <td><a href="{{ site.baseurl }}/dev/table/connectors/kafka.html">Apache Kafka</a></td>
       <td>0.10+</td>
       <td>Unbounded Scan</td>
       <td>Streaming Sink, Batch Sink</td>
