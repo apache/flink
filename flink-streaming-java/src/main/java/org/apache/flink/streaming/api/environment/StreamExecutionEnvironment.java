@@ -105,6 +105,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -1801,12 +1802,13 @@ public class StreamExecutionEnvironment {
 			JobClient jobClient = jobClientFuture.get();
 			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
 			return jobClient;
-		} catch (Throwable t) {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
-			ExceptionUtils.rethrow(t);
+		} catch (ExecutionException executionException) {
+			final Throwable strippedException = ExceptionUtils.stripExecutionException(executionException);
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, strippedException));
 
-			// make javac happy, this code path will not be reached
-			return null;
+			throw new FlinkException(
+				String.format("Failed to execute job '%s'.", streamGraph.getJobName()),
+				strippedException);
 		}
 	}
 
