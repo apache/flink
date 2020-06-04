@@ -22,10 +22,8 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import org.slf4j.Logger;

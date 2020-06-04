@@ -19,10 +19,8 @@
 package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import org.apache.commons.cli.CommandLine;
