@@ -240,27 +240,6 @@ public class CliClientTest extends TestLogger {
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
 
-	/**
-	 * execute a sql statement and return the terminal output as string.
-	 */
-	private String testExecuteSql(TestingExecutor executor, String sql) throws IOException {
-		InputStream inputStream = new ByteArrayInputStream((sql + "\n").getBytes());
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-		CliClient cliClient = null;
-		SessionContext sessionContext = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(sessionContext);
-
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
-			return new String(outputStream.toByteArray());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	/**
