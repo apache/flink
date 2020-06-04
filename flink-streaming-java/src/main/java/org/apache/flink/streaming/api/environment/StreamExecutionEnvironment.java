@@ -1802,8 +1802,9 @@ public class StreamExecutionEnvironment {
 			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
 			return jobClient;
 		} catch (Throwable t) {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
-			ExceptionUtils.rethrow(t);
+			final Throwable strippedException = ExceptionUtils.stripExecutionException(t);
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, strippedException));
+			ExceptionUtils.rethrowException(strippedException);
 
 			// make javac happy, this code path will not be reached
 			return null;
