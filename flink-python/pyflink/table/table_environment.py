@@ -1244,6 +1244,10 @@ class TableEnvironment(object):
         .. versionadded:: 1.11.0
         """
 
+        if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+            raise TypeError("It doesn't support to convert from Pandas DataFrame in the batch "
+                            "mode of old planner")
+
         import pandas as pd
         if not isinstance(pdf, pd.DataFrame):
             raise TypeError("Unsupported type, expected pandas.DataFrame, got %s" % type(pdf))
