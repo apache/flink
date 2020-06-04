@@ -223,14 +223,14 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public boolean hasInflightData(long checkpointId, int channelIndex) {
+	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
 		if (checkpointId < currentConsumedCheckpointId) {
 			return false;
 		}
 		if (checkpointId > currentConsumedCheckpointId) {
 			return true;
 		}
-		return hasInflightBuffers[channelIndex];
+		return hasInflightBuffers[getFlattenedChannelIndex(channelInfo)];
 	}
 
 	@Override
