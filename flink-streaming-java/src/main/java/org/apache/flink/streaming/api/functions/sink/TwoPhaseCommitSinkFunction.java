@@ -338,7 +338,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		// transactions were already committed, or whether there was a failure between
 		// completing the checkpoint on the master, and notifying the writer here.
 
-		// (the common case is actually that is was already committed, the window
+		// (the common case is actually that this was already committed, the window
 		// between the commit on the master and the notification here is very small)
 
 		// it is possible to not have any transactions at all if there was a failure before
