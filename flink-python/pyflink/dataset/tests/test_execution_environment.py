@@ -135,4 +135,4 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertIsNotNone(execution_result.get_net_runtime())
         self.assertEqual(len(execution_result.get_all_accumulator_results()), 0)
         self.assertIsNone(execution_result.get_accumulator_result('accumulator'))
-        self.assertIsNotNone(execution_result.to_string())
+        self.assertIsNotNone(str(execution_result))
