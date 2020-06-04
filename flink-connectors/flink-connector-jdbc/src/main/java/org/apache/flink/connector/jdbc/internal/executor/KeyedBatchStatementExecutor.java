@@ -40,8 +40,8 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	private final String sql;
 	private final JdbcStatementBuilder<K> parameterSetter;
 	private final Function<T, K> keyExtractor;
+	private final Set<K> batch;
 
-	private transient Set<K> batch = new HashSet<>();
 	private transient PreparedStatement st;
 
 	/**
@@ -51,22 +51,11 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 		this.parameterSetter = statementBuilder;
 		this.keyExtractor = keyExtractor;
 		this.sql = sql;
+		this.batch = new HashSet<>();
 	}
 
 	@Override
-	public void open(Connection connection) throws SQLException {
-		batch = new HashSet<>();
-		st = connection.prepareStatement(sql);
-	}
-
-	@Override
-	public void reopen(Connection connection) throws SQLException {
-		try {
-			st.close();
-		} catch (SQLException e) {
-			LOG.info("PreparedStatement close failed.", e);
-		}
-
+	public void prepareStatements(Connection connection) throws SQLException {
 		st = connection.prepareStatement(sql);
 	}
 
@@ -88,7 +77,7 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	}
 
 	@Override
-	public void close() throws SQLException {
+	public void closeStatements() throws SQLException {
 		if (st != null) {
 			st.close();
 			st = null;

@@ -56,10 +56,11 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 	private final Function<R, K> keyExtractor;
 	private final Function<R, V> valueMapper;
 
+	private final Map<K, V> batch;
+
 	private transient PreparedStatement existStatement;
 	private transient PreparedStatement insertStatement;
 	private transient PreparedStatement updateStatement;
-	private transient Map<K, V> batch = new HashMap<>();
 
 	public InsertOrUpdateJdbcExecutor(
 			@Nonnull String existSQL,
@@ -78,26 +79,11 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 		this.updateSetter = checkNotNull(updateSetter);
 		this.keyExtractor = checkNotNull(keyExtractor);
 		this.valueMapper = checkNotNull(valueExtractor);
+		this.batch = new HashMap<>();
 	}
 
 	@Override
-	public void open(Connection connection) throws SQLException {
-		batch = new HashMap<>();
-		existStatement = connection.prepareStatement(existSQL);
-		insertStatement = connection.prepareStatement(insertSQL);
-		updateStatement = connection.prepareStatement(updateSQL);
-	}
-
-	@Override
-	public void reopen(Connection connection) throws SQLException {
-		try {
-			existStatement.close();
-			insertStatement.close();
-			updateStatement.close();
-		} catch (SQLException e) {
-			LOG.info("PreparedStatement close failed.", e);
-		}
-
+	public void prepareStatements(Connection connection) throws SQLException {
 		existStatement = connection.prepareStatement(existSQL);
 		insertStatement = connection.prepareStatement(insertSQL);
 		updateStatement = connection.prepareStatement(updateSQL);
@@ -138,7 +124,7 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 	}
 
 	@Override
-	public void close() throws SQLException {
+	public void closeStatements() throws SQLException {
 		for (PreparedStatement s : Arrays.asList(existStatement, insertStatement, updateStatement)) {
 			if (s != null) {
 				s.close();

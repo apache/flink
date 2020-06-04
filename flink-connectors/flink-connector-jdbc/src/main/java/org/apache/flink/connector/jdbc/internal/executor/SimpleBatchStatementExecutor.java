@@ -43,29 +43,19 @@ public class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExe
 	private final String sql;
 	private final JdbcStatementBuilder<V> parameterSetter;
 	private final Function<T, V> valueTransformer;
+	private final List<V> batch;
 
 	private transient PreparedStatement st;
-	private transient List<V> batch;
 
 	SimpleBatchStatementExecutor(String sql, JdbcStatementBuilder<V> statementBuilder, Function<T, V> valueTransformer) {
 		this.sql = sql;
 		this.parameterSetter = statementBuilder;
 		this.valueTransformer = valueTransformer;
-	}
-
-	@Override
-	public void open(Connection connection) throws SQLException {
 		this.batch = new ArrayList<>();
-		this.st = connection.prepareStatement(sql);
 	}
 
 	@Override
-	public void reopen(Connection connection) throws SQLException {
-		try {
-			st.close();
-		} catch (SQLException e) {
-			LOG.info("PreparedStatement close failed.", e);
-		}
+	public void prepareStatements(Connection connection) throws SQLException {
 		this.st = connection.prepareStatement(sql);
 	}
 
@@ -87,15 +77,11 @@ public class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExe
 	}
 
 	@Override
-	public void close() throws SQLException {
+	public void closeStatements() throws SQLException {
 		if (st != null) {
 			st.close();
 			st = null;
 		}
-		if (batch != null) {
-			batch.clear();
-		}
-
 	}
 
 	@VisibleForTesting

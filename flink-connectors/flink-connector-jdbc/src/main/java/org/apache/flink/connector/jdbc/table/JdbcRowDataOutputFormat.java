@@ -102,7 +102,7 @@ public class JdbcRowDataOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 		deleteExecutor = createDeleteExecutor();
 		super.open(taskNumber, numTasks);
 		try {
-			deleteExecutor.open(connection);
+			deleteExecutor.prepareStatements(connection);
 		} catch (SQLException e) {
 			throw new IOException(e);
 		}
@@ -140,7 +140,7 @@ public class JdbcRowDataOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 		} finally {
 			try {
 				if (deleteExecutor != null) {
-					deleteExecutor.close();
+					deleteExecutor.closeStatements();
 				}
 			} catch (SQLException e) {
 				LOG.warn("unable to close delete statement runner", e);

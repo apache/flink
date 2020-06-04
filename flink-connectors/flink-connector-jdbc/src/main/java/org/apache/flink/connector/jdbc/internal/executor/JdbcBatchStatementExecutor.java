@@ -34,9 +34,7 @@ public interface JdbcBatchStatementExecutor<T> {
 	/**
 	 * Open the writer by JDBC Connection. It can create Statement from Connection.
 	 */
-	void open(Connection connection) throws SQLException;
-
-	void reopen(Connection connection) throws SQLException;
+	void prepareStatements(Connection connection) throws SQLException;
 
 	void addToBatch(T record) throws SQLException;
 
@@ -48,7 +46,7 @@ public interface JdbcBatchStatementExecutor<T> {
 	/**
 	 * Close JDBC related statements and other classes.
 	 */
-	void close() throws SQLException;
+	void closeStatements() throws SQLException;
 
 	static <T, K> JdbcBatchStatementExecutor<T> keyed(String sql, Function<T, K> keyExtractor, JdbcStatementBuilder<K> statementBuilder) {
 		return new KeyedBatchStatementExecutor<>(sql, keyExtractor, statementBuilder);

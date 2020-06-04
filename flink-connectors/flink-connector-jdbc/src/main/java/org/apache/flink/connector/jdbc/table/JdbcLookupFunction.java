@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
@@ -45,6 +46,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.getFieldFromResultSet;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,7 +66,6 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JdbcLookupFunction.class);
 	private static final long serialVersionUID = 1L;
-	public static final int CONNECTION_CHECK_TIMEOUT = 60;
 
 	private final String query;
 	private final String drivername;
@@ -233,6 +234,11 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 				dbConn = null;
 			}
 		}
+	}
+
+	@VisibleForTesting
+	public Connection getDbConnection() {
+		return dbConn;
 	}
 
 	@Override
