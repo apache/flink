@@ -48,6 +48,9 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -242,14 +245,20 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 				// check for logical types
 				if (object instanceof Date) {
 					return convertFromDate(schema, (Date) object);
+				} else if (object instanceof LocalDate) {
+					return convertFromDate(schema, Date.valueOf((LocalDate) object));
 				} else if (object instanceof Time) {
 					return convertFromTime(schema, (Time) object);
+				} else if (object instanceof LocalTime) {
+					return convertFromTime(schema, Time.valueOf((LocalTime) object));
 				}
 				return object;
 			case LONG:
 				// check for logical type
 				if (object instanceof Timestamp) {
 					return convertFromTimestamp(schema, (Timestamp) object);
+				} else if (object instanceof LocalDateTime) {
+					return convertFromTimestamp(schema, Timestamp.valueOf((LocalDateTime) object));
 				}
 				return object;
 			case FLOAT:
