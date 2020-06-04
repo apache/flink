@@ -27,6 +27,8 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -67,7 +69,7 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 			final SlotRequestId slotRequestId,
 			final ResourceProfile resourceProfile,
-			final Time timeout) {
+			@Nullable final Time timeout) {
 
 		this.lastRequestedSlotResourceProfile = resourceProfile;
 
