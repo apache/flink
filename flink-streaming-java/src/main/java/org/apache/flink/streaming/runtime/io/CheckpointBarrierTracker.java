@@ -217,10 +217,6 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		return pendingCheckpoints.isEmpty() ? -1 : pendingCheckpoints.peekLast().checkpointId();
 	}
 
-	public long getAlignmentDurationNanos() {
-		return 0;
-	}
-
 	public boolean isCheckpointPending() {
 		return !pendingCheckpoints.isEmpty();
 	}

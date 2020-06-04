@@ -96,7 +96,7 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	@Override
 	public long getAlignmentDurationNanos() {
-		return alignedHandler.getAlignmentDurationNanos();
+		return activeHandler.getAlignmentDurationNanos();
 	}
 
 	@Override
