@@ -39,7 +39,7 @@ import java.util.function.Supplier;
  * </ol>
  */
 @Internal
-interface SubtaskCheckpointCoordinator extends Closeable {
+public interface SubtaskCheckpointCoordinator extends Closeable {
 
 	/**
 	 * Initialize new checkpoint.

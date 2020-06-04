@@ -315,8 +315,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return inputProcessor.prepareSnapshot(channelStateWriter, checkpointId);
 	}
 
-	protected ChannelStateWriter getChannelStateWriter() {
-		return subtaskCheckpointCoordinator.getChannelStateWriter();
+	SubtaskCheckpointCoordinator getCheckpointCoordinator() {
+		return subtaskCheckpointCoordinator;
 	}
 
 	// ------------------------------------------------------------------------
