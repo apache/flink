@@ -132,11 +132,10 @@ public final class SqlCommandParser {
 			cmd = SqlCommand.DROP_CATALOG;
 		} else if (operation instanceof UseCatalogOperation) {
 			cmd = SqlCommand.USE_CATALOG;
-			operands = new String[] { String.format("`%s`", ((UseCatalogOperation) operation).getCatalogName()) };
+			operands = new String[] { ((UseCatalogOperation) operation).getCatalogName() };
 		} else if (operation instanceof UseDatabaseOperation) {
 			cmd = SqlCommand.USE;
-			UseDatabaseOperation op = ((UseDatabaseOperation) operation);
-			operands = new String[] { String.format("`%s`.`%s`", op.getCatalogName(), op.getDatabaseName()) };
+			operands = new String[] { ((UseDatabaseOperation) operation).getDatabaseName() };
 		} else if (operation instanceof ShowCatalogsOperation) {
 			cmd = SqlCommand.SHOW_CATALOGS;
 			operands = new String[0];
