@@ -66,6 +66,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 	private FlinkDistribution distribution;
 
 	LocalStandaloneFlinkResource(Path distributionDirectory, @Nullable Path logBackupDirectory, FlinkResourceSetup setup) {
+		LOG.info("Using distribution {}.", distributionDirectory);
 		this.distributionDirectory = distributionDirectory;
 		this.logBackupDirectory = logBackupDirectory;
 		this.setup = setup;
