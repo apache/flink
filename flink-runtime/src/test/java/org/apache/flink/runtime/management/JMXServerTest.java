@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.management;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import javax.management.InstanceNotFoundException;
@@ -29,62 +31,39 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import java.lang.management.ManagementFactory;
-import java.net.ServerSocket;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the JMXServer.
+ * Test for {@link JMXServer} functionality.
  */
 public class JMXServerTest {
 
-	/**
-	 * Verifies initialize with port range.
-	 */
-	@Test
-	public void testJMXServerInit() throws Exception {
-		try {
-			JMXServer.startInstance("23456-23466");
-			assertNotNull(JMXServer.getInstance());
-		} finally {
-			JMXServer.stopInstance();
-		}
+	@Before
+	public void setUp() throws Exception {
+		JMXService.startInstance("23456-23466");
 	}
 
-	/**
-	 * Verifies initialize failure with occupied port.
-	 */
-	@Test
-	public void testJMXServerInitWithInvalidPorts() throws Exception {
-		try {
-			ServerSocket socket = new ServerSocket(23456);
-			assertEquals(23456, socket.getLocalPort());
-			JMXServer.startInstance("23456");
-			assertNull(JMXServer.getInstance());
-		} catch (RuntimeException e) {
-			assertTrue(e.getMessage().endsWith("23456"));
-		} finally {
-			JMXServer.stopInstance();
-		}
+	@After
+	public void tierDown() throws Exception {
+		JMXService.stopInstance();
 	}
 
 	/**
 	 * Verifies initialize, registered mBean and retrieval via attribute.
 	 */
 	@Test
-	public void testRegisterMBean() throws Exception {
+	public void testJMXServiceRegisterMBean() throws Exception {
 		TestObject testObject = new TestObject();
 		ObjectName testObjectName = new ObjectName("org.apache.flink.management", "key", "value");
 		MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
 		try {
-			JMXServer.startInstance("23456-23466");
+			JMXServer server = JMXService.getInstance();
 			mBeanServer.registerMBean(testObject, testObjectName);
 
-			JMXServiceURL url = new JMXServiceURL("service:jmx:rmi://localhost:" + JMXServer.getPort() + "/jndi/rmi://localhost:" + JMXServer.getPort() + "/jmxrmi");
+			JMXServiceURL url = new JMXServiceURL("service:jmx:rmi://localhost:" + server.getPort() + "/jndi/rmi://localhost:" + server.getPort() + "/jmxrmi");
 			JMXConnector jmxConn = JMXConnectorFactory.connect(url);
 			MBeanServerConnection mbeanConnConn = jmxConn.getMBeanServerConnection();
 
@@ -97,7 +76,7 @@ public class JMXServerTest {
 				assertTrue(e instanceof InstanceNotFoundException);
 			}
 		} finally {
-			JMXServer.stopInstance();
+			JMXService.stopInstance();
 		}
 	}
 

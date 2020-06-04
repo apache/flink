@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.management;
 
-import org.apache.flink.configuration.JMXServerOptions;
-import org.apache.flink.util.NetUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +35,6 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -49,10 +45,8 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
  */
-public class JMXServer {
+class JMXServer {
 	private static final Logger LOG = LoggerFactory.getLogger(JMXServer.class);
-
-	private static JMXServer instance = null;
 
 	private final AtomicReference<Remote> rmiServerReference = new AtomicReference<>();
 
@@ -60,83 +54,10 @@ public class JMXServer {
 	private JMXConnectorServer connector;
 	private int port;
 
-	/**
-	 * Construct a new JMV-wide JMX server or acquire existing JMX server.
-	 *
-	 * <p>If JMXServer static instance is already constructed, it will not be
-	 * reconstruct again. Instead a warning sign will be posted if the desired
-	 * port configuration doesn't match the existing JMXServer static instance.
-	 *
-	 * @param portsConfig port configuration of the JMX server.
-	 * @return JMXServer static instance.
-	 */
-	public static JMXServer startInstance(String portsConfig) {
-		if (instance == null) {
-			if (!portsConfig.equals(JMXServerOptions.JMX_SERVER_PORT.defaultValue())) {
-				instance = startJMXServerWithPortRanges(portsConfig);
-			} else {
-				LOG.warn("JMX Server start failed. No explicit JMX port is configured.");
-				instance = null;
-			}
-		} else {
-			LOG.warn("JVM-wide JMXServer already started at port: " + instance.port);
-		}
-		return instance;
+	JMXServer() {
 	}
 
-	/**
-	 * Acquire existing JMX server. or null if not started.
-	 *
-	 * @return the JMXServer static instance.
-	 */
-	public static JMXServer getInstance() {
-		return instance;
-	}
-
-	/**
-	 * Stop the JMX server.
-	 */
-	public static void stopInstance() throws IOException {
-		if (instance != null) {
-			instance.stop();
-			instance = null;
-		}
-	}
-
-	public static int getPort() {
-		if (instance != null) {
-			return instance.port;
-		} else {
-			return -1;
-		}
-	}
-
-	private static JMXServer startJMXServerWithPortRanges(String portsConfig) {
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-		JMXServer successfullyStartedServer = null;
-		while (ports.hasNext() && successfullyStartedServer == null) {
-			JMXServer server = new JMXServer();
-			int port = ports.next();
-			try {
-				server.start(port);
-				LOG.info("Started JMX server on port " + port + ".");
-				successfullyStartedServer = server;
-			} catch (IOException ioe) { //assume port conflict
-				LOG.debug("Could not start JMX server on port " + port + ".", ioe);
-				try {
-					server.stop();
-				} catch (Exception e) {
-					LOG.debug("Could not stop JMX server.", e);
-				}
-			}
-		}
-		if (successfullyStartedServer == null) {
-			throw new RuntimeException("Could not start JMX server on any configured port. Ports: " + portsConfig);
-		}
-		return successfullyStartedServer;
-	}
-
-	private void start(int port) throws IOException {
+	void start(int port) throws IOException {
 		if (rmiRegistry != null && connector != null) {
 			LOG.debug("JMXServer is already running.");
 			return;
@@ -145,7 +66,7 @@ public class JMXServer {
 		this.port = port;
 	}
 
-	private void stop() throws IOException {
+	void stop() throws IOException {
 		rmiServerReference.set(null);
 		if (connector != null) {
 			try {
@@ -163,6 +84,10 @@ public class JMXServer {
 				rmiRegistry = null;
 			}
 		}
+	}
+
+	int getPort() {
+		return port;
 	}
 
 	private void internalStart(int port) throws IOException {

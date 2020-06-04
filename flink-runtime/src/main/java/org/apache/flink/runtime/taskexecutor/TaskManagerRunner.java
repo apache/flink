@@ -42,7 +42,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
-import org.apache.flink.runtime.management.JMXServer;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -139,7 +139,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			executor,
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
-		JMXServer.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
+		JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
 
@@ -221,7 +221,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			Exception exception = null;
 
 			try {
-				JMXServer.stopInstance();
+				JMXService.stopInstance();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}

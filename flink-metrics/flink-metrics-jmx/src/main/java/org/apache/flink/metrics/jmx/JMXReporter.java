@@ -29,7 +29,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.management.JMXServer;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 
@@ -85,7 +85,7 @@ public class JMXReporter implements MetricReporter {
 		if (portsConfig != null) {
 			LOG.warn("JMXReporter port config is deprecated. " +
 				"Please use: {} instead!", JMXServerOptions.JMX_SERVER_PORT);
-			JMXServer.startInstance(portsConfig);
+			JMXService.startInstance(portsConfig);
 		}
 	}
 
@@ -103,11 +103,7 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	public Optional<Integer> getPort() {
-		if (JMXServer.getInstance() == null) {
-			return Optional.empty();
-		} else {
-			return Optional.of(JMXServer.getPort());
-		}
+		return JMXService.getPort();
 	}
 
 	// ------------------------------------------------------------------------
