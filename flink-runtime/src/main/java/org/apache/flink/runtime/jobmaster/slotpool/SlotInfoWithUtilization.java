@@ -59,6 +59,11 @@ public final class SlotInfoWithUtilization implements SlotInfo {
 		return slotInfoDelegate.getResourceProfile();
 	}
 
+	@Override
+	public boolean willBeOccupiedIndefinitely() {
+		return slotInfoDelegate.willBeOccupiedIndefinitely();
+	}
+
 	public static SlotInfoWithUtilization from(SlotInfo slotInfo, double taskExecutorUtilization) {
 		return new SlotInfoWithUtilization(slotInfo, taskExecutorUtilization);
 	}

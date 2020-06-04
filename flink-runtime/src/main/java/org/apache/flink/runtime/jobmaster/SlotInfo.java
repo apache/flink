@@ -55,4 +55,11 @@ public interface SlotInfo {
 	 * @return the resource profile of the slot.
 	 */
 	ResourceProfile getResourceProfile();
+
+	/**
+	 * Returns whether the slot will be occupied indefinitely.
+	 *
+	 * @return true if the slot will be occupied indefinitely, otherwise false.
+	 */
+	boolean willBeOccupiedIndefinitely();
 }
