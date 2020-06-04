@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.Row;
@@ -179,6 +180,7 @@ public class AvroSchemaConverter {
 	}
 
 	public static Schema convertToSchema(LogicalType logicalType, int rowTypeCounter) {
+		int precision;
 		switch (logicalType.getTypeRoot()) {
 			case NULL:
 				return SchemaBuilder.builder().nullType();
@@ -201,20 +203,25 @@ public class AvroSchemaConverter {
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				// use long to represents Timestamp
 				final TimestampType timestampType = (TimestampType) logicalType;
-				int precision = timestampType.getPrecision();
+				precision = timestampType.getPrecision();
 				org.apache.avro.LogicalType avroLogicalType;
 				if (precision <= 3) {
 					avroLogicalType = LogicalTypes.timestampMillis();
 				} else {
-					throw new IllegalArgumentException("Avro Timestamp does not support Timestamp with precision: " +
-						precision +
-						", it only supports precision of 3 or 9.");
+					throw new IllegalArgumentException("Avro does not support TIMESTAMP type " +
+						"with precision: " + precision + ", it only supports precision less than 3.");
 				}
 				return avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
 			case DATE:
 				// use int to represents Date
 				return LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
 			case TIME_WITHOUT_TIME_ZONE:
+				precision = ((TimeType) logicalType).getPrecision();
+				if (precision > 3) {
+					throw new IllegalArgumentException(
+						"Avro does not support TIME type with precision: " + precision +
+						", it only supports precision less than 3.");
+				}
 				// use int to represents Time, we only support millisecond when deserialization
 				return LogicalTypes.timeMillis().addToSchema(SchemaBuilder.builder().intType());
 			case DECIMAL:
@@ -254,14 +261,6 @@ public class AvroSchemaConverter {
 					.array()
 					.items(convertToSchema(arrayType.getElementType(), rowTypeCounter));
 			case RAW:
-				// if the union type has more than 2 types, it will be recognized a generic type
-				// see AvroRowDeserializationSchema#convertAvroType and AvroRowSerializationSchema#convertFlinkType
-				return SchemaBuilder.builder().unionOf()
-					.nullType().and()
-					.booleanType().and()
-					.longType().and()
-					.doubleType()
-					.endUnion();
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			default:
 				throw new UnsupportedOperationException("Unsupported to derive Schema for type: " + logicalType);
