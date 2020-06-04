@@ -18,13 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
@@ -69,7 +68,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 		// ---------- Write the Debezium json into Kafka -------------------
 		List<String> lines = readLines("debezium-data-schema-exclude.txt");
 		DataStreamSource<String> stream = env.fromCollection(lines);
-		KeyedSerializationSchema<String> serSchema = new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema());
+		SerializationSchema<String> serSchema = new SimpleStringSchema();
 		FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
 
 		// the producer must not produce duplicates
