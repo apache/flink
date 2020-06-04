@@ -166,6 +166,28 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 		return slotSharingGroupId;
 	}
 
+	static SingleLogicalSlot allocateFromPhysicalSlot(
+			final SlotRequestId slotRequestId,
+			final PhysicalSlot physicalSlot,
+			final Locality locality,
+			final SlotOwner slotOwner,
+			final boolean slotWillBeOccupiedIndefinitely) {
+
+		final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
+			slotRequestId,
+			physicalSlot,
+			null,
+			locality,
+			slotOwner,
+			slotWillBeOccupiedIndefinitely);
+
+		if (physicalSlot.tryAssignPayload(singleTaskSlot)) {
+			return singleTaskSlot;
+		} else {
+			throw new IllegalStateException("BUG: Unexpected physical slot payload assignment failure!");
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// AllocatedSlot.Payload implementation
 	// -------------------------------------------------------------------------

@@ -244,18 +244,16 @@ public class SchedulerImpl implements Scheduler {
 
 		final PhysicalSlot allocatedSlot = slotAndLocality.getSlot();
 
-		final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
-			slotRequestId,
-			allocatedSlot,
-			null,
-			slotAndLocality.getLocality(),
-			this);
-
-		if (allocatedSlot.tryAssignPayload(singleTaskSlot)) {
+		try {
+			final SingleLogicalSlot singleTaskSlot = SingleLogicalSlot.allocateFromPhysicalSlot(
+				slotRequestId,
+				allocatedSlot,
+				slotAndLocality.getLocality(),
+				this,
+				true);
 			return singleTaskSlot;
-		} else {
-			final FlinkException flinkException =
-				new FlinkException("Could not assign payload to allocated slot " + allocatedSlot.getAllocationId() + '.');
+		} catch (Throwable t) {
+			final FlinkException flinkException = new FlinkException(t);
 			slotPool.releaseSlot(slotRequestId, flinkException);
 			throw flinkException;
 		}
