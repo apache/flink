@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
@@ -99,9 +100,9 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public boolean hasInflightData(long checkpointId, int channelIndex) {
+	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
 		// should only be called for unaligned checkpoint
-		return unalignedHandler.hasInflightData(checkpointId, channelIndex);
+		return unalignedHandler.hasInflightData(checkpointId, channelInfo);
 	}
 
 	@Override
