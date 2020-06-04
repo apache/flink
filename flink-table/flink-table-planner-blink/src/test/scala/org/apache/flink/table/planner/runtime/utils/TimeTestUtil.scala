@@ -76,13 +76,13 @@ object TimeTestUtil {
 
     override def initializeState(context: StateInitializationContext): Unit = {
       super.initializeState(context)
-      // use union list state to get the max watermark
-      watermarkState = context.getOperatorStateStore.getUnionListState(
+      watermarkState = context.getOperatorStateStore.getListState(
         new ListStateDescriptor("watermark-state", Types.LONG))
 
       val iterator = watermarkState.get().iterator()
-      while (iterator.hasNext) {
-        currentWatermark = Math.max(currentWatermark, iterator.next())
+      if (iterator.hasNext) {
+        // there should be only one element in the state list, because we won't rescale in tests,
+        currentWatermark = iterator.next()
       }
 
       if (currentWatermark > 0) {
