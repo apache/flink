@@ -32,6 +32,7 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
@@ -94,12 +95,18 @@ public class RocksDBOperationUtils {
 		return dbRef;
 	}
 
-	public static RocksIteratorWrapper getRocksIterator(RocksDB db) {
-		return new RocksIteratorWrapper(db.newIterator());
+	public static RocksIteratorWrapper getRocksIterator(RocksDB db, ColumnFamilyHandle columnFamilyHandle, ReadOptions readOptions) {
+		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
 	}
 
-	public static RocksIteratorWrapper getRocksIterator(RocksDB db, ColumnFamilyHandle columnFamilyHandle) {
-		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
+	/**
+	 * Create a total order read option to avoid user misuse, see FLINK-17800 for more details.
+	 *
+	 * <p>Note, remember to close the generated {@link ReadOptions} when dispose.
+	 */
+	// TODO We would remove this method once we bump RocksDB version larger than 6.2.2.
+	public static ReadOptions createTotalOrderSeekReadOptions() {
+		return new ReadOptions().setTotalOrderSeek(true);
 	}
 
 	public static void registerKvStateInformation(
