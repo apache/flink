@@ -22,17 +22,24 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -55,6 +62,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.hamcrest.Matchers.is;
@@ -111,6 +119,67 @@ public class StreamTaskNetworkInputTest {
 	}
 
 	@Test
+	public void testSnapshotWithTwoInputGates() throws Exception {
+		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(
+				new int[]{ 1, 1 },
+				ChannelStateWriter.NO_OP,
+				"test",
+				new DummyCheckpointInvokable());
+
+		SingleInputGate inputGate1 = new SingleInputGateBuilder().setSingleInputGateIndex(0).build();
+		RemoteInputChannel channel1 = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate1);
+		inputGate1.setInputChannels(channel1);
+		inputGate1.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
+		StreamTaskNetworkInput<Long> input1 = createInput(unaligner, inputGate1);
+
+		SingleInputGate inputGate2 = new SingleInputGateBuilder().setSingleInputGateIndex(1).build();
+		RemoteInputChannel channel2 = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate2);
+		inputGate2.setInputChannels(channel2);
+		inputGate2.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
+		StreamTaskNetworkInput<Long> input2 = createInput(unaligner, inputGate2);
+
+		CheckpointBarrier barrier = new CheckpointBarrier(0, 0L, CheckpointOptions.forCheckpointWithDefaultLocation());
+		channel1.onBuffer(EventSerializer.toBuffer(barrier), 0, 0);
+		channel1.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(1), 1, 0);
+
+		// all records on inputGate2 are now in-flight
+		channel2.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(2), 0, 0);
+		channel2.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(3), 1, 0);
+
+		// now snapshot all inflight buffers
+		RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+		channelStateWriter.start(0, CheckpointOptions.forCheckpointWithDefaultLocation());
+		CompletableFuture<Void> completableFuture1 = input1.prepareSnapshot(channelStateWriter, 0);
+		CompletableFuture<Void> completableFuture2 = input2.prepareSnapshot(channelStateWriter, 0);
+
+		// finish unaligned checkpoint on input side
+		channel2.onBuffer(EventSerializer.toBuffer(barrier), 2, 0);
+
+		// futures should be completed
+		completableFuture1.join();
+		completableFuture2.join();
+
+		assertEquals(channelStateWriter.getAddedInput().get(channel1.getChannelInfo()), Collections.emptyList());
+		List<Buffer> storedBuffers = channelStateWriter.getAddedInput().get(channel2.getChannelInfo());
+		assertEquals(Arrays.asList(2, 3), storedBuffers.stream().map(Buffer::getSize).collect(Collectors.toList()));
+	}
+
+	private StreamTaskNetworkInput<Long> createInput(CheckpointBarrierHandler handler, SingleInputGate inputGate) {
+		return new StreamTaskNetworkInput<>(
+			new CheckpointedInputGate(inputGate, handler),
+			LongSerializer.INSTANCE,
+			new StatusWatermarkValve(inputGate.getNumberOfInputChannels(), new NoOpDataOutput<>()),
+			inputGate.getGateIndex(),
+			createDeserializers(inputGate.getNumberOfInputChannels()));
+	}
+
+	private TestRecordDeserializer[] createDeserializers(int numberOfInputChannels) {
+		return IntStream.range(0, numberOfInputChannels)
+				.mapToObj(index -> new TestRecordDeserializer(ioManager.getSpillingDirectoriesPaths()))
+				.toArray(TestRecordDeserializer[]::new);
+	}
+
+	@Test
 	public void testSnapshotAfterEndOfPartition() throws Exception {
 		int numInputChannels = 1;
 		int channelId = 0;
@@ -119,9 +188,7 @@ public class StreamTaskNetworkInputTest {
 		VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
 		LongSerializer inSerializer = LongSerializer.INSTANCE;
 		StreamTestSingleInputGate<Long> inputGate = new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
-		TestRecordDeserializer[] deserializers = IntStream.range(0, numInputChannels)
-			.mapToObj(index -> new TestRecordDeserializer(ioManager.getSpillingDirectoriesPaths()))
-			.toArray(TestRecordDeserializer[]::new);
+		TestRecordDeserializer[] deserializers = createDeserializers(numInputChannels);
 		StreamTaskNetworkInput<Long> input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),

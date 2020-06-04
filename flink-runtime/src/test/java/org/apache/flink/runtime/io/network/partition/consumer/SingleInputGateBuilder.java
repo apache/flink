@@ -70,12 +70,12 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
-	SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
+	public SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
 		this.consumedSubpartitionIndex = consumedSubpartitionIndex;
 		return this;
 	}
 
-	SingleInputGateBuilder setSingleInputGateIndex(int gateIndex) {
+	public SingleInputGateBuilder setSingleInputGateIndex(int gateIndex) {
 		this.gateIndex = gateIndex;
 		return this;
 	}

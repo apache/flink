@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -107,7 +108,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 	private static void assertInflightDataEquals(CheckpointBarrierHandler expected, CheckpointBarrierHandler actual, long barrierId, int numChannels) {
 		for (int channelId = 0; channelId < numChannels; channelId++) {
-			assertEquals(expected.hasInflightData(barrierId, channelId), actual.hasInflightData(barrierId, channelId));
+			InputChannelInfo channelInfo = new InputChannelInfo(0, channelId);
+			assertEquals(expected.hasInflightData(barrierId, channelInfo), actual.hasInflightData(barrierId, channelInfo));
 		}
 	}
 

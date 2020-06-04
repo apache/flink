@@ -140,8 +140,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 			long checkpointId,
 			int channelIndex,
 			ChannelStateWriter channelStateWriter) throws IOException {
-		if (barrierHandler.hasInflightData(checkpointId, channelIndex)) {
-			inputGate.getChannel(channelIndex).spillInflightBuffers(checkpointId, channelStateWriter);
+		InputChannel channel = inputGate.getChannel(channelIndex);
+		if (barrierHandler.hasInflightData(checkpointId, channel.getChannelInfo())) {
+			channel.spillInflightBuffers(checkpointId, channelStateWriter);
 		}
 	}
 
