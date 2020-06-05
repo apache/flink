@@ -171,13 +171,13 @@ public class HiveContinuousMonitoringFunction
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 		this.currReadTimeState = context.getOperatorStateStore().getListState(
 			new ListStateDescriptor<>(
-				"partition-monitoring-state",
+				"current-read-time-state",
 				LongSerializer.INSTANCE
 			)
 		);
 		this.distinctPartsState = context.getOperatorStateStore().getListState(
 			new ListStateDescriptor<>(
-				"partition-monitoring-state",
+				"distinct-partitions-state",
 				new ListSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE))
 			)
 		);
