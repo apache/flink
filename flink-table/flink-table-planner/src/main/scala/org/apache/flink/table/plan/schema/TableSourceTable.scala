@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{DefinedFieldMapping, TableSource, TableSourceValidation}
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
-import org.apache.flink.table.types.{AtomicDataType, DataType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.{DataTypeUtils, TypeConversions}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.utils.TypeMappingUtils
 
@@ -84,27 +83,26 @@ class TableSourceTable[T](
       nameMapping
     )
 
-    val dataTypes = if (LogicalTypeChecks.isCompositeType(producedDataType.getLogicalType)) {
+    val typeInfos = if (LogicalTypeChecks.isCompositeType(producedDataType.getLogicalType)) {
       val physicalSchema = DataTypeUtils.expandCompositeTypeToSchema(producedDataType)
       fieldIndexes.map(mapIndex(_,
         idx =>
-          physicalSchema.getFieldDataType(idx).get())
+          TypeConversions.fromDataTypeToLegacyInfo(physicalSchema.getFieldDataType(idx).get()))
       )
     } else {
-      fieldIndexes.map(mapIndex(_, _ => producedDataType))
+      fieldIndexes.map(mapIndex(_, _ => TypeConversions.fromDataTypeToLegacyInfo(producedDataType)))
     }
 
-    flinkTypeFactory.buildLogicalRowType(fieldNames, dataTypes)
+    flinkTypeFactory.buildLogicalRowType(fieldNames, typeInfos)
   }
 
-  def mapIndex(idx: Int, mapNonMarker: Int => DataType): DataType = {
+  def mapIndex(idx: Int, mapNonMarker: Int => TypeInformation[_]): TypeInformation[_] = {
     idx match {
-      case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER => DataTypes.TIMESTAMP(3)
-      case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER => DataTypes.TIMESTAMP(3)
+      case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER => Types.SQL_TIMESTAMP()
+      case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER => Types.SQL_TIMESTAMP()
       case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
-        new AtomicDataType(new TimestampType(false, TimestampKind.PROCTIME, 3))
-      case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
-        new AtomicDataType(new TimestampType(false, TimestampKind.ROWTIME, 3))
+        TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+      case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER => TimeIndicatorTypeInfo.ROWTIME_INDICATOR
       case _ =>
        mapNonMarker(idx)
     }

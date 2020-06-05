@@ -45,7 +45,7 @@ abstract class Sink(
   override def deriveRowType(): RelDataType = {
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val tableSchema = sink.getTableSchema
-    typeFactory.buildLogicalRowType(tableSchema.getFieldNames, tableSchema.getFieldDataTypes)
+    typeFactory.buildLogicalRowType(tableSchema.getFieldNames, tableSchema.getFieldTypes)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
