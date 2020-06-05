@@ -56,7 +56,9 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	@Override
 	public String getConfigDirectory() {
-		final String configDir = flinkConfig.get(DeploymentOptionsInternal.CONF_DIR);
+		final String configDir = flinkConfig.getOptional(DeploymentOptionsInternal.CONF_DIR).orElse(
+			flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR));
+
 		checkNotNull(configDir);
 		return configDir;
 	}

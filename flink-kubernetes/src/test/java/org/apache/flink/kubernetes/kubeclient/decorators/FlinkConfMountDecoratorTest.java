@@ -18,6 +18,8 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
@@ -42,9 +44,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator.getFlinkConfConfigMapName;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 
 /**
  * General tests for the {@link FlinkConfMountDecorator}.
@@ -88,15 +93,20 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 		assertEquals(Constants.API_VERSION, resultConfigMap.getApiVersion());
 
-		assertEquals(flinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID),
+		assertEquals(getFlinkConfConfigMapName(CLUSTER_ID),
 				resultConfigMap.getMetadata().getName());
 		assertEquals(getCommonLabels(), resultConfigMap.getMetadata().getLabels());
 
 		Map<String, String> resultDatas = resultConfigMap.getData();
 		assertEquals("some data", resultDatas.get("logback.xml"));
 		assertEquals("some data", resultDatas.get("log4j.properties"));
-		assertTrue(resultDatas.get(FLINK_CONF_FILENAME).contains(KubernetesConfigOptions.FLINK_CONF_DIR.key() +
-				": " + FLINK_CONF_DIR_IN_POD));
+
+		final Configuration resultFlinkConfig = KubernetesTestUtils.loadConfigurationFromString(
+			resultDatas.get(FLINK_CONF_FILENAME));
+		assertThat(resultFlinkConfig.get(KubernetesConfigOptions.FLINK_CONF_DIR), is(FLINK_CONF_DIR_IN_POD));
+		// The following config options should not be added to config map
+		assertThat(resultFlinkConfig.get(KubernetesConfigOptions.KUBE_CONFIG_FILE), is(nullValue()));
+		assertThat(resultFlinkConfig.get(DeploymentOptionsInternal.CONF_DIR), is(nullValue()));
 	}
 
 	@Test
@@ -112,7 +122,7 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 			new VolumeBuilder()
 				.withName(Constants.FLINK_CONF_VOLUME)
 				.withNewConfigMap()
-					.withName(flinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID))
+					.withName(getFlinkConfConfigMapName(CLUSTER_ID))
 					.withItems(expectedKeyToPaths)
 					.endConfigMap()
 				.build());
@@ -145,7 +155,7 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 			new VolumeBuilder()
 				.withName(Constants.FLINK_CONF_VOLUME)
 				.withNewConfigMap()
-				.withName(flinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID))
+				.withName(getFlinkConfConfigMapName(CLUSTER_ID))
 				.withItems(expectedKeyToPaths)
 				.endConfigMap()
 				.build());
@@ -171,7 +181,7 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 			new VolumeBuilder()
 				.withName(Constants.FLINK_CONF_VOLUME)
 				.withNewConfigMap()
-				.withName(flinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID))
+				.withName(getFlinkConfConfigMapName(CLUSTER_ID))
 				.withItems(expectedKeyToPaths)
 				.endConfigMap()
 				.build());
@@ -202,7 +212,7 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 			new VolumeBuilder()
 				.withName(Constants.FLINK_CONF_VOLUME)
 				.withNewConfigMap()
-				.withName(flinkConfMountDecorator.getFlinkConfConfigMapName(CLUSTER_ID))
+				.withName(getFlinkConfConfigMapName(CLUSTER_ID))
 				.withItems(expectedKeyToPaths)
 				.endConfigMap()
 				.build());
