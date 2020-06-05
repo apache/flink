@@ -176,12 +176,12 @@ class BatchTableEnvironmentTest extends TableTestBase {
       .functionExists(ObjectPath.fromString("default_database.f1")))
 
     val tableResult4 = util.tableEnv.executeSql(
-      s"CREATE TEMPORARY SYSTEM FUNCTION default_database.f2 AS '$funcName'")
+      s"CREATE TEMPORARY SYSTEM FUNCTION f2 AS '$funcName'")
     assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
     assertTrue(util.tableEnv.listUserDefinedFunctions().contains("f2"))
 
     val tableResult5 = util.tableEnv.executeSql(
-      "DROP TEMPORARY SYSTEM FUNCTION default_database.f2")
+      "DROP TEMPORARY SYSTEM FUNCTION f2")
     assertEquals(ResultKind.SUCCESS, tableResult5.getResultKind)
     assertFalse(util.tableEnv.listUserDefinedFunctions().contains("f2"))
   }
