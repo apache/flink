@@ -29,19 +29,19 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, IntervalJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, JoinTypeUtil, KeySelectorUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.generated.GeneratedFunction
-import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeIntervalStreamJoin, RowTimeIntervalStreamJoin}
+import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, RowTimeIntervalJoin}
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.util.Collector
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.runtime.operators.join.interval.{ProcTimeIntervalJoin, RowTimeIntervalJoin}
 
 import java.util
 
@@ -275,7 +275,7 @@ class StreamExecIntervalJoin(
       rightKeys: Array[Int]): Transformation[RowData] = {
     val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
     val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val procJoinFunc = new ProcTimeIntervalStreamJoin(
+    val procJoinFunc = new ProcTimeIntervalJoin(
       flinkJoinType,
       leftLowerBound,
       leftUpperBound,
@@ -316,7 +316,7 @@ class StreamExecIntervalJoin(
   ): Transformation[RowData] = {
     val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
     val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val rowJoinFunc = new RowTimeIntervalStreamJoin(
+    val rowJoinFunc = new RowTimeIntervalJoin(
       flinkJoinType,
       leftLowerBound,
       leftUpperBound,

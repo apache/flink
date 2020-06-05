@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 
@@ -34,9 +35,9 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test for {@link ProcTimeIntervalStreamJoin}.
+ * Test for {@link ProcTimeIntervalJoin}.
  */
-public class ProcTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBase {
+public class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
 	private int keyIdx = 0;
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { keyIdx },
@@ -47,7 +48,7 @@ public class ProcTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBa
 	/** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime + 20. **/
 	@Test
 	public void testProcTimeInnerJoinWithCommonBounds() throws Exception {
-		ProcTimeIntervalStreamJoin joinProcessFunc = new ProcTimeIntervalStreamJoin(
+		ProcTimeIntervalJoin joinProcessFunc = new ProcTimeIntervalJoin(
 				FlinkJoinType.INNER, -10, 20, rowType, rowType, generatedFunction);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
@@ -105,7 +106,7 @@ public class ProcTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBa
 	/** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime - 5. **/
 	@Test
 	public void testProcTimeInnerJoinWithNegativeBounds() throws Exception {
-		ProcTimeIntervalStreamJoin joinProcessFunc = new ProcTimeIntervalStreamJoin(
+		ProcTimeIntervalJoin joinProcessFunc = new ProcTimeIntervalJoin(
 				FlinkJoinType.INNER, -10, -5, rowType, rowType, generatedFunction);
 
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
@@ -167,7 +168,7 @@ public class ProcTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBa
 	}
 
 	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
-			ProcTimeIntervalStreamJoin intervalJoinFunc)
+			ProcTimeIntervalJoin intervalJoinFunc)
 			throws Exception {
 		KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator = new KeyedCoProcessOperator<>(
 				intervalJoinFunc);

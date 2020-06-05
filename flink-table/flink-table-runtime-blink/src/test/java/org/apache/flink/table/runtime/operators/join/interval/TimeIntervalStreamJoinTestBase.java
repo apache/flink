@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 /**
- * Base Test for all subclass of {@link TimeIntervalStreamJoin}.
+ * Base Test for all subclass of {@link TimeIntervalJoin}.
  */
 abstract class TimeIntervalStreamJoinTestBase {
 	RowDataTypeInfo rowType = new RowDataTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));

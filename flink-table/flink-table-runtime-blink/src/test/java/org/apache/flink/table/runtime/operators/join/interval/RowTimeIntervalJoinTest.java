@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.KeyedCoProcessOperatorWithWatermarkDelay;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 
@@ -35,9 +37,9 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test for {@link RowTimeIntervalStreamJoin}.
+ * Test for {@link RowTimeIntervalJoin}.
  */
-public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBase {
+public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
 	private int keyIdx = 1;
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { keyIdx },
@@ -47,7 +49,7 @@ public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBas
 	/** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. **/
 	@Test
 	public void testRowTimeInnerJoinWithCommonBounds() throws Exception {
-		RowTimeIntervalStreamJoin joinProcessFunc = new RowTimeIntervalStreamJoin(
+		RowTimeIntervalJoin joinProcessFunc = new RowTimeIntervalJoin(
 				FlinkJoinType.INNER, -10, 20, 0, rowType, rowType, generatedFunction, 0, 0);
 
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
@@ -111,7 +113,7 @@ public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBas
 	/** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime - 7. **/
 	@Test
 	public void testRowTimeInnerJoinWithNegativeBounds() throws Exception {
-		RowTimeIntervalStreamJoin joinProcessFunc = new RowTimeIntervalStreamJoin(
+		RowTimeIntervalJoin joinProcessFunc = new RowTimeIntervalJoin(
 				FlinkJoinType.INNER, -10, -7, 0, rowType, rowType, generatedFunction, 0, 0);
 
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
@@ -165,7 +167,7 @@ public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBas
 
 	@Test
 	public void testRowTimeLeftOuterJoin() throws Exception {
-		RowTimeIntervalStreamJoin joinProcessFunc = new RowTimeIntervalStreamJoin(
+		RowTimeIntervalJoin joinProcessFunc = new RowTimeIntervalJoin(
 				FlinkJoinType.LEFT, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
 
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
@@ -233,7 +235,7 @@ public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBas
 
 	@Test
 	public void testRowTimeRightOuterJoin() throws Exception {
-		RowTimeIntervalStreamJoin joinProcessFunc = new RowTimeIntervalStreamJoin(
+		RowTimeIntervalJoin joinProcessFunc = new RowTimeIntervalJoin(
 				FlinkJoinType.RIGHT, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
 
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
@@ -302,7 +304,7 @@ public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBas
 	/** a.rowtime >= b.rowtime - 5 and a.rowtime <= b.rowtime + 9. **/
 	@Test
 	public void testRowTimeFullOuterJoin() throws Exception {
-		RowTimeIntervalStreamJoin joinProcessFunc = new RowTimeIntervalStreamJoin(
+		RowTimeIntervalJoin joinProcessFunc = new RowTimeIntervalJoin(
 				FlinkJoinType.FULL, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
 
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
@@ -375,7 +377,7 @@ public class RowTimeIntervalStreamJoinTest extends TimeIntervalStreamJoinTestBas
 	}
 
 	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
-			RowTimeIntervalStreamJoin intervalJoinFunc)
+			RowTimeIntervalJoin intervalJoinFunc)
 			throws Exception {
 		KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator = new KeyedCoProcessOperatorWithWatermarkDelay<>(
 				intervalJoinFunc, intervalJoinFunc.getMaxOutputDelay());

@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
  * The function to execute row(event) time interval stream inner-join.
  */
-public final class RowTimeIntervalStreamJoin extends TimeIntervalStreamJoin {
+public final class RowTimeIntervalJoin extends TimeIntervalJoin {
 
 	private static final long serialVersionUID = -2923709329817468698L;
 
 	private final int leftTimeIdx;
 	private final int rightTimeIdx;
 
-	public RowTimeIntervalStreamJoin(
+	public RowTimeIntervalJoin(
 			FlinkJoinType joinType,
 			long leftLowerBound,
 			long leftUpperBound,

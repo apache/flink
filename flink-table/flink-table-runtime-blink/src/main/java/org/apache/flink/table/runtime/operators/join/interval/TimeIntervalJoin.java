@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.state.MapState;
@@ -31,6 +31,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -49,8 +51,8 @@ import java.util.Map;
  * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X"
  * X and Y might be negative or positive and X <= Y.
  */
-abstract class TimeIntervalStreamJoin extends KeyedCoProcessFunction<RowData, RowData, RowData, RowData> {
-	private static final Logger LOGGER = LoggerFactory.getLogger(TimeIntervalStreamJoin.class);
+abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData, RowData, RowData> {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TimeIntervalJoin.class);
 	private final FlinkJoinType joinType;
 	protected final long leftRelativeSize;
 	protected final long rightRelativeSize;
@@ -86,7 +88,7 @@ abstract class TimeIntervalStreamJoin extends KeyedCoProcessFunction<RowData, Ro
 	protected long leftOperatorTime = 0L;
 	protected long rightOperatorTime = 0L;
 
-	TimeIntervalStreamJoin(
+	TimeIntervalJoin(
 			FlinkJoinType joinType,
 			long leftLowerBound,
 			long leftUpperBound,
