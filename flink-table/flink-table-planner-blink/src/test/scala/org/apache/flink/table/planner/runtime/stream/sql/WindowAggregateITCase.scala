@@ -322,43 +322,29 @@ class WindowAggregateITCase(mode: StateBackendMode)
   // used to verify compile works normally when constants exists in group window key (FLINK-17553)
   @Test
   def testWindowAggregateOnConstantValue(): Unit = {
-    val ddl1 =
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
       """
-        |CREATE TABLE src (
-        |  log_ts STRING,
-        |  ts TIMESTAMP(3),
-        |  a INT,
-        |  b DOUBLE,
-        |  rowtime AS CAST(log_ts AS TIMESTAMP(3)),
-        |  WATERMARK FOR rowtime AS rowtime - INTERVAL '0.001' SECOND
-        |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    val ddl2 =
-      """
-        |CREATE TABLE dst (
-        |  ts TIMESTAMP(3),
-        |  a BIGINT,
-        |  b DOUBLE
-        |) WITH (
-        |  'connector.type' = 'filesystem',
-        |  'connector.path' = '/tmp/1',
-        |  'format.type' = 'csv'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |INSERT INTO dst
-        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
-        |FROM src
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(name)
+        |FROM T1
         | GROUP BY 'a', TUMBLE(rowtime, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl1)
-    tEnv.sqlUpdate(ddl2)
-    tEnv.sqlUpdate(query)
-    tEnv.explain(true)
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2",
+      "1970-01-01T00:00:00.006,2",
+      "1970-01-01T00:00:00.009,3",
+      "1970-01-01T00:00:00.018,1",
+      "1970-01-01T00:00:00.033,0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
