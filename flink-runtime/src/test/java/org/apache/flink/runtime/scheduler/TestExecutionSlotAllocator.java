@@ -137,11 +137,6 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 	}
 
 	@Override
-	public CompletableFuture<Void> stop() {
-		return CompletableFuture.completedFuture(null);
-	}
-
-	@Override
 	public void returnLogicalSlot(final LogicalSlot logicalSlot) {
 		returnedSlots.add(logicalSlot);
 	}

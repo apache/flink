@@ -142,14 +142,6 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 		}
 	}
 
-	@Override
-	public CompletableFuture<Void> stop() {
-		List<ExecutionVertexID> executionVertexIds = new ArrayList<>(pendingSlotAssignments.keySet());
-		executionVertexIds.forEach(this::cancel);
-
-		return CompletableFuture.completedFuture(null);
-	}
-
 	/**
 	 * Calculates the preferred locations for an execution.
 	 * It will first try to use preferred locations based on state,
