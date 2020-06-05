@@ -217,27 +217,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that all unfulfilled slot requests will be cancelled when stopped.
-	 */
-	@Test
-	public void testStop() throws Exception {
-		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
-
-		slotProvider.disableSlotAllocation();
-		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-				createSchedulingRequirements(executionVertexId);
-		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
-
-		executionSlotAllocator.stop().get();
-
-		assertThat(slotProvider.getCancelledSlotRequestIds(), hasSize(1));
-		assertThat(slotProvider.getCancelledSlotRequestIds(), contains(slotProvider.getReceivedSlotRequestIds().toArray()));
-		assertEquals(0, executionSlotAllocator.getNumberOfPendingSlotAssignments());
-	}
-
-	/**
 	 * Tests that all prior allocation ids are computed by union all previous allocation ids in scheduling requirements.
 	 */
 	@Test
