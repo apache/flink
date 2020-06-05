@@ -65,6 +65,10 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
 		runAsync(this::checkBatchSlotTimeout);
 	}
 
+	boolean isBatchSlotRequestTimeoutCheckEnabled() {
+		return batchSlotRequestTimeoutCheckEnabled;
+	}
+
 	@Override
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 			final SlotRequestId slotRequestId,
