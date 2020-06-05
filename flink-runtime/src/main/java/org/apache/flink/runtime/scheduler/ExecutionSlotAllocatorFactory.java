@@ -24,6 +24,6 @@ package org.apache.flink.runtime.scheduler;
  */
 public interface ExecutionSlotAllocatorFactory {
 
-	ExecutionSlotAllocator createInstance(InputsLocationsRetriever inputsLocationsRetriever);
+	ExecutionSlotAllocator createInstance(PreferredLocationsRetriever preferredLocationsRetriever);
 
 }

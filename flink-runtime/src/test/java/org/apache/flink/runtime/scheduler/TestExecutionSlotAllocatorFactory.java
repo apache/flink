@@ -37,7 +37,7 @@ public class TestExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
 	}
 
 	@Override
-	public ExecutionSlotAllocator createInstance(final InputsLocationsRetriever ignored) {
+	public ExecutionSlotAllocator createInstance(final PreferredLocationsRetriever ignored) {
 		return testExecutionSlotAllocator;
 	}
 

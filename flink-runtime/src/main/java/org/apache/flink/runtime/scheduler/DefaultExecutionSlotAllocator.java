@@ -21,8 +21,6 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -39,16 +37,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -67,13 +62,13 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 	private final SlotProviderStrategy slotProviderStrategy;
 
-	private final InputsLocationsRetriever inputsLocationsRetriever;
+	private final PreferredLocationsRetriever preferredLocationsRetriever;
 
 	public DefaultExecutionSlotAllocator(
-			SlotProviderStrategy slotProviderStrategy,
-			InputsLocationsRetriever inputsLocationsRetriever) {
+			final SlotProviderStrategy slotProviderStrategy,
+			final PreferredLocationsRetriever preferredLocationsRetriever) {
 		this.slotProviderStrategy = checkNotNull(slotProviderStrategy);
-		this.inputsLocationsRetriever = checkNotNull(inputsLocationsRetriever);
+		this.preferredLocationsRetriever = checkNotNull(preferredLocationsRetriever);
 
 		pendingSlotAssignments = new HashMap<>();
 	}
@@ -97,9 +92,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 			LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
 
 			CompletableFuture<LogicalSlot> slotFuture = calculatePreferredLocations(
-					executionVertexId,
-					schedulingRequirements.getPreferredLocations(),
-					inputsLocationsRetriever).thenCompose(
+					executionVertexId).thenCompose(
 							(Collection<TaskManagerLocation> preferredLocations) ->
 								slotProviderStrategy.allocateSlot(
 									slotRequestId,
@@ -162,67 +155,9 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	 * It will first try to use preferred locations based on state,
 	 * if null, will use the preferred locations based on inputs.
 	 */
-	private static CompletableFuture<Collection<TaskManagerLocation>> calculatePreferredLocations(
-			ExecutionVertexID executionVertexId,
-			Collection<TaskManagerLocation> preferredLocationsBasedOnState,
-			InputsLocationsRetriever inputsLocationsRetriever) {
-
-		if (!preferredLocationsBasedOnState.isEmpty()) {
-			return CompletableFuture.completedFuture(preferredLocationsBasedOnState);
-		}
-
-		return getPreferredLocationsBasedOnInputs(executionVertexId, inputsLocationsRetriever);
-	}
-
-	/**
-	 * Gets the location preferences of the execution, as determined by the locations
-	 * of the predecessors from which it receives input data.
-	 * If there are more than {@link ExecutionVertex#MAX_DISTINCT_LOCATIONS_TO_CONSIDER} different locations of source data,
-	 * or neither the sources have not been started nor will be started with the execution together,
-	 * this method returns an empty collection to indicate no location preference.
-	 *
-	 * @return The preferred locations based in input streams, or an empty iterable,
-	 *         if there is no input-based preference.
-	 */
-	@VisibleForTesting
-	static CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocationsBasedOnInputs(
-			ExecutionVertexID executionVertexId,
-			InputsLocationsRetriever inputsLocationsRetriever) {
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
-				CompletableFuture.completedFuture(Collections.emptyList());
-
-		Collection<CompletableFuture<TaskManagerLocation>> locationsFutures = new ArrayList<>();
-
-		Collection<Collection<ExecutionVertexID>> allProducers =
-				inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
-		for (Collection<ExecutionVertexID> producers : allProducers) {
-
-			for (ExecutionVertexID producer : producers) {
-				Optional<CompletableFuture<TaskManagerLocation>> optionalLocationFuture =
-						inputsLocationsRetriever.getTaskManagerLocation(producer);
-				optionalLocationFuture.ifPresent(locationsFutures::add);
-				// If the parallelism is large, wait for all futures coming back may cost a long time.
-				if (locationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-					locationsFutures.clear();
-					break;
-				}
-			}
-
-			CompletableFuture<Collection<TaskManagerLocation>> uniqueLocationsFuture =
-					FutureUtils.combineAll(locationsFutures).thenApply(HashSet::new);
-			preferredLocations = preferredLocations.thenCombine(
-					uniqueLocationsFuture,
-					(locationsOnOneEdge, locationsOnAnotherEdge) -> {
-						if ((!locationsOnOneEdge.isEmpty() && locationsOnAnotherEdge.size() > locationsOnOneEdge.size())
-								|| locationsOnAnotherEdge.isEmpty()) {
-							return locationsOnOneEdge;
-						} else {
-							return locationsOnAnotherEdge;
-						}
-					});
-			locationsFutures.clear();
-		}
-		return preferredLocations;
+	private CompletableFuture<Collection<TaskManagerLocation>> calculatePreferredLocations(
+			ExecutionVertexID executionVertexId) {
+		return preferredLocationsRetriever.getPreferredLocations(executionVertexId, Collections.emptySet());
 	}
 
 	/**
