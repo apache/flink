@@ -127,7 +127,7 @@ class GPUDriver implements ExternalResourceDriver {
 			if (exitVal != 0) {
 				final String stdout = stdoutReader.lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
 				final String stderr = stderrReader.lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-				LOG.warn("Discovery script exit with {}.\\nSTDOUT: {}\\nSTDERR: {}", exitVal, stdout, stderr);
+				LOG.warn("Discovery script exit with {}.\nSTDOUT: {}\nSTDERR: {}", exitVal, stdout, stderr);
 				throw new FlinkException(String.format("Discovery script exit with non-zero return code: %s.", exitVal));
 			}
 			Object[] stdout = stdoutReader.lines().toArray();
