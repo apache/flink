@@ -92,7 +92,6 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	private final TestingHighAvailabilityServices haServices;
 	private final TemporaryFolder temporaryFolder;
-	private final TaskSlotTable<Task> taskSlotTable;
 	private final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable;
 	private final JobMasterId jobMasterId;
 
@@ -118,7 +117,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		this.jobMasterId = jobMasterId;
 
-		this.taskSlotTable = slotSize > 0 ?
+		final TaskSlotTable<Task> taskSlotTable = slotSize > 0 ?
 			TaskSlotUtils.createTaskSlotTable(slotSize) :
 			TestingTaskSlotTable
 				.<Task>newBuilder()
