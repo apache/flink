@@ -32,9 +32,9 @@ different statements.
 
 ## Use Hive Dialect
 
-Flink currently supports two SQL dialects: `default` and `hive`. You have to choose to use Hive
-dialect before you can write in Hive syntax. The following describes how to set dialect with
-SQL Client and Table API. Please also be noted that you can dynamically switch dialect for each
+Flink currently supports two SQL dialects: `default` and `hive`. You need to switch to Hive dialect
+before you can write in Hive syntax. The following describes how to set dialect with
+SQL Client and Table API. Also notice that you can dynamically switch dialect for each
 statement you execute. There's no need to restart a session to use a different dialect.
 
 ### SQL Client
@@ -68,7 +68,7 @@ Flink SQL> set table.sql-dialect=default; -- to use default dialect
 
 ### Table API
 
-With Table API, you can set dialect for you TableEnvironment.
+You can set dialect for you TableEnvironment with Table API.
 
 {% highlight java %}
 
@@ -335,7 +335,7 @@ At the moment, Hive dialect supports the same syntax as Flink SQL for DQLs. Refe
 
 ## Notice
 
-Some things to notice when using the Hive dialect.
+The following are some precautions for using the Hive dialect.
 
 - Hive dialect should only be used to manipulate Hive tables, not generic tables. And Hive dialect should be used together
 with a [HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html).
