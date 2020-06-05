@@ -73,14 +73,14 @@ public class PrintUtils {
 	 * Displays the result in a tableau form.
 	 *
 	 * <p>For example: (printRowKind is true)
-	 * +-------------+-------------+---------+-------------+
+	 * +----------+-------------+---------+-------------+
 	 * | row_kind | boolean_col | int_col | varchar_col |
-	 * +-------------+-------------+---------+-------------+
+	 * +----------+-------------+---------+-------------+
 	 * |       +I |        true |       1 |         abc |
 	 * |       -U |       false |       2 |         def |
 	 * |       +U |       false |       3 |         def |
 	 * |       -D |      (NULL) |  (NULL) |      (NULL) |
-	 * +-------------+-------------+---------+-------------+
+	 * +----------+-------------+---------+-------------+
 	 * 4 rows in result
 	 */
 	public static void printAsTableauForm(

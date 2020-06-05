@@ -40,6 +40,40 @@ public interface TableResult {
 
 	/**
 	 * Get the schema of result.
+	 *
+	 * <p>The schema of DDL, SHOW, EXPLAIN:
+	 * <pre>
+	 * +------------+-----------+-----------+
+	 * | field name | field type | comments |
+	 * +------------+------------+----------+
+	 * | result     | STRING     |          |
+	 * +------------+------------+----------+
+	 * </pre>
+	 *
+	 * <p>The schema of DESCRIBE:
+	 * <pre>
+	 * +-----------------+------------+-----------------------------------------------------------------------------+
+	 * |   field name    | field type |                              comments                                       |
+	 * +-----------------+------------+-----------------------------------------------------------------------------+
+	 * | name            | STRING     | field name                                                                  |
+	 * | type            | STRING     | field type expressed as a String                                            |
+	 * | null            | BOOLEAN    | field nullability: true if it's nullable, else false                        |
+	 * | key             | BOOLEAN    | key constraint: 'PRI' for primary keys, 'UNQ' for unique keys, else null    |
+	 * | computed column | STRING     | computed column: string expression if a field is computed column, else null |
+	 * | watermark       | STRING     | watermark: string expression if a field is a watermark, else null           |
+	 * +-----------------+------------+-----------------------------------------------------------------------------+
+	 * </pre>
+	 *
+	 * <p>The schema of INSERT: (one column per one sink)
+	 * <pre>
+	 * +----------------------------+------------+-----------------------------------+
+	 * | field name                 | field type |               comments            |
+	 * +----------------------------+------------+-----------------------------------+
+	 * | (name of the insert table) | BIGINT     | field name is the sink table name |
+	 * +----------------------------+------------+-----------------------------------+
+	 * </pre>
+	 *
+	 * <p>The schema of SELECT is the selected field names and types.
 	 */
 	TableSchema getTableSchema();
 
@@ -51,22 +85,28 @@ public interface TableResult {
 	/**
 	 * Get the result contents as a closeable row iterator.
 	 *
-	 * <p><strong>NOTE:</strong>If this result corresponds to a flink job,
-	 * the job will not be finished unless all result data has been collected.
-	 * So we should actively close the job to avoid resource leak.
+	 * <p><strong>NOTE:</strong>
+	 * <ul>
+	 *     <li>
+	 *         For SELECT operation, the job will not be finished unless all result data has been collected.
+	 *         So we should actively close the job to avoid resource leak through CloseableIterator#close method.
+	 *         Calling CloseableIterator#close method will cancel the job and release related resources.
+	 *     </li>
+	 *     <li>
+	 *          For INSERT operation, Flink does not support getting the affected row count now.
+	 *          So the affected row count is always -1 (unknown) for every sink, and the constant row
+	 *          will be will be returned after the insert job is submitted.
+	 *          Do nothing when calling CloseableIterator#close method (which will not cancel the job
+	 *          because the returned iterator does not bound to the job now).
+	 *          We can cancel the job through {@link #getJobClient()} if needed.
+	 *     </li>
+	 *     <li>
+	 *         For other operations, no flink job will be submitted. So all result is bounded.
+	 *         Do nothing when calling CloseableIterator#close method.
+	 *     </li>
+	 * </ul>
 	 *
-	 * <p>There are two approaches to close a job:
-	 * 1. close the job through JobClient, for example:
-	 * <pre>{@code
-	 *  TableResult result = tEnv.execute("select ...");
-	 *  CloseableIterator<Row> it = result.collect();
-	 *  it... // collect same data
-	 *  result.getJobClient().get().cancel();
-	 * }</pre>
-	 *
-	 * <p>2. close the job through CloseableIterator
-	 * (calling CloseableIterator#close method will trigger JobClient#cancel method),
-	 * for example:
+	 * <p>Recommended code to call CloseableIterator#close method looks like:
 	 * <pre>{@code
 	 *  TableResult result = tEnv.execute("select ...");
 	 *  // using try-with-resources statement
