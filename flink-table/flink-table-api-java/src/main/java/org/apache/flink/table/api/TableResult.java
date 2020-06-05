@@ -53,7 +53,7 @@ public interface TableResult {
 	 * <p>The schema of DESCRIBE:
 	 * <pre>
 	 * +-----------------+------------+-----------------------------------------------------------------------------+
-	 * |   field name    | field type |                              comments                                       |
+	 * | field name      | field type |                              comments                                       |
 	 * +-----------------+------------+-----------------------------------------------------------------------------+
 	 * | name            | STRING     | field name                                                                  |
 	 * | type            | STRING     | field type expressed as a String                                            |
