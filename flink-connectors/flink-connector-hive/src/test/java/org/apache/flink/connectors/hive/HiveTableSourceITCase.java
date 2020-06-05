@@ -464,6 +464,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		final String dbName = "source_db";
 		final String tblName = "stream_test";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
 		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		tEnv.useCatalog(catalogName);
