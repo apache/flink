@@ -18,18 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.createPhysicalSlot;
+import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.occupyPhysicalSlot;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -41,7 +35,7 @@ public class AllocatedSlotOccupationTest extends TestLogger {
 	@Test
 	public void testSingleTaskOccupyingSlotIndefinitely() {
 		final PhysicalSlot physicalSlot = createPhysicalSlot();
-		allocateSingleLogicalSlotFromPhysicalSlot(physicalSlot, true);
+		occupyPhysicalSlot(physicalSlot, true);
 
 		assertThat(physicalSlot.willBeOccupiedIndefinitely(), is(true));
 	}
@@ -49,29 +43,8 @@ public class AllocatedSlotOccupationTest extends TestLogger {
 	@Test
 	public void testSingleTaskNotOccupyingSlotIndefinitely() {
 		final PhysicalSlot physicalSlot = createPhysicalSlot();
-		allocateSingleLogicalSlotFromPhysicalSlot(physicalSlot, false);
+		occupyPhysicalSlot(physicalSlot, false);
 
 		assertThat(physicalSlot.willBeOccupiedIndefinitely(), is(false));
-	}
-
-	private static PhysicalSlot createPhysicalSlot() {
-		return new AllocatedSlot(
-			new AllocationID(),
-			new LocalTaskManagerLocation(),
-			0,
-			ResourceProfile.ANY,
-			new SimpleAckingTaskManagerGateway());
-	}
-
-	private static LogicalSlot allocateSingleLogicalSlotFromPhysicalSlot(
-			final PhysicalSlot physicalSlot,
-			final boolean slotWillBeOccupiedIndefinitely) {
-
-		return SingleLogicalSlot.allocateFromPhysicalSlot(
-			new SlotRequestId(),
-			physicalSlot,
-			Locality.UNKNOWN,
-			new TestingSlotOwner(),
-			slotWillBeOccupiedIndefinitely);
 	}
 }

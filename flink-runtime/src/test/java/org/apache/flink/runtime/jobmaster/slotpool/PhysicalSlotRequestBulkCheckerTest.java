@@ -22,12 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.ManualClock;
 
@@ -41,6 +37,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.createPhysicalSlot;
+import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.occupyPhysicalSlot;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -99,7 +97,7 @@ public class PhysicalSlotRequestBulkCheckerTest extends TestLogger {
 			Collections.singletonList(createPhysicalSlotRequest()));
 
 		final PhysicalSlot slot = addOneSlot();
-		occupySlot(slot, false);
+		occupyPhysicalSlot(slot, false);
 
 		assertThat(checkBulkTimeout(bulk), is(PhysicalSlotRequestBulkChecker.TimeoutCheckResult.PENDING));
 	}
@@ -153,7 +151,7 @@ public class PhysicalSlotRequestBulkCheckerTest extends TestLogger {
 		final PhysicalSlot slot1 = addOneSlot();
 		addOneSlot();
 
-		occupySlot(slot1, true);
+		occupyPhysicalSlot(slot1, true);
 
 		assertThat(isFulfillable(bulk), is(false));
 	}
@@ -166,7 +164,7 @@ public class PhysicalSlotRequestBulkCheckerTest extends TestLogger {
 		final PhysicalSlot slot1 = addOneSlot();
 		addOneSlot();
 
-		occupySlot(slot1, false);
+		occupyPhysicalSlot(slot1, false);
 
 		assertThat(isFulfillable(bulk), is(true));
 	}
@@ -178,22 +176,8 @@ public class PhysicalSlotRequestBulkCheckerTest extends TestLogger {
 			true);
 	}
 
-	private static void occupySlot(final PhysicalSlot slotToOccupy, final boolean slotWillBeOccupiedIndefinitely) {
-		SingleLogicalSlot.allocateFromPhysicalSlot(
-			new SlotRequestId(),
-			slotToOccupy,
-			Locality.UNKNOWN,
-			new TestingSlotOwner(),
-			slotWillBeOccupiedIndefinitely);
-	}
-
 	private PhysicalSlot addOneSlot() {
-		final PhysicalSlot slot = new AllocatedSlot(
-			new AllocationID(),
-			new LocalTaskManagerLocation(),
-			0,
-			ResourceProfile.ANY,
-			new SimpleAckingTaskManagerGateway());
+		final PhysicalSlot slot = createPhysicalSlot();
 		slots.add(slot);
 
 		return slot;
