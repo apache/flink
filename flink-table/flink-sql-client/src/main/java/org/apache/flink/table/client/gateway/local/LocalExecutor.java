@@ -57,6 +57,7 @@ import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -472,6 +473,11 @@ public class LocalExecutor implements Executor {
 			@Override
 			public UnresolvedIdentifier parseIdentifier(String identifier) {
 				return context.wrapClassLoader(() -> parser.parseIdentifier(identifier));
+			}
+
+			@Override
+			public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+				return context.wrapClassLoader(() -> parser.parseSqlExpression(sqlExpression, inputSchema));
 			}
 		};
 	}
