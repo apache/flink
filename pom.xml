@@ -103,7 +103,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j2-test.properties</log4j.configuration>
-		<flink.shaded.version>10.0</flink.shaded.version>
+		<flink.shaded.version>11.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
@@ -120,7 +120,7 @@ under the License.
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.10</zookeeper.version>
+		<zookeeper.version>3.4.14</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.10.1</jackson.version>
