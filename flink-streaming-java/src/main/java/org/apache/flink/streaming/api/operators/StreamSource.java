@@ -180,7 +180,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 				final OperatorID operatorId,
 				final int subtaskIndex) {
 
-			latencyMarkTimer = processingTimeService.scheduleAtFixedRate(
+			latencyMarkTimer = processingTimeService.scheduleWithFixedDelay(
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {
