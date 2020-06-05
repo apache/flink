@@ -321,10 +321,10 @@ public class CliClient {
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_TABLE_REMOVED);
 				break;
 			case CREATE_VIEW:
-				callCreateView(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_VIEW_CREATED);
 				break;
 			case DROP_VIEW:
-				callDropView(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_VIEW_REMOVED);
 				break;
 			case CREATE_FUNCTION:
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_CREATED);
@@ -592,26 +592,6 @@ public class CliClient {
 			return false;
 		}
 		return true;
-	}
-
-	private void callCreateView(SqlCommandCall cmdCall) {
-		try {
-			// perform and validate change
-			executor.executeSql(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callDropView(SqlCommandCall cmdCall) {
-		try {
-			// perform and validate change
-			executor.executeSql(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_VIEW_REMOVED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
 	}
 
 	private void callSource(SqlCommandCall cmdCall) {
