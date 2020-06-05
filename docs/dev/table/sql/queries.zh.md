@@ -1122,7 +1122,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以外</i>的上界时间戳。</p>
-        <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+        <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1131,7 +1131,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以内</i>的上界时间戳。</p>
-      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1139,7 +1139,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回一个可用于后续需要基于时间的操作的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time">处理时间参数</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>.</p></td>
+      <td><p>返回一个可用于后续需要基于时间的操作的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time">处理时间参数</a>，比如<a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>.</p></td>
     </tr>
   </tbody>
 </table>
