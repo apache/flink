@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.state.MapState;
@@ -31,6 +31,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -44,13 +46,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A CoProcessFunction to execute time-bounded stream inner-join.
+ * A CoProcessFunction to execute time interval (time-bounded) stream inner-join.
  * Two kinds of time criteria:
  * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X"
  * X and Y might be negative or positive and X <= Y.
  */
-abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<RowData, RowData, RowData, RowData> {
-	private static final Logger LOGGER = LoggerFactory.getLogger(TimeBoundedStreamJoin.class);
+abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData, RowData, RowData> {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TimeIntervalJoin.class);
 	private final FlinkJoinType joinType;
 	protected final long leftRelativeSize;
 	protected final long rightRelativeSize;
@@ -86,7 +88,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<RowData, Row
 	protected long leftOperatorTime = 0L;
 	protected long rightOperatorTime = 0L;
 
-	TimeBoundedStreamJoin(
+	TimeIntervalJoin(
 			FlinkJoinType joinType,
 			long leftLowerBound,
 			long leftUpperBound,
@@ -120,7 +122,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<RowData, Row
 		ListTypeInfo<Tuple2<RowData, Boolean>> leftRowListTypeInfo = new ListTypeInfo<>(
 				new TupleTypeInfo<>(leftType, BasicTypeInfo.BOOLEAN_TYPE_INFO));
 		MapStateDescriptor<Long, List<Tuple2<RowData, Boolean>>> leftMapStateDescriptor = new MapStateDescriptor<>(
-				"WindowJoinLeftCache",
+				"IntervalJoinLeftCache",
 				BasicTypeInfo.LONG_TYPE_INFO,
 				leftRowListTypeInfo);
 		leftCache = getRuntimeContext().getMapState(leftMapStateDescriptor);
@@ -128,19 +130,19 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<RowData, Row
 		ListTypeInfo<Tuple2<RowData, Boolean>> rightRowListTypeInfo = new ListTypeInfo<>(
 				new TupleTypeInfo<>(rightType, BasicTypeInfo.BOOLEAN_TYPE_INFO));
 		MapStateDescriptor<Long, List<Tuple2<RowData, Boolean>>> rightMapStateDescriptor = new MapStateDescriptor<>(
-				"WindowJoinRightCache",
+				"IntervalJoinRightCache",
 				BasicTypeInfo.LONG_TYPE_INFO,
 				rightRowListTypeInfo);
 		rightCache = getRuntimeContext().getMapState(rightMapStateDescriptor);
 
 		// Initialize the timer states.
 		ValueStateDescriptor<Long> leftValueStateDescriptor = new ValueStateDescriptor<>(
-				"WindowJoinLeftTimerState",
+				"IntervalJoinLeftTimerState",
 				Long.class);
 		leftTimerState = getRuntimeContext().getState(leftValueStateDescriptor);
 
 		ValueStateDescriptor<Long> rightValueStateDescriptor = new ValueStateDescriptor<>(
-				"WindowJoinRightTimerState",
+				"IntervalJoinRightTimerState",
 				Long.class);
 		rightTimerState = getRuntimeContext().getState(rightValueStateDescriptor);
 
