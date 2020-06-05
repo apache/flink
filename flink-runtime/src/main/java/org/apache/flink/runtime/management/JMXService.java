@@ -71,7 +71,7 @@ public class JMXService {
 	/**
 	 * Stop the JMX server.
 	 */
-	public static void stopInstance() throws IOException {
+	public static synchronized void stopInstance() throws IOException {
 		if (jmxServer != null) {
 			jmxServer.stop();
 			jmxServer = null;
