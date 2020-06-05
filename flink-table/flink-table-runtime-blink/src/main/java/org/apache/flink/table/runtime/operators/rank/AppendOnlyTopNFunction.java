@@ -222,8 +222,8 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 				buffer.removeAll(lastKey);
 				dataState.remove(lastKey);
 			} else {
-				buffer.remove(lastKey, lastElement);
-				dataState.put(lastKey, lastList);
+				buffer.removeLast();
+				dataState.put(lastKey, new ArrayList<>(lastList));
 			}
 			if (size == 0 || input.equals(lastElement)) {
 				return;
