@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
-class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   // Tests for inner join.
   /** test proctime inner join **/
@@ -586,7 +586,7 @@ class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   }
 
   @Test
-  def testRowTimeLeftOuterJoinNegativeWindowSize(): Unit = {
+  def testRowTimeLeftOuterJoinNegativeIntervalSize(): Unit = {
     val sqlQuery =
       """
         |SELECT t2.key, t2.id, t1.id
@@ -726,7 +726,7 @@ class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   }
 
   @Test
-  def testRowTimeRightOuterJoinNegativeWindowSize(): Unit = {
+  def testRowTimeRightOuterJoinNegativeIntervalSize(): Unit = {
     val sqlQuery =
       """
         |SELECT t2.key, t2.id, t1.id
@@ -868,7 +868,7 @@ class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   }
 
   @Test
-  def testRowTimeFullOuterJoinNegativeWindowSize(): Unit = {
+  def testRowTimeFullOuterJoinNegativeIntervalSize(): Unit = {
     val sqlQuery =
       """
         |SELECT t2.key, t2.id, t1.id

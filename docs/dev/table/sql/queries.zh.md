@@ -566,15 +566,15 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p><b>注意：</b> 时间窗口 join 是常规 join 的子集，可以使用流的方式进行处理。</p>
+        <p><b>注意：</b>Interval join （时间区间关联）是常规 join 的子集，可以使用流的方式进行处理。</p>
 
-        <p>时间窗口join需要至少一个 equi-join 谓词和一个限制了双方时间的 join 条件。例如使用两个适当的范围谓词（<code>&lt;, &lt;=, &gt;=, &gt;</code>），一个 <code>BETWEEN</code> 谓词或一个比较两个输入表中相同类型的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性</a> （即处理时间和事件时间）的相等谓词</p>
-        <p>比如，以下谓词是合法的窗口 join 条件：</p>
+        <p>Interval join需要至少一个 equi-join 谓词和一个限制了双方时间的 join 条件。例如使用两个适当的范围谓词（<code>&lt;, &lt;=, &gt;=, &gt;</code>），一个 <code>BETWEEN</code> 谓词或一个比较两个输入表中相同类型的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性</a> （即处理时间和事件时间）的相等谓词</p>
+        <p>比如，以下谓词是合法的 interval join 条件：</p>
 
         <ul>
           <li><code>ltime = rtime</code></li>
@@ -1122,7 +1122,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以外</i>的上界时间戳。</p>
-        <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+        <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1131,7 +1131,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以内</i>的上界时间戳。</p>
-      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1139,7 +1139,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回一个可用于后续需要基于时间的操作的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time">处理时间参数</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>.</p></td>
+      <td><p>返回一个可用于后续需要基于时间的操作的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time">处理时间参数</a>，比如<a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>.</p></td>
     </tr>
   </tbody>
 </table>

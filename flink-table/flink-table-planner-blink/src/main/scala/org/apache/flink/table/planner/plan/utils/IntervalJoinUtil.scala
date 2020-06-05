@@ -38,9 +38,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Util for Window join operator.
+  * Util for interval join operator.
   */
-object WindowJoinUtil {
+object IntervalJoinUtil {
 
   case class WindowBounds(
       isEventTime: Boolean,

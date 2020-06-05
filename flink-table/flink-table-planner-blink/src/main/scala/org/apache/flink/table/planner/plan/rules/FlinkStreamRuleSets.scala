@@ -401,7 +401,7 @@ object FlinkStreamRuleSets {
     StreamExecGroupWindowTableAggregateRule.INSTANCE,
     // join
     StreamExecJoinRule.INSTANCE,
-    StreamExecWindowJoinRule.INSTANCE,
+    StreamExecIntervalJoinRule.INSTANCE,
     StreamExecTemporalJoinRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
