@@ -610,6 +610,11 @@ public class JobMasterTest extends TestLogger {
 		}
 
 		@Override
+		public void disableBatchSlotRequestTimeoutCheck() {
+			// no action and no exception is expected
+		}
+
+		@Override
 		public AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId) {
 			final Collection<SlotInfo> slotInfos = registeredSlots.getOrDefault(taskManagerId, Collections.emptyList());
 

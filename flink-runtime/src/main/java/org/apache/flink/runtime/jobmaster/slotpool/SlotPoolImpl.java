@@ -134,7 +134,7 @@ public class SlotPoolImpl implements SlotPool {
 
 	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
-	private boolean batchSlotRequestTimeoutCheckEnabled;
+	protected boolean batchSlotRequestTimeoutCheckEnabled;
 
 	// ------------------------------------------------------------------------
 
