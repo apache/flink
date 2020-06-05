@@ -68,11 +68,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * IT case for HiveCatalog.
