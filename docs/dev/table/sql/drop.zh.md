@@ -31,6 +31,7 @@ Flink SQL 目前支持以下 DROP 语句：
 
 - DROP TABLE
 - DROP DATABASE
+- DROP VIEW
 - DROP FUNCTION
 
 ## 执行 DROP 语句
@@ -142,6 +143,22 @@ DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
 **CASCADE**
 
 删除一个非空数据库时，把相关联的表与函数一并删除。
+
+## DROP VIEW
+
+{% highlight sql %}
+DROP [TEMPORARY] VIEW  [ IF EXISTS ] view_name
+{% endhighlight %}
+
+删除一个有 catalog 和数据库命名空间的视图。若需要删除的视图不存在，则会产生异常。
+
+**IF EXISTS**
+
+若视图不存在，则不会进行任何操作。
+
+**TEMPORARY**
+
+删除一个有 catalog 和数据库命名空间的临时视图。
 
 ## DROP FUNCTION
 
