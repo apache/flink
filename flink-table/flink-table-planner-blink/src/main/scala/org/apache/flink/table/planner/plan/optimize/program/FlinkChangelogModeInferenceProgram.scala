@@ -221,8 +221,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case _: StreamExecTemporalSort | _: StreamExecOverAggregate | _: StreamExecWindowJoin =>
-        // TemporalSort, OverAggregate, WindowJoin only support consuming insert-only
+      case _: StreamExecTemporalSort | _: StreamExecOverAggregate | _: StreamExecIntervalJoin =>
+        // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(
@@ -444,9 +444,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamExecGroupWindowAggregate | _: StreamExecGroupWindowTableAggregate |
            _: StreamExecDeduplicate | _: StreamExecTemporalSort | _: StreamExecMatch |
-           _: StreamExecOverAggregate | _: StreamExecWindowJoin =>
+           _: StreamExecOverAggregate | _: StreamExecIntervalJoin =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
-        // and WindowJoin require nothing about UpdateKind.
+        // and IntervalJoin require nothing about UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)
         createNewNode(rel, children, requiredTrait)
 

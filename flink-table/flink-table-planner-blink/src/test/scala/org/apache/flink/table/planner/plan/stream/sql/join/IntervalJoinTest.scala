@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil
+import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
@@ -28,7 +28,7 @@ import org.apache.calcite.rel.logical.LogicalJoin
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class WindowJoinTest extends TableTestBase {
+class IntervalJoinTest extends TableTestBase {
 
   private val util: StreamTableTestUtil = streamTestUtil()
   util.addDataStream[(Int, String, Long)](
@@ -38,7 +38,7 @@ class WindowJoinTest extends TableTestBase {
 
   /** There should exist exactly two time conditions **/
   @Test(expected = classOf[TableException])
-  def testWindowJoinSingleTimeCondition(): Unit = {
+  def testInteravlJoinSingleTimeCondition(): Unit = {
     val sql =
       """
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
@@ -49,7 +49,7 @@ class WindowJoinTest extends TableTestBase {
 
   /** Both time attributes in a join condition must be of the same type **/
   @Test(expected = classOf[TableException])
-  def testWindowJoinDiffTimeIndicator(): Unit = {
+  def testInteravalDiffTimeIndicator(): Unit = {
     val sql =
       """
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
@@ -62,7 +62,7 @@ class WindowJoinTest extends TableTestBase {
 
   /** The time conditions should be an And condition **/
   @Test(expected = classOf[TableException])
-  def testWindowJoinNotCnfCondition(): Unit = {
+  def testInteravalNotCnfCondition(): Unit = {
     val sql =
       """
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
@@ -433,7 +433,7 @@ class WindowJoinTest extends TableTestBase {
     val relNode = TableTestUtil.toRelNode(table)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val rexNode = joinNode.getCondition
-    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+    val (windowBounds, _) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       rexNode,
       joinNode.getLeft.getRowType.getFieldCount,
       joinNode.getRowType,
@@ -456,7 +456,7 @@ class WindowJoinTest extends TableTestBase {
     val joinInfo = joinNode.analyzeCondition
     val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
     val (_, remainCondition) =
-      WindowJoinUtil.extractWindowBoundsFromPredicate(
+      IntervalJoinUtil.extractWindowBoundsFromPredicate(
         rexNode,
         joinNode.getLeft.getRowType.getFieldCount,
         joinNode.getRowType,

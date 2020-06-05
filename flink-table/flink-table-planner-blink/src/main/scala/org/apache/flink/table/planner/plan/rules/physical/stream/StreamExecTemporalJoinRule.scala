@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.containsTemporalJoinCondition
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, IntervalJoinUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -49,7 +49,7 @@ class StreamExecTemporalJoinRule
     }
 
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+    val (windowBounds, _) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       joinInfo.getRemaining(join.getCluster.getRexBuilder),
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,

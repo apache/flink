@@ -16,68 +16,49 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
- * The function to execute row(event) time bounded stream inner-join.
+ * The function to execute processing time interval stream inner-join.
  */
-public final class RowTimeBoundedStreamJoin extends TimeBoundedStreamJoin {
+public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
 
-	private static final long serialVersionUID = -2923709329817468698L;
+	private static final long serialVersionUID = 9204647938032023101L;
 
-	private final int leftTimeIdx;
-	private final int rightTimeIdx;
-
-	public RowTimeBoundedStreamJoin(
+	public ProcTimeIntervalJoin(
 			FlinkJoinType joinType,
 			long leftLowerBound,
 			long leftUpperBound,
-			long allowedLateness,
 			RowDataTypeInfo leftType,
 			RowDataTypeInfo rightType,
-			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc,
-			int leftTimeIdx,
-			int rightTimeIdx) {
-		super(joinType, leftLowerBound, leftUpperBound, allowedLateness, leftType, rightType, genJoinFunc);
-		this.leftTimeIdx = leftTimeIdx;
-		this.rightTimeIdx = rightTimeIdx;
-	}
-
-	/**
-	 * Get the maximum interval between receiving a row and emitting it (as part of a joined result).
-	 * This is the time interval by which watermarks need to be held back.
-	 *
-	 * @return the maximum delay for the outputs
-	 */
-	public long getMaxOutputDelay() {
-		return Math.max(leftRelativeSize, rightRelativeSize) + allowedLateness;
+			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
+		super(joinType, leftLowerBound, leftUpperBound, 0L, leftType, rightType, genJoinFunc);
 	}
 
 	@Override
 	void updateOperatorTime(Context ctx) {
-		leftOperatorTime = ctx.timerService().currentWatermark() > 0 ? ctx.timerService().currentWatermark() : 0L;
-		// We may set different operator times in the future.
+		leftOperatorTime = ctx.timerService().currentProcessingTime();
 		rightOperatorTime = leftOperatorTime;
 	}
 
 	@Override
 	long getTimeForLeftStream(Context ctx, RowData row) {
-		return row.getLong(leftTimeIdx);
+		return leftOperatorTime;
 	}
 
 	@Override
 	long getTimeForRightStream(Context ctx, RowData row) {
-		return row.getLong(rightTimeIdx);
+		return rightOperatorTime;
 	}
 
 	@Override
 	void registerTimer(Context ctx, long cleanupTime) {
-		// Maybe we can register timers for different streams in the future.
-		ctx.timerService().registerEventTimeTimer(cleanupTime);
+		ctx.timerService().registerProcessingTimeTimer(cleanupTime);
 	}
 }

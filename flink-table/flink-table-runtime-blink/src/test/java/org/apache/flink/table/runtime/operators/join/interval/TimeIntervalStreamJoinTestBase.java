@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
@@ -27,9 +27,9 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 /**
- * Base Test for all subclass of {@link TimeBoundedStreamJoin}.
+ * Base Test for all subclass of {@link TimeIntervalJoin}.
  */
-abstract class TimeBoundedStreamJoinTestBase {
+abstract class TimeIntervalStreamJoinTestBase {
 	RowDataTypeInfo rowType = new RowDataTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
 
 	private RowDataTypeInfo outputRowType = new RowDataTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH),
@@ -37,11 +37,11 @@ abstract class TimeBoundedStreamJoinTestBase {
 	RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.getFieldTypes());
 
 	private String funcCode =
-			"public class WindowJoinFunction\n" +
+			"public class IntervalJoinFunction\n" +
 					"    extends org.apache.flink.api.common.functions.RichFlatJoinFunction {\n" +
 					"  final org.apache.flink.table.data.JoinedRowData joinedRow = new org.apache.flink.table.data.JoinedRowData();\n" +
 
-					"  public WindowJoinFunction(Object[] references) throws Exception {}\n" +
+					"  public IntervalJoinFunction(Object[] references) throws Exception {}\n" +
 
 					"  @Override\n" +
 					"  public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {}\n" +
@@ -59,6 +59,6 @@ abstract class TimeBoundedStreamJoinTestBase {
 					"}\n";
 
 	GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> generatedFunction = new GeneratedFunction(
-			"WindowJoinFunction", funcCode, new Object[0]);
+			"IntervalJoinFunction", funcCode, new Object[0]);
 
 }

@@ -48,10 +48,10 @@ These semantics allow for any kind of updating (insert, update, delete) input ta
 However, this operation has an important implication: it requires to keep both sides of the join input in Flink's state forever.
 Thus, the resource usage will grow indefinitely as well, if one or both input tables are continuously growing.
 
-Time-windowed Joins
+Interval Joins
 -------------------
 
-A time-windowed join is defined by a join predicate, that checks if the [time attributes](time_attributes.html) of the input
+A interval join is defined by a join predicate, that checks if the [time attributes](time_attributes.html) of the input
 records are within certain time constraints, i.e., a time window.
 
 {% highlight sql %}
@@ -148,7 +148,7 @@ In our example, each record from `Orders` will be joined with the version of `Ra
 In contrast to [regular joins](#regular-joins), this means that if there is a new record on the build side, it will not affect the previous results of the join.
 This again allows Flink to limit the number of elements that must be kept in the state.
 
-Compared to [time-windowed joins](#time-windowed-joins), temporal table joins do not define a time window within which bounds the records will be joined.
+Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which bounds the records will be joined.
 Records from the probe side are always joined with the build side's version at the time specified by the time attribute. Thus, records on the build side might be arbitrarily old.
 As time passes, the previous and no longer needed versions of the record (for the given primary key) will be removed from the state.
 
@@ -304,7 +304,7 @@ Each record from the probe side will be joined with the current version of the b
 
 In contrast to [regular joins](#regular-joins), the previous results of the temporal table join will not be affected despite the changes on the build side. Also, the temporal table join operator is very lightweight and does not keep any state.
 
-Compared to [time-windowed joins](#time-windowed-joins), temporal table joins do not define a time window within which the records will be joined.
+Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records will be joined.
 Records from the probe side are always joined with the build side's latest version at processing time. Thus, records on the build side might be arbitrarily old.
 
 Both [temporal table function join](#join-with-a-temporal-table-function) and temporal table join come from the same motivation but have different SQL syntax and runtime implementations:

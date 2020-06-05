@@ -566,15 +566,15 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
-        <p>For example, the following predicates are valid window join conditions:</p>
+        <p>A interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
           <li><code>ltime = rtime</code></li>
@@ -1127,7 +1127,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>exclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">interval joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1136,7 +1136,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>inclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-      <p>The resulting attribute is a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <p>The resulting attribute is a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">interval joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1144,7 +1144,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>Returns a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <td><p>Returns a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">interval joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
   </tbody>
 </table>
