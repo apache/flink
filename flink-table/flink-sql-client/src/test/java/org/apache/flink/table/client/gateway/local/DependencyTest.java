@@ -50,10 +50,8 @@ import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.types.DataType;
 
-import org.apache.calcite.plan.RelOptUtil;
 import org.junit.Test;
 
 import java.net.URL;
@@ -105,20 +103,15 @@ public class DependencyTest {
 	}
 
 	@Test
-	public void testSqlParseWithUserClassloader() throws Exception {
+	public void testSqlParseWithUserClassLoader() throws Exception {
 		final LocalExecutor executor = createExecutor();
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			String expectedPlan = "LogicalProject(IntegerField1=[$0], StringField1=[$1])\n" +
-				"  LogicalTableScan(table=[[default_catalog, default_database, TableNumber1, source: [TestTableSource]]])\n";
 			final Parser sqlParser = executor.getSqlParser(sessionId);
 			List<Operation> operations = sqlParser.parse("SELECT IntegerField1, StringField1 FROM TableNumber1");
 
 			assertTrue(operations != null && operations.size() == 1);
-			String actualPlan = RelOptUtil.toString(((PlannerQueryOperation) operations.get(0)).getCalciteTree());
-
-			assertEquals(expectedPlan, actualPlan);
 		} finally {
 			executor.closeSession(sessionId);
 		}
