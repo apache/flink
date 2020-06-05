@@ -54,11 +54,11 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -89,7 +89,9 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 				.connectConsumerToProducer(consumerId, producerId)
 				.build();
 
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(
+			new TestingStateLocationRetriever(),
+			inputsLocationsRetriever);
 
 		inputsLocationsRetriever.markScheduled(producerId);
 		inputsLocationsRetriever.markScheduled(consumerId);
@@ -121,16 +123,20 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
 		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
 		final CoLocationConstraint coLocationConstraint = new CoLocationGroup().getLocationConstraint(0);
-		final Collection<TaskManagerLocation> taskManagerLocations = Collections.singleton(new LocalTaskManagerLocation());
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
+		final TestingStateLocationRetriever stateLocationRetriever = new TestingStateLocationRetriever();
+		stateLocationRetriever.setStateLocation(executionVertexId, taskManagerLocation);
+
+		final ExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(
+			stateLocationRetriever,
+			new TestingInputsLocationsRetriever.Builder().build());
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Arrays.asList(
 			new ExecutionVertexSchedulingRequirements.Builder()
 				.withExecutionVertexId(executionVertexId)
 				.withPreviousAllocationId(allocationId)
 				.withSlotSharingGroupId(sharingGroupId)
-				.withPreferredLocations(taskManagerLocations)
 				.withPhysicalSlotResourceProfile(physicalSlotResourceProfile)
 				.withTaskResourceProfile(taskResourceProfile)
 				.withCoLocationConstraint(coLocationConstraint)
@@ -149,7 +155,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		assertThat(expectedSlotProfile.getPreviousExecutionGraphAllocations(), contains(allocationId));
 		assertEquals(taskResourceProfile, expectedSlotProfile.getTaskResourceProfile());
 		assertEquals(physicalSlotResourceProfile, expectedSlotProfile.getPhysicalSlotResourceProfile());
-		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocations.toArray()));
+		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocation));
 	}
 
 	/**
@@ -279,16 +285,20 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	}
 
 	private DefaultExecutionSlotAllocator createExecutionSlotAllocator() {
-		return createExecutionSlotAllocator(new TestingInputsLocationsRetriever.Builder().build());
+		return createExecutionSlotAllocator(
+			new TestingStateLocationRetriever(),
+			new TestingInputsLocationsRetriever.Builder().build());
 	}
 
-	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(InputsLocationsRetriever inputsLocationsRetriever) {
+	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(
+			final StateLocationRetriever stateLocationRetriever,
+			final InputsLocationsRetriever inputsLocationsRetriever) {
 		return new DefaultExecutionSlotAllocator(
 			SlotProviderStrategy.from(
 				ScheduleMode.EAGER,
 				slotProvider,
 				Time.seconds(10)),
-			inputsLocationsRetriever);
+			new DefaultPreferredLocationsRetriever(stateLocationRetriever, inputsLocationsRetriever));
 	}
 
 	private List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(ExecutionVertexID... executionVertexIds) {
