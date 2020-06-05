@@ -25,6 +25,21 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+SQL hints can be used with SQL statements to alter execution plans. This chapter explains how to use hints to force various approaches.
+
+Generally a hint can be used to:
+
+- Enforce planner: there's no perfect planner, so it makes sense to implement hints to
+allow user better control the execution;
+- Append meta data(or statistics): some statistics like “table index for scan” and
+“skew info of some shuffle keys” are somewhat dynamic for the query, it would be very
+convenient to config them with hints because our planning metadata from the planner is very
+often not that accurate;
+- Operator resource constraints: for many cases, we would give a default resource
+configuration for the execution operators, i.e. min parallelism or
+managed memory (resource consuming UDF) or special resource requirement (GPU or SSD disk)
+and so on, it would be very flexible to profile the resource with hints per query(instead of the Job).
+
 ## Dynamic Table Options
 Dynamic table options allows to specify or override table options dynamically, different with static table options defined with SQL DDL or connect API, 
 these options can be specified flexibly in per-table scope within each query.
