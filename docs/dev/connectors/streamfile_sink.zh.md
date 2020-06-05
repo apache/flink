@@ -316,6 +316,7 @@ class Person {
 
 {% endhighlight %}
 </div>
+</div>
 
 Then a child implementation to convert the element of type `Person` and set them in the `VectorizedRowBatch` can be like:
 
