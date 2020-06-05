@@ -143,6 +143,20 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testWindowGroupByOnConstant(): Unit = {
+    val sql =
+      """
+        |SELECT COUNT(*),
+        |    weightedAvg(c, a) AS wAvg,
+        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
+        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE)
+        |FROM MyTable
+        |    GROUP BY 'a', TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testTumblingWindowWithProctime(): Unit = {
     val sql = "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)"
     util.verifyPlan(sql)
