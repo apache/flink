@@ -68,7 +68,7 @@ Flink SQL> set table.sql-dialect=default; -- to use default dialect
 
 ### Table API
 
-You can set dialect for you TableEnvironment with Table API.
+You can set dialect for your TableEnvironment with Table API.
 
 {% highlight java %}
 
