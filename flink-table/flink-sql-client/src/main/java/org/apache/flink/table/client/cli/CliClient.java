@@ -313,10 +313,10 @@ public class CliClient {
 				callInsert(cmdCall);
 				break;
 			case CREATE_TABLE:
-				callCreateTable(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_TABLE_CREATED);
 				break;
 			case DROP_TABLE:
-				callDropTable(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_TABLE_REMOVED);
 				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
@@ -325,28 +325,37 @@ public class CliClient {
 				callDropView(cmdCall);
 				break;
 			case CREATE_FUNCTION:
-				callCreateFunction(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_CREATED);
 				break;
 			case DROP_FUNCTION:
-				callDropFunction(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_REMOVED);
 				break;
 			case ALTER_FUNCTION:
-				callAlterFunction(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_FUNCTION_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_FUNCTION_FAILED);
 				break;
 			case SOURCE:
 				callSource(cmdCall);
 				break;
 			case CREATE_DATABASE:
-				callCreateDatabase(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_DATABASE_CREATED);
 				break;
 			case DROP_DATABASE:
-				callDropDatabase(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_DATABASE_REMOVED);
 				break;
 			case ALTER_DATABASE:
-				callAlterDatabase(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_DATABASE_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_DATABASE_FAILED);
 				break;
 			case ALTER_TABLE:
-				callAlterTable(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_TABLE_FAILED);
+				break;
+			case CREATE_CATALOG:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_CATALOG_CREATED);
+				break;
+			case DROP_CATALOG:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_CATALOG_REMOVED);
 				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
@@ -583,24 +592,6 @@ public class CliClient {
 		return true;
 	}
 
-	private void callCreateTable(SqlCommandCall cmdCall) {
-		try {
-			executor.createTable(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callDropTable(SqlCommandCall cmdCall) {
-		try {
-			executor.dropTable(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_TABLE_REMOVED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
 	private void callCreateView(SqlCommandCall cmdCall) {
 		final String name = cmdCall.operands[0];
 		final String query = cmdCall.operands[1];
@@ -641,33 +632,6 @@ public class CliClient {
 		}
 	}
 
-	private void callCreateFunction(SqlCommandCall cmdCall) {
-		try {
-			executor.executeSql(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_FUNCTION_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callDropFunction(SqlCommandCall cmdCall) {
-		try {
-			executor.executeSql(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_FUNCTION_REMOVED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callAlterFunction(SqlCommandCall cmdCall) {
-		try {
-			executor.executeSql(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_ALTER_FUNCTION_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_ALTER_FUNCTION_FAILED, e);
-		}
-	}
-
 	private void callSource(SqlCommandCall cmdCall) {
 		final String pathString = cmdCall.operands[0];
 
@@ -697,43 +661,16 @@ public class CliClient {
 		call.ifPresent(this::callCommand);
 	}
 
-	private void callCreateDatabase(SqlCommandCall cmdCall) {
-		final String createDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, createDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
+	private void callDdl(String ddl, String successMessage) {
+		callDdl(ddl, successMessage, null);
 	}
 
-	private void callDropDatabase(SqlCommandCall cmdCall) {
-		final String dropDatabaseStmt = cmdCall.operands[0];
+	private void callDdl(String ddl, String successMessage, String errorMessage) {
 		try {
-			executor.executeUpdate(sessionId, dropDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_REMOVED);
+			executor.executeSql(sessionId, ddl);
+			printInfo(successMessage);
 		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callAlterDatabase(SqlCommandCall cmdCall) {
-		final String alterDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, alterDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_DATABASE_ALTER_FAILED, e);
-		}
-	}
-
-	private void callAlterTable(SqlCommandCall cmdCall) {
-		final String alterTableStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, alterTableStmt);
-			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
+			printExecutionException(errorMessage, e);
 		}
 	}
 

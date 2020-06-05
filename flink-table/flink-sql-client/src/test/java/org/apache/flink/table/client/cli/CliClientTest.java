@@ -226,6 +226,20 @@ public class CliClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testCreateCatalog() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		testExecuteSql(executor, "create catalog c1 with('type'='generic_in_memory');");
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
+	}
+
+	@Test
+	public void testDropCatalog() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		testExecuteSql(executor, "drop catalog c1;");
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
