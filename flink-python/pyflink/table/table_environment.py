@@ -28,7 +28,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings
+from pyflink.table import Table, EnvironmentSettings, Module
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
@@ -37,6 +37,7 @@ from pyflink.table.table_config import TableConfig
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
+from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util import utils
 from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
     to_j_explain_detail_arr
@@ -147,7 +148,7 @@ class TableEnvironment(object):
         else:
             return None
 
-    def load_module(self, module_name, module):
+    def load_module(self, module_name: str, module: Module):
         """
         Loads a :class:`~pyflink.table.Module` under a unique name. Modules will be kept
         in the loaded order.
@@ -162,7 +163,7 @@ class TableEnvironment(object):
         """
         self._j_tenv.loadModule(module_name, module._j_module)
 
-    def unload_module(self, module_name):
+    def unload_module(self, module_name: str):
         """
         Unloads a :class:`~pyflink.table.Module` with given name.
         ValidationException is thrown when there is no module with the given name.
@@ -174,7 +175,7 @@ class TableEnvironment(object):
         """
         self._j_tenv.unloadModule(module_name)
 
-    def create_temporary_system_function(self, name, function_class_name):
+    def create_java_temporary_system_function(self, name: str, function_class_name: str):
         """
         Registers a java user defined function class as a temporary system function.
 
@@ -189,7 +190,8 @@ class TableEnvironment(object):
         Example:
         ::
 
-            >>> table_env.create_temporary_system_function("func", "user.defined.function.class")
+            >>> table_env.create_java_temporary_system_function("func",
+            ...     "java.user.defined.function.class.name")
 
         :param name: The name under which the function will be registered globally.
         :type name: str
@@ -206,7 +208,50 @@ class TableEnvironment(object):
             .loadClass(function_class_name)
         self._j_tenv.createTemporarySystemFunction(name, java_function)
 
-    def drop_temporary_system_function(self, name):
+    def create_temporary_system_function(self, name: str,
+                                         function: UserDefinedFunctionWrapper):
+        """
+        Registers a python user defined function class as a temporary system function.
+
+        Compared to .. seealso:: :func:`create_temporary_function`, system functions are identified
+        by a global name that is independent of the current catalog and current database. Thus,
+        this method allows to extend the set of built-in system functions like TRIM, ABS, etc.
+
+        Temporary functions can shadow permanent ones. If a permanent function under a given name
+        exists, it will be inaccessible in the current session. To make the permanent function
+        available again one can drop the corresponding temporary system function.
+
+        Example:
+        ::
+
+            >>> table_env.create_temporary_system_function(
+            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
+            ...      result_type=DataTypes.BIGINT())
+            ... def add(i, j):
+            ...     return i + j
+            >>> table_env.create_temporary_system_function("add", add)
+
+            >>> class SubtractOne(ScalarFunction):
+            ...     def eval(self, i):
+            ...         return i - 1
+            >>> table_env.create_temporary_system_function(
+            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+        :param name: The name under which the function will be registered globally.
+        :type name: str
+        :param function: The function class containing the implementation. The function must have a
+                         public no-argument constructor and can be founded in current Java
+                         classloader.
+        :type function: pyflink.table.udf.UserDefinedFunctionWrapper
+
+        .. versionadded:: 1.12.0
+        """
+        java_function = function.java_user_defined_function()
+        self._j_tenv.createTemporarySystemFunction(name, java_function)
+
+    def drop_temporary_system_function(self, name: str):
         """
         Drops a temporary system function registered under the given name.
 
@@ -222,7 +267,8 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporarySystemFunction(name)
 
-    def create_function(self, path, function_class_name, ignore_if_exists=None):
+    def create_java_function(self, path: str, function_class_name: str,
+                             ignore_if_exists: bool = None):
         """
         Registers a java user defined function class as a catalog function in the given path.
 
@@ -234,7 +280,7 @@ class TableEnvironment(object):
         Example:
         ::
 
-            >>> table_env.create_function("func", "user.defined.function.class")
+            >>> table_env.create_java_function("func", "java.user.defined.function.class.name")
 
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
@@ -274,7 +320,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropFunction(path)
 
-    def create_temporary_function(self, path, function_class_name):
+    def create_java_temporary_function(self, path: str, function_class_name: str):
         """
         Registers a java user defined function class as a temporary catalog function.
 
@@ -289,7 +335,8 @@ class TableEnvironment(object):
         Example:
         ::
 
-            >>> table_env.create_temporary_function("func", "user.defined.function.class")
+            >>> table_env.create_java_temporary_function("func",
+            ...     "java.user.defined.function.class.name")
 
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
@@ -306,6 +353,50 @@ class TableEnvironment(object):
         gateway = get_gateway()
         java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
             .loadClass(function_class_name)
+        self._j_tenv.createTemporaryFunction(path, java_function)
+
+    def create_temporary_function(self, path: str, function: UserDefinedFunctionWrapper):
+        """
+        Registers a python user defined function class as a temporary catalog function.
+
+        Compared to .. seealso:: :func:`create_temporary_system_function` with a globally defined
+        name, catalog functions are always (implicitly or explicitly) identified by a catalog and
+        database.
+
+        Temporary functions can shadow permanent ones. If a permanent function under a given name
+        exists, it will be inaccessible in the current session. To make the permanent function
+        available again one can drop the corresponding temporary function.
+
+        Example:
+        ::
+
+            >>> table_env.create_temporary_function(
+            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
+            ...      result_type=DataTypes.BIGINT())
+            ... def add(i, j):
+            ...     return i + j
+            >>> table_env.create_temporary_function("add", add)
+
+            >>> class SubtractOne(ScalarFunction):
+            ...     def eval(self, i):
+            ...         return i - 1
+            >>> table_env.create_temporary_function(
+            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+        :param path: The path under which the function will be registered.
+                     See also the :class:`~pyflink.table.TableEnvironment` class description for
+                     the format of the path.
+        :type path: str
+        :param function: The function class containing the implementation. The function must have a
+                         public no-argument constructor and can be founded in current Java
+                         classloader.
+        :type function: pyflink.table.udf.UserDefinedFunctionWrapper
+
+        .. versionadded:: 1.12.0
+        """
+        java_function = function.java_user_defined_function()
         self._j_tenv.createTemporaryFunction(path, java_function)
 
     def drop_temporary_function(self, path):
