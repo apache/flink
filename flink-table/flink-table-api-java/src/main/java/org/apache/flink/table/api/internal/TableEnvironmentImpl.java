@@ -84,13 +84,13 @@ import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
-import org.apache.flink.table.operations.UnregisteredSinkModifyOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
@@ -689,24 +689,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	@Override
 	public TableResult executeInternal(QueryOperation operation) {
-		TableSchema tableSchema = operation.getTableSchema();
-		SelectTableSink tableSink = planner.createSelectTableSink(tableSchema);
-		UnregisteredSinkModifyOperation<Row> sinkOperation = new UnregisteredSinkModifyOperation<>(
-				tableSink,
-				operation
-		);
+		SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
 		List<Transformation<?>> transformations = translate(Collections.singletonList(sinkOperation));
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
-			tableSink.setJobClient(jobClient);
+			SelectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
+			resultProvider.setJobClient(jobClient);
 			return TableResultImpl.builder()
 					.jobClient(jobClient)
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-					.tableSchema(tableSchema)
-					.data(tableSink.getResultIterator())
+					.tableSchema(operation.getTableSchema())
+					.data(resultProvider.getResultIterator())
 					.setPrintStyle(TableResultImpl.PrintStyle.tableau(
-							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
+							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, isStreamingMode))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -1092,7 +1088,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						headers,
 						types).build())
 				.data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
-				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, ""))
+				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false))
 				.build();
 	}
 
@@ -1306,18 +1302,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		String exMsg = getDDLOpExecuteErrorMsg(createCatalogFunctionOperation.asSummaryString());
 		try {
 			if (createCatalogFunctionOperation.isTemporary()) {
-				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
-					createCatalogFunctionOperation.getFunctionIdentifier());
-				if (!exist) {
-					functionCatalog.registerTemporaryCatalogFunction(
+				functionCatalog.registerTemporaryCatalogFunction(
 						UnresolvedIdentifier.of(createCatalogFunctionOperation.getFunctionIdentifier().toList()),
 						createCatalogFunctionOperation.getCatalogFunction(),
-						false);
-				} else if (!createCatalogFunctionOperation.isIgnoreIfExists()) {
-					throw new ValidationException(
-						String.format("Temporary catalog function %s is already defined",
-						createCatalogFunctionOperation.getFunctionIdentifier().asSerializableString()));
-				}
+						createCatalogFunctionOperation.isIgnoreIfExists());
 			} else {
 				Catalog catalog = getCatalogOrThrowException(
 					createCatalogFunctionOperation.getFunctionIdentifier().getCatalogName());
@@ -1389,18 +1377,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	private TableResult createSystemFunction(CreateTempSystemFunctionOperation operation) {
 		String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
 		try {
-				boolean exist = functionCatalog.hasTemporarySystemFunction(operation.getFunctionName());
-				if (!exist) {
-					functionCatalog.registerTemporarySystemFunction(
-						operation.getFunctionName(),
-						operation.getFunctionClass(),
-						operation.getFunctionLanguage(),
-						false);
-				} else if (!operation.isIgnoreIfExists()) {
-					throw new ValidationException(
-						String.format("Temporary system function %s is already defined",
-							operation.getFunctionName()));
-				}
+			functionCatalog.registerTemporarySystemFunction(
+					operation.getFunctionName(),
+					operation.getFunctionClass(),
+					operation.getFunctionLanguage(),
+					operation.isIgnoreIfExists());
 			return TableResultImpl.TABLE_RESULT_OK;
 		} catch (ValidationException e) {
 			throw e;

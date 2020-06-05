@@ -244,6 +244,8 @@ class Schema(Descriptor):
                        stored.
                        E.g, [('int_field', DataTypes.INT()), ('string_field', DataTypes.STRING())].
         :return: This schema object.
+
+        .. versionadded:: 1.11.0
         """
         if sys.version_info[:2] <= (3, 5) and not isinstance(fields, OrderedDict):
             raise TypeError("Must use OrderedDict type in python3.5 or older version to key the "
@@ -1083,6 +1085,8 @@ class Kafka(ConnectorDescriptor):
 
         :param timestamp timestamp for the startup offsets, as milliseconds from epoch.
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         self._j_kafka = self._j_kafka.startFromTimestamp(int(timestamp))
         return self
@@ -1528,6 +1532,8 @@ class Elasticsearch(ConnectorDescriptor):
 class HBase(ConnectorDescriptor):
     """
     Connector descriptor for Apache HBase.
+
+    .. versionadded:: 1.11.0
     """
 
     def __init__(self, version=None, table_name=None, zookeeper_quorum=None,
@@ -1580,6 +1586,8 @@ class HBase(ConnectorDescriptor):
 
         :param version: HBase version. E.g., "1.4.3".
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         if not isinstance(version, str):
             version = str(version)
@@ -1592,6 +1600,8 @@ class HBase(ConnectorDescriptor):
 
         :param table_name: Name of HBase table. E.g., "testNamespace:testTable", "testDefaultTable"
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         self._j_hbase = self._j_hbase.tableName(table_name)
         return self
@@ -1603,6 +1613,8 @@ class HBase(ConnectorDescriptor):
         :param zookeeper_quorum: zookeeper quorum address to connect the HBase cluster. E.g.,
                                  "localhost:2181,localhost:2182,localhost:2183"
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         self._j_hbase = self._j_hbase.zookeeperQuorum(zookeeper_quorum)
         return self
@@ -1614,6 +1626,8 @@ class HBase(ConnectorDescriptor):
         :param zookeeper_node_parent: zookeeper node path of hbase cluster. E.g,
                                       "/hbase/example-root-znode".
         :return: This object
+
+        .. versionadded:: 1.11.0
         """
         self._j_hbase = self._j_hbase.zookeeperNodeParent(zookeeper_node_parent)
         return self
@@ -1625,6 +1639,8 @@ class HBase(ConnectorDescriptor):
 
         :param max_size: the maximum size.
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         if not isinstance(max_size, str):
             max_size = str(max_size)
@@ -1638,6 +1654,8 @@ class HBase(ConnectorDescriptor):
 
         :param write_buffer_flush_max_rows: number of added rows when begin the request flushing.
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         self._j_hbase = self._j_hbase.writeBufferFlushMaxRows(write_buffer_flush_max_rows)
         return self
@@ -1652,6 +1670,8 @@ class HBase(ConnectorDescriptor):
                          "{length value}{time unit label}" E.g, "123ms", "1 s", if not time unit
                          label is specified, it will be considered as milliseconds.
         :return: This object.
+
+        .. versionadded:: 1.11.0
         """
         if not isinstance(interval, str):
             interval = str(interval)
@@ -1763,6 +1783,8 @@ class ConnectTableDescriptor(Descriptor):
         .. note:: The schema must be explicitly defined.
 
         :param path: path where to register the temporary table
+
+        .. versionadded:: 1.10.0
         """
         self._j_connect_table_descriptor.createTemporaryTable(path)
         return self

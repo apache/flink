@@ -50,6 +50,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.WILDCARD;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.constraint;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicitSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
@@ -433,8 +434,8 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 1 passed."),
 
 			TestSpec.forStrategy(
-				"Array strategy infers a common type",
-				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+					"Array strategy infers a common type",
+					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes(
 					DataTypes.INT().notNull(),
 					DataTypes.BIGINT().notNull(),
@@ -443,20 +444,20 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				.expectArgumentTypes(DataTypes.DOUBLE(), DataTypes.DOUBLE(), DataTypes.DOUBLE(), DataTypes.DOUBLE()),
 
 			TestSpec.forStrategy(
-				"Array strategy fails for no arguments",
-				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+					"Array strategy fails for no arguments",
+					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes()
 				.expectErrorMessage("Invalid number of arguments. At least 1 arguments expected but 0 passed."),
 
 			TestSpec.forStrategy(
-				"Array strategy fails for null arguments",
-				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+					"Array strategy fails for null arguments",
+					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes(DataTypes.NULL())
 				.expectErrorMessage("Invalid input arguments."),
 
 			TestSpec.forStrategy(
-				"Map strategy infers common types",
-				InputTypeStrategies.SPECIFIC_FOR_MAP)
+					"Map strategy infers common types",
+					InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes(
 					DataTypes.INT().notNull(),
 					DataTypes.DOUBLE(),
@@ -469,14 +470,14 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 					DataTypes.DOUBLE()),
 
 			TestSpec.forStrategy(
-				"Map strategy fails for no arguments",
-				InputTypeStrategies.SPECIFIC_FOR_MAP)
+					"Map strategy fails for no arguments",
+					InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes()
 				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 0 passed."),
 
 			TestSpec.forStrategy(
-				"Map strategy fails for an odd number of arguments",
-				InputTypeStrategies.SPECIFIC_FOR_MAP)
+					"Map strategy fails for an odd number of arguments",
+					InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectErrorMessage("Invalid number of arguments. 3 arguments passed."),
 <<<<<<< HEAD
@@ -685,6 +686,21 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 		}
 >>>>>>> update/release-1.11
 
+			TestSpec.forStrategy(
+					"Cast strategy",
+					InputTypeStrategies.SPECIFIC_FOR_CAST)
+				.calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
+				.calledWithLiteralAt(1, DataTypes.BIGINT())
+				.expectSignature("f(<ANY>, <TYPE LITERAL>)")
+				.expectArgumentTypes(DataTypes.INT(), DataTypes.BIGINT()),
+
+			TestSpec.forStrategy(
+					"Cast strategy for invalid target type",
+					InputTypeStrategies.SPECIFIC_FOR_CAST)
+				.calledWithArgumentTypes(DataTypes.BOOLEAN(), DataTypes.DATE())
+				.calledWithLiteralAt(1, DataTypes.DATE())
+				.expectErrorMessage("Unsupported cast from 'BOOLEAN' to 'DATE'."),
+
 			TestSpec
 				.forStrategy(
 					"Logical type roots instead of concrete data types",
@@ -761,7 +777,32 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				.calledWithArgumentTypes(DataTypes.FLOAT())
 				.expectSignature("f(<EXACT_NUMERIC>)")
 				.expectErrorMessage(
-					"Unsupported argument type. Expected type of family 'EXACT_NUMERIC' but actual type was 'FLOAT'.")
+					"Unsupported argument type. Expected type of family 'EXACT_NUMERIC' but actual type was 'FLOAT'."),
+
+			TestSpec
+				.forStrategy(
+					"Constraint argument type strategy",
+					sequence(
+						and(
+							explicit(DataTypes.BOOLEAN()),
+							constraint(
+								"%s must be nullable.",
+								args -> args.get(0).getLogicalType().isNullable()))))
+				.calledWithArgumentTypes(DataTypes.BOOLEAN())
+				.expectSignature("f([BOOLEAN & <CONSTRAINT>])")
+				.expectArgumentTypes(DataTypes.BOOLEAN()),
+
+			TestSpec
+				.forStrategy(
+					"Constraint argument type strategy invalid",
+					sequence(
+						and(
+							explicit(DataTypes.BOOLEAN().notNull()),
+							constraint(
+								"My constraint says %s must be nullable.",
+								args -> args.get(0).getLogicalType().isNullable()))))
+				.calledWithArgumentTypes(DataTypes.BOOLEAN().notNull())
+				.expectErrorMessage("My constraint says BOOLEAN NOT NULL must be nullable.")
 		);
 	}
 }

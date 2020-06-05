@@ -143,9 +143,8 @@ public class FunctionITCase extends AbstractTestBase {
 			tableEnv.sqlUpdate(ddl1);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
-			assertEquals(e.getMessage(),
-				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" is already defined");
+			assertEquals("Could not register temporary catalog function. A function 'default_catalog.default_database.f4' does already exist.",
+					e.getMessage());
 		}
 
 		tableEnv.sqlUpdate(ddl3);
@@ -154,22 +153,22 @@ public class FunctionITCase extends AbstractTestBase {
 			tableEnv.sqlUpdate(ddl3);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
-			assertEquals(e.getMessage(),
-				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" doesn't exist");
+			assertEquals("Temporary catalog function `default_catalog`.`default_database`.`f4`" +
+					" doesn't exist",
+					e.getMessage());
 		}
 	}
 
 	@Test
 	public void testCreateTemporarySystemFunction() {
 		TableEnvironment tableEnv = getTableEnvironment();
-		String ddl1 = "create temporary system function default_catalog.default_database.f5" +
+		String ddl1 = "create temporary system function f5" +
 			" as '" + TEST_FUNCTION + "'";
 
-		String ddl2 = "create temporary system function if not exists default_catalog.default_database.f5" +
-			" as 'org.apache.flink.table.functions.CatalogFunctionTestBase$TestUDF'";
+		String ddl2 = "create temporary system function if not exists f5" +
+			" as 'org.apache.flink.table.runtime.stream.sql.FunctionITCase$TestUDF'";
 
-		String ddl3 = "drop temporary system function default_catalog.default_database.f5";
+		String ddl3 = "drop temporary system function f5";
 
 		tableEnv.sqlUpdate(ddl1);
 		tableEnv.sqlUpdate(ddl2);

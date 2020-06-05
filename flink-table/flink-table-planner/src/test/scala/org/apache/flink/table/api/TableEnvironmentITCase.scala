@@ -33,12 +33,11 @@ import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.FileUtils
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
 
-import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
@@ -519,11 +518,31 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
   @Test
   def testExecuteSelectWithUpdateChanges(): Unit = {
-    // TODO Once FLINK-16998 is finished, all kinds of changes will be supported.
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(containsString(
-      "AppendStreamTableSink requires that Table has only insert changes."))
-    tEnv.executeSql("select count(*) from MyTable")
+    val tableResult = tEnv.sqlQuery("select count(*) as c from MyTable").execute()
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("c", DataTypes.BIGINT().notNull()).build(),
+      tableResult.getTableSchema)
+    val expected = util.Arrays.asList(
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(1)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(1)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(2)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(2)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(3)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(3)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(4)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(4)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(5)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(5)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(6)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(6)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(7)),
+      Row.ofKind(RowKind.DELETE, JLong.valueOf(7)),
+      Row.ofKind(RowKind.INSERT, JLong.valueOf(8))
+    )
+    val actual = Lists.newArrayList(tableResult.collect())
+    assertEquals(expected, actual)
   }
 
   @Test

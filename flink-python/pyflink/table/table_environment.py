@@ -26,15 +26,14 @@ from py4j.java_gateway import get_java_class, get_method
 
 from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
+from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
+from pyflink.table import Table, EnvironmentSettings, Module
 from pyflink.table.catalog import Catalog
+from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
-from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
-
-from pyflink.java_gateway import get_gateway
-from pyflink.table import Table, EnvironmentSettings
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
@@ -147,6 +146,30 @@ class TableEnvironment(object):
             return Catalog._get(catalog.get())
         else:
             return None
+
+    def load_module(self, module_name: str, module: Module):
+        """
+        Loads a :class:`~pyflink.table.Module` under a unique name. Modules will be kept
+        in the loaded order.
+        ValidationException is thrown when there is already a module with the same name.
+
+        :param module_name: Name of the :class:`~pyflink.table.Module`.
+        :param module: The module instance.
+
+        .. versionadded:: 1.12.0
+        """
+        self._j_tenv.loadModule(module_name, module._j_module)
+
+    def unload_module(self, module_name: str):
+        """
+        Unloads a :class:`~pyflink.table.Module` with given name.
+        ValidationException is thrown when there is no module with the given name.
+
+        :param module_name: Name of the :class:`~pyflink.table.Module`.
+
+        .. versionadded:: 1.12.0
+        """
+        self._j_tenv.unloadModule(module_name)
 
     def register_table(self, name, table):
         """
@@ -372,6 +395,8 @@ class TableEnvironment(object):
 
         :return: List of view names in the current database of the current catalog.
         :rtype: list[str]
+
+        .. versionadded:: 1.11.0
         """
         j_view_name_array = self._j_tenv.listViews()
         return [item for item in j_view_name_array]
@@ -491,6 +516,8 @@ class TableEnvironment(object):
         :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: The statement for which the AST and execution plan will be returned.
         :rtype: str
+
+        .. versionadded:: 1.11.0
         """
 
         j_extra_details = to_j_explain_detail_arr(extra_details)
@@ -532,6 +559,8 @@ class TableEnvironment(object):
         :return content for DQL/SHOW/DESCRIBE/EXPLAIN,
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
+
+        .. versionadded:: 1.11.0
         """
         self._before_execute()
         return TableResult(self._j_tenv.executeSql(stmt))
@@ -544,6 +573,8 @@ class TableEnvironment(object):
 
         :return statement_set instance
         :rtype: pyflink.table.StatementSet
+
+        .. versionadded:: 1.11.0
         """
         _j_statement_set = self._j_tenv.createStatementSet()
         return StatementSet(_j_statement_set, self)
@@ -1209,7 +1240,13 @@ class TableEnvironment(object):
                            determines the number of parallel source tasks.
                            If not specified, the default parallelism will be used.
         :return: The result table.
+
+        .. versionadded:: 1.11.0
         """
+
+        if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+            raise TypeError("It doesn't support to convert from Pandas DataFrame in the batch "
+                            "mode of old planner")
 
         import pandas as pd
         if not isinstance(pdf, pd.DataFrame):

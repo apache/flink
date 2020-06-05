@@ -31,8 +31,6 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -198,11 +196,6 @@ class CepRuntimeContext implements RuntimeContext {
 	@Override
 	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
 			final AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
-
-	@Override
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(final FoldingStateDescriptor<T, ACC> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 

@@ -33,6 +33,7 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_OFF_HEAP_MEMORY;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
@@ -71,10 +72,12 @@ public class PythonFunctionFactoryTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		flinkTableEnv = BatchTableEnvironment.create(env);
 		flinkTableEnv.getConfig().getConfiguration().set(PYTHON_FILES, pyFilePath.getAbsolutePath());
+		flinkTableEnv.getConfig().getConfiguration().setString(TASK_OFF_HEAP_MEMORY.key(), "80mb");
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		blinkTableEnv = StreamTableEnvironment.create(
 			sEnv, EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build());
 		blinkTableEnv.getConfig().getConfiguration().set(PYTHON_FILES, pyFilePath.getAbsolutePath());
+		blinkTableEnv.getConfig().getConfiguration().setString(TASK_OFF_HEAP_MEMORY.key(), "80mb");
 		flinkSourceTable = flinkTableEnv.fromDataSet(env.fromElements("1", "2", "3")).as("str");
 		blinkSourceTable = blinkTableEnv.fromDataStream(sEnv.fromElements("1", "2", "3")).as("str");
 	}

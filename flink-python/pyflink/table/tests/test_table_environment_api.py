@@ -22,13 +22,14 @@ import sys
 
 from py4j.protocol import Py4JJavaError
 
-from pyflink.find_flink_home import _find_flink_source_root
-from pyflink.java_gateway import get_gateway
-
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings
+from pyflink.find_flink_home import _find_flink_source_root
+from pyflink.java_gateway import get_gateway
+from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
+    Module, ResultKind
 from pyflink.table.descriptors import FileSystem, OldCsv, Schema
+from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
@@ -36,7 +37,6 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
     PyFlinkBlinkBatchTableTestCase
 from pyflink.util.utils import get_j_env_configuration
-from pyflink.table.explain_detail import ExplainDetail
 
 
 class TableEnvironmentTest(object):
@@ -85,6 +85,15 @@ class TableEnvironmentTest(object):
         actual = t_env.list_user_defined_functions()
         expected = ['scalar_func', 'agg_func', 'table_func']
         self.assert_equals(actual, expected)
+
+    def test_unload_and_load_module(self):
+        t_env = self.t_env
+        t_env.unload_module('core')
+        t_env.load_module('core', Module(
+            get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
+        table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
+        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
+        self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
 
 
 class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
@@ -665,3 +674,12 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         actual = t_env.list_user_defined_functions()
         expected = ['scalar_func', 'agg_func', 'table_func']
         self.assert_equals(actual, expected)
+
+    def test_unload_and_load_module(self):
+        t_env = self.t_env
+        t_env.unload_module('core')
+        t_env.load_module('core', Module(
+            get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
+        table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
+        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
+        self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])

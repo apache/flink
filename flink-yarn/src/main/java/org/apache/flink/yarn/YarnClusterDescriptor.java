@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -405,9 +404,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		final List<String> pipelineJars = flinkConfiguration.getOptional(PipelineOptions.JARS).orElse(Collections.emptyList());
 		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
 
-		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-		YarnLogConfigUtil.setLogConfigFileInConfig(flinkConfiguration, configurationDirectory);
-
 		try {
 			return deployInternal(
 					clusterSpecification,
@@ -744,7 +740,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (jobGraph != null) {
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry : jobGraph.getUserArtifacts().entrySet()) {
 				// only upload local files
-				if (Utils.isRemotePath(entry.getValue().filePath)) {
+				if (!Utils.isRemotePath(entry.getValue().filePath)) {
 					Path localPath = new Path(entry.getValue().filePath);
 					Tuple2<Path, Long> remoteFileInfo =
 							fileUploader.uploadLocalFileToRemote(localPath, entry.getKey());

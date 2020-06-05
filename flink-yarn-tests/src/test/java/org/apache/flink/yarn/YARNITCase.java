@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
@@ -125,6 +126,12 @@ public class YARNITCase extends YarnTestBase {
 							jobGraph,
 							false)
 					.getClusterClient()) {
+
+				for (DistributedCache.DistributedCacheEntry entry : jobGraph.getUserArtifacts().values()) {
+					assertTrue(
+						String.format("The user artifacts(%s) should be remote or uploaded to remote filesystem.", entry.filePath),
+						Utils.isRemotePath(entry.filePath));
+				}
 
 				ApplicationId applicationId = clusterClient.getClusterId();
 

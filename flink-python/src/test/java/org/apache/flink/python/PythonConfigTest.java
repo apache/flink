@@ -53,6 +53,8 @@ public class PythonConfigTest {
 		assertThat(pythonConfig.getPythonRequirementsCacheDirInfo().isPresent(), is(false));
 		assertThat(pythonConfig.getPythonArchivesInfo().isEmpty(), is(true));
 		assertThat(pythonConfig.getPythonExec(), is("python"));
+		assertThat(pythonConfig.isUsingManagedMemory(),
+			is(equalTo(PythonOptions.USE_MANAGED_MEMORY.defaultValue())));
 	}
 
 	@Test
@@ -149,4 +151,11 @@ public class PythonConfigTest {
 		assertThat(pythonConfig.getPythonExec(), is(equalTo("/usr/local/bin/python3")));
 	}
 
+	@Test
+	public void testManagedMemory() {
+		Configuration config = new Configuration();
+		config.set(PythonOptions.USE_MANAGED_MEMORY, true);
+		PythonConfig pythonConfig = new PythonConfig(config);
+		assertThat(pythonConfig.isUsingManagedMemory(), is(equalTo(true)));
+	}
 }

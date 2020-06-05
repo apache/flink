@@ -6,7 +6,6 @@ nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Conce
 nav-parent_id: root
 nav-show_overview: true
 permalink: /concepts/index.html
-always-expand: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

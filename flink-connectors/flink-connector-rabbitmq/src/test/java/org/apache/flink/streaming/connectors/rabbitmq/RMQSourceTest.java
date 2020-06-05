@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -97,7 +98,7 @@ public class RMQSourceTest {
 		OperatorStateStore mockStore = Mockito.mock(OperatorStateStore.class);
 		FunctionInitializationContext mockContext = Mockito.mock(FunctionInitializationContext.class);
 		Mockito.when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
-		Mockito.when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
+		Mockito.when(mockStore.getListState(any(ListStateDescriptor.class))).thenReturn(null);
 		return mockContext;
 	}
 

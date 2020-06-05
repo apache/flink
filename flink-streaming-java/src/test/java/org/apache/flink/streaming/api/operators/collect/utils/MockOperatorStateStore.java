@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -70,16 +69,6 @@ public class MockOperatorStateStore implements OperatorStateStore {
 
 	@Override
 	public Set<String> getRegisteredBroadcastStateNames() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-		return getListState(stateDescriptor);
-	}
-
-	@Override
-	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 

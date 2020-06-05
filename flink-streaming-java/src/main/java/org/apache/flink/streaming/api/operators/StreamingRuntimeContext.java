@@ -26,8 +26,6 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -211,13 +209,6 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
 		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getAggregatingState(stateProperties);
-	}
-
-	@Override
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getFoldingState(stateProperties);
 	}
 
 	@Override

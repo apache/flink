@@ -134,8 +134,8 @@ public class SqlCommandParserTest {
 				// drop catalog xx
 				TestItem.validSql("drop CATALOG c1", SqlCommand.DROP_CATALOG, "drop CATALOG c1"),
 				// use xx
-				TestItem.validSql("USE CATALOG catalog1;", SqlCommand.USE_CATALOG, "`catalog1`"),
-				TestItem.validSql("use `default`;", SqlCommand.USE, "`default_catalog`.`default`"),
+				TestItem.validSql("USE CATALOG catalog1;", SqlCommand.USE_CATALOG, "catalog1"),
+				TestItem.validSql("use `default`;", SqlCommand.USE, "default"),
 				TestItem.invalidSql("use catalog "), // no catalog name
 				// create database xx
 				TestItem.validSql("create database db1;", SqlCommand.CREATE_DATABASE, "create database db1"),
@@ -206,9 +206,9 @@ public class SqlCommandParserTest {
 				TestItem.validSql("CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
 						SqlCommand.CREATE_FUNCTION,
 						"CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"),
-				TestItem.validSql("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+				TestItem.validSql("CREATE TEMPORARY SYSTEM FUNCTION func1 as 'class_name' LANGUAGE JAVA",
 						SqlCommand.CREATE_FUNCTION,
-						"CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"),
+						"CREATE TEMPORARY SYSTEM FUNCTION func1 as 'class_name' LANGUAGE JAVA"),
 				// drop function xx
 				TestItem.invalidSql("DROP FUNCTION "),
 				TestItem.invalidSql("DROP FUNCTIONS "),
