@@ -135,7 +135,7 @@ public final class FlinkMetricContainer {
 				}
 
 				Long update = metricResult.getAttempted();
-				meter.markEvent(update);
+				meter.markEvent(update - meter.getCount());
 			} else {
 				Counter counter = flinkCounterCache.get(flinkMetricIdentifier);
 				if (null == counter) {
