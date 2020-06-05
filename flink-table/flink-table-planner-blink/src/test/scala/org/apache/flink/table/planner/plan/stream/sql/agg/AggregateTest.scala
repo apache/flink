@@ -272,4 +272,10 @@ class AggregateTest extends TableTestBase {
       """.stripMargin
     util.verifyPlan(sql)
   }
+
+  @Test
+  def testColumnIntervalValidation(): Unit = {
+    // test for FLINK-16577
+    util.verifyPlan("SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b")
+  }
 }

@@ -44,11 +44,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnTableScan(): Unit = {
     Array(studentLogicalScan, studentFlinkLogicalScan, studentBatchScan, studentStreamScan)
       .foreach { scan =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(scan, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(scan, 0))
         assertNull(mq.getColumnInterval(scan, 1))
-        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval(scan, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(scan, 3))
-        assertEquals(ValueInterval(161.0D, 172.1D), mq.getColumnInterval(scan, 4))
+        assertEquals(ValueInterval(bd(2.7D), bd(4.8D)), mq.getColumnInterval(scan, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(scan, 3))
+        assertEquals(ValueInterval(bd(161.0D), bd(172.1D)), mq.getColumnInterval(scan, 4))
         assertNull(mq.getColumnInterval(scan, 5))
         assertNull(mq.getColumnInterval(scan, 6))
       }
@@ -66,7 +66,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       assertEquals(ValueInterval.empty, mq.getColumnInterval(emptyValues, idx))
     }
 
-    assertEquals(ValueInterval(1L, 3L), mq.getColumnInterval(logicalValues, 0))
+    assertEquals(ValueInterval(bd(1L), bd(3L)), mq.getColumnInterval(logicalValues, 0))
     assertEquals(ValueInterval(false, true), mq.getColumnInterval(logicalValues, 1))
     assertEquals(ValueInterval(
       new Date(new DateString(2017, 9, 1).getMillisSinceEpoch),
@@ -80,7 +80,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       new Timestamp(new TimestampString(2017, 7, 1, 1, 0, 0).getMillisSinceEpoch),
       new Timestamp(new TimestampString(2017, 10, 1, 1, 0, 0).getMillisSinceEpoch)),
       mq.getColumnInterval(logicalValues, 4))
-    assertEquals(ValueInterval(-1D, 3.12D), mq.getColumnInterval(logicalValues, 5))
+    assertEquals(ValueInterval(bd(-1D), bd(3.12D)), mq.getColumnInterval(logicalValues, 5))
     assertEquals(ValueInterval.empty, mq.getColumnInterval(logicalValues, 6))
     assertEquals(ValueInterval("F", "xyz"), mq.getColumnInterval(logicalValues, 7))
   }
@@ -94,17 +94,19 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetColumnIntervalOnProject(): Unit = {
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(logicalProject, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(logicalProject, 0))
     assertNull(mq.getColumnInterval(logicalProject, 1))
-    assertEqualsAsDouble(ValueInterval(2.9, 5.0), mq.getColumnInterval(logicalProject, 2))
-    assertEqualsAsDouble(ValueInterval(11, 17), mq.getColumnInterval(logicalProject, 3))
-    assertEqualsAsDouble(ValueInterval(177.1, 189.31), mq.getColumnInterval(logicalProject, 4))
+    assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(logicalProject, 2))
+    assertEqualsAsDouble(ValueInterval(bd(11), bd(17)), mq.getColumnInterval(logicalProject, 3))
+    assertEqualsAsDouble(
+      ValueInterval(bd(177.1), bd(189.31)), mq.getColumnInterval(logicalProject, 4))
     assertNull(mq.getColumnInterval(logicalProject, 5))
-    assertEqualsAsDouble(ValueInterval(161.0D, 172.1), mq.getColumnInterval(logicalProject, 6))
-    assertEquals(ValueInterval(1, 2), mq.getColumnInterval(logicalProject, 7))
+    assertEqualsAsDouble(
+      ValueInterval(bd(161.0D), bd(172.1)), mq.getColumnInterval(logicalProject, 6))
+    assertEquals(ValueInterval(bd(1), bd(2)), mq.getColumnInterval(logicalProject, 7))
     assertEquals(ValueInterval(true, true), mq.getColumnInterval(logicalProject, 8))
-    assertEquals(ValueInterval(2.1D, 2.1D), mq.getColumnInterval(logicalProject, 9))
-    assertEquals(ValueInterval(2L, 2L), mq.getColumnInterval(logicalProject, 10))
+    assertEquals(ValueInterval(bd(2.1D), bd(2.1D)), mq.getColumnInterval(logicalProject, 9))
+    assertEquals(ValueInterval(bd(2L), bd(2L)), mq.getColumnInterval(logicalProject, 10))
     assertNull(mq.getColumnInterval(logicalProject, 11))
 
     // 3 * (score - 2)
@@ -128,8 +130,8 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     val expr0 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(-1))
     // id <= 20
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(20))
-    // id > 10
-    val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(10))
+    // id > 10.0 (note: the types of id and literal are different)
+    val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(10.0))
     // DIV(id, 2) > 3
     val expr3 = relBuilder.call(GREATER_THAN,
       relBuilder.call(DIVIDE, relBuilder.field(0), relBuilder.literal(2)),
@@ -145,33 +147,36 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
     // id > -1
     val filter0 = relBuilder.push(ts).filter(expr0).build
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(filter0, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(filter0, 0))
 
     // id <= 20
     val filter1 = relBuilder.push(ts).filter(expr1).build
-    assertEquals(ValueInterval(0, 20), mq.getColumnInterval(filter1, 0))
+    assertEquals(ValueInterval(bd(0), bd(20)), mq.getColumnInterval(filter1, 0))
 
     // id <= 20 AND id > 10 AND DIV(id, 2) > 3
     val filter2 = relBuilder.push(ts).filter(expr1, expr2, expr3).build
-    assertEquals(ValueInterval(10, 20, includeLower = false), mq.getColumnInterval(filter2, 0))
+    assertEquals(
+      ValueInterval(bd(10.0), bd(20), includeLower = false), mq.getColumnInterval(filter2, 0))
 
     // id <= 20 AND id > 10 AND score < 4.1
     val filter3 = relBuilder.push(ts).filter(expr1, expr2, expr4).build
-    assertEquals(ValueInterval(10, 20, includeLower = false), mq.getColumnInterval(filter3, 0))
+    assertEquals(
+      ValueInterval(bd(10.0), bd(20), includeLower = false),
+      mq.getColumnInterval(filter3, 0))
 
     // score > 6.0 OR score <= 4.0
     val filter4 = relBuilder.push(ts).filter(relBuilder.call(OR, expr5, expr6)).build
-    assertEquals(ValueInterval(2.7, 4.0), mq.getColumnInterval(filter4, 2))
+    assertEquals(ValueInterval(bd(2.7), bd(4.0)), mq.getColumnInterval(filter4, 2))
 
     // score > 6.0 OR score <= 4.0 OR id < 20
     val filter5 = relBuilder.push(ts).filter(relBuilder.call(OR, expr5, expr6, expr1)).build
-    assertEquals(ValueInterval(2.7, 4.8), mq.getColumnInterval(filter5, 2))
+    assertEquals(ValueInterval(bd(2.7), bd(4.8)), mq.getColumnInterval(filter5, 2))
 
     // (id <= 20 AND score < 4.1) OR NOT(DIV(id, 2) > 3 OR score > 1.9)
     val filter6 = relBuilder.push(ts).filter(relBuilder.call(OR,
       relBuilder.call(AND, expr1, expr4),
       relBuilder.call(NOT, relBuilder.call(OR, expr3, expr7)))).build
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(filter6, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(filter6, 0))
 
     // (id <= 20 AND score < 4.1) OR NOT(id <= 20 OR score > 1.9)
     val filter7 = relBuilder.push(ts).filter(relBuilder.call(OR,
@@ -180,7 +185,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
         relBuilder.call(OR,
           RexUtil.negate(relBuilder.getRexBuilder, expr1.asInstanceOf[RexCall]),
           expr7)))).build
-    assertEquals(ValueInterval(0, 20), mq.getColumnInterval(filter7, 0))
+    assertEquals(ValueInterval(bd(0), bd(20)), mq.getColumnInterval(filter7, 0))
   }
 
   @Test
@@ -210,46 +215,48 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
     // calc => projects + filter(id <= 20)
     val calc1 = createLogicalCalc(studentLogicalScan, outputRowType, projects, List(expr1))
-    assertEquals(ValueInterval(0, 20), mq.getColumnInterval(calc1, 0))
+    assertEquals(ValueInterval(bd(0), bd(20)), mq.getColumnInterval(calc1, 0))
     assertNull(mq.getColumnInterval(calc1, 1))
-    assertEqualsAsDouble(ValueInterval(2.9, 5.0), mq.getColumnInterval(calc1, 2))
-    assertEqualsAsDouble(ValueInterval(11, 17), mq.getColumnInterval(calc1, 3))
-    assertEqualsAsDouble(ValueInterval(177.1, 189.31), mq.getColumnInterval(calc1, 4))
+    assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(calc1, 2))
+    assertEqualsAsDouble(ValueInterval(bd(11), bd(17)), mq.getColumnInterval(calc1, 3))
+    assertEqualsAsDouble(ValueInterval(bd(177.1), bd(189.31)), mq.getColumnInterval(calc1, 4))
     assertNull(mq.getColumnInterval(calc1, 5))
-    assertEqualsAsDouble(ValueInterval(161.0D, 172.1), mq.getColumnInterval(calc1, 6))
-    assertEquals(ValueInterval(1, 2), mq.getColumnInterval(calc1, 7))
+    assertEqualsAsDouble(ValueInterval(bd(161.0D), bd(172.1)), mq.getColumnInterval(calc1, 6))
+    assertEquals(ValueInterval(bd(1), bd(2)), mq.getColumnInterval(calc1, 7))
     assertEquals(ValueInterval(true, true), mq.getColumnInterval(calc1, 8))
-    assertEquals(ValueInterval(2.1D, 2.1D), mq.getColumnInterval(calc1, 9))
-    assertEquals(ValueInterval(2L, 2L), mq.getColumnInterval(calc1, 10))
+    assertEquals(ValueInterval(bd(2.1D), bd(2.1D)), mq.getColumnInterval(calc1, 9))
+    assertEquals(ValueInterval(bd(2L), bd(2L)), mq.getColumnInterval(calc1, 10))
     assertNull(mq.getColumnInterval(calc1, 11))
 
     // calc => project + filter(id <= 20 AND id > 10 AND DIV(id, 2) > 3)
     val calc2 = createLogicalCalc(
       studentLogicalScan, outputRowType, projects, List(expr1, expr2, expr3))
-    assertEquals(ValueInterval(10, 20, includeLower = false), mq.getColumnInterval(calc2, 0))
+    assertEquals(
+      ValueInterval(bd(10), bd(20), includeLower = false), mq.getColumnInterval(calc2, 0))
     assertNull(mq.getColumnInterval(calc2, 1))
 
     // calc => project + filter(id <= 20 AND id > 10 AND score < 4.1)
     val calc3 = createLogicalCalc(
       studentLogicalScan, outputRowType, projects, List(expr1, expr2, expr4))
-    assertEquals(ValueInterval(10, 20, includeLower = false), mq.getColumnInterval(calc3, 0))
+    assertEquals(
+      ValueInterval(bd(10), bd(20), includeLower = false), mq.getColumnInterval(calc3, 0))
 
     // calc => project + filter(score > 6.0 OR score <= 4.0)
     val calc4 = createLogicalCalc(
       studentLogicalScan, outputRowType, projects, List(relBuilder.call(OR, expr5, expr6)))
-    assertEqualsAsDouble(ValueInterval(2.9, 5.0), mq.getColumnInterval(calc4, 2))
+    assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(calc4, 2))
 
     // calc => project + filter(score > 6.0 OR score <= 4.0 OR id < 20)
     val calc5 = createLogicalCalc(studentLogicalScan, outputRowType, projects,
       List(relBuilder.call(OR, expr5, expr6, expr1)))
-    assertEqualsAsDouble(ValueInterval(2.9, 5.0), mq.getColumnInterval(calc5, 2))
+    assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(calc5, 2))
 
     // calc => project + filter((id <= 20 AND score < 4.1) OR NOT(DIV(id, 2) > 3 OR score > 1.9))
     val calc6 = createLogicalCalc(studentLogicalScan, outputRowType, projects,
       List(relBuilder.call(OR,
         relBuilder.call(AND, expr1, expr4),
         relBuilder.call(NOT, relBuilder.call(OR, expr3, expr7)))))
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(calc6, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(calc6, 0))
 
     // calc => project + filter: ($0 <=2 and $1 < 1.1) or not( $0>2 or $1 > 1.9)
     val calc7 = createLogicalCalc(studentLogicalScan, outputRowType, projects,
@@ -259,7 +266,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
           relBuilder.call(OR,
             RexUtil.negate(relBuilder.getRexBuilder, expr1.asInstanceOf[RexCall]),
             expr7)))))
-    assertEquals(ValueInterval(0, 20), mq.getColumnInterval(calc7, 0))
+    assertEquals(ValueInterval(bd(0), bd(20)), mq.getColumnInterval(calc7, 0))
 
     relBuilder.push(studentLogicalScan)
     val expr8 = relBuilder.call(CASE, expr5, relBuilder.literal(1), relBuilder.literal(0))
@@ -274,24 +281,24 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     val calc8 = createLogicalCalc(
       studentLogicalScan, rowType, List(expr8, expr9, expr10, expr11), List())
 
-    assertEquals(ValueInterval(0, 1), mq.getColumnInterval(calc8, 0))
-    assertEquals(ValueInterval(10, 12), mq.getColumnInterval(calc8, 1))
-    assertEquals(ValueInterval(0, 12), mq.getColumnInterval(calc8, 2))
-    assertEquals(ValueInterval(1, 18), mq.getColumnInterval(calc8, 3))
+    assertEquals(ValueInterval(bd(0), bd(1)), mq.getColumnInterval(calc8, 0))
+    assertEquals(ValueInterval(bd(10), bd(12)), mq.getColumnInterval(calc8, 1))
+    assertEquals(ValueInterval(bd(0), bd(12)), mq.getColumnInterval(calc8, 2))
+    assertEquals(ValueInterval(bd(1), bd(18)), mq.getColumnInterval(calc8, 3))
   }
 
   @Test
   def testGetColumnIntervalOnExpand(): Unit = {
     Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach {
       expand =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(expand, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(expand, 0))
         assertNull(mq.getColumnInterval(expand, 1))
-        assertEquals(ValueInterval(2.7, 4.8), mq.getColumnInterval(expand, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(expand, 3))
-        assertEquals(ValueInterval(161.0, 172.1), mq.getColumnInterval(expand, 4))
+        assertEquals(ValueInterval(bd(2.7), bd(4.8)), mq.getColumnInterval(expand, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(expand, 3))
+        assertEquals(ValueInterval(bd(161.0), bd(172.1)), mq.getColumnInterval(expand, 4))
         assertEquals(null, mq.getColumnInterval(expand, 5))
         assertEquals(null, mq.getColumnInterval(expand, 6))
-        assertEquals(ValueInterval(0, 5), mq.getColumnInterval(expand, 7))
+        assertEquals(ValueInterval(bd(0), bd(5)), mq.getColumnInterval(expand, 7))
     }
   }
 
@@ -302,11 +309,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       logicalSortLimit, flinkLogicalSortLimit, batchSortLimit, batchLocalSortLimit,
       batchGlobalSortLimit, streamSortLimit).foreach {
       sort =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(sort, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(sort, 0))
         assertNull(mq.getColumnInterval(sort, 1))
-        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval(sort, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(sort, 3))
-        assertEquals(ValueInterval(161.0D, 172.1D), mq.getColumnInterval(sort, 4))
+        assertEquals(ValueInterval(bd(2.7D), bd(4.8D)), mq.getColumnInterval(sort, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(sort, 3))
+        assertEquals(ValueInterval(bd(161.0D), bd(172.1D)), mq.getColumnInterval(sort, 4))
         assertNull(mq.getColumnInterval(sort, 5))
         assertNull(mq.getColumnInterval(sort, 6))
     }
@@ -316,55 +323,53 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnRank(): Unit = {
     Array(logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank).foreach {
       rank =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(rank, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(rank, 0))
         assertNull(mq.getColumnInterval(rank, 1))
-        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval(rank, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(rank, 3))
-        assertEquals(ValueInterval(161.0D, 172.1D), mq.getColumnInterval(rank, 4))
+        assertEquals(ValueInterval(bd(2.7D), bd(4.8D)), mq.getColumnInterval(rank, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(rank, 3))
+        assertEquals(ValueInterval(bd(161.0D), bd(172.1D)), mq.getColumnInterval(rank, 4))
         assertNull(mq.getColumnInterval(rank, 5))
         assertNull(mq.getColumnInterval(rank, 6))
         rank match {
           case r: BatchExecRank if !r.isGlobal => // local batch rank does not output rank function
-          case _ => assertEquals(ValueInterval(1, 5), mq.getColumnInterval(rank, 7))
+          case _ => assertEquals(ValueInterval(bd(1), bd(5)), mq.getColumnInterval(rank, 7))
         }
     }
 
     Array(logicalRankWithVariableRange, flinkLogicalRankWithVariableRange,
       streamRankWithVariableRange).foreach {
       rank =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(logicalRankWithVariableRange, 0))
-        assertNull(mq.getColumnInterval(logicalRankWithVariableRange, 1))
-        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval
-        (logicalRankWithVariableRange, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(logicalRankWithVariableRange, 3))
-        assertEquals(ValueInterval(161.0D, 172.1D),
-          mq.getColumnInterval(logicalRankWithVariableRange, 4))
-        assertNull(mq.getColumnInterval(logicalRankWithVariableRange, 5))
-        assertNull(mq.getColumnInterval(logicalRankWithVariableRange, 6))
-        assertEquals(ValueInterval(1, 18), mq.getColumnInterval(logicalRankWithVariableRange, 7))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(rank, 0))
+        assertNull(mq.getColumnInterval(rank, 1))
+        assertEquals(ValueInterval(bd(2.7D), bd(4.8D)), mq.getColumnInterval(rank, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(rank, 3))
+        assertEquals(ValueInterval(bd(161.0D), bd(172.1D)), mq.getColumnInterval(rank, 4))
+        assertNull(mq.getColumnInterval(rank, 5))
+        assertNull(mq.getColumnInterval(rank, 6))
+        assertEquals(ValueInterval(bd(1), bd(18)), mq.getColumnInterval(rank, 7))
     }
 
     Array(logicalRowNumber, flinkLogicalRowNumber, streamRowNumber).foreach {
       rank =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(rank, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(rank, 0))
         assertNull(mq.getColumnInterval(rank, 1))
-        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval(rank, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(rank, 3))
-        assertEquals(ValueInterval(161.0D, 172.1D), mq.getColumnInterval(rank, 4))
+        assertEquals(ValueInterval(bd(2.7D), bd(4.8D)), mq.getColumnInterval(rank, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(rank, 3))
+        assertEquals(ValueInterval(bd(161.0D), bd(172.1D)), mq.getColumnInterval(rank, 4))
         assertNull(mq.getColumnInterval(rank, 5))
         assertNull(mq.getColumnInterval(rank, 6))
-        assertEquals(ValueInterval(3, 6), mq.getColumnInterval(rank, 7))
+        assertEquals(ValueInterval(bd(3), bd(6)), mq.getColumnInterval(rank, 7))
     }
   }
 
   @Test
   def testGetColumnIntervalOnExchange(): Unit = {
     val exchange = LogicalExchange.create(studentLogicalScan, RelDistributions.SINGLETON)
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(exchange, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(exchange, 0))
     assertNull(mq.getColumnInterval(exchange, 1))
-    assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval(exchange, 2))
-    assertEquals(ValueInterval(12, 18), mq.getColumnInterval(exchange, 3))
-    assertEquals(ValueInterval(161.0D, 172.1D), mq.getColumnInterval(exchange, 4))
+    assertEquals(ValueInterval(bd(2.7D), bd(4.8D)), mq.getColumnInterval(exchange, 2))
+    assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(exchange, 3))
+    assertEquals(ValueInterval(bd(161.0D), bd(172.1D)), mq.getColumnInterval(exchange, 4))
     assertNull(mq.getColumnInterval(exchange, 5))
     assertNull(mq.getColumnInterval(exchange, 6))
   }
@@ -373,22 +378,22 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnAggregate(): Unit = {
     Array(logicalAgg, flinkLogicalAgg).foreach {
       agg =>
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(agg, 0))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(agg, 0))
         assertNull(mq.getColumnInterval(agg, 1))
-        assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(agg, 2))
+        assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(agg, 2))
         assertNull(mq.getColumnInterval(agg, 3))
         assertNull(mq.getColumnInterval(agg, 4))
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 5))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 5))
     }
 
     Array(logicalAggWithAuxGroup, flinkLogicalAggWithAuxGroup).foreach {
       agg =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 0))
         assertNull(mq.getColumnInterval(agg, 1))
-        assertEquals(ValueInterval(161.0, 172.1), mq.getColumnInterval(agg, 2))
+        assertEquals(ValueInterval(bd(161.0), bd(172.1)), mq.getColumnInterval(agg, 2))
         assertNull(mq.getColumnInterval(agg, 3))
-        assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(agg, 4))
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 5))
+        assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(agg, 4))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 5))
     }
   }
 
@@ -396,40 +401,40 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnBatchExecAggregate(): Unit = {
     Array(batchGlobalAggWithLocal, batchGlobalAggWithoutLocal).foreach {
       agg =>
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(agg, 0))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(agg, 0))
         assertNull(mq.getColumnInterval(agg, 1))
-        assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(agg, 2))
+        assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(agg, 2))
         assertNull(mq.getColumnInterval(agg, 3))
         assertNull(mq.getColumnInterval(agg, 4))
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 5))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 5))
     }
 
-    assertEquals(ValueInterval(12, 18), mq.getColumnInterval(batchLocalAgg, 0))
+    assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(batchLocalAgg, 0))
     assertNull(mq.getColumnInterval(batchLocalAgg, 1))
     assertNull(mq.getColumnInterval(batchLocalAgg, 2))
-    assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(batchLocalAgg, 3))
+    assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(batchLocalAgg, 3))
     assertNull(mq.getColumnInterval(batchLocalAgg, 4))
     assertNull(mq.getColumnInterval(batchLocalAgg, 5))
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(batchLocalAgg, 6))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(batchLocalAgg, 6))
 
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(batchLocalAggWithAuxGroup, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(batchLocalAggWithAuxGroup, 0))
     assertNull(mq.getColumnInterval(batchLocalAggWithAuxGroup, 1))
-    assertEquals(ValueInterval(161.0, 172.1),
+    assertEquals(ValueInterval(bd(161.0), bd(172.1)),
       mq.getColumnInterval(batchLocalAggWithAuxGroup, 2))
     assertNull(mq.getColumnInterval(batchLocalAggWithAuxGroup, 3))
     assertNull(mq.getColumnInterval(batchLocalAggWithAuxGroup, 4))
-    assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(batchLocalAggWithAuxGroup, 5))
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(batchLocalAggWithAuxGroup, 6))
+    assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(batchLocalAggWithAuxGroup, 5))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(batchLocalAggWithAuxGroup, 6))
 
     Array(batchGlobalAggWithLocalWithAuxGroup, batchGlobalAggWithoutLocalWithAuxGroup)
       .foreach {
         agg =>
-          assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 0))
+          assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 0))
           assertNull(mq.getColumnInterval(agg, 1))
-          assertEquals(ValueInterval(161.0, 172.1), mq.getColumnInterval(agg, 2))
+          assertEquals(ValueInterval(bd(161.0), bd(172.1)), mq.getColumnInterval(agg, 2))
           assertNull(mq.getColumnInterval(agg, 3))
-          assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(agg, 4))
-          assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 5))
+          assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(agg, 4))
+          assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 5))
       }
   }
 
@@ -437,28 +442,28 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnStreamExecAggregate(): Unit = {
     Array(streamGlobalAggWithLocal, streamGlobalAggWithoutLocal).foreach {
       agg =>
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(agg, 0))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(agg, 0))
         assertNull(mq.getColumnInterval(agg, 1))
-        assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(agg, 2))
+        assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(agg, 2))
         assertNull(mq.getColumnInterval(agg, 3))
         assertNull(mq.getColumnInterval(agg, 4))
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 5))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 5))
     }
 
-    assertEquals(ValueInterval(12, 18), mq.getColumnInterval(streamLocalAgg, 0))
+    assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(streamLocalAgg, 0))
     assertNull(mq.getColumnInterval(streamLocalAgg, 1))
     assertNull(mq.getColumnInterval(streamLocalAgg, 2))
-    assertEquals(ValueInterval(2.7, null), mq.getColumnInterval(streamLocalAgg, 3))
+    assertEquals(ValueInterval(bd(2.7), null), mq.getColumnInterval(streamLocalAgg, 3))
     assertNull(mq.getColumnInterval(streamLocalAgg, 4))
     assertNull(mq.getColumnInterval(streamLocalAgg, 5))
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(streamLocalAgg, 6))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(streamLocalAgg, 6))
   }
 
   @Test
   def testGetColumnIntervalOnTableAggregate(): Unit = {
     Array(logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg).foreach {
       agg =>
-        assertEquals(RightSemiInfiniteValueInterval(0, true), mq.getColumnInterval(agg, 0))
+        assertEquals(RightSemiInfiniteValueInterval(bd(0), true), mq.getColumnInterval(agg, 0))
         assertNull(mq.getColumnInterval(agg, 1))
         assertNull(mq.getColumnInterval(agg, 2))
     }
@@ -467,7 +472,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetColumnIntervalOnWindowTableAgg(): Unit = {
     Array(logicalWindowTableAgg, flinkLogicalWindowTableAgg, streamWindowTableAgg).foreach { agg =>
-      assertEquals(ValueInterval(5, 45), mq.getColumnInterval(agg, 0))
+      assertEquals(ValueInterval(bd(5), bd(45)), mq.getColumnInterval(agg, 0))
       assertEquals(null, mq.getColumnInterval(agg, 1))
       assertEquals(null, mq.getColumnInterval(agg, 2))
       assertEquals(null, mq.getColumnInterval(agg, 3))
@@ -481,29 +486,33 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnWindowAgg(): Unit = {
     Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithLocalAgg,
       batchGlobalWindowAggWithoutLocalAgg, streamWindowAgg).foreach { agg =>
-      assertEquals(ValueInterval(5, 45), mq.getColumnInterval(agg, 0))
+      assertEquals(ValueInterval(bd(5), bd(45)), mq.getColumnInterval(agg, 0))
       assertEquals(null, mq.getColumnInterval(agg, 1))
-      assertEquals(RightSemiInfiniteValueInterval(0), mq.getColumnInterval(agg, 2))
+      assertEquals(RightSemiInfiniteValueInterval(bd(0)), mq.getColumnInterval(agg, 2))
       assertEquals(null, mq.getColumnInterval(agg, 3))
     }
-    assertEquals(ValueInterval(5, 45), mq.getColumnInterval(batchLocalWindowAgg, 0))
+    assertEquals(ValueInterval(bd(5), bd(45)), mq.getColumnInterval(batchLocalWindowAgg, 0))
     assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 1))
     assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 2))
-    assertEquals(RightSemiInfiniteValueInterval(0), mq.getColumnInterval(batchLocalWindowAgg, 3))
+    assertEquals(
+      RightSemiInfiniteValueInterval(bd(0)), mq.getColumnInterval(batchLocalWindowAgg, 3))
     assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 4))
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup).foreach { agg =>
-      assertEquals(ValueInterval(5, 55), mq.getColumnInterval(agg, 0))
-      assertEquals(ValueInterval(0, 50), mq.getColumnInterval(agg, 1))
-      assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 2))
+      assertEquals(ValueInterval(bd(5), bd(55)), mq.getColumnInterval(agg, 0))
+      assertEquals(ValueInterval(bd(0), bd(50)), mq.getColumnInterval(agg, 1))
+      assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 2))
       assertEquals(null, mq.getColumnInterval(agg, 3))
     }
-    assertEquals(ValueInterval(5, 55), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 0))
+    assertEquals(
+      ValueInterval(bd(5), bd(55)), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 0))
     assertEquals(null, mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 1))
-    assertEquals(ValueInterval(0, 50), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 2))
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 3))
+    assertEquals(
+      ValueInterval(bd(0), bd(50)), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 2))
+    assertEquals(
+      ValueInterval(bd(0), null), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 3))
     assertEquals(null, mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 4))
   }
 
@@ -511,10 +520,10 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   def testGetColumnIntervalOnOverAgg(): Unit = {
     Array(flinkLogicalOverAgg, batchOverAgg).foreach {
       agg =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 0))
+        assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(agg, 0))
         assertEquals(null, mq.getColumnInterval(agg, 1))
-        assertEquals(ValueInterval(2.7, 4.8), mq.getColumnInterval(agg, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(agg, 3))
+        assertEquals(ValueInterval(bd(2.7), bd(4.8)), mq.getColumnInterval(agg, 2))
+        assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(agg, 3))
         assertNull(mq.getColumnInterval(agg, 4))
         assertNull(mq.getColumnInterval(agg, 5))
         assertNull(mq.getColumnInterval(agg, 6))
@@ -524,10 +533,10 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
         assertNull(mq.getColumnInterval(agg, 10))
     }
 
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(streamOverAgg, 0))
+    assertEquals(ValueInterval(bd(0), null), mq.getColumnInterval(streamOverAgg, 0))
     assertEquals(null, mq.getColumnInterval(streamOverAgg, 1))
-    assertEquals(ValueInterval(2.7, 4.8), mq.getColumnInterval(streamOverAgg, 2))
-    assertEquals(ValueInterval(12, 18), mq.getColumnInterval(streamOverAgg, 3))
+    assertEquals(ValueInterval(bd(2.7), bd(4.8)), mq.getColumnInterval(streamOverAgg, 2))
+    assertEquals(ValueInterval(bd(12), bd(18)), mq.getColumnInterval(streamOverAgg, 3))
     assertNull(mq.getColumnInterval(streamOverAgg, 4))
     assertNull(mq.getColumnInterval(streamOverAgg, 5))
     assertNull(mq.getColumnInterval(streamOverAgg, 6))
@@ -546,31 +555,33 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
         rexBuilder.makeLiteral(1000L, longType, false))
     ).build
 
-    assertEquals(ValueInterval(100, null, includeLower = false), mq.getColumnInterval(join, 0))
-    assertEquals(ValueInterval(1L, 800000000L), mq.getColumnInterval(join, 1))
+    assertEquals(ValueInterval(bd(100), null, includeLower = false), mq.getColumnInterval(join, 0))
+    assertEquals(ValueInterval(bd(1L), bd(800000000L)), mq.getColumnInterval(join, 1))
     assertNull(mq.getColumnInterval(join, 2))
     assertNull(mq.getColumnInterval(join, 3))
-    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(join, 4))
+    assertEquals(ValueInterval(bd(1L), bd(100L)), mq.getColumnInterval(join, 4))
     assertNull(mq.getColumnInterval(join, 5))
-    assertEquals(ValueInterval(8L, 1000L), mq.getColumnInterval(join, 6))
+    assertEquals(ValueInterval(bd(8L), bd(1000L)), mq.getColumnInterval(join, 6))
     assertNull(mq.getColumnInterval(join, 7))
     assertNull(mq.getColumnInterval(join, 8))
 
-    assertEquals(ValueInterval(0, null, includeLower = true),
+    assertEquals(ValueInterval(bd(0), null, includeLower = true),
       mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 0))
-    assertEquals(ValueInterval(1L, 800000000L),
+    assertEquals(ValueInterval(bd(1L), bd(800000000L)),
       mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 1))
     assertNull(mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 2))
     assertNull(mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 3))
-    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 4))
+    assertEquals(
+      ValueInterval(bd(1L), bd(100L)), mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 4))
 
-    assertEquals(ValueInterval(0, null, includeLower = true),
+    assertEquals(ValueInterval(bd(0), null, includeLower = true),
       mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 0))
-    assertEquals(ValueInterval(1L, 800000000L),
+    assertEquals(ValueInterval(bd(1L), bd(800000000L)),
       mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 1))
     assertNull(mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 2))
     assertNull(mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 3))
-    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 4))
+    assertEquals(
+      ValueInterval(bd(1L), bd(100L)), mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 4))
   }
 
   @Test
@@ -579,7 +590,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     val ts2 = relBuilder.scan("MyTable2").build()
     val union = relBuilder.push(ts1).push(ts2).union(true).build()
     assertNull(mq.getColumnInterval(union, 0))
-    assertEquals(ValueInterval(1L, 800000000L), mq.getColumnInterval(union, 1))
+    assertEquals(ValueInterval(bd(1L), bd(800000000L)), mq.getColumnInterval(union, 1))
     assertNull(mq.getColumnInterval(union, 2))
     assertNull(mq.getColumnInterval(union, 3))
   }
