@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -152,7 +153,8 @@ public class SourceOperatorStreamTaskTest {
 			// Prepare the source split and assign it to the source reader.
 			MockSourceSplit split = new MockSourceSplit(0, 0);
 			// Assign the split to the source reader.
-			AddSplitEvent<MockSourceSplit> addSplitEvent = new AddSplitEvent<>(Collections.singletonList(split));
+			AddSplitEvent<MockSourceSplit> addSplitEvent =
+					new AddSplitEvent<>(Collections.singletonList(split), new MockSourceSplitSerializer());
 			testHarness
 					.getStreamTask()
 					.dispatchOperatorEvent(OPERATOR_ID, new SerializedValue<>(addSplitEvent));

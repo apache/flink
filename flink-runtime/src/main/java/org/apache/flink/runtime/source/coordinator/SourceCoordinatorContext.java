@@ -37,6 +37,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	private final ExecutorService coordinatorExecutor;
 	private final ExecutorNotifier notifier;
 	private final OperatorCoordinator.Context operatorCoordinatorContext;
+	private final SimpleVersionedSerializer<SplitT> splitSerializer;
 	private final ConcurrentMap<Integer, ReaderInfo> registeredReaders;
 	private final SplitAssignmentTracker<SplitT> assignmentTracker;
 	private final SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
@@ -92,9 +94,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 			ExecutorService coordinatorExecutor,
 			SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
 			int numWorkerThreads,
-			OperatorCoordinator.Context operatorCoordinatorContext) {
+			OperatorCoordinator.Context operatorCoordinatorContext,
+			SimpleVersionedSerializer<SplitT> splitSerializser) {
 		this(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, operatorCoordinatorContext,
-				new SplitAssignmentTracker<>());
+				splitSerializser, new SplitAssignmentTracker<>());
 	}
 
 	// Package private method for unit test.
@@ -103,10 +106,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 			SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
 			int numWorkerThreads,
 			OperatorCoordinator.Context operatorCoordinatorContext,
+			SimpleVersionedSerializer<SplitT> splitSerializer,
 			SplitAssignmentTracker<SplitT> splitAssignmentTracker) {
 		this.coordinatorExecutor = coordinatorExecutor;
 		this.coordinatorThreadFactory = coordinatorThreadFactory;
 		this.operatorCoordinatorContext = operatorCoordinatorContext;
+		this.splitSerializer = splitSerializer;
 		this.registeredReaders = new ConcurrentHashMap<>();
 		this.assignmentTracker = splitAssignmentTracker;
 		this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
@@ -166,10 +171,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 			assignment.assignment().forEach(
 					(id, splits) -> {
 						try {
-							operatorCoordinatorContext.sendEvent(new AddSplitEvent<>(splits), id);
+							operatorCoordinatorContext.sendEvent(new AddSplitEvent<>(splits, splitSerializer), id);
 						} catch (TaskNotRunningException e) {
 							throw new FlinkRuntimeException(String.format(
 									"Failed to assign splits %s to reader %d.", splits, id), e);
+						} catch (IOException e) {
+							throw new FlinkRuntimeException("Failed to serialize splits.", e);
 						}
 					});
 			return null;
