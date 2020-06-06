@@ -103,7 +103,8 @@ public class SourceOperatorTest {
 		operator.initializeState(getStateContext());
 		operator.open();
 		MockSourceSplit newSplit = new MockSourceSplit((2));
-		operator.handleOperatorEvent(new AddSplitEvent<>(Collections.singletonList(newSplit)));
+		operator.handleOperatorEvent(new AddSplitEvent<>(
+				Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
 		// The source reader should have been assigned two splits.
 		assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), mockSourceReader.getAssignedSplits());
 	}
@@ -124,7 +125,8 @@ public class SourceOperatorTest {
 		operator.initializeState(stateContext);
 		operator.open();
 		MockSourceSplit newSplit = new MockSourceSplit((2));
-		operator.handleOperatorEvent(new AddSplitEvent<>(Collections.singletonList(newSplit)));
+		operator.handleOperatorEvent(new AddSplitEvent<>(
+				Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
 		operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
 
 		// Verify the splits in state.

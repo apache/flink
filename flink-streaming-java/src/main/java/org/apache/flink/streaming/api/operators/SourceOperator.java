@@ -44,7 +44,9 @@ import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FlinkRuntimeException;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -202,7 +204,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	@SuppressWarnings("unchecked")
 	public void handleOperatorEvent(OperatorEvent event) {
 		if (event instanceof AddSplitEvent) {
-			sourceReader.addSplits(((AddSplitEvent<SplitT>) event).splits());
+			try {
+				sourceReader.addSplits(((AddSplitEvent<SplitT>) event).splits(splitSerializer));
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
+			}
 		} else if (event instanceof SourceEventWrapper) {
 			sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
 		} else {

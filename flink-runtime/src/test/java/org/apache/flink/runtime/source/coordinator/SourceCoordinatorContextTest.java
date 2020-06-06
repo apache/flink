@@ -32,6 +32,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -71,16 +72,16 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 	}
 
 	@Test
-	public void testAssignSplitsFromCoordinatorExecutor() throws ExecutionException, InterruptedException {
+	public void testAssignSplitsFromCoordinatorExecutor() throws Exception {
 		testAssignSplits(true);
 	}
 
 	@Test
-	public void testAssignSplitsFromOtherThread() throws ExecutionException, InterruptedException {
+	public void testAssignSplitsFromOtherThread() throws Exception {
 		testAssignSplits(false);
 	}
 
-	private void testAssignSplits(boolean fromCoordinatorExecutor) throws ExecutionException, InterruptedException {
+	private void testAssignSplits(boolean fromCoordinatorExecutor) throws Exception {
 		// Register the readers.
 		registerReaders();
 
@@ -104,7 +105,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 		assertEquals(1, eventsToSubtask0.size());
 		OperatorEvent event = eventsToSubtask0.get(0);
 		assertTrue(event instanceof AddSplitEvent);
-		verifyAssignment(Arrays.asList("0"), ((AddSplitEvent) event).splits());
+		verifyAssignment(Arrays.asList("0"), ((AddSplitEvent) event).splits(new MockSourceSplitSerializer()));
 	}
 
 	@Test
@@ -153,6 +154,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 					coordinatorThreadFactory,
 					1,
 					operatorCoordinatorContext,
+					new MockSourceSplitSerializer(),
 					restoredTracker);
 			restoredContext.restoreState(new MockSourceSplitSerializer(), in);
 		}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -165,8 +167,14 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
 			List<OperatorEvent> eventsToReader0 = operatorCoordinatorContext.getEventsToOperator().get(0);
 			assertEquals(2, eventsToReader0.size());
-			verifyAssignment(Arrays.asList("0", "3"), ((AddSplitEvent<MockSourceSplit>) eventsToReader0.get(0)).splits());
-			verifyAssignment(Arrays.asList("6"), ((AddSplitEvent<MockSourceSplit>) eventsToReader0.get(1)).splits());
+			try {
+				verifyAssignment(Arrays.asList("0", "3"),
+						((AddSplitEvent<MockSourceSplit>) eventsToReader0.get(0)).splits(new MockSourceSplitSerializer()));
+				verifyAssignment(Arrays.asList("6"),
+						((AddSplitEvent<MockSourceSplit>) eventsToReader0.get(1)).splits(new MockSourceSplitSerializer()));
+			} catch (IOException e) {
+				fail("Failed to deserialize splits.");
+			}
 		});
 
 		// Fail reader 0.
