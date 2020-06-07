@@ -69,6 +69,8 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_BULK_FLUSH_BACKOFF_DELAY = "connector.bulk-flush.backoff.delay";
 	public static final String CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT = "connector.connection-max-retry-timeout";
 	public static final String CONNECTOR_CONNECTION_PATH_PREFIX = "connector.connection-path-prefix";
+	public static final String CONNECTOR_USERNAME = "connector.username";
+	public static final String CONNECTOR_PASSWORD = "connector.password";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
@@ -137,6 +139,8 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	private void validateConnectionProperties(DescriptorProperties properties) {
 		properties.validateInt(CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT, true, 1);
 		properties.validateString(CONNECTOR_CONNECTION_PATH_PREFIX, true);
+		properties.validateString(CONNECTOR_USERNAME, true, 1);
+		properties.validateString(CONNECTOR_PASSWORD, true, 1);
 	}
 
 	/**

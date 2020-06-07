@@ -46,7 +46,9 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_INDEX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_PASSWORD;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_USERNAME;
 
 /**
  * Connector descriptor for the Elasticsearch search engine.
@@ -296,6 +298,26 @@ public class Elasticsearch extends ConnectorDescriptor {
 	 */
 	public Elasticsearch connectionPathPrefix(String pathPrefix) {
 		internalProperties.putString(CONNECTOR_CONNECTION_PATH_PREFIX, pathPrefix);
+		return this;
+	}
+
+	/**
+	 * Sets connection properties to be used to connect to es http api with basic auth verification
+	 *
+	 * @param userName basic auth username
+	 */
+	public Elasticsearch connectionUserName(String userName) {
+		internalProperties.putString(CONNECTOR_USERNAME, userName);
+		return this;
+	}
+
+	/**
+	 * Sets connection properties to be used to connect to es http api with basic auth verification
+	 *
+	 * @param password basic auth password
+	 */
+	public Elasticsearch connectionPassword(String password) {
+		internalProperties.putString(CONNECTOR_PASSWORD, password);
 		return this;
 	}
 

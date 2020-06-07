@@ -103,7 +103,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		expectedBuilder.setBulkFlushInterval(100);
 		expectedBuilder.setBulkFlushMaxActions(1000);
 		expectedBuilder.setBulkFlushMaxSizeMb(1);
-		expectedBuilder.setRestClientFactory(new DefaultRestClientFactory(100, "/myapp"));
+		expectedBuilder.setRestClientFactory(new DefaultRestClientFactory(100, "/myapp", "", ""));
 		assertEquals(expectedBuilder, testSink.builder);
 	}
 

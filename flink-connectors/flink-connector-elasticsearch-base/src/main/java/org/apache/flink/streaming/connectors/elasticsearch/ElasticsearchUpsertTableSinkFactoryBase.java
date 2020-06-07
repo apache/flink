@@ -84,7 +84,9 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_INDEX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_PASSWORD;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_USERNAME;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.validateAndParseHostsString;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
@@ -143,6 +145,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(CONNECTOR_BULK_FLUSH_BACKOFF_DELAY);
 		properties.add(CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT);
 		properties.add(CONNECTOR_CONNECTION_PATH_PREFIX);
+		properties.add(CONNECTOR_USERNAME);
+		properties.add(CONNECTOR_PASSWORD);
 
 		// schema
 		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
@@ -307,6 +311,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		mapSinkOption(descriptorProperties, options, CONNECTOR_BULK_FLUSH_BACKOFF_DELAY, SinkOption.BULK_FLUSH_BACKOFF_DELAY);
 		mapSinkOption(descriptorProperties, options, CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT, SinkOption.REST_MAX_RETRY_TIMEOUT);
 		mapSinkOption(descriptorProperties, options, CONNECTOR_CONNECTION_PATH_PREFIX, SinkOption.REST_PATH_PREFIX);
+		mapSinkOption(descriptorProperties, options, CONNECTOR_USERNAME, SinkOption.USERNAME);
+		mapSinkOption(descriptorProperties, options, CONNECTOR_PASSWORD, SinkOption.PASSWORD);
 
 		return options;
 	}
