@@ -43,34 +43,34 @@ public interface TableResult {
 	 *
 	 * <p>The schema of DDL, SHOW, EXPLAIN:
 	 * <pre>
-	 * +------------+-----------+-----------+
-	 * | field name | field type | comments |
-	 * +------------+------------+----------+
-	 * | result     | STRING     |          |
-	 * +------------+------------+----------+
+	 * +-------------+-------------+----------+
+	 * | column name | column type | comments |
+	 * +-------------+-------------+----------+
+	 * | result      | STRING      |          |
+	 * +-------------+-------------+----------+
 	 * </pre>
 	 *
 	 * <p>The schema of DESCRIBE:
 	 * <pre>
-	 * +-----------------+------------+-----------------------------------------------------------------------------+
-	 * | field name      | field type |                              comments                                       |
-	 * +-----------------+------------+-----------------------------------------------------------------------------+
-	 * | name            | STRING     | field name                                                                  |
-	 * | type            | STRING     | field type expressed as a String                                            |
-	 * | null            | BOOLEAN    | field nullability: true if it's nullable, else false                        |
-	 * | key             | BOOLEAN    | key constraint: 'PRI' for primary keys, 'UNQ' for unique keys, else null    |
-	 * | computed column | STRING     | computed column: string expression if a field is computed column, else null |
-	 * | watermark       | STRING     | watermark: string expression if a field is a watermark, else null           |
-	 * +-----------------+------------+-----------------------------------------------------------------------------+
+	 * +------------------+-------------+-----------------------------------------------------------------------------+
+	 * | column name      | column type |                              comments                                       |
+	 * +------------------+-------------+-----------------------------------------------------------------------------+
+	 * | name             | STRING      | field name                                                                  |
+	 * | type             | STRING      | field type expressed as a String                                            |
+	 * | null             | BOOLEAN     | field nullability: true if a field is nullable, else false                  |
+	 * | key              | BOOLEAN     | key constraint: 'PRI' for primary keys, 'UNQ' for unique keys, else null    |
+	 * | computed column  | STRING      | computed column: string expression if a field is computed column, else null |
+	 * | watermark        | STRING      | watermark: string expression if a field is watermark, else null             |
+	 * +------------------+-------------+-----------------------------------------------------------------------------+
 	 * </pre>
 	 *
 	 * <p>The schema of INSERT: (one column per one sink)
 	 * <pre>
-	 * +----------------------------+------------+-----------------------------------+
-	 * | field name                 | field type |               comments            |
-	 * +----------------------------+------------+-----------------------------------+
-	 * | (name of the insert table) | BIGINT     | field name is the sink table name |
-	 * +----------------------------+------------+-----------------------------------+
+	 * +----------------------------+-------------+-----------------------+
+	 * | column name                | column type | comments              |
+	 * +----------------------------+-------------+-----------------------+
+	 * | (name of the insert table) | BIGINT      | the insert table name |
+	 * +----------------------------+-------------+-----------------------+
 	 * </pre>
 	 *
 	 * <p>The schema of SELECT is the selected field names and types.
@@ -93,16 +93,16 @@ public interface TableResult {
 	 *         Calling CloseableIterator#close method will cancel the job and release related resources.
 	 *     </li>
 	 *     <li>
-	 *          For INSERT operation, Flink does not support getting the affected row count now.
-	 *          So the affected row count is always -1 (unknown) for every sink, and the constant row
-	 *          will be will be returned after the insert job is submitted.
-	 *          Do nothing when calling CloseableIterator#close method (which will not cancel the job
-	 *          because the returned iterator does not bound to the job now).
-	 *          We can cancel the job through {@link #getJobClient()} if needed.
+	 *         For DML operation, Flink does not support getting the real affected row count now.
+	 *         So the affected row count is always -1 (unknown) for every sink, and them will be
+	 *         returned after the job is submitted.
+	 *         Do nothing when calling CloseableIterator#close method (which will not cancel the job
+	 *         because the returned iterator does not bound to the job now).
+	 *         We can cancel the job through {@link #getJobClient()} if needed.
 	 *     </li>
 	 *     <li>
-	 *         For other operations, no flink job will be submitted. So all result is bounded.
-	 *         Do nothing when calling CloseableIterator#close method.
+	 *         For other operations, no flink job will be submitted ({@link #getJobClient()} is always empty),
+	 *         and the result is bounded. Do nothing when calling CloseableIterator#close method.
 	 *     </li>
 	 * </ul>
 	 *
