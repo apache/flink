@@ -302,7 +302,7 @@ public class Elasticsearch extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Sets connection properties to be used to connect to es http api with basic auth verification
+	 * Sets connection properties to be used to connect to es http api with basic auth verification.
 	 *
 	 * @param userName basic auth username
 	 */
@@ -312,7 +312,7 @@ public class Elasticsearch extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Sets connection properties to be used to connect to es http api with basic auth verification
+	 * Sets connection properties to be used to connect to es http api with basic auth verification.
 	 *
 	 * @param password basic auth password
 	 */

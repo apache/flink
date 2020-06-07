@@ -35,12 +35,10 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import javax.annotation.Nullable;
@@ -172,7 +170,7 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 				Optional.ofNullable(sinkOptions.get(REST_MAX_RETRY_TIMEOUT))
 					.map(Integer::valueOf)
 					.orElse(null),
-				sinkOptions.get(REST_PATH_PREFIX),sinkOptions.get(USERNAME), sinkOptions.get(PASSWORD)));
+				sinkOptions.get(REST_PATH_PREFIX), sinkOptions.get(USERNAME), sinkOptions.get(PASSWORD)));
 
 		final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();
 
