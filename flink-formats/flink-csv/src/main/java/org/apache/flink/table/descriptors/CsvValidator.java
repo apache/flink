@@ -70,9 +70,17 @@ public class CsvValidator extends FormatDescriptorValidator {
 		final boolean isDisabledQuoteCharacter = properties
 			.getOptionalBoolean(FORMAT_DISABLE_QUOTE_CHARACTER)
 			.orElse(false);
-		if (isDisabledQuoteCharacter && hasQuoteCharacter){
+		if (isDisabledQuoteCharacter && hasQuoteCharacter) {
 			throw new ValidationException(
-				"Format cannot define a quote character and disabled quote character at the same time.");
+					"Format cannot define a quote character and disabled quote character at the same time.");
+		}
+
+		final boolean allowComments = properties.getOptionalBoolean(FORMAT_ALLOW_COMMENTS).orElse(false);
+		final boolean ignoreParseError = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
+
+		if (allowComments && !ignoreParseError) {
+			throw new ValidationException(
+					"Property " + FORMAT_IGNORE_PARSE_ERRORS + " must be set when using " + FORMAT_ALLOW_COMMENTS);
 		}
 	}
 }

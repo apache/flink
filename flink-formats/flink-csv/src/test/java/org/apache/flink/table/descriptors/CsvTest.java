@@ -62,6 +62,11 @@ public class CsvTest extends DescriptorTestBase {
 		addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
 	}
 
+	@Test(expected = ValidationException.class)
+	public void testAllowCommentsWithoutIgnoreParseErrors() {
+		addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.ignore-parse-errors", "false");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
