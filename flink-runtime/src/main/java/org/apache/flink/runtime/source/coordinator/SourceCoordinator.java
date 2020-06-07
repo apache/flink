@@ -113,6 +113,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		boolean successfullyClosed = false;
 		try {
 			if (started) {
+				context.close();
 				enumerator.close();
 			}
 		} finally {
@@ -202,10 +203,6 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 					"only be reset to a checkpoint before it starts.", operatorName));
 		}
 		LOG.info("Resetting coordinator of source {} from checkpoint.", operatorName);
-		if (started) {
-			enumerator.close();
-		}
-		LOG.info("Resetting SourceCoordinator from checkpoint.");
 		fromBytes(checkpointData);
 	}
 
