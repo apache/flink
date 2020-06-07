@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Callable;
@@ -33,8 +34,8 @@ import java.util.function.BiConsumer;
 /**
  * The provider of {@link SourceCoordinator}.
  */
-public class SourceCoordinatorProvider<SplitT extends SourceSplit>
-		implements OperatorCoordinator.Provider {
+public class SourceCoordinatorProvider<SplitT extends SourceSplit> implements OperatorCoordinator.Provider {
+	private static final long serialVersionUID = -1921681440009738462L;
 	private final String operatorName;
 	private final OperatorID operatorID;
 	private final Source<?, SplitT, ?> source;
@@ -74,8 +75,11 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
 		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
-				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, context);
-		return new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
+				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
+						context);
+		OperatorCoordinator coordinator =
+				new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
+		return new RecreateOnResetOperatorCoordinator(context, this, coordinator);
 	}
 
 	/**
