@@ -46,10 +46,10 @@ ON Orders.productId = Product.id
 
 然而，常规 Join 隐含了一个重要的前提：即它需要在 Flink 的状态中永久保存 Join 两侧的数据。因而，如果 Join 操作中的一方或双方输入表持续增长的话，资源消耗也将会随之无限增长。
 
-时间窗口 Join
+时间区间 Join
 -------------------
 
-如果一个 Join 限定输入[时间属性](time_attributes.html)必须在一定的时间限制中（即时间窗口），那么就称之为时间窗口 Join。
+如果一个 Join 限定输入[时间属性](time_attributes.html)必须在一定的时间限制中（即时间窗口），那么就称之为时间区间 Join。
 
 {% highlight sql %}
 SELECT *
@@ -60,7 +60,7 @@ WHERE o.id = s.orderId AND
       o.ordertime BETWEEN s.shiptime - INTERVAL '4' HOUR AND s.shiptime
 {% endhighlight %}
 
-与常规 Join 操作相比，时间窗口 Join 只支持带有时间属性的递增表。由于时间属性是单调递增的，Flink 可以从状态中移除过期的数据，而不会影响结果的正确性。
+与常规 Join 操作相比，时间区间 Join 只支持带有时间属性的递增表。由于时间属性是单调递增的，Flink 可以从状态中移除过期的数据，而不会影响结果的正确性。
 
 时态表函数 Join
 --------------------------
@@ -143,7 +143,7 @@ WHERE r.currency = o.currency
 
 与[常规 Join](#regular-joins)相反，时态表函数 Join 意味着如果在构建侧新增一行记录将不会影响之前的结果。这同时使得 Flink 能够限制必须保存在 state 中的元素数量（因为不再需要保存之前的状态）。
 
-与[时间窗口 Join](#time-windowed-joins) 相比，时态表 Join 没有定义限制了每次参与 Join 运算的元素的时间范围。探针侧的记录总是会和构建侧中对应特定时间属性的数据进行 Join 操作。因而在构建侧的记录可以是任意时间之前的。随着时间流动，之前产生的不再需要的记录（已给定了主键）将从 state 中移除。
+与[时间区间 Join](#time-windowed-joins) 相比，时态表 Join 没有定义限制了每次参与 Join 运算的元素的时间范围。探针侧的记录总是会和构建侧中对应特定时间属性的数据进行 Join 操作。因而在构建侧的记录可以是任意时间之前的。随着时间流动，之前产生的不再需要的记录（已给定了主键）将从 state 中移除。
 
 这种做法让时态表 Join 成为一个很好的用于表达不同流之间关联的方法。
 
@@ -287,7 +287,7 @@ FROM
 
 与[常规 Join](#regular-joins) 相比，尽管构建侧表的数据发生了变化，但时态表 Join 的变化前结果不会随之变化。而且时态表 Join 运算非常轻量级且不会保留任何状态。
 
-与[时间窗口 Join](#time-windowed-joins) 相比，时态表 Join 没有定义决定哪些记录将被 Join 的时间窗口。
+与[时间区间 Join](#time-windowed-joins) 相比，时态表 Join 没有定义决定哪些记录将被 Join 的时间窗口。
 探针侧的记录将总是与构建侧在对应 `processing time` 时间的最新数据执行 Join。因而构建侧的数据可能是任意旧的。
 
 [时态表函数 Join](#join-with-a-temporal-table-function) 和时态表 Join都有类似的功能，但是有不同的 SQL 语法和 runtime 实现：
