@@ -504,7 +504,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
 		}
 
-		final int yarnMinAllocationMB = yarnConfiguration.getInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 0);
+		final int yarnMinAllocationMB = yarnConfiguration.getInt(
+				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB);
+		if (yarnMinAllocationMB <= 0) {
+			throw new YarnDeploymentException("The minimum allocation memory "
+					+ "(" + yarnMinAllocationMB + " MB) configured via '" + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB
+					+ "' should be greater than 0.");
+		}
 
 		final ClusterSpecification validClusterSpecification;
 		try {
