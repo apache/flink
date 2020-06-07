@@ -211,9 +211,6 @@ Flink also provides built-in support for writing data into Avro files. A list of
 Avro writer factories and their associated documentation can be found in the 
 [AvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroWriters.html) class.
 
-For creating customized Avro writers like enabling compression, users need to create the `AvroWriterFactory`
-with a custom implementation of the [AvroBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroBuilder.html) interface.
-
 To use the Avro writers in your application you need to add the following dependency:
 
 {% highlight xml %}
@@ -260,6 +257,53 @@ val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
 
 input.addSink(sink)
 
+{% endhighlight %}
+</div>
+</div>
+
+For creating customized Avro writers, e.g. enabling compression, users need to create the `AvroWriterFactory`
+with a custom implementation of the [AvroBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroBuilder.html) interface:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+AvroWriterFactory<?> factory = new AvroWriterFactory<>(new AvroBuilder<Address>() {
+	@Override
+	public DataFileWriter<Address> createWriter(OutputStream out) throws IOException {
+		Schema schema = ReflectData.get().getSchema(Address.class);
+		DatumWriter<Address> datumWriter = new ReflectDatumWriter<>(schema);
+
+		DataFileWriter<Address> dataFileWriter = new DataFileWriter<>(datumWriter);
+		dataFileWriter.setCodec(CodecFactory.snappyCodec());
+		dataFileWriter.create(schema, out);
+		return dataFileWriter;
+	}
+});
+
+DataStream<Address> stream = ...
+stream.addSink(StreamingFileSink.forBulkFormat(
+	outputBasePath,
+	factory).build());
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val factory = new AvroWriterFactory[Address](new AvroBuilder[Address]() {
+    override def createWriter(out: OutputStream): DataFileWriter[Address] = {
+        val schema = ReflectData.get.getSchema(classOf[Address])
+        val datumWriter = new ReflectDatumWriter[Address](schema)
+
+        val dataFileWriter = new DataFileWriter[Address](datumWriter)
+        dataFileWriter.setCodec(CodecFactory.snappyCodec)
+        dataFileWriter.create(schema, out)
+        dataFileWriter
+    }
+})
+
+val stream: DataStream[Address] = ...
+stream.addSink(StreamingFileSink.forBulkFormat(
+    outputBasePath,
+    factory).build());
 {% endhighlight %}
 </div>
 </div>
