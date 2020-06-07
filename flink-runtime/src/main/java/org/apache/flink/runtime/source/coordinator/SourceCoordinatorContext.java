@@ -47,6 +47,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readRegisteredReaders;
@@ -77,7 +78,8 @@ import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerde
  * @param <SplitT> the type of the splits.
  */
 @Internal
-public class SourceCoordinatorContext<SplitT extends SourceSplit> implements SplitEnumeratorContext<SplitT> {
+public class SourceCoordinatorContext<SplitT extends SourceSplit>
+		implements SplitEnumeratorContext<SplitT>, AutoCloseable {
 	private final ExecutorService coordinatorExecutor;
 	private final ExecutorNotifier notifier;
 	private final OperatorCoordinator.Context operatorCoordinatorContext;
@@ -190,6 +192,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	@Override
 	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
 		notifier.notifyReadyAsync(callable, handler);
+	}
+
+	@Override
+	public void close() throws InterruptedException {
+		notifier.close();
+		coordinatorExecutor.shutdown();
+		coordinatorExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
 	}
 
 	// --------- Package private additional methods for the SourceCoordinator ------------
