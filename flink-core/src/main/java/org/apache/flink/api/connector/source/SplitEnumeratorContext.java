@@ -79,10 +79,14 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	 * the states that will be a part of the {@link SplitEnumerator#snapshotState()}. Otherwise the
 	 * there might be unexpected behavior.
 	 *
+	 * <p>If the return value is false, that means the {@link #cancelAsyncCalls()} has been called
+	 * on this context. In that case, no further async calls can be submitted.
+	 *
 	 * @param callable a callable to call.
 	 * @param handler a handler that handles the return value of or the exception thrown from the callable.
+	 * @return true if the async call has been successfully submitted, false otherwise.
 	 */
-	<T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler);
+	<T> boolean callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler);
 
 	/**
 	 * Invoke the given callable periodically and handover the return value to the handler which will
@@ -93,10 +97,21 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	 * the states that will be a part of the {@link SplitEnumerator#snapshotState()}. Otherwise the
 	 * there might be unexpected behavior.
 	 *
+	 * <p>If the return value is false, that means the {@link #cancelAsyncCalls()} has been called
+	 * on this context. In that case, no further async calls can be submitted.
+	 *
 	 * @param callable the callable to call.
 	 * @param handler a handler that handles the return value of or the exception thrown from the callable.
 	 * @param initialDelay the initial delay of calling the callable.
 	 * @param period the period between two invocations of the callable.
+	 * @return true if the async call has been successfully submitted, false otherwise.
 	 */
-	<T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period);
+	<T> boolean callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period);
+
+	/**
+	 * Cancel all the asynchronous calls. After this call returns, no further async calls can be made.
+	 * So this method is only expected to be invoked in the closing sequence to make sure no concurrent
+	 * async call will run together with the shutdown sequence.
+	 */
+	void cancelAsyncCalls() throws InterruptedException;
 }

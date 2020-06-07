@@ -116,6 +116,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				enumerator.close();
 			}
 		} finally {
+			context.cancelAsyncCalls();
 			coordinatorExecutor.shutdownNow();
 			// We do not expect this to actually block for long. At this point, there should be very few task running
 			// in the executor, if any.

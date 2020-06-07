@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -116,7 +117,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 						return new Thread(r, coordinatorThreadName + "-worker-" + index++);
 					}
 				}),
-				coordinatorExecutor);
+				coordinatorExecutor,
+				FatalExitExceptionHandler.INSTANCE);
 	}
 
 	@Override
@@ -179,17 +181,22 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	}
 
 	@Override
-	public <T> void callAsync(
+	public <T> boolean callAsync(
 			Callable<T> callable,
 			BiConsumer<T, Throwable> handler,
 			long initialDelay,
 			long period) {
-		notifier.notifyReadyAsync(callable, handler, initialDelay, period);
+		return notifier.notifyReadyAsync(callable, handler, initialDelay, period);
 	}
 
 	@Override
-	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
-		notifier.notifyReadyAsync(callable, handler);
+	public <T> boolean callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
+		return notifier.notifyReadyAsync(callable, handler);
+	}
+
+	@Override
+	public void cancelAsyncCalls() throws InterruptedException{
+		notifier.close();
 	}
 
 	// --------- Package private additional methods for the SourceCoordinator ------------
