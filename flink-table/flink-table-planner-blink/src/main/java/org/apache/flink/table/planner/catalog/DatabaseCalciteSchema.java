@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -56,9 +55,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private final String databaseName;
 	private final String catalogName;
 	private final CatalogManager catalogManager;
-	// The CatalogTableSchemaResolver is used to derive correct result type of computed column,
-	// because the date type of computed column from catalog table is not trusted.
-	private final CatalogTableSchemaResolver schemaResolver;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
@@ -66,12 +62,10 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			String databaseName,
 			String catalogName,
 			CatalogManager catalog,
-			CatalogTableSchemaResolver schemaResolver,
 			boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalogManager = catalog;
-		this.schemaResolver = schemaResolver;
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -87,7 +81,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
 					table,
 					statistic,
 					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
-					schemaResolver,
 					isStreamingMode,
 					result.isTemporary());
 			})

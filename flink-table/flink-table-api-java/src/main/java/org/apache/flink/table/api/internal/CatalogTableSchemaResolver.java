@@ -31,8 +31,6 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import java.util.Arrays;
-
 /**
  * The {@link CatalogTableSchemaResolver} is used to derive correct result type of computed column,
  * because the date type of computed column from catalog table is not trusted.
@@ -42,20 +40,21 @@ import java.util.Arrays;
  */
 @Internal
 public class CatalogTableSchemaResolver {
-	public final Parser parser;
+	private final Parser parser;
+	private final boolean isStreamingMode;
 
-	public CatalogTableSchemaResolver(Parser parser) {
+	public CatalogTableSchemaResolver(Parser parser, boolean isStreamingMode) {
 		this.parser = parser;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	/**
 	 * Resolve the computed column's type for the given schema.
 	 *
 	 * @param tableSchema Table schema to derive table field names and data types
-	 * @param isStreamingMode Flag to determine whether the schema of a stream or batch table is created
 	 * @return the resolved TableSchema
 	 */
-	public TableSchema resolve(TableSchema tableSchema, boolean isStreamingMode) {
+	public TableSchema resolve(TableSchema tableSchema) {
 		final String rowtime;
 		if (!tableSchema.getWatermarkSpecs().isEmpty()) {
 			// TODO: [FLINK-14473] we only support top-level rowtime attribute right now
@@ -69,31 +68,37 @@ public class CatalogTableSchemaResolver {
 		}
 
 		String[] fieldNames = tableSchema.getFieldNames();
-		DataType[] fieldTypes = Arrays.copyOf(tableSchema.getFieldDataTypes(), tableSchema.getFieldCount());
+		DataType[] fieldTypes = tableSchema.getFieldDataTypes();
 
+		TableSchema.Builder builder = TableSchema.builder();
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
 			TableColumn tableColumn = tableSchema.getTableColumns().get(i);
+			DataType fieldType = fieldTypes[i];
 			if (tableColumn.isGenerated() && isProctimeType(tableColumn.getExpr().get(), tableSchema)) {
 				if (fieldNames[i].equals(rowtime)) {
 					throw new TableException("proctime can't be defined on watermark spec.");
 				}
-				TimestampType originalType = (TimestampType) fieldTypes[i].getLogicalType();
+				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
 				LogicalType proctimeType = new TimestampType(
 						originalType.isNullable(),
 						TimestampKind.PROCTIME,
 						originalType.getPrecision());
-				fieldTypes[i] = TypeConversions.fromLogicalToDataType(proctimeType);
+				fieldType = TypeConversions.fromLogicalToDataType(proctimeType);
 			} else if (isStreamingMode && fieldNames[i].equals(rowtime)) {
-				TimestampType originalType = (TimestampType) fieldTypes[i].getLogicalType();
+				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
 				LogicalType rowtimeType = new TimestampType(
 						originalType.isNullable(),
 						TimestampKind.ROWTIME,
 						originalType.getPrecision());
-				fieldTypes[i] = TypeConversions.fromLogicalToDataType(rowtimeType);
+				fieldType = TypeConversions.fromLogicalToDataType(rowtimeType);
+			}
+			if (tableColumn.isGenerated()) {
+				builder.field(fieldNames[i], fieldType, tableColumn.getExpr().get());
+			} else {
+				builder.field(fieldNames[i], fieldType);
 			}
 		}
 
-		TableSchema.Builder builder = TableSchema.builder().fields(fieldNames, fieldTypes);
 		tableSchema.getWatermarkSpecs().forEach(builder::watermark);
 		tableSchema.getPrimaryKey().ifPresent(
 				pk -> builder.primaryKey(pk.getName(), pk.getColumns().toArray(new String[0])));

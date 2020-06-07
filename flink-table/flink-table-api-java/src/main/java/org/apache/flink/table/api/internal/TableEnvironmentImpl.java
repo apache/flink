@@ -199,6 +199,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			Planner planner,
 			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
+		this.catalogManager.setCatalogTableSchemaResolver(
+				new CatalogTableSchemaResolver(planner.getParser(), isStreamingMode));
 		this.moduleManager = moduleManager;
 		this.execEnv = executor;
 
@@ -491,9 +493,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
 
 		return catalogManager.getTable(tableIdentifier).map(t -> {
-			CatalogTableSchemaResolver resolver = new CatalogTableSchemaResolver(parser);
-			TableSchema newTableSchema = resolver.resolve(t.getTable().getSchema(), isStreamingMode);
-			return new CatalogQueryOperation(tableIdentifier, newTableSchema);
+			return new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema());
 		});
 	}
 

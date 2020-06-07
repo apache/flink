@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
 import org.apache.flink.table.delegation.Parser
@@ -79,8 +78,7 @@ class WatermarkGeneratorCodeGenTest {
     config,
     functionCatalog,
     catalogManager,
-    asRootSchema(new CatalogManagerCalciteSchema(
-      catalogManager, new CatalogTableSchemaResolver(parser), false)),
+    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
     Collections.singletonList(ConventionTraitDef.INSTANCE))
   val planner: FlinkPlannerImpl = plannerContext.createFlinkPlanner(
     catalogManager.getCurrentCatalog,

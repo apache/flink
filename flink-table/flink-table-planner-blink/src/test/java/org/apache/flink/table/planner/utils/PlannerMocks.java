@@ -31,7 +31,6 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
@@ -40,6 +39,7 @@ import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
  */
 public class PlannerMocks {
 	public static FlinkPlannerImpl createDefaultPlanner() {
+		final boolean isStreamingMode = false;
 		TableConfig tableConfig = new TableConfig();
 		CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 		ModuleManager moduleManager = new ModuleManager();
@@ -47,27 +47,23 @@ public class PlannerMocks {
 				tableConfig,
 				catalogManager,
 				moduleManager);
-		AtomicReference<PlannerContext> plannerCtxRef = new AtomicReference<>();
-		AtomicReference<FlinkPlannerImpl> plannerRef = new AtomicReference<>();
-		Parser parser = new ParserImpl(
-				catalogManager,
-				plannerRef::get,
-				() -> plannerRef.get().parser(),
-				() -> t -> plannerCtxRef.get().createSqlExprToRexConverter(t),
-				() -> plannerCtxRef.get().getTypeFactory()
-		);
 		PlannerContext plannerContext = new PlannerContext(
 				tableConfig,
 				functionCatalog,
 				catalogManager,
-				asRootSchema(new CatalogManagerCalciteSchema(
-						catalogManager, new CatalogTableSchemaResolver(parser), false)),
+				asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
 				new ArrayList<>());
-		plannerCtxRef.set(plannerContext);
 		FlinkPlannerImpl planner = plannerContext.createFlinkPlanner(
 				catalogManager.getCurrentCatalog(),
 				catalogManager.getCurrentDatabase());
-		plannerRef.set(planner);
+		Parser parser = new ParserImpl(
+				catalogManager,
+				() -> planner,
+				planner::parser,
+				() -> plannerContext::createSqlExprToRexConverter,
+				plannerContext::getTypeFactory
+		);
+		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, isStreamingMode));
 		return planner;
 	}
 

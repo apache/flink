@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -78,7 +77,6 @@ public class FlinkCalciteCatalogReaderTest {
 			ConnectorCatalogTable.source(new TestTableSource(true, TableSchema.builder().build()), true),
 			FlinkStatistic.UNKNOWN(),
 			null,
-			new CatalogTableSchemaResolver(null), // parser is not needed here
 			true,
 			false);
 

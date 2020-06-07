@@ -161,6 +161,36 @@ object TableSourceUtil {
   }
 
   /**
+   * Returns schema of the selected fields of the given [[TableSource]].
+   *
+   * <p> The watermark strategy specifications should either come from the [[TableSchema]]
+   * or [[TableSource]].
+   *
+   * @param typeFactory Type factory to create the type
+   * @param tableSchema Table schema to derive table field names and data types
+   * @param tableSource Table source to derive watermark strategies
+   * @param streaming Flag to determine whether the schema of a stream or batch table is created
+   * @return The row type for the selected fields of the given [[TableSource]], this type would
+   *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+   */
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      tableSchema: TableSchema,
+      tableSource: Option[TableSource[_]],
+      streaming: Boolean): RelDataType = {
+
+    val fieldNames = tableSchema.getFieldNames
+    val fieldDataTypes = tableSchema.getFieldDataTypes
+
+    if (tableSource.isDefined) {
+      getSourceRowTypeFromSource(typeFactory, tableSource.get, streaming)
+    } else {
+      val fieldTypes = fieldDataTypes.map(fromDataTypeToLogicalType)
+      typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+    }
+  }
+
+  /**
     * Returns the [[RowtimeAttributeDescriptor]] of a [[TableSource]].
     *
     * @param tableSource The [[TableSource]] for which the [[RowtimeAttributeDescriptor]] is

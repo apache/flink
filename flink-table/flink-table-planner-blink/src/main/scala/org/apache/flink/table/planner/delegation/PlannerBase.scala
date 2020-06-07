@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -115,8 +114,7 @@ abstract class PlannerBase(
       config,
       functionCatalog,
       catalogManager,
-      asRootSchema(new CatalogManagerCalciteSchema(
-        catalogManager, new CatalogTableSchemaResolver(parser), isStreamingMode)),
+      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
 

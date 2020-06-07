@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -36,6 +35,7 @@ import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
@@ -69,7 +69,6 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	private final ObjectIdentifier tableIdentifier;
 	private final CatalogBaseTable catalogBaseTable;
 	private final FlinkStatistic statistic;
-	private final CatalogTableSchemaResolver schemaResolver;
 	private final boolean isStreamingMode;
 	private final boolean isTemporary;
 	private final Catalog catalog;
@@ -83,9 +82,6 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	 * @param catalogBaseTable CatalogBaseTable instance which exists in the catalog
 	 * @param statistic Table statistics
 	 * @param catalog The catalog which the schema table belongs to
-	 * @param schemaResolver The CatalogTableSchemaResolver is used to derive correct result
-	 *                       type of computed column, because the date type of computed column
-	 *                       from catalog table is not trusted.
 	 * @param isStreaming If the table is for streaming mode
 	 * @param isTemporary If the table is temporary
 	 */
@@ -94,14 +90,12 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 			CatalogBaseTable catalogBaseTable,
 			FlinkStatistic statistic,
 			Catalog catalog,
-			CatalogTableSchemaResolver schemaResolver,
 			boolean isStreaming,
 			boolean isTemporary) {
 		this.tableIdentifier = tableIdentifier;
 		this.catalogBaseTable = catalogBaseTable;
 		this.statistic = statistic;
 		this.catalog = catalog;
-		this.schemaResolver = schemaResolver;
 		this.isStreamingMode = isStreaming;
 		this.isTemporary = isTemporary;
 	}
@@ -185,8 +179,11 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 			}
 		}
 
-		TableSchema newTableSchema = schemaResolver.resolve(tableSchema, isStreamingMode);
-		return flinkTypeFactory.buildRelNodeRowType(newTableSchema);
+		return TableSourceUtil.getSourceRowType(
+				flinkTypeFactory,
+				tableSchema,
+				scala.Option.empty(),
+				isStreamingMode);
 	}
 
 	@Override

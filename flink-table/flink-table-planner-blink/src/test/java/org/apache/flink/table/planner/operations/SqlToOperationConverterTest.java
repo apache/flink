@@ -103,6 +103,7 @@ import static org.junit.Assert.assertThat;
  * Test cases for {@link SqlToOperationConverter}.
  */
 public class SqlToOperationConverterTest {
+	private final boolean isStreamingMode = false;
 	private final TableConfig tableConfig = new TableConfig();
 	private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog",
 		"default");
@@ -128,8 +129,7 @@ public class SqlToOperationConverterTest {
 		new PlannerContext(tableConfig,
 			functionCatalog,
 			catalogManager,
-			asRootSchema(new CatalogManagerCalciteSchema(
-				catalogManager, new CatalogTableSchemaResolver(parser), false)),
+			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
 			new ArrayList<>());
 
 	private PlannerContext getPlannerContext() {
@@ -141,6 +141,7 @@ public class SqlToOperationConverterTest {
 
 	@Before
 	public void before() throws TableAlreadyExistException, DatabaseNotExistException {
+		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, isStreamingMode));
 		final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
 		final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
 		final TableSchema tableSchema = TableSchema.builder()
