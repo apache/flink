@@ -22,11 +22,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Join 在批数据处理中是比较常见且广为人知的运算，一般用于连接两张关系表。然而在[动态表](dynamic_tables.html)中 Join 的语义会更难以理解甚至让人困惑。
+Join 在批数据处理中是比较常见且广为人知的运算，一般用于连接两张关系表。然而在[动态表](dynamic_tables.html)中 Join 的语义会难以理解甚至让人困惑。
 
 因而，Flink 提供了几种基于 Table API 和 SQL 的 Join 方法。
 
-欲获取更多关于 Join 语法的细节，请参考 [Table API](../tableApi.html#joins) 和 [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins) 中的 Join 章节。
+欲获取更多关于 Join 语法的细节，请参考 [Table API](../tableApi.html#joins) 和 [SQL]({{ site.baseurl }}/zh/dev/table/sql/queries.html#joins) 中的 Join 章节。
 
 * This will be replaced by the TOC
 {:toc}
@@ -34,7 +34,7 @@ Join 在批数据处理中是比较常见且广为人知的运算，一般用于
 常规 Join
 -------------
 
-常规 Join 是最常用的 Join 用法。在常规 Join 中，任何新记录或对 Join 两侧的表的任何更改都是可见的，并会影响最终整个 Join 的结果。例如，如果 Join 左侧插入了一条新的记录，那么它将会与 Join 右侧过去与将来的所有记录一起合并查询。
+常规 Join 是最常用的 Join 用法。在常规 Join 中，任何新记录或对 Join 两侧的表的任何更改都是可见的，并会影响最终整个 Join 的结果。例如，如果 Join 左侧插入了一条新的记录，那么它将会与 Join 右侧过去与将来的所有记录进行 Join 运算。
 
 {% highlight sql %}
 SELECT * FROM Orders
@@ -44,8 +44,7 @@ ON Orders.productId = Product.id
 
 上述语意允许对输入表进行任意类型的更新操作（insert, update, delete）。
 
-然而，常规 Join 隐含了一个重要的前提：即它需要在 Flink 的状态中永久保存 Join 两侧的数据。
-因而，如果 Join 操作中的一方或双方输入表持续增长的话，资源消耗也将会随之无限增长。
+然而，常规 Join 隐含了一个重要的前提：即它需要在 Flink 的状态中永久保存 Join 两侧的数据。因而，如果 Join 操作中的一方或双方输入表持续增长的话，资源消耗也将会随之无限增长。
 
 时间窗口 Join
 -------------------
@@ -63,10 +62,10 @@ WHERE o.id = s.orderId AND
 
 与常规 Join 操作相比，时间窗口 Join 只支持带有时间属性的递增表。由于时间属性是单调递增的，Flink 可以从状态中移除过期的数据，而不会影响结果的正确性。
 
-临时表函数 Join
+时态表函数 Join
 --------------------------
 
-临时表函数 Join 连接了一个递增表（左输入/探针侧）和一个临时表（右输入/构建侧），即一个随时间变化且不断追踪其改动的表。请参考[临时表](temporal_tables.html)的相关章节查看更多细节。
+时态表函数 Join 连接了一个递增表（左输入/探针侧）和一个时态表（右输入/构建侧），即一个随时间变化且不断追踪其改动的表。请参考[时态表](temporal_tables.html)的相关章节查看更多细节。
 
 下方示例展示了一个递增表 `Orders` 与一个不断改变的汇率表 `RatesHistory` 的 Join 操作。
 
@@ -111,7 +110,7 @@ rowtime amount currency
 10:15        2 Euro
 {% endhighlight %}
 
-如果没有[临时表](temporal_tables.html)概念，则需要写一段这样的查询：
+如果没有[时态表](temporal_tables.html)概念，则需要写一段这样的查询：
 
 {% highlight sql %}
 SELECT
@@ -126,7 +125,7 @@ AND r.rowtime = (
   AND r2.rowtime <= o.rowtime);
 {% endhighlight %}
 
-有了临时表函数 `Rates` 和 `RatesHistory` 的帮助，我们可以将上述查询写成：
+有了时态表函数 `Rates` 和 `RatesHistory` 的帮助，我们可以将上述查询写成：
 
 {% highlight sql %}
 SELECT
@@ -142,16 +141,16 @@ WHERE r.currency = o.currency
 
 在示例中，`Orders` 表中的每一条记录都与时间点 `o.rowtime` 的 `Rates` 进行 Join 运算。`currency` 字段已被定义为 `Rates` 表的主键，在示例中该字段也被用于连接两个表。如果该查询采用的是 processing-time，则在执行时新增的订单将始终与最新的 `Rates` 执行 Join。
 
-与[常规 Join](#regular-joins)相反，临时表函数 Join 意味着如果在构建侧新增一行记录将不会影响之前的结果。这同时使得 Flink 能够限制必须保存在 state 中的元素数量（因为不再需要保存之前的状态）。
+与[常规 Join](#regular-joins)相反，时态表函数 Join 意味着如果在构建侧新增一行记录将不会影响之前的结果。这同时使得 Flink 能够限制必须保存在 state 中的元素数量（因为不再需要保存之前的状态）。
 
-与[时间窗口 Join](#time-windowed-joins) 相比，临时表 Join 没有定义限制了每次参与 Join 运算的元素的时间范围。探针侧的记录总是会和构建侧中对应特定时间属性的数据进行 Join 操作。因而在构建侧的记录可以是任意时间之前的。随着时间流动，之前产生的不再需要的记录（已给定了主键）将从 state 中移除。
+与[时间窗口 Join](#time-windowed-joins) 相比，时态表 Join 没有定义限制了每次参与 Join 运算的元素的时间范围。探针侧的记录总是会和构建侧中对应特定时间属性的数据进行 Join 操作。因而在构建侧的记录可以是任意时间之前的。随着时间流动，之前产生的不再需要的记录（已给定了主键）将从 state 中移除。
 
-这种做法让临时表 Join 成为一个很好的用于表达不同流之间关联的方法。
+这种做法让时态表 Join 成为一个很好的用于表达不同流之间关联的方法。
 
 ### 用法
 
-在 [定义临时表函数](temporal_tables.html#defining-temporal-table-function) 之后就可以使用了。
-临时表函数可以和普通表函数一样使用。
+在 [定义时态表函数](temporal_tables.html#defining-temporal-table-function) 之后就可以使用了。
+时态表函数可以和普通表函数一样使用。
 
 接下来这段代码解决了我们一开始提出的问题，即从计算 `Orders` 表中交易量之和并转换为对应货币：
 
@@ -183,38 +182,37 @@ val result = orders
 </div>
 </div>
 
-**注意**: 临时 Join中的 State 保留（在 [查询配置](query_configuration.html) 中定义）还未实现。这意味着计算的查询结果所需的状态可能会无限增长，具体数量取决于历史记录表的不重复主键个数。
+**注意**: 时态 Join中的 State 保留（在 [查询配置](query_configuration.html) 中定义）还未实现。这意味着计算的查询结果所需的状态可能会无限增长，具体数量取决于历史记录表的不重复主键个数。
 
-### 基于 Processing-time 临时 Join
+### 基于 Processing-time 时态 Join
 
-如果将 processing-time 作为时间属性，将无法将 _past_ 时间属性作为参数传递给临时表函数。
-根据定义，processing-time 总会是当前时间戳。因此，基于 processing-time 的临时表函数将始终返回基础表的最新已知版本，时态表函数的调用将始终返回基础表的最新已知版本，并且基础历史表中的任何更新也将立即覆盖当前值。
+如果将 processing-time 作为时间属性，将无法将 _past_ 时间属性作为参数传递给时态表函数。
+根据定义，processing-time 总会是当前时间戳。因此，基于 processing-time 的时态表函数将始终返回基础表的最新已知版本，时态表函数的调用将始终返回基础表的最新已知版本，并且基础历史表中的任何更新也将立即覆盖当前值。
 
 只有最新版本的构建侧记录（是否最新由所定义的主键所决定）会被保存在 state 中。
 构建侧的更新不会对之前 Join 的结果产生影响。
 
-可以将 processing-time 的临时 Join 视作简单的哈希Map `HashMap <K，V>`，HashMap 中存储来自构建侧的所有记录。
-当来自构建侧的新插入的记录与旧值具有相同的 Key 时，旧值仅会被覆盖。
+可以将 processing-time 的时态 Join 视作简单的哈希Map `HashMap <K，V>`，HashMap 中存储来自构建侧的所有记录。
+当来自构建侧的新插入的记录与旧值具有相同的 Key 时，旧值会被覆盖。
 探针侧的每条记录将总会根据 `HashMap` 的最新/当前状态来计算。
 
-### 基于 Event-time 临时 Join
+### 基于 Event-time 时态 Join
 
-将 event-time 作为时间属性时，可将 _past_ 时间属性作为参数传递给临时表函数。
-这允许对两个表中在相同时间点的记录执行 Join 操作。
+将 event-time 作为时间属性时，可将 _past_ 时间属性作为参数传递给时态表函数。这允许对两个表中在相同时间点的记录执行 Join 操作。
 
-与基于 processing-time 的临时 Join 相比，临时表不仅将构建侧记录的最新版本（是否最新由所定义的主键所决定）保存在 state 中，同时也会存储自上一个水印以来的所有版本（按时间区分）。
+与基于 processing-time 的时态 Join 相比，时态表不仅将构建侧记录的最新版本（是否最新由所定义的主键所决定）保存在 state 中，同时也会存储自上一个 watermarks 以来的所有版本（按时间区分）。
 
-例如，在探针侧表新插入一条 event-time 时间为 `12:30:00` 的记录，它将和构建侧表时间点为 `12:30:00` 的版本根据[临时表的概念](temporal_tables.html)进行 Join 运算。
+例如，在探针侧表新插入一条 event-time 时间为 `12:30:00` 的记录，它将和构建侧表时间点为 `12:30:00` 的版本根据[时态表的概念](temporal_tables.html)进行 Join 运算。
 因此，新插入的记录仅与时间戳小于等于 `12:30:00` 的记录进行 Join 计算（由主键决定哪些时间点的数据将参与计算）。
 
-通过定义事件时间（event time），[watermarks]({{ site.baseurl }}/dev/event_time.html) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
+通过定义事件时间（event time），[watermarks]({{ site.baseurl }}/zh/dev/event_time.html) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
 
-临时表 Join
+时态表 Join
 --------------------------
 
-临时表 Join 意味着对任意表（左输入/探针侧）和一个临时表（右输入/构建侧）执行的 Join 操作，即随时间变化的的扩展表。请参考相应的页面以获取更多有关[临时表](temporal_tables.html#temporal-table)的信息。
+时态表 Join 意味着对任意表（左输入/探针侧）和一个时态表（右输入/构建侧）执行的 Join 操作，即随时间变化的的扩展表。请参考相应的页面以获取更多有关[时态表](temporal_tables.html#temporal-table)的信息。
 
-<span class="label label-danger">注意</span> 不是任何表都能用作临时表，用户必须使用来自接口 `LookupableTableSource` 的表。接口 `LookupableTableSource` 的实例只能作为临时表用于临时 Join 。查看此页面获取更多关于[如何实现接口 `LookupableTableSource`](../sourceSinks.html#defining-a-tablesource-with-lookupable) 的详细内容。
+<span class="label label-danger">注意</span> 不是任何表都能用作时态表，能作为时态表的表必须实现接口 `LookupableTableSource`。接口 `LookupableTableSource` 的实例只能作为时态表用于时态 Join 。查看此页面获取更多关于[如何实现接口 `LookupableTableSource`](../sourceSinks.html#defining-a-tablesource-with-lookupable) 的详细内容。
 
 接下来的示例展示了订单流 `Orders` 该如何与实时变化的汇率表 `Lates` 进行 Join 操作。
 
@@ -274,7 +272,7 @@ amount currency     rate   amout*rate
 {% endhighlight %}
 
 
-通过临时表 Join，我们可以将上述操作表示为以下 SQL 查询：
+通过时态表 Join，我们可以将上述操作表示为以下 SQL 查询：
 
 {% highlight sql %}
 SELECT
@@ -287,24 +285,24 @@ FROM
 
 探针侧表中的每个记录都将与构建侧表的当前版本所关联。 在此示例中，查询使用 `processing-time` 作为处理时间，因而新增订单将始终与表 `LatestRates` 的最新汇率执行 Join 操作。 注意，结果对于处理时间来说不是确定的。
 
-与[常规 Join](#regular-joins) 相比，尽管构建侧表的数据发生了变化，但临时表 Join 的变化前结果不会随之变化。而且临时表 Join 运算非常轻量级且不会保留任何状态。
+与[常规 Join](#regular-joins) 相比，尽管构建侧表的数据发生了变化，但时态表 Join 的变化前结果不会随之变化。而且时态表 Join 运算非常轻量级且不会保留任何状态。
 
-与[时间窗口 Join](#time-windowed-joins) 相比，临时表 Join 没有定义决定哪些记录将被 Join 的时间窗口。
+与[时间窗口 Join](#time-windowed-joins) 相比，时态表 Join 没有定义决定哪些记录将被 Join 的时间窗口。
 探针侧的记录将总是与构建侧在对应 `processing time` 时间的最新数据执行 Join。因而构建侧的数据可能是任意旧的。
 
-[临时表函数 Join](#join-with-a-temporal-table-function) 和临时表 Join都有类似的功能，但是有不同的 SQL 语法和 runtime 实现：
+[时态表函数 Join](#join-with-a-temporal-table-function) 和时态表 Join都有类似的功能，但是有不同的 SQL 语法和 runtime 实现：
 
-* 临时表函数 Join 的 SQL 语法是一种 Join 用户定义生成表函数(UDTF，User-Defined Table-Generating Functions)，而临时表 Join 使用了 SQL:2011 标准引入的标准临时表语法。
-* 临时表函数 Join 的实现实际上是 Join 两个流并保存在 state 中，而临时表 Join 只接受唯一的输入流，并根据记录的键值查找外部数据库。
-* 临时表函数 Join 通常用于与变更日志流执行 Join，而临时表 Join 通常与外部表（例如维度表）执行 Join 操作。
+* 时态表函数 Join 的 SQL 语法是一种 Join 用户定义生成表函数(UDTF，User-Defined Table-Generating Functions)，而时态表 Join 使用了 SQL:2011 标准引入的标准时态表语法。
+* 时态表函数 Join 的实现实际上是 Join 两个流并保存在 state 中，而时态表 Join 只接受唯一的输入流，并根据记录的键值查找外部数据库。
+* 时态表函数 Join 通常用于与变更日志流执行 Join，而时态表 Join 通常与外部表（例如维度表）执行 Join 操作。
 
-这种做法让临时表 Join 成为一个很好的用于表达不同流之间关联的方法。
+这种做法让时态表 Join 成为一个很好的用于表达不同流之间关联的方法。
 
-将来，临时表 Join 将支持临时表函数 Join 的功能，即支持临时 Join 变更日志流。
+将来，时态表 Join 将支持时态表函数 Join 的功能，即支持时态 Join 变更日志流。
 
 ### 用法
 
-临时表 Join 的语法如下:
+时态表 Join 的语法如下:
 
 {% highlight sql %}
 SELECT [column_list]
@@ -313,10 +311,10 @@ FROM table1 [AS <alias1>]
 ON table1.column-name1 = table2.column-name1
 {% endhighlight %}
 
-目前只支持 INNER JOIN 和 LEFT JOIN，`FOR SYSTEM_TIME AS OF table1.proctime` 应位于临时表之后. `proctime` 是 `table1` 的 [processing time 属性](time_attributes.html#processing-time).
-这意味着在 Join 计算中连接左侧表中的每个记录时会为临时表产生快照。
+目前只支持 INNER JOIN 和 LEFT JOIN，`FOR SYSTEM_TIME AS OF table1.proctime` 应位于时态表之后. `proctime` 是 `table1` 的 [processing time 属性](time_attributes.html#processing-time)。
+这意味着在 Join 计算中连接左侧表中的每个记录时会为时态表产生快照。
 
-例如在[定义临时表](temporal_tables.html#defining-temporal-table)之后，我们可以用以下方式使用：
+例如在[定义时态表](temporal_tables.html#defining-temporal-table)之后，我们可以用以下方式使用：
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -335,6 +333,6 @@ FROM
 
 <span class="label label-danger">注意</span> 只在 SQL 中支持，Table API 暂不支持。
 
-<span class="label label-danger">注意</span> Flink 目前不支持 event time 临时表的 Join 。
+<span class="label label-danger">注意</span> Flink 目前不支持 event time 时态表的 Join 。
 
 {% top %}
