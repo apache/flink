@@ -187,6 +187,7 @@ public class Buckets<IN, BucketID> {
 
 	private void updateActiveBucketId(final BucketID bucketId, final Bucket<IN, BucketID> restoredBucket) throws IOException {
 		if (!restoredBucket.isActive()) {
+			notifyBucketInactive(restoredBucket);
 			return;
 		}
 
@@ -212,10 +213,7 @@ public class Buckets<IN, BucketID> {
 				// We've dealt with all the pending files and the writer for this bucket is not currently open.
 				// Therefore this bucket is currently inactive and we can remove it from our state.
 				activeBucketIt.remove();
-
-				if (bucketLifeCycleListener != null) {
-					bucketLifeCycleListener.bucketInactive(bucket);
-				}
+				notifyBucketInactive(bucket);
 			}
 		}
 	}
@@ -304,10 +302,7 @@ public class Buckets<IN, BucketID> {
 					rollingPolicy,
 					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
-
-			if (bucketLifeCycleListener != null) {
-				bucketLifeCycleListener.bucketCreated(bucket);
-			}
+			notifyBucketCreate(bucket);
 		}
 		return bucket;
 	}
@@ -330,6 +325,18 @@ public class Buckets<IN, BucketID> {
 			return basePath;
 		}
 		return new Path(basePath, child);
+	}
+
+	private void notifyBucketCreate(Bucket<IN, BucketID> bucket) {
+		if (bucketLifeCycleListener != null) {
+			bucketLifeCycleListener.bucketCreated(bucket);
+		}
+	}
+
+	private void notifyBucketInactive(Bucket<IN, BucketID> bucket) {
+		if (bucketLifeCycleListener != null) {
+			bucketLifeCycleListener.bucketInactive(bucket);
+		}
 	}
 
 	/**
