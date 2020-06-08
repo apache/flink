@@ -182,13 +182,11 @@ public class HiveStatsUtil {
 			// for now, just return CatalogColumnStatisticsDataDouble for decimal columns
 			Double max = null;
 			if (decimalStats.isSetHighValue()) {
-				Decimal highVal = decimalStats.getHighValue();
-				max = HiveDecimal.create(new BigInteger(highVal.getUnscaled()), highVal.getScale()).doubleValue();
+				max = toHiveDecimal(decimalStats.getHighValue()).doubleValue();
 			}
 			Double min = null;
 			if (decimalStats.isSetLowValue()) {
-				Decimal lowVal = decimalStats.getLowValue();
-				min = HiveDecimal.create(new BigInteger(lowVal.getUnscaled()), lowVal.getScale()).doubleValue();
+				min = toHiveDecimal(decimalStats.getLowValue()).doubleValue();
 			}
 			Long ndv = decimalStats.isSetNumDVs() ? decimalStats.getNumDVs() : null;
 			Long nullCount = decimalStats.isSetNumNulls() ? decimalStats.getNumNulls() : null;
@@ -340,6 +338,10 @@ public class HiveStatsUtil {
 		res.setUnscaled(ByteBuffer.wrap(hiveDecimal.unscaledValue().toByteArray()));
 		res.setScale((short) hiveDecimal.scale());
 		return res;
+	}
+
+	private static HiveDecimal toHiveDecimal(Decimal decimal) {
+		return HiveDecimal.create(new BigInteger(decimal.getUnscaled()), decimal.getScale());
 	}
 
 	public static int parsePositiveIntStat(Map<String, String> parameters, String key) {
