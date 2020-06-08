@@ -2,7 +2,7 @@
 title: "Table API"
 nav-id: tableapiwalkthrough
 nav-title: 'Table API'
-nav-parent_id: walkthroughs
+nav-parent_id: try-flink
 nav-pos: 2
 ---
 <!--
