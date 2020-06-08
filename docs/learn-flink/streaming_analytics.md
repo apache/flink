@@ -3,7 +3,7 @@ title: Streaming Analytics
 nav-id: analytics
 nav-pos: 4
 nav-title: Streaming Analytics
-nav-parent_id: training
+nav-parent_id: learn-flink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -60,7 +60,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 If you want to use event time, you will also need to supply a Timestamp Extractor and Watermark
 Generator that Flink will use to track the progress of event time. This will be covered in the
 section below on [Working with Watermarks]({% link
-training/streaming_analytics.md %}#working-with-watermarks), but first we should explain what
+learn-flink/streaming_analytics.md %}#working-with-watermarks), but first we should explain what
 watermarks are.
 
 ### Watermarks
@@ -253,7 +253,7 @@ that behavior yourself with a custom Trigger.
 A global window assigner assigns every event (with the same key) to the same global window. This is
 only useful if you are going to do your own custom windowing, with a custom Trigger. In many cases
 where this might seem useful you will be better off using a `ProcessFunction` as described
-[in another section]({% link training/event_driven.md %}#process-functions).
+[in another section]({% link learn-flink/event_driven.md %}#process-functions).
 
 ### Window Functions
 
@@ -365,7 +365,7 @@ the window API that give you more control over this.
 
 You can arrange for the events that would be dropped to be collected to an alternate output stream
 instead, using a mechanism called
-[Side Outputs]({% link training/event_driven.md %}#side-outputs).
+[Side Outputs]({% link learn-flink/event_driven.md %}#side-outputs).
 Here is an example of what that might look like:
 
 {% highlight java %}
