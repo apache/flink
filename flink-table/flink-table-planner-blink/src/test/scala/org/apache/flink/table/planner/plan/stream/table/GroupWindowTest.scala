@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.plan.stream.table
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class GroupWindowTest extends TableTestBase {
 

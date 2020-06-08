@@ -22,14 +22,12 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -47,9 +45,10 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private InternalServiceDecorator internalServiceDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
+
 		this.internalServiceDecorator = new InternalServiceDecorator(this.kubernetesJobManagerParameters);
 	}
 
@@ -59,14 +58,14 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 		assertEquals(1, resources.size());
 
 		assertEquals(
-			KubernetesUtils.getInternalServiceName(CLUSTER_ID) + "." + NAMESPACE,
+			InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE),
 			this.flinkConfig.getString(JobManagerOptions.ADDRESS));
 
 		final Service internalService = (Service) resources.get(0);
 
 		assertEquals(Constants.API_VERSION, internalService.getApiVersion());
 
-		assertEquals(KubernetesUtils.getInternalServiceName(CLUSTER_ID), internalService.getMetadata().getName());
+		assertEquals(InternalServiceDecorator.getInternalServiceName(CLUSTER_ID), internalService.getMetadata().getName());
 
 		final Map<String, String> expectedLabels = getCommonLabels();
 		assertEquals(expectedLabels, internalService.getMetadata().getLabels());

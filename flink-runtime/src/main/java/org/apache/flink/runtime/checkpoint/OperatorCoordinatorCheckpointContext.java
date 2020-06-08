@@ -18,59 +18,24 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 
-import java.util.Collection;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * An {@link OperatorCoordinator} and its contextual information needed to trigger and
- * acknowledge a checkpoint.
+ * This context is the interface through which the {@link CheckpointCoordinator} interacts with an
+ * {@link OperatorCoordinator} during checkpointing and checkpoint restoring.
  */
-public final class OperatorCoordinatorCheckpointContext {
+public interface OperatorCoordinatorCheckpointContext extends OperatorInfo {
 
-	private final OperatorCoordinator coordinator;
+	void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception;
 
-	private final OperatorID operatorId;
+	void afterSourceBarrierInjection(long checkpointId);
 
-	private final int maxParallelism;
+	void abortCurrentTriggering();
 
-	private final int currentParallelism;
+	void checkpointComplete(long checkpointId);
 
-	public OperatorCoordinatorCheckpointContext(
-			OperatorCoordinator coordinator,
-			OperatorID operatorId,
-			int maxParallelism,
-			int currentParallelism) {
-
-		this.coordinator = checkNotNull(coordinator);
-		this.operatorId = checkNotNull(operatorId);
-		this.maxParallelism = maxParallelism;
-		this.currentParallelism = currentParallelism;
-	}
-
-	public OperatorCoordinator coordinator() {
-		return coordinator;
-	}
-
-	public OperatorID operatorId() {
-		return operatorId;
-	}
-
-	public int maxParallelism() {
-		return maxParallelism;
-	}
-
-	public int currentParallelism() {
-		return currentParallelism;
-	}
-
-	public static Collection<OperatorID> getIds(Collection<OperatorCoordinatorCheckpointContext> infos) {
-		return infos.stream()
-			.map(OperatorCoordinatorCheckpointContext::operatorId)
-			.collect(Collectors.toList());
-	}
+	void resetToCheckpoint(byte[] checkpointData) throws Exception;
 }

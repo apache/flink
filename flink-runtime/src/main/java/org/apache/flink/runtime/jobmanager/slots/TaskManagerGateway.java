@@ -120,6 +120,20 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
 		long timestamp);
 
 	/**
+	 * Notify the given task about a aborted checkpoint.
+	 *
+	 * @param executionAttemptID identifying the task
+	 * @param jobId identifying the job to which the task belongs
+	 * @param checkpointId of the subsumed checkpoint
+	 * @param timestamp of the subsumed checkpoint
+	 */
+	void notifyCheckpointAborted(
+		ExecutionAttemptID executionAttemptID,
+		JobID jobId,
+		long checkpointId,
+		long timestamp);
+
+	/**
 	 * Trigger for the given task a checkpoint.
 	 *
 	 * @param executionAttemptID identifying the task

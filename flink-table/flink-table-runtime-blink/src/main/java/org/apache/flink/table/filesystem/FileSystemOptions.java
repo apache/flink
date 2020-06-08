@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 
 import java.time.Duration;
 
@@ -29,11 +30,43 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 public class FileSystemOptions {
 
+	public static final ConfigOption<String> PATH = key("path")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The path of a directory");
+
+	public static final ConfigOption<String> PARTITION_DEFAULT_NAME = key("partition.default-name")
+			.stringType()
+			.defaultValue("__DEFAULT_PARTITION__")
+			.withDescription("The default partition name in case the dynamic partition" +
+					" column value is null/empty string");
+
+	public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
+			.memoryType()
+			.defaultValue(MemorySize.ofMebiBytes(128))
+			.withDescription("The maximum part file size before rolling (by default 128MB).");
+
+	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time-interval")
+			.durationType()
+			.defaultValue(Duration.ofMinutes(30))
+			.withDescription("The maximum time duration a part file can stay open before rolling" +
+					" (by default 30 min to avoid to many small files).");
+
+	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription("The option to enable shuffle data by dynamic partition fields in sink" +
+					" phase, this can greatly reduce the number of file for filesystem sink but may" +
+					" lead data skew, the default value is disabled.");
+
 	public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
 			key("streaming-source.enable")
 					.booleanType()
 					.defaultValue(false)
-					.withDescription("Enable streaming source or not.");
+					.withDescription("Enable streaming source or not.\n" +
+							"NOTES: For non-partition table, please make sure that " +
+							"each file should be put atomically into the target directory, " +
+							"otherwise the reader may get incomplete data.");
 
 	public static final ConfigOption<Duration> STREAMING_SOURCE_MONITOR_INTERVAL =
 			key("streaming-source.monitor-interval")
@@ -50,7 +83,8 @@ public class FileSystemOptions {
 							" create-time compare partition/file creation time, this is not the" +
 							" partition create time in Hive metaStore, but the folder/file create" +
 							" time in filesystem;" +
-							" partition-time compare time represented by partition name.");
+							" partition-time compare time represented by partition name.\n" +
+							"For non-partition table, this value should always be 'create-time'.");
 
 	public static final ConfigOption<String> STREAMING_SOURCE_CONSUME_START_OFFSET =
 			key("streaming-source.consume-start-offset")
@@ -88,4 +122,59 @@ public class FileSystemOptions {
 							" If timestamp in partition is year, month, day, hour," +
 							" can configure: '$year-$month-$day $hour:00:00'." +
 							" If timestamp in partition is dt and hour, can configure: '$dt $hour:00:00'.");
+
+	public static final ConfigOption<Duration> LOOKUP_JOIN_CACHE_TTL =
+			key("lookup.join.cache.ttl")
+					.durationType()
+					.defaultValue(Duration.ofMinutes(60))
+					.withDescription("The cache TTL (e.g. 10min) for the build table in lookup join. " +
+							"By default the TTL is 60 minutes.");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_TRIGGER =
+			key("sink.partition-commit.trigger")
+					.stringType()
+					.defaultValue("process-time")
+					.withDescription("Trigger type for partition commit:\n" +
+							" 'process-time': based on the time of the machine, it neither requires" +
+							" partition time extraction nor watermark generation. Commit partition" +
+							" once the 'current system time' passes 'partition creation system time' plus 'delay'.\n" +
+							" 'partition-time': based on the time that extracted from partition values," +
+							" it requires watermark generation. Commit partition once the 'watermark'" +
+							" passes 'time extracted from partition values' plus 'delay'.");
+
+	public static final ConfigOption<Duration> SINK_PARTITION_COMMIT_DELAY =
+			key("sink.partition-commit.delay")
+					.durationType()
+					.defaultValue(Duration.ofMillis(0))
+					.withDescription("The partition will not commit until the delay time." +
+							" if it is a day partition, should be '1 d'," +
+							" if it is a hour partition, should be '1 h'");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_KIND =
+			key("sink.partition-commit.policy.kind")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("Policy to commit a partition is to notify the downstream" +
+							" application that the partition has finished writing, the partition" +
+							" is ready to be read." +
+							" metastore: add partition to metastore. Only hive table supports metastore" +
+							" policy, file system manages partitions through directory structure." +
+							" success-file: add '_success' file to directory." +
+							" Both can be configured at the same time: 'metastore,success-file'." +
+							" custom: use policy class to create a commit policy." +
+							" Support to configure multiple policies: 'metastore,success-file'.");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_CLASS =
+			key("sink.partition-commit.policy.class")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("The partition commit policy class for implement" +
+							" PartitionCommitPolicy interface. Only work in custom commit policy");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
+			key("sink.partition-commit.success-file.name")
+					.stringType()
+					.defaultValue("_SUCCESS")
+					.withDescription("The file name for success-file partition commit policy," +
+							" default is '_SUCCESS'.");
 }

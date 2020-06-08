@@ -47,7 +47,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
-
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 

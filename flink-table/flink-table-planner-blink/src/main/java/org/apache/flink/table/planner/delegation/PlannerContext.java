@@ -120,7 +120,7 @@ public class PlannerContext {
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
 	}
 
-	private SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {
+	public SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {
 		return new SqlExprToRexConverterImpl(
 				checkNotNull(frameworkConfig),
 				checkNotNull(typeFactory),

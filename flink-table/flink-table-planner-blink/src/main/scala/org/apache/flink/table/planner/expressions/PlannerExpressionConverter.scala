@@ -42,13 +42,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       definition, call.getChildren.asScala,
       () =>
         definition match {
-          case ROW | ARRAY | MAP => ApiResolvedCallExpression(call)
+          case ROW | ARRAY | MAP => ApiResolvedExpression(call.getOutputDataType)
           case _ =>
             if (definition.getKind == FunctionKind.AGGREGATE ||
               definition.getKind == FunctionKind.TABLE_AGGREGATE) {
               ApiResolvedAggregateCallExpression(call)
             } else {
-              ApiResolvedCallExpression(call)
+              ApiResolvedExpression(call.getOutputDataType)
             }
         })
   }
@@ -69,12 +69,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
     // special case: requires individual handling of child expressions
     func match {
-      case CAST =>
-        assert(children.size == 2)
-        return Cast(
-          children.head.accept(this),
-          fromDataTypeToTypeInfo(
-            children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
 
       case REINTERPRET_CAST =>
         assert(children.size == 3)
@@ -149,14 +143,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case fd: FunctionDefinition =>
         fd match {
 
-          case AS =>
-            assert(args.size >= 2)
-            val name = getValue[String](args(1))
-            val extraNames = args
-              .drop(2)
-              .map(e => getValue[String](e))
-            Alias(args.head, name, extraNames)
-
           case FLATTEN =>
             assert(args.size == 1)
             Flattening(args.head)
@@ -168,81 +154,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             expr.validateInput()
             expr
 
-          case AND =>
-            assert(args.size >= 2)
-            args.reduceLeft(And)
-
-          case OR =>
-            assert(args.size >= 2)
-            args.reduceLeft(Or)
-
-          case NOT =>
-            assert(args.size == 1)
-            Not(args.head)
-
-          case EQUALS =>
-            assert(args.size == 2)
-            EqualTo(args.head, args.last)
-
-          case GREATER_THAN =>
-            assert(args.size == 2)
-            GreaterThan(args.head, args.last)
-
-          case GREATER_THAN_OR_EQUAL =>
-            assert(args.size == 2)
-            GreaterThanOrEqual(args.head, args.last)
-
-          case LESS_THAN =>
-            assert(args.size == 2)
-            LessThan(args.head, args.last)
-
-          case LESS_THAN_OR_EQUAL =>
-            assert(args.size == 2)
-            LessThanOrEqual(args.head, args.last)
-
-          case NOT_EQUALS =>
-            assert(args.size == 2)
-            NotEqualTo(args.head, args.last)
-
           case IN =>
             assert(args.size > 1)
             In(args.head, args.drop(1))
 
-          case IS_NULL =>
-            assert(args.size == 1)
-            IsNull(args.head)
-
-          case IS_NOT_NULL =>
-            assert(args.size == 1)
-            IsNotNull(args.head)
-
-          case IS_TRUE =>
-            assert(args.size == 1)
-            IsTrue(args.head)
-
-          case IS_FALSE =>
-            assert(args.size == 1)
-            IsFalse(args.head)
-
-          case IS_NOT_TRUE =>
-            assert(args.size == 1)
-            IsNotTrue(args.head)
-
-          case IS_NOT_FALSE =>
-            assert(args.size == 1)
-            IsNotFalse(args.head)
-
           case IF =>
             assert(args.size == 3)
             If(args.head, args(1), args.last)
-
-          case BETWEEN =>
-            assert(args.size == 3)
-            Between(args.head, args(1), args.last)
-
-          case NOT_BETWEEN =>
-            assert(args.size == 3)
-            NotBetween(args.head, args(1), args.last)
 
           case DISTINCT =>
             assert(args.size == 1)
@@ -811,7 +729,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   override def visit(typeLiteral: TypeLiteralExpression): PlannerExpression = {
-    throw new TableException("Unsupported type literal expression: " + typeLiteral)
+    ApiResolvedExpression(typeLiteral.getOutputDataType)
   }
 
   override def visit(tableRef: TableReferenceExpression): PlannerExpression = {

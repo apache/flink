@@ -131,6 +131,10 @@ public class SnapshotUtilsTest {
 		}
 
 		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
+		@Override
 		public void setCurrentKey(Object key) {
 			ACTUAL_ORDER_TRACKING.add("setCurrentKey");
 		}

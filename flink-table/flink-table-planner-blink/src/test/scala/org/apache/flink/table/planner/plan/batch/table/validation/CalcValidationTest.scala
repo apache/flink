@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Assert._
@@ -81,14 +80,6 @@ class CalcValidationTest extends TableTestBase {
     try {
       util.addTableSource[(Int, Long, String)]("Table1", '*, 'b, 'c)
       fail("TableException expected")
-    } catch {
-      case _: ValidationException => //ignore
-    }
-
-    try {
-      util.addTableSource[(Int, Long, String)]("Table2")
-      .select('_1 as '*, '_2 as 'b, '_1 as 'c)
-      fail("ValidationException expected")
     } catch {
       case _: ValidationException => //ignore
     }

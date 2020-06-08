@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -97,7 +98,7 @@ public class RMQSourceTest {
 		OperatorStateStore mockStore = Mockito.mock(OperatorStateStore.class);
 		FunctionInitializationContext mockContext = Mockito.mock(FunctionInitializationContext.class);
 		Mockito.when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
-		Mockito.when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
+		Mockito.when(mockStore.getListState(any(ListStateDescriptor.class))).thenReturn(null);
 		return mockContext;
 	}
 
@@ -329,6 +330,26 @@ public class RMQSourceTest {
 		assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
 	}
 
+	@Test
+	public void testOverrideConnection() throws Exception {
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource() {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+	}
+
 	private static class ConstructorTestClass extends RMQSource<String> {
 
 		private ConnectionFactory factory;
@@ -411,6 +432,10 @@ public class RMQSourceTest {
 			this(connectionConfig, new StringDeserializationScheme());
 		}
 
+		public RMQMockedRuntimeTestSource() {
+			this(new StringDeserializationScheme());
+		}
+
 		@Override
 		public RuntimeContext getRuntimeContext() {
 			return runtimeContext;
@@ -421,7 +446,7 @@ public class RMQSourceTest {
 		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
 
 		public RMQTestSource() {
-			this(new StringDeserializationScheme());
+			super();
 		}
 
 		public RMQTestSource(DeserializationSchema<String> deserializationSchema) {

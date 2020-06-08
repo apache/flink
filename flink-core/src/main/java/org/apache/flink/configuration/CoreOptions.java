@@ -243,6 +243,17 @@ public class CoreOptions {
 		.withDescription("Path to yarn configuration directory. It is required to run flink on YARN. You can also" +
 			" set it via environment variable.");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_HBASE_CONF_DIR = ConfigOptions
+		.key("env.hbase.conf.dir")
+		.noDefaultValue()
+		.withDescription("Path to hbase configuration directory. It is required to read HBASE configuration." +
+			" You can also set it via environment variable.");
+
 	// ------------------------------------------------------------------------
 	//  generic io
 	// ------------------------------------------------------------------------

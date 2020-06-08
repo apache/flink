@@ -146,6 +146,25 @@ public final class ExtractionUtils {
 	}
 
 	/**
+	 * Returns the field of a structured type. The logic is as broad as possible to support
+	 * both Java and Scala in different flavors.
+	 */
+	public static Field getStructuredField(Class<?> clazz, String fieldName) {
+		final String normalizedFieldName = fieldName.toUpperCase();
+
+		final List<Field> fields = collectStructuredFields(clazz);
+		for (Field field : fields) {
+			if (field.getName().toUpperCase().equals(normalizedFieldName)) {
+				return field;
+			}
+		}
+		throw extractionError(
+			"Could not to find a field named '%s' in class '%s' for structured type.",
+			fieldName,
+			clazz.getName());
+	}
+
+	/**
 	 * Checks for a field getter of a structured type. The logic is as broad as possible to support
 	 * both Java and Scala in different flavors.
 	 */
@@ -257,6 +276,21 @@ public final class ExtractionUtils {
 		final int m = field.getModifiers();
 
 		// field is directly readable
+		return Modifier.isPublic(m);
+	}
+
+	/**
+	 * Checks whether a field is directly writable without a setter or constructor.
+	 */
+	public static boolean isStructuredFieldDirectlyWritable(Field field) {
+		final int m = field.getModifiers();
+
+		// field is immutable
+		if (Modifier.isFinal(m)) {
+			return false;
+		}
+
+		// field is directly writable
 		return Modifier.isPublic(m);
 	}
 
@@ -413,6 +447,21 @@ public final class ExtractionUtils {
 		if (clazz.getEnclosingClass() != null &&
 				(clazz.getDeclaringClass() == null || !Modifier.isStatic(m))) {
 			throw extractionError("Class '%s' is a not a static, globally accessible class.", clazz.getName());
+		}
+	}
+
+	/**
+	 * Validates if a given type is not already contained in the type hierarchy of a structured type.
+	 *
+	 * <p>Otherwise this would lead to infinite data type extraction cycles.
+	 */
+	static void validateStructuredSelfReference(Type t, List<Type> typeHierarchy) {
+		final Class<?> clazz = toClass(t);
+		if (clazz != null && !clazz.isInterface() && clazz != Object.class && typeHierarchy.contains(t)) {
+			throw extractionError(
+				"Cyclic reference detected for class '%s'. Attributes of structured types must not " +
+					"(transitively) reference the structured type itself.",
+				clazz.getName());
 		}
 	}
 

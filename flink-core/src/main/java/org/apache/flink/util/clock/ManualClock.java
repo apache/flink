@@ -30,7 +30,15 @@ import java.util.concurrent.atomic.AtomicLong;
 @PublicEvolving
 public final class ManualClock extends Clock {
 
-	private AtomicLong currentTime = new AtomicLong(0L);
+	private final AtomicLong currentTime;
+
+	public ManualClock() {
+		this(0);
+	}
+
+	public ManualClock(long startTime) {
+		this.currentTime = new AtomicLong(startTime);
+	}
 
 	@Override
 	public long absoluteTimeMillis() {

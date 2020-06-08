@@ -140,13 +140,14 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 			long checkpointId,
 			int channelIndex,
 			ChannelStateWriter channelStateWriter) throws IOException {
-		if (((CheckpointBarrierUnaligner) barrierHandler).hasInflightData(checkpointId, channelIndex)) {
-			inputGate.getChannel(channelIndex).spillInflightBuffers(checkpointId, channelStateWriter);
+		InputChannel channel = inputGate.getChannel(channelIndex);
+		if (barrierHandler.hasInflightData(checkpointId, channel.getChannelInfo())) {
+			channel.spillInflightBuffers(checkpointId, channelStateWriter);
 		}
 	}
 
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-		return ((CheckpointBarrierUnaligner) barrierHandler).getAllBarriersReceivedFuture(checkpointId);
+		return barrierHandler.getAllBarriersReceivedFuture(checkpointId);
 	}
 
 	private int offsetChannelIndex(int channelIndex) {
@@ -227,5 +228,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
 	public InputChannel getChannel(int channelIndex) {
 		return inputGate.getChannel(channelIndex);
+	}
+
+	@VisibleForTesting
+	CheckpointBarrierHandler getCheckpointBarrierHandler() {
+		return barrierHandler;
 	}
 }

@@ -88,7 +88,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
 		);
 	}
 
-	TaskStateManagerImpl(
+	public TaskStateManagerImpl(
 			@Nonnull JobID jobId,
 			@Nonnull ExecutionAttemptID executionAttemptID,
 			@Nonnull TaskLocalStateStore localStateStore,
@@ -180,11 +180,19 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	}
 
 	/**
-	 * Tracking when local state can be disposed.
+	 * Tracking when local state can be confirmed and disposed.
 	 */
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		localStateStore.confirmCheckpoint(checkpointId);
+	}
+
+	/**
+	 * Tracking when some local state can be disposed.
+	 */
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		localStateStore.abortCheckpoint(checkpointId);
 	}
 
 	@Override

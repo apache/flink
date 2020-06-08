@@ -23,13 +23,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
-import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
-import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -42,8 +38,8 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 
@@ -86,9 +82,12 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
 		}
 
 		Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
-		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
+		try {
+			configureExecution(configuration, program);
+		} catch (Exception e) {
+			LOG.error("Could not apply application configuration.", e);
+			System.exit(1);
+		}
 
 		StandaloneApplicationClusterEntryPoint entrypoint = new StandaloneApplicationClusterEntryPoint(configuration, program);
 
@@ -114,11 +113,12 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
 	private static PackagedProgramRetriever getPackagedProgramRetriever(
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
+		final File userLibDir = tryFindUserLibDirectory().orElse(null);
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 				ClassPathPackagedProgramRetriever
 						.newBuilder(programArguments)
+						.setUserLibDirectory(userLibDir)
 						.setJobClassName(jobClassName);
-		tryFindUserLibDirectory().ifPresent(retrieverBuilder::setUserLibDirectory);
 		return retrieverBuilder.build();
 	}
 

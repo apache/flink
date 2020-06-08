@@ -48,5 +48,10 @@ class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	public boolean shouldExitJvmOnOutOfMemoryError() {
 		return false;
 	}
-}
 
+	@Override
+	public String getTaskManagerExternalAddress() {
+		throw new UnsupportedOperationException(
+			"Getting external address of task manager is not supported in SavepointTaskManagerRuntimeInfo");
+	}
+}

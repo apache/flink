@@ -32,7 +32,7 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
 
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-k8s-session-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-console.properties -Dlog4j.configurationFile=file:"$FLINK_CONF_DIR"/log4j-console.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-console.xml"
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-session.properties -Dlog4j.configurationFile=file:"$FLINK_CONF_DIR"/log4j-session.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-session.xml"
 
 export FLINK_CONF_DIR
 

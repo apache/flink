@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
@@ -55,6 +58,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -65,6 +69,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
+import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1005,6 +1011,56 @@ public class RemoteInputChannelTest {
 		}
 	}
 
+	@Test
+	public void testConcurrentGetNextBufferAndRelease() throws Exception {
+		final int numTotalBuffers  = 1_000;
+		final int numExclusiveBuffers = 2;
+		final int numFloatingBuffers = 998;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numTotalBuffers, 32, numExclusiveBuffers);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		inputGate.setInputChannels(inputChannel);
+
+		final ExecutorService executor = Executors.newFixedThreadPool(2);
+		Throwable thrown = null;
+		try {
+			BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+			inputGate.setBufferPool(bufferPool);
+			inputGate.assignExclusiveSegments();
+			inputChannel.requestSubpartition(0);
+
+			for (int i = 0; i < numTotalBuffers; i++) {
+				Buffer buffer = inputChannel.requestBuffer();
+				inputChannel.onBuffer(buffer, i, 0);
+			}
+
+			final Callable<Void> getNextBufferTask = () -> {
+				try {
+					for (int i = 0; i < numTotalBuffers; ++i) {
+						Optional<InputChannel.BufferAndAvailability> bufferAndAvailability = inputChannel.getNextBuffer();
+						bufferAndAvailability.ifPresent(buffer -> buffer.buffer().recycleBuffer());
+					}
+				} catch (Throwable t) {
+					if (!inputChannel.isReleased()) {
+						throw new AssertionError("Exceptions are expected here only if the input channel was released", t);
+					}
+				}
+				return null;
+			};
+
+			final Callable<Void> releaseTask = () -> {
+				inputChannel.releaseAllResources();
+				return null;
+			};
+
+			submitTasksAndWaitForResults(executor, new Callable[] {getNextBufferTask, releaseTask});
+		} catch (Throwable t) {
+			thrown = t;
+		} finally {
+			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
+		}
+	}
+
 	/**
 	 * Tests that {@link RemoteInputChannel#retriggerSubpartitionRequest(int)} would throw
 	 * the {@link PartitionNotFoundException} if backoff is 0.
@@ -1152,6 +1208,17 @@ public class RemoteInputChannelTest {
 		Assert.assertFalse(
 			"Test ended by timeout or interruption - this indicates that the network thread was blocked.",
 			timedOutOrInterrupted.get());
+	}
+
+	@Test
+	public void testNoNotifyOnSavepoint() throws IOException {
+		TestBufferReceivedListener listener = new TestBufferReceivedListener();
+		SingleInputGate inputGate = new SingleInputGateBuilder().build();
+		inputGate.registerBufferReceivedListener(listener);
+		RemoteInputChannel channel = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate);
+		channel.onBuffer(toBuffer(new CheckpointBarrier(123L, 123L, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()))), 0, 0);
+		channel.checkError();
+		assertTrue(listener.notifiedOnBarriers.isEmpty());
 	}
 
 	/**

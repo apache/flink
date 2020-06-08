@@ -40,6 +40,7 @@ import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.net.HostAndPort;
 
@@ -84,7 +85,7 @@ import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
@@ -561,7 +562,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			Assert.assertTrue("Expected string 'der 29' or '(mind,1)' not found in string'" + content + "'", content.contains("der 29") || content.contains("(der,29)") || content.contains("(mind,1)"));
 
 			// check if the heap size for the TaskManager was set correctly
-			File jobmanagerLog = YarnTestBase.findFile("..", new FilenameFilter() {
+			File jobmanagerLog = TestUtils.findFile("..", new FilenameFilter() {
 				@Override
 				public boolean accept(File dir, String name) {
 					return name.contains("jobmanager.log") && dir.getAbsolutePath().contains(id.toString());

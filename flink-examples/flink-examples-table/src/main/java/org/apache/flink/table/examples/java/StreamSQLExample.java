@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -69,7 +69,7 @@ public class StreamSQLExample {
 			tEnv = StreamTableEnvironment.create(env, settings);
 		} else {
 			System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
-				"where planner (it is either flink or blink, and the default is flink) indicates whether the " +
+				"where planner (it is either flink or blink, and the default is blink) indicates whether the " +
 				"example uses flink planner or blink planner.");
 			return;
 		}

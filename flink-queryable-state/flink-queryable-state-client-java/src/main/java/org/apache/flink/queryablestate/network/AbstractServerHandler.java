@@ -110,6 +110,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 			final MessageType msgType = MessageSerializer.deserializeHeader(buf);
 
 			requestId = MessageSerializer.getRequestId(buf);
+			LOG.trace("Handling request with ID {}", requestId);
 
 			if (msgType == MessageType.REQUEST) {
 
@@ -263,6 +264,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 					write.addListener(new RequestWriteListener());
 
 				} catch (BadRequestException e) {
+					LOG.debug("Bad request (request ID = {})", requestId, e);
 					try {
 						stats.reportFailedRequest();
 						final ByteBuf err = MessageSerializer.serializeRequestFailure(ctx.alloc(), requestId, e);
@@ -271,6 +273,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 						LOG.error("Failed to respond with the error after failed request", io);
 					}
 				} catch (Throwable t) {
+					LOG.error("Error while handling request with ID {}", requestId, t);
 					try {
 						stats.reportFailedRequest();
 
@@ -308,7 +311,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 					LOG.debug("Request {} was successfully answered after {} ms.", request, durationMillis);
 					stats.reportSuccessfulRequest(durationMillis);
 				} else {
-					LOG.debug("Request {} failed after {} ms due to: {}", request, durationMillis, future.cause());
+					LOG.debug("Request {} failed after {} ms", request, durationMillis, future.cause());
 					stats.reportFailedRequest();
 				}
 			}

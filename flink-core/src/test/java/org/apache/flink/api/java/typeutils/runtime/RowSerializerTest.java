@@ -27,10 +27,12 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public class RowSerializerTest {
 
@@ -40,10 +42,12 @@ public class RowSerializerTest {
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO);
 		Row row1 = new Row(2);
+		row1.setKind(RowKind.UPDATE_BEFORE);
 		row1.setField(0, 1);
 		row1.setField(1, "a");
 
 		Row row2 = new Row(2);
+		row2.setKind(RowKind.INSERT);
 		row2.setField(0, 2);
 		row2.setField(1, null);
 
@@ -108,20 +112,20 @@ public class RowSerializerTest {
 		testPojo3.name = "Test2";
 
 		Row[] data = new Row[]{
-			createRow(null, null, null, null, null),
-			createRow(0, null, null, null, null),
-			createRow(0, 0.0, null, null, null),
-			createRow(0, 0.0, "a", null, null),
-			createRow(1, 0.0, "a", null, null),
-			createRow(1, 1.0, "a", null, null),
-			createRow(1, 1.0, "b", null, null),
-			createRow(1, 1.0, "b", new Tuple3<>(1, false, (short) 2), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, false, (short) 2), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 2), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo1),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo2),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
+			createRow(RowKind.INSERT, null, null, null, null, null),
+			createRow(RowKind.INSERT, 0, null, null, null, null),
+			createRow(RowKind.INSERT, 0, 0.0, null, null, null),
+			createRow(RowKind.INSERT, 0, 0.0, "a", null, null),
+			createRow(RowKind.INSERT, 1, 0.0, "a", null, null),
+			createRow(RowKind.INSERT, 1, 1.0, "a", null, null),
+			createRow(RowKind.INSERT, 1, 1.0, "b", null, null),
+			createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(1, false, (short) 2), null),
+			createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(2, false, (short) 2), null),
+			createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(2, true, (short) 2), null),
+			createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), null),
+			createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo1),
+			createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo2),
+			createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
 		};
 
 		TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
@@ -131,8 +135,8 @@ public class RowSerializerTest {
 
 	// ----------------------------------------------------------------------------------------------
 
-	private static Row createRow(Object f0, Object f1, Object f2, Object f3, Object f4) {
-		Row row = new Row(5);
+	private static Row createRow(RowKind kind, Object f0, Object f1, Object f2, Object f3, Object f4) {
+		Row row = new Row(kind, 5);
 		row.setField(0, f0);
 		row.setField(1, f1);
 		row.setField(2, f2);
@@ -175,10 +179,8 @@ public class RowSerializerTest {
 			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
-
-			MyPojo myPojo = (MyPojo) o;
-
-			return name != null ? name.equals(myPojo.name) : myPojo.name == null;
+			final MyPojo myPojo = (MyPojo) o;
+			return Objects.equals(name, myPojo.name);
 		}
 
 	}

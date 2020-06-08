@@ -55,7 +55,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 GroupAggregate(select=[COUNT_RETRACT(*) AS EXPR$0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[single], changelogMode=[I,UB,UA])
    +- Calc(select=[0 AS $f0], where=[>(a, 1)], changelogMode=[I,UB,UA])
-      +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a]]], fields=[a], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>
@@ -92,6 +92,33 @@ LogicalProject(ts=[$0], a=[$1], b=[$2])
 Calc(select=[ts, a, b], where=[>(a, 1)])
 +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1:INTERVAL SECOND)])
    +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOnChangelogSource">
+    <Resource name="sql">
+      <![CDATA[
+SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+FROM orders AS o JOIN rates_history AS r
+ON o.currency = r.currency
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(currency=[$1], amount=[$0], rate=[$3], EXPR$3=[*($0, $3)])
++- LogicalJoin(condition=[=($1, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UA])
++- Join(joinType=[InnerJoin], where=[=(currency, currency0)], select=[amount, currency, currency0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UB,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>

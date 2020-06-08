@@ -260,8 +260,9 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	}
 
 	@Override
-	public List<String> readMessage(int maxNumMessages, String groupId, String topic) throws IOException {
-		final List<String> messages = Collections.synchronizedList(new ArrayList<>(maxNumMessages));
+	public List<String> readMessage(int expectedNumMessages, String groupId, String topic) throws IOException {
+		final List<String> messages = Collections.synchronizedList(new ArrayList<>(
+				expectedNumMessages));
 
 		try (final AutoClosableProcess kafka = AutoClosableProcess
 			.create(kafkaDir.resolve(Paths.get("bin", "kafka-console-consumer.sh")).toString(),
@@ -269,7 +270,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 				KAFKA_ADDRESS,
 				"--from-beginning",
 				"--max-messages",
-				String.valueOf(maxNumMessages),
+				String.valueOf(expectedNumMessages),
 				"--topic",
 				topic,
 				"--consumer-property",
@@ -277,15 +278,19 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			.setStdoutProcessor(messages::add)
 			.runNonBlocking()) {
 
-			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
-			while (deadline.hasTimeLeft() && messages.size() < maxNumMessages) {
+			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+			while (deadline.hasTimeLeft() && messages.size() < expectedNumMessages) {
 				try {
-					LOG.info("Waiting for messages. Received {}/{}.", messages.size(), maxNumMessages);
+					LOG.info("Waiting for messages. Received {}/{}.", messages.size(),
+							expectedNumMessages);
 					Thread.sleep(500);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					break;
 				}
+			}
+			if (messages.size() != expectedNumMessages) {
+				throw new IOException("Could not read expected number of messages.");
 			}
 			return messages;
 		}

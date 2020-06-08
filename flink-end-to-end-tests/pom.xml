@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -93,8 +93,7 @@ under the License.
 
 	<dependencies>
 		<dependency>
-			<!-- flink-yarn is required for getting the yarn classpath in the hadoop
-			bash end to end tests -->
+			<!-- this module depends on the flink-yarn-tests's "target/yarn.classpath" file -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-yarn-tests</artifactId>
 			<version>${project.version}</version>
@@ -164,30 +163,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<plugin>
-				<artifactId>maven-resources-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-resources</id>
-						<phase>package</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>${basedir}/test-scripts/hadoop</outputDirectory>
-							<resources>
-								<resource>
-									<directory>../flink-yarn-tests/target/</directory>
-									<filtering>true</filtering>
-									<includes>
-										<include>yarn.classpath</include>
-									</includes>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-deploy-plugin</artifactId>

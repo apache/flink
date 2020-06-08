@@ -30,15 +30,14 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -66,9 +65,9 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
 	private KubernetesClusterDescriptor descriptor;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		descriptor = new KubernetesClusterDescriptor(flinkConfig, flinkKubeClient);
 	}
@@ -192,8 +191,9 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 		// Check updated flink config options
 		assertEquals(String.valueOf(Constants.BLOB_SERVER_PORT), flinkConfig.getString(BlobServerOptions.PORT));
 		assertEquals(String.valueOf(Constants.TASK_MANAGER_RPC_PORT), flinkConfig.getString(TaskManagerOptions.RPC_PORT));
-		assertEquals(KubernetesUtils.getInternalServiceName(CLUSTER_ID) + "." +
-			NAMESPACE, flinkConfig.getString(JobManagerOptions.ADDRESS));
+		assertEquals(
+			InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE),
+			flinkConfig.getString(JobManagerOptions.ADDRESS));
 
 		final Deployment jmDeployment = kubeClient
 			.apps()
@@ -210,10 +210,10 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 			.get(0);
 
 		assertEquals(
-			clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
+			String.valueOf(clusterSpecification.getMasterMemoryMB()),
 			jmContainer.getResources().getRequests().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
 		assertEquals(
-			clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
+			String.valueOf(clusterSpecification.getMasterMemoryMB()),
 			jmContainer.getResources().getLimits().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
 	}
 }

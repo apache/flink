@@ -36,7 +36,7 @@ import org.apache.flink.util.InstantiationUtil;
 import java.io.IOException;
 import java.util.Arrays;
 
-import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
+import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
 
 /**
  * A {@link TypeSerializer} for {@link RowData}. It should be noted that the header will not be encoded.
@@ -55,7 +55,7 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 		super(types, fieldSerializers);
 		this.fieldTypes = types;
 		this.fieldSerializers = fieldSerializers;
-		this.nullMask = new boolean[fieldTypes.length];
+		this.nullMask = new boolean[fieldSerializers.length];
 	}
 
 	@Override
@@ -79,10 +79,8 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	@Override
 	public RowData deserialize(DataInputView source) throws IOException {
-		int len = fieldSerializers.length;
-
 		// read null mask
-		readIntoNullMask(len, source, nullMask);
+		readIntoMask(source, nullMask);
 
 		GenericRowData row = new GenericRowData(fieldSerializers.length);
 		for (int i = 0; i < row.getArity(); i++) {

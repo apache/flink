@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+from pyflink.table.table_result import TableResult
 from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['StatementSet']
@@ -32,10 +33,12 @@ class StatementSet(object):
         The added statements and Tables will be cleared
         when calling the `execute` method.
 
+    .. versionadded:: 1.11.0
     """
 
-    def __init__(self, _j_statement_set):
+    def __init__(self, _j_statement_set, t_env):
         self._j_statement_set = _j_statement_set
+        self._t_env = t_env
 
     def add_insert_sql(self, stmt):
         """
@@ -45,6 +48,8 @@ class StatementSet(object):
         :type stmt: str
         :return: current StatementSet instance.
         :rtype: pyflink.table.StatementSet
+
+        .. versionadded:: 1.11.0
         """
         self._j_statement_set.addInsertSql(stmt)
         return self
@@ -63,6 +68,8 @@ class StatementSet(object):
         :type overwrite: bool
         :return: current StatementSet instance.
         :rtype: pyflink.table.StatementSet
+
+        .. versionadded:: 1.11.0
         """
         self._j_statement_set.addInsert(target_path, table._j_table, overwrite)
         return self
@@ -76,6 +83,8 @@ class StatementSet(object):
         :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: All statements and Tables for which the AST and execution plan will be returned.
         :rtype: str
+
+        .. versionadded:: 1.11.0
         """
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_statement_set.explain(j_extra_details)
@@ -88,6 +97,8 @@ class StatementSet(object):
             The added statements and Tables will be cleared when executing this method.
 
         :return: execution result.
+
+        .. versionadded:: 1.11.0
         """
-        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
-        return self._j_statement_set.execute()
+        self._t_env._before_execute()
+        return TableResult(self._j_statement_set.execute())

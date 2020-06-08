@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
 
@@ -270,6 +271,23 @@ public class YarnConfigOptions {
 				"uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that " +
 				"they doesn't need to be downloaded every time for each application. An example could be " +
 				"hdfs://$namenode_address/path/of/flink/lib");
+
+	/** Defines the configuration key of that external resource in Yarn. This is used as a suffix in an actual config. */
+	public static final String EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX = "yarn.config-key";
+
+	/**
+	 * If configured, Flink will add this key to the resource profile of container request to Yarn. The value will be
+	 * set to {@link ExternalResourceOptions#EXTERNAL_RESOURCE_AMOUNT}.
+	 *
+	 * <p>It is intentionally included into user docs while unused.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> EXTERNAL_RESOURCE_YARN_CONFIG_KEY =
+		key(ExternalResourceOptions.genericKeyWithSuffix(EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX))
+			.stringType()
+			.noDefaultValue()
+			.withDescription("If configured, Flink will add this key to the resource profile of container request to Yarn. " +
+				"The value will be set to the value of " + ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT.key() + ".");
 
 	// ------------------------------------------------------------------------
 

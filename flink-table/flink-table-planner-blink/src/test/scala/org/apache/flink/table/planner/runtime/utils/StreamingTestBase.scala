@@ -21,11 +21,9 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{EnvironmentSettings, ImplicitExpressionConversions}
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.{EnvironmentSettings, ImplicitExpressionConversions, Table}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.api.{EnvironmentSettings, Table}
-
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 

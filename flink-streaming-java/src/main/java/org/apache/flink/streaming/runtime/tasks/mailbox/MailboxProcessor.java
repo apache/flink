@@ -71,9 +71,6 @@ public class MailboxProcessor implements Closeable {
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	protected final MailboxDefaultAction mailboxDefaultAction;
 
-	/** A pre-created instance of mailbox executor that executes all mails. */
-	private final MailboxExecutor mainMailboxExecutor;
-
 	/** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
 	private boolean mailboxLoopRunning;
 
@@ -102,27 +99,15 @@ public class MailboxProcessor implements Closeable {
 			MailboxDefaultAction mailboxDefaultAction,
 			TaskMailbox mailbox,
 			StreamTaskActionExecutor actionExecutor) {
-		this(mailboxDefaultAction, actionExecutor, mailbox, new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor));
-	}
-
-	public MailboxProcessor(
-			MailboxDefaultAction mailboxDefaultAction,
-			StreamTaskActionExecutor actionExecutor,
-			TaskMailbox mailbox,
-			MailboxExecutor mainMailboxExecutor) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailbox = Preconditions.checkNotNull(mailbox);
-		this.mainMailboxExecutor = Preconditions.checkNotNull(mainMailboxExecutor);
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
 	}
 
-	/**
-	 * Returns a pre-created executor service that executes all mails.
-	 */
 	public MailboxExecutor getMainMailboxExecutor() {
-		return mainMailboxExecutor;
+		return new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor);
 	}
 
 	/**
@@ -131,7 +116,7 @@ public class MailboxProcessor implements Closeable {
 	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
+		return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
 	}
 
 	public void initMetric(TaskMetricGroup metricGroup) {

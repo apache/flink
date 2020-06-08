@@ -312,6 +312,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		// nothing to do
+	}
+
+	@Override
 	public <N, S extends State, T> void applyToAllKeys(
 		final N namespace,
 		final TypeSerializer<N> namespaceSerializer,

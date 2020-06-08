@@ -19,13 +19,13 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Types, _}
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.functions.aggfunctions.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
@@ -242,7 +242,7 @@ class AggregateITCase(
         mLocalTime(times(i)), decimal, int, long, chars(i)))
     }
 
-    val inputs = util.Random.shuffle(data)
+    val inputs = Random.shuffle(data)
 
     val rowType = new RowTypeInfo(
       Types.INT, Types.LOCAL_DATE_TIME, Types.LOCAL_DATE, Types.LOCAL_TIME,
@@ -1209,7 +1209,7 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("1", "3")
-    assertEquals(expected, sink.getRetractResults)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
@@ -1241,7 +1241,7 @@ class AggregateITCase(
 
     val tableSink = new TestingUpsertTableSink(Array(0)).configure(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
-    tEnv.registerTableSink("testSink", tableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
 
     execInsertSqlAndWaitResult(
       """
@@ -1257,7 +1257,7 @@ class AggregateITCase(
 
   @Test
   def testAggregateOnChangelogSource(): Unit = {
-    val dataId = TestValuesTableFactory.registerChangelogData(TestData.userChangelog)
+    val dataId = TestValuesTableFactory.registerData(TestData.userChangelog)
     val ddl =
       s"""
          |CREATE TABLE user_logs (
@@ -1291,14 +1291,20 @@ class AggregateITCase(
   @Test
   def testAggregateOnInsertDeleteChangelogSource(): Unit = {
     // only contains INSERT and DELETE
-    val userChangelog = TestData.userChangelog.map { tuple =>
-      tuple.f0 match {
-        case RowKind.INSERT | RowKind.DELETE => tuple
-        case RowKind.UPDATE_BEFORE => JTuple2.of(RowKind.DELETE, tuple.f1)
-        case RowKind.UPDATE_AFTER => JTuple2.of(RowKind.INSERT, tuple.f1)
+    val userChangelog = TestData.userChangelog.map { row =>
+      row.getKind match {
+        case RowKind.INSERT | RowKind.DELETE => row
+        case RowKind.UPDATE_BEFORE =>
+          val ret = Row.copy(row)
+          ret.setKind(RowKind.DELETE)
+          ret
+        case RowKind.UPDATE_AFTER =>
+          val ret = Row.copy(row)
+          ret.setKind(RowKind.INSERT)
+          ret
       }
     }
-    val dataId = TestValuesTableFactory.registerChangelogData(userChangelog)
+    val dataId = TestValuesTableFactory.registerData(userChangelog)
     val ddl =
       s"""
          |CREATE TABLE user_logs (

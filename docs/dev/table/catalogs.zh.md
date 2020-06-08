@@ -59,7 +59,7 @@ Set a `Jdbcatalog` with the following parameters:
 <div data-lang="Java" markdown="1">
 {% highlight java %}
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "mypg";
@@ -78,7 +78,7 @@ tableEnv.useCatalog("mypg");
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "mypg"

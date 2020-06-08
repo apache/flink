@@ -21,8 +21,8 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.runtime.utils.StreamITCase;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -34,9 +34,15 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
 
 /**
  * ITCase for {@link JdbcTableSource}.
@@ -107,20 +113,19 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				")"
 		);
 
-		StreamITCase.clear();
-		tEnv.toAppendStream(tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE), Row.class)
-			.addSink(new StreamITCase.StringSink<>());
-		env.execute();
+		TableResult tableResult = tEnv.executeSql("SELECT * FROM " + INPUT_TABLE);
 
-		List<String> expected =
-			Arrays.asList(
-				"1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
-				"2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234");
-		StreamITCase.compareWithList(expected);
+		List<String> results = manifestResults(tableResult);
+
+		assertThat(
+				results,
+				containsInAnyOrder(
+						"1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
+						"2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234"));
 	}
 
 	@Test
-	public void testProjectableJdbcSource() throws Exception {
+	public void testProjectableJdbcSource() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
 				.useBlinkPlanner()
@@ -143,15 +148,50 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				")"
 		);
 
-		StreamITCase.clear();
-		tEnv.toAppendStream(tEnv.sqlQuery("SELECT timestamp6_col, decimal_col FROM " + INPUT_TABLE), Row.class)
-				.addSink(new StreamITCase.StringSink<>());
-		env.execute();
+		TableResult tableResult = tEnv.executeSql("SELECT timestamp6_col, decimal_col FROM " + INPUT_TABLE);
 
-		List<String> expected =
-			Arrays.asList(
-				"2020-01-01T15:35:00.123456,100.1234",
-				"2020-01-01T15:36:01.123456,101.1234");
-		StreamITCase.compareWithList(expected);
+		List<String> results = manifestResults(tableResult);
+
+		assertThat(
+				results,
+				containsInAnyOrder(
+						"2020-01-01T15:35:00.123456,100.1234",
+						"2020-01-01T15:36:01.123456,101.1234"));
+	}
+
+	@Test
+	public void testScanQueryJDBCSource() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inStreamingMode()
+			.build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+
+		final String testQuery = "SELECT id FROM " + INPUT_TABLE;
+		tEnv.executeSql(
+				"CREATE TABLE test(" +
+						"id BIGINT" +
+						") WITH (" +
+						"  'connector.type'='jdbc'," +
+						"  'connector.url'='" + DB_URL + "'," +
+						"  'connector.table'='whatever'," +
+						"  'connector.read.query'='" + testQuery + "'" +
+						")"
+		);
+
+		TableResult tableResult = tEnv.executeSql("SELECT id FROM test");
+
+		List<String> results = manifestResults(tableResult);
+
+		assertThat(results, containsInAnyOrder("1", "2"));
+	}
+
+	private static List<String> manifestResults(TableResult result) {
+		Iterator<Row> resultIterator = result.collect();
+		return StreamSupport
+				.stream(Spliterators.spliteratorUnknownSize(resultIterator, Spliterator.ORDERED), false)
+				.map(Row::toString)
+				.collect(Collectors.toList());
 	}
 }

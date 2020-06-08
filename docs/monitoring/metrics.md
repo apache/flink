@@ -587,10 +587,12 @@ metrics.reporter.my_other_reporter.port: 10000
 
 **Important:** The jar containing the reporter must be accessible when Flink is started. Reporters that support the
  `factory.class` property can be loaded as [plugins]({{ site.baseurl }}/ops/plugins). Otherwise the jar must be placed
- in the /lib folder.
+ in the /lib folder. Reporters that are shipped with Flink (i.e., all reporters documented on this page) are available
+ by default.
 
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
+By additionally implementing a `MetricReporterFactory` your reporter can also be loaded as a plugin.
 
 The following sections list the supported reporters.
 
@@ -630,9 +632,6 @@ The domain thus identifies a metric class, while the key-property list identifie
 
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-graphite-{{site.version}}.jar` into the `/plugins/graphite` folder
-of your Flink distribution.
-
 Parameters:
 
 - `host` - the Graphite server host
@@ -652,7 +651,7 @@ metrics.reporter.grph.protocol: TCP
 
 ### InfluxDB (org.apache.flink.metrics.influxdb.InfluxdbReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{site.version}}.jar` into the `plugins/influxdb` folder
 of your Flink distribution.
 
 Parameters:
@@ -663,7 +662,7 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporter.influxdb.class: org.apache.flink.metrics.influxdb.InfluxdbReporter
+metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
 metrics.reporter.influxdb.host: localhost
 metrics.reporter.influxdb.port: 8086
 metrics.reporter.influxdb.db: flink
@@ -680,9 +679,6 @@ The reporter would send metrics using http protocol to the InfluxDB server with 
 All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported as InfluxDB tags.
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
-
-In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/plugins/prometheus` folder
-of your Flink distribution.
 
 Parameters:
 
@@ -710,9 +706,6 @@ All Flink metrics variables (see [List of all Variables](#list-of-all-variables)
 
 ### PrometheusPushGateway (org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/plugins/prometheus` folder
-of your Flink distribution.
-
 Parameters:
 
 {% include generated/prometheus_push_gateway_reporter_configuration.html %}
@@ -737,9 +730,6 @@ Please see the [Prometheus documentation](https://prometheus.io/docs/practices/p
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/plugins/statsd` 
-folder of your Flink distribution.
-
 Parameters:
 
 - `host` - the StatsD server host
@@ -757,9 +747,6 @@ metrics.reporter.stsd.port: 8125
 
 ### Datadog (org.apache.flink.metrics.datadog.DatadogHttpReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-datadog-{{site.version}}.jar` into the `/plugins/datadog` folder
-of your Flink distribution.
-
 Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`,
 will be sent to Datadog as tags. Tags will look like `host:localhost` and `job_name:myjobname`.
 
@@ -770,6 +757,7 @@ Parameters:
 - `proxyHost` - (optional) The proxy host to use when sending to Datadog.
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 - `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.
+- `maxMetricsPerRequest` - (optional) The maximum number of metrics to include in each request, defaults to 2000.
 
 Example configuration:
 
@@ -781,14 +769,12 @@ metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dhhttp.dataCenter: US
+metrics.reporter.dhhttp.maxMetricsPerRequest: 2000
 
 {% endhighlight %}
 
 
 ### Slf4j (org.apache.flink.metrics.slf4j.Slf4jReporter)
-
-In order to use this reporter you must copy `/opt/flink-metrics-slf4j-{{site.version}}.jar` into the `/plugins/slf4j` folder
-of your Flink distribution.
 
 Example configuration:
 

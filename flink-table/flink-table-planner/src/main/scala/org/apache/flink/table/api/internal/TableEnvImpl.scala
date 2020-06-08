@@ -40,17 +40,14 @@ import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQuer
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-
 import org.apache.commons.lang3.StringUtils
-
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
@@ -323,44 +320,6 @@ abstract class TableEnvImpl(
       false)
   }
 
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    validateTableSource(tableSource)
-    registerTableSourceInternal(name, tableSource)
-  }
-
-  override def registerTableSink(
-    name: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]],
-    tableSink: TableSink[_]): Unit = {
-
-    if (fieldNames == null) {
-      throw new TableException("fieldNames must not be null.")
-    }
-    if (fieldTypes == null) {
-      throw new TableException("fieldTypes must not be null.")
-    }
-    if (fieldNames.length == 0) {
-      throw new TableException("fieldNames must not be empty.")
-    }
-    if (fieldNames.length != fieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
-    }
-
-    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    // validate
-    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
-      throw new TableException("Field names must not be empty.")
-    }
-
-    validateTableSink(configuredSink)
-    registerTableSinkInternal(name, configuredSink)
-  }
-
   override def fromTableSource(source: TableSource[_]): Table = {
     createTable(new TableSourceQueryOperation(source, isBatchTable))
   }
@@ -383,10 +342,11 @@ abstract class TableEnvImpl(
     */
   protected def validateTableSink(tableSink: TableSink[_]): Unit
 
-  private def registerTableSourceInternal(
+  override def registerTableSourceInternal(
       name: String,
       tableSource: TableSource[_])
     : Unit = {
+    validateTableSource(tableSource)
     val unresolvedIdentifier = UnresolvedIdentifier.of(name)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     // check if a table (source or sink) is registered
@@ -418,10 +378,16 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def registerTableSinkInternal(
+  override def registerTableSinkInternal(
       name: String,
       tableSink: TableSink[_])
     : Unit = {
+    // validate
+    if (tableSink.getTableSchema.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+
+    validateTableSink(tableSink)
     val unresolvedIdentifier = UnresolvedIdentifier.of(name)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     // check if a table (source or sink) is registered
@@ -622,13 +588,15 @@ abstract class TableEnvImpl(
     val dataSink = writeToSinkAndTranslate(operation, tableSink)
     try {
       val jobClient = execute(JCollections.singletonList(dataSink), "collect")
-      tableSink.setJobClient(jobClient)
+      val selectResultProvider = tableSink.getSelectResultProvider
+      selectResultProvider.setJobClient(jobClient)
       TableResultImpl.builder
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(tableSchema)
-        .data(tableSink.getResultIterator)
-        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
+        .data(selectResultProvider.getResultIterator)
+        .setPrintStyle(
+          PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, false))
         .build
     } catch {
       case e: Exception =>
@@ -796,7 +764,7 @@ abstract class TableEnvImpl(
             dropViewOperation.getViewIdentifier,
             dropViewOperation.isIfExists)
         } else {
-          catalogManager.dropTable(
+          catalogManager.dropView(
             dropViewOperation.getViewIdentifier,
             dropViewOperation.isIfExists)
         }
@@ -1265,8 +1233,9 @@ abstract class TableEnvImpl(
     createTable(operationTreeBuilder.values(values: _*))
   }
 
-  override def fromValues(rowType: DataType, values: Expression*): Table = {
-    createTable(operationTreeBuilder.values(rowType, values: _*))
+  override def fromValues(rowType: AbstractDataType[_], values: Expression*): Table = {
+    val resolvedDataType = catalogManager.getDataTypeFactory.createDataType(rowType)
+    createTable(operationTreeBuilder.values(resolvedDataType, values: _*))
   }
 
   override def fromValues(values: JIterable[_]): Table = {
@@ -1276,7 +1245,7 @@ abstract class TableEnvImpl(
     fromValues(exprs: _*)
   }
 
-  override def fromValues(rowType: DataType, values: JIterable[_]): Table = {
+  override def fromValues(rowType: AbstractDataType[_], values: JIterable[_]): Table = {
     val exprs = values.asScala
       .map(ApiExpressionUtils.objectToExpression)
       .toArray

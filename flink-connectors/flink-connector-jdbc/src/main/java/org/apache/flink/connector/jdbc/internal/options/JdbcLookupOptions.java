@@ -32,7 +32,7 @@ public class JdbcLookupOptions implements Serializable {
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
 
-	protected JdbcLookupOptions(long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
+	public JdbcLookupOptions(long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
 		this.cacheMaxSize = cacheMaxSize;
 		this.cacheExpireMs = cacheExpireMs;
 		this.maxRetryTimes = maxRetryTimes;
@@ -70,9 +70,9 @@ public class JdbcLookupOptions implements Serializable {
 	 * Builder of {@link JdbcLookupOptions}.
 	 */
 	public static class Builder {
-		protected long cacheMaxSize = -1L;
-		protected long cacheExpireMs = -1L;
-		protected int maxRetryTimes = JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
+		private long cacheMaxSize = -1L;
+		private long cacheExpireMs = -1L;
+		private int maxRetryTimes = JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
 
 		/**
 		 * optional, lookup cache max size, over this value, the old data will be eliminated.

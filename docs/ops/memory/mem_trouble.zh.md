@@ -28,14 +28,14 @@ under the License.
 ## IllegalConfigurationException
 
 如果遇到从 *TaskExecutorProcessUtils* 抛出的 *IllegalConfigurationException* 异常，这通常说明您的配置参数中存在无效值（例如内存大小为负数、占比大于 1 等）或者配置冲突。
-请根据异常信息，确认[内存模型详解](mem_detail.html)中与出错的内存部分对应章节的内容。
+请根据异常信息，确认[内存模型详解](../config.html#memory-configuration)中与出错的内存部分对应章节的内容。
 
 ## OutOfMemoryError: Java heap space
 
 该异常说明 JVM 的堆空间过小。
 可以通过增大[总内存](mem_setup.html#配置总内存)或[任务堆内存](mem_setup.html#任务算子堆内存)的方法来增大 JVM 堆空间。
 
-<span class="label label-info">提示</span> 也可以增大[框架堆内存](mem_detail.html#框架内存)。这是一个进阶配置，只有在确认是 Flink 框架自身需要更多内存时才应该去调整。
+<span class="label label-info">提示</span> 也可以增大[框架堆内存](mem_setup_tm.html#框架内存)。这是一个进阶配置，只有在确认是 Flink 框架自身需要更多内存时才应该去调整。
 
 ## OutOfMemoryError: Direct buffer memory
 

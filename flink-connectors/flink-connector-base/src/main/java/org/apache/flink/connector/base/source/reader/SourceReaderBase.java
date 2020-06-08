@@ -1,33 +1,36 @@
 /*
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
+import org.apache.flink.core.io.InputStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +64,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	private final BlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 
 	/** The state of the splits. */
-	private final Map<String, SplitStateT> splitStates;
+	private final Map<String, SplitContext<T, SplitStateT>> splitStates;
 
 	/** The record emitter to handle the records read by the SplitReaders. */
 	protected final RecordEmitter<E, T, SplitStateT> recordEmitter;
@@ -81,6 +84,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	/** The last element to ensure it is fully handled. */
 	private SplitsRecordIterator<E> splitIter;
 
+	/** Indicating whether the SourceReader will be assigned more splits or not.*/
+	private boolean noMoreSplitsAssignment;
+
 	public SourceReaderBase(
 			FutureNotifier futureNotifier,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -97,6 +103,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		this.options = new SourceReaderOptions(config);
 		this.config = config;
 		this.context = context;
+		this.noMoreSplitsAssignment = false;
 	}
 
 	@Override
@@ -105,7 +112,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Override
-	public Status pollNext(SourceOutput<T> sourceOutput) throws Exception {
+	public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
 		splitFetcherManager.checkErrors();
 		// poll from the queue if the last element was successfully handled. Otherwise
 		// just pass the last element again.
@@ -115,28 +122,41 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 			recordsWithSplitId = elementsQueue.poll();
 		}
 
-		Status status;
+		InputStatus status;
 		if (newFetch && recordsWithSplitId == null) {
 			// No element available, set to available later if needed.
-			status = Status.AVAILABLE_LATER;
+			status = finishedOrAvailableLater();
 		} else {
 			// Update the record iterator if it is a new fetch.
 			if (newFetch) {
 				splitIter = new SplitsRecordIterator<>(recordsWithSplitId);
 			}
-
+			// Process one record.
 			if (splitIter.hasNext()) {
 				// emit the record.
-				recordEmitter.emitRecord(splitIter.next(), sourceOutput, splitStates.get(splitIter.currentSplitId()));
-			} else {
+				final E record = splitIter.next();
+				final SplitContext<T, SplitStateT> splitContext = splitStates.get(splitIter.currentSplitId());
+				final SourceOutput<T> splitOutput = splitContext.getOrCreateSplitOutput(output);
+				recordEmitter.emitRecord(record, splitOutput, splitContext.state);
+				LOG.trace("Emitted record: {}", record);
+			}
+			// Do some cleanup if the all the records in the current splitIter have been processed.
+			if (!splitIter.hasNext()) {
 				// First remove the state of the split.
-				splitIter.finishedSplitIds().forEach(splitStates::remove);
+				splitIter.finishedSplitIds().forEach((id) -> {
+					splitStates.remove(id);
+					output.releaseOutputForSplit(id);
+				});
 				// Handle the finished splits.
 				onSplitFinished(splitIter.finishedSplitIds());
+				// Prepare the return status based on the availability of the next element.
+				status = finishedOrAvailableLater();
+			} else {
+				// There are more records from the current splitIter.
+				status = InputStatus.MORE_AVAILABLE;
 			}
-			// Prepare the return status based on the availability of the next element.
-			status = elementsQueue.isEmpty() ? Status.AVAILABLE_LATER : Status.AVAILABLE_NOW;
 		}
+		LOG.trace("Source reader status: {}", status);
 		return status;
 	}
 
@@ -159,7 +179,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	@Override
 	public List<SplitT> snapshotState() {
 		List<SplitT> splits = new ArrayList<>();
-		splitStates.forEach((id, state) -> splits.add(toSplitType(id, state)));
+		splitStates.forEach((id, context) -> splits.add(toSplitType(id, context.state)));
 		return splits;
 	}
 
@@ -167,20 +187,27 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	public void addSplits(List<SplitT> splits) {
 		LOG.trace("Adding splits {}", splits);
 		// Initialize the state for each split.
-		splits.forEach(s -> splitStates.put(s.splitId(), initializedState(s)));
+		splits.forEach(s -> splitStates.put(s.splitId(), new SplitContext<>(s.splitId(), initializedState(s))));
 		// Hand over the splits to the split fetcher to start fetch.
 		splitFetcherManager.addSplits(splits);
 	}
 
 	@Override
 	public void handleSourceEvents(SourceEvent sourceEvent) {
-		// Default action is do nothing.
+		LOG.trace("Handling source event: {}", sourceEvent);
+		if (sourceEvent instanceof NoMoreSplitsEvent) {
+			noMoreSplitsAssignment = true;
+			futureNotifier.notifyComplete();
+		}
 	}
 
 	@Override
 	public void close() throws Exception {
+		LOG.info("Closing Source Reader.");
 		splitFetcherManager.close(options.sourceReaderCloseTimeout);
 	}
+
+
 
 	// -------------------- Abstract method to allow different implementations ------------------
 	/**
@@ -202,4 +229,37 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	 * @return an immutable Split state.
 	 */
 	protected abstract SplitT toSplitType(String splitId, SplitStateT splitState);
+
+	// ------------------ private helper methods ---------------------
+
+	private InputStatus finishedOrAvailableLater() {
+		boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
+		boolean allElementsEmitted = elementsQueue.isEmpty() && (splitIter == null || !splitIter.hasNext());
+		if (noMoreSplitsAssignment && allFetchersHaveShutdown && allElementsEmitted) {
+			return InputStatus.END_OF_INPUT;
+		} else {
+			return InputStatus.NOTHING_AVAILABLE;
+		}
+	}
+
+	// ------------------ private helper classes ---------------------
+
+	private static final class SplitContext<T, SplitStateT> {
+
+		final String splitId;
+		final SplitStateT state;
+		SourceOutput<T> sourceOutput;
+
+		private SplitContext(String splitId, SplitStateT state) {
+			this.state = state;
+			this.splitId = splitId;
+		}
+
+		SourceOutput<T> getOrCreateSplitOutput(ReaderOutput<T> mainOutput) {
+			if (sourceOutput == null) {
+				sourceOutput = mainOutput.createOutputForSplit(splitId);
+			}
+			return sourceOutput;
+		}
+	}
 }

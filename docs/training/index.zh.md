@@ -5,7 +5,6 @@ nav-pos: 2
 nav-title: '<i class="fa fa-hand-paper-o title appetizer" aria-hidden="true"></i> Hands-on Training'
 nav-parent_id: root
 nav-show_overview: true
-always-expand: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

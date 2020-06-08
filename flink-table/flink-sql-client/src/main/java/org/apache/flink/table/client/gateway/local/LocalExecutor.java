@@ -38,7 +38,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
@@ -53,6 +56,8 @@ import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -77,7 +82,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -388,6 +392,17 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			return context.wrapClassLoader(() -> tEnv.executeSql(statement));
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not execute statement: " + statement, e);
+		}
+	}
+
+	@Override
 	public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
@@ -444,17 +459,21 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+	public Parser getSqlParser(String sessionId) {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
-		// translate
-		try {
-			final Table table = createTable(context, tableEnv, statement);
-			return context.wrapClassLoader((Supplier<String>) table::explain);
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
+		final Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
+		return new Parser() {
+			@Override
+			public List<Operation> parse(String statement) {
+				return context.wrapClassLoader(() -> parser.parse(statement));
+			}
+
+			@Override
+			public UnresolvedIdentifier parseIdentifier(String identifier) {
+				return context.wrapClassLoader(() -> parser.parseIdentifier(identifier));
+			}
+		};
 	}
 
 	@Override
@@ -627,7 +646,7 @@ public class LocalExecutor implements Executor {
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				context.getTableEnvironment().registerTableSink(tableName, result.getTableSink());
+				((TableEnvironmentInternal) context.getTableEnvironment()).registerTableSinkInternal(tableName, result.getTableSink());
 				table.insertInto(tableName);
 			});
 			pipeline = context.createPipeline(jobName);

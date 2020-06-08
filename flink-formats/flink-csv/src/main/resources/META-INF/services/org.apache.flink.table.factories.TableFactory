@@ -14,4 +14,3 @@
 # limitations under the License.
 
 org.apache.flink.formats.csv.CsvRowFormatFactory
-org.apache.flink.formats.csv.CsvFileSystemFormatFactory

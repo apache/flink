@@ -19,6 +19,7 @@
 package org.apache.flink.connector.jdbc.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -65,6 +66,9 @@ public class JdbcTypeUtil {
 		m.put(SqlTimeTypeInfo.DATE, Types.DATE);
 		m.put(SqlTimeTypeInfo.TIME, Types.TIME);
 		m.put(SqlTimeTypeInfo.TIMESTAMP, Types.TIMESTAMP);
+		m.put(LocalTimeTypeInfo.LOCAL_DATE, Types.DATE);
+		m.put(LocalTimeTypeInfo.LOCAL_TIME, Types.TIME);
+		m.put(LocalTimeTypeInfo.LOCAL_DATE_TIME, Types.TIMESTAMP);
 		m.put(BIG_DEC_TYPE_INFO, Types.DECIMAL);
 		m.put(BYTE_PRIMITIVE_ARRAY_TYPE_INFO, Types.BINARY);
 		TYPE_MAPPING = Collections.unmodifiableMap(m);

@@ -28,6 +28,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nonnull;
 
+import java.net.MalformedURLException;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -44,7 +46,7 @@ public class PipelineExecutorUtils {
 	 *                         savepoint settings used to bootstrap its state.
 	 * @return the corresponding {@link JobGraph}.
 	 */
-	public static JobGraph getJobGraph(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration) {
+	public static JobGraph getJobGraph(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration) throws MalformedURLException {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -37,12 +38,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
  * Utility class for converting between Flink {@link WorkerResourceSpec} and Yarn {@link Resource}.
  */
-public class WorkerSpecContainerResourceAdapter {
+class WorkerSpecContainerResourceAdapter {
 	private static final Logger LOG = LoggerFactory.getLogger(WorkerSpecContainerResourceAdapter.class);
 
 	private final Configuration flinkConfig;
@@ -50,6 +52,7 @@ public class WorkerSpecContainerResourceAdapter {
 	private final int maxMemMB;
 	private final int minVcore;
 	private final int maxVcore;
+	private final Map<String, Long> externalResourceConfigs;
 	private final Map<WorkerResourceSpec, InternalContainerResource> workerSpecToContainerResource;
 	private final Map<InternalContainerResource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
 	private final Map<Integer, Set<InternalContainerResource>> containerMemoryToContainerResource;
@@ -59,12 +62,14 @@ public class WorkerSpecContainerResourceAdapter {
 		final int minMemMB,
 		final int minVcore,
 		final int maxMemMB,
-		final int maxVcore) {
+		final int maxVcore,
+		final Map<String, Long> externalResourceConfigs) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.minMemMB = minMemMB;
 		this.minVcore = minVcore;
 		this.maxMemMB = maxMemMB;
 		this.maxVcore = maxVcore;
+		this.externalResourceConfigs = Preconditions.checkNotNull(externalResourceConfigs);
 		workerSpecToContainerResource = new HashMap<>();
 		containerResourceToWorkerSpecs = new HashMap<>();
 		containerMemoryToContainerResource = new HashMap<>();
@@ -118,7 +123,8 @@ public class WorkerSpecContainerResourceAdapter {
 			TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec);
 		final InternalContainerResource internalContainerResource = new InternalContainerResource(
 			normalize(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(), minMemMB),
-			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore));
+			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore),
+			externalResourceConfigs);
 
 		if (resourceWithinMaxAllocation(internalContainerResource)) {
 			containerResourceToWorkerSpecs.computeIfAbsent(internalContainerResource, ignored -> new HashSet<>())
@@ -129,20 +135,26 @@ public class WorkerSpecContainerResourceAdapter {
 		} else {
 			LOG.warn("Requested container resource {} exceeds yarn max allocation {}. Will not allocate resource.",
 				internalContainerResource,
-				new InternalContainerResource(maxMemMB, maxVcore));
+				new InternalContainerResource(maxMemMB, maxVcore, Collections.emptyMap()));
 			return null;
 		}
 	}
 
 	/**
-	 * Normalize to the minimum integer that is greater or equal to 'value' and is integer multiple of 'unitValue'.
+	 * Normalize to the minimum integer that is greater or equal to 'value' and is positive integer multiple of 'unitValue'.
 	 */
 	private int normalize(final int value, final int unitValue) {
-		return MathUtils.divideRoundUp(value, unitValue) * unitValue;
+		return Math.max(MathUtils.divideRoundUp(value, unitValue), 1) * unitValue;
 	}
 
-	boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
+	private boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
 		return resource.memory <= maxMemMB && resource.vcores <= maxVcore;
+	}
+
+	private static void trySetExternalResources(Map<String, Long> externalResources, Resource resource) {
+		for (Map.Entry<String, Long> externalResource: externalResources.entrySet()) {
+			ResourceInformationReflector.INSTANCE.setResourceInformation(resource, externalResource.getKey(), externalResource.getValue());
+		}
 	}
 
 	enum MatchingStrategy {
@@ -155,23 +167,33 @@ public class WorkerSpecContainerResourceAdapter {
 	 * This class is for {@link WorkerSpecContainerResourceAdapter} internal usages only, to overcome the problem that
 	 * hash codes are calculated inconsistently across different {@link Resource} implementations.
 	 */
-	private static final class InternalContainerResource {
+	@VisibleForTesting
+	static final class InternalContainerResource {
 		private final int memory;
 		private final int vcores;
+		private final Map<String, Long> externalResources;
 
-		private InternalContainerResource(final int memory, final int vcores) {
+		@VisibleForTesting
+		InternalContainerResource(final int memory, final int vcores, final Map<String, Long> externalResources) {
 			this.memory = memory;
 			this.vcores = vcores;
+			this.externalResources = externalResources.entrySet()
+						.stream()
+						.filter(entry -> !entry.getValue().equals(0L))
+						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		}
 
 		private InternalContainerResource(final Resource resource) {
 			this(
 				Preconditions.checkNotNull(resource).getMemory(),
-				Preconditions.checkNotNull(resource).getVirtualCores());
+				Preconditions.checkNotNull(resource).getVirtualCores(),
+				ResourceInformationReflector.INSTANCE.getExternalResources(resource));
 		}
 
 		private Resource toResource() {
-			return Resource.newInstance(memory, vcores);
+			final Resource resource = Resource.newInstance(memory, vcores);
+			trySetExternalResources(externalResources, resource);
+			return resource;
 		}
 
 		@Override
@@ -180,21 +202,38 @@ public class WorkerSpecContainerResourceAdapter {
 				return true;
 			} else if (obj instanceof InternalContainerResource) {
 				final InternalContainerResource other = (InternalContainerResource) obj;
-				return this.memory == other.memory && this.vcores == other.vcores;
+				return this.memory == other.memory && this.vcores == other.vcores && this.externalResources.equals(other.externalResources);
 			}
 			return false;
 		}
 
 		@Override
 		public int hashCode() {
+			final int prime = 31;
 			int result = Integer.hashCode(memory);
-			result = 31 * result + Integer.hashCode(vcores);
+			result = prime * result + Integer.hashCode(vcores);
+			result = prime * result + externalResources.hashCode();
 			return result;
 		}
 
 		@Override
 		public String toString() {
-			return "<memory:" + memory + ", vCores:" + vcores + ">";
+			final StringBuilder sb = new StringBuilder();
+
+			sb.append("<memory:")
+				.append(memory)
+				.append(", vCores:")
+				.append(vcores);
+
+			final Set<String> externalResourceNames = new TreeSet<>(externalResources.keySet());
+			for (String externalResourceName : externalResourceNames) {
+				sb.append(", ")
+					.append(externalResourceName).append(": ")
+					.append(externalResources.get(externalResourceName));
+			}
+
+			sb.append(">");
+			return sb.toString();
 		}
 	}
 }

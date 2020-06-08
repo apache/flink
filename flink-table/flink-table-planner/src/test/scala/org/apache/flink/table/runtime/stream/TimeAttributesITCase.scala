@@ -25,8 +25,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, TableSchema, Tumble, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
 import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
@@ -176,7 +177,7 @@ class TimeAttributesITCase extends AbstractTestBase {
   def testTableSink(): Unit = {
     MemoryTableSourceSinkUtil.clear()
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink",
       (new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink).configure(
         Array[String]("rowtime", "floorDay", "ceilDay"),
@@ -549,7 +550,8 @@ class TimeAttributesITCase extends AbstractTestBase {
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(schema, rowType, rows, "rowtime", "proctime")
-    tEnv.registerTableSource("testTable", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("testTable", tableSource)
 
     val result = tEnv
       .scan("testTable")

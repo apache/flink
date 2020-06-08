@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -153,6 +153,14 @@ under the License.
 					<artifactId>scala-library</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to pin
+		 	its version (our Hadoop dependency has overridden the netty version in the past) -->
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty</artifactId>
+			<version>3.10.6.Final</version>
 		</dependency>
 
 		<!-- Transitive dependency of akka-remote that we explicitly define to keep it

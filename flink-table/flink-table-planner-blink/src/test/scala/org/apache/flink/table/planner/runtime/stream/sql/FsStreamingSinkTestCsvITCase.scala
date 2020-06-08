@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase
-import org.apache.flink.table.planner.utils.TestCsvFileSystemFormatFactory.USE_BULK_WRITER
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -34,8 +33,10 @@ class FsStreamingSinkTestCsvITCase(useBulkWriter: Boolean) extends FsStreamingSi
 
   override def additionalProperties(): Array[String] = {
     super.additionalProperties() ++
-        Seq("'format' = 'testcsv'", s"'$USE_BULK_WRITER' = '$useBulkWriter'") ++
-        (if (useBulkWriter) Seq() else Seq("'sink.rolling-policy.file-size' = '1'"))
+        Seq(
+          "'format' = 'testcsv'",
+          s"'testcsv.use-bulk-writer' = '$useBulkWriter'") ++
+        (if (useBulkWriter) Seq() else Seq("'sink.rolling-policy.file-size' = '1b'"))
   }
 }
 

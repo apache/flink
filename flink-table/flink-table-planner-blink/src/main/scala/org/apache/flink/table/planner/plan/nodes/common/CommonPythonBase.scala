@@ -20,16 +20,17 @@ package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigOption, Configuration, MemorySize, TaskManagerOptions}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
-import scala.collection.mutable
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 trait CommonPythonBase {
 
@@ -50,7 +51,8 @@ trait CommonPythonBase {
   private def createPythonFunctionInfo(
       pythonRexCall: RexCall,
       inputNodes: mutable.Map[RexNode, Integer],
-      func: UserDefinedFunction): PythonFunctionInfo = {
+      functionDefinition: FunctionDefinition)
+    : PythonFunctionInfo = {
     val inputs = new mutable.ArrayBuffer[AnyRef]()
     pythonRexCall.getOperands.foreach {
       case pythonRexCall: RexCall =>
@@ -73,7 +75,7 @@ trait CommonPythonBase {
         }
     }
 
-    new PythonFunctionInfo(func.asInstanceOf[PythonFunction], inputs.toArray)
+    new PythonFunctionInfo(functionDefinition.asInstanceOf[PythonFunction], inputs.toArray)
   }
 
   protected def createPythonFunctionInfo(
@@ -84,6 +86,8 @@ trait CommonPythonBase {
         createPythonFunctionInfo(pythonRexCall, inputNodes, sfc.scalarFunction)
       case tfc: TableSqlFunction =>
         createPythonFunctionInfo(pythonRexCall, inputNodes, tfc.udtf)
+      case bsf: BridgingSqlFunction =>
+        createPythonFunctionInfo(pythonRexCall, inputNodes, bsf.getDefinition)
     }
   }
 
@@ -112,6 +116,7 @@ trait CommonPythonBase {
     method.setAccessible(true)
     val config = new Configuration(method.invoke(env).asInstanceOf[Configuration])
     config.addAll(tableConfig.getConfiguration)
+    checkPythonWorkerMemory(config, env)
     config
   }
 
@@ -123,6 +128,64 @@ trait CommonPythonBase {
       realEnv = realExecEnvField.get(realEnv).asInstanceOf[StreamExecutionEnvironment]
     }
     realEnv
+  }
+
+  protected def isPythonWorkerUsingManagedMemory(config: Configuration): Boolean = {
+    val clazz = loadClass("org.apache.flink.python.PythonOptions")
+    config.getBoolean(clazz.getField("USE_MANAGED_MEMORY").get(null)
+      .asInstanceOf[ConfigOption[java.lang.Boolean]])
+  }
+
+  protected def getPythonWorkerMemory(config: Configuration): MemorySize = {
+    val clazz = loadClass("org.apache.flink.python.PythonOptions")
+    val pythonFrameworkMemorySize = MemorySize.parse(
+      config.getString(
+        clazz.getField("PYTHON_FRAMEWORK_MEMORY_SIZE").get(null)
+          .asInstanceOf[ConfigOption[String]]))
+    val pythonBufferMemorySize = MemorySize.parse(
+      config.getString(
+        clazz.getField("PYTHON_DATA_BUFFER_MEMORY_SIZE").get(null)
+          .asInstanceOf[ConfigOption[String]]))
+    pythonFrameworkMemorySize.add(pythonBufferMemorySize)
+  }
+
+  private def checkPythonWorkerMemory(
+      config: Configuration, env: StreamExecutionEnvironment): Unit = {
+    if (!isPythonWorkerUsingManagedMemory(config)) {
+      val taskOffHeapMemory = config.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY)
+      val requiredPythonWorkerOffHeapMemory = getPythonWorkerMemory(config)
+      if (taskOffHeapMemory.compareTo(requiredPythonWorkerOffHeapMemory) < 0) {
+        throw new TableException(String.format("The configured Task Off-Heap Memory %s is less " +
+          "than the least required Python worker Memory %s. The Task Off-Heap Memory can be " +
+          "configured using the configuration key 'taskmanager.memory.task.off-heap.size'.",
+          taskOffHeapMemory, requiredPythonWorkerOffHeapMemory))
+      }
+    } else if (isRocksDbUsingManagedMemory(env)) {
+      throw new TableException("Currently it doesn't support to use Managed Memory for both " +
+        "RocksDB state backend and Python worker at the same time. You can either configure " +
+        "RocksDB state backend to use Task Off-Heap Memory via the configuration key " +
+        "'state.backend.rocksdb.memory.managed' or configure Python worker to use " +
+        "Task Off-Heap Memory via the configuration key " +
+        "'python.fn-execution.memory.managed'.")
+    }
+  }
+
+  private def isRocksDbUsingManagedMemory(env: StreamExecutionEnvironment): Boolean = {
+    val stateBackend = env.getStateBackend
+    if (stateBackend != null && env.getStateBackend.getClass.getCanonicalName.equals(
+      "org.apache.flink.contrib.streaming.state.RocksDBStateBackend")) {
+      val clazz = loadClass("org.apache.flink.contrib.streaming.state.RocksDBStateBackend")
+      val getMemoryConfigurationMethod = clazz.getDeclaredMethod("getMemoryConfiguration")
+      val rocksDbConfig = getMemoryConfigurationMethod.invoke(stateBackend)
+      val isUsingManagedMemoryMethod =
+        rocksDbConfig.getClass.getDeclaredMethod("isUsingManagedMemory")
+      val isUsingFixedMemoryPerSlotMethod =
+        rocksDbConfig.getClass.getDeclaredMethod("isUsingFixedMemoryPerSlot")
+      isUsingManagedMemoryMethod.invoke(rocksDbConfig).asInstanceOf[Boolean] &&
+        !isUsingFixedMemoryPerSlotMethod.invoke(rocksDbConfig).asInstanceOf[Boolean]
+    } else {
+      false
+    }
   }
 }
 

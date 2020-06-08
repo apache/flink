@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -83,6 +84,8 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
 	public Class<?> getConversionClass() {
 		return conversionClass;
 	}
+
+	public abstract List<DataType> getChildren();
 
 	public abstract <R> R accept(DataTypeVisitor<R> visitor);
 

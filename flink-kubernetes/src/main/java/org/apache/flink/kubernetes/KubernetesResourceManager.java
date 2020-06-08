@@ -22,11 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -35,6 +37,7 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
@@ -47,6 +50,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -86,6 +90,8 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 	/** Map from pod name to worker resource. */
 	private final Map<String, WorkerResourceSpec> podWorkerResources;
+
+	private KubernetesWatch podsWatch;
 
 	public KubernetesResourceManager(
 			RpcService rpcService,
@@ -129,21 +135,29 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	protected void initialize() throws ResourceManagerException {
 		recoverWorkerNodesFromPreviousAttempts();
 
-		kubeClient.watchPodsAndDoCallback(KubernetesUtils.getTaskManagerLabels(clusterId), this);
+		podsWatch = kubeClient.watchPodsAndDoCallback(
+			KubernetesUtils.getTaskManagerLabels(clusterId),
+			this);
 	}
 
 	@Override
 	public CompletableFuture<Void> onStop() {
 		// shut down all components
-		Throwable exception = null;
+		Throwable throwable = null;
+
+		try {
+			podsWatch.close();
+		} catch (Throwable t) {
+			throwable = t;
+		}
 
 		try {
 			kubeClient.close();
 		} catch (Throwable t) {
-			exception = t;
+			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 		}
 
-		return getStopTerminationFutureOrCompletedExceptionally(exception);
+		return getStopTerminationFutureOrCompletedExceptionally(throwable);
 	}
 
 	@Override
@@ -222,6 +236,11 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 		runAsync(() -> pods.forEach(this::removePodAndTryRestartIfRequired));
 	}
 
+	@Override
+	public void handleFatalError(Throwable throwable) {
+		onFatalError(throwable);
+	}
+
 	@VisibleForTesting
 	Map<ResourceID, KubernetesWorkerNode> getWorkerNodes() {
 		return workerNodes;
@@ -296,7 +315,8 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			flinkConfig,
 			podName,
 			dynamicProperties,
-			taskManagerParameters);
+			taskManagerParameters,
+			ExternalResourceUtils.getExternalResources(flinkConfig, KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
 	}
 
 	/**

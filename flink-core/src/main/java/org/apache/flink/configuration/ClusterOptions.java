@@ -63,6 +63,15 @@ public class ClusterOptions {
 		.defaultValue(30000L)
 		.withDescription("The shutdown timeout for cluster services like executors in milliseconds.");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
+	public static final ConfigOption<Integer> CLUSTER_IO_EXECUTOR_POOL_SIZE = ConfigOptions
+		.key("cluster.io-pool.size")
+		.intType()
+		.noDefaultValue()
+		.withDescription("The size of the IO executor pool used by the cluster to execute blocking IO operations (Master as well as TaskManager processes). " +
+			"By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. " +
+			"Increasing the pool size allows to run more IO operations concurrently.");
+
 	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
 	public static final ConfigOption<Boolean> EVENLY_SPREAD_OUT_SLOTS_STRATEGY = ConfigOptions
 		.key("cluster.evenly-spread-out-slots")

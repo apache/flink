@@ -48,10 +48,11 @@ resources:
 #   to understand why the secrets are handled like this
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
-  CACHE_FLINK_DIR: $(Pipeline.Workspace)/flink_cache
+  FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
   SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
   SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
   SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
@@ -62,7 +63,7 @@ jobs:
     parameters: # see template file for a definition of the parameters.
       stage_name: ci_build
       test_pool_definition:
-        vmImage: 'ubuntu-latest'
+        vmImage: 'ubuntu-16.04'
       e2e_pool_definition:
         vmImage: 'ubuntu-16.04'
       environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"

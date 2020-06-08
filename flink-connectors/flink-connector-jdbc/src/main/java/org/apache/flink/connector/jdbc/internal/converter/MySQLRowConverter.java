@@ -21,9 +21,16 @@ package org.apache.flink.connector.jdbc.internal.converter;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * Row converter for MySQL.
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for MySQL.
  */
 public class MySQLRowConverter extends AbstractJdbcRowConverter {
+
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public String converterName() {
+		return "MySQL";
+	}
 
 	public MySQLRowConverter(RowType rowType) {
 		super(rowType);

@@ -24,9 +24,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * A utility to instantiate new operators with a given factory.
@@ -52,20 +52,18 @@ public class StreamOperatorFactoryUtil {
 		MailboxExecutor mailboxExecutor = containingTask.getMailboxExecutorFactory().createExecutor(configuration.getChainIndex());
 
 		if (operatorFactory instanceof YieldingOperatorFactory) {
-			((YieldingOperatorFactory) operatorFactory).setMailboxExecutor(mailboxExecutor);
+			((YieldingOperatorFactory<?>) operatorFactory).setMailboxExecutor(mailboxExecutor);
 		}
 
-		ProcessingTimeService processingTimeService = null;
+		final Supplier<ProcessingTimeService> processingTimeServiceFactory =
+				() -> containingTask.getProcessingTimeServiceFactory().createProcessingTimeService(mailboxExecutor);
+
+		final ProcessingTimeService processingTimeService;
 		if (operatorFactory instanceof ProcessingTimeServiceAware) {
-			processingTimeService = containingTask.getProcessingTimeServiceFactory().createProcessingTimeService(mailboxExecutor);
+			processingTimeService = processingTimeServiceFactory.get();
 			((ProcessingTimeServiceAware) operatorFactory).setProcessingTimeService(processingTimeService);
-		}
-
-		if (operatorFactory instanceof CoordinatedOperatorFactory) {
-			Preconditions.checkNotNull(
-					operatorEventDispatcher,
-					"The OperatorEventDispatcher should not be null.");
-			((CoordinatedOperatorFactory<OUT>) operatorFactory).setOperatorEventDispatcher(operatorEventDispatcher);
+		} else {
+			processingTimeService = null;
 		}
 
 		// TODO: what to do with ProcessingTimeServiceAware?
@@ -74,7 +72,8 @@ public class StreamOperatorFactoryUtil {
 				containingTask,
 				configuration,
 				output,
-				processingTimeService));
+				processingTimeService != null ? () -> processingTimeService : processingTimeServiceFactory,
+				operatorEventDispatcher));
 		return new Tuple2<>(op, Optional.ofNullable(processingTimeService));
 	}
 }

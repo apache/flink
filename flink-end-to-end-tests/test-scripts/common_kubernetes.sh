@@ -20,8 +20,6 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
 
-DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
-KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
 CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
@@ -75,8 +73,7 @@ function start_kubernetes_if_not_running {
         # here.
         # Similarly, the kubelets are marking themself as "low disk space",
         # causing Flink to avoid this node (again, failing the test)
-        # Use fixed version v1.16.9 because fabric8 kubernetes-client could not work with higher version under jdk 8u252
-        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --kubernetes-version v1.16.9 --vm-driver=none \
+        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
             --extra-config=kubelet.image-gc-high-threshold=99 \
             --extra-config=kubelet.image-gc-low-threshold=98 \
             --extra-config=kubelet.minimum-container-ttl-duration=120m \

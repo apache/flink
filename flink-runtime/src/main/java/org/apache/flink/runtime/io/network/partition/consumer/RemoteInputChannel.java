@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -167,7 +169,6 @@ public class RemoteInputChannel extends InputChannel {
 
 	@Override
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
-		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
 		checkError();
@@ -178,6 +179,14 @@ public class RemoteInputChannel extends InputChannel {
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
 			moreAvailable = !receivedBuffers.isEmpty();
+		}
+
+		if (next == null) {
+			if (isReleased.get()) {
+				throw new CancelTaskException("Queried for a buffer after channel has been released.");
+			} else {
+				throw new IllegalStateException("There should always have queued buffers for unreleased channel.");
+			}
 		}
 
 		numBytesIn.inc(next.getSize());
@@ -207,7 +216,7 @@ public class RemoteInputChannel extends InputChannel {
 				checkpointId,
 				channelInfo,
 				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-				inflightBuffers.toArray(new Buffer[0]));
+				CloseableIterator.fromList(inflightBuffers, Buffer::recycleBuffer));
 		}
 	}
 
@@ -241,9 +250,10 @@ public class RemoteInputChannel extends InputChannel {
 	void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
 
-			ArrayDeque<Buffer> releasedBuffers;
+			final ArrayDeque<Buffer> releasedBuffers;
 			synchronized (receivedBuffers) {
-				releasedBuffers = receivedBuffers;
+				releasedBuffers = new ArrayDeque<>(receivedBuffers);
+				receivedBuffers.clear();
 			}
 			bufferManager.releaseAllBuffers(releasedBuffers);
 
@@ -469,7 +479,9 @@ public class RemoteInputChannel extends InputChannel {
 
 			if (notifyReceivedBarrier != null) {
 				receivedCheckpointId = notifyReceivedBarrier.getId();
-				listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
+				if (notifyReceivedBarrier.isCheckpoint()) {
+					listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
+				}
 			} else if (notifyReceivedBuffer != null) {
 				listener.notifyBufferReceived(notifyReceivedBuffer, channelInfo);
 			}

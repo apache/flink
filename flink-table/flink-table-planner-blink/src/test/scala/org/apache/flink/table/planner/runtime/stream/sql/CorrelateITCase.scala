@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
@@ -238,7 +239,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = List("1,2,,null", "1,3,,null")
@@ -259,7 +260,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = List("3018-06-10", "2018-06-03", "2018-06-01", "2018-06-02")
@@ -280,7 +281,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = List("1,3018-06-10", "1,2018-06-03", "1,2018-06-01", "1,2018-06-02")
@@ -300,7 +301,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = List("a")
@@ -320,7 +321,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     // output two null
@@ -341,7 +342,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = List("1,a")
@@ -361,7 +362,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = List("2,null", "3,null")

@@ -94,7 +94,7 @@ public class Checkpoints {
 	//  Reading and validating checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
+	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader, String externalPointer) throws IOException {
 		checkNotNull(in, "input stream");
 		checkNotNull(classLoader, "classLoader");
 
@@ -103,7 +103,7 @@ public class Checkpoints {
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
 			final MetadataSerializer serializer = MetadataSerializers.getSerializer(version);
-			return serializer.deserialize(in, classLoader);
+			return serializer.deserialize(in, classLoader, externalPointer);
 		}
 		else {
 			throw new IOException("Unexpected magic number. This can have multiple reasons: " +
@@ -132,7 +132,7 @@ public class Checkpoints {
 		final CheckpointMetadata checkpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
-			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
+			checkpointMetadata = loadCheckpointMetadata(dis, classLoader, checkpointPointer);
 		}
 
 		// generate mapping from operator to task
@@ -171,16 +171,13 @@ public class Checkpoints {
 			} else if (allowNonRestoredState) {
 				LOG.info("Skipping savepoint state for operator {}.", operatorState.getOperatorID());
 			} else {
+				if (operatorState.getCoordinatorState() != null) {
+					throwNonRestoredStateException(checkpointPointer, operatorState.getOperatorID());
+				}
+
 				for (OperatorSubtaskState operatorSubtaskState : operatorState.getStates()) {
 					if (operatorSubtaskState.hasState()) {
-						String msg = String.format("Failed to rollback to checkpoint/savepoint %s. " +
-										"Cannot map checkpoint/savepoint state for operator %s to the new program, " +
-										"because the operator is not available in the new program. If " +
-										"you want to allow to skip this, you can set the --allowNonRestoredState " +
-										"option on the CLI.",
-								checkpointPointer, operatorState.getOperatorID());
-
-						throw new IllegalStateException(msg);
+						throwNonRestoredStateException(checkpointPointer, operatorState.getOperatorID());
 					}
 				}
 
@@ -200,6 +197,17 @@ public class Checkpoints {
 				checkpointMetadata.getMasterStates(),
 				props,
 				location);
+	}
+
+	private static void throwNonRestoredStateException(String checkpointPointer, OperatorID operatorId) {
+		String msg = String.format("Failed to rollback to checkpoint/savepoint %s. " +
+				"Cannot map checkpoint/savepoint state for operator %s to the new program, " +
+				"because the operator is not available in the new program. If " +
+				"you want to allow to skip this, you can set the --allowNonRestoredState " +
+				"option on the CLI.",
+			checkpointPointer, operatorId);
+
+		throw new IllegalStateException(msg);
 	}
 
 	// ------------------------------------------------------------------------
@@ -225,7 +233,7 @@ public class Checkpoints {
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-			metadata = loadCheckpointMetadata(dis, classLoader);
+			metadata = loadCheckpointMetadata(dis, classLoader, pointer);
 		}
 
 		Exception exception = null;

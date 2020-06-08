@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{BEFORE_AND_AFTER, ONLY_UPDATE_AFTER, beforeAfterOrNone, onlyAfterOrNone}
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils.FULL_CHANGELOG_MODE
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
@@ -115,8 +115,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         requester: String): StreamPhysicalRel = rel match {
       case sink: StreamExecSink =>
         val name = s"Table sink '${sink.tableIdentifier.asSummaryString()}'"
+        val queryModifyKindSet = deriveQueryDefaultChangelogMode(sink.getInput, name)
         val sinkRequiredTrait = ModifyKindSetTrait.fromChangelogMode(
-          sink.tableSink.getChangelogMode(FULL_CHANGELOG_MODE))
+          sink.tableSink.getChangelogMode(queryModifyKindSet))
         val children = visitChildren(sink, sinkRequiredTrait, name)
         val sinkTrait = sink.getTraitSet.plus(ModifyKindSetTrait.EMPTY)
         // ignore required trait from context, because sink is the true root
@@ -220,8 +221,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case _: StreamExecTemporalSort | _: StreamExecOverAggregate | _: StreamExecWindowJoin =>
-        // TemporalSort, OverAggregate, WindowJoin only support consuming insert-only
+      case _: StreamExecTemporalSort | _: StreamExecOverAggregate | _: StreamExecIntervalJoin =>
+        // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(
@@ -323,6 +324,18 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
     }
 
+    /**
+     * Derives the [[ModifyKindSetTrait]] of query plan without required ModifyKindSet validation.
+     */
+    private def deriveQueryDefaultChangelogMode(
+        queryNode: RelNode, name: String): ChangelogMode = {
+      val newNode = visit(
+        queryNode.asInstanceOf[StreamPhysicalRel],
+        ModifyKindSetTrait.ALL_CHANGES,
+        name)
+      getModifyKindSet(newNode).toChangelogMode
+    }
+
     private def createNewNode(
         node: StreamPhysicalRel,
         children: List[StreamPhysicalRel],
@@ -385,7 +398,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val onlyAfter = onlyAfterOrNone(childModifyKindSet)
         val beforeAndAfter = beforeAfterOrNone(childModifyKindSet)
         val sinkTrait = UpdateKindTrait.fromChangelogMode(
-          sink.tableSink.getChangelogMode(FULL_CHANGELOG_MODE))
+          sink.tableSink.getChangelogMode(childModifyKindSet.toChangelogMode))
         val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
           Seq(onlyAfter, beforeAndAfter)
         } else if (sinkTrait.equals(BEFORE_AND_AFTER)){
@@ -431,9 +444,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamExecGroupWindowAggregate | _: StreamExecGroupWindowTableAggregate |
            _: StreamExecDeduplicate | _: StreamExecTemporalSort | _: StreamExecMatch |
-           _: StreamExecOverAggregate | _: StreamExecWindowJoin =>
+           _: StreamExecOverAggregate | _: StreamExecIntervalJoin =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
-        // and WindowJoin require nothing about UpdateKind.
+        // and IntervalJoin require nothing about UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)
         createNewNode(rel, children, requiredTrait)
 

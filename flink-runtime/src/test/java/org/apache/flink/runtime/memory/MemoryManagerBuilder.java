@@ -18,29 +18,19 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.apache.flink.core.memory.MemoryType;
-
-import java.util.EnumMap;
-import java.util.Map;
-
 import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
 
 /** Builder class for {@link MemoryManager}. */
 public class MemoryManagerBuilder {
 	private static final long DEFAULT_MEMORY_SIZE = 32L * DEFAULT_PAGE_SIZE;
 
-	private final Map<MemoryType, Long> memoryPools = new EnumMap<>(MemoryType.class);
+	private long memorySize = DEFAULT_MEMORY_SIZE;
 	private int pageSize = DEFAULT_PAGE_SIZE;
 
 	private MemoryManagerBuilder() {}
 
 	public MemoryManagerBuilder setMemorySize(long memorySize) {
-		this.memoryPools.put(MemoryType.HEAP, memorySize);
-		return this;
-	}
-
-	public MemoryManagerBuilder setMemorySize(MemoryType memoryType, long memorySize) {
-		this.memoryPools.put(memoryType, memorySize);
+		this.memorySize = memorySize;
 		return this;
 	}
 
@@ -50,10 +40,7 @@ public class MemoryManagerBuilder {
 	}
 
 	public MemoryManager build() {
-		if (memoryPools.isEmpty()) {
-			memoryPools.put(MemoryType.HEAP, DEFAULT_MEMORY_SIZE);
-		}
-		return new MemoryManager(memoryPools, pageSize);
+		return new MemoryManager(memorySize, pageSize);
 	}
 
 	public static MemoryManagerBuilder newBuilder() {

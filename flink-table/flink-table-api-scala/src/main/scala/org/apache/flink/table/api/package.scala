@@ -18,8 +18,6 @@
 
 package org.apache.flink.table
 
-import org.apache.flink.table.api.{ImplicitExpressionConversions, ImplicitExpressionOperations, Table, TableEnvironment}
-
 /**
   * == Table & SQL API ==
   *
@@ -39,10 +37,6 @@ import org.apache.flink.table.api.{ImplicitExpressionConversions, ImplicitExpres
   *
   * Please refer to the website documentation about how to construct and run table programs.
   */
-package object api /* extends ImplicitExpressionConversions */ {
-
-  // This package object should extend from ImplicitExpressionConversions but would clash with
-  // "org.apache.flink.table.api.scala._" therefore we postpone splitting the package object into
-  // two and let users update there imports first
+package object api extends ImplicitExpressionConversions {
 }
 

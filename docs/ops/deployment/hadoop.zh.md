@@ -32,7 +32,7 @@ under the License.
 In order to use Hadoop features (e.g., YARN, HDFS) it is necessary to provide Flink with the required Hadoop classes,
 as these are not bundled by default.
 
-This can be done by adding the Hadoop classpath to Flink through the `HADOOP_CLASSPATH` environment variable.
+The recommended approach is adding the Hadoop classpath to Flink through the `HADOOP_CLASSPATH` environment variable.
 
 Flink will use the environment variable `HADOOP_CLASSPATH` to augment the
 classpath that is used when starting Flink components such as the Client,
@@ -44,27 +44,16 @@ that are running Flink components.
 When running on YARN, this is usually not a problem because the components
 running inside YARN will be started with the Hadoop classpaths, but it can
 happen that the Hadoop dependencies must be in the classpath when submitting a
-job to YARN. For this, it's usually enough to do a
+job to YARN. For this, it's usually enough to run
 
 {% highlight bash %}
 export HADOOP_CLASSPATH=`hadoop classpath`
 {% endhighlight %}
 
-in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath.
+in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath. The classpath returned by `hadoop classpath` also includes the Hadoop configuration directories.
 
-Putting the Hadoop configuration in the same class path as the Hadoop libraries makes Flink pick up that configuration.
-
-## Referencing a Hadoop configuration
-
-You can reference a Hadoop configuration by setting the environment variable `HADOOP_CONF_DIR`.
-
-```sh
-HADOOP_CONF_DIR=/path/to/etc/hadoop
-```
-
-Referencing the HDFS configuration in the [Flink configuration]({{ site.baseurl }}/ops/config.html#hdfs) is deprecated.
-
-Another way to provide the Hadoop configuration is to have it on the class path of the Flink process, see more details above.
+If you are manually assembling the `HADOOP_CLASSPATH` variable, we recommend
+adding the Hadoop configuration directories as well.
 
 ## Running a job locally
 

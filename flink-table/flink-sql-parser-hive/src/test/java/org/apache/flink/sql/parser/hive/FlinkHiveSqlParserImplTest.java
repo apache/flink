@@ -204,4 +204,210 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		sql("drop table tbl").ok("DROP TABLE `TBL`");
 		sql("drop table if exists cat.tbl").ok("DROP TABLE IF EXISTS `CAT`.`TBL`");
 	}
+
+	@Test
+	public void testInsert() {
+		sql("insert into tbl partition(p1=1,p2,p3) select * from src")
+				.ok("INSERT INTO `TBL`\n" +
+						"PARTITION (`P1` = 1, `P2`, `P3`)\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+		sql("insert overwrite table tbl select * from src")
+				.ok("INSERT OVERWRITE `TBL`\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+		sql("insert into table tbl(x,y) select * from src")
+				.ok("INSERT INTO `TBL` (`X`, `Y`)\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+	}
+
+	@Test
+	public void testCreateFunction() {
+		sql("create function func as 'class.name'").ok("CREATE FUNCTION `FUNC` AS 'class.name'");
+		sql("create temporary function func as 'class.name'").ok("CREATE TEMPORARY FUNCTION `FUNC` AS 'class.name'");
+	}
+
+	@Test
+	public void testDropFunction() {
+		sql("drop function if exists func").ok("DROP FUNCTION IF EXISTS `FUNC`");
+		sql("drop temporary function func").ok("DROP TEMPORARY FUNCTION `FUNC`");
+	}
+
+	@Test
+	public void testShowFunctions() {
+		// TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
+		sql("show functions").ok("SHOW FUNCTIONS");
+	}
+
+	@Test
+	public void testCreateCatalog() {
+		sql("create catalog cat")
+				.ok("CREATE CATALOG `CAT`");
+		sql("create catalog cat with ('k1'='v1')")
+				.ok("CREATE CATALOG `CAT` WITH (\n" +
+						"  'k1' = 'v1'\n" +
+						")");
+	}
+
+	@Test
+	public void testShowCatalogs() {
+		sql("show catalogs").ok("SHOW CATALOGS");
+	}
+
+	@Test
+	public void testUseCatalog() {
+		sql("use catalog cat").ok("USE CATALOG `CAT`");
+	}
+
+	@Test
+	public void testDescribeCatalog() {
+		sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
+	}
+
+	@Test
+	public void testAlterTableRename() {
+		sql("alter table tbl rename to tbl1").ok("ALTER TABLE `TBL` RENAME TO `TBL1`");
+	}
+
+	@Test
+	public void testAlterTableSerDe() {
+		sql("alter table tbl set serde 'serde.class' with serdeproperties ('field.delim'='\u0001')")
+				.ok("ALTER TABLE `TBL` SET SERDE 'serde.class' WITH SERDEPROPERTIES (\n" +
+						"  'field.delim' = u&'\\0001'\n" +
+						")");
+		sql("alter table tbl set serdeproperties('line.delim'='\n')")
+				.ok("ALTER TABLE `TBL` SET SERDEPROPERTIES (\n" +
+						"  'line.delim' = '\n" +
+						"'\n" +
+						")");
+	}
+
+	@Test
+	public void testAlterTableLocation() {
+		sql("alter table tbl set location '/new/table/path'")
+				.ok("ALTER TABLE `TBL` SET LOCATION '/new/table/path'");
+		sql("alter table tbl partition (p1=1,p2='a') set location '/new/partition/location'")
+				.ok("ALTER TABLE `TBL` PARTITION (`P1` = 1, `P2` = 'a') SET LOCATION '/new/partition/location'");
+	}
+
+	// TODO: support ALTER CLUSTERED BY, SKEWED, STORED AS DIRECTORIES, column constraints
+
+	@Test
+	public void testAlterPartitionRename() {
+		sql("alter table tbl partition (p=1) rename to partition (p=2)")
+				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1)\n" +
+						"RENAME TO\n" +
+						"PARTITION (`P` = 2)");
+	}
+
+	// TODO: support EXCHANGE PARTITION, RECOVER PARTITIONS
+
+	// TODO: support (UN)ARCHIVE PARTITION
+
+	@Test
+	public void testAlterFileFormat() {
+		sql("alter table tbl set fileformat rcfile")
+				.ok("ALTER TABLE `TBL` SET FILEFORMAT `RCFILE`");
+		sql("alter table tbl partition (p=1) set fileformat sequencefile")
+				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1) SET FILEFORMAT `SEQUENCEFILE`");
+	}
+
+	// TODO: support ALTER TABLE/PARTITION TOUCH, PROTECTION, COMPACT, CONCATENATE, UPDATE COLUMNS
+
+	@Test
+	public void testChangeColumn() {
+		sql("alter table tbl change c c1 struct<f0:timestamp,f1:array<char(5)>> restrict")
+				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C1`  STRUCT< `F0` TIMESTAMP, `F1` ARRAY< CHAR(5) > > RESTRICT");
+		sql("alter table tbl change column c c decimal(5,2) comment 'new comment' first cascade")
+				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C`  DECIMAL(5, 2)  COMMENT 'new comment' FIRST CASCADE");
+	}
+
+	@Test
+	public void testAddReplaceColumn() {
+		sql("alter table tbl add columns (a float,b timestamp,c binary) cascade")
+				.ok("ALTER TABLE `TBL` ADD COLUMNS (\n" +
+						"  `A`  FLOAT,\n" +
+						"  `B`  TIMESTAMP,\n" +
+						"  `C`  BINARY\n" +
+						") CASCADE");
+		sql("alter table tbl replace columns (a char(100),b tinyint comment 'tiny comment',c smallint) restrict")
+				.ok("ALTER TABLE `TBL` REPLACE COLUMNS (\n" +
+						"  `A`  CHAR(100),\n" +
+						"  `B`  TINYINT  COMMENT 'tiny comment',\n" +
+						"  `C`  SMALLINT\n" +
+						") RESTRICT");
+	}
+
+	@Test
+	public void testCreateView() {
+		sql("create view db1.v1 as select x,y from tbl")
+				.ok("CREATE VIEW `DB1`.`V1`\n" +
+						"AS\n" +
+						"SELECT `X`, `Y`\n" +
+						"FROM `TBL`");
+		sql("create view if not exists v1 (c1,c2) as select * from tbl")
+				.ok("CREATE VIEW IF NOT EXISTS `V1` (`C1`, `C2`)\n" +
+						"AS\n" +
+						"SELECT *\n" +
+						"FROM `TBL`");
+		sql("create view v1 comment 'v1 comment' tblproperties('k1'='v1','k2'='v2') as select * from tbl")
+				.ok("CREATE VIEW `V1`\n" +
+						"COMMENT 'v1 comment'\n" +
+						"TBLPROPERTIES (\n" +
+						"  'k1' = 'v1',\n" +
+						"  'k2' = 'v2'\n" +
+						")\n" +
+						"AS\n" +
+						"SELECT *\n" +
+						"FROM `TBL`");
+		// TODO: support column comments
+	}
+
+	@Test
+	public void testDropView() {
+		sql("drop view v1").ok("DROP VIEW `V1`");
+		sql("drop view if exists v1").ok("DROP VIEW IF EXISTS `V1`");
+	}
+
+	@Test
+	public void testAlterView() {
+		sql("alter view v1 rename to v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+		sql("alter view v1 set tblproperties ('k1'='v1')")
+				.ok("ALTER VIEW `V1` SET TBLPROPERTIES (\n" +
+						"  'k1' = 'v1'\n" +
+						")");
+		sql("alter view v1 as select c1,c2 from tbl")
+				.ok("ALTER VIEW `V1`\n" +
+						"AS\n" +
+						"SELECT `C1`, `C2`\n" +
+						"FROM `TBL`");
+	}
+
+	@Test
+	public void testAddPartition() {
+		sql("alter table tbl add partition (p1=1,p2='a') location '/part1/location'")
+				.ok("ALTER TABLE `TBL`\n" +
+						"ADD\n" +
+						"PARTITION (`P1` = 1, `P2` = 'a') LOCATION '/part1/location'");
+		sql("alter table tbl add if not exists partition (p=1) partition (p=2) location '/part2/location'")
+				.ok("ALTER TABLE `TBL`\n" +
+						"ADD IF NOT EXISTS\n" +
+						"PARTITION (`P` = 1)\n" +
+						"PARTITION (`P` = 2) LOCATION '/part2/location'");
+	}
+
+	@Test
+	public void testDropPartition() {
+		sql("alter table tbl drop if exists partition (p=1)")
+				.ok("ALTER TABLE `TBL`\n" +
+						"DROP IF EXISTS\n" +
+						"PARTITION (`P` = 1)");
+		sql("alter table tbl drop partition (p1='a',p2=1), partition(p1='b',p2=2)")
+				.ok("ALTER TABLE `TBL`\n" +
+						"DROP\n" +
+						"PARTITION (`P1` = 'a', `P2` = 1)\n" +
+						"PARTITION (`P1` = 'b', `P2` = 2)");
+		// TODO: support IGNORE PROTECTION, PURGE
+	}
 }

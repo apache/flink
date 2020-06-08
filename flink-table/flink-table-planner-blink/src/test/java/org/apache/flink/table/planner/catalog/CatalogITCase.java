@@ -21,12 +21,13 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 
 import org.junit.Test;
 
 import static org.apache.flink.table.descriptors.GenericInMemoryCatalogValidator.CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -44,6 +45,20 @@ public class CatalogITCase {
 
 		assertTrue(tableEnv.getCatalog(name).isPresent());
 		assertTrue(tableEnv.getCatalog(name).get() instanceof GenericInMemoryCatalog);
+	}
+
+	@Test
+	public void testDropCatalog() {
+		String name = "c1";
+		TableEnvironment tableEnv = getTableEnvironment();
+
+		String ddl = String.format("create catalog %s with('type'='%s')", name, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY);
+		tableEnv.executeSql(ddl);
+		assertTrue(tableEnv.getCatalog(name).isPresent());
+
+		ddl = String.format("drop catalog %s", name);
+		tableEnv.executeSql(ddl);
+		assertFalse(tableEnv.getCatalog(name).isPresent());
 	}
 
 	private TableEnvironment getTableEnvironment() {

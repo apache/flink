@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -44,14 +45,13 @@ import java.util.stream.Collectors;
  * by an {@link ObjectIdentifier} or anonymously defined, unregistered types (usually reflectively
  * extracted) that are identified by an implementation {@link Class}.
  *
+ * <h1>Logical properties</h1>
+ *
  * <p>A structured type can declare a super type and allows single inheritance for more complex type
  * hierarchies, similar to JVM-based languages.
  *
  * <p>A structured type can be declared {@code final} for preventing further inheritance (default
  * behavior) or {@code not final} for allowing subtypes.
- *
- * <p>A structured type must offer a default constructor with zero arguments or a full constructor
- * that assigns all attributes.
  *
  * <p>A structured type can be declared {@code not instantiable} if a more specific type is
  * required or {@code instantiable} if instances can be created from this type (default behavior).
@@ -61,6 +61,19 @@ import java.util.stream.Collectors;
  *
  * <p>NOTE: Compared to the SQL standard, this class is incomplete. We might add new features such
  * as method declarations in the future. Also ordering is not supported yet.
+ *
+ * <h1>Physical properties</h1>
+ *
+ * <p>A structured type can be defined fully logically (e.g. by using a {@code CREATE TYPE} DDL). The
+ * implementation class is optional and only used at the edges of the table ecosystem (e.g. when bridging
+ * to a function or connector). Serialization and equality ({@code hashCode/equals}) are handled by
+ * the runtime based on the logical type. In other words: {@code hashCode/equals} of an implementation
+ * class are not used. Custom equality, casting logic, and further overloaded operators will be supported
+ * once we allow defining methods on structured types.
+ *
+ * <p>An implementation class must offer a default constructor with zero arguments or a full constructor
+ * that assigns all attributes. Other physical properties such as the conversion classes of attributes
+ * are defined by a {@link DataType} when a structured type is used.
  */
 @PublicEvolving
 public final class StructuredType extends UserDefinedType {
@@ -132,9 +145,24 @@ public final class StructuredType extends UserDefinedType {
 	 * Defines equality properties for scalar evaluation.
 	 */
 	public enum StructuredComparision {
-		EQUALS,
-		FULL,
-		NONE
+		EQUALS(true, false),
+		FULL(true, true),
+		NONE(false, false);
+		private final boolean equality;
+		private final boolean comparison;
+
+		StructuredComparision(boolean equality, boolean comparison) {
+			this.equality = equality;
+			this.comparison = comparison;
+		}
+
+		public boolean isEquality() {
+			return equality;
+		}
+
+		public boolean isComparison() {
+			return comparison;
+		}
 	}
 
 	/**
@@ -319,8 +347,8 @@ public final class StructuredType extends UserDefinedType {
 	public LogicalType copy(boolean isNullable) {
 		return new StructuredType(
 			isNullable,
-			getOptionalObjectIdentifier().orElse(null),
-			attributes.stream().map(StructuredAttribute::copy).collect(Collectors.toList()),
+			getObjectIdentifier().orElse(null),
+			attributes,
 			isFinal(),
 			isInstantiable,
 			comparision,
@@ -331,11 +359,13 @@ public final class StructuredType extends UserDefinedType {
 
 	@Override
 	public String asSummaryString() {
-		if (getOptionalObjectIdentifier().isPresent()) {
+		if (getObjectIdentifier().isPresent()) {
 			return asSerializableString();
 		}
 		assert implementationClass != null;
-		return implementationClass.getName();
+		// we use *class* to make it visible that this type is unregistered and not confuse it
+		// with catalog types
+		return "*" + implementationClass.getName() + "*";
 	}
 
 	@Override
@@ -366,16 +396,16 @@ public final class StructuredType extends UserDefinedType {
 
 	@Override
 	public List<LogicalType> getChildren() {
-		final ArrayList<LogicalType> children = new ArrayList<>();
-		StructuredType currentType = this;
-		while (currentType != null) {
-			children.addAll(
-				currentType.attributes.stream()
-					.map(StructuredAttribute::getType)
-					.collect(Collectors.toList()));
-			currentType = currentType.superType;
+		final List<LogicalType> children = new ArrayList<>();
+		// add super fields first
+		if (superType != null) {
+			children.addAll(superType.getChildren());
 		}
-		Collections.reverse(children);
+		// then specific fields
+		children.addAll(
+			attributes.stream()
+				.map(StructuredAttribute::getType)
+				.collect(Collectors.toList()));
 		return Collections.unmodifiableList(children);
 	}
 

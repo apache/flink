@@ -32,12 +32,11 @@ Main Differences Between the Two Planners
 
 1. Blink treats batch jobs as a special case of streaming. As such, the conversion between Table and DataSet is also not supported, and batch jobs will not be translated into `DateSet` programs but translated into `DataStream` programs, the same as the streaming jobs.
 2. The Blink planner does not support `BatchTableSource`, use bounded `StreamTableSource` instead of it.
-3. The Blink planner only support the brand new `Catalog` and does not support `ExternalCatalog` which is deprecated.
-4. The implementations of `FilterableTableSource` for the old planner and the Blink planner are incompatible. The old planner will push down `PlannerExpression`s into `FilterableTableSource`, while the Blink planner will push down `Expression`s.
-5. String based key-value config options (Please see the documentation about [Configuration]({{ site.baseurl }}/dev/table/config.html) for details) are only used for the Blink planner.
-6. The implementation(`CalciteConfig`) of `PlannerConfig` in two planners is different.
-7. The Blink planner will optimize multiple-sinks into one DAG (supported only on `TableEnvironment`, not on `StreamTableEnvironment`). The old planner will always optimize each sink into a new DAG, where all DAGs are independent of each other.
-8. The old planner does not support catalog statistics now, while the Blink planner does.
+3. The implementations of `FilterableTableSource` for the old planner and the Blink planner are incompatible. The old planner will push down `PlannerExpression`s into `FilterableTableSource`, while the Blink planner will push down `Expression`s.
+4. String based key-value config options (Please see the documentation about [Configuration]({{ site.baseurl }}/dev/table/config.html) for details) are only used for the Blink planner.
+5. The implementation(`CalciteConfig`) of `PlannerConfig` in two planners is different.
+6. The Blink planner will optimize multiple-sinks into one DAG (supported only on `TableEnvironment`, not on `StreamTableEnvironment`). The old planner will always optimize each sink into a new DAG, where all DAGs are independent of each other.
+7. The old planner does not support catalog statistics now, while the Blink planner does.
 
 
 Structure of Table API and SQL Programs
@@ -157,7 +156,7 @@ If both planner jars are on the classpath (the default behavior), you should exp
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -168,7 +167,7 @@ StreamTableEnvironment fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSetti
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 
 ExecutionEnvironment fbEnv = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
@@ -178,7 +177,7 @@ BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
@@ -205,7 +204,7 @@ TableEnvironment bbTableEnv = TableEnvironment.create(bbSettings);
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
 val fsEnv = StreamExecutionEnvironment.getExecutionEnvironment
@@ -216,7 +215,7 @@ val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
 
 val fbEnv = ExecutionEnvironment.getExecutionEnvironment
 val fbTableEnv = BatchTableEnvironment.create(fbEnv)
@@ -226,7 +225,7 @@ val fbTableEnv = BatchTableEnvironment.create(fbEnv)
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val bsEnv = StreamExecutionEnvironment.getExecutionEnvironment
 val bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
@@ -552,7 +551,9 @@ val revenue = orders
 // execute query
 {% endhighlight %}
 
-**Note:** The Scala Table API uses Scala Symbols, which start with a single tick (`'`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._` in order to use Scala implicit conversions.
+**Note:** The Scala Table API uses Scala String interpolation that starts with a dollar sign (`$`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import
+* `org.apache.flink.table.api._` - for implicit expression conversions 
+* `org.apache.flink.api.scala._` and `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
 </div>
 
 <div data-lang="python" markdown="1">
@@ -829,6 +830,19 @@ Translate and Execute a Query
 The behavior of translating and executing a query is different for the two planners.
 
 <div class="codetabs" markdown="1">
+
+<div data-lang="Blink planner" markdown="1">
+Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) programs whether their input is streaming or batch. A query is internally represented as a logical query plan and is translated in two phases:
+
+1. Optimization of the logical plan,
+2. Translation into a DataStream program.
+
+a Table API or SQL query is translated when:
+
+* `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first. All sinks will be optimized into one DAG.
+* A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
+</div>
+
 <div data-lang="Old planner" markdown="1">
 Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) or [DataSet]({{ site.baseurl }}/dev/batch) programs depending on whether their input is a streaming or batch input. A query is internally represented as a logical query plan and is translated in two phases:
 
@@ -847,22 +861,8 @@ For batch, a Table API or SQL query is translated when:
 * a `Table` is converted into a `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)).
 
 Once translated, a Table API or SQL query is handled like a regular DataSet program and is executed when `ExecutionEnvironment.execute()` is called.
-
 </div>
 
-<div data-lang="Blink planner" markdown="1">
-Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) programs whether their input is streaming or batch. A query is internally represented as a logical query plan and is translated in two phases:
-
-1. Optimization of the logical plan,
-2. Translation into a DataStream program.
-
-a Table API or SQL query is translated when:
-
-* `TableEnvironment.execute()` is called. A `Table` (emitted to a `TableSink` through `Table.insertInto()`) or a SQL update query (specified through `TableEnvironment.sqlUpdate()`) will be buffered in `TableEnvironment` first. All sinks will be optimized into one DAG.
-* A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
-
-
-</div>
 </div>
 
 {% top %}
@@ -879,7 +879,7 @@ This interaction can be achieved by converting a `DataStream` or `DataSet` into 
 
 ### Implicit Conversion for Scala
 
-The Scala Table API features implicit conversions for the `DataSet`, `DataStream`, and `Table` classes. These conversions are enabled by importing the package `org.apache.flink.table.api.scala._` in addition to `org.apache.flink.api.scala._` for the Scala DataStream API.
+The Scala Table API features implicit conversions for the `DataSet`, `DataStream`, and `Table` classes. These conversions are enabled by importing the package `org.apache.flink.table.api.bridge.scala._` in addition to `org.apache.flink.api.scala._` for the Scala DataStream API.
 
 ### Create a View from a DataStream or DataSet
 
@@ -1405,16 +1405,7 @@ Query Optimization
 ------------------
 
 <div class="codetabs" markdown="1">
-<div data-lang="Old planner" markdown="1">
-
-Apache Flink leverages Apache Calcite to optimize and translate queries. The optimization currently performed include projection and filter push-down, subquery decorrelation, and other kinds of query rewriting. Old planner does not yet optimize the order of joins, but executes them in the same order as defined in the query (order of Tables in the `FROM` clause and/or order of join predicates in the `WHERE` clause).
-
-It is possible to tweak the set of optimization rules which are applied in different phases by providing a `CalciteConfig` object. This can be created via a builder by calling `CalciteConfig.createBuilder())` and is provided to the TableEnvironment by calling `tableEnv.getConfig.setPlannerConfig(calciteConfig)`.
-
-</div>
-
 <div data-lang="Blink planner" markdown="1">
-
 Apache Flink leverages and extends Apache Calcite to perform sophisticated query optimization.
 This includes a series of rule and cost-based optimizations such as:
 
@@ -1434,7 +1425,12 @@ This includes a series of rule and cost-based optimizations such as:
 The optimizer makes intelligent decisions, based not only on the plan but also rich statistics available from the data sources and fine-grain costs for each operator such as io, cpu, network, and memory.
 
 Advanced users may provide custom optimizations via a `CalciteConfig` object that can be provided to the table environment by calling `TableEnvironment#getConfig#setPlannerConfig`.
+</div>
 
+<div data-lang="Old planner" markdown="1">
+Apache Flink leverages Apache Calcite to optimize and translate queries. The optimization currently performed include projection and filter push-down, subquery decorrelation, and other kinds of query rewriting. Old planner does not yet optimize the order of joins, but executes them in the same order as defined in the query (order of Tables in the `FROM` clause and/or order of join predicates in the `WHERE` clause).
+
+It is possible to tweak the set of optimization rules which are applied in different phases by providing a `CalciteConfig` object. This can be created via a builder by calling `CalciteConfig.createBuilder())` and is provided to the TableEnvironment by calling `tableEnv.getConfig.setPlannerConfig(calciteConfig)`.
 </div>
 </div>
 

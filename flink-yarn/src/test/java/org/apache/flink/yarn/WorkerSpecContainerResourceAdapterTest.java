@@ -28,12 +28,16 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
 import org.junit.Test;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -55,7 +59,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(1.0)
@@ -115,7 +120,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -177,7 +183,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				maxMemMB,
-				maxVcore);
+				maxVcore,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -211,7 +218,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec = new WorkerResourceSpec.Builder()
 			.setCpuCores(1.0)
@@ -231,6 +239,24 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 
 		assertThat(adapter.getEquivalentContainerResource(resourceImpl2, strategy), contains(resourceImpl1));
 		assertThat(adapter.getWorkerSpecs(resourceImpl2, strategy), contains(workerSpec));
+	}
+
+	@Test
+	public void testMatchInternalContainerResourceIgnoresZeroValueExternalResources() {
+		final Map<String, Long> externalResources1 = new HashMap<>();
+		final Map<String, Long> externalResources2 = new HashMap<>();
+
+		externalResources1.put("foo", 0L);
+		externalResources1.put("bar", 1L);
+		externalResources2.put("zoo", 0L);
+		externalResources2.put("bar", 1L);
+
+		final WorkerSpecContainerResourceAdapter.InternalContainerResource internalContainerResource1 =
+			new WorkerSpecContainerResourceAdapter.InternalContainerResource(1024, 1, externalResources1);
+		final WorkerSpecContainerResourceAdapter.InternalContainerResource internalContainerResource2 =
+			new WorkerSpecContainerResourceAdapter.InternalContainerResource(1024, 1, externalResources2);
+
+		assertEquals(internalContainerResource1, internalContainerResource2);
 	}
 
 	private Configuration getConfigProcessSpecEqualsWorkerSpec() {

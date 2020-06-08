@@ -45,6 +45,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
@@ -202,6 +203,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The state manager for this task, providing state managers per slot. */
 	private final TaskExecutorLocalStateStoresManager localStateStoresManager;
 
+	/** Information provider for external resources. */
+	private final ExternalResourceInfoProvider externalResourceInfoProvider;
+
 	/** The network component in the task manager. */
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
@@ -257,6 +261,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			TaskManagerConfiguration taskManagerConfiguration,
 			HighAvailabilityServices haServices,
 			TaskManagerServices taskExecutorServices,
+			ExternalResourceInfoProvider externalResourceInfoProvider,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
 			@Nullable String metricQueryServiceAddress,
@@ -278,6 +283,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.blobCacheService = checkNotNull(blobCacheService);
 		this.metricQueryServiceAddress = metricQueryServiceAddress;
 		this.backPressureSampleService = checkNotNull(backPressureSampleService);
+		this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 
 		this.libraryCacheManager = taskExecutorServices.getLibraryCacheManager();
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
@@ -620,6 +626,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskExecutorServices.getKvStateService(),
 				taskExecutorServices.getBroadcastVariableManager(),
 				taskExecutorServices.getTaskEventDispatcher(),
+				externalResourceInfoProvider,
 				taskStateManager,
 				taskManagerActions,
 				inputSplitProvider,
@@ -853,7 +860,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final String message = "TaskManager received a checkpoint confirmation for unknown task " + executionAttemptID + '.';
 
 			log.debug(message);
-			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.TASK_CHECKPOINT_FAILURE));
+			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE));
+		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> abortCheckpoint(
+			ExecutionAttemptID executionAttemptID,
+			long checkpointId,
+			long checkpointTimestamp) {
+		log.debug("Abort checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
+
+		final Task task = taskSlotTable.getTask(executionAttemptID);
+
+		if (task != null) {
+			task.notifyCheckpointAborted(checkpointId);
+
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		} else {
+			final String message = "TaskManager received an aborted checkpoint for unknown task " + executionAttemptID + '.';
+
+			log.debug(message);
+			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE));
 		}
 	}
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.kafka;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
@@ -52,12 +53,14 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -92,6 +95,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
+	private final String kafkaVersion;
 	private final String kafkaSQLVersion;
 	private Path result;
 	private Path sqlClientSessionConf;
@@ -107,6 +111,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	public SQLClientKafkaITCase(String kafkaVersion, String kafkaSQLVersion, String kafkaSQLJarPattern) {
 		this.kafka = KafkaResource.get(kafkaVersion);
+		this.kafkaVersion = kafkaVersion;
 		this.kafkaSQLVersion = kafkaSQLVersion;
 
 		this.sqlConnectorKafkaJar = TestUtils.getResourceJar(kafkaSQLJarPattern);
@@ -129,8 +134,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 	public void testKafka() throws Exception {
 		try (ClusterController clusterController = flink.startCluster(2)) {
 			// Create topic and send message
-			String testJsonTopic = "test-json";
-			String testAvroTopic = "test-avro";
+			String testJsonTopic = "test-json-" + kafkaVersion + "-" + UUID.randomUUID().toString();
+			String testAvroTopic = "test-avro-" + kafkaVersion + "-" + UUID.randomUUID().toString();
 			kafka.createTopic(1, 1, testJsonTopic);
 			String[] messages = new String[]{
 					"{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
@@ -231,8 +236,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	private void checkCsvResultFile() throws Exception {
 		boolean success = false;
-		long maxRetries = 10, duration = 5000L;
-		for (int i = 0; i < maxRetries; i++) {
+		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+		while (!success && deadline.hasTimeLeft()) {
 			if (Files.exists(result)) {
 				byte[] bytes = Files.readAllBytes(result);
 				String[] lines = new String(bytes, Charsets.UTF_8).split("\n");
@@ -252,8 +257,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 			} else {
 				LOG.info("The target CSV {} does not exist now", result);
 			}
-			Thread.sleep(duration);
+			Thread.sleep(500);
 		}
-		Assert.assertTrue("Timeout(" + (maxRetries * duration) + " sec) to read the correct CSV results.", success);
+		Assert.assertTrue("Did not get expected results before timeout.", success);
 	}
 }

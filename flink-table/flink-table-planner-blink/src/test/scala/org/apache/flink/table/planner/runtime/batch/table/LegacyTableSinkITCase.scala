@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
@@ -122,7 +122,8 @@ class LegacyTableSinkITCase extends BatchTestBase {
         .field("b", DataTypes.DOUBLE())
         .build()
     val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
-    tEnv.registerTableSink("testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
     registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
     sink
   }
@@ -173,7 +174,8 @@ class LegacyTableSinkITCase extends BatchTestBase {
         .field("b", DataTypes.DOUBLE())
         .build()
     val sink = new TestingRetractTableSink(TimeZone.getDefault)
-    tEnv.registerTableSink("testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
     registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
     sink
   }

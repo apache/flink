@@ -465,8 +465,12 @@ object HashAggCodeGenHelper {
              |""".stripMargin.trim
 
         if (filterArg >= 0) {
+          var filterTerm = s"$inputTerm.getBoolean($filterArg)"
+          if (ctx.nullCheck) {
+            filterTerm = s"!$inputTerm.isNullAt($filterArg) && " + filterTerm
+          }
           s"""
-             |if ($inputTerm.getBoolean($filterArg)) {
+             |if ($filterTerm) {
              | $innerCode
              |}
           """.stripMargin

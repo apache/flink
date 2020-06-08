@@ -18,44 +18,73 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
+
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Factory class for {@link SourceOperator}.
  */
 public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT>
-		implements CoordinatedOperatorFactory<OUT> {
+		implements CoordinatedOperatorFactory<OUT>, ProcessingTimeServiceAware {
+
+	private static final long serialVersionUID = 1L;
+
 	/** The {@link Source} to create the {@link SourceOperator}. */
 	private final Source<OUT, ?, ?> source;
+
+	/** The event time setup (timestamp assigners, watermark generators, etc.). */
+	private final WatermarkStrategy<OUT> watermarkStrategy;
+
 	/** The number of worker thread for the source coordinator. */
 	private final int numCoordinatorWorkerThread;
-	/** The {@link OperatorEventDispatcher} to register the SourceOperator. */
-	private OperatorEventDispatcher operatorEventDispatcher;
 
-	public SourceOperatorFactory(Source<OUT, ?, ?> source) {
-		this(source, 1);
+	public SourceOperatorFactory(Source<OUT, ?, ?> source, WatermarkStrategy<OUT> watermarkStrategy) {
+		this(source, watermarkStrategy, 1);
 	}
 
-	public SourceOperatorFactory(Source<OUT, ?, ?> source, int numCoordinatorWorkerThread) {
-		this.source = source;
+	public SourceOperatorFactory(
+			Source<OUT, ?, ?> source,
+			WatermarkStrategy<OUT> watermarkStrategy,
+			int numCoordinatorWorkerThread) {
+		this.source = checkNotNull(source);
+		this.watermarkStrategy = checkNotNull(watermarkStrategy);
 		this.numCoordinatorWorkerThread = numCoordinatorWorkerThread;
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
-		SourceOperator<OUT, ?> sourceOperator = new SourceOperator<>(source);
-		OperatorEventGateway operatorEventGateway = operatorEventDispatcher.registerEventHandler(
-				parameters.getStreamConfig().getOperatorID(),
-				sourceOperator);
-		sourceOperator.setOperatorEventGateway(operatorEventGateway);
+		final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
+		final OperatorEventGateway gateway = parameters.getOperatorEventDispatcher().getOperatorEventGateway(operatorId);
+
+		final SourceOperator<OUT, ?> sourceOperator = instantiateSourceOperator(
+				source::createReader,
+				gateway,
+				source.getSplitSerializer(),
+				watermarkStrategy,
+				parameters.getProcessingTimeService());
+
 		sourceOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
-		return (T) sourceOperator;
+		parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
+
+		// today's lunch is generics spaghetti
+		@SuppressWarnings("unchecked")
+		final T castedOperator = (T) sourceOperator;
+
+		return castedOperator;
 	}
 
 	@Override
@@ -63,11 +92,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 		return new SourceCoordinatorProvider<>(operatorName, operatorID, source, numCoordinatorWorkerThread);
 	}
 
-	@Override
-	public void setOperatorEventDispatcher(OperatorEventDispatcher operatorEventDispatcher) {
-		this.operatorEventDispatcher = operatorEventDispatcher;
-	}
-
+	@SuppressWarnings("rawtypes")
 	@Override
 	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
 		return SourceOperator.class;
@@ -76,5 +101,33 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	@Override
 	public boolean isStreamSource() {
 		return true;
+	}
+
+	/**
+	 * This is a utility method to conjure up a "SplitT" generics variable binding so that we can
+	 * construct the SourceOperator without resorting to "all raw types".
+	 * That way, this methods puts all "type non-safety" in one place and allows to maintain as much
+	 * generics safety in the main code as possible.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <T, SplitT extends SourceSplit> SourceOperator<T, SplitT> instantiateSourceOperator(
+			Function<SourceReaderContext, SourceReader<T, ?>> readerFactory,
+			OperatorEventGateway eventGateway,
+			SimpleVersionedSerializer<?> splitSerializer,
+			WatermarkStrategy<T> watermarkStrategy,
+			ProcessingTimeService timeService) {
+
+		// jumping through generics hoops: cast the generics away to then cast them back more strictly typed
+		final Function<SourceReaderContext, SourceReader<T, SplitT>> typedReaderFactory =
+				(Function<SourceReaderContext, SourceReader<T, SplitT>>) (Function<?, ?>) readerFactory;
+
+		final SimpleVersionedSerializer<SplitT> typedSplitSerializer = (SimpleVersionedSerializer<SplitT>) splitSerializer;
+
+		return new SourceOperator<>(
+				typedReaderFactory,
+				eventGateway,
+				typedSplitSerializer,
+				watermarkStrategy,
+				timeService);
 	}
 }

@@ -120,13 +120,13 @@
                      :parse-fn read-test-spec
                      :validate [#(->> % :dbs (map dbs) (every? (complement nil?)))
                                 (str "Invalid :dbs specification. " (keys->allowed-values-help-text dbs))]]
-                    [nil "--nemesis-gen GEN" (str "Which nemesis should be used?"
+                    [nil "--nemesis-gen GEN" (str "Which nemesis should be used? "
                                                   (keys->allowed-values-help-text fn/nemesis-generator-factories))
                      :parse-fn keyword
                      :default :kill-task-managers
                      :validate [#(fn/nemesis-generator-factories %)
                                 (keys->allowed-values-help-text fn/nemesis-generator-factories)]]
-                    [nil "--client-gen GEN" (str "Which client should be used?"
+                    [nil "--client-gen GEN" (str "Which client should be used? "
                                                  (keys->allowed-values-help-text client-gens))
                      :parse-fn keyword
                      :default :poll-job-running

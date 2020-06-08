@@ -21,7 +21,7 @@ package org.apache.flink.connector.jdbc;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -103,26 +103,26 @@ public class JdbcDataTypeTest {
 			createTestItem("postgresql", "ARRAY<INTEGER>"),
 
 			// Unsupported types throws errors.
-			createTestItem("derby", "BINARY", "The derby dialect doesn't support type: BINARY(1)."),
-			createTestItem("derby", "VARBINARY(10)", "The derby dialect doesn't support type: VARBINARY(10)."),
+			createTestItem("derby", "BINARY", "The Derby dialect doesn't support type: BINARY(1)."),
+			createTestItem("derby", "VARBINARY(10)", "The Derby dialect doesn't support type: VARBINARY(10)."),
 			createTestItem("derby", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-					"The derby dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
+					"The Derby dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
 			createTestItem("derby", "DECIMAL(38, 18)",
-					"The precision of field 'f0' is out of the DECIMAL precision range [1, 31] supported by derby dialect."),
+					"The precision of field 'f0' is out of the DECIMAL precision range [1, 31] supported by Derby dialect."),
 
-			createTestItem("mysql", "BINARY", "The mysql dialect doesn't support type: BINARY(1)."),
-			createTestItem("mysql", "VARBINARY(10)", "The mysql dialect doesn't support type: VARBINARY(10)."),
+			createTestItem("mysql", "BINARY", "The MySQL dialect doesn't support type: BINARY(1)."),
+			createTestItem("mysql", "VARBINARY(10)", "The MySQL dialect doesn't support type: VARBINARY(10)."),
 			createTestItem("mysql", "TIMESTAMP(9) WITHOUT TIME ZONE",
-					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by mysql dialect."),
+					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by MySQL dialect."),
 			createTestItem("mysql", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-					"The mysql dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
+					"The MySQL dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
 
-			createTestItem("postgresql", "BINARY", "The postgresql dialect doesn't support type: BINARY(1)."),
-			createTestItem("postgresql", "VARBINARY(10)", "The postgresql dialect doesn't support type: VARBINARY(10)."),
+			createTestItem("postgresql", "BINARY", "The PostgreSQL dialect doesn't support type: BINARY(1)."),
+			createTestItem("postgresql", "VARBINARY(10)", "The PostgreSQL dialect doesn't support type: VARBINARY(10)."),
 			createTestItem("postgresql", "TIMESTAMP(9) WITHOUT TIME ZONE",
-					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by postgresql dialect."),
+					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by PostgreSQL dialect."),
 			createTestItem("postgresql", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-					"The postgresql dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
+					"The PostgreSQL dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
 		);
 	}
 

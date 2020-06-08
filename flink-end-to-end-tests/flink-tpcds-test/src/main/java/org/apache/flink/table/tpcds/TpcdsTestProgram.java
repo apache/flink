@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.sinks.CsvTableSink;
@@ -92,7 +93,7 @@ public class TpcdsTestProgram {
 
 			//register sink table
 			String sinkTableName = QUERY_PREFIX + queryId + "_sinkTable";
-			tableEnvironment.registerTableSink(sinkTableName,
+			((TableEnvironmentInternal) tableEnvironment).registerTableSinkInternal(sinkTableName,
 					new CsvTableSink(
 						sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
 						COL_DELIMITER,

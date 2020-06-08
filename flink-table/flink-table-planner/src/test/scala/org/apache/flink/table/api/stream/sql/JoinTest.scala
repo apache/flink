@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.api.stream.sql
 
-import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.join.WindowJoinUtil
-import org.apache.flink.table.utils.TableTestUtil.{term, _}
+import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
+import org.apache.calcite.rel.logical.LogicalJoin
 import org.junit.Assert._
 import org.junit.Test
 

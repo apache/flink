@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -162,6 +162,12 @@ under the License.
 			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-bulk_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- format dependencies -->
@@ -890,6 +896,7 @@ under the License.
 									<include>org.apache.flink:flink-orc-nohive_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-parquet_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-hadoop-bulk_${scala.binary.version}</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>
 									<include>org.apache.parquet:parquet-column</include>
@@ -900,17 +907,37 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
-									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.shaded.fs.hdfs</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.formats.parquet</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.formats.parquet</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.parquet</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.parquet</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.shaded.parquet</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>shaded.parquet</pattern>
-									<shadedPattern>org.apache.flink.reshaded.parquet</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.reshaded.parquet</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:flink-orc_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-parquet_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
@@ -1077,6 +1104,14 @@ under the License.
 					<artifactId>netty-common</artifactId>
 					<version>4.1.44.Final</version>
 					<scope>provided</scope>
+				</dependency>
+
+				<!-- Required by orc tests -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+					<version>${hivemetastore.hadoop.version}</version>
+					<scope>test</scope>
 				</dependency>
 			</dependencies>
 

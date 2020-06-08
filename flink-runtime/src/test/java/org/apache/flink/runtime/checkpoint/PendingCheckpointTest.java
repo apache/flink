@@ -32,12 +32,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
+import org.apache.flink.runtime.operators.coordination.TestingOperatorInfo;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -438,7 +439,7 @@ public class PendingCheckpointTest {
 	@Test
 	public void testInitiallyUnacknowledgedCoordinatorStates() throws Exception {
 		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(
-				createOperatorCoordinator(), createOperatorCoordinator());
+				new TestingOperatorInfo(), new TestingOperatorInfo());
 
 		assertEquals(2, checkpoint.getNumberOfNonAcknowledgedOperatorCoordinators());
 		assertFalse(checkpoint.isFullyAcknowledged());
@@ -446,8 +447,8 @@ public class PendingCheckpointTest {
 
 	@Test
 	public void testAcknowledgedCoordinatorStates() throws Exception {
-		final OperatorCoordinatorCheckpointContext coord1 = createOperatorCoordinator();
-		final OperatorCoordinatorCheckpointContext coord2 = createOperatorCoordinator();
+		final OperatorInfo coord1 = new TestingOperatorInfo();
+		final OperatorInfo coord2 = new TestingOperatorInfo();
 		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coord1, coord2);
 
 		final TaskAcknowledgeResult ack1 = checkpoint.acknowledgeCoordinatorState(coord1, new TestingStreamStateHandle());
@@ -462,7 +463,7 @@ public class PendingCheckpointTest {
 
 	@Test
 	public void testDuplicateAcknowledgeCoordinator() throws Exception {
-		final OperatorCoordinatorCheckpointContext coordinator = createOperatorCoordinator();
+		final OperatorInfo coordinator = new TestingOperatorInfo();
 		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coordinator);
 
 		checkpoint.acknowledgeCoordinatorState(coordinator, new TestingStreamStateHandle());
@@ -473,9 +474,9 @@ public class PendingCheckpointTest {
 
 	@Test
 	public void testAcknowledgeUnknownCoordinator() throws Exception {
-		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(createOperatorCoordinator());
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(new TestingOperatorInfo());
 
-		final TaskAcknowledgeResult ack = checkpoint.acknowledgeCoordinatorState(createOperatorCoordinator(), null);
+		final TaskAcknowledgeResult ack = checkpoint.acknowledgeCoordinatorState(new TestingOperatorInfo(), null);
 
 		assertEquals(TaskAcknowledgeResult.UNKNOWN, ack);
 	}
@@ -507,11 +508,11 @@ public class PendingCheckpointTest {
 	}
 
 	private PendingCheckpoint createPendingCheckpointWithCoordinators(
-			OperatorCoordinatorCheckpointContext... coordinators) throws IOException {
+				OperatorInfo... coordinators) throws IOException {
 
 		final PendingCheckpoint checkpoint = createPendingCheckpoint(
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				OperatorCoordinatorCheckpointContext.getIds(Arrays.asList(coordinators)),
+				OperatorInfo.getIds(Arrays.asList(coordinators)),
 				Collections.emptyList(),
 				Executors.directExecutor());
 
@@ -519,10 +520,10 @@ public class PendingCheckpointTest {
 		return checkpoint;
 	}
 
-	private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(StreamStateHandle... handles) throws IOException {
-		OperatorCoordinatorCheckpointContext[] coords = new OperatorCoordinatorCheckpointContext[handles.length];
+	private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(ByteStreamStateHandle... handles) throws IOException {
+		final OperatorInfo[] coords = new OperatorInfo[handles.length];
 		for (int i = 0; i < handles.length; i++) {
-			coords[i] = createOperatorCoordinator();
+			coords[i] = new TestingOperatorInfo();
 		}
 
 		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coords);
@@ -560,14 +561,6 @@ public class PendingCheckpointTest {
 			location,
 			executor,
 			new CompletableFuture<>());
-	}
-
-	private static OperatorCoordinatorCheckpointContext createOperatorCoordinator() {
-		return new OperatorCoordinatorCheckpointContext(
-				new MockOperatorCoordinator(),
-				new OperatorID(),
-				256,
-				50);
 	}
 
 	@SuppressWarnings("unchecked")

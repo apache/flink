@@ -18,8 +18,9 @@
 
 package org.apache.flink.connector.jdbc.catalog;
 
-import org.apache.flink.connector.jdbc.table.JdbcTableSourceSinkFactory;
+import org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
@@ -43,17 +44,22 @@ import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -116,11 +122,38 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 		return baseUrl;
 	}
 
+	// ------ retrieve PK constraint ------
+
+	protected Optional<UniqueConstraint> getPrimaryKey(DatabaseMetaData metaData, String schema, String table) throws SQLException {
+
+		// According to the Javadoc of java.sql.DatabaseMetaData#getPrimaryKeys,
+		// the returned primary key columns are ordered by COLUMN_NAME, not by KEY_SEQ.
+		// We need to sort them based on the KEY_SEQ value.
+		ResultSet rs = metaData.getPrimaryKeys(null, schema, table);
+
+		Map<Integer, String> keySeqColumnName = new HashMap<>();
+		String pkName = null;
+		while (rs.next()) {
+			String columnName = rs.getString("COLUMN_NAME");
+			pkName = rs.getString("PK_NAME"); // all the PK_NAME should be the same
+			int keySeq = rs.getInt("KEY_SEQ");
+			keySeqColumnName.put(keySeq - 1, columnName); // KEY_SEQ is 1-based index
+		}
+		List<String> pkFields = Arrays.asList(new String[keySeqColumnName.size()]); // initialize size
+		keySeqColumnName.forEach(pkFields::set);
+		if (!pkFields.isEmpty()) {
+			// PK_NAME maybe null according to the javadoc, generate an unique name in that case
+			pkName = pkName == null ? "pk_" + String.join("_", pkFields) : pkName;
+			return Optional.of(UniqueConstraint.primaryKey(pkName, pkFields));
+		}
+		return Optional.empty();
+	}
 
 	// ------ table factory ------
 
-	public Optional<TableFactory> getTableFactory() {
-		return Optional.of(new JdbcTableSourceSinkFactory());
+	@Override
+	public Optional<Factory> getFactory() {
+		return Optional.of(new JdbcDynamicTableSourceSinkFactory());
 	}
 
 	// ------ databases ------

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -44,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.CloseableIterator.ofElement;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -117,7 +119,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	@Override
 	public void releaseBlocksAndResetBarriers() {
-		if (numBarrierConsumed > 0) {
+		if (isCheckpointPending()) {
 			// make sure no additional data is persisted
 			Arrays.fill(hasInflightBuffers, false);
 			// the next barrier that comes must assume it is the first
@@ -128,9 +130,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	/**
 	 * For unaligned checkpoint, it never blocks processing from the task aspect.
-	 *
-	 * <p>For PoC, we do not consider the possibility that the unaligned checkpoint would
-	 * not perform due to the max configured unaligned checkpoint size.
 	 */
 	@Override
 	public boolean isBlocked(int channelIndex) {
@@ -138,18 +137,16 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	/**
-	 * We still need to trigger checkpoint while reading the first barrier from one channel, because this might happen
-	 * earlier than the previous async trigger via mailbox by netty thread. And the {@link AbstractInvokable} has the
-	 * deduplication logic to guarantee trigger checkpoint only once finally.
+	 * We still need to trigger checkpoint via {@link ThreadSafeUnaligner#notifyBarrierReceived(CheckpointBarrier, InputChannelInfo)}
+	 * while reading the first barrier from one channel, because this might happen
+	 * earlier than the previous async trigger via mailbox by netty thread.
 	 *
 	 * <p>Note this is also suitable for the trigger case of local input channel.
 	 */
 	@Override
-	public void processBarrier(
-			CheckpointBarrier receivedBarrier,
-			int channelIndex) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
 		long barrierId = receivedBarrier.getId();
-		if (currentConsumedCheckpointId > barrierId || (currentConsumedCheckpointId == barrierId && numBarrierConsumed == 0)) {
+		if (currentConsumedCheckpointId > barrierId || (currentConsumedCheckpointId == barrierId && !isCheckpointPending())) {
 			// ignore old and cancelled barriers
 			return;
 		}
@@ -162,40 +159,39 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			hasInflightBuffers[channelIndex] = false;
 			numBarrierConsumed++;
 		}
-		// processBarrier is called from task thread and can actually happen before notifyBarrierReceived on empty
-		// buffer queues
-		// to avoid replicating any logic, we simply call notifyBarrierReceived here as well
 		threadSafeUnaligner.notifyBarrierReceived(receivedBarrier, channelInfos[channelIndex]);
 	}
 
 	@Override
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
-		final long barrierId = cancelBarrier.getCheckpointId();
+		long cancelledId = cancelBarrier.getCheckpointId();
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{}: Checkpoint {} canceled, aborting alignment.", taskName, cancelledId);
+		}
 
-		if (currentConsumedCheckpointId >= barrierId && numBarrierConsumed == 0) {
+		if (currentConsumedCheckpointId >= cancelledId && !isCheckpointPending()) {
 			return;
 		}
 
-		if (numBarrierConsumed > 0) {
+		if (isCheckpointPending()) {
 			LOG.warn("{}: Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
-							"Skipping current checkpoint.",
-					taskName,
-					barrierId,
-					currentConsumedCheckpointId);
-		} else if (LOG.isDebugEnabled()) {
-			LOG.debug("{}: Checkpoint {} canceled, aborting alignment.", taskName, barrierId);
+					"Skipping current checkpoint.",
+				taskName,
+				cancelledId,
+				currentConsumedCheckpointId);
 		}
+
 		releaseBlocksAndResetBarriers();
-		currentConsumedCheckpointId = barrierId;
+		currentConsumedCheckpointId = cancelledId;
 		threadSafeUnaligner.setCurrentReceivedCheckpointId(currentConsumedCheckpointId);
-		notifyAbortOnCancellationBarrier(barrierId);
+		notifyAbortOnCancellationBarrier(cancelledId);
 	}
 
 	@Override
 	public void processEndOfPartition() throws Exception {
 		threadSafeUnaligner.onChannelClosed();
 
-		if (numBarrierConsumed > 0) {
+		if (isCheckpointPending()) {
 			// let the task know we skip a checkpoint
 			notifyAbort(
 				currentConsumedCheckpointId,
@@ -226,21 +222,18 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		threadSafeUnaligner.close();
 	}
 
-	/**
-	 * Returns true if there is in-flight data in the buffers for the given channel and checkpoint. More specifically,
-	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
-	 * that channel.
-	 */
-	public boolean hasInflightData(long checkpointId, int channelIndex) {
+	@Override
+	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
 		if (checkpointId < currentConsumedCheckpointId) {
 			return false;
 		}
 		if (checkpointId > currentConsumedCheckpointId) {
 			return true;
 		}
-		return hasInflightBuffers[channelIndex];
+		return hasInflightBuffers[getFlattenedChannelIndex(channelInfo)];
 	}
 
+	@Override
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 		return threadSafeUnaligner.getAllBarriersReceivedFuture(checkpointId);
 	}
@@ -250,12 +243,34 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		return Optional.of(threadSafeUnaligner);
 	}
 
+	@Override
+	protected boolean isCheckpointPending() {
+		return numBarrierConsumed > 0;
+	}
+
 	private int getFlattenedChannelIndex(InputChannelInfo channelInfo) {
 		return gateChannelOffsets[channelInfo.getGateIdx()] + channelInfo.getInputChannelIdx();
 	}
 
+	@VisibleForTesting
+	int getNumOpenChannels() {
+		return threadSafeUnaligner.getNumOpenChannels();
+	}
+
+	@VisibleForTesting
+	ThreadSafeUnaligner getThreadSafeUnaligner() {
+		return threadSafeUnaligner;
+	}
+
+	private void notifyCheckpoint(CheckpointBarrier barrier) throws IOException {
+		// ignore the previous triggered checkpoint by netty thread if it was already canceled or aborted before.
+		if (barrier.getId() >= threadSafeUnaligner.getCurrentCheckpointId()) {
+			super.notifyCheckpoint(barrier, 0);
+		}
+	}
+
 	@ThreadSafe
-	private static class ThreadSafeUnaligner implements BufferReceivedListener, Closeable {
+	static class ThreadSafeUnaligner implements BufferReceivedListener, Closeable {
 
 		/**
 		 * Tag the state of which input channel has not received the barrier, such that newly arriving buffers need
@@ -263,9 +278,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		 */
 		private final boolean[] storeNewBuffers;
 
-		/**
-		 * The number of input channels which has read the barrier by task.
-		 */
+		/** The number of input channels which has received or processed the barrier. */
 		private int numBarriersReceived;
 
 		/** A future indicating that all barriers of the a given checkpoint have been read. */
@@ -280,21 +293,17 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		 */
 		private long currentReceivedCheckpointId = -1L;
 
-		/** The number of opened channels. */
 		private int numOpenChannels;
 
 		private final ChannelStateWriter channelStateWriter;
 
 		private final CheckpointBarrierUnaligner handler;
 
-		public ThreadSafeUnaligner(
-				int totalNumChannels,
-				ChannelStateWriter channelStateWriter,
-				CheckpointBarrierUnaligner handler) {
-			storeNewBuffers = new boolean[totalNumChannels];
+		ThreadSafeUnaligner(int totalNumChannels, ChannelStateWriter channelStateWriter, CheckpointBarrierUnaligner handler) {
+			this.numOpenChannels = totalNumChannels;
+			this.storeNewBuffers = new boolean[totalNumChannels];
 			this.channelStateWriter = channelStateWriter;
 			this.handler = handler;
-			numOpenChannels = totalNumChannels;
 		}
 
 		@Override
@@ -303,7 +312,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 			if (currentReceivedCheckpointId < barrierId) {
 				handleNewCheckpoint(barrier);
-				handler.executeInTaskThread(() -> handler.notifyCheckpoint(barrier, 0), "notifyCheckpoint");
+				handler.executeInTaskThread(() -> handler.notifyCheckpoint(barrier), "notifyCheckpoint");
 			}
 
 			int channelIndex = handler.getFlattenedChannelIndex(channelInfo);
@@ -327,7 +336,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 					currentReceivedCheckpointId,
 					channelInfo,
 					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-					buffer);
+					ofElement(buffer, Buffer::recycleBuffer));
 			} else {
 				buffer.recycleBuffer();
 			}
@@ -338,9 +347,13 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			allBarriersReceivedFuture.cancel(false);
 		}
 
+		boolean isCheckpointPending() {
+			return numBarriersReceived > 0;
+		}
+
 		private synchronized void handleNewCheckpoint(CheckpointBarrier barrier) throws IOException {
 			long barrierId = barrier.getId();
-			if (!allBarriersReceivedFuture.isDone()) {
+			if (!allBarriersReceivedFuture.isDone() && isCheckpointPending()) {
 				// we did not complete the current checkpoint, another started before
 				LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
 						"Skipping current checkpoint.",
@@ -351,11 +364,10 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 				// let the task know we are not completing this
 				long currentCheckpointId = currentReceivedCheckpointId;
 				handler.executeInTaskThread(() ->
-					handler.notifyAbort(currentCheckpointId,
-						new CheckpointException(
-							"Barrier id: " + barrierId,
-							CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)),
-					"notifyAbort");
+					handler.notifyAbort(
+						currentCheckpointId,
+						new CheckpointException("Barrier id: " + barrierId, CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)),
+						"notifyAbort");
 			}
 
 			currentReceivedCheckpointId = barrierId;
@@ -365,7 +377,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			channelStateWriter.start(barrierId, barrier.getCheckpointOptions());
 		}
 
-		public synchronized void resetReceivedBarriers(long checkpointId) {
+		synchronized void resetReceivedBarriers(long checkpointId) {
 			if (checkpointId >= currentReceivedCheckpointId && numBarriersReceived > 0) {
 				// avoid more data being serialized after abortion
 				Arrays.fill(storeNewBuffers, false);
@@ -374,7 +386,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			}
 		}
 
-		public synchronized CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+		synchronized CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 			if (checkpointId < currentReceivedCheckpointId) {
 				return FutureUtils.completedVoidFuture();
 			}
@@ -384,12 +396,21 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			return allBarriersReceivedFuture;
 		}
 
-		public synchronized void onChannelClosed() {
+		synchronized void onChannelClosed() {
 			numOpenChannels--;
 		}
 
-		public synchronized void setCurrentReceivedCheckpointId(long currentReceivedCheckpointId) {
+		synchronized void setCurrentReceivedCheckpointId(long currentReceivedCheckpointId) {
 			this.currentReceivedCheckpointId = Math.max(currentReceivedCheckpointId, this.currentReceivedCheckpointId);
+		}
+
+		@VisibleForTesting
+		synchronized int getNumOpenChannels() {
+			return numOpenChannels;
+		}
+
+		synchronized long getCurrentCheckpointId() {
+			return currentReceivedCheckpointId;
 		}
 	}
 }

@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableException, Tumble}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.util.ExceptionUtils
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.Test
 
@@ -559,7 +560,7 @@ class TableSinkITCase extends StreamingTestBase {
       val fields = s.substring(3, s.length - 1).split(",")
       changelogRow(kindString, JLong.valueOf(fields(0)), fields(1), new JBigDecimal(fields(2)))
     }
-    val dataId2 = TestValuesTableFactory.registerChangelogData(changelogData)
+    val dataId2 = TestValuesTableFactory.registerData(changelogData)
     tEnv.executeSql(
       s"""
         |CREATE TABLE changelog_source (

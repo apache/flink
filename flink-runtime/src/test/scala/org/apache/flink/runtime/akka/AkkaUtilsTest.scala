@@ -105,7 +105,7 @@ class AkkaUtilsTest
     val IPv4AddressString = "192.168.0.1"
     val port = 1234
     val address = new InetSocketAddress(IPv4AddressString, port)
-    
+
     val url = s"akka://flink@$IPv4AddressString:$port/user/jobmanager"
 
     val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)

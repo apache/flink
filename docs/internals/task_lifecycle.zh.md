@@ -92,7 +92,7 @@ operator is opened and before it is closed. The responsibility of this method is
 to the specified [state backend]({{ site.baseurl }}/ops/state/state_backends.html) from where it will be retrieved when 
 the job resumes execution after a failure. Below we include a brief description of Flink's checkpointing mechanism, 
 and for a more detailed discussion on the principles around checkpointing in Flink please read the corresponding documentation: 
-[Data Streaming Fault Tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html).
+[Data Streaming Fault Tolerance]({{ site.baseurl }}/training/fault_tolerance.html).
 
 ## Task Lifecycle
 

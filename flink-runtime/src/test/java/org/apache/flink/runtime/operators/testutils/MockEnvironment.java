@@ -23,13 +23,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordCollectingResultPartitionWriter;
@@ -42,7 +42,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -119,6 +118,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final TaskMetricGroup taskMetricGroup;
 
+	private final ExternalResourceInfoProvider externalResourceInfoProvider;
+
 	public static MockEnvironmentBuilder builder() {
 		return new MockEnvironmentBuilder();
 	}
@@ -140,7 +141,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			ClassLoader userCodeClassLoader,
 			TaskMetricGroup taskMetricGroup,
 			TaskManagerRuntimeInfo taskManagerRuntimeInfo,
-			MemoryManager memManager) {
+			MemoryManager memManager,
+			ExternalResourceInfoProvider externalResourceInfoProvider) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
@@ -169,6 +171,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 
 		this.taskMetricGroup = taskMetricGroup;
+
+		this.externalResourceInfoProvider = Preconditions.checkNotNull(externalResourceInfoProvider);
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
@@ -327,6 +331,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	@Override
 	public TaskKvStateRegistry getTaskKvStateRegistry() {
 		return taskKvStateRegistry;
+	}
+
+	@Override
+	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+		return externalResourceInfoProvider;
 	}
 
 	@Override

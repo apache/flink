@@ -97,7 +97,7 @@ class FsStateBackendTests(PyFlinkTestCase):
 
         state_backend = FsStateBackend("file://var/checkpoints/")
 
-        self.assertEqual(state_backend.get_min_file_size_threshold(), 1024)
+        self.assertEqual(state_backend.get_min_file_size_threshold(), 20480)
 
         state_backend = FsStateBackend("file://var/checkpoints/", file_state_size_threshold=2048)
 
@@ -153,16 +153,6 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
         state_backend = RocksDBStateBackend(checkpoints_path)
         state_backend.set_db_storage_paths(*storage_path)
         self.assertEqual(state_backend.get_db_storage_paths(), expected)
-
-    def test_get_set_ttl_compaction_filter(self):
-
-        state_backend = RocksDBStateBackend("file://var/checkpoints/")
-
-        self.assertTrue(state_backend.is_ttl_compaction_filter_enabled())
-
-        state_backend.disable_ttl_compaction_filter()
-
-        self.assertFalse(state_backend.is_ttl_compaction_filter_enabled())
 
     def test_get_set_predefined_options(self):
 

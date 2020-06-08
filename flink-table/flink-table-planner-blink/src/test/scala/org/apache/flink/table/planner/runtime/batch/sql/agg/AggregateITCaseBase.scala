@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
 
 import scala.collection.Seq
@@ -118,6 +117,28 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
         row(1),
         row(2),
         row(3)
+      )
+    )
+  }
+
+  @Test
+  def testSimpleAndDistinctAggWithCommonFilter(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   h,
+        |   COUNT(1) FILTER(WHERE d > 1),
+        |   COUNT(1) FILTER(WHERE d < 2),
+        |   COUNT(DISTINCT e) FILTER(WHERE d > 1)
+        |FROM Table5
+        |GROUP BY h
+        |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row(1,4,1,4),
+        row(2,7,0,7),
+        row(3,3,0,3)
       )
     )
   }
@@ -852,7 +873,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 //        "7499,ALLEN,SALESMAN,7698,1981-02-20,1600.00,300.00,30$" +
 //        "7521,WARD,SALESMAN,7698,1981-02-22,1250.00,500.00,30",
 //      "csv-test", "tmp")
-//    tEnv.registerTableSource("emp",
+//    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("emp",
 //      CsvTableSource.builder()
 //        .path(csvPath)
 //        .fields(Array("empno", "ename", "job", "mgr", "hiredate", "sal", "comm", "deptno"),

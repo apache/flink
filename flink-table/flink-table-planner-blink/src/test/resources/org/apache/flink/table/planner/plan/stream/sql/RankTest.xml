@@ -60,11 +60,10 @@ Calc(select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
    +- Exchange(distribution=[single], changelogMode=[I,UA,D])
       +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
          +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
-            +- Calc(select=[a, b, count_c], changelogMode=[I,UA])
-               +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
-                  +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
-                     +- Calc(select=[a, b], changelogMode=[I])
-                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+               +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+                  +- Calc(select=[a, b], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -777,11 +776,10 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
-   +- Calc(select=[a, b, count_c], changelogMode=[I,UA])
-      +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
-         +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
-            +- Calc(select=[a, b], changelogMode=[I])
-               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

@@ -74,7 +74,7 @@ public class ChannelStateSerializerImplTest {
 		}
 		out.close();
 
-		ChannelStateDeserializer d = new ChannelStateSerializerImpl();
+		ChannelStateSerializer d = new ChannelStateSerializerImpl();
 		ByteArrayInputStream is = new ByteArrayInputStream(baos.toByteArray());
 		d.readHeader(is);
 		for (int count : numBuffersToWriteAtOnce) {

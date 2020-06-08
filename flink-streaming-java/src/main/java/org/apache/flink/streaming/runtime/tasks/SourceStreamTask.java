@@ -184,14 +184,6 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		}
 	}
 
-	@Override
-	protected void handleCheckpointException(Exception exception) {
-		// For externally induced checkpoints, the exception would be passed via triggerCheckpointAsync future.
-		if (!externallyInducedCheckpoints) {
-			super.handleCheckpointException(exception);
-		}
-	}
-
 	/**
 	 * Runnable that executes the the source function in the head operator.
 	 */

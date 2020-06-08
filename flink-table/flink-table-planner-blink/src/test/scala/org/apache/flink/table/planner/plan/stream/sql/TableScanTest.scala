@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{MockedFilterPushDownTableSource, MockedLookupTableSource}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -185,6 +184,64 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     util.verifyPlan("SELECT COUNT(*) FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testJoinOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+         |CREATE TABLE orders (
+         |  amount BIGINT,
+         |  currency STRING
+         |) WITH (
+         | 'connector' = 'values',
+         | 'changelog-mode' = 'I'
+         |)
+         |""".stripMargin)
+    util.addTable(
+      """
+         |CREATE TABLE rates_history (
+         |  currency STRING,
+         |  rate BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'I,UB,UA'
+         |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o JOIN rates_history AS r
+        |ON o.currency = r.currency
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUnsupportedWindowAggregateOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts AS PROCTIME(),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB'
+        |)
+      """.stripMargin)
+    val query =
+      """
+        |SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "GroupWindowAggregate doesn't support consuming update changes " +
+        "which is produced by node TableSourceScan")
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

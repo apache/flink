@@ -28,6 +28,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLDataException;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
@@ -41,6 +42,8 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOK
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS_2;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -71,8 +74,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.finish();
 			jdbcOutputFormat.open(0, 1);
 		} catch (Exception e) {
-			assertTrue(e instanceof IOException);
-			assertEquals(expectedMsg, e.getMessage());
+			assertTrue(findThrowable(e, IOException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -87,8 +90,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.finish();
 			jdbcOutputFormat.open(0, 1);
 		} catch (Exception e) {
-			assertTrue(e instanceof IOException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(findThrowable(e, IOException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -101,11 +104,11 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery("iamnotsql")
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 		} catch (Exception e) {
-			assertTrue(e instanceof IOException);
-			assertEquals(expectedMsg, e.getMessage());
+			assertTrue(findThrowable(e, IOException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -118,21 +121,21 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
 		} catch (Exception e) {
-			assertTrue(e instanceof NullPointerException);
-			assertEquals(expectedMsg, e.getMessage());
+			assertTrue(findThrowable(e, NullPointerException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
 	@Test
 	public void testIncompatibleTypes() {
-		String expectedMsg = "java.sql.SQLDataException: Invalid character string format for type INTEGER.";
+		String expectedMsg = "Invalid character string format for type INTEGER.";
 		try {
 			jdbcOutputFormat = JdbcOutputFormat.buildJdbcOutputFormat()
 				.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
 				.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 
 			Row row = new Row(5);
@@ -145,14 +148,14 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 			jdbcOutputFormat.writeRecord(row);
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
-			assertTrue(e instanceof RuntimeException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(findThrowable(e, SQLDataException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
 	@Test
 	public void testExceptionOnInvalidType() {
-		String expectedMsg = "java.lang.Long cannot be cast to java.lang.Double, field index: 3, field value: 0.";
+		String expectedMsg = "field index: 3, field value: 0.";
 		try {
 			jdbcOutputFormat = JdbcOutputFormat.buildJdbcOutputFormat()
 				.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
@@ -165,7 +168,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 					Types.DOUBLE,
 					Types.INTEGER})
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 
 			TestEntry entry = TEST_DATA[0];
@@ -178,8 +181,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 			jdbcOutputFormat.writeRecord(row);
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
-			assertTrue(e instanceof RuntimeException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -198,7 +201,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 					Types.DOUBLE,
 					Types.INTEGER})
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 
 			TestEntry entry = TEST_DATA[0];
@@ -213,8 +216,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
-			assertTrue(e instanceof RuntimeException);
-			assertEquals(expectedMsg, e.getMessage());
+			assertTrue(findThrowable(e, RuntimeException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -225,7 +228,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
 				.finish();
-		setRuntimeContext(jdbcOutputFormat);
+		setRuntimeContext(jdbcOutputFormat, true);
 		jdbcOutputFormat.open(0, 1);
 
 		for (TestEntry entry : TEST_DATA) {
@@ -261,7 +264,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_2))
 			.setBatchSize(3)
 			.finish();
-		setRuntimeContext(jdbcOutputFormat);
+		setRuntimeContext(jdbcOutputFormat, true);
 		try (
 			Connection dbConn = DriverManager.getConnection(DERBY_EBOOKSHOP_DB.getUrl());
 			PreparedStatement statement = dbConn.prepareStatement(SELECT_ALL_NEWBOOKS_2)

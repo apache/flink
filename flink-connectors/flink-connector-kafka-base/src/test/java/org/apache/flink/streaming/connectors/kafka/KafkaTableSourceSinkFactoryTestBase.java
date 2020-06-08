@@ -67,6 +67,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -169,6 +170,25 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		final StreamExecutionEnvironmentMock mock = new StreamExecutionEnvironmentMock();
 		actualKafkaSource.getDataStream(mock);
 		assertTrue(getExpectedFlinkKafkaConsumer().isAssignableFrom(mock.sourceFunction.getClass()));
+		// Test commitOnCheckpoints flag should be true when set consumer group.
+		assertTrue(((FlinkKafkaConsumerBase) mock.sourceFunction).getEnableCommitOnCheckpoints());
+	}
+
+	@Test
+	public void testTableSourceCommitOnCheckpointsDisabled() {
+		Map<String, String> propertiesMap = new HashMap<>();
+		createKafkaSourceProperties().forEach((k, v) -> {
+			if (!k.equals("connector.properties.group.id")) {
+				propertiesMap.put(k, v);
+			}
+		});
+		final TableSource<?> tableSource = TableFactoryService.find(StreamTableSourceFactory.class, propertiesMap)
+			.createStreamTableSource(propertiesMap);
+		final StreamExecutionEnvironmentMock mock = new StreamExecutionEnvironmentMock();
+		// Test commitOnCheckpoints flag should be false when do not set consumer group.
+		((KafkaTableSourceBase) tableSource).getDataStream(mock);
+		assertTrue(mock.sourceFunction instanceof FlinkKafkaConsumerBase);
+		assertFalse(((FlinkKafkaConsumerBase) mock.sourceFunction).getEnableCommitOnCheckpoints());
 	}
 
 	@Test

@@ -178,16 +178,16 @@ public class StreamTaskStateInitializerImplTest {
 					new OperatorStateHandle.StateMetaInfo(
 						new long[]{0, 10},
 						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random)),
+				CheckpointTestUtils.createDummyStreamStateHandle(random, null)),
 			new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"_default_",
 					new OperatorStateHandle.StateMetaInfo(
 						new long[]{0, 20, 30},
 						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random)),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
+				CheckpointTestUtils.createDummyStreamStateHandle(random, null)),
+			CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null),
+			CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null),
 			singleton(createNewInputChannelStateHandle(10, random)),
 			singleton(createNewResultSubpartitionStateHandle(10, random)));
 

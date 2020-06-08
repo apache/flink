@@ -1,0 +1,508 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testJoinWithEquiProcTime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
+  t1.a = t2.a AND t1.proctime = t2.proctime
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalFilter(condition=[AND(=($0, $5), =($3, $8))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- Join(joinType=[InnerJoin], where=[AND(=(a, a0), =($f5, $f50))], select=[a, $f5, a0, b, $f50], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a, $f5]])
+   :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS $f5])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a, $f5]])
+      +- Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS $f5])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithEquiRowTime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
+  t1.a = t2.a AND t1.rowtime = t2.rowtime
+        ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalFilter(condition=[AND(=($0, $5), =($4, $9))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- Join(joinType=[InnerJoin], where=[AND(=(a, a0), =(rowtime0, rowtime00))], select=[a, rowtime0, a0, b, rowtime00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a, rowtime0]])
+   :  +- Calc(select=[a, CAST(rowtime) AS rowtime0])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a, rowtime0]])
+      +- Calc(select=[a, b, CAST(rowtime) AS rowtime0])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithNullLiteral">
+    <Resource name="sql">
+      <![CDATA[
+WITH T1 AS (SELECT a, b, c, proctime, CAST(null AS BIGINT) AS nullField FROM MyTable),
+     T2 AS (SELECT a, b, c, proctime, CAST(12 AS BIGINT) AS nullField FROM MyTable2)
+
+SELECT t2.a, t2.c, t1.c
+FROM T1 AS t1
+JOIN T2 AS t2 ON t1.a = t2.a AND t1.nullField = t2.nullField AND
+  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND
+  t2.proctime + INTERVAL '5' SECOND
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$5], c=[$7], c0=[$2])
++- LogicalJoin(condition=[AND(=($0, $5), =($4, $9), >=($3, -($8, 5000:INTERVAL SECOND)), <=($3, +($8, 5000:INTERVAL SECOND)))], joinType=[inner])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], nullField=[null:BIGINT])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], nullField=[12:BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOuterJoinOpt">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+  WHERE t1.b LIKE t2.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalFilter(condition=[LIKE($1, $6)])
+   +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[full])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b0 AS b])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)), LIKE(b, b0))], select=[a, b, rowtime, a0, b0, rowtime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b, rowtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeInnerJoinWithOnClause">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
+    t1.a = t2.a AND
+    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeInnerJoinWithWhereClause">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
+    t1.a = t2.a AND
+    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalFilter(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(PROCTIME_MATERIALIZE(proctime), -(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)), <=(PROCTIME_MATERIALIZE(proctime), +(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeInnerJoinAndWindowAggregationOnFirst">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.b, SUM(t2.a) AS aSum, COUNT(t2.b) AS bCnt
+FROM MyTable t1, MyTable2 t2
+WHERE t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
+GROUP BY TUMBLE(t1.rowtime, INTERVAL '6' HOUR), t1.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
++- LogicalAggregate(group=[{0, 1}], aSum=[SUM($2)], bCnt=[COUNT($3)])
+   +- LogicalProject($f0=[$TUMBLE($4, 21600000:INTERVAL HOUR)], b=[$1], a0=[$5], b0=[$6])
+      +- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 21600000)], select=[b, SUM(a0) AS aSum, COUNT(b0) AS bCnt])
++- Exchange(distribution=[hash[b]])
+   +- Calc(select=[rowtime, b, a0, b0])
+      +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b, rowtime])
+         :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, b, rowtime])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeFullOuterJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 Full OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[full])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeRightOuterJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeLeftOuterJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeRightOuterJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, rowtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeFullOuterJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[full])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, rowtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeInnerJoinAndWindowAggregationOnSecond">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t2.b, SUM(t1.a) AS aSum, COUNT(t1.b) AS bCnt
+FROM MyTable t1, MyTable2 t2
+WHERE t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
+GROUP BY TUMBLE(t2.rowtime, INTERVAL '6' HOUR), t2.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
++- LogicalAggregate(group=[{0, 1}], aSum=[SUM($2)], bCnt=[COUNT($3)])
+   +- LogicalProject($f0=[$TUMBLE($9, 21600000:INTERVAL HOUR)], b=[$6], a=[$0], $f3=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[b0], window=[TumblingGroupWindow('w$, rowtime0, 21600000)], select=[b0, SUM(a) AS aSum, COUNT(b) AS bCnt])
++- Exchange(distribution=[hash[b0]])
+   +- Calc(select=[rowtime0, b0, a, b])
+      +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b, rowtime])
+         :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, b, rowtime])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeInnerJoinWithWhereClause">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
+  t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, rowtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeInnerJoinWithOnClause">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, rowtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeLeftOuterJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t1.a, t2.b
+FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$6])
++- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, rowtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

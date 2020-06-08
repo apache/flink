@@ -19,11 +19,11 @@
 package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
 
 class GroupWindowStringExpressionTest extends TableTestBase {

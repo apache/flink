@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
@@ -57,6 +58,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -179,12 +181,16 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
 	private TaskExecutor createTaskExecutor(Configuration configuration, TestingRpcService rpcService, TestingHighAvailabilityServices haServices, LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation) throws IOException {
 		return new TaskExecutor(
 			rpcService,
-			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration)),
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			new TaskManagerServicesBuilder()
 				.setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
 				.setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
 				.build(),
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			new TestingHeartbeatServices(),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,

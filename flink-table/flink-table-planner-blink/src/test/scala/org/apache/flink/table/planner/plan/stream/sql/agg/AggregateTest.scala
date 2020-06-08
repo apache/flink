@@ -20,9 +20,8 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{ExplainDetail, TableException, Types, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
@@ -272,5 +271,11 @@ class AggregateTest extends TableTestBase {
         |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c
       """.stripMargin
     util.verifyPlan(sql)
+  }
+
+  @Test
+  def testColumnIntervalValidation(): Unit = {
+    // test for FLINK-16577
+    util.verifyPlan("SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b")
   }
 }

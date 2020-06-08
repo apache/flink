@@ -92,20 +92,6 @@ public class KubernetesUtils {
 	}
 
 	/**
-	 * Generate name of the internal Service.
-	 */
-	public static String getInternalServiceName(String clusterId) {
-		return clusterId;
-	}
-
-	/**
-	 * Generate name of the external Service.
-	 */
-	public static String getRestServiceName(String clusterId) {
-		return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
-	}
-
-	/**
 	 * Generate name of the Deployment.
 	 */
 	public static String getDeploymentName(String clusterId) {
@@ -130,18 +116,29 @@ public class KubernetesUtils {
 	 *
 	 * @param mem Memory in mb.
 	 * @param cpu cpu.
+	 * @param externalResources external resources
 	 * @return KubernetesResource requirements.
 	 */
-	public static ResourceRequirements getResourceRequirements(int mem, double cpu) {
+	public static ResourceRequirements getResourceRequirements(int mem, double cpu, Map<String, Long> externalResources) {
 		final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
 		final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
 
-		return new ResourceRequirementsBuilder()
+		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder()
 			.addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
 			.addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
 			.addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
-			.addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity)
-			.build();
+			.addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity);
+
+		// Add the external resources to resource requirement.
+		for (Map.Entry<String, Long> externalResource: externalResources.entrySet()) {
+			final Quantity resourceQuantity = new Quantity(String.valueOf(externalResource.getValue()));
+			resourceRequirementsBuilder
+				.addToRequests(externalResource.getKey(), resourceQuantity)
+				.addToLimits(externalResource.getKey(), resourceQuantity);
+			LOG.info("Request external resource {} with config key {}.", resourceQuantity.getAmount(), externalResource.getKey());
+		}
+
+		return resourceRequirementsBuilder.build();
 	}
 
 	public static String getCommonStartCommand(

@@ -55,8 +55,10 @@ public class PostgresCatalogTestBase {
 	protected static final String TABLE3 = "t3";
 	protected static final String TABLE4 = "t4";
 	protected static final String TABLE5 = "t5";
-	protected static final String TABLE_PRIMITIVE_TYPE = "dt";
-	protected static final String TABLE_ARRAY_TYPE = "dt2";
+	protected static final String TABLE_PRIMITIVE_TYPE = "primitive_table";
+	protected static final String TABLE_PRIMITIVE_TYPE2 = "primitive_table2";
+	protected static final String TABLE_ARRAY_TYPE = "array_table";
+	protected static final String TABLE_SERIAL_TYPE = "serial_table";
 
 	protected static String baseUrl;
 	protected static PostgresCatalog catalog;
@@ -89,11 +91,14 @@ public class PostgresCatalogTestBase {
 		createTable(TEST_DB, PostgresTablePath.fromFlinkTableName(TABLE2), getSimpleTable().pgSchemaSql);
 		createTable(TEST_DB, new PostgresTablePath(TEST_SCHEMA, TABLE3), getSimpleTable().pgSchemaSql);
 		createTable(PostgresTablePath.fromFlinkTableName(TABLE_PRIMITIVE_TYPE), getPrimitiveTable().pgSchemaSql);
+		createTable(PostgresTablePath.fromFlinkTableName(TABLE_PRIMITIVE_TYPE2), getPrimitiveTable("test_pk2").pgSchemaSql);
 		createTable(PostgresTablePath.fromFlinkTableName(TABLE_ARRAY_TYPE), getArrayTable().pgSchemaSql);
+		createTable(PostgresTablePath.fromFlinkTableName(TABLE_SERIAL_TYPE), getSerialTable().pgSchemaSql);
 
 		executeSQL(PostgresCatalog.DEFAULT_DATABASE, String.format("insert into public.%s values (%s);", TABLE1, getSimpleTable().values));
 		executeSQL(PostgresCatalog.DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_PRIMITIVE_TYPE, getPrimitiveTable().values));
 		executeSQL(PostgresCatalog.DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_ARRAY_TYPE, getArrayTable().values));
+		executeSQL(PostgresCatalog.DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_SERIAL_TYPE, getSerialTable().values));
 	}
 
 	public static void createTable(PostgresTablePath tablePath, String tableSchemaSql) throws SQLException {
@@ -150,20 +155,27 @@ public class PostgresCatalogTestBase {
 		);
 	}
 
+	// posgres doesn't support to use the same primary key name across different tables,
+	// make the table parameterized to resolve this problem.
+	public static TestTable getPrimitiveTable() {
+		return getPrimitiveTable("test_pk");
+	}
+
 	// TODO: add back timestamptz and time types.
 	//  Flink currently doens't support converting time's precision, with the following error
 	//  TableException: Unsupported conversion from data type 'TIME(6)' (conversion class: java.sql.Time)
 	//  to type information. Only data types that originated from type information fully support a reverse conversion.
-	public static TestTable getPrimitiveTable() {
+	public static TestTable getPrimitiveTable(String primaryKeyName) {
 		return new TestTable(
 			TableSchema.builder()
-				.field("int", DataTypes.INT())
+				.field("int", DataTypes.INT().notNull())
 				.field("bytea", DataTypes.BYTES())
-				.field("short", DataTypes.SMALLINT())
+				.field("short", DataTypes.SMALLINT().notNull())
 				.field("long", DataTypes.BIGINT())
 				.field("real", DataTypes.FLOAT())
 				.field("double_precision", DataTypes.DOUBLE())
 				.field("numeric", DataTypes.DECIMAL(10, 5))
+				.field("decimal", DataTypes.DECIMAL(10, 1))
 				.field("boolean", DataTypes.BOOLEAN())
 				.field("text", DataTypes.STRING())
 				.field("char", DataTypes.CHAR(1))
@@ -174,6 +186,7 @@ public class PostgresCatalogTestBase {
 				.field("date", DataTypes.DATE())
 				.field("time", DataTypes.TIME(0))
 				.field("default_numeric", DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18))
+				.primaryKey(primaryKeyName, new String[]{"short", "int"})
 				.build(),
 			"int integer, " +
 				"bytea bytea, " +
@@ -182,6 +195,7 @@ public class PostgresCatalogTestBase {
 				"real real, " +
 				"double_precision double precision, " +
 				"numeric numeric(10, 5), " +
+				"decimal decimal(10, 1), " +
 				"boolean boolean, " +
 				"text text, " +
 				"char char, " +
@@ -191,7 +205,8 @@ public class PostgresCatalogTestBase {
 //				"timestamptz timestamptz(4), " +
 				"date date," +
 				"time time(0), " +
-				"default_numeric numeric ",
+				"default_numeric numeric, " +
+				"CONSTRAINT " + primaryKeyName + " PRIMARY KEY (short, int)",
 			"1," +
 				"'2'," +
 				"3," +
@@ -199,6 +214,7 @@ public class PostgresCatalogTestBase {
 				"5.5," +
 				"6.6," +
 				"7.7," +
+				"8.8," +
 				"true," +
 				"'a'," +
 				"'b'," +
@@ -224,6 +240,7 @@ public class PostgresCatalogTestBase {
 				.field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
 				.field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
 				.field("numeric_arr_default", DataTypes.ARRAY(DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18)))
+				.field("decimal_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 2)))
 				.field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
 				.field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
 				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
@@ -243,6 +260,7 @@ public class PostgresCatalogTestBase {
 				"double_precision_arr double precision[], " +
 				"numeric_arr numeric(10, 5)[], " +
 				"numeric_arr_default numeric[], " +
+				"decimal_arr decimal(10,2)[], " +
 				"boolean_arr boolean[], " +
 				"text_arr text[], " +
 				"char_arr char[], " +
@@ -261,6 +279,7 @@ public class PostgresCatalogTestBase {
 					"'{6.6,7.7,8.8}'," +
 					"'{7.7,8.8,9.9}'," +
 					"'{8.8,9.9,10.10}'," +
+					"'{9.9,10.10,11.11}'," +
 					"'{true,false,true}'," +
 					"'{a,b,c}'," +
 					"'{b,c,d}'," +
@@ -271,6 +290,32 @@ public class PostgresCatalogTestBase {
 					"'{\"2015-01-01\", \"2020-01-01\"}'," +
 					"'{\"00:51:02.746572\", \"00:59:02.746572\"}'"
 			));
+	}
+
+	public static TestTable getSerialTable() {
+		return new TestTable(
+			TableSchema.builder()
+				// serial fields are returned as not null by ResultSetMetaData.columnNoNulls
+				.field("f0", DataTypes.SMALLINT().notNull())
+				.field("f1", DataTypes.INT().notNull())
+				.field("f2", DataTypes.SMALLINT().notNull())
+				.field("f3", DataTypes.INT().notNull())
+				.field("f4", DataTypes.BIGINT().notNull())
+				.field("f5", DataTypes.BIGINT().notNull())
+				.build(),
+			"f0 smallserial, " +
+				"f1 serial, " +
+				"f2 serial2, " +
+				"f3 serial4, " +
+				"f4 serial8, " +
+				"f5 bigserial",
+			"32767," +
+				"2147483647," +
+				"32767," +
+				"2147483647," +
+				"9223372036854775807," +
+				"9223372036854775807"
+		);
 	}
 
 }

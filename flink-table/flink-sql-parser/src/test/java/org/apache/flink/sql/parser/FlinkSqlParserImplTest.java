@@ -66,17 +66,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateCatalog() {
-		check(
-			"create catalog c1\n" +
+		sql("create catalog c1\n" +
 				" WITH (\n" +
 				"  'key1'='value1',\n" +
 				"  'key2'='value2'\n" +
-				" )\n",
-			"CREATE CATALOG `C1` " +
-				"WITH (\n" +
-				"  'key1' = 'value1',\n" +
-				"  'key2' = 'value2'\n" +
-				")");
+				" )\n")
+			.ok("CREATE CATALOG `C1` " +
+					"WITH (\n" +
+					"  'key1' = 'value1',\n" +
+					"  'key2' = 'value2'\n" +
+					")");
+	}
+
+	@Test
+	public void testDropCatalog() {
+		sql("drop catalog c1").ok("DROP CATALOG `C1`");
 	}
 
 	@Test
@@ -943,9 +947,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		sql("create temporary function catalog1.db1.function1 as 'org.apache.fink.function.function1'")
 				.ok("CREATE TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
 
-		sql("create temporary system function catalog1.db1.function1 as 'org.apache.fink.function.function1'")
-				.ok("CREATE TEMPORARY SYSTEM FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
-
 		sql("create temporary function db1.function1 as 'org.apache.fink.function.function1'")
 				.ok("CREATE TEMPORARY FUNCTION `DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
 
@@ -960,6 +961,14 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 		sql("create temporary system function  function1 as 'org.apache.fink.function.function1' language scala")
 				.ok("CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA");
+
+		// Temporary system function always belongs to the system and current session.
+		sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.fink.function.function1'")
+				.fails("(?s).*Encountered \".\" at.*");
+
+		// TODO: FLINK-17957: Forbidden syntax "CREATE SYSTEM FUNCTION" for sql parser
+		sql("create system function function1 as 'org.apache.fink.function.function1'")
+				.ok("CREATE SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
 	}
 
 	@Test

@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.dialect.PostgresDialect;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -43,7 +44,7 @@ public class JdbcCatalogUtils {
 	public static AbstractJdbcCatalog createCatalog(String catalogName, String defaultDatabase, String username, String pwd, String baseUrl) {
 		JdbcDialect dialect = JdbcDialects.get(baseUrl).get();
 
-		if (dialect instanceof JdbcDialects.PostgresDialect) {
+		if (dialect instanceof PostgresDialect) {
 			return new PostgresCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
 		} else {
 			throw new UnsupportedOperationException(

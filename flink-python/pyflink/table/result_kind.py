@@ -32,6 +32,8 @@ class ResultKind(object):
 
     The statement (e.g. DML, DQL, SHOW) executes successfully, and the result contains important
     content.
+
+    .. versionadded:: 1.11.0
     """
 
     SUCCESS = 0

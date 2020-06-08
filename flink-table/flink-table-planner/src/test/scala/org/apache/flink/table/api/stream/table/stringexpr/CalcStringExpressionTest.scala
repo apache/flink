@@ -19,9 +19,10 @@
 package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.Func23
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
 
 class CalcStringExpressionTest extends TableTestBase {

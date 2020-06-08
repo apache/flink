@@ -171,7 +171,7 @@ public class ValuesOperationTreeBuilderTest {
 						.build()
 				)),
 
-			TestSpec.test("Finding common type for nested rows")
+			TestSpec.test("Finding a common type for nested rows")
 				.values(
 					row(1L, row(1L, "ABC")),
 					row(3.1f, row(3.1f, "DEFG"))
@@ -184,7 +184,7 @@ public class ValuesOperationTreeBuilderTest {
 								rowCtor(
 									DataTypes.ROW(
 										DataTypes.FIELD("f0", DataTypes.FLOAT().notNull()),
-										DataTypes.FIELD("f1", DataTypes.VARCHAR(4).notNull())),
+										DataTypes.FIELD("f1", DataTypes.VARCHAR(4).notNull())).notNull(),
 									cast(valueLiteral(1L), DataTypes.FLOAT().notNull()),
 									valueLiteral("ABC", DataTypes.VARCHAR(4).notNull())
 								)
@@ -194,7 +194,7 @@ public class ValuesOperationTreeBuilderTest {
 								rowCtor(
 									DataTypes.ROW(
 										DataTypes.FIELD("f0", DataTypes.FLOAT().notNull()),
-										DataTypes.FIELD("f1", DataTypes.VARCHAR(4).notNull())),
+										DataTypes.FIELD("f1", DataTypes.VARCHAR(4).notNull())).notNull(),
 									valueLiteral(3.1f, DataTypes.FLOAT().notNull()),
 									valueLiteral("DEFG", DataTypes.VARCHAR(4).notNull())
 								)
@@ -206,7 +206,7 @@ public class ValuesOperationTreeBuilderTest {
 								"f1",
 								DataTypes.ROW(
 									DataTypes.FIELD("f0", DataTypes.FLOAT().notNull()),
-									DataTypes.FIELD("f1", DataTypes.VARCHAR(4).notNull())))
+									DataTypes.FIELD("f1", DataTypes.VARCHAR(4).notNull())).notNull())
 							.build()
 					)),
 
@@ -263,8 +263,8 @@ public class ValuesOperationTreeBuilderTest {
 					"Types in fromValues(...) must have a common super type. Could not find a common type" +
 						" for all rows at column 1.\n" +
 						"Could not find a common super type for types: " +
-						"[ROW<`f0` INT NOT NULL, `f1` TIME(0) NOT NULL>," +
-						" ROW<`f0` DOUBLE NOT NULL, `f1` DATE NOT NULL>]"),
+						"[ROW<`f0` INT NOT NULL, `f1` TIME(0) NOT NULL> NOT NULL," +
+						" ROW<`f0` DOUBLE NOT NULL, `f1` DATE NOT NULL> NOT NULL]"),
 
 			TestSpec.test("Cannot cast to the requested type")
 				.values(

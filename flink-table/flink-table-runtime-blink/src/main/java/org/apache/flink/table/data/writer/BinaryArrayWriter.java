@@ -21,7 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
+
+import java.io.Serializable;
 
 /**
  * Writer for binary array. See {@link BinaryArrayData}.
@@ -110,6 +113,10 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 		setNullLong(ordinal);
 	}
 
+	/**
+	 * @deprecated Use {@link #createNullSetter(LogicalType)} for avoiding logical types during runtime.
+	 */
+	@Deprecated
 	public void setNullAt(int pos, LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case BOOLEAN:
@@ -215,5 +222,67 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 
 	public int getNumElements() {
 		return numElements;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates an for accessor setting the elements of an array writer to {@code null} during runtime.
+	 *
+	 * @param elementType the element type of the array
+	 */
+	public static NullSetter createNullSetter(LogicalType elementType) {
+		// ordered by type root definition
+		switch (elementType.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+			case BINARY:
+			case VARBINARY:
+			case DECIMAL:
+			case BIGINT:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+			case INTERVAL_DAY_TIME:
+			case ARRAY:
+			case MULTISET:
+			case MAP:
+			case ROW:
+			case STRUCTURED_TYPE:
+			case RAW:
+				return BinaryArrayWriter::setNullLong;
+			case BOOLEAN:
+				return BinaryArrayWriter::setNullBoolean;
+			case TINYINT:
+				return BinaryArrayWriter::setNullByte;
+			case SMALLINT:
+				return BinaryArrayWriter::setNullShort;
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				return BinaryArrayWriter::setNullInt;
+			case FLOAT:
+				return BinaryArrayWriter::setNullFloat;
+			case DOUBLE:
+				return BinaryArrayWriter::setNullDouble;
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException();
+			case DISTINCT_TYPE:
+				return createNullSetter(((DistinctType) elementType).getSourceType());
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
+			default:
+				throw new IllegalArgumentException();
+		}
+	}
+
+	/**
+	 * Accessor for setting the elements of an array writer to {@code null} during runtime.
+	 *
+	 * @see #createNullSetter(LogicalType)
+	 */
+	public interface NullSetter extends Serializable {
+		void setNull(BinaryArrayWriter writer, int pos);
 	}
 }

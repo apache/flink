@@ -28,7 +28,6 @@ import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
@@ -50,14 +49,14 @@ import java.util.function.Function;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE;
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.ROW_TYPE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.ROW_TYPE_INFO;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_ID;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 
@@ -77,8 +76,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
 	}
 
 	@Test
-	public void testEnrichedClassCastException() throws Exception {
-		String expectedMsg = "java.lang.String cannot be cast to java.lang.Double, field index: 3, field value: 11.11.";
+	public void testEnrichedClassCastException() {
+		String expectedMsg = "field index: 3, field value: 11.11.";
 		try {
 			JdbcBatchingOutputFormat jdbcOutputFormat = JdbcBatchingOutputFormat.builder()
 				.setOptions(JdbcOptions.builder()
@@ -100,8 +99,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
 			jdbcOutputFormat.writeRecord(Tuple2.of(true, inputRow));
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
-			assertTrue(e instanceof RuntimeException && e.getCause() instanceof ClassCastException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -111,8 +110,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
 				.setDrivername(getDbMetadata().getDriverClass())
 				.setDBUrl(getDbMetadata().getUrl())
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO)
-				.setRowConverter(JdbcDialects.get(getDbMetadata().getUrl()).get().getRowConverter(ROW_TYPE));
+				.setRowTypeInfo(ROW_TYPE_INFO);
 
 		if (exploitParallelism) {
 			final int fetchSize = 1;

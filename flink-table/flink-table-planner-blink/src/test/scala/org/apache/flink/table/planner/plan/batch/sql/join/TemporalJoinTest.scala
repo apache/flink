@@ -18,8 +18,7 @@
 package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers.containsString

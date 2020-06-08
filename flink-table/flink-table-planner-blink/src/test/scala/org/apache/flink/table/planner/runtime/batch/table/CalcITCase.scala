@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.DataTypes._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
@@ -551,7 +551,7 @@ class CalcITCase extends BatchTestBase {
       .select(map('a, 'b, 'c, 'd))
     val result4 = executeQuery(t4)
     val expected4 = "{AAA=123.45, BBB=234.56}\n" +
-      "{DDD=456.78, CCC=345.67}\n" +
+      "{CCC=345.67, DDD=456.78}\n" +
       "{EEE=567.89, FFF=678.99}\n"
     TestBaseUtils.compareResultAsText(result4.asJava, expected4)
   }

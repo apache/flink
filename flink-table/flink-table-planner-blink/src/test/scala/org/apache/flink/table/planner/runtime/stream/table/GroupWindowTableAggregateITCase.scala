@@ -18,22 +18,23 @@
 
 package org.apache.flink.table.planner.runtime.stream.table
 
-import java.math.BigDecimal
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.utils.Top3
 import org.apache.flink.types.Row
-import org.apache.flink.table.planner.runtime.utils.TestData._
+
 import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.math.BigDecimal
 
 @RunWith(classOf[Parameterized])
 class GroupWindowTableAggregateITCase(mode: StateBackendMode)

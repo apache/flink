@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNot
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
+import org.apache.flink.runtime.taskexecutor.slot.ThreadSafeTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -90,7 +92,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	private final TestingHighAvailabilityServices haServices;
 	private final TemporaryFolder temporaryFolder;
-	private final TaskSlotTable<Task> taskSlotTable;
+	private final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable;
 	private final JobMasterId jobMasterId;
 
 	private TestingTaskExecutor taskExecutor;
@@ -115,7 +117,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		this.jobMasterId = jobMasterId;
 
-		this.taskSlotTable = slotSize > 0 ?
+		final TaskSlotTable<Task> taskSlotTable = slotSize > 0 ?
 			TaskSlotUtils.createTaskSlotTable(slotSize) :
 			TestingTaskSlotTable
 				.<Task>newBuilder()
@@ -135,20 +137,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			jobMasterGateway = testingJobMasterGateway;
 		}
 
-		TaskManagerActions taskManagerActions;
-		if (taskManagerActionListeners.size() == 0) {
-			taskManagerActions = new NoOpTaskManagerActions();
-		} else {
-			TestTaskManagerActions testTaskManagerActions = new TestTaskManagerActions(taskSlotTable, jobMasterGateway);
-			for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple : taskManagerActionListeners) {
-				testTaskManagerActions.addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
-			}
-			taskManagerActions = testTaskManagerActions;
-		}
-
 		this.testingRpcService = testingRpcService;
 		final DefaultJobTable jobTable = DefaultJobTable.create();
-		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -166,6 +156,21 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		taskExecutor.start();
 		taskExecutor.waitUntilStarted();
+
+		this.threadSafeTaskSlotTable = new ThreadSafeTaskSlotTable<>(taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
+
+		TaskManagerActions taskManagerActions;
+		if (taskManagerActionListeners.size() == 0) {
+			taskManagerActions = new NoOpTaskManagerActions();
+		} else {
+			TestTaskManagerActions testTaskManagerActions = new TestTaskManagerActions(threadSafeTaskSlotTable, jobMasterGateway);
+			for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple : taskManagerActionListeners) {
+				testTaskManagerActions.addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
+			}
+			taskManagerActions = testTaskManagerActions;
+		}
+
+		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
 	}
 
 	static void registerJobMasterConnection(
@@ -197,7 +202,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	public TaskSlotTable<Task> getTaskSlotTable() {
-		return taskSlotTable;
+		return threadSafeTaskSlotTable;
 	}
 
 	public JobMasterId getJobMasterId() {
@@ -214,9 +219,13 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf)),
+			TaskManagerConfiguration.fromConfiguration(
+				copiedConf,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			metricQueryServiceAddress,

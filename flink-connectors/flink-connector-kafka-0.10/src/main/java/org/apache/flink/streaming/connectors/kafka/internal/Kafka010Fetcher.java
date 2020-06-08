@@ -19,10 +19,9 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
@@ -81,8 +80,7 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	public Kafka010Fetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
-			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
-			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+			SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
@@ -97,8 +95,7 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
-				watermarksPeriodic,
-				watermarksPunctuated,
+				watermarkStrategy,
 				processingTimeProvider,
 				autoWatermarkInterval,
 				userCodeClassLoader,
@@ -141,7 +138,7 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				final ConsumerRecords<byte[], byte[]> records = handover.pollNext();
 
 				// get the records for each topic partition
-				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitionStates()) {
+				for (KafkaTopicPartitionState<T, TopicPartition> partition : subscribedPartitionStates()) {
 
 					List<ConsumerRecord<byte[], byte[]>> partitionRecords =
 						records.records(partition.getKafkaPartitionHandle());
@@ -204,12 +201,11 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			Map<KafkaTopicPartition, Long> offsets,
 			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
 
-		@SuppressWarnings("unchecked")
-		List<KafkaTopicPartitionState<TopicPartition>> partitions = subscribedPartitionStates();
+		List<KafkaTopicPartitionState<T, TopicPartition>> partitions = subscribedPartitionStates();
 
 		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.size());
 
-		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
+		for (KafkaTopicPartitionState<T, TopicPartition> partition : partitions) {
 			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());
 			if (lastProcessedOffset != null) {
 				checkState(lastProcessedOffset >= 0, "Illegal offset value to commit");

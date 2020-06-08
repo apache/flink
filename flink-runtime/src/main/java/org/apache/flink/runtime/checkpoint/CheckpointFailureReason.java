@@ -44,6 +44,8 @@ public enum CheckpointFailureReason {
 
 	CHECKPOINT_DECLINED_TASK_NOT_READY(false, "Checkpoint was declined (tasks not ready)"),
 
+	CHECKPOINT_DECLINED_TASK_CLOSING(false, "Checkpoint was declined (task's operators partially closed)"),
+
 	CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING(false, "Task does not support checkpointing"),
 
 	CHECKPOINT_DECLINED_SUBSUMED(false, "Checkpoint was canceled because a barrier from newer checkpoint was received."),
@@ -65,6 +67,8 @@ public enum CheckpointFailureReason {
 	TASK_FAILURE(false, "Task has failed."),
 
 	TASK_CHECKPOINT_FAILURE(false, "Task local checkpoint failure."),
+
+	UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE(false, "Unknown task for the checkpoint to notify."),
 
 	FINALIZE_CHECKPOINT_FAILURE(false, "Failure to finalize checkpoint."),
 

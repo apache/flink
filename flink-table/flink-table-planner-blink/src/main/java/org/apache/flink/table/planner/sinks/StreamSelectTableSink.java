@@ -19,77 +19,41 @@
 package org.apache.flink.table.planner.sinks;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.experimental.CollectSink;
-import org.apache.flink.streaming.experimental.SocketStreamIterator;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.types.Row;
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.util.Iterator;
+import org.apache.flink.types.RowKind;
 
 /**
- * A {@link SelectTableSink} for streaming select job.
+ * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
  *
- * <p><strong>NOTES:</strong> This is a temporary solution,
- * once FLINK-14807 is finished, the implementation should be changed.
- * Currently, only insert changes (AppendStreamTableSink) is supported.
- * Once FLINK-16998 is finished, all kinds of changes will be supported.
+ * <p>{@link RowData} contains {@link RowKind} attribute which
+ * can represents all kind of changes. The boolean flag is useless here,
+ * only because {@link RetractStreamTableSink} requires Tuple2&lt;Boolean, T&gt; type.
  */
-public class StreamSelectTableSink implements AppendStreamTableSink<Row>, SelectTableSink {
-	private final TableSchema tableSchema;
-	private final TypeSerializer<Row> typeSerializer;
-	private final SocketStreamIterator<Row> iterator;
+public class StreamSelectTableSink
+		extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
+		implements RetractStreamTableSink<RowData> {
 
-	@SuppressWarnings("unchecked")
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
-				SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
-		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
-				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
-				.createSerializer(new ExecutionConfig());
-		try {
-			// socket server should be started before running the job
-			iterator = new SocketStreamIterator<>(0, InetAddress.getLocalHost(), typeSerializer);
-		} catch (IOException e) {
-			throw new TableException("Failed to get the address of the local host.");
-		}
+		super(tableSchema, new TupleTypeInfo<Tuple2<Boolean, RowData>>(
+				Types.BOOLEAN,
+				createRowDataTypeInfo(tableSchema)).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
-	public DataType getConsumedDataType() {
-		return tableSchema.toRowDataType();
+	public TypeInformation<RowData> getRecordType() {
+		return createRowDataTypeInfo(getTableSchema());
 	}
 
 	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
-
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return dataStream
-				.addSink(new CollectSink<>(iterator.getBindAddress(), iterator.getPort(), typeSerializer))
-				.name("Streaming select table sink")
-				.setParallelism(1);
-	}
-
-	@Override
-	public void setJobClient(JobClient jobClient) {
-	}
-
-	@Override
-	public Iterator<Row> getResultIterator() {
-		return iterator;
+	protected Row convertToRow(Tuple2<Boolean, RowData> tuple2) {
+		// convert Tuple2<Boolean, RowData> to Row
+		return converter.toExternal(tuple2.f1);
 	}
 }
-

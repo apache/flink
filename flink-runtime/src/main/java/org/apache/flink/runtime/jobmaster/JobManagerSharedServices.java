@@ -28,7 +28,6 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
@@ -55,8 +54,6 @@ public class JobManagerSharedServices {
 
 	private final LibraryCacheManager libraryCacheManager;
 
-	private final RestartStrategyFactory restartStrategyFactory;
-
 	private final BackPressureRequestCoordinator backPressureSampleCoordinator;
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
@@ -67,14 +64,12 @@ public class JobManagerSharedServices {
 	public JobManagerSharedServices(
 			ScheduledExecutorService scheduledExecutorService,
 			LibraryCacheManager libraryCacheManager,
-			RestartStrategyFactory restartStrategyFactory,
 			BackPressureRequestCoordinator backPressureSampleCoordinator,
 			BackPressureStatsTracker backPressureStatsTracker,
 			@Nonnull BlobWriter blobWriter) {
 
 		this.scheduledExecutorService = checkNotNull(scheduledExecutorService);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
-		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
 		this.backPressureSampleCoordinator = checkNotNull(backPressureSampleCoordinator);
 		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
 		this.blobWriter = blobWriter;
@@ -86,10 +81,6 @@ public class JobManagerSharedServices {
 
 	public LibraryCacheManager getLibraryCacheManager() {
 		return libraryCacheManager;
-	}
-
-	public RestartStrategyFactory getRestartStrategyFactory() {
-		return restartStrategyFactory;
 	}
 
 	public BackPressureStatsTracker getBackPressureStatsTracker() {
@@ -134,7 +125,7 @@ public class JobManagerSharedServices {
 
 	public static JobManagerSharedServices fromConfiguration(
 			Configuration config,
-			BlobServer blobServer) throws Exception {
+			BlobServer blobServer) {
 
 		checkNotNull(config);
 		checkNotNull(blobServer);
@@ -183,7 +174,6 @@ public class JobManagerSharedServices {
 		return new JobManagerSharedServices(
 			futureExecutor,
 			libraryCacheManager,
-			RestartStrategyFactory.createRestartStrategyFactory(config),
 			coordinator,
 			backPressureStatsTracker,
 			blobServer);

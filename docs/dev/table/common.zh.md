@@ -32,12 +32,11 @@ Table API 和 SQL 集成在同一套 API 中。这套 API 的核心概念是`Tab
 
 1. Blink 将批处理作业视作流处理的一种特例。严格来说，`Table` 和 `DataSet` 之间不支持相互转换，并且批处理作业也不会转换成 `DataSet` 程序而是转换成 `DataStream` 程序，流处理作业也一样。
 2. Blink 计划器不支持  `BatchTableSource`，而是使用有界的  `StreamTableSource` 来替代。
-3. Blink 计划器仅支持全新的 `Catalog` 不支持被弃用的 `ExternalCatalog`。
-4. 旧计划器和 Blink 计划器中 `FilterableTableSource` 的实现是不兼容的。旧计划器会将 `PlannerExpression` 下推至 `FilterableTableSource`，而 Blink 计划器则是将 `Expression` 下推。
-5. 基于字符串的键值配置选项仅在 Blink 计划器中使用。（详情参见 [配置]({{ site.baseurl }}/zh/dev/table/config.html) ）
-6. `PlannerConfig` 在两种计划器中的实现（`CalciteConfig`）是不同的。
-7. Blink 计划器会将多sink（multiple-sinks）优化成一张有向无环图（DAG）（仅支持 `TableEnvironment`，不支持 `StreamTableEnvironment`）。旧计划器总是将每个sink都优化成一个新的有向无环图，且所有图相互独立。
-8. 旧计划器目前不支持 catalog 统计数据，而 Blink 支持。
+3. 旧计划器和 Blink 计划器中 `FilterableTableSource` 的实现是不兼容的。旧计划器会将 `PlannerExpression` 下推至 `FilterableTableSource`，而 Blink 计划器则是将 `Expression` 下推。
+4. 基于字符串的键值配置选项仅在 Blink 计划器中使用。（详情参见 [配置]({{ site.baseurl }}/zh/dev/table/config.html) ）
+5. `PlannerConfig` 在两种计划器中的实现（`CalciteConfig`）是不同的。
+6. Blink 计划器会将多sink（multiple-sinks）优化成一张有向无环图（DAG）（仅支持 `TableEnvironment`，不支持 `StreamTableEnvironment`）。旧计划器总是将每个sink都优化成一个新的有向无环图，且所有图相互独立。
+7. 旧计划器目前不支持 catalog 统计数据，而 Blink 支持。
 
 
 Table API 和 SQL 程序的结构
@@ -157,7 +156,7 @@ table_env.execute("python_job")
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -168,7 +167,7 @@ StreamTableEnvironment fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSetti
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 
 ExecutionEnvironment fbEnv = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
@@ -178,7 +177,7 @@ BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
@@ -205,7 +204,7 @@ TableEnvironment bbTableEnv = TableEnvironment.create(bbSettings);
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
 val fsEnv = StreamExecutionEnvironment.getExecutionEnvironment
@@ -216,7 +215,7 @@ val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
 
 val fbEnv = ExecutionEnvironment.getExecutionEnvironment
 val fbTableEnv = BatchTableEnvironment.create(fbEnv)
@@ -226,7 +225,7 @@ val fbTableEnv = BatchTableEnvironment.create(fbEnv)
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val bsEnv = StreamExecutionEnvironment.getExecutionEnvironment
 val bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
@@ -419,7 +418,7 @@ tableEnvironment.sqlUpdate("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 用户可以指定一个 catalog 和数据库作为 "当前catalog" 和"当前数据库"。有了这些，那么刚刚提到的三元标识符的前两个部分就可以被省略了。如果前两部分的标识符没有指定，
 那么会使用当前的 catalog 和当前数据库。用户也可以通过 Table API 或 SQL 切换当前的 catalog 和当前的数据库。
 
-标识符遵循 SQL 标准，因此使用时需要用反引号（`` ` ``）进行转义。此外，所有 SQL 保留关键字都必须转义。
+标识符遵循 SQL 标准，因此使用时需要用反引号（`` ` ``）进行转义。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -531,7 +530,9 @@ val revenue = orders
 // execute query
 {% endhighlight %}
 
-**Note:** The Scala Table API uses Scala Symbols, which start with a single tick (`'`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._` in order to use Scala implicit conversions.
+**Note:** The Scala Table API uses Scala String interpolation that starts with a dollar sign (`$`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import
+* `org.apache.flink.table.api._` - for implicit expression conversions 
+* `org.apache.flink.api.scala._` and `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
 </div>
 
 <div data-lang="python" markdown="1">
@@ -561,7 +562,7 @@ revenue = orders \
 
 Flink SQL 是基于实现了SQL标准的 [Apache Calcite](https://calcite.apache.org) 的。SQL 查询由常规字符串指定。
 
-文档 [SQL]({{ site.baseurl }}/zh/dev/table/sql.html) 描述了Flink对流处理和批处理表的SQL支持。
+文档 [SQL]({{ site.baseurl }}/zh/dev/table/sql/index.html) 描述了Flink对流处理和批处理表的SQL支持。
 
 下面的示例演示了如何指定查询并将结果作为 `Table` 对象返回。
 
@@ -808,6 +809,19 @@ result.insert_into("CsvSinkTable")
 两种计划器翻译和执行查询的方式是不同的。
 
 <div class="codetabs" markdown="1">
+
+<div data-lang="Blink planner" markdown="1">
+不论输入数据源是流式的还是批式的，Table API 和 SQL 查询都会被转换成 [DataStream]({{ site.baseurl }}/zh/dev/datastream_api.html) 程序。查询在内部表示为逻辑查询计划，并被翻译成两个阶段：
+
+1. 优化逻辑执行计划
+2. 翻译成 DataStream 程序
+
+Table API 或者 SQL 查询在下列情况下会被翻译：
+
+* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中，所有的 sink 会被优化成一张有向无环图。
+* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
+</div>
+
 <div data-lang="Old planner" markdown="1">
 Table API 和 SQL 查询会被翻译成 [DataStream]({{ site.baseurl }}/zh/dev/datastream_api.html) 或者 [DataSet]({{ site.baseurl }}/zh/dev/batch) 程序， 这取决于它们的输入数据源是流式的还是批式的。查询在内部表示为逻辑查询计划，并被翻译成两个阶段：
 
@@ -826,21 +840,8 @@ Table API 和 SQL 查询会被翻译成 [DataStream]({{ site.baseurl }}/zh/dev/d
 * `Table` 被转换成 `DataSet` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。
 
 翻译完成后，Table API 或者 SQL 查询会被当做普通的 DataSet 程序对待并且会在调用 `ExecutionEnvironment.execute()` 的时候被执行。
-
 </div>
 
-<div data-lang="Blink planner" markdown="1">
-不论输入数据源是流式的还是批式的，Table API 和 SQL 查询都会被转换成 [DataStream]({{ site.baseurl }}/zh/dev/datastream_api.html) 程序。查询在内部表示为逻辑查询计划，并被翻译成两个阶段：
-
-1. 优化逻辑执行计划
-2. 翻译成 DataStream 程序
-
-Table API 或者 SQL 查询在下列情况下会被翻译：
-
-* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中，所有的 sink 会被优化成一张有向无环图。
-* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
-
-</div>
 </div>
 
 {% top %}
@@ -858,7 +859,7 @@ Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.b
 
 ### Scala 隐式转换
 
-Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
+Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.bridge.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
 
 ### 通过 DataSet 或 DataStream 创建`视图`
 
@@ -1273,7 +1274,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}/zh/dev/api_concepts.html#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.zh.md %}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
@@ -1386,16 +1387,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 ------------------
 
 <div class="codetabs" markdown="1">
-<div data-lang="Old planner" markdown="1">
-
-Apache Flink 利用 Apache Calcite 来优化和翻译查询。当前执行的优化包括投影和过滤器下推，子查询消除以及其他类型的查询重写。原版计划程序尚未优化 join 的顺序，而是按照查询中定义的顺序执行它们（FROM 子句中的表顺序和/或 WHERE 子句中的 join 谓词顺序）。
-
-通过提供一个 `CalciteConfig` 对象，可以调整在不同阶段应用的优化规则集合。这个对象可以通过调用构造器 `CalciteConfig.createBuilder()` 创建，并通过调用 `tableEnv.getConfig.setPlannerConfig(calciteConfig)` 提供给 TableEnvironment。
-
-</div>
-
 <div data-lang="Blink planner" markdown="1">
-
 Apache Flink 使用并扩展了 Apache Calcite 来执行复杂的查询优化。
 这包括一系列基于规则和成本的优化，例如：
 
@@ -1415,7 +1407,12 @@ Apache Flink 使用并扩展了 Apache Calcite 来执行复杂的查询优化。
 优化器不仅基于计划，而且还基于可从数据源获得的丰富统计信息以及每个算子（例如 io，cpu，网络和内存）的细粒度成本来做出明智的决策。
 
 高级用户可以通过 `CalciteConfig` 对象提供自定义优化，可以通过调用  `TableEnvironment＃getConfig＃setPlannerConfig` 将其提供给 TableEnvironment。
+</div>
 
+<div data-lang="Old planner" markdown="1">
+Apache Flink 利用 Apache Calcite 来优化和翻译查询。当前执行的优化包括投影和过滤器下推，子查询消除以及其他类型的查询重写。原版计划程序尚未优化 join 的顺序，而是按照查询中定义的顺序执行它们（FROM 子句中的表顺序和/或 WHERE 子句中的 join 谓词顺序）。
+
+通过提供一个 `CalciteConfig` 对象，可以调整在不同阶段应用的优化规则集合。这个对象可以通过调用构造器 `CalciteConfig.createBuilder()` 创建，并通过调用 `tableEnv.getConfig.setPlannerConfig(calciteConfig)` 提供给 TableEnvironment。
 </div>
 </div>
 

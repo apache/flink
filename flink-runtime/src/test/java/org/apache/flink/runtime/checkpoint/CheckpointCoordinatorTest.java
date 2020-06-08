@@ -84,6 +84,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -201,7 +202,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException() throws Exception {
+	public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException() {
 		final JobID jid = new JobID();
 
 		// create some mock Execution vertices that receive the checkpoint trigger messages
@@ -212,19 +213,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		final String errorMsg = "Exceeded checkpoint failure tolerance number!";
 
-		CheckpointFailureManager checkpointFailureManager = new CheckpointFailureManager(
-			0,
-			new CheckpointFailureManager.FailJobCallback() {
-				@Override
-				public void failJob(Throwable cause) {
-					throw new RuntimeException(errorMsg);
-				}
-
-				@Override
-				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {
-					throw new RuntimeException(errorMsg);
-				}
-			});
+		CheckpointFailureManager checkpointFailureManager = getCheckpointFailureManager(errorMsg);
 
 		// set up the coordinator
 		CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, checkpointFailureManager);
@@ -259,6 +248,33 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}
+		}
+	}
+
+	@Test
+	public void testExpiredCheckpointExceedsTolerableFailureNumber() throws Exception {
+		// create some mock Execution vertices that receive the checkpoint trigger messages
+		ExecutionVertex vertex1 = mockExecutionVertex(new ExecutionAttemptID());
+		ExecutionVertex vertex2 = mockExecutionVertex(new ExecutionAttemptID());
+
+		final String errorMsg = "Exceeded checkpoint failure tolerance number!";
+		CheckpointFailureManager checkpointFailureManager = getCheckpointFailureManager(errorMsg);
+		CheckpointCoordinator coord = getCheckpointCoordinator(new JobID(), vertex1, vertex2, checkpointFailureManager);
+
+		try {
+			coord.triggerCheckpoint(false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+
+			coord.abortPendingCheckpoints(new CheckpointException(CHECKPOINT_EXPIRED));
+
+			fail("Test failed.");
+		}
+		catch (Exception e) {
+			//expected
+			assertTrue(e instanceof RuntimeException);
+			assertEquals(errorMsg, e.getMessage());
+		} finally {
+			coord.shutdown(JobStatus.FINISHED);
 		}
 	}
 
@@ -425,6 +441,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			// decline checkpoint from one of the tasks, this should cancel the checkpoint
 			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpoint1Id), TASK_MANAGER_LOCATION_INFO);
+			verify(vertex1.getCurrentExecutionAttempt(), times(1)).notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
+			verify(vertex2.getCurrentExecutionAttempt(), times(1)).notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
+
 			assertTrue(checkpoint1.isDiscarded());
 
 			// validate that we have only one pending checkpoint left
@@ -452,6 +471,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpoint1Id), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID2, checkpoint1Id), TASK_MANAGER_LOCATION_INFO);
 			assertTrue(checkpoint1.isDiscarded());
+
+			// will not notify abort message again
+			verify(vertex1.getCurrentExecutionAttempt(), times(1)).notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
+			verify(vertex2.getCurrentExecutionAttempt(), times(1)).notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
 
 			coord.shutdown(JobStatus.FINISHED);
 		}
@@ -1930,7 +1953,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		coord.setCheckpointStatsTracker(tracker);
 
-		assertTrue(coord.restoreLatestCheckpointedState(Collections.emptySet(), false, true));
+		assertTrue(coord.restoreLatestCheckpointedStateToAll(Collections.emptySet(), true));
 
 		verify(tracker, times(1))
 			.reportRestoredCheckpoint(any(RestoredCheckpointStats.class));
@@ -2046,7 +2069,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// restore the store
 		Set<ExecutionJobVertex> tasks = new HashSet<>();
 		tasks.add(jobVertex1);
-		coord.restoreLatestCheckpointedState(tasks, true, false);
+		assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
 
 		// validate that all shared states are registered again after the recovery.
 		cp = 0;
@@ -2290,6 +2313,22 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			.setTasksToCommitTo(new ExecutionVertex[] {})
 			.setTimer(manuallyTriggeredScheduledExecutor)
 			.build();
+	}
+
+	private CheckpointFailureManager getCheckpointFailureManager(String errorMsg) {
+		return new CheckpointFailureManager(
+			0,
+			new CheckpointFailureManager.FailJobCallback() {
+				@Override
+				public void failJob(Throwable cause) {
+					throw new RuntimeException(errorMsg);
+				}
+
+				@Override
+				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {
+					throw new RuntimeException(errorMsg);
+				}
+			});
 	}
 
 	private PendingCheckpoint declineSynchronousSavepoint(

@@ -23,9 +23,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 import org.junit.Assert._

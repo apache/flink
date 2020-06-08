@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import io
+
 from pyflink.serializers import Serializer
 from pyflink.table.utils import arrow_to_pandas, pandas_to_arrow
 
@@ -51,3 +53,27 @@ class ArrowSerializer(Serializer):
         reader = pa.ipc.open_stream(stream)
         for batch in reader:
             yield arrow_to_pandas(self._timezone, self._field_types, [batch])
+
+    def load_from_iterator(self, itor):
+        class IteratorIO(io.RawIOBase):
+            def __init__(self, itor):
+                super(IteratorIO, self).__init__()
+                self.itor = itor
+                self.leftover = None
+
+            def readable(self):
+                return True
+
+            def readinto(self, b):
+                output_buffer_len = len(b)
+                input = self.leftover or (self.itor.next() if self.itor.hasNext() else None)
+                if input is None:
+                    return 0
+                output, self.leftover = input[:output_buffer_len], input[output_buffer_len:]
+                b[:len(output)] = output
+                return len(output)
+        import pyarrow as pa
+        reader = pa.ipc.open_stream(
+            io.BufferedReader(IteratorIO(itor), buffer_size=io.DEFAULT_BUFFER_SIZE))
+        for batch in reader:
+            yield batch

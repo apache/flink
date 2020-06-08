@@ -61,6 +61,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -509,6 +510,7 @@ public class ResultPartitionTest {
 							Thread.sleep(5);
 						}
 					}
+					assertNull(view.getNextBuffer());
 				}
 				return null;
 			};
@@ -572,6 +574,11 @@ public class ResultPartitionTest {
 		}
 
 		@Override
+		public boolean hasChannelStates() {
+			return true;
+		}
+
+		@Override
 		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
 			for (int state: states) {
 				buffer.asByteBuf().writeInt(state);
@@ -605,6 +612,11 @@ public class ResultPartitionTest {
 	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)} and {@link #readInputData(InputChannelInfo, Buffer)}.
 	 */
 	public static final class ChannelStateReaderWithException implements ChannelStateReader {
+
+		@Override
+		public boolean hasChannelStates() {
+			return true;
+		}
 
 		@Override
 		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException {

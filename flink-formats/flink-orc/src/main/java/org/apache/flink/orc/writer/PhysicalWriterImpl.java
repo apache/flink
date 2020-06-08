@@ -80,7 +80,7 @@ public class PhysicalWriterImpl implements PhysicalWriter {
 	private int metadataLength;
 	private int footerLength;
 
-	PhysicalWriterImpl(FSDataOutputStream out, OrcFile.WriterOptions opts) throws IOException {
+	public PhysicalWriterImpl(FSDataOutputStream out, OrcFile.WriterOptions opts) throws IOException {
 		if (opts.isEnforceBufferSize()) {
 			this.bufferSize = opts.getBufferSize();
 		} else {

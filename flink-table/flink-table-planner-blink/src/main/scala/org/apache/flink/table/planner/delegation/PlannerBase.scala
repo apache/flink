@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
+import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -31,7 +31,7 @@ import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
-import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
@@ -41,8 +41,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
-import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
+import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -51,6 +51,7 @@ import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.util
@@ -83,13 +84,19 @@ abstract class PlannerBase(
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
+  private val sqlExprToRexConverterFactory = new SqlExprToRexConverterFactory {
+    override def create(tableRowType: RelDataType): SqlExprToRexConverter =
+      plannerContext.createSqlExprToRexConverter(tableRowType)
+  }
+
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
       config,
       functionCatalog,
       catalogManager,
-      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
+      asRootSchema(new CatalogManagerCalciteSchema(
+        catalogManager, sqlExprToRexConverterFactory, isStreamingMode)),
       getTraitDefs.toList
     )
 
@@ -185,6 +192,21 @@ abstract class PlannerBase(
           s.getSink,
           "UnregisteredSink",
           ConnectorCatalogTable.sink(s.getSink, !isStreamingMode))
+
+      case s: SelectSinkOperation =>
+        val input = getRelBuilder.queryOperation(s.getChild).build()
+        // convert query schema to sink schema
+        val sinkSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
+          SelectTableSinkSchemaConverter.changeDefaultConversionClass(s.getChild.getTableSchema))
+        // validate query schema and sink schema, and apply cast if possible
+        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
+        val sink = createSelectTableSink(sinkSchema)
+        s.setSelectResultProvider(sink.getSelectResultProvider)
+        LogicalLegacySink.create(
+          query,
+          sink,
+          "collect",
+          ConnectorCatalogTable.sink(sink, !isStreamingMode))
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
@@ -301,6 +323,14 @@ abstract class PlannerBase(
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
   protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
+
+  /**
+   * Creates a [[SelectTableSinkBase]] for a select query.
+   *
+   * @param tableSchema the table schema of select result.
+   * @return The sink to fetch the select result.
+   */
+  protected def createSelectTableSink(tableSchema: TableSchema): SelectTableSinkBase[_]
 
   private def getTableSink(
       objectIdentifier: ObjectIdentifier,

@@ -279,8 +279,8 @@ public class OldCsv extends FormatDescriptor {
 			properties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
 		} else {
 			List<String> subKeys = Arrays.asList(
-				DescriptorProperties.TABLE_SCHEMA_NAME,
-				DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
+				DescriptorProperties.NAME,
+				DescriptorProperties.DATA_TYPE);
 
 			List<List<String>> subValues = schema.entrySet().stream()
 				.map(e -> Arrays.asList(e.getKey(), e.getValue()))

@@ -158,7 +158,7 @@ public class LogicalTypeCastsTest {
 						)
 					),
 					false,
-					false
+					true
 				},
 
 				{

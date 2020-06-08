@@ -65,11 +65,11 @@ public class JobManagerProcessUtils {
 	private JobManagerProcessUtils() {
 	}
 
-	public static JobManagerProcessSpec processSpecFromConfigWithFallbackForLegacyHeap(
+	public static JobManagerProcessSpec processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
 			Configuration config,
-			ConfigOption<MemorySize> newFallbackOptionForLegacyHeap) {
+			ConfigOption<MemorySize> newOptionToInterpretLegacyHeap) {
 		return processSpecFromConfig(
-			getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(config, newFallbackOptionForLegacyHeap));
+			getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(config, newOptionToInterpretLegacyHeap));
 	}
 
 	static JobManagerProcessSpec processSpecFromConfig(Configuration config) {

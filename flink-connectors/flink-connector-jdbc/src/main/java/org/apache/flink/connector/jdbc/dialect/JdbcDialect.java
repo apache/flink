@@ -36,6 +36,12 @@ import java.util.stream.Collectors;
 public interface JdbcDialect extends Serializable {
 
 	/**
+	 * Get the name of jdbc dialect.
+	 * @return the dialect name.
+	 */
+	String dialectName();
+
+	/**
 	 * Check if this dialect instance can handle a certain jdbc url.
 	 * @param url the jdbc url.
 	 * @return True if the dialect can be applied on the given jdbc url.
@@ -43,7 +49,7 @@ public interface JdbcDialect extends Serializable {
 	boolean canHandle(String url);
 
 	/**
-	 * Get a row converter for the database according to the given row type.
+	 * Get converter that convert jdbc object and Flink internal object each other.
 	 * @param rowType the given row type
 	 * @return a row converter for the database
 	 */

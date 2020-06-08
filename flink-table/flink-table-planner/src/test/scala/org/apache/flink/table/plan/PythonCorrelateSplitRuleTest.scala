@@ -19,10 +19,11 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}
+
 import org.junit.Test
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {

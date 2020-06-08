@@ -39,10 +39,11 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl;
-import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -455,7 +456,6 @@ public class ExecutionContext<ClusterID> {
 		config.addConfiguration(flinkConfig);
 		environment.getConfiguration().asMap().forEach((k, v) ->
 				config.getConfiguration().setString(k, v));
-		config.setSqlDialect(environment.getExecution().getSqlDialect());
 
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
@@ -581,9 +581,9 @@ public class ExecutionContext<ClusterID> {
 			}
 		});
 		// register table sources
-		tableSources.forEach(tableEnv::registerTableSource);
+		tableSources.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSourceInternal);
 		// register table sinks
-		tableSinks.forEach(tableEnv::registerTableSink);
+		tableSinks.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSinkInternal);
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.4 Register temporal tables.
@@ -655,14 +655,28 @@ public class ExecutionContext<ClusterID> {
 		if (tableEnv instanceof StreamTableEnvironment) {
 			StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
 			functions.forEach((k, v) -> {
-				if (v instanceof ScalarFunction) {
-					streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-				} else if (v instanceof AggregateFunction) {
-					streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-				} else if (v instanceof TableFunction) {
-					streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-				} else {
-					throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+				// Blink planner uses FLIP-65 functions for scalar and table functions
+				// aggregate functions still use the old type inference
+				if (environment.getExecution().isBlinkPlanner()) {
+					if (v instanceof ScalarFunction || v instanceof TableFunction) {
+						streamTableEnvironment.createTemporarySystemFunction(k, (UserDefinedFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				}
+				// legacy
+				else {
+					if (v instanceof ScalarFunction) {
+						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
 				}
 			});
 		} else {

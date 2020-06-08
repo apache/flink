@@ -35,6 +35,8 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -145,7 +147,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void subtaskFailed(int subtaskId) {
+	public void subtaskFailed(int subtaskId, @Nullable Throwable reason) {
 		ensureStarted();
 		coordinatorExecutor.execute(() -> {
 			try {
@@ -163,17 +165,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception {
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
 		ensureStarted();
-		return CompletableFuture.supplyAsync(() -> {
+
+		coordinatorExecutor.execute(() -> {
 			try {
 				LOG.debug("Taking a state snapshot on operator {} for checkpoint {}", operatorName, checkpointId);
-				return toBytes(checkpointId);
+				result.complete(toBytes(checkpointId));
 			} catch (Exception e) {
-				throw new CompletionException(
-						String.format("Failed to checkpoint coordinator for source %s due to ", operatorName), e);
+				result.completeExceptionally(new CompletionException(
+						String.format("Failed to checkpoint coordinator for source %s due to ", operatorName), e));
 			}
-		}, coordinatorExecutor);
+		});
 	}
 
 	@Override

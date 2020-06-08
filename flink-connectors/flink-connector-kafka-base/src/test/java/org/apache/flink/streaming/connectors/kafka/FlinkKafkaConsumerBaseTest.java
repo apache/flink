@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
@@ -990,8 +991,24 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		private volatile boolean isRunning = true;
 
-		protected TestingFetcher(SourceFunction.SourceContext<T> sourceContext, Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, ProcessingTimeService processingTimeProvider, long autoWatermarkInterval, ClassLoader userCodeClassLoader, MetricGroup consumerMetricGroup, boolean useMetrics) throws Exception {
-			super(sourceContext, seedPartitionsWithInitialOffsets, watermarksPeriodic, watermarksPunctuated, processingTimeProvider, autoWatermarkInterval, userCodeClassLoader, consumerMetricGroup, useMetrics);
+		protected TestingFetcher(
+				SourceFunction.SourceContext<T> sourceContext,
+				Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets,
+				SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
+				ProcessingTimeService processingTimeProvider,
+				long autoWatermarkInterval,
+				ClassLoader userCodeClassLoader,
+				MetricGroup consumerMetricGroup,
+				boolean useMetrics) throws Exception {
+			super(
+					sourceContext,
+					seedPartitionsWithInitialOffsets,
+					watermarkStrategy,
+					processingTimeProvider,
+					autoWatermarkInterval,
+					userCodeClassLoader,
+					consumerMetricGroup,
+					useMetrics);
 		}
 
 		@Override
@@ -1067,8 +1084,15 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 
 		@SuppressWarnings("unchecked")
-		DummyFlinkKafkaConsumer(SupplierWithException<AbstractFetcher<T, ?>, Exception> abstractFetcherSupplier, AbstractPartitionDiscoverer abstractPartitionDiscoverer, long discoveryIntervalMillis) {
-			this(abstractFetcherSupplier, abstractPartitionDiscoverer, false, discoveryIntervalMillis);
+		DummyFlinkKafkaConsumer(
+				SupplierWithException<AbstractFetcher<T, ?>, Exception> abstractFetcherSupplier,
+				AbstractPartitionDiscoverer abstractPartitionDiscoverer,
+				long discoveryIntervalMillis) {
+			this(
+					abstractFetcherSupplier,
+					abstractPartitionDiscoverer,
+					false,
+					discoveryIntervalMillis);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -1134,12 +1158,10 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		protected AbstractFetcher<T, ?> createFetcher(
 				SourceContext<T> sourceContext,
 				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
-				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
-				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+				SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
 				StreamingRuntimeContext runtimeContext,
 				OffsetCommitMode offsetCommitMode,
 				MetricGroup consumerMetricGroup,
@@ -1184,9 +1206,23 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 
 		@Override
-		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext, OffsetCommitMode offsetCommitMode, MetricGroup consumerMetricGroup, boolean useMetrics) throws Exception {
-			return new TestingFetcher<T, String>(sourceContext, thisSubtaskPartitionsWithStartOffsets, watermarksPeriodic, watermarksPunctuated, runtimeContext.getProcessingTimeService(), 0L, getClass().getClassLoader(), consumerMetricGroup, useMetrics);
-
+		protected AbstractFetcher<T, ?> createFetcher(
+				SourceContext<T> sourceContext,
+				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
+				SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
+				StreamingRuntimeContext runtimeContext,
+				OffsetCommitMode offsetCommitMode,
+				MetricGroup consumerMetricGroup,
+				boolean useMetrics) throws Exception {
+			return new TestingFetcher<T, String>(
+					sourceContext,
+					thisSubtaskPartitionsWithStartOffsets,
+					watermarkStrategy,
+					runtimeContext.getProcessingTimeService(),
+					0L,
+					getClass().getClassLoader(),
+					consumerMetricGroup,
+					useMetrics);
 		}
 
 		@Override
@@ -1282,8 +1318,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			super(
 					new TestSourceContext<>(),
 					new HashMap<>(),
-					null,
-					null,
+					null /* watermark strategy */,
 					new TestProcessingTimeService(),
 					0,
 					MockFetcher.class.getClassLoader(),
@@ -1351,19 +1386,6 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		@SuppressWarnings("unchecked")
 		public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
 			return (ListState<S>) mockRestoredUnionListState;
-		}
-
-		@Override
-		public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-			// return empty state for the legacy 1.2 Kafka consumer state
-			return new TestingListState<>();
-		}
-
-		// ------------------------------------------------------------------------
-
-		@Override
-		public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			throw new UnsupportedOperationException();
 		}
 
 		@Override

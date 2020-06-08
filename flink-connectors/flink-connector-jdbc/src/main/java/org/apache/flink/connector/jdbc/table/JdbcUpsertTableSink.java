@@ -59,7 +59,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
 	private String[] keyFields;
 	private boolean isAppendOnly;
 
-	protected JdbcUpsertTableSink(
+	private JdbcUpsertTableSink(
 			TableSchema schema,
 			JdbcOptions options,
 			int flushMaxSize,

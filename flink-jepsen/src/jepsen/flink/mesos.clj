@@ -22,6 +22,7 @@
              [util :as util :refer [meh]]]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [jepsen.flink.utils :as fu]
             [jepsen.flink.utils :refer [create-supervised-service! stop-supervised-service!]]
             [jepsen.flink.zookeeper :refer [zookeeper-uri]]))
 
@@ -195,4 +196,6 @@
       (stop-marathon! test node))
     db/LogFiles
     (log-files [_ test node]
-      (if (cu/exists? log-dir) (cu/ls-full log-dir) []))))
+      (concat
+        (fu/find-files! log-dir)
+        (fu/find-files! slave-dir "*.log")))))

@@ -29,17 +29,19 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -403,29 +405,29 @@ public final class FactoryUtil {
 		}
 
 		/**
-		 * Discovers a {@link ScanFormat} of the given type using the given option as factory identifier.
+		 * Discovers a {@link DecodingFormat} of the given type using the given option as factory identifier.
 		 */
-		public <I, F extends ScanFormatFactory<I>> ScanFormat<I> discoverScanFormat(
+		public <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
-			return discoverOptionalScanFormat(formatFactoryClass, formatOption)
+			return discoverOptionalDecodingFormat(formatFactoryClass, formatOption)
 				.orElseThrow(() ->
 					new ValidationException(
 						String.format("Could not find required scan format '%s'.", formatOption.key())));
 		}
 
 		/**
-		 * Discovers a {@link ScanFormat} of the given type using the given option (if present) as factory
+		 * Discovers a {@link DecodingFormat} of the given type using the given option (if present) as factory
 		 * identifier.
 		 */
-		public <I, F extends ScanFormatFactory<I>> Optional<ScanFormat<I>> discoverOptionalScanFormat(
+		public <I, F extends DecodingFormatFactory<I>> Optional<DecodingFormat<I>> discoverOptionalDecodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
 			return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
 				.map(formatFactory -> {
 					String formatPrefix = formatPrefix(formatFactory, formatOption);
 					try {
-						return formatFactory.createScanFormat(context, projectOptions(formatPrefix));
+						return formatFactory.createDecodingFormat(context, projectOptions(formatPrefix));
 					} catch (Throwable t) {
 						throw new ValidationException(
 							String.format(
@@ -438,29 +440,29 @@ public final class FactoryUtil {
 		}
 
 		/**
-		 * Discovers a {@link SinkFormat} of the given type using the given option as factory identifier.
+		 * Discovers a {@link EncodingFormat} of the given type using the given option as factory identifier.
 		 */
-		public <I, F extends SinkFormatFactory<I>> SinkFormat<I> discoverSinkFormat(
+		public <I, F extends EncodingFormatFactory<I>> EncodingFormat<I> discoverEncodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
-			return discoverOptionalSinkFormat(formatFactoryClass, formatOption)
+			return discoverOptionalEncodingFormat(formatFactoryClass, formatOption)
 				.orElseThrow(() ->
 					new ValidationException(
 						String.format("Could not find required sink format '%s'.", formatOption.key())));
 		}
 
 		/**
-		 * Discovers a {@link SinkFormat} of the given type using the given option (if present) as factory
+		 * Discovers a {@link EncodingFormat} of the given type using the given option (if present) as factory
 		 * identifier.
 		 */
-		public <I, F extends SinkFormatFactory<I>> Optional<SinkFormat<I>> discoverOptionalSinkFormat(
+		public <I, F extends EncodingFormatFactory<I>> Optional<EncodingFormat<I>> discoverOptionalEncodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
 			return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
 				.map(formatFactory -> {
 					String formatPrefix = formatPrefix(formatFactory, formatOption);
 					try {
-						return formatFactory.createSinkFormat(context, projectOptions(formatPrefix));
+						return formatFactory.createEncodingFormat(context, projectOptions(formatPrefix));
 					} catch (Throwable t) {
 						throw new ValidationException(
 							String.format(
@@ -496,6 +498,25 @@ public final class FactoryUtil {
 							.sorted()
 							.collect(Collectors.joining("\n"))));
 			}
+		}
+
+		/**
+		 * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
+		 * keys while ignoring the options with given prefixes.
+		 *
+		 * <p>The option keys that have given prefix {@code prefixToSkip}
+		 * would just be skipped for validation.
+		 *
+		 * @param prefixesToSkip Set of option key prefixes to skip validation
+		 */
+		public void validateExcept(String... prefixesToSkip) {
+			Preconditions.checkArgument(prefixesToSkip.length > 0,
+					"Prefixes to skip can not be empty.");
+			final List<String> prefixesList = Arrays.asList(prefixesToSkip);
+			consumedOptionKeys.addAll(allOptions.keySet().stream()
+				.filter(key -> prefixesList.stream().anyMatch(key::startsWith))
+				.collect(Collectors.toSet()));
+			validate();
 		}
 
 		/**

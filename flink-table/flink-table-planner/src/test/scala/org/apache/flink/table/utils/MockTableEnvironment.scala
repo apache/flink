@@ -18,20 +18,18 @@
 
 package org.apache.flink.table.utils
 
+import java.lang.{Iterable => JIterable}
+import java.util.Optional
+
 import org.apache.flink.api.common.JobExecutionResult
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableConfig, TableEnvironment, TableResult}
 import org.apache.flink.table.catalog.Catalog
 import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.table.module.Module
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.types.DataType
-
-import java.lang.{Iterable => JIterable}
-import java.util.Optional
+import org.apache.flink.table.types.AbstractDataType
 
 class MockTableEnvironment extends TableEnvironment {
 
@@ -40,15 +38,6 @@ class MockTableEnvironment extends TableEnvironment {
   override def registerFunction(name: String, function: ScalarFunction): Unit = ???
 
   override def registerTable(name: String, table: Table): Unit = ???
-
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
-
-  override def registerTableSink(
-    name: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]], tableSink: TableSink[_]): Unit = ???
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = ???
 
   override def scan(tablePath: String*): Table = ???
 
@@ -161,9 +150,9 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def fromValues(expression: Expression*): Table = ???
 
-  override def fromValues(rowType: DataType, values: Expression*): Table = ???
+  override def fromValues(rowType: AbstractDataType[_], values: Expression*): Table = ???
 
   override def fromValues(values: JIterable[_]): Table = ???
 
-  override def fromValues(rowType: DataType, values: JIterable[_]): Table = ???
+  override def fromValues(rowType: AbstractDataType[_], values: JIterable[_]): Table = ???
 }

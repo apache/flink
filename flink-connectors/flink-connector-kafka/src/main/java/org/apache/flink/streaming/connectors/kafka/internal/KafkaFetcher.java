@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
@@ -64,22 +63,24 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
 	private final KafkaDeserializationSchema<T> deserializer;
 
+	/** A collector to emit records in batch (bundle). **/
+	private final KafkaCollector kafkaCollector;
+
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
-	private final Handover handover;
+	final Handover handover;
 
 	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher. */
-	private final KafkaConsumerThread consumerThread;
+	final KafkaConsumerThread consumerThread;
 
 	/** Flag to mark the main work loop as alive. */
-	private volatile boolean running = true;
+	volatile boolean running = true;
 
 	// ------------------------------------------------------------------------
 
 	public KafkaFetcher(
 		SourceFunction.SourceContext<T> sourceContext,
 		Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
-		SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
-		SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+		SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
 		ProcessingTimeService processingTimeProvider,
 		long autoWatermarkInterval,
 		ClassLoader userCodeClassLoader,
@@ -93,8 +94,7 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		super(
 			sourceContext,
 			assignedPartitionsWithInitialOffsets,
-			watermarksPeriodic,
-			watermarksPunctuated,
+			watermarkStrategy,
 			processingTimeProvider,
 			autoWatermarkInterval,
 			userCodeClassLoader,
@@ -114,19 +114,16 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			useMetrics,
 			consumerMetricGroup,
 			subtaskMetricGroup);
+		this.kafkaCollector = new KafkaCollector();
 	}
 
 	// ------------------------------------------------------------------------
 	//  Fetcher work methods
 	// ------------------------------------------------------------------------
 
-	private final KafkaCollector kafkaCollector = new KafkaCollector();
-
 	@Override
 	public void runFetchLoop() throws Exception {
 		try {
-			final Handover handover = this.handover;
-
 			// kick off the actual Kafka consumer
 			consumerThread.start();
 
@@ -136,28 +133,12 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				final ConsumerRecords<byte[], byte[]> records = handover.pollNext();
 
 				// get the records for each topic partition
-				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitionStates()) {
+				for (KafkaTopicPartitionState<T, TopicPartition> partition : subscribedPartitionStates()) {
 
 					List<ConsumerRecord<byte[], byte[]>> partitionRecords =
 						records.records(partition.getKafkaPartitionHandle());
 
-					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						deserializer.deserialize(record, kafkaCollector);
-
-						// emit the actual records. this also updates offset state atomically and emits
-						// watermarks
-						emitRecordsWithTimestamps(
-							kafkaCollector.getRecords(),
-							partition,
-							record.offset(),
-							record.timestamp());
-
-						if (kafkaCollector.isEndOfStreamSignalled()) {
-							// end of stream signaled
-							running = false;
-							break;
-						}
-					}
+					partitionConsumerRecordsHandler(partitionRecords, partition);
 				}
 			}
 		}
@@ -192,6 +173,29 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		return "Kafka Fetcher";
 	}
 
+	protected void partitionConsumerRecordsHandler(
+			List<ConsumerRecord<byte[], byte[]>> partitionRecords,
+			KafkaTopicPartitionState<T, TopicPartition> partition) throws Exception {
+
+		for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
+			deserializer.deserialize(record, kafkaCollector);
+
+			// emit the actual records. this also updates offset state atomically and emits
+			// watermarks
+			emitRecordsWithTimestamps(
+				kafkaCollector.getRecords(),
+				partition,
+				record.offset(),
+				record.timestamp());
+
+			if (kafkaCollector.isEndOfStreamSignalled()) {
+				// end of stream signaled
+				running = false;
+				break;
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Implement Methods of the AbstractFetcher
 	// ------------------------------------------------------------------------
@@ -207,11 +211,11 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		@Nonnull KafkaCommitCallback commitCallback) throws Exception {
 
 		@SuppressWarnings("unchecked")
-		List<KafkaTopicPartitionState<TopicPartition>> partitions = subscribedPartitionStates();
+		List<KafkaTopicPartitionState<T, TopicPartition>> partitions = subscribedPartitionStates();
 
 		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.size());
 
-		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
+		for (KafkaTopicPartitionState<T, TopicPartition> partition : partitions) {
 			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());
 			if (lastProcessedOffset != null) {
 				checkState(lastProcessedOffset >= 0, "Illegal offset value to commit");

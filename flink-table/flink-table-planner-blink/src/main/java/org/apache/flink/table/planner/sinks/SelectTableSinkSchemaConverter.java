@@ -28,12 +28,12 @@ import org.apache.flink.table.types.logical.TimestampType;
 /**
  * An utility class that provides abilities to change {@link TableSchema}.
  */
-class SelectTableSinkSchemaConverter {
+public class SelectTableSinkSchemaConverter {
 
 	/**
 	 * Change to default conversion class and build a new {@link TableSchema}.
 	 */
-	static TableSchema changeDefaultConversionClass(TableSchema tableSchema) {
+	public static TableSchema changeDefaultConversionClass(TableSchema tableSchema) {
 		DataType[] oldTypes = tableSchema.getFieldDataTypes();
 		String[] fieldNames = tableSchema.getFieldNames();
 
@@ -50,7 +50,7 @@ class SelectTableSinkSchemaConverter {
 	 * Convert time attributes (proc time / event time) to regular timestamp
 	 * and build a new {@link TableSchema}.
 	 */
-	static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
+	public static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
 		DataType[] dataTypes = tableSchema.getFieldDataTypes();
 		String[] oldNames = tableSchema.getFieldNames();
 

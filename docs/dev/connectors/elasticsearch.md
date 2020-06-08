@@ -317,7 +317,7 @@ time of checkpoints. This effectively assures that all requests before the
 checkpoint was triggered have been successfully acknowledged by Elasticsearch, before
 proceeding to process more records sent to the sink.
 
-More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/internals/stream_checkpointing.html).
+More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/training/fault_tolerance.html).
 
 To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
 

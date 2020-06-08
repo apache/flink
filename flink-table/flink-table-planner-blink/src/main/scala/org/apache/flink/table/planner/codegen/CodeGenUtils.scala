@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.data.binary._
+import org.apache.flink.table.data.conversion.DataStructureConverters
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -40,9 +41,13 @@ import org.apache.flink.table.runtime.util.MurmurHashUtil
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
+
+import scala.annotation.tailrec
 
 object CodeGenUtils {
 
@@ -161,117 +166,118 @@ object CodeGenUtils {
   // works, but for boxed types we need this:
   // Float a = 1.0f;
   // Byte b = (byte)(float) a;
+  @tailrec
   def primitiveTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
-    case INTEGER => "int"
-    case BIGINT => "long"
-    case SMALLINT => "short"
+    // ordered by type root definition
+    case BOOLEAN => "boolean"
     case TINYINT => "byte"
+    case SMALLINT => "short"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "int"
+    case BIGINT | INTERVAL_DAY_TIME => "long"
     case FLOAT => "float"
     case DOUBLE => "double"
-    case BOOLEAN => "boolean"
-
-    case DATE => "int"
-    case TIME_WITHOUT_TIME_ZONE => "int"
-    case INTERVAL_YEAR_MONTH => "int"
-    case INTERVAL_DAY_TIME => "long"
-
+    case DISTINCT_TYPE => primitiveTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
     case _ => boxedTypeTermForType(t)
   }
 
+  @tailrec
   def boxedTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
-    case INTEGER => className[JInt]
-    case BIGINT => className[JLong]
-    case SMALLINT => className[JShort]
+    // ordered by type root definition
+    case CHAR | VARCHAR => BINARY_STRING
+    case BOOLEAN => className[JBoolean]
+    case BINARY | VARBINARY => "byte[]"
+    case DECIMAL => className[DecimalData]
     case TINYINT => className[JByte]
+    case SMALLINT => className[JShort]
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => className[JInt]
+    case BIGINT | INTERVAL_DAY_TIME => className[JLong]
     case FLOAT => className[JFloat]
     case DOUBLE => className[JDouble]
-    case BOOLEAN => className[JBoolean]
-
-    case DATE => className[JInt]
-    case TIME_WITHOUT_TIME_ZONE => className[JInt]
-    case INTERVAL_YEAR_MONTH => className[JInt]
-    case INTERVAL_DAY_TIME => className[JLong]
-
-    case VARCHAR | CHAR => BINARY_STRING
-    case VARBINARY | BINARY => "byte[]"
-
-    case DECIMAL => className[DecimalData]
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
+    case TIMESTAMP_WITH_TIME_ZONE =>
+      throw new UnsupportedOperationException("Unsupported type: " + t)
     case ARRAY => className[ArrayData]
     case MULTISET | MAP => className[MapData]
-    case ROW => className[RowData]
+    case ROW | STRUCTURED_TYPE => className[RowData]
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
-
+    case DISTINCT_TYPE => boxedTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
+    case NULL => className[JObject] // special case for untyped null literals
     case RAW => className[BinaryRawValueData[_]]
-
-    // special case for untyped null literals
-    case NULL => className[JObject]
+    case SYMBOL | UNRESOLVED =>
+      throw new IllegalArgumentException("Illegal type: " + t)
   }
 
   /**
     * Gets the default value for a primitive type, and null for generic types
     */
+  @tailrec
   def primitiveDefaultValue(t: LogicalType): String = t.getTypeRoot match {
-    case INTEGER | TINYINT | SMALLINT => "-1"
-    case BIGINT => "-1L"
+    // ordered by type root definition
+    case CHAR | VARCHAR => s"$BINARY_STRING.EMPTY_UTF8"
+    case BOOLEAN => "false"
+    case TINYINT | SMALLINT | INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
+    case BIGINT | INTERVAL_DAY_TIME => "-1L"
     case FLOAT => "-1.0f"
     case DOUBLE => "-1.0d"
-    case BOOLEAN => "false"
-    case VARCHAR | CHAR => s"$BINARY_STRING.EMPTY_UTF8"
 
-    case DATE | TIME_WITHOUT_TIME_ZONE => "-1"
-    case INTERVAL_YEAR_MONTH => "-1"
-    case INTERVAL_DAY_TIME => "-1L"
+    case DISTINCT_TYPE => primitiveDefaultValue(t.asInstanceOf[DistinctType].getSourceType)
 
     case _ => "null"
   }
 
-  /**
-    * If it's internally compatible, don't need to DataStructure converter.
-    * clazz != classOf[Row] => Row can only infer GenericType[Row].
-    */
-  def isInternalClass(t: DataType): Boolean = {
-    val clazz = t.getConversionClass
-    clazz != classOf[Object] && clazz != classOf[Row] &&
-        (classOf[RowData].isAssignableFrom(clazz) ||
-            clazz == toInternalConversionClass(fromDataTypeToLogicalType(t)))
-  }
-
+  @tailrec
   def hashCodeForType(
-      ctx: CodeGeneratorContext, t: LogicalType, term: String): String = t.getTypeRoot match {
-    case BOOLEAN => s"${className[JBoolean]}.hashCode($term)"
-    case TINYINT => s"${className[JByte]}.hashCode($term)"
-    case SMALLINT => s"${className[JShort]}.hashCode($term)"
-    case INTEGER => s"${className[JInt]}.hashCode($term)"
-    case BIGINT => s"${className[JLong]}.hashCode($term)"
+      ctx: CodeGeneratorContext,
+      t: LogicalType,
+      term: String)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case VARCHAR | CHAR =>
+      s"$term.hashCode()"
+    case BOOLEAN =>
+      s"${className[JBoolean]}.hashCode($term)"
+    case BINARY | VARBINARY =>
+      s"${className[MurmurHashUtil]}.hashUnsafeBytes($term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
+    case DECIMAL =>
+      s"$term.hashCode()"
+    case TINYINT =>
+      s"${className[JByte]}.hashCode($term)"
+    case SMALLINT =>
+      s"${className[JShort]}.hashCode($term)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+      s"${className[JInt]}.hashCode($term)"
+    case BIGINT | INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
     case FLOAT => s"${className[JFloat]}.hashCode($term)"
     case DOUBLE => s"${className[JDouble]}.hashCode($term)"
-    case VARCHAR | CHAR => s"$term.hashCode()"
-    case VARBINARY | BINARY => s"${className[MurmurHashUtil]}.hashUnsafeBytes(" +
-      s"$term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
-    case DECIMAL => s"$term.hashCode()"
-    case DATE => s"${className[JInt]}.hashCode($term)"
-    case TIME_WITHOUT_TIME_ZONE => s"${className[JInt]}.hashCode($term)"
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
       s"$term.hashCode()"
-    case INTERVAL_YEAR_MONTH => s"${className[JInt]}.hashCode($term)"
+    case TIMESTAMP_WITH_TIME_ZONE | ARRAY | MULTISET | MAP =>
+      throw new UnsupportedOperationException("Unsupported type: " + t)
     case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
-    case ARRAY => throw new IllegalArgumentException(s"Not support type to hash: $t")
-    case ROW =>
-      val rowType = t.asInstanceOf[RowType]
+    case ROW | STRUCTURED_TYPE =>
+      val fieldCount = getFieldCount(t)
       val subCtx = CodeGeneratorContext(ctx.tableConfig)
       val genHash = HashCodeGenerator.generateRowHash(
-        subCtx, rowType, "SubHashRow", (0 until rowType.getFieldCount).toArray)
+        subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
       ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
       val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
       val hashFunc = newName("hashFunc")
       ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
       ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
       s"$hashFunc.hashCode($term)"
+    case DISTINCT_TYPE =>
+      hashCodeForType(ctx, t.asInstanceOf[DistinctType].getSourceType, term)
     case RAW =>
-      val gt = t.asInstanceOf[TypeInformationRawType[_]]
-      val serTerm = ctx.addReusableObject(
-        gt.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
+      val serializer = t match {
+        case rt: RawType[_] =>
+          rt.getTypeSerializer
+        case tirt: TypeInformationRawType[_] =>
+          tirt.getTypeInformation.createSerializer(new ExecutionConfig)
+      }
+      val serTerm = ctx.addReusableObject(serializer, "serializer")
       s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"
+    case NULL | SYMBOL | UNRESOLVED =>
+      throw new IllegalArgumentException("Illegal type: " + t)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -406,6 +412,11 @@ object CodeGenUtils {
       throw new CodeGenException("Integer expression type expected.")
     }
 
+  def udfFieldName(udf: UserDefinedFunction): String = s"function_${udf.functionIdentifier}"
+
+  def genLogInfo(logTerm: String, format: String, argTerm: String): String =
+    s"""$logTerm.info("$format", $argTerm);"""
+
   // --------------------------------------------------------------------------------
   // DataFormat Operations
   // --------------------------------------------------------------------------------
@@ -419,44 +430,50 @@ object CodeGenUtils {
       fieldType: LogicalType) : String =
     rowFieldReadAccess(ctx, index.toString, rowTerm, fieldType)
 
+  @tailrec
   def rowFieldReadAccess(
       ctx: CodeGeneratorContext,
       indexTerm: String,
       rowTerm: String,
-      t: LogicalType) : String =
-    t.getTypeRoot match {
-      // primitive types
-      case BOOLEAN => s"$rowTerm.getBoolean($indexTerm)"
-      case TINYINT => s"$rowTerm.getByte($indexTerm)"
-      case SMALLINT => s"$rowTerm.getShort($indexTerm)"
-      case INTEGER => s"$rowTerm.getInt($indexTerm)"
-      case BIGINT => s"$rowTerm.getLong($indexTerm)"
-      case FLOAT => s"$rowTerm.getFloat($indexTerm)"
-      case DOUBLE => s"$rowTerm.getDouble($indexTerm)"
-      case VARCHAR | CHAR => s"(($BINARY_STRING) $rowTerm.getString($indexTerm))"
-      case VARBINARY | BINARY => s"$rowTerm.getBinary($indexTerm)"
+      t: LogicalType)
+    : String = t.getTypeRoot match {
+      // ordered by type root definition
+      case CHAR | VARCHAR =>
+        s"(($BINARY_STRING) $rowTerm.getString($indexTerm))"
+      case BOOLEAN =>
+        s"$rowTerm.getBoolean($indexTerm)"
+      case BINARY | VARBINARY =>
+        s"$rowTerm.getBinary($indexTerm)"
       case DECIMAL =>
-        val dt = t.asInstanceOf[DecimalType]
-        s"$rowTerm.getDecimal($indexTerm, ${dt.getPrecision}, ${dt.getScale})"
-
-      // temporal types
-      case DATE => s"$rowTerm.getInt($indexTerm)"
-      case TIME_WITHOUT_TIME_ZONE => s"$rowTerm.getInt($indexTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val dt = t.asInstanceOf[TimestampType]
-        s"$rowTerm.getTimestamp($indexTerm, ${dt.getPrecision})"
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val dt = t.asInstanceOf[LocalZonedTimestampType]
-        s"$rowTerm.getTimestamp($indexTerm, ${dt.getPrecision})"
-      case INTERVAL_YEAR_MONTH => s"$rowTerm.getInt($indexTerm)"
-      case INTERVAL_DAY_TIME => s"$rowTerm.getLong($indexTerm)"
-
-      // complex types
-      case ARRAY => s"$rowTerm.getArray($indexTerm)"
-      case MULTISET | MAP  => s"$rowTerm.getMap($indexTerm)"
-      case ROW => s"$rowTerm.getRow($indexTerm, ${t.asInstanceOf[RowType].getFieldCount})"
-
-      case RAW => s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
+        s"$rowTerm.getDecimal($indexTerm, ${getPrecision(t)}, ${getScale(t)})"
+      case TINYINT =>
+        s"$rowTerm.getByte($indexTerm)"
+      case SMALLINT =>
+        s"$rowTerm.getShort($indexTerm)"
+      case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+        s"$rowTerm.getInt($indexTerm)"
+      case BIGINT | INTERVAL_DAY_TIME =>
+        s"$rowTerm.getLong($indexTerm)"
+      case FLOAT =>
+        s"$rowTerm.getFloat($indexTerm)"
+      case DOUBLE =>
+        s"$rowTerm.getDouble($indexTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        s"$rowTerm.getTimestamp($indexTerm, ${getPrecision(t)})"
+      case TIMESTAMP_WITH_TIME_ZONE =>
+        throw new UnsupportedOperationException("Unsupported type: " + t)
+      case ARRAY =>
+        s"$rowTerm.getArray($indexTerm)"
+      case MULTISET | MAP  =>
+        s"$rowTerm.getMap($indexTerm)"
+      case ROW | STRUCTURED_TYPE =>
+        s"$rowTerm.getRow($indexTerm, ${getFieldCount(t)})"
+      case DISTINCT_TYPE =>
+        rowFieldReadAccess(ctx, indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
+      case RAW =>
+        s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
+      case NULL | SYMBOL | UNRESOLVED =>
+        throw new IllegalArgumentException("Illegal type: " + t)
     }
 
   // -------------------------- RowData Set Field -------------------------------
@@ -549,14 +566,22 @@ object CodeGenUtils {
   def binaryRowSetNull(index: Int, rowTerm: String, t: LogicalType): String =
     binaryRowSetNull(index.toString, rowTerm, t)
 
-  def binaryRowSetNull(indexTerm: String, rowTerm: String, t: LogicalType): String = t match {
-    case d: DecimalType if !DecimalData.isCompact(d.getPrecision) =>
-      s"$rowTerm.setDecimal($indexTerm, null, ${d.getPrecision})"
-    case d: TimestampType if !TimestampData.isCompact(d.getPrecision) =>
-      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
-    case d: LocalZonedTimestampType if !TimestampData.isCompact(d.getPrecision) =>
-      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
-    case _ => s"$rowTerm.setNullAt($indexTerm)"
+  @tailrec
+  def binaryRowSetNull(
+      indexTerm: String,
+      rowTerm: String,
+      t: LogicalType)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case DECIMAL if !DecimalData.isCompact(getPrecision(t)) =>
+      s"$rowTerm.setDecimal($indexTerm, null, ${getPrecision(t)})"
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE
+        if !TimestampData.isCompact(getPrecision(t)) =>
+      s"$rowTerm.setTimestamp($indexTerm, null, ${getPrecision(t)})"
+    case DISTINCT_TYPE =>
+      binaryRowSetNull(indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
+    case _ =>
+      s"$rowTerm.setNullAt($indexTerm)"
   }
 
   def binaryRowFieldSetAccess(
@@ -566,75 +591,102 @@ object CodeGenUtils {
       fieldValTerm: String): String =
     binaryRowFieldSetAccess(index.toString, binaryRowTerm, fieldType, fieldValTerm)
 
+  @tailrec
   def binaryRowFieldSetAccess(
       index: String,
       binaryRowTerm: String,
       t: LogicalType,
-      fieldValTerm: String): String =
-    t.getTypeRoot match {
-      case INTEGER => s"$binaryRowTerm.setInt($index, $fieldValTerm)"
-      case BIGINT => s"$binaryRowTerm.setLong($index, $fieldValTerm)"
-      case SMALLINT => s"$binaryRowTerm.setShort($index, $fieldValTerm)"
-      case TINYINT => s"$binaryRowTerm.setByte($index, $fieldValTerm)"
-      case FLOAT => s"$binaryRowTerm.setFloat($index, $fieldValTerm)"
-      case DOUBLE => s"$binaryRowTerm.setDouble($index, $fieldValTerm)"
-      case BOOLEAN => s"$binaryRowTerm.setBoolean($index, $fieldValTerm)"
-      case DATE =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
-      case TIME_WITHOUT_TIME_ZONE =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val dt = t.asInstanceOf[TimestampType]
-        s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${dt.getPrecision})"
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val dt = t.asInstanceOf[LocalZonedTimestampType]
-        s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${dt.getPrecision})"
-      case INTERVAL_YEAR_MONTH =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
-      case INTERVAL_DAY_TIME =>  s"$binaryRowTerm.setLong($index, $fieldValTerm)"
-      case DECIMAL =>
-        val dt = t.asInstanceOf[DecimalType]
-        s"$binaryRowTerm.setDecimal($index, $fieldValTerm, ${dt.getPrecision})"
-      case _ =>
-        throw new CodeGenException("Fail to find binary row field setter method of LogicalType "
-          + t + ".")
-    }
+      fieldValTerm: String)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case BOOLEAN =>
+      s"$binaryRowTerm.setBoolean($index, $fieldValTerm)"
+    case DECIMAL =>
+      s"$binaryRowTerm.setDecimal($index, $fieldValTerm, ${getPrecision(t)})"
+    case TINYINT =>
+      s"$binaryRowTerm.setByte($index, $fieldValTerm)"
+    case SMALLINT =>
+      s"$binaryRowTerm.setShort($index, $fieldValTerm)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+      s"$binaryRowTerm.setInt($index, $fieldValTerm)"
+    case BIGINT | INTERVAL_DAY_TIME =>
+      s"$binaryRowTerm.setLong($index, $fieldValTerm)"
+    case FLOAT =>
+      s"$binaryRowTerm.setFloat($index, $fieldValTerm)"
+    case DOUBLE =>
+      s"$binaryRowTerm.setDouble($index, $fieldValTerm)"
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+      s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${getPrecision(t)})"
+    case DISTINCT_TYPE =>
+      binaryRowFieldSetAccess(
+        index,
+        binaryRowTerm,
+        t.asInstanceOf[DistinctType].getSourceType,
+        fieldValTerm)
+    case _ =>
+      throw new CodeGenException(
+        "Fail to find binary row field setter method of LogicalType " + t + ".")
+  }
 
   // -------------------------- BoxedWrapperRowData Set Field -------------------------------
 
+  @tailrec
   def boxedWrapperRowFieldSetAccess(
       rowTerm: String,
       indexTerm: String,
       fieldTerm: String,
-      t: LogicalType): String =
-    t.getTypeRoot match {
-      case INTEGER => s"$rowTerm.setInt($indexTerm, $fieldTerm)"
-      case BIGINT => s"$rowTerm.setLong($indexTerm, $fieldTerm)"
-      case SMALLINT => s"$rowTerm.setShort($indexTerm, $fieldTerm)"
-      case TINYINT => s"$rowTerm.setByte($indexTerm, $fieldTerm)"
-      case FLOAT => s"$rowTerm.setFloat($indexTerm, $fieldTerm)"
-      case DOUBLE => s"$rowTerm.setDouble($indexTerm, $fieldTerm)"
-      case BOOLEAN => s"$rowTerm.setBoolean($indexTerm, $fieldTerm)"
-      case DATE =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
-      case TIME_WITHOUT_TIME_ZONE =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
-      case INTERVAL_YEAR_MONTH => s"$rowTerm.setInt($indexTerm, $fieldTerm)"
-      case INTERVAL_DAY_TIME => s"$rowTerm.setLong($indexTerm, $fieldTerm)"
-      case _ => s"$rowTerm.setNonPrimitiveValue($indexTerm, $fieldTerm)"
-    }
+      t: LogicalType)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case BOOLEAN =>
+      s"$rowTerm.setBoolean($indexTerm, $fieldTerm)"
+    case TINYINT =>
+      s"$rowTerm.setByte($indexTerm, $fieldTerm)"
+    case SMALLINT =>
+      s"$rowTerm.setShort($indexTerm, $fieldTerm)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+      s"$rowTerm.setInt($indexTerm, $fieldTerm)"
+    case BIGINT | INTERVAL_DAY_TIME =>
+      s"$rowTerm.setLong($indexTerm, $fieldTerm)"
+    case FLOAT =>
+      s"$rowTerm.setFloat($indexTerm, $fieldTerm)"
+    case DOUBLE =>
+      s"$rowTerm.setDouble($indexTerm, $fieldTerm)"
+    case DISTINCT_TYPE =>
+      boxedWrapperRowFieldSetAccess(
+        rowTerm,
+        indexTerm,
+        fieldTerm,
+        t.asInstanceOf[DistinctType].getSourceType)
+    case _ =>
+      s"$rowTerm.setNonPrimitiveValue($indexTerm, $fieldTerm)"
+  }
 
   // -------------------------- BinaryArray Set Access -------------------------------
 
+  @tailrec
   def binaryArraySetNull(
       index: Int,
       arrayTerm: String,
-      t: LogicalType): String = t.getTypeRoot match {
-    case BOOLEAN => s"$arrayTerm.setNullBoolean($index)"
-    case TINYINT => s"$arrayTerm.setNullByte($index)"
-    case SMALLINT => s"$arrayTerm.setNullShort($index)"
-    case INTEGER => s"$arrayTerm.setNullInt($index)"
-    case FLOAT => s"$arrayTerm.setNullFloat($index)"
-    case DOUBLE => s"$arrayTerm.setNullDouble($index)"
-    case TIME_WITHOUT_TIME_ZONE => s"$arrayTerm.setNullInt($index)"
-    case DATE => s"$arrayTerm.setNullInt($index)"
-    case INTERVAL_YEAR_MONTH => s"$arrayTerm.setNullInt($index)"
-    case _ => s"$arrayTerm.setNullLong($index)"
+      t: LogicalType)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case BOOLEAN =>
+      s"$arrayTerm.setNullBoolean($index)"
+    case TINYINT =>
+      s"$arrayTerm.setNullByte($index)"
+    case SMALLINT =>
+      s"$arrayTerm.setNullShort($index)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+      s"$arrayTerm.setNullInt($index)"
+    case FLOAT =>
+      s"$arrayTerm.setNullFloat($index)"
+    case DOUBLE =>
+      s"$arrayTerm.setNullDouble($index)"
+    case DISTINCT_TYPE =>
+      binaryArraySetNull(index, arrayTerm, t)
+    case _ =>
+      s"$arrayTerm.setNullLong($index)"
   }
 
   // -------------------------- BinaryWriter Write -------------------------------
@@ -642,17 +694,22 @@ object CodeGenUtils {
   def binaryWriterWriteNull(index: Int, writerTerm: String, t: LogicalType): String =
     binaryWriterWriteNull(index.toString, writerTerm, t)
 
+  @tailrec
   def binaryWriterWriteNull(
       indexTerm: String,
       writerTerm: String,
-      t: LogicalType): String = t match {
-    case d: DecimalType if !DecimalData.isCompact(d.getPrecision) =>
-      s"$writerTerm.writeDecimal($indexTerm, null, ${d.getPrecision})"
-    case d: TimestampType if !TimestampData.isCompact(d.getPrecision) =>
-      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
-    case d: LocalZonedTimestampType if !TimestampData.isCompact(d.getPrecision) =>
-      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
-    case _ => s"$writerTerm.setNullAt($indexTerm)"
+      t: LogicalType)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case DECIMAL if !DecimalData.isCompact(getPrecision(t)) =>
+      s"$writerTerm.writeDecimal($indexTerm, null, ${getPrecision(t)})"
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE
+        if !TimestampData.isCompact(getPrecision(t)) =>
+      s"$writerTerm.writeTimestamp($indexTerm, null, ${getPrecision(t)})"
+    case DISTINCT_TYPE =>
+      binaryWriterWriteNull(indexTerm, writerTerm, t.asInstanceOf[DistinctType].getSourceType)
+    case _ =>
+      s"$writerTerm.setNullAt($indexTerm)"
   }
 
   def binaryWriterWriteField(
@@ -663,55 +720,193 @@ object CodeGenUtils {
       fieldType: LogicalType): String =
     binaryWriterWriteField(ctx, index.toString, fieldValTerm, writerTerm, fieldType)
 
+  @tailrec
   def binaryWriterWriteField(
       ctx: CodeGeneratorContext,
       indexTerm: String,
       fieldValTerm: String,
       writerTerm: String,
-      t: LogicalType): String =
-    t.getTypeRoot match {
-      case INTEGER => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
-      case BIGINT => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
-      case SMALLINT => s"$writerTerm.writeShort($indexTerm, $fieldValTerm)"
-      case TINYINT => s"$writerTerm.writeByte($indexTerm, $fieldValTerm)"
-      case FLOAT => s"$writerTerm.writeFloat($indexTerm, $fieldValTerm)"
-      case DOUBLE => s"$writerTerm.writeDouble($indexTerm, $fieldValTerm)"
-      case BOOLEAN => s"$writerTerm.writeBoolean($indexTerm, $fieldValTerm)"
-      case VARBINARY | BINARY => s"$writerTerm.writeBinary($indexTerm, $fieldValTerm)"
-      case VARCHAR | CHAR => s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
-      case DECIMAL =>
-        val dt = t.asInstanceOf[DecimalType]
-        s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${dt.getPrecision})"
-      case DATE => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
-      case TIME_WITHOUT_TIME_ZONE => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val dt = t.asInstanceOf[TimestampType]
-        s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${dt.getPrecision})"
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val dt = t.asInstanceOf[LocalZonedTimestampType]
-        s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${dt.getPrecision})"
-      case INTERVAL_YEAR_MONTH => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
-      case INTERVAL_DAY_TIME => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
+      t: LogicalType)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case CHAR | VARCHAR =>
+      s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
+    case BOOLEAN =>
+      s"$writerTerm.writeBoolean($indexTerm, $fieldValTerm)"
+    case BINARY | VARBINARY =>
+      s"$writerTerm.writeBinary($indexTerm, $fieldValTerm)"
+    case DECIMAL =>
+      s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${getPrecision(t)})"
+    case TINYINT =>
+      s"$writerTerm.writeByte($indexTerm, $fieldValTerm)"
+    case SMALLINT =>
+      s"$writerTerm.writeShort($indexTerm, $fieldValTerm)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+      s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
+    case BIGINT | INTERVAL_DAY_TIME =>
+      s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
+    case FLOAT =>
+      s"$writerTerm.writeFloat($indexTerm, $fieldValTerm)"
+    case DOUBLE =>
+      s"$writerTerm.writeDouble($indexTerm, $fieldValTerm)"
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+      s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${getPrecision(t)})"
+    case TIMESTAMP_WITH_TIME_ZONE =>
+      throw new UnsupportedOperationException("Unsupported type: " + t)
+    case ARRAY =>
+      val ser = ctx.addReusableTypeSerializer(t)
+      s"$writerTerm.writeArray($indexTerm, $fieldValTerm, $ser)"
+    case MULTISET | MAP =>
+      val ser = ctx.addReusableTypeSerializer(t)
+      s"$writerTerm.writeMap($indexTerm, $fieldValTerm, $ser)"
+    case ROW | STRUCTURED_TYPE =>
+      val ser = ctx.addReusableTypeSerializer(t)
+      s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
+    case DISTINCT_TYPE =>
+      binaryWriterWriteField(
+        ctx,
+        indexTerm,
+        fieldValTerm,
+        writerTerm,
+        t.asInstanceOf[DistinctType].getSourceType)
+    case RAW =>
+      val ser = ctx.addReusableTypeSerializer(t)
+      s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
+    case NULL | SYMBOL | UNRESOLVED =>
+      throw new IllegalArgumentException("Illegal type: " + t);
+  }
 
-      // complex types
-      case ARRAY =>
-        val ser = ctx.addReusableTypeSerializer(t)
-        s"$writerTerm.writeArray($indexTerm, $fieldValTerm, $ser)"
-      case MULTISET | MAP =>
-        val ser = ctx.addReusableTypeSerializer(t)
-        s"$writerTerm.writeMap($indexTerm, $fieldValTerm, $ser)"
-      case ROW =>
-        val ser = ctx.addReusableTypeSerializer(t)
-        s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
-      case RAW =>
-        val ser = ctx.addReusableTypeSerializer(t)
-        s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
+  // -------------------------- Data Structure Conversion  -------------------------------
+
+  /**
+   * Generates code for converting the given term of external data type to an internal data
+   * structure.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
+  def genToInternalConverter(
+      ctx: CodeGeneratorContext,
+      sourceDataType: DataType)
+    : String => String = {
+    if (isInternal(sourceDataType)) {
+      externalTerm => s"$externalTerm"
+    } else {
+      val converter = DataStructureConverters.getConverter(sourceDataType)
+      val internalTypeTerm = boxedTypeTermForType(sourceDataType.getLogicalType)
+      val externalTypeTerm = typeTerm(sourceDataType.getConversionClass)
+      val converterTerm = ctx.addReusableConverter(converter)
+      externalTerm =>
+        s"($internalTypeTerm) $converterTerm.toInternalOrNull(($externalTypeTerm) $externalTerm)"
+    }
+  }
+
+  /**
+   * Generates code for converting the given term of external data type to an internal data
+   * structure.
+   *
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
+   */
+  def genToInternalConverterAll(
+      ctx: CodeGeneratorContext,
+      sourceDataType: DataType,
+      externalTerm: String)
+    : GeneratedExpression = {
+    val sourceType = sourceDataType.getLogicalType
+    val sourceClass = sourceDataType.getConversionClass
+    // convert external source type to internal structure
+    val internalResultTerm = if (isInternal(sourceDataType)) {
+      s"$externalTerm"
+    } else {
+      genToInternalConverter(ctx, sourceDataType)(externalTerm)
+    }
+    // extract null term from result term
+    if (sourceClass.isPrimitive) {
+      generateNonNullField(sourceType, internalResultTerm)
+    } else {
+      generateInputFieldUnboxing(ctx, sourceType, externalTerm, internalResultTerm)
+    }
+  }
+
+  /**
+   * Generates code for converting the given term of internal data structure to the given
+   * external target data type.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
+  def genToExternalConverter(
+      ctx: CodeGeneratorContext,
+      targetDataType: DataType,
+      internalTerm: String)
+    : String = {
+    if (isInternal(targetDataType)) {
+      s"$internalTerm"
+    } else {
+      val converter = DataStructureConverters.getConverter(targetDataType)
+      val internalTypeTerm = boxedTypeTermForType(targetDataType.getLogicalType)
+      val externalTypeTerm = typeTerm(targetDataType.getConversionClass)
+      val converterTerm = ctx.addReusableConverter(converter)
+      s"($externalTypeTerm) $converterTerm.toExternal(($internalTypeTerm) $internalTerm)"
+    }
+  }
+
+  /**
+   * Generates code for converting the given expression of internal data structure to the given
+   * external target data type.
+   *
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
+   */
+  def genToExternalConverterAll(
+      ctx: CodeGeneratorContext,
+      targetDataType: DataType,
+      internalExpr: GeneratedExpression)
+    : String = {
+    val targetType = targetDataType.getLogicalType
+    val targetTypeTerm = boxedTypeTermForType(targetType)
+
+    // untyped null literal
+    if (hasRoot(internalExpr.resultType, NULL)) {
+      return s"($targetTypeTerm) null"
     }
 
+    // convert internal structure to target type
+    val externalResultTerm = if (isInternal(targetDataType)) {
+      s"($targetTypeTerm) ${internalExpr.resultTerm}"
+    } else {
+      genToExternalConverter(ctx, targetDataType, internalExpr.resultTerm)
+    }
+    // merge null term into the result term
+    if (targetDataType.getConversionClass.isPrimitive) {
+      externalResultTerm
+    } else {
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+    }
+  }
+
+  /**
+    * If it's internally compatible, don't need to DataStructure converter.
+    * clazz != classOf[Row] => Row can only infer GenericType[Row].
+    */
+  @deprecated
+  def isInternalClass(t: DataType): Boolean = {
+    val clazz = t.getConversionClass
+    clazz != classOf[Object] && clazz != classOf[Row] &&
+        (classOf[RowData].isAssignableFrom(clazz) ||
+            clazz == toInternalConversionClass(fromDataTypeToLogicalType(t)))
+  }
+
+  @deprecated
   private def isConverterIdentity(t: DataType): Boolean = {
     DataFormatConverters.getConverterForDataType(t).isInstanceOf[IdentityConverter[_]]
   }
 
+  /**
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
+   */
+  @deprecated
   def genToInternal(ctx: CodeGeneratorContext, t: DataType, term: String): String =
     genToInternal(ctx, t)(term)
 
@@ -720,7 +915,10 @@ object CodeGenUtils {
    *
    * Use this function for converting at the edges of the API where primitive types CAN NOT occur
    * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   *
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
+  @deprecated
   def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
     if (isConverterIdentity(t)) {
       term => s"$term"
@@ -735,11 +933,10 @@ object CodeGenUtils {
   }
 
   /**
-   * Generates code for converting the given external source data type to the internal data format.
    *
-   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
-   * the RESULT CAN BE NULL.
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
+  @deprecated
   def genToInternalIfNeeded(
       ctx: CodeGeneratorContext,
       sourceDataType: DataType,
@@ -761,6 +958,10 @@ object CodeGenUtils {
     }
   }
 
+  /**
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
+   */
+  @deprecated
   def genToExternal(
       ctx: CodeGeneratorContext,
       targetType: DataType,
@@ -778,10 +979,9 @@ object CodeGenUtils {
   }
 
   /**
-   * Generates code for converting the internal data format to the given external target data type.
-   *
-   * Use this function for converting at the edges of the API.
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
+  @deprecated
   def genToExternalIfNeeded(
       ctx: CodeGeneratorContext,
       targetDataType: DataType,
@@ -808,9 +1008,4 @@ object CodeGenUtils {
       s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
     }
   }
-
-  def udfFieldName(udf: UserDefinedFunction): String = s"function_${udf.functionIdentifier}"
-
-  def genLogInfo(logTerm: String, format: String, argTerm: String): String =
-    s"""$logTerm.info("$format", $argTerm);"""
 }

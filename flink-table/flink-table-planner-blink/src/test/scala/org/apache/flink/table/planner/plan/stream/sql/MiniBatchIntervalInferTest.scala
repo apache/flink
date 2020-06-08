@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
@@ -108,7 +108,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   }
 
   @Test
-  def testWindowJoinWithMiniBatch(): Unit = {
+  def testIntervalJoinWithMiniBatch(): Unit = {
     util.addTableWithWatermark("LeftT", util.tableEnv.from("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RightT", util.tableEnv.from("MyTable2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(
@@ -314,7 +314,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
       """.stripMargin)
     val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv.registerTableSink("appendSink1", appendSink1)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table3)
 
     val table4 = util.tableEnv.sqlQuery(
@@ -325,7 +326,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
       """.stripMargin)
     val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv.registerTableSink("appendSink2", appendSink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table4)
 
     val table5 = util.tableEnv.sqlQuery(
@@ -336,7 +338,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY id1
       """.stripMargin)
     val appendSink3 = util.createRetractTableSink(Array("a", "b"), Array(INT, LONG))
-    util.tableEnv.registerTableSink("appendSink3", appendSink3)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink3", appendSink3)
     stmtSet.addInsert("appendSink3", table5)
 
     util.verifyExplain(stmtSet)
@@ -387,7 +390,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
       throw new RuntimeException("Currently not support different earlyFireInterval configs in " +
         "one job")
     }
-    tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, Boolean.box(true))
     tableConfig.getConfiguration.setString(
       TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, intervalInMillis + " ms")
   }

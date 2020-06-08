@@ -27,7 +27,6 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -114,7 +113,6 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	protected int resultSetType;
 	protected int resultSetConcurrency;
 	protected RowTypeInfo rowTypeInfo;
-	protected JdbcRowConverter rowConverter;
 
 	protected transient Connection dbConn;
 	protected transient PreparedStatement statement;
@@ -296,10 +294,12 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 			if (!hasNext) {
 				return null;
 			}
-			Row row = rowConverter.convert(resultSet, reuse);
+			for (int pos = 0; pos < reuse.getArity(); pos++) {
+				reuse.setField(pos, resultSet.getObject(pos + 1));
+			}
 			//update hasNext after we've read the record
 			hasNext = resultSet.next();
-			return row;
+			return reuse;
 		} catch (SQLException se) {
 			throw new IOException("Couldn't read data - " + se.getMessage(), se);
 		} catch (NullPointerException npe) {
@@ -406,11 +406,6 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 			return this;
 		}
 
-		public JdbcInputFormatBuilder setRowConverter(JdbcRowConverter rowConverter) {
-			format.rowConverter = rowConverter;
-			return this;
-		}
-
 		public JdbcInputFormatBuilder setFetchSize(int fetchSize) {
 			Preconditions.checkArgument(fetchSize == Integer.MIN_VALUE || fetchSize > 0,
 				"Illegal value %s for fetchSize, has to be positive or Integer.MIN_VALUE.", fetchSize);
@@ -441,9 +436,6 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 			}
 			if (format.rowTypeInfo == null) {
 				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
-			}
-			if (format.rowConverter == null) {
-				throw new IllegalArgumentException("No row converter supplied");
 			}
 			if (format.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");

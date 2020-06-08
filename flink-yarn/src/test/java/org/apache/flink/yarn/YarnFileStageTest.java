@@ -118,7 +118,7 @@ public class YarnFileStageTest extends TestLogger {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
 		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyFromLocalRecursive(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, true);
+		testRegisterMultipleLocalResources(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, true, false);
 	}
 
 	/**
@@ -130,7 +130,7 @@ public class YarnFileStageTest extends TestLogger {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
 		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyFromLocalRecursive(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, false);
+		testRegisterMultipleLocalResources(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, false, false);
 	}
 
 	/**
@@ -144,8 +144,16 @@ public class YarnFileStageTest extends TestLogger {
 		testCopySingleFileFromLocal(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
 	}
 
+	@Test
+	public void testRegisterMultipleLocalResourcesWithRemoteFiles() throws Exception {
+		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
+		final Path targetDir = targetFileSystem.getWorkingDirectory();
+
+		testRegisterMultipleLocalResources(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder, true, true);
+	}
+
 	/**
-	 * Verifies that nested directories are properly copied with the given filesystem and paths.
+	 * Verifies that nested directories are properly copied and registered with the given filesystem and paths.
 	 *
 	 * @param targetFileSystem
 	 * 		file system of the target path
@@ -157,24 +165,21 @@ public class YarnFileStageTest extends TestLogger {
 	 * 		JUnit temporary folder rule to create the source directory with
 	 * @param addSchemeToLocalPath
 	 * 		whether add the <tt>file://</tt> scheme to the local path to copy from
+	 * @param useRemoteFiles
+	 *      whether register the local resource with remote files
 	 */
-	static void testCopyFromLocalRecursive(
+	static void testRegisterMultipleLocalResources(
 			FileSystem targetFileSystem,
 			Path targetDir,
 			String localResourceDirectory,
 			TemporaryFolder tempFolder,
-			boolean addSchemeToLocalPath) throws Exception {
+			boolean addSchemeToLocalPath,
+			boolean useRemoteFiles) throws Exception {
 
 		// directory must not yet exist
 		assertFalse(targetFileSystem.exists(targetDir));
 
 		final File srcDir = tempFolder.newFolder();
-		final Path srcPath;
-		if (addSchemeToLocalPath) {
-			srcPath = new Path("file://" + srcDir.getAbsolutePath());
-		} else {
-			srcPath = new Path(srcDir.getAbsolutePath());
-		}
 
 		final HashMap<String /* (relative) path */, /* contents */ String> srcFiles = new HashMap<>(4);
 
@@ -187,22 +192,35 @@ public class YarnFileStageTest extends TestLogger {
 
 		generateFilesInDirectory(srcDir, srcFiles);
 
+		final Path srcPath;
+		if (useRemoteFiles) {
+			srcPath = new Path(hdfsRootPath.toString() + "/tmp/remoteFiles");
+			hdfsCluster.getFileSystem().copyFromLocalFile(new Path(srcDir.getAbsolutePath()), srcPath);
+		} else {
+			if (addSchemeToLocalPath) {
+				srcPath = new Path("file://" + srcDir.getAbsolutePath());
+			} else {
+				srcPath = new Path(srcDir.getAbsolutePath());
+			}
+		}
+
 		// copy the created directory recursively:
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
 			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
-					targetFileSystem, targetDir, Collections.emptyList(), applicationId);
-
-			final List<String> classpath = uploader.registerMultipleLocalResources(
-				Collections.singletonList(new File(srcPath.toUri().getPath())),
-				remotePaths,
-				localResourceDirectory,
-				new ArrayList<>(),
+				targetFileSystem,
+				targetDir,
+				Collections.emptyList(),
+				applicationId,
 				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
-			final Path basePath = new Path(localResourceDirectory, srcDir.getName());
+			final List<String> classpath = uploader.registerMultipleLocalResources(
+				Collections.singletonList(srcPath),
+				localResourceDirectory);
+
+			final Path basePath = new Path(localResourceDirectory, srcPath.getName());
 			final Path nestedPath = new Path(basePath, "nested");
 			assertThat(
 				classpath,
@@ -257,14 +275,15 @@ public class YarnFileStageTest extends TestLogger {
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
 			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
-					targetFileSystem, targetDir, Collections.emptyList(), applicationId);
+				targetFileSystem,
+				targetDir,
+				Collections.emptyList(),
+				applicationId,
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			final List<String> classpath = uploader.registerMultipleLocalResources(
-				Collections.singletonList(new File(srcDir, localFile)),
-				remotePaths,
-				localResourceDirectory,
-				new ArrayList<>(),
-				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+				Collections.singletonList(new Path(srcDir.getAbsolutePath(), localFile)),
+				localResourceDirectory);
 
 			assertThat(classpath, containsInAnyOrder(new Path(localResourceDirectory, localFile).toString()));
 

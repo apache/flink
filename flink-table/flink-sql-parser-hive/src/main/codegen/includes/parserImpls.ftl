@@ -229,7 +229,11 @@ SqlCreate SqlCreateTemporary(Span s, boolean replace) :
 {
   [ <TEMPORARY>   {isTemporary = true;} ]
 
-  create = SqlCreateTable(s, isTemporary)
+  (
+    create = SqlCreateFunction(s, isTemporary)
+    |
+    create = SqlCreateTable(s, isTemporary)
+  )
   {
     return create;
   }
@@ -764,4 +768,680 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
             fieldTypes,
             comments);
     }
+}
+
+/**
+* Parses a partition specifications statement that can contain both static and dynamic partitions.
+*/
+void PartitionSpecCommaList(SqlNodeList allPartKeys, SqlNodeList staticSpec) :
+{
+    SqlIdentifier key;
+    SqlNode value;
+    SqlParserPos pos;
+}
+{
+    <LPAREN>
+    key = SimpleIdentifier()
+    { pos = getPos(); allPartKeys.add(key); }
+    [ <EQ> value = Literal()
+      {
+          staticSpec.add(new SqlProperty(key, value, pos));
+      }
+    ]
+    (
+        <COMMA> key = SimpleIdentifier()
+        { pos = getPos(); allPartKeys.add(key); }
+        [ <EQ> value = Literal()
+          {
+              staticSpec.add(new SqlProperty(key, value, pos));
+          }
+        ]
+    )*
+    <RPAREN>
+}
+
+/**
+* Parses an INSERT statement.
+*/
+SqlNode RichSqlInsert() :
+{
+    final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
+    final SqlNodeList keywordList;
+    final List<SqlLiteral> extendedKeywords = new ArrayList<SqlLiteral>();
+    final SqlNodeList extendedKeywordList;
+    SqlNode table;
+    SqlNodeList extendList = null;
+    SqlNode source;
+    final SqlNodeList allPartKeys = new SqlNodeList(getPos());
+    final SqlNodeList staticSpec = new SqlNodeList(getPos());
+    SqlNodeList columnList = null;
+    final Span s;
+}
+{
+    (
+        <INSERT>
+    |
+        <UPSERT> { keywords.add(SqlInsertKeyword.UPSERT.symbol(getPos())); }
+    )
+    (
+        <INTO>
+    |
+        <OVERWRITE> {
+            if (RichSqlInsert.isUpsert(keywords)) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
+            }
+            extendedKeywords.add(RichSqlInsertKeyword.OVERWRITE.symbol(getPos()));
+        }
+    )
+    [ <TABLE> ]
+    { s = span(); }
+    SqlInsertKeywords(keywords) {
+        keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
+        extendedKeywordList = new SqlNodeList(extendedKeywords, s.addAll(extendedKeywords).pos());
+    }
+    table = CompoundIdentifier()
+    [
+        LOOKAHEAD(5)
+        [ <EXTEND> ]
+        extendList = ExtendList() {
+            table = extend(table, extendList);
+        }
+    ]
+    [
+        LOOKAHEAD(2)
+        { final Pair<SqlNodeList, SqlNodeList> p; }
+        p = ParenthesizedCompoundIdentifierList() {
+            if (p.right.size() > 0) {
+                table = extend(table, p.right);
+            }
+            if (p.left.size() > 0) {
+                columnList = p.left;
+            }
+        }
+    ]
+    [
+        <PARTITION> PartitionSpecCommaList(allPartKeys, staticSpec)
+    ]
+    source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
+        return new RichSqlHiveInsert(s.end(source), keywordList, extendedKeywordList, table, source,
+            columnList, staticSpec, allPartKeys);
+    }
+}
+
+/**
+ * Those methods should not be used in SQL. They are good for parsing identifiers
+ * in Table API. The difference between those identifiers and CompoundIdentifer is
+ * that the Table API identifiers ignore any keywords. They are also strictly limited
+ * to three part identifiers. The quoting still works the same way.
+ */
+SqlIdentifier TableApiIdentifier() :
+{
+    final List<String> nameList = new ArrayList<String>();
+    final List<SqlParserPos> posList = new ArrayList<SqlParserPos>();
+}
+{
+    TableApiIdentifierSegment(nameList, posList)
+    (
+        LOOKAHEAD(2)
+        <DOT>
+        TableApiIdentifierSegment(nameList, posList)
+    )?
+    (
+        LOOKAHEAD(2)
+        <DOT>
+        TableApiIdentifierSegment(nameList, posList)
+    )?
+    <EOF>
+    {
+        SqlParserPos pos = SqlParserPos.sum(posList);
+        return new SqlIdentifier(nameList, null, pos, posList);
+    }
+}
+
+void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions) :
+{
+    final String id;
+    char unicodeEscapeChar = BACKSLASH;
+    final SqlParserPos pos;
+    final Span span;
+}
+{
+    (
+        <QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, DQ, DQ, DQDQ,
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <BACK_QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, "`", "`", "``",
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <BRACKET_QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, "[", "]", "]]",
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <UNICODE_QUOTED_IDENTIFIER> {
+            span = span();
+            String image = getToken(0).image;
+            image = image.substring(image.indexOf('"'));
+            image = SqlParserUtil.strip(image, DQ, DQ, DQDQ, quotedCasing);
+        }
+        [
+            <UESCAPE> <QUOTED_STRING> {
+                String s = SqlParserUtil.parseString(token.image);
+                unicodeEscapeChar = SqlParserUtil.checkUnicodeEscapeChar(s);
+            }
+        ]
+        {
+            pos = span.end(this).withQuoting(true);
+            SqlLiteral lit = SqlLiteral.createCharString(image, "UTF16", pos);
+            lit = lit.unescapeUnicode(unicodeEscapeChar);
+            id = lit.toValue();
+        }
+    |
+        {
+
+            id = getNextToken().image;
+            pos = getPos();
+        }
+    )
+    {
+        if (id.length() > this.identifierMaxLength) {
+            throw SqlUtil.newContextException(pos,
+                RESOURCE.identifierTooLong(id, this.identifierMaxLength));
+        }
+        names.add(id);
+        if (positions != null) {
+            positions.add(pos);
+        }
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * CREATE [TEMPORARY] FUNCTION [db_name.]function_name AS class_name
+ *   [USING JAR|FILE|ARCHIVE 'file_uri' [, JAR|FILE|ARCHIVE 'file_uri'] ];
+ */
+SqlCreate SqlCreateFunction(Span s, boolean isTemporary) :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+}
+{
+    <FUNCTION>
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        functionClassName = createStringLiteral(token.image, getPos());
+    }
+    {
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, null,
+                false, isTemporary, false);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * DROP [TEMPORARY] FUNCTION [IF EXISTS] function_name;
+ */
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+}
+{
+    [ <TEMPORARY> {isTemporary = true;} ]
+    <FUNCTION>
+
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    {
+        return new SqlDropFunction(s.pos(), functionIdentifier, ifExists, isTemporary, false);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * SHOW FUNCTIONS [LIKE "<pattern>"];
+ */
+SqlShowFunctions SqlShowFunctions() :
+{
+    SqlParserPos pos;
+}
+{
+    <SHOW> <FUNCTIONS> { pos = getPos();}
+    {
+        return new SqlShowFunctions(pos, null);
+    }
+}
+
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowCatalogs SqlShowCatalogs() :
+{
+}
+{
+    <SHOW> <CATALOGS>
+    {
+        return new SqlShowCatalogs(getPos());
+    }
+}
+
+SqlDescribeCatalog SqlDescribeCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <DESCRIBE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlDescribeCatalog(pos, catalogName);
+    }
+}
+
+SqlUseCatalog SqlUseCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <USE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlUseCatalog(pos, catalogName);
+    }
+}
+
+/**
+* Parses a create catalog statement.
+* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <CATALOG> { startPos = getPos(); }
+    catalogName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlCreateCatalog(startPos.plus(getPos()),
+            catalogName,
+            propertyList);
+    }
+}
+
+// make sure a feature only applies to table, not partitions
+void EnsureAlterTableOnly(SqlNodeList partitionSpec, String feature) :
+{
+}
+{
+  {
+    if (partitionSpec != null) {
+      throw new ParseException(feature + " is not applicable to partitions.");
+    }
+  }
+}
+
+SqlAlterTable SqlAlterTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableIdentifier;
+    SqlIdentifier newTableIdentifier = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList partitionSpec = null;
+    boolean ifNotExists = false;
+    boolean ifExists = false;
+}
+{
+    <ALTER> <TABLE> { startPos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    [ <PARTITION> { partitionSpec = new SqlNodeList(getPos()); PartitionSpecCommaList(new SqlNodeList(getPos()), partitionSpec); } ]
+    (
+        <RENAME> <TO>
+        (
+            <PARTITION>
+            {
+              SqlNodeList newPartSpec = new SqlNodeList(getPos());
+              PartitionSpecCommaList(new SqlNodeList(getPos()), newPartSpec);
+              return new SqlAlterHivePartitionRename(startPos.plus(getPos()), tableIdentifier, partitionSpec, newPartSpec);
+            }
+        |
+            newTableIdentifier = CompoundIdentifier()
+            {
+              return new SqlAlterTableRename(
+                          startPos.plus(getPos()),
+                          tableIdentifier,
+                          newTableIdentifier);
+            }
+        )
+    |
+        <ADD>
+        (
+            <COLUMNS>
+            {
+                EnsureAlterTableOnly(partitionSpec, "Add columns");
+                return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
+            }
+        |
+            [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+            {
+                EnsureAlterTableOnly(partitionSpec, "Add partitions");
+                return SqlAddHivePartitions(startPos, tableIdentifier, ifNotExists);
+            }
+        )
+        {
+            EnsureAlterTableOnly(partitionSpec, "Add columns");
+            return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
+        }
+    |
+        <DROP>
+        [ <IF> <EXISTS> { ifExists = true; } ]
+        {
+            EnsureAlterTableOnly(partitionSpec, "Drop partitions");
+            return SqlDropPartitions(startPos, tableIdentifier, ifExists);
+        }
+    |
+        <REPLACE> <COLUMNS>
+        {
+            EnsureAlterTableOnly(partitionSpec, "Replace columns");
+            return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, true);
+        }
+    |
+        <CHANGE> [ <COLUMN> ]
+        {
+            EnsureAlterTableOnly(partitionSpec, "Change column");
+            return SqlAlterHiveTableChangeColumn(startPos, tableIdentifier);
+        }
+    |
+        <SET>
+        (
+            <TBLPROPERTIES>
+            { EnsureAlterTableOnly(partitionSpec, "Alter table properties"); }
+            propertyList = TableProperties()
+            {
+                return new SqlAlterHiveTableProps(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            propertyList);
+            }
+        |
+            <LOCATION> <QUOTED_STRING>
+            {
+              SqlCharStringLiteral location = createStringLiteral(token.image, getPos());
+              return new SqlAlterHiveTableLocation(startPos.plus(getPos()), tableIdentifier, partitionSpec, location);
+            }
+        |
+            <FILEFORMAT>
+            {
+                SqlIdentifier format = SimpleIdentifier();
+                return new SqlAlterHiveTableFileFormat(startPos.plus(getPos()), tableIdentifier, partitionSpec, format);
+            }
+        |
+            { return SqlAlterHiveTableSerDe(startPos, tableIdentifier, partitionSpec); }
+        )
+    )
+}
+
+SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean replace) :
+{
+  SqlNodeList colList;
+  boolean cascade = false;
+}
+{
+  <LPAREN>
+    {
+      List<SqlNode> cols = new ArrayList();
+    }
+    TableColumn2(cols)
+    (
+      <COMMA> TableColumn2(cols)
+    )*
+  <RPAREN>
+  [
+    <CASCADE> { cascade = true; }
+    |
+    <RESTRICT>
+  ]
+  {
+    colList = new SqlNodeList(cols, startPos.plus(getPos()));
+    return new SqlAlterHiveTableAddReplaceColumn(startPos.plus(getPos()),
+                                                 tableIdentifier,
+                                                 cascade,
+                                                 colList,
+                                                 replace);
+  }
+}
+
+SqlAlterTable SqlAlterHiveTableChangeColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier) :
+{
+  boolean cascade = false;
+  SqlIdentifier oldName;
+  SqlIdentifier newName;
+  SqlDataTypeSpec newType;
+  SqlCharStringLiteral comment = null;
+  boolean first = false;
+  SqlIdentifier after = null;
+  SqlNodeList partSpec = null;
+}
+{
+  oldName = SimpleIdentifier()
+  newName = SimpleIdentifier()
+  newType = ExtendedDataType()
+  [ <COMMENT> <QUOTED_STRING> {
+      comment = createStringLiteral(token.image, getPos());
+  }]
+  [ <FIRST> { first = true; } ]
+  [ <AFTER> { after = SimpleIdentifier(); } ]
+  [
+    <CASCADE> { cascade = true; }
+    |
+    <RESTRICT>
+  ]
+  { return new SqlAlterHiveTableChangeColumn(startPos.plus(getPos()),
+                                             tableIdentifier,
+                                             cascade,
+                                             oldName,
+                                             new SqlTableColumn(newName, newType, null, comment, newName.getParserPosition()),
+                                             first,
+                                             after); }
+}
+
+SqlAlterTable SqlAlterHiveTableSerDe(SqlParserPos startPos, SqlIdentifier tableIdentifier, SqlNodeList partitionSpec) :
+{
+  SqlCharStringLiteral serdeLib = null;
+  SqlNodeList propertyList = null;
+}
+{
+  (
+    <SERDE> <QUOTED_STRING>
+    { serdeLib = createStringLiteral(token.image, getPos()); propertyList = new SqlNodeList(getPos()); }
+    [ <WITH> <SERDEPROPERTIES> { propertyList = TableProperties(); } ]
+    |
+    <SERDEPROPERTIES> { propertyList = TableProperties(); }
+  )
+  { return new SqlAlterHiveTableSerDe(startPos.plus(getPos()), tableIdentifier, partitionSpec, propertyList, serdeLib); }
+}
+
+/**
+ * Hive syntax:
+ *
+ * CREATE VIEW [IF NOT EXISTS] [db_name.]view_name [(column_name [COMMENT column_comment], ...) ]
+ *    [COMMENT view_comment]
+ *    [TBLPROPERTIES (property_name = property_value, ...)]
+ *    AS SELECT ...;
+ */
+SqlCreate SqlCreateView(Span s, boolean replace) : {
+    SqlIdentifier viewName;
+    SqlCharStringLiteral comment = null;
+    SqlNode query;
+    SqlNodeList fieldList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+    SqlNodeList properties = null;
+}
+{
+    <VIEW> { properties = new SqlNodeList(getPos()); }
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
+    viewName = CompoundIdentifier()
+    [
+        fieldList = ParenthesizedSimpleIdentifierList()
+    ]
+    [ <COMMENT> <QUOTED_STRING> {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+      <TBLPROPERTIES>
+      properties = TableProperties()
+    ]
+    <AS>
+    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlCreateHiveView(s.pos(), viewName, fieldList, query, ifNotExists, comment, properties);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * DROP VIEW [IF EXISTS] [db_name.]view_name;
+ */
+SqlDrop SqlDropView(Span s, boolean replace) :
+{
+    SqlIdentifier viewName = null;
+    boolean ifExists = false;
+}
+{
+    <VIEW>
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+    viewName = CompoundIdentifier()
+    {
+        return new SqlDropView(s.pos(), viewName, ifExists, false);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * ALTER VIEW [db_name.]view_name RENAME TO [db_name.]new_view_name;
+ *
+ * ALTER VIEW [db_name.]view_name SET TBLPROPERTIES table_properties;
+ *
+ * ALTER VIEW [db_name.]view_name AS select_statement;
+ */
+SqlAlterView SqlAlterView() :
+{
+  SqlParserPos startPos;
+  SqlIdentifier viewName;
+  SqlIdentifier newViewName;
+  SqlNodeList propertyList;
+  SqlNode newQuery;
+}
+{
+  <ALTER> <VIEW> { startPos = getPos(); }
+  viewName = CompoundIdentifier()
+  (
+      <RENAME> <TO>
+      newViewName = CompoundIdentifier()
+      {
+        return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
+      }
+  |
+      <SET> <TBLPROPERTIES>
+      propertyList = TableProperties()
+      {
+        return new SqlAlterHiveViewProperties(startPos.plus(getPos()), viewName, propertyList);
+      }
+  |
+      <AS>
+      newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      {
+        return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+      }
+  )
+}
+
+/**
+ * Hive syntax:
+ *
+ * ALTER TABLE table_name ADD [IF NOT EXISTS]
+ *     PARTITION partition_spec [LOCATION 'location'][PARTITION partition_spec [LOCATION 'location']][...];
+ */
+SqlAlterTable SqlAddHivePartitions(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean ifNotExists) :
+{
+  List<SqlNodeList> partSpecs = new ArrayList();
+  List<SqlCharStringLiteral> partLocations = new ArrayList();
+  SqlNodeList partSpec;
+  SqlCharStringLiteral partLocation;
+}
+{
+  (
+    <PARTITION>
+    {
+      partSpec = new SqlNodeList(getPos());
+      partLocation = null;
+      PartitionSpecCommaList(new SqlNodeList(getPos()), partSpec);
+    }
+    [ <LOCATION> <QUOTED_STRING> { partLocation = createStringLiteral(token.image, getPos()); } ]
+    { partSpecs.add(partSpec); partLocations.add(partLocation); }
+  )+
+  { return new SqlAddHivePartitions(startPos.plus(getPos()), tableIdentifier, ifNotExists, partSpecs, partLocations); }
+}
+
+/**
+ * Hive syntax:
+ *
+ * ALTER TABLE table_name DROP [IF EXISTS] PARTITION partition_spec[, PARTITION partition_spec, ...]
+ *    [IGNORE PROTECTION] [PURGE];
+ */
+SqlAlterTable SqlDropPartitions(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean ifExists) :
+{
+  List<SqlNodeList> partSpecs = new ArrayList();
+  SqlNodeList partSpec;
+}
+{
+  <PARTITION>
+  {
+    partSpec = new SqlNodeList(getPos());
+    PartitionSpecCommaList(new SqlNodeList(getPos()), partSpec);
+    partSpecs.add(partSpec);
+  }
+  (
+    <COMMA>
+    <PARTITION>
+    {
+      partSpec = new SqlNodeList(getPos());
+      PartitionSpecCommaList(new SqlNodeList(getPos()), partSpec);
+      partSpecs.add(partSpec);
+    }
+  )*
+  { return new SqlDropPartitions(startPos.plus(getPos()), tableIdentifier, ifExists, partSpecs); }
 }

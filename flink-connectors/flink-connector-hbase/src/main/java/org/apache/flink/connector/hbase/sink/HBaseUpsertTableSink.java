@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.hbase.options.HBaseOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
+import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -35,7 +36,6 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 
 import java.util.Arrays;
@@ -89,13 +89,13 @@ public class HBaseUpsertTableSink implements UpsertStreamTableSink<Row> {
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		Configuration hbaseClientConf = HBaseConfiguration.create();
+		Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
 		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseOptions.getZkQuorum());
 		hbaseOptions.getZkNodeParent().ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-		HBaseUpsertSinkFunction sinkFunction = new HBaseUpsertSinkFunction(
+		HBaseSinkFunction sinkFunction = new HBaseSinkFunction(
 			hbaseOptions.getTableName(),
-			hbaseTableSchema,
 			hbaseClientConf,
+			new LegacyMutationConverter(hbaseTableSchema),
 			writeOptions.getBufferFlushMaxSizeInBytes(),
 			writeOptions.getBufferFlushMaxRows(),
 			writeOptions.getBufferFlushIntervalMillis());

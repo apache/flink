@@ -317,8 +317,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			CheckpointBarrier event = parseCheckpointBarrierOrNull(buffer);
 			if (event == null) {
 				throw new IllegalStateException("Currently only checkpoint barriers are known priority events");
+			} else if (event.isCheckpoint()) {
+				inputGate.getBufferReceivedListener().notifyBarrierReceived(event, channelInfo);
 			}
-			inputGate.getBufferReceivedListener().notifyBarrierReceived(event, channelInfo);
 		} finally {
 			buffer.recycleBuffer();
 		}

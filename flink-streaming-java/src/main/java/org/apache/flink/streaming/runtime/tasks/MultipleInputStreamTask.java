@@ -91,7 +91,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
 			inputGates.length);
 
-		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
 			this,
 			getConfiguration(),
 			getChannelStateWriter(),

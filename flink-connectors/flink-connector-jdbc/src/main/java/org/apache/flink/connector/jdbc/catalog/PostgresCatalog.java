@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -47,15 +49,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_PASSWORD;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_TABLE;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_TYPE_VALUE_JDBC;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_URL;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_USERNAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.IDENTIFIER;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.PASSWORD;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.TABLE_NAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.URL;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.USERNAME;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /**
  * Catalog for PostgreSQL.
@@ -181,6 +183,11 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 
 		String dbUrl = baseUrl + tablePath.getDatabaseName();
 		try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
+			DatabaseMetaData metaData = conn.getMetaData();
+			Optional<UniqueConstraint> primaryKey = getPrimaryKey(
+				metaData,
+				pgPath.getPgSchemaName(),
+				pgPath.getPgTableName());
 
 			PreparedStatement ps = conn.prepareStatement(
 				String.format("SELECT * FROM %s;", pgPath.getFullPath()));
@@ -193,18 +200,24 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 			for (int i = 1; i <= rsmd.getColumnCount(); i++) {
 				names[i - 1] = rsmd.getColumnName(i);
 				types[i - 1] = fromJDBCType(rsmd, i);
+				if (rsmd.isNullable(i) == ResultSetMetaData.columnNoNulls) {
+					types[i - 1] = types[i - 1].notNull();
+				}
 			}
 
-			TableSchema tableSchema = new TableSchema.Builder().fields(names, types).build();
+			TableSchema.Builder tableBuilder = new TableSchema.Builder()
+				.fields(names, types);
+			primaryKey.ifPresent(pk ->
+				tableBuilder.primaryKey(pk.getName(), pk.getColumns().toArray(new String[0]))
+			);
+			TableSchema tableSchema = tableBuilder.build();
 
 			Map<String, String> props = new HashMap<>();
-			props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_JDBC);
-			props.put(CONNECTOR_PROPERTY_VERSION, "1");
-
-			props.put(CONNECTOR_URL, dbUrl);
-			props.put(CONNECTOR_TABLE, pgPath.getFullPath());
-			props.put(CONNECTOR_USERNAME, username);
-			props.put(CONNECTOR_PASSWORD, pwd);
+			props.put(CONNECTOR.key(), IDENTIFIER);
+			props.put(URL.key(), dbUrl);
+			props.put(TABLE_NAME.key(), pgPath.getFullPath());
+			props.put(USERNAME.key(), username);
+			props.put(PASSWORD.key(), pwd);
 
 			return new CatalogTableImpl(
 				tableSchema,
@@ -217,6 +230,20 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 		}
 	}
 
+	// Postgres jdbc driver maps several alias to real type, we use real type rather than alias:
+	// serial2 <=> int2
+	// smallserial <=> int2
+	// serial4 <=> serial
+	// serial8 <=> bigserial
+	// smallint <=> int2
+	// integer <=> int4
+	// int <=> int4
+	// bigint <=> int8
+	// float <=> float8
+	// boolean <=> bool
+	// decimal <=> numeric
+	public static final String PG_SERIAL = "serial";
+	public static final String PG_BIGSERIAL = "bigserial";
 	public static final String PG_BYTEA = "bytea";
 	public static final String PG_BYTEA_ARRAY = "_bytea";
 	public static final String PG_SMALLINT = "int2";
@@ -227,8 +254,6 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 	public static final String PG_BIGINT_ARRAY = "_int8";
 	public static final String PG_REAL = "float4";
 	public static final String PG_REAL_ARRAY = "_float4";
-	public static final String PG_DECIMAL = "decimal";
-	public static final String PG_DECIMAL_ARRAY = "_decimal";
 	public static final String PG_DOUBLE_PRECISION = "float8";
 	public static final String PG_DOUBLE_PRECISION_ARRAY = "_float8";
 	public static final String PG_NUMERIC = "numeric";
@@ -252,6 +277,11 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 	public static final String PG_CHARACTER_VARYING = "varchar";
 	public static final String PG_CHARACTER_VARYING_ARRAY = "_varchar";
 
+	/**
+	 * Converts Postgres type to Flink {@link DataType}.
+	 *
+	 * @see org.postgresql.jdbc.TypeInfoCache
+	 */
 	private DataType fromJDBCType(ResultSetMetaData metadata, int colIndex) throws SQLException {
 		String pgType = metadata.getColumnTypeName(colIndex);
 
@@ -272,10 +302,12 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 			case PG_SMALLINT_ARRAY:
 				return DataTypes.ARRAY(DataTypes.SMALLINT());
 			case PG_INTEGER:
+			case PG_SERIAL:
 				return DataTypes.INT();
 			case PG_INTEGER_ARRAY:
 				return DataTypes.ARRAY(DataTypes.INT());
 			case PG_BIGINT:
+			case PG_BIGSERIAL:
 				return DataTypes.BIGINT();
 			case PG_BIGINT_ARRAY:
 				return DataTypes.ARRAY(DataTypes.BIGINT());
@@ -287,14 +319,12 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 				return DataTypes.DOUBLE();
 			case PG_DOUBLE_PRECISION_ARRAY:
 				return DataTypes.ARRAY(DataTypes.DOUBLE());
-			case PG_DECIMAL:
 			case PG_NUMERIC:
 				// see SPARK-26538: handle numeric without explicit precision and scale.
 				if (precision > 0) {
 					return DataTypes.DECIMAL(precision, metadata.getScale(colIndex));
 				}
 				return DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18);
-			case PG_DECIMAL_ARRAY:
 			case PG_NUMERIC_ARRAY:
 				// see SPARK-26538: handle numeric without explicit precision and scale.
 				if (precision > 0) {

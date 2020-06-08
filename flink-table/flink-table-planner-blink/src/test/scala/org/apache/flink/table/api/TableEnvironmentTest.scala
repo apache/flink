@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.operations.SqlConversionException
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
@@ -294,17 +294,17 @@ class TableEnvironmentTest {
       .functionExists(ObjectPath.fromString("default_database.f1")))
 
     val tableResult4 = tableEnv.executeSql(
-      s"CREATE TEMPORARY SYSTEM FUNCTION default_database.f2 AS '$funcName'")
+      s"CREATE TEMPORARY SYSTEM FUNCTION f2 AS '$funcName'")
     assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
     assertTrue(tableEnv.listUserDefinedFunctions().contains("f2"))
 
-    val tableResult5 = tableEnv.executeSql("DROP TEMPORARY SYSTEM FUNCTION default_database.f2")
+    val tableResult5 = tableEnv.executeSql("DROP TEMPORARY SYSTEM FUNCTION f2")
     assertEquals(ResultKind.SUCCESS, tableResult5.getResultKind)
     assertFalse(tableEnv.listUserDefinedFunctions().contains("f2"))
   }
 
   @Test
-  def testExecuteSqlWithCreateUseCatalog(): Unit = {
+  def testExecuteSqlWithCreateUseDropCatalog(): Unit = {
     val tableResult1 = tableEnv.executeSql(
       "CREATE CATALOG my_catalog WITH('type'='generic_in_memory')")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
@@ -314,6 +314,10 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql("USE CATALOG my_catalog")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals("my_catalog", tableEnv.getCurrentCatalog)
+
+    val tableResult3 = tableEnv.executeSql("DROP CATALOG my_catalog")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+    assertFalse(tableEnv.getCatalog("my_catalog").isPresent)
   }
 
   @Test

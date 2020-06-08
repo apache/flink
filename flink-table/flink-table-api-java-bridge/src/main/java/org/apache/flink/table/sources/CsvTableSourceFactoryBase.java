@@ -40,7 +40,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -80,9 +79,9 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		// connector
 		properties.add(CONNECTOR_PATH);
 		// format
-		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
-		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
-		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TYPE);
+		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.DATA_TYPE);
+		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.NAME);
 		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
 		properties.add(FORMAT_LINE_DELIMITER);
@@ -92,14 +91,17 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(FORMAT_IGNORE_PARSE_ERRORS);
 		properties.add(CONNECTOR_PATH);
 		// schema
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
-		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.TYPE);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.DATA_TYPE);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.NAME);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.EXPR);
 		// watermark
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+		// table constraint
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
 		return properties;
 	}

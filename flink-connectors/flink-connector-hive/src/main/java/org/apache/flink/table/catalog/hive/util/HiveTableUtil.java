@@ -18,10 +18,24 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.CatalogViewImpl;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -54,6 +68,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
@@ -61,6 +76,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -271,6 +287,115 @@ public class HiveTableUtil {
 	public static void setDefaultStorageFormat(StorageDescriptor sd, HiveConf hiveConf) {
 		sd.getSerdeInfo().setSerializationLib(hiveConf.getVar(HiveConf.ConfVars.HIVEDEFAULTSERDE));
 		setStorageFormat(sd, hiveConf.getVar(HiveConf.ConfVars.HIVEDEFAULTFILEFORMAT), hiveConf);
+	}
+
+	public static void alterColumns(StorageDescriptor sd, CatalogTable catalogTable) {
+		List<FieldSchema> allCols = HiveTableUtil.createHiveColumns(catalogTable.getSchema());
+		List<FieldSchema> nonPartCols = allCols.subList(0, allCols.size() - catalogTable.getPartitionKeys().size());
+		sd.setCols(nonPartCols);
+	}
+
+	public static SqlAlterHiveTable.AlterTableOp extractAlterTableOp(Map<String, String> props) {
+		String opStr = props.remove(ALTER_TABLE_OP);
+		if (opStr != null) {
+			return SqlAlterHiveTable.AlterTableOp.valueOf(opStr);
+		}
+		return null;
+	}
+
+	public static Table alterTableViaCatalogBaseTable(
+			ObjectPath tablePath, CatalogBaseTable baseTable, Table oldHiveTable, HiveConf hiveConf) {
+		Table newHiveTable = instantiateHiveTable(tablePath, baseTable, hiveConf);
+		// client.alter_table() requires a valid location
+		// thus, if new table doesn't have that, it reuses location of the old table
+		if (!newHiveTable.getSd().isSetLocation()) {
+			newHiveTable.getSd().setLocation(oldHiveTable.getSd().getLocation());
+		}
+		return newHiveTable;
+	}
+
+	public static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table, HiveConf hiveConf) {
+		if (!(table instanceof CatalogTableImpl) && !(table instanceof CatalogViewImpl)) {
+			throw new CatalogException(
+					"HiveCatalog only supports CatalogTableImpl and CatalogViewImpl");
+		}
+		// let Hive set default parameters for us, e.g. serialization.format
+		Table hiveTable = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(tablePath.getDatabaseName(),
+				tablePath.getObjectName());
+		hiveTable.setCreateTime((int) (System.currentTimeMillis() / 1000));
+
+		Map<String, String> properties = new HashMap<>(table.getProperties());
+		// Table comment
+		if (table.getComment() != null) {
+			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
+		}
+
+		boolean isGeneric = HiveCatalog.isGenericForCreate(properties);
+
+		// Hive table's StorageDescriptor
+		StorageDescriptor sd = hiveTable.getSd();
+		HiveTableUtil.setDefaultStorageFormat(sd, hiveConf);
+
+		if (isGeneric) {
+			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
+			tableSchemaProps.putTableSchema(Schema.SCHEMA, table.getSchema());
+
+			if (table instanceof CatalogTable) {
+				tableSchemaProps.putPartitionKeys(((CatalogTable) table).getPartitionKeys());
+			}
+
+			properties.putAll(tableSchemaProps.asMap());
+			properties = maskFlinkProperties(properties);
+			hiveTable.setParameters(properties);
+		} else {
+			HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
+			List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
+			// Table columns and partition keys
+			if (table instanceof CatalogTableImpl) {
+				CatalogTable catalogTable = (CatalogTableImpl) table;
+
+				if (catalogTable.isPartitioned()) {
+					int partitionKeySize = catalogTable.getPartitionKeys().size();
+					List<FieldSchema> regularColumns = allColumns.subList(0, allColumns.size() - partitionKeySize);
+					List<FieldSchema> partitionColumns = allColumns.subList(allColumns.size() - partitionKeySize, allColumns.size());
+
+					sd.setCols(regularColumns);
+					hiveTable.setPartitionKeys(partitionColumns);
+				} else {
+					sd.setCols(allColumns);
+					hiveTable.setPartitionKeys(new ArrayList<>());
+				}
+			} else {
+				sd.setCols(allColumns);
+			}
+			// Table properties
+			hiveTable.getParameters().putAll(properties);
+		}
+
+		if (table instanceof CatalogViewImpl) {
+			// TODO: [FLINK-12398] Support partitioned view in catalog API
+			hiveTable.setPartitionKeys(new ArrayList<>());
+
+			CatalogView view = (CatalogView) table;
+			hiveTable.setViewOriginalText(view.getOriginalQuery());
+			hiveTable.setViewExpandedText(view.getExpandedQuery());
+			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
+		}
+
+		return hiveTable;
+	}
+
+	/**
+	 * Add a prefix to Flink-created properties to distinguish them from Hive-created properties.
+	 * Note that 'is_generic' is a special key and this method will leave it as-is.
+	 */
+	public static Map<String, String> maskFlinkProperties(Map<String, String> properties) {
+		return properties.entrySet().stream()
+				.filter(e -> e.getKey() != null && e.getValue() != null)
+				.map(e -> new Tuple2<>(
+						e.getKey().equals(CatalogConfig.IS_GENERIC) ? e.getKey() : FLINK_PROPERTY_PREFIX + e.getKey(),
+						e.getValue()))
+				.collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 	}
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {

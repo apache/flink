@@ -462,6 +462,43 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Checks whether a throwable chain contains a specific type of exception and returns it.
+	 * This method handles {@link SerializedThrowable}s in the chain and deserializes them with
+	 * the given ClassLoader.
+	 *
+	 * <p>SerializedThrowables are often used when exceptions might come from dynamically loaded code and
+	 * be transported over RPC / HTTP for better error reporting.
+	 * The receiving processes or threads might not have the dynamically loaded code available.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchType the type of exception to search for in the chain.
+	 * @param classLoader the ClassLoader to use when encountering a SerializedThrowable.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static <T extends Throwable> Optional<T> findThrowableSerializedAware(
+			Throwable throwable,
+			Class<T> searchType,
+			ClassLoader classLoader) {
+
+		if (throwable == null || searchType == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (searchType.isAssignableFrom(t.getClass())) {
+				return Optional.of(searchType.cast(t));
+			} else if (t instanceof SerializedThrowable) {
+				t = ((SerializedThrowable) t).deserializeError(classLoader);
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
 	 * Checks whether a throwable chain contains an exception matching a predicate and returns it.
 	 *
 	 * @param throwable the throwable chain to check.

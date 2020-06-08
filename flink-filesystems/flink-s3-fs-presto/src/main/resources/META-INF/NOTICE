@@ -12,11 +12,12 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-io:commons-io:2.4
 - commons-lang:commons-lang:2.6
 - commons-logging:commons-logging:1.1.3
-- com.amazonaws:aws-java-sdk-core:1.11.271
-- com.amazonaws:aws-java-sdk-dynamodb:1.11.271
-- com.amazonaws:aws-java-sdk-kms:1.11.271
-- com.amazonaws:aws-java-sdk-s3:1.11.271
-- com.amazonaws:jmespath-java:1.11.271
+- com.amazonaws:aws-java-sdk-core:1.11.754
+- com.amazonaws:aws-java-sdk-dynamodb:1.11.754
+- com.amazonaws:aws-java-sdk-kms:1.11.754
+- com.amazonaws:aws-java-sdk-s3:1.11.754
+- com.amazonaws:aws-java-sdk-sts:1.11.754
+- com.amazonaws:jmespath-java:1.11.754
 - com.facebook.presto:presto-hive:0.187
 - com.facebook.presto.hadoop:hadoop-apache2:2.7.3-1
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
@@ -39,7 +40,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.hadoop:hadoop-common:3.1.0
 - org.apache.htrace:htrace-core4:4.1.0-incubating
 - org.apache.httpcomponents:httpcore:4.4.6
-- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpclient:4.5.9
 - org.weakref:jmxutils:1.19
 - software.amazon.ion:ion-java:1.0.2
 

@@ -21,6 +21,12 @@ set -Eeuo pipefail
 CURRENT_DIR=`cd "$(dirname "$0")" && pwd -P`
 source "${CURRENT_DIR}"/common.sh
 
+cp -r "${FLINK_DIR}/conf" "${TEST_DATA_DIR}/conf"
+
+echo "taskmanager.memory.task.off-heap.size: 768m" >> "${TEST_DATA_DIR}/conf/flink-conf.yaml"
+echo "taskmanager.memory.process.size: 3172m" >> "${TEST_DATA_DIR}/conf/flink-conf.yaml"
+export FLINK_CONF_DIR="${TEST_DATA_DIR}/conf"
+
 FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
 
 CONDA_HOME="${FLINK_PYTHON_DIR}/dev/.conda"

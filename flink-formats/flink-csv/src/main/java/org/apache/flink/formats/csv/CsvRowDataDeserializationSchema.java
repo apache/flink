@@ -221,10 +221,6 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
 	// Runtime Converters
 	// -------------------------------------------------------------------------------------
 
-	// -------------------------------------------------------------------------------------
-	// Runtime Converters
-	// -------------------------------------------------------------------------------------
-
 	/**
 	 * Runtime converter that converts {@link JsonNode}s into objects of Flink Table & SQL
 	 * internal data structures.

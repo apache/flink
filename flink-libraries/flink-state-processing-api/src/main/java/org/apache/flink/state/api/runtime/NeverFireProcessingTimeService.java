@@ -52,6 +52,12 @@ public final class NeverFireProcessingTimeService implements TimerService {
 	}
 
 	@Override
+	public ScheduledFuture<?> scheduleWithFixedDelay(
+		ProcessingTimeCallback callback, long initialDelay, long period) {
+		return FUTURE;
+	}
+
+	@Override
 	public boolean isTerminated() {
 		return shutdown.get();
 	}

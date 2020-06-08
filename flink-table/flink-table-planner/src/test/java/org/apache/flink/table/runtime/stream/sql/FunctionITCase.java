@@ -20,10 +20,9 @@ package org.apache.flink.table.runtime.stream.sql;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -144,9 +143,8 @@ public class FunctionITCase extends AbstractTestBase {
 			tableEnv.sqlUpdate(ddl1);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
-			assertEquals(e.getMessage(),
-				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" is already defined");
+			assertEquals("Could not register temporary catalog function. A function 'default_catalog.default_database.f4' does already exist.",
+					e.getMessage());
 		}
 
 		tableEnv.sqlUpdate(ddl3);
@@ -155,22 +153,22 @@ public class FunctionITCase extends AbstractTestBase {
 			tableEnv.sqlUpdate(ddl3);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
-			assertEquals(e.getMessage(),
-				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" doesn't exist");
+			assertEquals("Temporary catalog function `default_catalog`.`default_database`.`f4`" +
+					" doesn't exist",
+					e.getMessage());
 		}
 	}
 
 	@Test
 	public void testCreateTemporarySystemFunction() {
 		TableEnvironment tableEnv = getTableEnvironment();
-		String ddl1 = "create temporary system function default_catalog.default_database.f5" +
+		String ddl1 = "create temporary system function f5" +
 			" as '" + TEST_FUNCTION + "'";
 
-		String ddl2 = "create temporary system function if not exists default_catalog.default_database.f5" +
-			" as 'org.apache.flink.table.functions.CatalogFunctionTestBase$TestUDF'";
+		String ddl2 = "create temporary system function if not exists f5" +
+			" as 'org.apache.flink.table.runtime.stream.sql.FunctionITCase$TestUDF'";
 
-		String ddl3 = "drop temporary system function default_catalog.default_database.f5";
+		String ddl3 = "drop temporary system function f5";
 
 		tableEnv.sqlUpdate(ddl1);
 		tableEnv.sqlUpdate(ddl2);
@@ -449,24 +447,6 @@ public class FunctionITCase extends AbstractTestBase {
 
 		tableEnv.sqlUpdate("drop table t1");
 		tableEnv.sqlUpdate("drop table t2");
-	}
-
-	@Test
-	public void testDataTypeBasedTypeInferenceNotSupported() throws Exception {
-		thrown.expect(ValidationException.class);
-		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
-
-		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
-		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(
-				streamExecEnvironment, settings);
-
-		tableEnvironment.createTemporarySystemFunction("func", SimpleScalarFunction.class);
-		Table table = tableEnvironment
-			.sqlQuery("SELECT func(1)");
-		tableEnvironment.toAppendStream(table, Row.class).print();
-
-		streamExecEnvironment.execute();
 	}
 
 	/**

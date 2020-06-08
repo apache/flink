@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -156,7 +157,7 @@ public final class CatalogManager {
 	 * Registers a catalog under the given name. The catalog name must be unique.
 	 *
 	 * @param catalogName name under which to register the given catalog
-	 * @param catalog catalog to register
+	 * @param catalog     catalog to register
 	 * @throws CatalogException if the registration of the catalog under the given name failed
 	 */
 	public void registerCatalog(String catalogName, Catalog catalog) {
@@ -169,6 +170,25 @@ public final class CatalogManager {
 
 		catalogs.put(catalogName, catalog);
 		catalog.open();
+	}
+
+	/**
+	 * Unregisters a catalog under the given name. The catalog name must be existed.
+	 *
+	 * @param catalogName       name under which to unregister the given catalog.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 *                          does not exist.
+	 * @throws CatalogException if the unregistration of the catalog under the given name failed
+	 */
+	public void unregisterCatalog(String catalogName, boolean ignoreIfNotExists) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
+
+		if (catalogs.containsKey(catalogName)) {
+			Catalog catalog = catalogs.remove(catalogName);
+			catalog.close();
+		} else if (!ignoreIfNotExists) {
+			throw new CatalogException(format("Catalog %s does not exist.", catalogName));
+		}
 	}
 
 	/**
@@ -316,25 +336,42 @@ public final class CatalogManager {
 	 * @return table that the path points to.
 	 */
 	public Optional<TableLookupResult> getTable(ObjectIdentifier objectIdentifier) {
-		try {
-			CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
-			if (temporaryTable != null) {
-				return Optional.of(TableLookupResult.temporary(temporaryTable));
-			} else {
-				return getPermanentTable(objectIdentifier);
+		CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
+		if (temporaryTable != null) {
+			return Optional.of(TableLookupResult.temporary(temporaryTable));
+		} else {
+			return getPermanentTable(objectIdentifier);
+		}
+	}
+
+	/**
+	 * Retrieves a partition with a fully qualified table path and partition spec.
+	 * If the path is not yet fully qualified use{@link #qualifyIdentifier(UnresolvedIdentifier)} first.
+	 *
+	 * @param tableIdentifier full path of the table to retrieve
+	 * @param partitionSpec full partition spec
+	 * @return partition in the table.
+	 */
+	public Optional<CatalogPartition> getPartition(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+		Catalog catalog = catalogs.get(tableIdentifier.getCatalogName());
+		if (catalog != null) {
+			try {
+				return Optional.of(catalog.getPartition(tableIdentifier.toObjectPath(), partitionSpec));
+			} catch (PartitionNotExistException ignored) {
 			}
-		} catch (TableNotExistException ignored) {
 		}
 		return Optional.empty();
 	}
 
-	private Optional<TableLookupResult> getPermanentTable(ObjectIdentifier objectIdentifier)
-			throws TableNotExistException {
+	private Optional<TableLookupResult> getPermanentTable(ObjectIdentifier objectIdentifier) {
 		Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
 		ObjectPath objectPath = objectIdentifier.toObjectPath();
-
-		if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
-			return Optional.of(TableLookupResult.permanent(currentCatalog.getTable(objectPath)));
+		if (currentCatalog != null) {
+			try {
+				return Optional.of(TableLookupResult.permanent(currentCatalog.getTable(objectPath)));
+			} catch (TableNotExistException e) {
+				// Ignore.
+			}
 		}
 		return Optional.empty();
 	}
@@ -643,20 +680,58 @@ public final class CatalogManager {
 	 * Drops a table in a given fully qualified path.
 	 *
 	 * @param objectIdentifier The fully qualified path of the table to drop.
-	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * @param ignoreIfNotExists If false exception will be thrown if the table to drop
 	 *                          does not exist.
 	 */
 	public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-		if (temporaryTables.containsKey(objectIdentifier)) {
+		dropTableInternal(
+				objectIdentifier,
+				ignoreIfNotExists,
+				true);
+	}
+
+	/**
+	 * Drops a view in a given fully qualified path.
+	 *
+	 * @param objectIdentifier The fully qualified path of the view to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the view to drop
+	 *                          does not exist.
+	 */
+	public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		dropTableInternal(
+				objectIdentifier,
+				ignoreIfNotExists,
+				false);
+	}
+
+	private void dropTableInternal(
+			ObjectIdentifier objectIdentifier,
+			boolean ignoreIfNotExists,
+			boolean isDropTable) {
+		Predicate<CatalogBaseTable> filter = isDropTable
+				? table -> table instanceof CatalogTable
+				: table -> table instanceof CatalogView;
+		// Same name temporary table or view exists.
+		if (filter.test(temporaryTables.get(objectIdentifier))) {
+			String tableOrView = isDropTable ? "table" : "view";
 			throw new ValidationException(String.format(
-				"Temporary table with identifier '%s' exists. Drop it first before removing the permanent table.",
-				objectIdentifier));
+					"Temporary %s with identifier '%s' exists. "
+							+ "Drop it first before removing the permanent %s.",
+					tableOrView, objectIdentifier, tableOrView));
 		}
-		execute(
-			(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
-			objectIdentifier,
-			ignoreIfNotExists,
-			"DropTable");
+		final Optional<TableLookupResult> resultOpt = getPermanentTable(objectIdentifier);
+		if (resultOpt.isPresent() && filter.test(resultOpt.get().getTable())) {
+			execute(
+					(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
+					objectIdentifier,
+					ignoreIfNotExists,
+					"DropTable");
+		} else if (!ignoreIfNotExists) {
+			String tableOrView = isDropTable ? "Table" : "View";
+			throw new ValidationException(String.format(
+					"%s with identifier '%s' does not exist.",
+					tableOrView, objectIdentifier.asSummaryString()));
+		}
 	}
 
 	/**

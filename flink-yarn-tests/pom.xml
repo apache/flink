@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -411,7 +411,7 @@ under the License.
 							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>
 					</execution>
-					<!-- Write classpath of flink-yarn to a file, so that the yarn tests can use it as their classpath
+					<!-- Write classpath of flink-yarn-tests to a file, so that the yarn tests can use it as their classpath
 						for the YARN "containers".
 					-->
 					<execution>

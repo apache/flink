@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 
 import java.net.InetAddress;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -40,6 +41,8 @@ public class ShuffleEnvironmentContext {
 	private final TaskEventPublisher eventPublisher;
 	private final MetricGroup parentMetricGroup;
 
+	private final Executor ioExecutor;
+
 	public ShuffleEnvironmentContext(
 			Configuration configuration,
 			ResourceID taskExecutorResourceId,
@@ -47,7 +50,8 @@ public class ShuffleEnvironmentContext {
 			boolean localCommunicationOnly,
 			InetAddress hostAddress,
 			TaskEventPublisher eventPublisher,
-			MetricGroup parentMetricGroup) {
+			MetricGroup parentMetricGroup,
+			Executor ioExecutor) {
 		this.configuration = checkNotNull(configuration);
 		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
 		this.networkMemorySize = networkMemorySize;
@@ -55,6 +59,7 @@ public class ShuffleEnvironmentContext {
 		this.hostAddress = checkNotNull(hostAddress);
 		this.eventPublisher = checkNotNull(eventPublisher);
 		this.parentMetricGroup = checkNotNull(parentMetricGroup);
+		this.ioExecutor = ioExecutor;
 	}
 
 	public Configuration getConfiguration() {
@@ -83,5 +88,9 @@ public class ShuffleEnvironmentContext {
 
 	public MetricGroup getParentMetricGroup() {
 		return parentMetricGroup;
+	}
+
+	public Executor getIoExecutor() {
+		return ioExecutor;
 	}
 }
