@@ -17,17 +17,14 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.util.NetUtils;
 
 import kafka.admin.AdminUtils;
-import kafka.common.KafkaException;
 import kafka.metrics.KafkaMetricsReporter;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
@@ -50,7 +47,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.net.BindException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -73,6 +69,7 @@ import static org.junit.Assert.fail;
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestEnvironmentImpl.class);
+	private static final int RANDOM_PORT = 0;
 	private File tmpZkDir;
 	private File tmpKafkaParent;
 	private List<File> tmpKafkaDirs;
@@ -383,45 +380,29 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			kafkaProperties.putAll(config.getKafkaServerProperties());
 		}
 
-		final int numTries = 5;
-
-		for (int i = 1; i <= numTries; i++) {
-			int kafkaPort = NetUtils.getAvailablePort();
-			kafkaProperties.put("port", Integer.toString(kafkaPort));
-
-			if (config.isHideKafkaBehindProxy()) {
-				NetworkFailuresProxy proxy = createProxy(KAFKA_HOST, kafkaPort);
-				kafkaProperties.put("advertised.port", proxy.getLocalPort());
-			}
-
-			//to support secure kafka cluster
-			if (config.isSecureMode()) {
-				LOG.info("Adding Kafka secure configurations");
-				kafkaProperties.put("listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
-				kafkaProperties.put("advertised.listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
-				kafkaProperties.putAll(getSecureProperties());
-			}
-
-			KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
-
-			try {
-				scala.Option<String> stringNone = scala.Option.apply(null);
-				KafkaServer server = new KafkaServer(kafkaConfig, Time.SYSTEM, stringNone, new ArraySeq<KafkaMetricsReporter>(0));
-				server.startup();
-				return server;
-			}
-			catch (KafkaException e) {
-				if (e.getCause() instanceof BindException) {
-					// port conflict, retry...
-					LOG.info("Port conflict when starting Kafka Broker. Retrying...");
-				}
-				else {
-					throw e;
-				}
-			}
+		kafkaProperties.put("port", Integer.toString(RANDOM_PORT));
+		//to support secure kafka cluster
+		if (config.isSecureMode()) {
+			LOG.info("Adding Kafka secure configurations");
+			kafkaProperties.put("listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + RANDOM_PORT);
+			kafkaProperties.put("advertised.listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + RANDOM_PORT);
+			kafkaProperties.putAll(getSecureProperties());
 		}
 
-		throw new Exception("Could not start Kafka after " + numTries + " retries due to port conflicts.");
+		KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
+
+		scala.Option<String> stringNone = scala.Option.apply(null);
+		KafkaServer server = new KafkaServer(kafkaConfig, Time.SYSTEM, stringNone, new ArraySeq<KafkaMetricsReporter>(0));
+		server.startup();
+
+		if (config.isHideKafkaBehindProxy()) {
+			SecurityProtocol securityProtocol =
+					config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT;
+			ListenerName listenerName = ListenerName.forSecurityProtocol(securityProtocol);
+			createProxy(KAFKA_HOST, server.boundPort(listenerName));
+		}
+
+		return server;
 	}
 
 	private class KafkaOffsetHandlerImpl implements KafkaOffsetHandler {
