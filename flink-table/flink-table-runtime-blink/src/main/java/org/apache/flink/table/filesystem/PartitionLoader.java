@@ -103,7 +103,7 @@ public class PartitionLoader implements Closeable {
 	}
 
 	/**
-	 * Moves files from srcDir to destDir. Delete files in destDir first when overwrite.
+	 * Moves files from srcDir to destDir.
 	 */
 	private void renameFiles(List<Path> srcDirs, Path destDir) throws Exception {
 		for (Path srcDir : srcDirs) {
