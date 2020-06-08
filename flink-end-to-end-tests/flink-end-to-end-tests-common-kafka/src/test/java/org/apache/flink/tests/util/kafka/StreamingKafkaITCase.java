@@ -163,10 +163,10 @@ public class StreamingKafkaITCase extends TestLogger {
 				final List<String> bees = filterMessages(messages, "bee");
 				final List<String> giraffes = filterMessages(messages, "giraffe");
 
-				Assert.assertEquals(Arrays.asList("elephant,27,64213"), elephants);
-				Assert.assertEquals(Arrays.asList("squirrel,52,66413"), squirrels);
-				Assert.assertEquals(Arrays.asList("bee,18,65647"), bees);
-				Assert.assertEquals(Arrays.asList("giraffe,9,65555"), giraffes);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("elephant,27,64213"), elephants);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("squirrel,52,66413"), squirrels);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("bee,18,65647"), bees);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("giraffe,9,65555"), giraffes);
 			}
 		}
 	}
