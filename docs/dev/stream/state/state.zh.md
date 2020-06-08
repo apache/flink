@@ -91,7 +91,7 @@ managed keyed state 接口提供不同类型状态的访问接口，这些状态
 
 所有类型的状态还有一个`clear()` 方法，清除当前 key 下的状态数据，也就是当前输入元素的 key。
 
-<span class="label label-danger">注意</span> `FoldingState` 和 `FoldingStateDescriptor` 从 Flink 1.4 开始就已经被弃用，将会在未来被删除。
+<span class="label label-danger">注意</span> `FoldingState` 和 `FoldingStateDescriptor` 从 Flink 1.4 开始就已经被启用，将会在未来被删除。
 作为替代请使用 `AggregatingState` 和 `AggregatingStateDescriptor`。
 
 请牢记，这些状态对象仅用于与状态交互。状态本身不一定存储在内存中，还可能在磁盘或其他位置。
