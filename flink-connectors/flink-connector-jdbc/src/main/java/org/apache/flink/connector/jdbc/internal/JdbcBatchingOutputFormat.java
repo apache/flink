@@ -47,7 +47,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT;
+import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT_SECONDS;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -177,7 +177,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 					throw new IOException(e);
 				}
 				try {
-					if (!connection.isValid(CONNECTION_CHECK_TIMEOUT)) {
+					if (!connection.isValid(CONNECTION_CHECK_TIMEOUT_SECONDS)) {
 						connection = connectionProvider.reestablishConnection();
 						jdbcStatementExecutor.closeStatements();
 						jdbcStatementExecutor.prepareStatements(connection);

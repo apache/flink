@@ -46,7 +46,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT;
+import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT_SECONDS;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.getFieldFromResultSet;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -172,7 +172,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 				}
 
 				try {
-					if (!dbConn.isValid(CONNECTION_CHECK_TIMEOUT)) {
+					if (!dbConn.isValid(CONNECTION_CHECK_TIMEOUT_SECONDS)) {
 						statement.close();
 						dbConn.close();
 						establishConnectionAndStatement();

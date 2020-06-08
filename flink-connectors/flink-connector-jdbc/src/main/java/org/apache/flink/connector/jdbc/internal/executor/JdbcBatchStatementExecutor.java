@@ -32,7 +32,7 @@ import java.util.function.Function;
 public interface JdbcBatchStatementExecutor<T> {
 
 	/**
-	 * Open the writer by JDBC Connection. It can create Statement from Connection.
+	 * Create statements from connection.
 	 */
 	void prepareStatements(Connection connection) throws SQLException;
 
@@ -44,7 +44,7 @@ public interface JdbcBatchStatementExecutor<T> {
 	void executeBatch() throws SQLException;
 
 	/**
-	 * Close JDBC related statements and other classes.
+	 * Close JDBC related statements.
 	 */
 	void closeStatements() throws SQLException;
 

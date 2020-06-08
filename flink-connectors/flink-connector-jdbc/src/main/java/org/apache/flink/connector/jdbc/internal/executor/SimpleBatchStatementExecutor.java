@@ -18,8 +18,6 @@
 
 package org.apache.flink.connector.jdbc.internal.executor;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 
 import org.slf4j.Logger;
@@ -35,8 +33,7 @@ import java.util.function.Function;
 /**
  * A {@link JdbcBatchStatementExecutor} that executes supplied statement for given the records (without any pre-processing).
  */
-@Internal
-public class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
+class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleBatchStatementExecutor.class);
 
@@ -82,10 +79,5 @@ public class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExe
 			st.close();
 			st = null;
 		}
-	}
-
-	@VisibleForTesting
-	public PreparedStatement getStatement() {
-		return st;
 	}
 }
