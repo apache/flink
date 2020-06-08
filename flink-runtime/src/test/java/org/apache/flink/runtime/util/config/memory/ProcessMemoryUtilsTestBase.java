@@ -126,6 +126,35 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 	}
 
 	@Test
+	public void testDerivedTotalProcessMemoryGreaterThanConfiguredFailureWithFineGrainedOptions() {
+		Configuration conf = getConfigurationWithJvmMetaspaceAndTotalFlinkMemory(100, 200);
+		// Total Flink memory + JVM Metaspace > Total Process Memory (no space for JVM overhead)
+		MemorySize totalFlinkMemorySize = MemorySize.ofMebiBytes(150);
+		configWithFineGrainedOptions(conf, totalFlinkMemorySize);
+		validateFail(conf);
+	}
+
+	@Test
+	public void testDerivedTotalProcessMemoryGreaterThanConfiguredFailureWithTotalFlinkMemory() {
+		Configuration conf = getConfigurationWithJvmMetaspaceAndTotalFlinkMemory(100, 200);
+		// Total Flink memory + JVM Metaspace > Total Process Memory (no space for JVM overhead)
+		MemorySize totalFlinkMemorySize = MemorySize.ofMebiBytes(150);
+		conf.set(options.getTotalFlinkMemoryOption(), totalFlinkMemorySize);
+		validateFail(conf);
+	}
+
+	private Configuration getConfigurationWithJvmMetaspaceAndTotalFlinkMemory(
+			long jvmMetaspaceSizeMb,
+			long totalProcessMemorySizeMb) {
+		MemorySize jvmMetaspaceSize = MemorySize.ofMebiBytes(jvmMetaspaceSizeMb);
+		MemorySize totalProcessMemorySize = MemorySize.ofMebiBytes(totalProcessMemorySizeMb);
+		Configuration conf = new Configuration();
+		conf.set(options.getJvmOptions().getJvmMetaspaceOption(), jvmMetaspaceSize);
+		conf.set(options.getTotalProcessMemoryOption(), totalProcessMemorySize);
+		return conf;
+	}
+
+	@Test
 	public void testConfigJvmMetaspaceSize() {
 		MemorySize jvmMetaspaceSize = MemorySize.parse("50m");
 
@@ -302,6 +331,8 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> ex
 	protected abstract T processSpecFromConfig(Configuration config);
 
 	protected abstract Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(Configuration config);
+
+	protected abstract void configWithFineGrainedOptions(Configuration configuration, MemorySize totalFlinkMemorySize);
 
 	protected ConfigOption<MemorySize> getNewOptionForLegacyHeapOption() {
 		return newOptionForLegacyHeapOption;

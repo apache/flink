@@ -246,6 +246,14 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		}
 	}
 
+	@Override
+	protected void configWithFineGrainedOptions(Configuration configuration, MemorySize totalFlinkMemorySize) {
+		MemorySize heapSize = new MemorySize(totalFlinkMemorySize.getBytes() / 2);
+		MemorySize offHeapSize = totalFlinkMemorySize.subtract(heapSize);
+		configuration.set(JobManagerOptions.JVM_HEAP_MEMORY, heapSize);
+		configuration.set(JobManagerOptions.OFF_HEAP_MEMORY, offHeapSize);
+	}
+
 	private static Configuration configWithExplicitJvmHeap() {
 		Configuration conf = new Configuration();
 		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, JVM_HEAP_SIZE);

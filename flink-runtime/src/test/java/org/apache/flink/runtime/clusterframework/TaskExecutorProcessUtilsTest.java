@@ -584,6 +584,17 @@ public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<Tas
 		}
 	}
 
+	@Override
+	protected void configWithFineGrainedOptions(Configuration configuration, MemorySize totalFlinkMemorySize) {
+		MemorySize componentSize = new MemorySize(totalFlinkMemorySize.getBytes() / 6);
+		configuration.set(TaskManagerOptions.TASK_HEAP_MEMORY, componentSize);
+		configuration.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, componentSize);
+		configuration.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, componentSize);
+		configuration.set(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY, componentSize);
+		configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, componentSize);
+		// network is the 6th component, fixed implicitly
+	}
+
 	private static Configuration configWithExplicitTaskHeapAndManageMem() {
 		final Configuration conf = new Configuration();
 		conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, TASK_HEAP_SIZE);
