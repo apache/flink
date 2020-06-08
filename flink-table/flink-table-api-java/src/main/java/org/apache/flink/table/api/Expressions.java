@@ -225,9 +225,10 @@ public final class Expressions {
 	 * <pre>{@code
 	 * temporalOverlaps(
 	 *      lit("2:55:00").toTime(),
-	 *      interval(Duration.ofHour(1)),
+	 *      lit(1).hours(),
 	 *      lit("3:30:00").toTime(),
-	 *      interval(Duration.ofHour(2))
+	 *      lit(2).hours()
+	 * )
 	 * }</pre>
 	 * leads to true
 	 */
