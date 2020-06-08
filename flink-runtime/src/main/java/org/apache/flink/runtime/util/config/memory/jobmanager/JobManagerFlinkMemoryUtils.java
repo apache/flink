@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@link FlinkMemoryUtils} for Job Manager.
+ *
+ * <p>The required fine-grained component is {@link JobManagerOptions#JVM_HEAP_MEMORY}.
  */
 public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFlinkMemory> {
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerFlinkMemoryUtils.class);
