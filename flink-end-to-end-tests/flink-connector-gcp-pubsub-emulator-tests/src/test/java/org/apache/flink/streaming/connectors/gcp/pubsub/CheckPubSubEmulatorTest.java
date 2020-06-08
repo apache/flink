@@ -33,10 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -77,12 +76,6 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 
 		List<ReceivedMessage> receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 1);
 
-		//TODO this is just to test if we need to wait longer, or if something has gone wrong and the message will never arrive
-		if (receivedMessages.isEmpty()) {
-			LOG.error("Message did not arrive, gonna wait 30s and try to pull again.");
-			Thread.sleep(30 * 1000);
-			receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 1);
-		}
 		assertEquals(1, receivedMessages.size());
 		assertEquals("Hello World PULL", receivedMessages.get(0).getMessage().getData().toStringUtf8());
 
@@ -96,8 +89,12 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 			subscribeToSubscription(
 				PROJECT_NAME,
 				SUBSCRIPTION_NAME,
-				(message, consumer) -> receivedMessages.add(message)
+				(message, consumer) -> {
+					receivedMessages.add(message);
+					consumer.ack();
+				}
 			);
+		subscriber.awaitRunning(5, MINUTES);
 
 		Publisher publisher = pubsubHelper.createPublisher(PROJECT_NAME, TOPIC_NAME);
 		publisher
@@ -114,11 +111,9 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 		assertEquals(1, receivedMessages.size());
 		assertEquals("Hello World", receivedMessages.get(0).getData().toStringUtf8());
 
-		try {
-			subscriber.stopAsync().awaitTerminated(100, MILLISECONDS);
-		} catch (TimeoutException tme) {
-			LOG.info("Timeout during shutdown", tme);
-		}
+		LOG.info("Received message. Shutting down ...");
+
+		subscriber.stopAsync().awaitTerminated(5, MINUTES);
 		publisher.shutdown();
 	}
 
