@@ -58,7 +58,7 @@ modules:
 </div>
 </div>
 
-* 请注意旧版本的部分 Hive 内置函数存在 [线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。
+* 请注意旧版本的部分 Hive 内置函数存在[线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。
 我们建议用户及时通过补丁修正 Hive 中的这些问题。
 
 ## Hive 用户自定义函数(User Defined Functions)
