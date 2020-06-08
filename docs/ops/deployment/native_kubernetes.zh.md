@@ -97,7 +97,7 @@ $ ./bin/kubernetes-session.sh \
 Use the following command to submit a Flink Job to the Kubernetes cluster.
 
 {% highlight bash %}
-$ ./bin/flink run -d -e kubernetes-session -Dkubernetes.cluster-id=<ClusterId> examples/streaming/WindowJoin.jar
+$ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> examples/streaming/WindowJoin.jar
 {% endhighlight %}
 
 ### Accessing Job Manager UI
