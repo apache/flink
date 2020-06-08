@@ -82,7 +82,12 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-test-utils-junit</artifactId>
+			<scope>test</scope>
+        </dependency>
+    </dependencies>
 
 	<!-- ONLY run the tests when explicitly told to do so  -->
 	<properties>
