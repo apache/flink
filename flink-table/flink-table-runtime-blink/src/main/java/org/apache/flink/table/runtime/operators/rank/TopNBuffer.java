@@ -23,7 +23,6 @@ import org.apache.flink.table.data.RowData;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -131,12 +130,12 @@ class TopNBuffer implements Serializable {
 			Collection<RowData> collection = last.getValue();
 			if (collection != null) {
 				if (collection instanceof List) {
+					// optimization for List
 					List<RowData> list = (List<RowData>) collection;
-					lastElement = getListLastElement(list);
-					if (lastElement != null) {
-						removeListLastElement(list);
+					if (!list.isEmpty()) {
+						lastElement = list.remove(list.size() - 1);
 						currentTopNum -= 1;
-						if (list.size() == 0) {
+						if (list.isEmpty()) {
 							treeMap.remove(last.getKey());
 						}
 					}
@@ -152,6 +151,19 @@ class TopNBuffer implements Serializable {
 					}
 				}
 			}
+		}
+		return lastElement;
+	}
+
+	/**
+	 * Returns the last record of the last Entry in the buffer.
+	 */
+	RowData lastElement() {
+		Map.Entry<RowData, Collection<RowData>> last = treeMap.lastEntry();
+		RowData lastElement = null;
+		if (last != null) {
+			Collection<RowData> collection = last.getValue();
+			lastElement = getLastElement(collection);
 		}
 		return lastElement;
 	}
@@ -183,26 +195,17 @@ class TopNBuffer implements Serializable {
 	private RowData getLastElement(Collection<RowData> collection) {
 		RowData element = null;
 		if (collection != null && !collection.isEmpty()) {
-			Iterator<RowData> iter = collection.iterator();
-			while (iter.hasNext()) {
-				element = iter.next();
+			if (collection instanceof List) {
+				// optimize for List
+				List<RowData> list = (List<RowData>) collection;
+				return list.get(list.size() - 1);
+			} else {
+				for (RowData data : collection) {
+					element = data;
+				}
 			}
 		}
 		return element;
-	}
-
-	private RowData getListLastElement(List<RowData> list) {
-		RowData element = null;
-		if (list != null && !list.isEmpty()) {
-				element = list.get(list.size() - 1);
-		}
-		return element;
-	}
-
-	private void removeListLastElement(List<RowData> list) {
-		if (list != null && !list.isEmpty()) {
-				list.remove(list.size() - 1);
-		}
 	}
 
 	/**

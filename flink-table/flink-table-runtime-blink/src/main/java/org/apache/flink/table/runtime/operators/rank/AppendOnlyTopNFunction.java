@@ -211,18 +211,19 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 		if (buffer.getCurrentTopNum() > rankEnd) {
 			Map.Entry<RowData, Collection<RowData>> lastEntry = buffer.lastEntry();
 			RowData lastKey = lastEntry.getKey();
-			List<RowData> lastList = (List<RowData>) lastEntry.getValue();
-			// remove last one
+			Collection<RowData> lastList = lastEntry.getValue();
+			RowData lastElement = buffer.lastElement();
 			int size = lastList.size();
-			RowData lastElement = null;
-			if (size > 0) {
-				lastElement = lastList.get(size - 1);
-			}
+			// remove last one
 			if (size <= 1) {
 				buffer.removeAll(lastKey);
 				dataState.remove(lastKey);
 			} else {
 				buffer.removeLast();
+				// last element has been removed from lastList, we have to copy a new collection
+				// for lastList to avoid mutating state values, see CopyOnWriteStateMap,
+				// otherwise, the result might be corrupt.
+				// don't need to perform a deep copy, because RowData elements will not be updated
 				dataState.put(lastKey, new ArrayList<>(lastList));
 			}
 			if (size == 0 || input.equals(lastElement)) {
