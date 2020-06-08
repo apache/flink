@@ -3,7 +3,7 @@ title: DataStream API 简介
 nav-id: datastream-api
 nav-pos: 2
 nav-title: DataStream API 简介
-nav-parent_id: training
+nav-parent_id: learn-flink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
