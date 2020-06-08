@@ -39,9 +39,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /**
- * Unit tests for the {@link ExecutorCLI}.
+ * Unit tests for the {@link GenericCLI}.
  */
-public class ExecutorCLITest {
+public class GenericCLITest {
 
 	@Rule
 	public TemporaryFolder tmp = new TemporaryFolder();
@@ -52,7 +52,7 @@ public class ExecutorCLITest {
 	public void initOptions() {
 		testOptions = new Options();
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
+		final GenericCLI cliUnderTest = new GenericCLI(
 				new Configuration(),
 				tmp.getRoot().getAbsolutePath());
 		cliUnderTest.addGeneralOptions(testOptions);
@@ -64,7 +64,7 @@ public class ExecutorCLITest {
 		final Configuration loadedConfig = new Configuration();
 		loadedConfig.set(DeploymentOptions.TARGET, expectedExecutorName);
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
+		final GenericCLI cliUnderTest = new GenericCLI(
 				loadedConfig,
 				tmp.getRoot().getAbsolutePath());
 		final CommandLine emptyCommandLine = CliFrontendParser.parse(testOptions, new String[0], true);
@@ -96,7 +96,7 @@ public class ExecutorCLITest {
 				"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5"
 		};
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
+		final GenericCLI cliUnderTest = new GenericCLI(
 				loadedConfig,
 				tmp.getRoot().getAbsolutePath());
 		final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
@@ -124,7 +124,7 @@ public class ExecutorCLITest {
 		final ConfigOption<Integer> configOption = key("test.int").intType().noDefaultValue();
 		final int expectedValue = 42;
 
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(
+		final GenericCLI cliUnderTest = new GenericCLI(
 				new Configuration(),
 				tmp.getRoot().getAbsolutePath());
 

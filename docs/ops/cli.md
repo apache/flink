@@ -49,17 +49,17 @@ Flink has the concept of executors for defining available deployment targets. Yo
 available executors in the output of `bin/flink --help`, for example:
 
 ```
-Options for executor mode:
-   -D <property=value>   Generic configuration options for
-                         execution/deployment and for the configured executor.
-                         The available options can be found at
-                         https://ci.apache.org/projects/flink/flink-docs-stabl
-                         e/ops/config.html
-   -e,--executor <arg>   The name of the executor to be used for executing the
-                         given job, which is equivalent to the
-                         "execution.target" config option. The currently
-                         available executors are: "remote", "local",
-                         "kubernetes-session", "yarn-per-job", "yarn-session".
+Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session", "yarn-per-job",
+                           "yarn-session", "yarn-application" and "kubernetes-application".
 ```
 
 When running one of the `bin/flink` actions, the executor is specified using the `--executor`
@@ -453,17 +453,17 @@ Action "run" compiles and runs a program.
      -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
                                           sub-paths for high availability mode
 
-  Options for executor mode:
-     -D <property=value>   Generic configuration options for
-                           execution/deployment and for the configured executor.
-                           The available options can be found at
-                           https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
-     -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, which is equivalent to the
-                           "execution.target" config option. The currently
-                           available executors are: "remote", "local",
-                           "kubernetes-session", "yarn-per-job", "yarn-session".
+  Options for Generic CLI mode:
+       -D <property=value>   Generic configuration options for
+                             execution/deployment and for the configured executor.
+                             The available options can be found at
+                             https://ci.apache.org/projects/flink/flink-docs-stabl
+                             e/ops/config.html
+       -t,--target <arg>     The deployment target for the given application,
+                             which is equivalent to the "execution.target" config
+                             option. The currently available targets are:
+                             "remote", "local", "kubernetes-session", "yarn-per-job",
+                             "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -505,17 +505,17 @@ Action "list" lists running and scheduled programs.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for executor mode:
-     -D <property=value>   Generic configuration options for
-                           execution/deployment and for the configured executor.
-                           The available options can be found at
-                           https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
-     -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, which is equivalent to the
-                           "execution.target" config option. The currently
-                           available executors are: "remote", "local",
-                           "kubernetes-session", "yarn-per-job", "yarn-session".
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -547,17 +547,17 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for executor mode:
-     -D <property=value>   Generic configuration options for
-                           execution/deployment and for the configured executor.
-                           The available options can be found at
-                           https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
-     -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, which is equivalent to the
-                           "execution.target" config option. The currently
-                           available executors are: "remote", "local",
-                           "kubernetes-session", "yarn-per-job", "yarn-session".
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -590,17 +590,17 @@ Action "cancel" cancels a running program.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for executor mode:
-     -D <property=value>   Generic configuration options for
-                           execution/deployment and for the configured executor.
-                           The available options can be found at
-                           https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
-     -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, which is equivalent to the
-                           "execution.target" config option. The currently
-                           available executors are: "remote", "local",
-                           "kubernetes-session", "yarn-per-job", "yarn-session".
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -627,17 +627,17 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for executor mode:
-     -D <property=value>   Generic configuration options for
-                           execution/deployment and for the configured executor.
-                           The available options can be found at
-                           https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
-     -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, which is equivalent to the
-                           "execution.target" config option. The currently
-                           available executors are: "remote", "local",
-                           "kubernetes-session", "yarn-per-job", "yarn-session".
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
