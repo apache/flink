@@ -84,6 +84,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -236,9 +237,12 @@ public class SingleInputGateTest extends InputGateTestBase {
 			};
 
 			submitTasksAndWaitForResults(executor, new Callable[] {closeTask, readRecoveredStateTask, processStateTask});
-			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
 		} finally {
 			executor.shutdown();
+			// wait until the internal channel state recover task finishes
+			executor.awaitTermination(60, TimeUnit.SECONDS);
+			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
+
 			environment.close();
 		}
 	}
