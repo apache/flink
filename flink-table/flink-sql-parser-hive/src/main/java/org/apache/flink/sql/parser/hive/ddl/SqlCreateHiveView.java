@@ -50,7 +50,7 @@ public class SqlCreateHiveView extends SqlCreateView {
 				false,
 				false,
 				ifNotExists,
-				HiveDDLUtils.unescapeLiteral(comment),
+				HiveDDLUtils.unescapeStringLiteral(comment),
 				properties
 		);
 		HiveDDLUtils.unescapeProperties(properties);

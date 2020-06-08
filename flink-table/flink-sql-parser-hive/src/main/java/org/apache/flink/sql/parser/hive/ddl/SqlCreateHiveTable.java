@@ -72,7 +72,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 				HiveDDLUtils.checkReservedTableProperties(propertyList),
 				extractPartColIdentifiers(partColList),
 				null,
-				HiveDDLUtils.unescapeLiteral(comment),
+				HiveDDLUtils.unescapeStringLiteral(comment),
 				null,
 				isTemporary
 		);

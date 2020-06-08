@@ -28,6 +28,7 @@ import org.apache.flink.sql.parser.type.SqlMapTypeNameSpec;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlLiteral;
@@ -36,6 +37,7 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.lang3.StringEscapeUtils;
 
@@ -73,6 +75,8 @@ public class HiveDDLUtils {
 	private static final Set<String> RESERVED_DB_PROPERTIES = new HashSet<>();
 	private static final Set<String> RESERVED_TABLE_PROPERTIES = new HashSet<>();
 	private static final List<String> RESERVED_TABLE_PROP_PREFIX = new ArrayList<>();
+
+	private static final UnescapeStringLiteralShuttle UNESCAPE_SHUTTLE = new UnescapeStringLiteralShuttle();
 
 	static {
 		RESERVED_DB_PROPERTIES.addAll(Arrays.asList(ALTER_DATABASE_OP, DATABASE_LOCATION_URI));
@@ -325,50 +329,65 @@ public class HiveDDLUtils {
 	// the input of sql-client will escape '\', unescape it so that users can write hive dialect
 	public static void unescapeProperties(SqlNodeList properties) {
 		if (properties != null) {
-			for (int i = 0; i < properties.size(); i++) {
-				SqlNode node = properties.get(i);
-				// for properties
-				if (node instanceof SqlTableOption) {
-					node = unescapeTableOption((SqlTableOption) node);
-					properties.set(i, node);
-				}
-			}
+			properties.accept(UNESCAPE_SHUTTLE);
 		}
 	}
 
-	public static SqlTableOption unescapeTableOption(SqlTableOption option) {
-		String key = StringEscapeUtils.unescapeJava(option.getKeyString());
-		String val = StringEscapeUtils.unescapeJava(option.getValueString());
-		SqlNode keyNode = SqlLiteral.createCharString(key, option.getKey().getParserPosition());
-		SqlNode valNode = SqlLiteral.createCharString(val, option.getValue().getParserPosition());
-		return new SqlTableOption(keyNode, valNode, option.getParserPosition());
-	}
-
-	public static SqlCharStringLiteral unescapeLiteral(SqlCharStringLiteral literal) {
+	public static SqlCharStringLiteral unescapeStringLiteral(SqlCharStringLiteral literal) {
 		if (literal != null) {
-			String unescaped = StringEscapeUtils.unescapeJava(literal.getNlsString().getValue());
-			return SqlLiteral.createCharString(unescaped, literal.getParserPosition());
+			return (SqlCharStringLiteral) literal.accept(UNESCAPE_SHUTTLE);
 		}
 		return null;
 	}
 
 	public static void unescapePartitionSpec(SqlNodeList partSpec) {
 		if (partSpec != null) {
-			for (int i = 0; i < partSpec.size(); i++) {
-				SqlNode node = partSpec.get(i);
-				if (node instanceof SqlProperty) {
-					SqlProperty property = (SqlProperty) node;
-					Comparable comparable = SqlLiteral.value(property.getValue());
-					if (comparable instanceof NlsString) {
-						String val = StringEscapeUtils.unescapeJava(((NlsString) comparable).getValue());
-						property = new SqlProperty(
-								property.getKey(),
-								SqlLiteral.createCharString(val, property.getValue().getParserPosition()),
-								property.getParserPosition());
-						partSpec.set(i, property);
-					}
-				}
+			partSpec.accept(UNESCAPE_SHUTTLE);
+		}
+	}
+
+	private static class UnescapeStringLiteralShuttle extends SqlShuttle {
+
+		@Override
+		public SqlNode visit(SqlNodeList nodeList) {
+			for (int i = 0; i < nodeList.size(); i++) {
+				SqlNode unescaped = nodeList.get(i).accept(this);
+				nodeList.set(i, unescaped);
 			}
+			return nodeList;
+		}
+
+		@Override
+		public SqlNode visit(SqlCall call) {
+			if (call instanceof SqlProperty) {
+				SqlProperty property = (SqlProperty) call;
+				Comparable comparable = SqlLiteral.value(property.getValue());
+				if (comparable instanceof NlsString) {
+					String val = StringEscapeUtils.unescapeJava(((NlsString) comparable).getValue());
+					return new SqlProperty(
+							property.getKey(),
+							SqlLiteral.createCharString(val, property.getValue().getParserPosition()),
+							property.getParserPosition());
+				}
+			} else if (call instanceof SqlTableOption) {
+				SqlTableOption option = (SqlTableOption) call;
+				String key = StringEscapeUtils.unescapeJava(option.getKeyString());
+				String val = StringEscapeUtils.unescapeJava(option.getValueString());
+				SqlNode keyNode = SqlLiteral.createCharString(key, option.getKey().getParserPosition());
+				SqlNode valNode = SqlLiteral.createCharString(val, option.getValue().getParserPosition());
+				return new SqlTableOption(keyNode, valNode, option.getParserPosition());
+			}
+			return call;
+		}
+
+		@Override
+		public SqlNode visit(SqlLiteral literal) {
+			if (literal instanceof SqlCharStringLiteral) {
+				SqlCharStringLiteral stringLiteral = (SqlCharStringLiteral) literal;
+				String unescaped = StringEscapeUtils.unescapeJava(stringLiteral.getNlsString().getValue());
+				return SqlLiteral.createCharString(unescaped, stringLiteral.getParserPosition());
+			}
+			return literal;
 		}
 	}
 }

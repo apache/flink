@@ -47,7 +47,7 @@ public class SqlCreateHiveDatabase extends SqlCreateDatabase {
 				pos,
 				databaseName,
 				HiveDDLUtils.checkReservedDBProperties(propertyList),
-				HiveDDLUtils.unescapeLiteral(comment),
+				HiveDDLUtils.unescapeStringLiteral(comment),
 				ifNotExists
 		);
 		HiveDDLUtils.ensureNonGeneric(propertyList);
