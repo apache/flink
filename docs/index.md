@@ -25,50 +25,60 @@ under the License.
 
 This documentation is for Apache Flink version {{ site.version_title }}. These pages were built at: {% build_time %}.
 
-Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed computations over data streams. Flink builds batch processing on top of the streaming engine, overlaying native iteration support, managed memory, and program optimization.
+<div class="row">
+<div class="col-sm-6" markdown="1">
 
-## First Steps
+### Try Flink
 
-* **Code Walkthroughs**: Follow step-by-step guides and implement a simple application or query in one of Flink's APIs. 
-  * [Implement a DataStream application]({% link try-flink/datastream_api.md %})
-  * [Write a Table API query]({% link try-flink/table_api.md %})
+Apache Flink is an open source platform with expressive APIs for defining stream and batch data processing jobs, and a robust and scalable engine for executing those jobs.
 
-* **Docker Playgrounds**: Set up a sandboxed Flink environment in just a few minutes to explore and play with Flink.
-  * [Run and manage Flink streaming applications]({% link try-flink/flink-operations-playground.md %})
+To quickly get a general understanding of how Flink works and what it offers for your use case, work your way through one of these tutorials:
 
-* **Concepts**: Learn about Flink's concepts to better understand the documentation.
-  * [Stateful Stream Processing](concepts/stateful-stream-processing.html)
-  * [Timely Stream Processing](concepts/timely-stream-processing.html)
-  * [Flink Architecture](concepts/flink-architecture.html)
-  * [Glossary](concepts/glossary.html)
+* [Fraud Detection with the DataStream API]({% link try-flink/datastream_api.md %})
+* [Real Time Reporting with the Table API]({% link try-flink/table_api.md %})
+* [Intro to the Python Table API]({% link try-flink/python_table_api.md %})
+* [Flink Operations Playground]({% link try-flink/flink-operations-playground.md %})
 
-## API References
+### Learn Flink
 
-The API references list and explain all features of Flink's APIs.
+* Our [Self-paced Training Course]({% link learn-flink/index.md %}) includes a set of lessons and hands-on exercises that provide a step-by-step introduction to Flink.
 
-* [DataStream API](dev/datastream_api.html)
-* [DataSet API](dev/batch/index.html)
-* [Table API &amp; SQL](dev/table/index.html)
+* The [Concepts]({% link concepts/index.md %}) section covers what you need to know about Flink before exploring the reference documentation.
 
-## Deployment
+</div>
+<div class="col-sm-6" markdown="1">
 
-Before putting your Flink job into production, read the [Production Readiness Checklist](ops/production_ready.html).
+### Explore Flink
 
-## Release Notes
+The reference documentation covers all the details. Some starting points:
 
-Release notes cover important changes between Flink versions. Please carefully read these notes if you plan to upgrade your Flink setup to a later version. 
+<div class="row">
+<div class="col-sm-6" markdown="1">
 
-* [Release notes for Flink 1.10](release-notes/flink-1.10.html).
-* [Release notes for Flink 1.9](release-notes/flink-1.9.html).
-* [Release notes for Flink 1.8](release-notes/flink-1.8.html).
-* [Release notes for Flink 1.7](release-notes/flink-1.7.html).
-* [Release notes for Flink 1.6](release-notes/flink-1.6.html).
-* [Release notes for Flink 1.5](release-notes/flink-1.5.html).
+* [DataStream API]({% link dev/datastream_api.md %})
+* [DataSet API]({% link dev/batch/index.md %})
+* [Table API &amp; SQL]({% link dev/table/index.md %})
 
-## External Resources
+</div>
+<div class="col-sm-6" markdown="1">
 
-- **Flink Forward**: Talks from past conferences are available at the [Flink Forward](http://flink-forward.org/) website and on [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA). [Robust Stream Processing with Apache Flink](http://2016.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) is a good place to start.
+* [Configuration]({% link ops/config.md %})
+* [Rest API]({% link monitoring/rest_api.md %})
+* [CLI]({% link ops/cli.md %})
 
-- **Training**: The [training materials](https://training.ververica.com/) from Ververica include slides, exercises, and sample solutions.
+</div>
+</div>
 
-- **Blogs**: The [Apache Flink](https://flink.apache.org/blog/) and [Ververica](https://www.ververica.com/blog) blogs publish frequent, in-depth technical articles about Flink.
+### Deploy Flink
+
+Before putting your Flink job into production, read the [Production Readiness Checklist]({% link ops/production_ready.md %}). For an overview of possible deployment targets, see [Clusters and Deployments]({% link ops/deployment/index.md %}). 
+
+### Upgrade Flink
+
+Release notes cover important changes between Flink versions. Please read them carefully if you plan to upgrade your Flink setup to a more recent version.
+
+See the release notes for [Flink 1.10]({% link release-notes/flink-1.10.md %}), [Flink 1.9]({% link release-notes/flink-1.9.md %}), [Flink 1.8]({% link release-notes/flink-1.8.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.md %}).
+
+</div>
+</div>
+
