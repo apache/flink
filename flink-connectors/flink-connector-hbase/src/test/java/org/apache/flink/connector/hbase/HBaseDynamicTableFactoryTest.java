@@ -182,11 +182,53 @@ public class HBaseDynamicTableFactoryTest {
 
 		HBaseWriteOptions expectedWriteOptions = HBaseWriteOptions.builder()
 			.setBufferFlushMaxRows(1000)
-			.setBufferFlushIntervalMillis(10 * 1000)
-			.setBufferFlushMaxSizeInBytes(10 * 1024 * 1024)
+			.setBufferFlushIntervalMillis(1000)
+			.setBufferFlushMaxSizeInBytes(2 * 1024 * 1024)
 			.build();
 		HBaseWriteOptions actualWriteOptions = hbaseSink.getWriteOptions();
 		assertEquals(expectedWriteOptions, actualWriteOptions);
+	}
+
+	@Test
+	public void testBufferFlushOptions() {
+		Map<String, String> options = getAllOptions();
+		options.put("sink.buffer-flush.max-size", "10mb");
+		options.put("sink.buffer-flush.max-rows", "100");
+		options.put("sink.buffer-flush.interval", "10s");
+
+		TableSchema schema = TableSchema.builder()
+			.field(ROWKEY, STRING())
+			.build();
+
+		DynamicTableSink sink = createTableSink(schema, options);
+		HBaseWriteOptions expected = HBaseWriteOptions.builder()
+			.setBufferFlushMaxRows(100)
+			.setBufferFlushIntervalMillis(10 * 1000)
+			.setBufferFlushMaxSizeInBytes(10 * 1024 * 1024)
+			.build();
+		HBaseWriteOptions actual = ((HBaseDynamicTableSink) sink).getWriteOptions();
+		assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testDisabledBufferFlushOptions() {
+		Map<String, String> options = getAllOptions();
+		options.put("sink.buffer-flush.max-size", "0");
+		options.put("sink.buffer-flush.max-rows", "0");
+		options.put("sink.buffer-flush.interval", "0");
+
+		TableSchema schema = TableSchema.builder()
+			.field(ROWKEY, STRING())
+			.build();
+
+		DynamicTableSink sink = createTableSink(schema, options);
+		HBaseWriteOptions expected = HBaseWriteOptions.builder()
+			.setBufferFlushMaxRows(0)
+			.setBufferFlushIntervalMillis(0)
+			.setBufferFlushMaxSizeInBytes(0)
+			.build();
+		HBaseWriteOptions actual = ((HBaseDynamicTableSink) sink).getWriteOptions();
+		assertEquals(expected, actual);
 	}
 
 	@Test
@@ -225,9 +267,6 @@ public class HBaseDynamicTableFactoryTest {
 		options.put("table-name", "testHBastTable");
 		options.put("zookeeper.quorum", "localhost:2181");
 		options.put("zookeeper.znode.parent", "/flink");
-		options.put("sink.buffer-flush.max-size", "10mb");
-		options.put("sink.buffer-flush.max-rows", "1000");
-		options.put("sink.buffer-flush.interval", "10s");
 		return options;
 	}
 

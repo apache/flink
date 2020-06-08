@@ -117,8 +117,10 @@ public class HBaseSinkFunction<T>
 			}
 			// create a parameter instance, set the table name and custom listener reference.
 			BufferedMutatorParams params = new BufferedMutatorParams(TableName.valueOf(hTableName))
-				.listener(this)
-				.writeBufferSize(bufferFlushMaxSizeInBytes);
+				.listener(this);
+			if (bufferFlushMaxSizeInBytes > 0) {
+				params.writeBufferSize(bufferFlushMaxSizeInBytes);
+			}
 			this.mutator = connection.getBufferedMutator(params);
 
 			if (bufferFlushIntervalMillis > 0) {

@@ -110,7 +110,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">/hbase</td>
       <td>String</td>
-      <td>The root dir in Zookeeper for HBase cluster</td>
+      <td>The root dir in Zookeeper for HBase cluster.</td>
     </tr>
     <tr>
       <td><h5>null-string-literal</h5></td>
@@ -126,6 +126,7 @@ Connector Options
       <td>MemorySize</td>
       <td>Writing option, maximum size in memory of buffered rows for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
+      Can be set to '0' to disable it.
       </td>
     </tr>
     <tr>
@@ -135,16 +136,18 @@ Connector Options
       <td>Integer</td>
       <td>Writing option, maximum number of rows to buffer for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
-      No default value, which means the default flushing is not depends on the number of buffered rows
+      Can be set to '0' to disable it.
       </td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">1s</td>
       <td>Duration</td>
-      <td>Writing option, the interval to flush buffered rows.
-      No default value, which means no asynchronous flush thread will be scheduled. Examples: '1s', '5 s'.
+      <td>Writing option, the interval to flush any buffered rows.
+      This can improve performance for writing data to HBase database, but may increase the latency.
+      Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows'
+      can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.
       </td>
     </tr>
     </tbody>
