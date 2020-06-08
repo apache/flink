@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * and {@link JdbcDynamicTableSink}.
  */
 @Internal
-public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
 	public static final String IDENTIFIER = "jdbc";
 	public static final ConfigOption<String> URL = ConfigOptions
@@ -133,15 +133,15 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 	private static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS = ConfigOptions
 		.key("sink.buffer-flush.max-rows")
 		.intType()
-		.defaultValue(5000)
+		.defaultValue(100)
 		.withDescription("the flush max size (includes all append, upsert and delete records), over this number" +
-			" of records, will flush data. The default value is 5000.");
-	private static final ConfigOption<Long> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
+			" of records, will flush data. The default value is 100.");
+	private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
 		.key("sink.buffer-flush.interval")
-		.longType()
-		.defaultValue(0L)
+		.durationType()
+		.defaultValue(Duration.ofSeconds(1))
 		.withDescription("the flush interval mills, over this time, asynchronous threads will flush data. The " +
-			"default value is 0, which means no asynchronous flush thread will be scheduled.");
+			"default value is 1s.");
 	private static final ConfigOption<Integer> SINK_MAX_RETRIES = ConfigOptions
 		.key("sink.max-retries")
 		.intType()
@@ -216,7 +216,7 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 	private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
 		final JdbcExecutionOptions.Builder builder = new JdbcExecutionOptions.Builder();
 		builder.withBatchSize(config.get(SINK_BUFFER_FLUSH_MAX_ROWS));
-		builder.withBatchIntervalMs(config.get(SINK_BUFFER_FLUSH_INTERVAL));
+		builder.withBatchIntervalMs(config.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
 		builder.withMaxRetries(config.get(SINK_MAX_RETRIES));
 		return builder.build();
 	}
@@ -268,19 +268,14 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 	}
 
 	private void validateConfigOptions(ReadableConfig config) {
-		config.getOptional(URL).orElseThrow(() -> new IllegalArgumentException(
-			String.format("Could not find required option: %s", URL.key())));
-		config.getOptional(TABLE_NAME).orElseThrow(() -> new IllegalArgumentException(
-			String.format("Could not find required option: %s", TABLE_NAME.key())));
-
 		String jdbcUrl = config.get(URL);
 		final Optional<JdbcDialect> dialect = JdbcDialects.get(jdbcUrl);
 		checkState(dialect.isPresent(), "Cannot handle such jdbc url: " + jdbcUrl);
 
-		if (config.getOptional(USERNAME).isPresent()) {
-			checkState(config.getOptional(PASSWORD).isPresent(),
-				"Database username must be provided when database password is provided");
-		}
+		checkAllOrNone(config, new ConfigOption[]{
+			USERNAME,
+			PASSWORD
+		});
 
 		checkAllOrNone(config, new ConfigOption[]{
 			SCAN_PARTITION_COLUMN,
@@ -291,8 +286,14 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 
 		if (config.getOptional(SCAN_PARTITION_LOWER_BOUND).isPresent() &&
 			config.getOptional(SCAN_PARTITION_UPPER_BOUND).isPresent()) {
-			checkState(config.get(SCAN_PARTITION_LOWER_BOUND) <= config.get(SCAN_PARTITION_UPPER_BOUND),
-				String.format("%s must not be larger than %s", SCAN_PARTITION_LOWER_BOUND.key(), SCAN_PARTITION_UPPER_BOUND.key()));
+			long lowerBound = config.get(SCAN_PARTITION_LOWER_BOUND);
+			long upperBound = config.get(SCAN_PARTITION_UPPER_BOUND);
+			if (lowerBound > upperBound) {
+				throw new IllegalArgumentException(String.format(
+					"'%s'='%s' must not be larger than '%s'='%s'.",
+					SCAN_PARTITION_LOWER_BOUND.key(), lowerBound,
+					SCAN_PARTITION_UPPER_BOUND.key(), upperBound));
+			}
 		}
 
 		checkAllOrNone(config, new ConfigOption[]{
