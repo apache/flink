@@ -222,7 +222,6 @@ You can check the number of TaskManagers in the JobManager web interface. The ad
 
 If the TaskManagers do not show up after a minute, you should investigate the issue using the log files.
 
-
 ## Run a single Flink job on YARN
 
 The documentation above describes how to start a Flink cluster within a Hadoop YARN environment. It is also possible to launch Flink within YARN only for executing a single job.
@@ -250,6 +249,48 @@ The user-jars position in the class path can be controlled by setting the parame
 - `ORDER`: (default) Adds the jar to the system class path based on the lexicographic order.
 - `FIRST`: Adds the jar to the beginning of the system class path.
 - `LAST`: Adds the jar to the end of the system class path.
+
+## Run an application in Application Mode
+
+To launch an application in [Application Mode]({% link ops/deployment/index.md %}#deployment-modes), you can type:
+
+{% highlight bash %}
+./bin/flink run-application -t yarn-application ./examples/batch/WordCount.jar
+{% endhighlight %}
+
+<div class="alert alert-info" markdown="span">
+  <strong>Attention:</strong> Apart from the `-t`, all other configuration parameters, such as the path 
+  to the savepoint to be used to bootstrap the application's state, the application parallelism or the 
+  required job manager/task manager memory sizes, can be specified by their configuration option, 
+  prefixed by `-D`.
+</div>
+  
+As an example, the command to specify the memory sizes of the JM and the TM, looks like:
+
+{% highlight bash %}
+./bin/flink run-application -t yarn-application \
+-Djobmanager.memory.process.size=2048m \
+-Dtaskmanager.memory.process.size=4096m \
+./examples/batch/WordCount.jar
+
+{% endhighlight %}
+
+For a look at the available configuration options, you can have a look [here]({% link ops/config.md %}). To unlock
+the full potential of the application mode, consider using it with the `yarn.provided.lib.dirs` configuration option
+and pre-upload your application jar to a location accessible by all nodes in your cluster. In this case, the 
+command could look like: 
+
+{% highlight bash %}
+./bin/flink run-application -t yarn-application \
+-Dyarn.provided.lib.dirs="hdfs://myhdfs/my-remote-flink-dist-dir" \
+hdfs://myhdfs/jars/my-application.jar
+{% endhighlight %}
+
+The above will allow the job submission to be extra lightweight as the needed Flink jars and the application jar
+are  going to be picked up by the specified remote locations rather than be shipped to the cluster by the 
+client.
+
+Stopping, cancelling or querying the status of a running application can be done in any of the existing ways. 
 
 ## Recovery behavior of Flink on YARN
 
