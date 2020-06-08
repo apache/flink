@@ -148,7 +148,7 @@ Table result = orders
                 $("c").isNotNull()
             ))
         .select($("a").lowerCase().as("a"), $("b"), $("rowtime"))
-        .window(Tumble.over(interval(Duration.ofHours(1))).on($("rowtime")).as("hourlyWindow"))
+        .window(Tumble.over(lit(1).hours()).on($("rowtime")).as("hourlyWindow"))
         .groupBy($("hourlyWindow"), $("a"))
         .select($("a"), $("hourlyWindow").end().as("hour"), $("b").avg().as("avgBillingAmount"));
 {% endhighlight %}
@@ -764,7 +764,7 @@ Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over(interval(Duration.ofMinutes(5))).on($("rowtime")).as("w")) // define window
+    .window(Tumble.over(lit(5).minutes())).on($("rowtime")).as("w")) // define window
     .groupBy($("a"), $("w")) // group by key and window
     // access window properties and aggregate
     .select(
@@ -823,7 +823,7 @@ Table groupByDistinctResult = orders
 // Distinct aggregation on time window group by
 Table groupByWindowDistinctResult = orders
     .window(Tumble
-            .over(interval(Duration.ofMinutes(5)))
+            .over(lit(5).minutes()))
             .on($("rowtime"))
             .as("w")
     )
@@ -1185,8 +1185,8 @@ Table result = left.join(right)
   .where(
     and(
         $("a").isEqual($("d")),
-        $("ltime").isGreaterEqual($("rtime").minus(interval(Duration.ofMinutes(5)))),
-        $("ltime").isLess($("rtime").plus(interval(Duration.ofMinutes(10))))
+        $("ltime").isGreaterEqual($("rtime").minus(lit(5).minutes())),
+        $("ltime").isLess($("rtime").plus(lit(10).minutes()))
     ))
   .select($("a"), $("b"), $("e"), $("ltime"));
 {% endhighlight %}
@@ -2273,10 +2273,10 @@ Tumbling windows are defined by using the `Tumble` class as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Tumbling Event-time Window
-.window(Tumble.over(interval(Duration.ofMinutes(10))).on($("rowtime")).as("w"));
+.window(Tumble.over(lit(10).minutes()).on($("rowtime")).as("w"));
 
 // Tumbling Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Tumble.over(interval(Duration.ofMinutes(10))).on($("proctime")).as("w"));
+.window(Tumble.over(lit(10).minutes()).on($("proctime")).as("w"));
 
 // Tumbling Row-count Window (assuming a processing-time attribute "proctime")
 .window(Tumble.over(rowInterval(10)).on($("proctime")).as("w"));
@@ -2348,14 +2348,14 @@ Sliding windows are defined by using the `Slide` class as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Sliding Event-time Window
-.window(Slide.over(interval(Duration.ofMinutes(10)))
-            .every(interval(Duration.ofMinutes(5)))
+.window(Slide.over(lit(10).minutes())
+            .every(lit(5).minutes())
             .on($("rowtime"))
             .as("w"));
 
 // Sliding Processing-time window (assuming a processing-time attribute "proctime")
-.window(Slide.over(interval(Duration.ofMinutes(10)))
-            .every(interval(Duration.ofMinutes(5)))
+.window(Slide.over(lit(10).minutes())
+            .every(lit(5).minutes())
             .on($("proctime"))
             .as("w"));
 
@@ -2425,10 +2425,10 @@ A session window is defined by using the `Session` class as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Session Event-time Window
-.window(Session.withGap(interval(Duration.ofMinutes(10))).on($("rowtime")).as("w"));
+.window(Session.withGap(lit(10).minutes()).on($("rowtime")).as("w"));
 
 // Session Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Session.withGap(interval(Duration.ofMinutes(10))).on($("proctime")).as("w"));
+.window(Session.withGap(lit(10).minutes()).on($("proctime")).as("w"));
 {% endhighlight %}
 </div>
 
@@ -2614,10 +2614,10 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(interval(Duration.ofMinutes(1))).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"))
 
 // Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(interval(Duration.ofMinutes(1))).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"))
 
 // Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"))
@@ -2805,7 +2805,7 @@ AggregateFunction myAggFunc = new MyMinMax();
 tableEnv.registerFunction("myAggFunc", myAggFunc);
 
 Table table = input
-    .window(Tumble.over(interval(Duration.ofMinutes(5)))
+    .window(Tumble.over(lit(5).minutes())
                   .on($("rowtime"))
                   .as("w")) // define window
     .groupBy($("key"), $("w")) // group by key and window
@@ -2897,7 +2897,7 @@ Table result = orders
 tableEnv.registerFunction("top2", new Top2());
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over(interval(Duration.ofMinutes(5)))
+    .window(Tumble.over(lit(5).minutes())
                   .on($("rowtime"))
                   .as("w")) // define window
     .groupBy($("a"), $("w")) // group by key and window
