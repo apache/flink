@@ -1,8 +1,8 @@
 ---
-title: "Project Template for Scala"
+title: Java Quckstart
 layout: redirect
 redirect: /dev/project-configuration.html
-permalink: /quickstart/scala_api_quickstart.html
+permalink: /getting-started/project-setup/scala_api_quickstart.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

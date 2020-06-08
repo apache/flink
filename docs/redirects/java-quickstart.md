@@ -1,9 +1,8 @@
 ---
-title: "项目构建设置"
-nav-id: project-setup
-nav-title: '项目构建设置'
-nav-parent_id: getting-started
-nav-pos: 30
+title: Java Quckstart
+layout: redirect
+redirect: /dev/project-configuration.html
+permalink: /getting-started/project-setup/java_api_quickstart.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
