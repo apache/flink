@@ -31,6 +31,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/tab
 
 - CREATE TABLE
 - CREATE DATABASE
+- CREATE VIEW
 - CREATE FUNCTION
 
 ## 执行 CREATE 语句
@@ -341,6 +342,25 @@ CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
 
 数据库属性一般用于存储关于这个数据库额外的信息。
 表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
+
+{% top %}
+
+## CREATE VIEW
+{% highlight sql %}
+CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
+  [{columnName [, columnName ]* }] [COMMENT view_comment]
+  AS query_expression
+{% endhighlight %}
+
+根据给定的 query 语句创建一个视图。若数据库中已经存在同名视图会抛出异常.
+
+**TEMPORARY**
+
+创建一个有 catalog 和数据库命名空间的临时视图，并覆盖原有的视图。
+
+**IF NOT EXISTS**
+
+若该视图已经存在，则不会进行任何操作。
 
 {% top %}
 
