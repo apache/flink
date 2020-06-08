@@ -1,9 +1,10 @@
 ---
-title: "Code Walkthroughs"
-nav-id: walkthroughs
-nav-title: 'Code Walkthroughs'
-nav-parent_id: getting-started
-nav-pos: 20
+title: "Try Flink"
+nav-id: try-flink
+nav-title: '<i class="fa fa-rocket title appetizer" aria-hidden="true"></i> Try Flink'
+nav-parent_id: root
+section-break: true
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,3 +24,4 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+

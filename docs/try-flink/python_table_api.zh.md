@@ -1,8 +1,8 @@
 ---
-title: "Python API Tutorial"
+title: "Python API 教程"
 nav-title: Python API
-nav-parent_id: walkthroughs
-nav-pos: 10
+nav-parent_id: try-flink
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,23 +23,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This walkthrough will quickly get you started building a pure Python Flink project.
-
-Please refer to the Python Table API [installation guide]({{ site.baseurl }}/dev/table/python/installation.html) on how to set up the Python execution environments.
-
 * This will be replaced by the TOC
 {:toc}
 
-## Setting up a Python Project
+在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
-You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({{ site.baseurl }}/dev/table/python/installation.html#installation-of-pyflink).
+关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/table/python/installation.html)。
 
-## Writing a Flink Python Table API Program
+## 创建一个Python Table API项目
 
-Table API applications begin by declaring a table environment; either a `BatchTableEvironment` for batch applications or `StreamTableEnvironment` for streaming applications.
-This serves as the main entry point for interacting with the Flink runtime.
-It can be used for setting execution parameters such as restart strategy, default parallelism, etc.
-The table config allows setting Table API specific configurations.
+首先，使用您最熟悉的IDE创建一个Python项目，然后安装PyFlink包，请参考[PyFlink安装指南]({{ site.baseurl }}/zh/dev/table/python/installation.html#installation-of-pyflink)了解详细信息。
+
+## 编写一个Flink Python Table API程序
+
+编写Flink Python Table API程序的第一步是创建`BatchTableEnvironment`
+(或者`StreamTableEnvironment`，如果你要创建一个流式作业)。这是Python Table API作业的入口类。
 
 {% highlight python %}
 exec_env = ExecutionEnvironment.get_execution_environment()
@@ -48,7 +46,12 @@ t_config = TableConfig()
 t_env = BatchTableEnvironment.create(exec_env, t_config)
 {% endhighlight %}
 
-The the table environment created, you can declare source and sink tables.
+`ExecutionEnvironment` (或者`StreamExecutionEnvironment`，如果你要创建一个流式作业)
+可以用来设置执行参数，比如重启策略，缺省并发值等。
+
+`TableConfig`可以用来设置缺省的catalog名字，自动生成代码时方法大小的阈值等.
+
+接下来，我们将介绍如何创建源表和结果表。
 
 {% highlight python %}
 t_env.connect(FileSystem().path('/tmp/input')) \
@@ -68,6 +71,7 @@ t_env.connect(FileSystem().path('/tmp/output')) \
                  .field('count', DataTypes.BIGINT())) \
     .create_temporary_table('mySink')
 {% endhighlight %}
+
 You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
 {% highlight python %}
 my_source_ddl = """
@@ -94,28 +98,29 @@ my_sink_ddl = """
 t_env.sql_update(my_source_ddl)
 t_env.sql_update(my_sink_ddl)
 {% endhighlight %}
-This registers a table named `mySource` and a table named `mySink` in the execution environment.
-The table `mySource` has only one column, word, and it consumes strings read from file `/tmp/input`.
-The table `mySink` has two columns, word and count, and writes data to the file `/tmp/output`, with `\t` as the field delimiter.
 
-You can now create a job which reads input from table `mySource`, preforms some transformations, and writes the results to table `mySink`.
+上面的程序展示了如何创建及在`ExecutionEnvironment`中注册表名分别为`mySource`和`mySink`的表。
+其中，源表`mySource`有一列: word，该表代表了从输入文件`/tmp/input`中读取的单词；
+结果表`mySink`有两列: word和count，该表会将计算结果输出到文件`/tmp/output`中，字段之间使用`\t`作为分隔符。
+
+接下来，我们介绍如何创建一个作业：该作业读取表`mySource`中的数据，进行一些变换，然后将结果写入表`mySink`。
 
 {% highlight python %}
-t_env.from_path('mySource') \
+t_env.scan('mySource') \
     .group_by('word') \
     .select('word, count(1)') \
     .insert_into('mySink')
 {% endhighlight %}
 
-Finally you must execute the actual Flink Python Table API job.
-All operations, such as creating sources, transformations and sinks are lazy.
-Only when `t_env.execute(job_name)` is called will the job be run.
+最后，需要做的就是启动Flink Python Table API作业。上面所有的操作，比如创建源表
+进行变换以及写入结果表的操作都只是构建作业逻辑图，只有当`t_env.execute(job_name)`被调用的时候，
+作业才会被真正提交到集群或者本地进行执行。
 
 {% highlight python %}
-t_env.execute("tutorial_job")
+t_env.execute("python_job")
 {% endhighlight %}
 
-The complete code so far:
+该教程的完整代码如下:
 
 {% highlight python %}
 from pyflink.dataset import ExecutionEnvironment
@@ -149,28 +154,27 @@ t_env.from_path('mySource') \
     .select('word, count(1)') \
     .insert_into('mySink')
 
-t_env.execute("tutorial_job")
+t_env.execute("python_job")
 {% endhighlight %}
 
-## Executing a Flink Python Table API Program
-Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
+## 执行一个Flink Python Table API程序
+
+首先，你需要在文件 “/tmp/input” 中准备好输入数据。你可以选择通过如下命令准备输入数据：
 
 {% highlight bash %}
 $ echo -e  "flink\npyflink\nflink" > /tmp/input
 {% endhighlight %}
 
-Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):
+接下来，可以在命令行中运行作业（假设作业名为WordCount.py）（注意：如果输出结果文件“/tmp/output”已经存在，你需要先删除文件，否则程序将无法正确运行起来）：
 
 {% highlight bash %}
 $ python WordCount.py
 {% endhighlight %}
 
-The command builds and runs the Python Table API program in a local mini cluster.
-You can also submit the Python Table API program to a remote cluster, you can refer
-[Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples)
-for more details.
+上述命令会构建Python Table API程序，并在本地mini cluster中运行。如果想将作业提交到远端集群执行，
+可以参考[作业提交示例]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples)。
 
-Finally, you can see the execution result on the command line:
+最后，你可以通过如下命令查看你的运行结果：
 
 {% highlight bash %}
 $ cat /tmp/output
@@ -178,6 +182,5 @@ flink	2
 pyflink	1
 {% endhighlight %}
 
-This should get you started with writing your own Flink Python Table API programs.
-To learn more about the Python Table API, you can refer
-[Flink Python Table API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
+上述教程介绍了如何编写并运行一个Flink Python Table API程序，如果想了解Flink Python Table API
+的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}/api/python)。

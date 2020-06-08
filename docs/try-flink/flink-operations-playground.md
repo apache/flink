@@ -1,8 +1,8 @@
 ---
 title: "Flink Operations Playground"
 nav-title: 'Flink Operations Playground'
-nav-parent_id: docker-playgrounds
-nav-pos: 1
+nav-parent_id: try-flink
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

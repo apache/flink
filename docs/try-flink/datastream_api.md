@@ -2,7 +2,7 @@
 title: "DataStream API"
 nav-id: datastreamwalkthrough
 nav-title: 'DataStream API'
-nav-parent_id: walkthroughs
+nav-parent_id: try-flink
 nav-pos: 1
 ---
 <!--

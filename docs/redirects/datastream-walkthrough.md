@@ -1,9 +1,8 @@
 ---
-title: Docker Playgrounds
-nav-id: docker-playgrounds
-nav-title: 'Docker Playgrounds'
-nav-parent_id: getting-started
-nav-pos: 10
+title: DataStream Walkthrough
+layout: redirect
+redirect: /try-flink/datastream_api.html
+permalink: /getting-started/walkthroughs/datastream_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

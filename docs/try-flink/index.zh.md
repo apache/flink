@@ -1,9 +1,10 @@
 ---
-title: Docker Playgrounds
-nav-id: docker-playgrounds
-nav-title: 'Docker Playgrounds'
-nav-parent_id: getting-started
-nav-pos: 10
+title: "Try Flink"
+nav-id: try-flink
+nav-title: '<i class="fa fa-rocket title appetizer" aria-hidden="true"></i> Try Flink'
+nav-parent_id: root
+section-break: true
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
