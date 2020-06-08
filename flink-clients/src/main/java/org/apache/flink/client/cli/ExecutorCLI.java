@@ -51,12 +51,16 @@ public class ExecutorCLI implements CustomCommandLine {
 	private static final String ID = "Generic CLI";
 
 	private final Option executorOption = new Option("e", "executor", true,
-			"The name of the executor to be used for executing the given job, which is equivalent " +
+			"DEPRECATED: Please use the -t option instead which is also available with the \"Application Mode\".\n" +
+					"The name of the executor to be used for executing the given job, which is equivalent " +
 					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
 					"currently available executors are: " + getExecutorFactoryNames() + ".");
 
 	private final Option targetOption = new Option("t", "target", true,
-			"The type of the deployment target: e.g. yarn-application.");
+			"The name of the executor to be used for executing the given job, which is equivalent " +
+					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
+					"currently available executors are: " + getExecutorFactoryNames() +
+					", \"yarn-application\" and \"kubernetes-application\".");
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
