@@ -1,7 +1,7 @@
 ---
 title: "Configuring Dependencies, Connectors, Libraries"
 layout: redirect
-redirect: /dev/projectsetup/dependencies.html
+permalink: /dev/project-configuration.html
 permalink: /start/dependencies.html
 ---
 <!--
