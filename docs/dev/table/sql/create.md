@@ -31,6 +31,7 @@ Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
 - CREATE DATABASE
+- CREATE VIEW
 - CREATE FUNCTION
 
 ## Run a CREATE statement
@@ -348,6 +349,25 @@ If the database already exists, nothing happens.
 
 Database properties used to store extra information related to this database.
 The key and value of expression `key1=val1` should both be string literal.
+
+{% top %}
+
+## CREATE VIEW
+{% highlight sql %}
+CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
+  [{columnName [, columnName ]* }] [COMMENT view_comment]
+  AS query_expression
+{% endhighlight %}
+
+Create a view with the given query expression. If a view with the same name already exists in the catalog, an exception is thrown.
+
+**TEMPORARY**
+
+Create temporary view that has catalog and database namespaces and overrides views.
+
+**IF NOT EXISTS**
+
+If the view already exists, nothing happens.
 
 {% top %}
 
