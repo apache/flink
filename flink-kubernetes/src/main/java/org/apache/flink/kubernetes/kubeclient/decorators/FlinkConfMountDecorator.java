@@ -145,12 +145,11 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 	 * Get properties map for the cluster-side after removal of some keys.
 	 */
 	private Map<String, String> getClusterSidePropertiesMap(Configuration flinkConfig) {
-		final Map<String, String> propertiesMap = flinkConfig.toMap();
-
-		// remove kubernetes.config.file
-		propertiesMap.remove(KubernetesConfigOptions.KUBE_CONFIG_FILE.key());
-		propertiesMap.remove(DeploymentOptionsInternal.CONF_DIR.key());
-		return propertiesMap;
+		final Configuration clusterSideConfig = flinkConfig.clone();
+		// Remove some configuration options that should not be taken to cluster side.
+		clusterSideConfig.removeConfig(KubernetesConfigOptions.KUBE_CONFIG_FILE);
+		clusterSideConfig.removeConfig(DeploymentOptionsInternal.CONF_DIR);
+		return clusterSideConfig.toMap();
 	}
 
 	@VisibleForTesting
