@@ -229,9 +229,11 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		switch (type.getTypeRoot()) {
 			case NULL:
 				return avroObject -> null;
+			case TINYINT:
+				return avroObject -> ((Integer) avroObject).byteValue();
+			case SMALLINT:
+				return avroObject -> ((Integer) avroObject).shortValue();
 			case BOOLEAN: // boolean
-			case TINYINT: // short
-			case SMALLINT: // int
 			case INTEGER: // int
 			case INTERVAL_YEAR_MONTH: // long
 			case BIGINT: // long
