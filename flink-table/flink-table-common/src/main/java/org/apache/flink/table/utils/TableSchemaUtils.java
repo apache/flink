@@ -58,7 +58,9 @@ public class TableSchemaUtils {
 				}
 			});
 		tableSchema.getPrimaryKey().ifPresent(
-			uniqueConstraint -> builder.primaryKey(uniqueConstraint.getColumns().toArray(new String[0]))
+			uniqueConstraint -> builder.primaryKey(
+				uniqueConstraint.getName(),
+				uniqueConstraint.getColumns().toArray(new String[0]))
 		);
 		return builder.build();
 	}
