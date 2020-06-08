@@ -182,14 +182,14 @@ public class HiveTypeUtil {
 
 		@Override
 		public TypeInfo visit(CharType charType) {
-			// Flink treats string literal UDF parameters as CHAR. Such types may have precisions not supported by
-			// Hive, e.g. CHAR(0). Promote it to STRING in such case if we're told not to check precision.
+			// Flink and Hive have different length limit for CHAR. Promote it to STRING if it exceeds the limits of
+			// Hive and we're told not to check precision. This can be useful when calling Hive UDF to process data.
 			if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH || charType.getLength() < 1) {
 				if (checkPrecision) {
 					throw new CatalogException(
 							String.format("HiveCatalog doesn't support char type with length of '%d'. " +
-											"The maximum length is %d",
-									charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
+											"The supported length is [%d, %d]",
+									charType.getLength(), 1, HiveChar.MAX_CHAR_LENGTH));
 				} else {
 					return TypeInfoFactory.stringTypeInfo;
 				}
@@ -205,11 +205,17 @@ public class HiveTypeUtil {
 			if (varCharType.getLength() == Integer.MAX_VALUE) {
 				return TypeInfoFactory.stringTypeInfo;
 			}
-			if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH) {
-				throw new CatalogException(
-						String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
-									"The maximum length is %d",
-									varCharType.getLength(), HiveVarchar.MAX_VARCHAR_LENGTH));
+			// Flink and Hive have different length limit for VARCHAR. Promote it to STRING if it exceeds the limits of
+			// Hive and we're told not to check precision. This can be useful when calling Hive UDF to process data.
+			if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH || varCharType.getLength() < 1) {
+				if (checkPrecision) {
+					throw new CatalogException(
+							String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
+											"The supported length is [%d, %d]",
+									varCharType.getLength(), 1, HiveVarchar.MAX_VARCHAR_LENGTH));
+				} else {
+					return TypeInfoFactory.stringTypeInfo;
+				}
 			}
 			return TypeInfoFactory.getVarcharTypeInfo(varCharType.getLength());
 		}
