@@ -22,6 +22,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -64,6 +66,29 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 
 	public Optional<String[]> getKeyFields() {
 		return Optional.ofNullable(keyFields);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		JdbcDmlOptions that = (JdbcDmlOptions) o;
+		return Arrays.equals(fieldNames, that.fieldNames) &&
+			Arrays.equals(keyFields, that.keyFields) &&
+			Objects.equals(tableName, that.tableName) &&
+			Objects.equals(dialect, that.dialect);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = Objects.hash(tableName, dialect);
+		result = 31 * result + Arrays.hashCode(fieldNames);
+		result = 31 * result + Arrays.hashCode(keyFields);
+		return result;
 	}
 
 	/**

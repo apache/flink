@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.jdbc.catalog;
 
-import org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory;
+import org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -153,7 +153,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
 	@Override
 	public Optional<Factory> getFactory() {
-		return Optional.of(new JdbcDynamicTableSourceSinkFactory());
+		return Optional.of(new JdbcDynamicTableFactory());
 	}
 
 	// ------ databases ------

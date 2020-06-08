@@ -52,11 +52,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.IDENTIFIER;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.PASSWORD;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.TABLE_NAME;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.URL;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.USERNAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.IDENTIFIER;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.PASSWORD;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.TABLE_NAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.URL;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.USERNAME;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /**
