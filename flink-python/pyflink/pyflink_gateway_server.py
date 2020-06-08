@@ -41,8 +41,12 @@ def find_java_executable():
     flink_conf_path = os.path.join(flink_home, "conf", "flink-conf.yaml")
     java_home = None
 
-    if os.path.isfile(flink_conf_path):
-        with open(flink_conf_path, "r") as f:
+    # get the realpath of tainted path value to avoid CWE22 problem that constructs a path or URI
+    # using the tainted value and might allow an attacker to access, modify, or test the existence
+    # of critical or sensitive files.
+    real_flink_conf_path = os.path.realpath(flink_conf_path)
+    if os.path.isfile(real_flink_conf_path):
+        with open(real_flink_conf_path, "r") as f:
             flink_conf_yaml = f.read()
         java_homes = re.findall(r'^[ ]*env\.java\.home[ ]*: ([^#]*).*$', flink_conf_yaml)
         if len(java_homes) > 1:
@@ -85,14 +89,18 @@ def construct_log_settings():
 
 def construct_classpath():
     flink_home = _find_flink_home()
+    # get the realpath of tainted path value to avoid CWE22 problem that constructs a path or URI
+    # using the tainted value and might allow an attacker to access, modify, or test the existence
+    # of critical or sensitive files.
+    real_flink_home = os.path.realpath(flink_home)
     if on_windows():
         # The command length is limited on Windows. To avoid the problem we should shorten the
         # command length as much as possible.
-        lib_jars = os.path.join(flink_home, "lib", "*")
+        lib_jars = os.path.join(real_flink_home, "lib", "*")
     else:
-        lib_jars = os.pathsep.join(glob.glob(os.path.join(flink_home, "lib", "*.jar")))
+        lib_jars = os.pathsep.join(glob.glob(os.path.join(real_flink_home, "lib", "*.jar")))
 
-    flink_python_jars = glob.glob(os.path.join(flink_home, "opt", "flink-python*.jar"))
+    flink_python_jars = glob.glob(os.path.join(real_flink_home, "opt", "flink-python*.jar"))
     if len(flink_python_jars) < 1:
         print("The flink-python jar is not found in the opt folder of the FLINK_HOME: %s" %
               flink_home)
