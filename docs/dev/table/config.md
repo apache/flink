@@ -104,3 +104,9 @@ The following options can be used to tune the performance of the query execution
 The following options can be used to adjust the behavior of the query optimizer to get a better execution plan.
 
 {% include generated/optimizer_config_configuration.html %}
+
+### Table Options
+
+The following options can be used to adjust the behavior of the table planner.
+
+{% include generated/table_config_configuration.html %}

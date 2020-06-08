@@ -96,3 +96,9 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 以下配置可以用于调整查询优化器的行为以获得更好的执行计划。
 
 {% include generated/optimizer_config_configuration.html %}
+
+### Planner 配置
+
+以下配置可以用于调整 planner 的行为。
+
+{% include generated/table_config_configuration.html %}
