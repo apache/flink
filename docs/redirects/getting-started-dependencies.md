@@ -1,9 +1,8 @@
 ---
-title: "Project Setup"
-nav-id: project-setup
-nav-title: 'Project Setup'
-nav-parent_id: getting-started
-nav-pos: 30
+title: Configuring Dependencies, Connectors, Libraries
+layout: redirect
+redirect: /dev/project-configuration.html
+permalink: /getting-started/project-setup/dependencies.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
