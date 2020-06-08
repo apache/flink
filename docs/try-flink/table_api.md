@@ -1,7 +1,6 @@
 ---
-title: "Table API"
-nav-id: tableapiwalkthrough
-nav-title: 'Table API'
+title: "Real Time Reporting with the Table API"
+nav-title: 'Real Time Reporting with the Table API'
 nav-parent_id: try-flink
 nav-pos: 2
 ---
