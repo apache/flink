@@ -155,9 +155,7 @@ class TableEnvironment(object):
         ValidationException is thrown when there is already a module with the same name.
 
         :param module_name: Name of the :class:`~pyflink.table.Module`.
-        :type module_name: str
         :param module: The module instance.
-        :type module: pyflink.table.Module
 
         .. versionadded:: 1.12.0
         """
@@ -169,7 +167,6 @@ class TableEnvironment(object):
         ValidationException is thrown when there is no module with the given name.
 
         :param module_name: Name of the :class:`~pyflink.table.Module`.
-        :type module_name: str
 
         .. versionadded:: 1.12.0
         """
@@ -179,9 +176,10 @@ class TableEnvironment(object):
         """
         Registers a java user defined function class as a temporary system function.
 
-        Compared to .. seealso:: :func:`create_temporary_function`, system functions are identified
-        by a global name that is independent of the current catalog and current database. Thus,
-        this method allows to extend the set of built-in system functions like TRIM, ABS, etc.
+        Compared to .. seealso:: :func:`create_java_temporary_function`, system functions are
+        identified by a global name that is independent of the current catalog and current
+        database. Thus, this method allows to extend the set of built-in system functions like
+        TRIM, ABS, etc.
 
         Temporary functions can shadow permanent ones. If a permanent function under a given name
         exists, it will be inaccessible in the current session. To make the permanent function
@@ -194,12 +192,10 @@ class TableEnvironment(object):
             ...     "java.user.defined.function.class.name")
 
         :param name: The name under which the function will be registered globally.
-        :type name: str
         :param function_class_name: The java full qualified class name of the function class
                                     containing the implementation. The function must have a
                                     public no-argument constructor and can be founded in current
                                     Java classloader.
-        :type function_class_name: str
 
         .. versionadded:: 1.12.0
         """
@@ -240,18 +236,16 @@ class TableEnvironment(object):
             ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
         :param name: The name under which the function will be registered globally.
-        :type name: str
         :param function: The function class containing the implementation. The function must have a
                          public no-argument constructor and can be founded in current Java
                          classloader.
-        :type function: pyflink.table.udf.UserDefinedFunctionWrapper
 
         .. versionadded:: 1.12.0
         """
         java_function = function.java_user_defined_function()
         self._j_tenv.createTemporarySystemFunction(name, java_function)
 
-    def drop_temporary_system_function(self, name: str):
+    def drop_temporary_system_function(self, name: str) -> bool:
         """
         Drops a temporary system function registered under the given name.
 
@@ -259,9 +253,7 @@ class TableEnvironment(object):
         queries that reference this name.
 
         :param name: The name under which the function has been registered globally.
-        :type name: str
         :return: true if a function existed under the given name and was removed.
-        :rtype: bool
 
         .. versionadded:: 1.12.0
         """
@@ -285,15 +277,12 @@ class TableEnvironment(object):
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
                      the format of the path.
-        :type path: str
         :param function_class_name: The java full qualified class name of the function class
                                     containing the implementation. The function must have a
                                     public no-argument constructor and can be founded in current
                                     Java classloader.
-        :type function_class_name: str
         :param ignore_if_exists: If a function exists under the given path and this flag is set,
                                  no operation is executed. An exception is thrown otherwise.
-        :type ignore_if_exists: bool
 
         .. versionadded:: 1.12.0
         """
@@ -305,16 +294,14 @@ class TableEnvironment(object):
         else:
             self._j_tenv.createFunction(path, java_function, ignore_if_exists)
 
-    def drop_function(self, path):
+    def drop_function(self, path) -> bool:
         """
         Drops a catalog function registered in the given path.
 
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
                      the format of the path.
-        :type path: str
         :return: true if a function existed in the given path and was removed.
-        :rtype: bool
 
         .. versionadded:: 1.12.0
         """
@@ -324,9 +311,9 @@ class TableEnvironment(object):
         """
         Registers a java user defined function class as a temporary catalog function.
 
-        Compared to .. seealso:: :func:`create_temporary_system_function` with a globally defined
-        name, catalog functions are always (implicitly or explicitly) identified by a catalog and
-        database.
+        Compared to .. seealso:: :func:`create_java_temporary_system_function` with a globally
+        defined name, catalog functions are always (implicitly or explicitly) identified by a
+        catalog and database.
 
         Temporary functions can shadow permanent ones. If a permanent function under a given name
         exists, it will be inaccessible in the current session. To make the permanent function
@@ -341,12 +328,10 @@ class TableEnvironment(object):
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
                      the format of the path.
-        :type path: str
         :param function_class_name: The java full qualified class name of the function class
                                     containing the implementation. The function must have a
                                     public no-argument constructor and can be founded in current
                                     Java classloader.
-        :type function_class_name: str
 
         .. versionadded:: 1.12.0
         """
@@ -388,18 +373,16 @@ class TableEnvironment(object):
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
                      the format of the path.
-        :type path: str
         :param function: The function class containing the implementation. The function must have a
                          public no-argument constructor and can be founded in current Java
                          classloader.
-        :type function: pyflink.table.udf.UserDefinedFunctionWrapper
 
         .. versionadded:: 1.12.0
         """
         java_function = function.java_user_defined_function()
         self._j_tenv.createTemporaryFunction(path, java_function)
 
-    def drop_temporary_function(self, path):
+    def drop_temporary_function(self, path) -> bool:
         """
         Drops a temporary system function registered under the given name.
 
@@ -409,9 +392,7 @@ class TableEnvironment(object):
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
                      the format of the path.
-        :type path: str
         :return: true if a function existed in the given path and was removed.
-        :rtype: bool
 
         .. versionadded:: 1.12.0
         """
