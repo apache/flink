@@ -25,8 +25,6 @@ import org.apache.hadoop.hbase.client.ConnectionConfiguration;
 import java.io.Serializable;
 import java.util.Objects;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
  * Options for HBase writing.
  */
@@ -100,19 +98,15 @@ public class HBaseWriteOptions implements Serializable {
 	 */
 	public static class Builder {
 
-		// default is 2mb which is defined in hbase
 		private long bufferFlushMaxSizeInBytes = ConnectionConfiguration.WRITE_BUFFER_SIZE_DEFAULT;
-		private long bufferFlushMaxRows = -1;
-		private long bufferFlushIntervalMillis = -1;
+		private long bufferFlushMaxRows = 0;
+		private long bufferFlushIntervalMillis = 0;
 
 		/**
 		 * Optional. Sets when to flush a buffered request based on the memory size of rows currently added.
 		 * Default to <code>2mb</code>.
 		 */
 		public Builder setBufferFlushMaxSizeInBytes(long bufferFlushMaxSizeInBytes) {
-			checkArgument(
-				bufferFlushMaxSizeInBytes > 0,
-				"Max byte size of buffered rows must be larger than 0.");
 			this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
 			return this;
 		}
@@ -122,9 +116,6 @@ public class HBaseWriteOptions implements Serializable {
 		 * Defaults to not set, i.e. won't flush based on the number of buffered rows.
 		 */
 		public Builder setBufferFlushMaxRows(long bufferFlushMaxRows) {
-			checkArgument(
-				bufferFlushMaxRows > 0,
-				"Max number of buffered rows must be larger than 0.");
 			this.bufferFlushMaxRows = bufferFlushMaxRows;
 			return this;
 		}
@@ -134,9 +125,6 @@ public class HBaseWriteOptions implements Serializable {
 		 * Defaults to not set, i.e. won't flush based on flush interval.
 		 */
 		public Builder setBufferFlushIntervalMillis(long bufferFlushIntervalMillis) {
-			checkArgument(
-				bufferFlushIntervalMillis > 0,
-				"Interval (in milliseconds) between each flush must be larger than 0.");
 			this.bufferFlushIntervalMillis = bufferFlushIntervalMillis;
 			return this;
 		}

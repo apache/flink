@@ -54,50 +54,51 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		.key("table-name")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("Required. It defines the HBase table name.");
+		.withDescription("The name of HBase table to connect.");
 
 	private static final ConfigOption<String> ZOOKEEPER_QUORUM = ConfigOptions
 		.key("zookeeper.quorum")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("Required. It defines HBase Zookeeper quorum.");
+		.withDescription("The HBase Zookeeper quorum.");
 
 	private static final ConfigOption<String> ZOOKEEPER_ZNODE_PARENT = ConfigOptions
 		.key("zookeeper.znode.parent")
 		.stringType()
 		.defaultValue("/hbase")
-		.withDescription("Optional. The root dir in Zookeeper for HBase cluster, default value is '/hbase'");
+		.withDescription("The root dir in Zookeeper for HBase cluster.");
 
 	private static final ConfigOption<String> NULL_STRING_LITERAL = ConfigOptions
 		.key("null-string-literal")
 		.stringType()
 		.defaultValue("null")
-		.withDescription("Optional. Representation for null values for string fields. (\"null\" by default). " +
-			"HBase connector encode/decode empty bytes as null values except string types.");
+		.withDescription("Representation for null values for string fields. HBase source and " +
+			"sink encodes/decodes empty bytes as null values for all types except string type.");
 
 	private static final ConfigOption<MemorySize> SINK_BUFFER_FLUSH_MAX_SIZE = ConfigOptions
 		.key("sink.buffer-flush.max-size")
 		.memoryType()
 		.defaultValue(MemorySize.parse("2mb"))
-		.withDescription("Optional. Writing option, determines how many size in memory of " +
-			"buffered rows to insert per round trip. This can help performance on writing " +
-			"to JDBC database. The default value is '2mb'.");
+		.withDescription("Writing option, maximum size in memory of buffered rows for each " +
+			"writing request. This can improve performance for writing data to HBase database, " +
+			"but may increase the latency. Can be set to '0' to disable it. ");
 
 	private static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS = ConfigOptions
 		.key("sink.buffer-flush.max-rows")
 		.intType()
-		.noDefaultValue()
-		.withDescription("Optional. Writing option, determines how many rows to insert " +
-			"per round trip. This can help performance on writing to JDBC database. " +
-			"No default value, i.e. the default flushing is not depends on the number of buffered rows.");
+		.defaultValue(1000)
+		.withDescription("Writing option, maximum number of rows to buffer for each writing request. " +
+			"This can improve performance for writing data to HBase database, but may increase the latency. " +
+			"Can be set to '0' to disable it.");
 
 	private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
 		.key("sink.buffer-flush.interval")
 		.durationType()
-		.noDefaultValue()
-		.withDescription("Optional. Writing option, sets a flush interval flushing " +
-			"buffered requesting if the interval passes, in milliseconds. Default value is '0s', " +
-			"which means no asynchronous flush thread will be scheduled.");
+		.defaultValue(Duration.ofSeconds(1))
+		.withDescription("Writing option, the interval to flush any buffered rows. " +
+			"This can improve performance for writing data to HBase database, but may increase the latency. " +
+			"Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows' " +
+			"can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.");
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
@@ -135,10 +136,8 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
 		writeBuilder.setBufferFlushMaxSizeInBytes(helper.getOptions().get(SINK_BUFFER_FLUSH_MAX_SIZE).getBytes());
-		helper.getOptions().getOptional(SINK_BUFFER_FLUSH_INTERVAL)
-			.ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
-		helper.getOptions().getOptional(SINK_BUFFER_FLUSH_MAX_ROWS)
-			.ifPresent(writeBuilder::setBufferFlushMaxRows);
+		writeBuilder.setBufferFlushIntervalMillis(helper.getOptions().get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
+		writeBuilder.setBufferFlushMaxRows(helper.getOptions().get(SINK_BUFFER_FLUSH_MAX_ROWS));
 		String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
 		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
