@@ -1,5 +1,5 @@
 ---
-title: Learn Flink
+title: "Learn Flink: Hands-on Training"
 nav-id: learn-flink
 nav-pos: 2
 nav-title: '<i class="fa fa-hand-paper-o title appetizer" aria-hidden="true"></i> Learn Flink'

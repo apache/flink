@@ -26,13 +26,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The [Hands-on Training]({% link training/index.zh.md %}) explains the basic concepts
+The [Hands-on Training]({% link learn-flink/index.zh.md %}) explains the basic concepts
 of stateful and timely stream processing that underlie Flink's APIs, and provides examples of how
 these mechanisms are used in applications. Stateful stream processing is introduced in the context
-of [Data Pipelines & ETL]({% link training/etl.zh.md %}#stateful-transformations)
-and is further developed in the section on [Fault Tolerance]({% link
-training/fault_tolerance.zh.md %}). Timely stream processing is introduced in the section on
-[Streaming Analytics]({% link training/streaming_analytics.zh.md %}).
+of [Data Pipelines & ETL]({% link learn-flink/etl.zh.md %}#stateful-transformations)
+and is further developed in the section on [Fault Tolerance]({% link learn-flink/fault_tolerance.zh.md %}). Timely stream processing is introduced in the section on
+[Streaming Analytics]({% link learn-flink/streaming_analytics.zh.md %}).
 
 This _Concepts in Depth_ section provides a deeper understanding of how Flink's architecture and runtime 
 implement these concepts.

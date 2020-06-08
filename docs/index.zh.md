@@ -31,11 +31,11 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 ## 初步印象
 
 * **代码练习**: 跟随分步指南通过 Flink API 实现简单应用或查询。
-  * [实现 DataStream 应用](./getting-started/walkthroughs/datastream_api.html)
-  * [书写 Table API 查询](./getting-started/walkthroughs/table_api.html)
+  * [实现 DataStream 应用]({% link try-flink/datastream_api.zh.md %})
+  * [书写 Table API 查询]({% link try-flink/table_api.zh.md %})
 
 * **Docker 游乐场**: 你只需花几分钟搭建 Flink 沙盒环境，就可以探索和使用 Flink 了。
-  * [运行与管理 Flink 流处理应用](./getting-started/docker-playgrounds/flink-operations-playground.html)
+  * [运行与管理 Flink 流处理应用]({% link try-flink/flink-operations-playground.zh.md %})
 
 * **概念**: 学习 Flink 的基本概念能更好地理解文档。
   * [有状态流处理](concepts/stateful-stream-processing.html)
