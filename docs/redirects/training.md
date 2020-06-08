@@ -1,7 +1,7 @@
 ---
 title: Hands-on Training
 layout: redirect
-redirect: /learn-flink/html
+redirect: /learn-flink/index.html
 permalink: /training/index.html
 ---
 <!--
