@@ -44,9 +44,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * for further parsing.
  */
 @Internal
-public class ExecutorCLI implements CustomCommandLine {
+public class GenericCLI implements CustomCommandLine {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutorCLI.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GenericCLI.class);
 
 	private static final String ID = "Generic CLI";
 
@@ -57,9 +57,9 @@ public class ExecutorCLI implements CustomCommandLine {
 					"currently available executors are: " + getExecutorFactoryNames() + ".");
 
 	private final Option targetOption = new Option("t", "target", true,
-			"The name of the executor to be used for executing the given job, which is equivalent " +
+			"The deployment target for the given application, which is equivalent " +
 					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
-					"currently available executors are: " + getExecutorFactoryNames() +
+					"currently available targets are: " + getExecutorFactoryNames() +
 					", \"yarn-application\" and \"kubernetes-application\".");
 
 	/**
@@ -79,7 +79,7 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	private final String configurationDir;
 
-	public ExecutorCLI(final Configuration configuration, final String configDir) {
+	public GenericCLI(final Configuration configuration, final String configDir) {
 		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
 		this.configurationDir =  checkNotNull(configDir);
 	}

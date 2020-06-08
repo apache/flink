@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.ExecutorCLI;
+import org.apache.flink.client.cli.GenericCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -66,7 +66,7 @@ public class KubernetesSessionCli {
 
 	private final Configuration baseConfiguration;
 
-	private final ExecutorCLI cli;
+	private final GenericCLI cli;
 	private final ClusterClientServiceLoader clusterClientServiceLoader;
 
 	public KubernetesSessionCli(Configuration configuration, String configDir) {
@@ -76,7 +76,7 @@ public class KubernetesSessionCli {
 	public KubernetesSessionCli(Configuration configuration, ClusterClientServiceLoader clusterClientServiceLoader, String configDir) {
 		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
 		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
-		this.cli = new ExecutorCLI(baseConfiguration, configDir);
+		this.cli = new GenericCLI(baseConfiguration, configDir);
 	}
 
 	public Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
