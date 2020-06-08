@@ -1,7 +1,6 @@
 ---
-title: "DataStream API"
-nav-id: datastreamwalkthrough
-nav-title: 'DataStream API'
+title: "Fraud Detection with the DataStream API"
+nav-title: 'Fraud Detection with the DataStream API'
 nav-parent_id: try-flink
 nav-pos: 1
 ---
