@@ -88,6 +88,14 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 		return new CatalogTableImpl(getSchema(), getPartitionKeys(), options, getComment());
 	}
 
+	public CatalogTable copy(TableSchema tableSchema) {
+		return new CatalogTableImpl(
+				tableSchema.copy(),
+				new ArrayList<>(getPartitionKeys()),
+				new HashMap<>(getProperties()),
+				getComment());
+	}
+
 	/**
 	 * Construct a {@link CatalogTableImpl} from complete properties that contains table schema.
 	 */

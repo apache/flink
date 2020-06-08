@@ -29,24 +29,19 @@ import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.operations.SqlToOperationConverter;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil$;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link Parser} that uses Calcite.
@@ -60,20 +55,17 @@ public class ParserImpl implements Parser {
 	// multiple statements parsing
 	private final Supplier<FlinkPlannerImpl> validatorSupplier;
 	private final Supplier<CalciteParser> calciteParserSupplier;
-	private final Supplier<SqlExprToRexConverterFactory> sqlExprToRexConverterSupplier;
-	private final Supplier<FlinkTypeFactory> typeFactorySupplier;
+	private final Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator;
 
 	public ParserImpl(
 			CatalogManager catalogManager,
 			Supplier<FlinkPlannerImpl> validatorSupplier,
 			Supplier<CalciteParser> calciteParserSupplier,
-			Supplier<SqlExprToRexConverterFactory> sqlExprToRexConverterSupplier,
-			Supplier<FlinkTypeFactory> typeFactorySupplier) {
+			Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator) {
 		this.catalogManager = catalogManager;
 		this.validatorSupplier = validatorSupplier;
 		this.calciteParserSupplier = calciteParserSupplier;
-		this.sqlExprToRexConverterSupplier = sqlExprToRexConverterSupplier;
-		this.typeFactorySupplier = typeFactorySupplier;
+		this.sqlExprToRexConverterCreator = sqlExprToRexConverterCreator;
 	}
 
 	@Override
@@ -97,15 +89,7 @@ public class ParserImpl implements Parser {
 
 	@Override
 	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-		FlinkTypeFactory typeFactory = typeFactorySupplier.get();
-		List<String> fieldNames = Arrays.asList(inputSchema.getFieldNames());
-		List<LogicalType> fieldTypes = Arrays.stream(inputSchema.getFieldDataTypes())
-				.map(LogicalTypeDataTypeConverter::toLogicalType)
-				.collect(Collectors.toList());
-		RelDataType inputType = typeFactory.buildRelNodeRowType(
-				JavaScalaConversionUtil$.MODULE$.toScala(fieldNames),
-				JavaScalaConversionUtil$.MODULE$.toScala(fieldTypes));
-		SqlExprToRexConverter sqlExprToRexConverter = sqlExprToRexConverterSupplier.get().create(inputType);
+		SqlExprToRexConverter sqlExprToRexConverter = sqlExprToRexConverterCreator.apply(inputSchema);
 		RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
 		LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
 		return new RexNodeExpression(rexNode, TypeConversions.fromLogicalToDataType(logicalType));

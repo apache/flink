@@ -41,6 +41,8 @@ import org.apache.flink.table.types.utils.TypeConversions;
 @Internal
 public class CatalogTableSchemaResolver {
 	private final Parser parser;
+	// A flag to indicate the table environment should work in a batch or streaming
+	// TODO remove this once FLINK-18180 is finished
 	private final boolean isStreamingMode;
 
 	public CatalogTableSchemaResolver(Parser parser, boolean isStreamingMode) {
@@ -76,7 +78,7 @@ public class CatalogTableSchemaResolver {
 			DataType fieldType = fieldTypes[i];
 			if (tableColumn.isGenerated() && isProctimeType(tableColumn.getExpr().get(), tableSchema)) {
 				if (fieldNames[i].equals(rowtime)) {
-					throw new TableException("proctime can't be defined on watermark spec.");
+					throw new TableException("Watermark can not be defined for a processing time attribute column.");
 				}
 				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
 				LogicalType proctimeType = new TimestampType(

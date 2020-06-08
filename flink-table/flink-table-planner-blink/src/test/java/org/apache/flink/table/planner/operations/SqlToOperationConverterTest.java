@@ -123,8 +123,8 @@ public class SqlToOperationConverterTest {
 		catalogManager,
 		plannerSupplier,
 		() -> plannerSupplier.get().parser(),
-		() -> t -> getPlannerContext().createSqlExprToRexConverter(t),
-		() -> getPlannerContext().getTypeFactory());
+		t -> getPlannerContext().createSqlExprToRexConverter(
+				getPlannerContext().getTypeFactory().buildRelNodeRowType(t)));
 	private final PlannerContext plannerContext =
 		new PlannerContext(tableConfig,
 			functionCatalog,

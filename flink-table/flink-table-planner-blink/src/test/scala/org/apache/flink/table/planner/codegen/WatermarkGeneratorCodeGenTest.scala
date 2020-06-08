@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{TableConfig, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
 import org.apache.flink.table.delegation.Parser
@@ -41,7 +41,7 @@ import org.junit.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util.Collections
-import java.util.function.{Supplier => JSupplier}
+import java.util.function.{Function => JFunction, Supplier => JSupplier}
 
 /**
   * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].
@@ -67,11 +67,10 @@ class WatermarkGeneratorCodeGenTest {
     new JSupplier[CalciteParser] {
       override def get(): CalciteParser = plannerContext.createCalciteParser()
     },
-    new JSupplier[SqlExprToRexConverterFactory] {
-      override def get(): SqlExprToRexConverterFactory = sqlExprToRexConverterFactory
-    },
-    new JSupplier[FlinkTypeFactory] {
-      override def get(): FlinkTypeFactory = plannerContext.getTypeFactory
+    new JFunction[TableSchema, SqlExprToRexConverter] {
+      override def apply(t: TableSchema): SqlExprToRexConverter = {
+        sqlExprToRexConverterFactory.create(plannerContext.getTypeFactory.buildRelNodeRowType(t))
+      }
     }
   )
   val plannerContext = new PlannerContext(

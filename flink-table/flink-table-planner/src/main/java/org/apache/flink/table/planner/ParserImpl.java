@@ -83,7 +83,6 @@ public class ParserImpl implements Parser {
 
 	@Override
 	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-		// do not support for old planner
-		return null;
+		throw new UnsupportedOperationException();
 	}
 }

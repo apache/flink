@@ -60,8 +60,7 @@ public class PlannerMocks {
 				catalogManager,
 				() -> planner,
 				planner::parser,
-				() -> plannerContext::createSqlExprToRexConverter,
-				plannerContext::getTypeFactory
+				t -> plannerContext.createSqlExprToRexConverter(plannerContext.getTypeFactory().buildRelNodeRowType(t))
 		);
 		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, isStreamingMode));
 		return planner;

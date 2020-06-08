@@ -58,7 +58,7 @@ public interface Parser {
 	UnresolvedIdentifier parseIdentifier(String identifier);
 
 	/**
-	 * Entry point for parse sql expression expressed as a String.
+	 * Entry point for parsing sql expression expressed as a String.
 	 *
 	 * @param sqlExpression the SQL expression to parse
 	 * @param inputSchema the schema of the fields in sql expression

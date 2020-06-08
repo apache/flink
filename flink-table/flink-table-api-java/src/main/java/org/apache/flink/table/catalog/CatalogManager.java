@@ -26,11 +26,14 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -152,6 +155,12 @@ public final class CatalogManager {
 		}
 	}
 
+	/**
+	 * We do not pass it in the ctor, because we need a {@link Parser} that is constructed in a
+	 * {@link Planner}.  At the same time {@link Planner} needs a {@link CatalogManager} to
+	 * be constructed. Thus we can't get {@link Parser} instance when creating a
+	 * {@link CatalogManager}. See {@link TableEnvironmentImpl#create}.
+	 */
 	public void setCatalogTableSchemaResolver(CatalogTableSchemaResolver schemaResolver) {
 		this.schemaResolver = schemaResolver;
 	}
@@ -363,11 +372,7 @@ public final class CatalogManager {
 		}
 		CatalogTableImpl catalogTableImpl = (CatalogTableImpl) table;
 		TableSchema newTableSchema = schemaResolver.resolve(catalogTableImpl.getSchema());
-		return new CatalogTableImpl(
-				newTableSchema,
-				new ArrayList<>(catalogTableImpl.getPartitionKeys()),
-				new HashMap<>(catalogTableImpl.getProperties()),
-				catalogTableImpl.getComment());
+		return catalogTableImpl.copy(newTableSchema);
 	}
 
 	/**

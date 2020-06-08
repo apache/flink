@@ -79,7 +79,7 @@ class TableSourceTest extends TableTestBase {
   @Test
   def testProctimeOnWatermarkSpec(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("proctime can't be defined on watermark spec.")
+    thrown.expectMessage("Watermark can not be defined for a processing time attribute column.")
     val ddl =
       s"""
          |CREATE TABLE procTimeT (
