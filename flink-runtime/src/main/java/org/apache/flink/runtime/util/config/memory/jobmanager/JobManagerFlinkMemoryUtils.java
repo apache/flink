@@ -88,16 +88,16 @@ public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFl
 		}
 	}
 
-	private static void verifyJobStoreCacheSize(Configuration config, MemorySize jvmHeapSize) {
+	private static void verifyJobStoreCacheSize(Configuration config, MemorySize offHeapMemorySize) {
 		MemorySize jobStoreCacheHeapSize =
 			MemorySize.parse(config.getLong(JobManagerOptions.JOB_STORE_CACHE_SIZE) + "b");
-		if (jvmHeapSize.compareTo(jobStoreCacheHeapSize) < 1) {
+		if (offHeapMemorySize.compareTo(jobStoreCacheHeapSize) < 1) {
 			LOG.warn(
-				"The configured or derived JVM heap memory size ({}: {}) is less than the configured or default size " +
+				"The configured or derived JVM off-Heap memory size ({}: {}) is less than the configured or default size " +
 					"of the job store cache ({}: {})",
+				JobManagerOptions.OFF_HEAP_MEMORY.key(),
+				offHeapMemorySize.toHumanReadableString(),
 				JobManagerOptions.JOB_STORE_CACHE_SIZE.key(),
-				jvmHeapSize.toHumanReadableString(),
-				JobManagerOptions.JVM_HEAP_MEMORY.key(),
 				jobStoreCacheHeapSize.toHumanReadableString());
 		}
 	}

@@ -70,6 +70,20 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 	}
 
 	@Test
+	public void testConfigJvmHeapAndOffHeapMemory() {
+		MemorySize jvmHeapMemory = MemorySize.parse("50m");
+		MemorySize offHeapMemory = MemorySize.parse("40m");
+
+		Configuration conf = new Configuration();
+		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeapMemory);
+		conf.set(JobManagerOptions.OFF_HEAP_MEMORY, offHeapMemory);
+
+		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
+		assertThat(JobManagerProcessSpec.getJvmHeapMemorySize(), is(jvmHeapMemory));
+		assertThat(JobManagerProcessSpec.getJvmDirectMemorySize(), is(offHeapMemory));
+	}
+
+	@Test
 	public void testFlinkInternalMemorySizeAddUpFailure() {
 		MemorySize totalFlinkMemory = MemorySize.parse("199m");
 		MemorySize jvmHeap = MemorySize.parse("100m");
