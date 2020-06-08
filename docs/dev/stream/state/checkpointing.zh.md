@@ -29,7 +29,7 @@ Flink 中的每个方法或算子都能够是**有状态的**（阅读 [working 
 状态化的方法在处理单个 元素/事件 的时候存储数据，让状态成为使各个类型的算子更加精细的重要部分。
 为了让状态容错，Flink 需要为状态添加 **checkpoint（检查点）**。Checkpoint 使得 Flink 能够恢复状态和在流中的位置，从而向应用提供和无故障执行时一样的语义。
 
-[容错文档]({{ site.baseurl }}/zh/training/fault_tolerance.html) 中介绍了 Flink 流计算容错机制内部的技术原理。
+[容错文档]({{ site.baseurl }}/zh/learn-flink/fault_tolerance.html) 中介绍了 Flink 流计算容错机制内部的技术原理。
 
 
 ## 前提条件
@@ -165,7 +165,7 @@ env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 
 ## 选择一个 State Backend
 
-Flink 的 [checkpointing 机制]({{ site.baseurl }}/zh/training/fault_tolerance.html) 会将 timer 以及 stateful 的 operator 进行快照，然后存储下来，
+Flink 的 [checkpointing 机制]({{ site.baseurl }}/zh/learn-flink/fault_tolerance.html) 会将 timer 以及 stateful 的 operator 进行快照，然后存储下来，
 包括连接器（connectors），窗口（windows）以及任何用户[自定义的状态](state.html)。
 Checkpoint 存储在哪里取决于所配置的 **State Backend**（比如 JobManager memory、 file system、 database）。
 
