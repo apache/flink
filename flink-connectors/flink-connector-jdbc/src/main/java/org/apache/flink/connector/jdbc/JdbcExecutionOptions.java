@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * JDBC sink batch options.
@@ -52,6 +53,25 @@ public class JdbcExecutionOptions implements Serializable {
 
 	public int getMaxRetries() {
 		return maxRetries;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		JdbcExecutionOptions that = (JdbcExecutionOptions) o;
+		return batchIntervalMs == that.batchIntervalMs &&
+			batchSize == that.batchSize &&
+			maxRetries == that.maxRetries;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(batchIntervalMs, batchSize, maxRetries);
 	}
 
 	public static Builder builder() {
