@@ -1,9 +1,8 @@
 ---
-title: "Code Walkthroughs"
-nav-id: walkthroughs
-nav-title: 'Code Walkthroughs'
-nav-parent_id: getting-started
-nav-pos: 20
+title: Table Walkthrough
+layout: redirect
+redirect: /try-flink/table_api.html
+permalink: /getting-started/walkthroughs/table_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
