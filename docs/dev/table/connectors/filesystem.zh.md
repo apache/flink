@@ -1,8 +1,8 @@
 ---
-title: "FileSystem Connector"
-nav-title: FileSystem Connector
+title: "FileSystem SQL Connector"
+nav-title: FileSystem
 nav-parent_id: sql-connectors
-nav-pos: 1
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
