@@ -160,6 +160,9 @@ DROP [TEMPORARY] VIEW  [IF EXISTS] [catalog_name.][db_name.]view_name
 
 若视图不存在，则不会进行任何操作。
 
+**依赖管理**
+Flink 没有使用 CASCADE / RESTRICT 关键字来维护视图的依赖关系，当前的简单方案是用户使用视图时再提示错误信息，比如在视图的底层表已经被删除等场景。
+
 ## DROP FUNCTION
 
 {% highlight sql%}

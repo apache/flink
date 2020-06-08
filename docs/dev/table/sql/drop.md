@@ -160,6 +160,9 @@ Drop temporary view that has catalog and database namespaces.
 
 If the view does not exist, nothing happens.
 
+**MAINTAIN DEPENDENCIES**
+Flink does not maintain dependencies of view by CASCADE/RESTRICT keyword, the current lenient approach is producing postpone error message when user tries to use the view under the scenarios like the underlying table of view has been dropped.
+
 ## DROP FUNCTION
 
 {% highlight sql%}
