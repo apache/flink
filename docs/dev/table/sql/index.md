@@ -33,6 +33,7 @@ This page lists all the supported statements supported in Flink SQL for now:
 - [DROP TABLE, DATABASE, FUNCTION](drop.html)
 - [ALTER TABLE, DATABASE, FUNCTION](alter.html)
 - [INSERT](insert.html)
+- [SQL HINTS](hints.html)
 
 ## Data Types
 
