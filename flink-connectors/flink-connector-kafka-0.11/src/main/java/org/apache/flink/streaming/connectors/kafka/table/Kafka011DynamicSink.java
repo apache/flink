@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -60,7 +59,7 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
 		return new FlinkKafkaProducer011<>(
 				topic,
-				new KeyedSerializationSchemaWrapper<>(serializationSchema),
+				serializationSchema,
 				properties,
 				partitioner);
 	}
