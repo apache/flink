@@ -123,7 +123,7 @@ DataStream<Tuple2<String, String>> stream = ...;
 Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime()");
 
 WindowedTable windowedTable = table.window(
-        Tumble.over(interval(Duration.ofMinutes(10)))
+        Tumble.over(lit(10).minutes())
             .on($("user_action_time"))
             .as("userActionWindow"));
 {% endhighlight %}
@@ -177,7 +177,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource());
 WindowedTable windowedTable = tEnv
 	.from("user_actions")
 	.window(Tumble
-	    .over(interval(Duration.ofMinutes(10)))
+	    .over(lit(10).minutes())
 	    .on($("user_action_time"))
 	    .as("userActionWindow"));
 {% endhighlight %}
@@ -284,7 +284,7 @@ Table table = tEnv.fromDataStream(stream, $("user_action_time").rowtime(), $("us
 // Usage:
 
 WindowedTable windowedTable = table.window(Tumble
-       .over(interval(Duration.ofMinutes(10)))
+       .over(lit(10).minutes())
        .on($("user_action_time"))
        .as("userActionWindow"));
 {% endhighlight %}
@@ -365,7 +365,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble.over(interval(Duration.ofMinutes(10))).on($("user_action_time")).as("userActionWindow"));
+	.window(Tumble.over(lit(10).minutes()).on($("user_action_time")).as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
