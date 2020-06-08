@@ -21,18 +21,23 @@ package org.apache.flink.table.filesystem.stream;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.filesystem.PartitionTimeExtractor;
+import org.apache.flink.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
@@ -49,12 +54,20 @@ import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionVa
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
  * watermark information for checkpoint.
  */
-public class PartitionTimeCommitTigger extends PartitionCommitTrigger {
+public class PartitionTimeCommitTigger implements PartitionCommitTrigger {
+
+	private static final ListStateDescriptor<List<String>> PENDING_PARTITIONS_STATE_DESC =
+			new ListStateDescriptor<>(
+					"pending-partitions",
+					new ListSerializer<>(StringSerializer.INSTANCE));
 
 	private static final ListStateDescriptor<Map<Long, Long>> WATERMARKS_STATE_DESC =
 			new ListStateDescriptor<>(
 					"checkpoint-id-to-watermark",
 					new MapSerializer<>(LongSerializer.INSTANCE, LongSerializer.INSTANCE));
+
+	private final ListState<List<String>> pendingPartitionsState;
+	private final Set<String> pendingPartitions;
 
 	private final ListState<Map<Long, Long>> watermarksState;
 	private final TreeMap<Long, Long> watermarks;
@@ -68,7 +81,12 @@ public class PartitionTimeCommitTigger extends PartitionCommitTrigger {
 			Configuration conf,
 			ClassLoader cl,
 			List<String> partitionKeys) throws Exception {
-		super(isRestored, stateStore);
+		this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
+		this.pendingPartitions = new HashSet<>();
+		if (isRestored) {
+			pendingPartitions.addAll(pendingPartitionsState.get().iterator().next());
+		}
+
 		this.partitionKeys = partitionKeys;
 		this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
 		this.extractor = PartitionTimeExtractor.create(
@@ -81,6 +99,13 @@ public class PartitionTimeCommitTigger extends PartitionCommitTrigger {
 		this.watermarks = new TreeMap<>();
 		if (isRestored) {
 			watermarks.putAll(watermarksState.get().iterator().next());
+		}
+	}
+
+	@Override
+	public void addPartition(String partition) {
+		if (!StringUtils.isNullOrWhitespaceOnly(partition)) {
+			this.pendingPartitions.add(partition);
 		}
 	}
 
@@ -111,9 +136,18 @@ public class PartitionTimeCommitTigger extends PartitionCommitTrigger {
 
 	@Override
 	public void snapshotState(long checkpointId, long watermark) throws Exception {
-		super.snapshotState(checkpointId, watermark);
+		pendingPartitionsState.clear();
+		pendingPartitionsState.add(new ArrayList<>(pendingPartitions));
+
 		watermarks.put(checkpointId, watermark);
 		watermarksState.clear();
 		watermarksState.add(new HashMap<>(watermarks));
+	}
+
+	@Override
+	public List<String> endInput() {
+		ArrayList<String> partitions = new ArrayList<>(pendingPartitions);
+		pendingPartitions.clear();
+		return partitions;
 	}
 }
