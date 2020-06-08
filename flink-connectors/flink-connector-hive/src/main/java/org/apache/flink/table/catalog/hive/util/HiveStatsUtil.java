@@ -31,12 +31,15 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.BooleanColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsDesc;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
+import org.apache.hadoop.hive.metastore.api.Decimal;
+import org.apache.hadoop.hive.metastore.api.DecimalColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.DoubleColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.LongColumnStatsData;
@@ -50,6 +53,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -171,6 +177,20 @@ public class HiveStatsUtil {
 					stringStats.isSetAvgColLen() ? stringStats.getAvgColLen() : null,
 					stringStats.isSetNumDVs() ? stringStats.getNumDVs() : null,
 					stringStats.isSetNumDVs() ? stringStats.getNumNulls() : null);
+		} else if (stats.isSetDecimalStats()) {
+			DecimalColumnStatsData decimalStats = stats.getDecimalStats();
+			// for now, just return CatalogColumnStatisticsDataDouble for decimal columns
+			Double max = null;
+			if (decimalStats.isSetHighValue()) {
+				max = toHiveDecimal(decimalStats.getHighValue()).doubleValue();
+			}
+			Double min = null;
+			if (decimalStats.isSetLowValue()) {
+				min = toHiveDecimal(decimalStats.getLowValue()).doubleValue();
+			}
+			Long ndv = decimalStats.isSetNumDVs() ? decimalStats.getNumDVs() : null;
+			Long nullCount = decimalStats.isSetNumNulls() ? decimalStats.getNumNulls() : null;
+			return new CatalogColumnStatisticsDataDouble(min, max, ndv, nullCount);
 		} else {
 			LOG.warn("Flink does not support converting ColumnStatisticsData '{}' for Hive column type '{}' yet.", stats, colType);
 			return null;
@@ -288,9 +308,40 @@ public class HiveStatsUtil {
 				}
 				return ColumnStatisticsData.binaryStats(hiveBinaryColumnStats);
 			}
+		} else if (type.equals(LogicalTypeRoot.DECIMAL)) {
+			if (colStat instanceof CatalogColumnStatisticsDataDouble) {
+				CatalogColumnStatisticsDataDouble flinkStats = (CatalogColumnStatisticsDataDouble) colStat;
+				DecimalColumnStatsData hiveStats = new DecimalColumnStatsData();
+				if (flinkStats.getMax() != null) {
+					// in older versions we cannot create HiveDecimal from Double, so convert Double to BigDecimal first
+					hiveStats.setHighValue(toThriftDecimal(HiveDecimal.create(BigDecimal.valueOf(flinkStats.getMax()))));
+				}
+				if (flinkStats.getMin() != null) {
+					hiveStats.setLowValue(toThriftDecimal(HiveDecimal.create(BigDecimal.valueOf(flinkStats.getMin()))));
+				}
+				if (flinkStats.getNdv() != null) {
+					hiveStats.setNumDVs(flinkStats.getNdv());
+				}
+				if (flinkStats.getNullCount() != null) {
+					hiveStats.setNumNulls(flinkStats.getNullCount());
+				}
+				return ColumnStatisticsData.decimalStats(hiveStats);
+			}
 		}
 		throw new CatalogException(String.format("Flink does not support converting ColumnStats '%s' for Hive column " +
 												"type '%s' yet", colStat, colType));
+	}
+
+	private static Decimal toThriftDecimal(HiveDecimal hiveDecimal) {
+		// the constructor signature changed in 3.x. use default constructor and set each field...
+		Decimal res = new Decimal();
+		res.setUnscaled(ByteBuffer.wrap(hiveDecimal.unscaledValue().toByteArray()));
+		res.setScale((short) hiveDecimal.scale());
+		return res;
+	}
+
+	private static HiveDecimal toHiveDecimal(Decimal decimal) {
+		return HiveDecimal.create(new BigInteger(decimal.getUnscaled()), decimal.getScale());
 	}
 
 	public static int parsePositiveIntStat(Map<String, String> parameters, String key) {
