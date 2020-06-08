@@ -67,21 +67,21 @@ val:
 
 {% highlight sql %}
 
-CREATE TABLE csv_table1 (id BIGINT, name STRING, age INT) WITH (...);
-CREATE TABLE csv_table2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE kafka_table1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE kafka_table2 (id BIGINT, name STRING, age INT) WITH (...);
 
 -- override table options in query source
-select id, name from csv_table1 /*+ OPTIONS('csv.field-delimiter'='|') */;
+select id, name from kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */;
 
 -- override table options in join
 select * from
-    csv_table1 /*+ OPTIONS('csv.field-delimiter'='|') */ t1
+    kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */ t1
     join
-    csv_table2 /*+ OPTIONS('csv.field-delimiter'=',') */ t2
+    kafka_table2 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */ t2
     on t1.id = t2.id;
 
 -- override table options for INSERT target table
-insert into csv_table1 /*+ OPTIONS('csv.null-literal'='N/A') */ select * from csv_table2;
+insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select * from kafka_table2;
 
 {% endhighlight %}
 
