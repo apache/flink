@@ -662,28 +662,8 @@ public class SlotPoolImpl implements SlotPool {
 			slotOffer.getResourceProfile(),
 			taskManagerGateway);
 
-		// check whether we have request waiting for this slot
-		PendingRequest pendingRequest = pendingRequests.getKeyB(allocationID);
-		if (pendingRequest != null) {
-			removePendingRequest(pendingRequest.getSlotRequestId());
-
-			// we were waiting for this!
-			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
-
-			if (!pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot)) {
-				// we could not complete the pending slot future --> try to fulfill another pending request
-				allocatedSlots.remove(pendingRequest.getSlotRequestId());
-				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-			} else {
-				log.debug("Fulfilled slot request [{}] with allocated slot [{}].", pendingRequest.getSlotRequestId(), allocationID);
-			}
-		}
-		else {
-			// we were actually not waiting for this:
-			//   - could be that this request had been fulfilled
-			//   - we are receiving the slots from TaskManagers after becoming leaders
-			tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-		}
+		// use the slot to fulfill pending request, in requested order
+		tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 
 		// we accepted the request in any case. slot will be released after it idled for
 		// too long and timed out
