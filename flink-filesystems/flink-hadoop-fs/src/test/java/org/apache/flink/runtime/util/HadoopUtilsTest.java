@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.util.TestLogger;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -26,6 +28,7 @@ import org.apache.hadoop.security.token.Token;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
+import sun.security.krb5.KrbException;
 
 import static org.apache.flink.runtime.util.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
 import static org.junit.Assert.assertFalse;
@@ -36,13 +39,14 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit tests for Hadoop utils.
  */
-public class HadoopUtilsTest {
+public class HadoopUtilsTest extends TestLogger {
 
 	@BeforeClass
-	public static void setPropertiesToEnableKerberosConfigInit() {
+	public static void setPropertiesToEnableKerberosConfigInit() throws KrbException {
 		System.setProperty("java.security.krb5.realm", "");
 		System.setProperty("java.security.krb5.kdc", "");
 		System.setProperty("java.security.krb5.conf", "/dev/null");
+		sun.security.krb5.Config.refresh();
 	}
 
 	@Test
@@ -51,8 +55,10 @@ public class HadoopUtilsTest {
 		UserGroupInformation userWithoutCredentialsOrTokens = createTestUser(AuthenticationMethod.KERBEROS);
 		assumeFalse(userWithoutCredentialsOrTokens.hasKerberosCredentials());
 
-		boolean result = HadoopUtils.isKerberosCredentialsConfigured(userWithoutCredentialsOrTokens, true);
+		boolean isKerberosEnabled = HadoopUtils.isKerberosSecurityEnabled(userWithoutCredentialsOrTokens);
+		boolean result = HadoopUtils.areKerberosCredentialsValid(userWithoutCredentialsOrTokens, true);
 
+		assertTrue(isKerberosEnabled);
 		assertFalse(result);
 	}
 
@@ -63,7 +69,7 @@ public class HadoopUtilsTest {
 		userWithoutCredentialsButHavingToken.addToken(getHDFSDelegationToken());
 		assumeFalse(userWithoutCredentialsButHavingToken.hasKerberosCredentials());
 
-		boolean result = HadoopUtils.isKerberosCredentialsConfigured(userWithoutCredentialsButHavingToken, true);
+		boolean result = HadoopUtils.areKerberosCredentialsValid(userWithoutCredentialsButHavingToken, true);
 
 		assertTrue(result);
 	}
@@ -75,19 +81,19 @@ public class HadoopUtilsTest {
 		Mockito.when(userWithCredentials.getAuthenticationMethod()).thenReturn(AuthenticationMethod.KERBEROS);
 		Mockito.when(userWithCredentials.hasKerberosCredentials()).thenReturn(true);
 
-		boolean result = HadoopUtils.isKerberosCredentialsConfigured(userWithCredentials, true);
+		boolean result = HadoopUtils.areKerberosCredentialsValid(userWithCredentials, true);
 
 		assertTrue(result);
 	}
 
 	@Test
-	public void testShouldNotCheckKerberosCredentialsForOtherAuthMethods() {
+	public void isKerberosSecurityEnabled_NoKerberos_ReturnsFalse() {
 		UserGroupInformation.setConfiguration(getHadoopConfigWithAuthMethod(AuthenticationMethod.PROXY));
 		UserGroupInformation userWithAuthMethodOtherThanKerberos = createTestUser(AuthenticationMethod.PROXY);
 
-		boolean result = HadoopUtils.isKerberosCredentialsConfigured(userWithAuthMethodOtherThanKerberos, true);
+		boolean result = HadoopUtils.isKerberosSecurityEnabled(userWithAuthMethodOtherThanKerberos);
 
-		assertTrue(result);
+		assertFalse(result);
 	}
 
 	@Test
@@ -95,7 +101,7 @@ public class HadoopUtilsTest {
 		UserGroupInformation.setConfiguration(getHadoopConfigWithAuthMethod(AuthenticationMethod.KERBEROS));
 		UserGroupInformation user = createTestUser(AuthenticationMethod.KERBEROS);
 
-		boolean result = HadoopUtils.isKerberosCredentialsConfigured(user, false);
+		boolean result = HadoopUtils.areKerberosCredentialsValid(user, false);
 
 		assertTrue(result);
 	}
