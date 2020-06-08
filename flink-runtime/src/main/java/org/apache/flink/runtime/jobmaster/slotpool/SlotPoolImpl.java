@@ -361,7 +361,7 @@ public class SlotPoolImpl implements SlotPool {
 			if (isBatchRequestAndFailureCanBeIgnored(request, failure)) {
 				log.debug("Ignoring failed request to the resource manager for a batch slot request.");
 			} else {
-				pendingRequests.removeKeyA(slotRequestID);
+				removePendingRequest(slotRequestID);
 				request.getAllocatedSlotFuture().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
 			}
@@ -541,11 +541,13 @@ public class SlotPoolImpl implements SlotPool {
 	private void tryFulfillSlotRequestOrMakeAvailable(AllocatedSlot allocatedSlot) {
 		Preconditions.checkState(!allocatedSlot.isUsed(), "Provided slot is still in use.");
 
-		final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
+		final PendingRequest pendingRequest = findMatchingPendingRequest(allocatedSlot);
 
 		if (pendingRequest != null) {
 			log.debug("Fulfilling pending slot request [{}] early with returned slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
+
+			removePendingRequest(pendingRequest.getSlotRequestId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
@@ -555,13 +557,12 @@ public class SlotPoolImpl implements SlotPool {
 		}
 	}
 
-	private PendingRequest pollMatchingPendingRequest(final AllocatedSlot slot) {
+	private PendingRequest findMatchingPendingRequest(final AllocatedSlot slot) {
 		final ResourceProfile slotResources = slot.getResourceProfile();
 
 		// try the requests sent to the resource manager first
 		for (PendingRequest request : pendingRequests.values()) {
 			if (slotResources.isMatching(request.getResourceProfile())) {
-				pendingRequests.removeKeyA(request.getSlotRequestId());
 				return request;
 			}
 		}
@@ -569,7 +570,6 @@ public class SlotPoolImpl implements SlotPool {
 		// try the requests waiting for a resource manager connection next
 		for (PendingRequest request : waitingForResourceManager.values()) {
 			if (slotResources.isMatching(request.getResourceProfile())) {
-				waitingForResourceManager.remove(request.getSlotRequestId());
 				return request;
 			}
 		}
@@ -663,8 +663,10 @@ public class SlotPoolImpl implements SlotPool {
 			taskManagerGateway);
 
 		// check whether we have request waiting for this slot
-		PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
+		PendingRequest pendingRequest = pendingRequests.getKeyB(allocationID);
 		if (pendingRequest != null) {
+			removePendingRequest(pendingRequest.getSlotRequestId());
+
 			// we were waiting for this!
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 
@@ -712,13 +714,13 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		final PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
+		final PendingRequest pendingRequest = pendingRequests.getKeyB(allocationID);
 		if (pendingRequest != null) {
 			if (isBatchRequestAndFailureCanBeIgnored(pendingRequest, cause)) {
-				// pending batch requests don't react to this signal --> put it back
-				pendingRequests.put(pendingRequest.getSlotRequestId(), allocationID, pendingRequest);
+				log.debug("Ignoring allocation failure for batch slot request {}.", pendingRequest.getSlotRequestId());
 			} else {
 				// request was still pending
+				removePendingRequest(pendingRequest.getSlotRequestId());
 				failPendingRequest(pendingRequest, cause);
 			}
 			return Optional.empty();
