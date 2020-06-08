@@ -42,17 +42,10 @@ Dependencies
 
 In order to setup the HBase connector, the following table provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
-{% if site.is_stable %}
-
 | HBase Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`     | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
 
-{% else %}
-
-The dependency table is only available for stable releases.
-
-{% endif %}
 
 How to create an HBase table
 ----------------
