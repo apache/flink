@@ -326,11 +326,11 @@ SHOW VIEWS;
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-			<p>描述给定表的元数据.</p>
+			<p>描述给定表的模式.</p>
 {% highlight sql %}
 DESCRIBE myTable;
 {% endhighlight %}
-            <p>描述给定视图的元数据.</p>
+            <p>描述给定视图的模式.</p>
 {% highlight sql %}
 DESCRIBE myView;
 {% endhighlight %}

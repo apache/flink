@@ -354,7 +354,7 @@ The key and value of expression `key1=val1` should both be string literal.
 
 ## CREATE VIEW
 {% highlight sql %}
-CREATE [TEMPORARY] VIEW [IF NOT EXISTS] view_name
+CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
   [{columnName [, columnName ]* }] [COMMENT view_comment]
   AS query_expression
 {% endhighlight %}

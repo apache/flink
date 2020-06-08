@@ -147,18 +147,18 @@ DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
 ## DROP VIEW
 
 {% highlight sql %}
-DROP [TEMPORARY] VIEW  [ IF EXISTS ] view_name
+DROP [TEMPORARY] VIEW  [IF EXISTS] [catalog_name.][db_name.]view_name
 {% endhighlight %}
 
 删除一个有 catalog 和数据库命名空间的视图。若需要删除的视图不存在，则会产生异常。
 
-**IF EXISTS**
-
-若视图不存在，则不会进行任何操作。
-
 **TEMPORARY**
 
 删除一个有 catalog 和数据库命名空间的临时视图。
+
+**IF EXISTS**
+
+若视图不存在，则不会进行任何操作。
 
 ## DROP FUNCTION
 

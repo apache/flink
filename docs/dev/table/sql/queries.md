@@ -326,11 +326,11 @@ SHOW VIEWS;
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-			<p>Describe the given table.</p>
+			<p>Describe the schema of the given table.</p>
 {% highlight sql %}
 DESCRIBE myTable;
 {% endhighlight %}
-            <p>Describe the given view.</p>
+            <p>Describe the schema of the given view.</p>
 {% highlight sql %}
 DESCRIBE myView;
 {% endhighlight %}

@@ -347,7 +347,7 @@ CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
 
 ## CREATE VIEW
 {% highlight sql %}
-CREATE [TEMPORARY] VIEW [IF NOT EXISTS] view_name
+CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
   [{columnName [, columnName ]* }] [COMMENT view_comment]
   AS query_expression
 {% endhighlight %}
