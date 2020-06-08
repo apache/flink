@@ -31,8 +31,11 @@ KINESALITE_PORT=4567
 function start_kinesalite {
     #docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
     # override entrypoint to enable SSL
-    echo You are in `pwd`
+
+    # Build the kinesalite image
     docker build flink-end-to-end-tests/test-scripts/docker-kinesalite/ -t kinesalite:3.3.1
+
+    # Run it
     docker run -d --rm --entrypoint "/tini" \
         --name flink-test-kinesis \
         -p ${KINESALITE_PORT}:${KINESALITE_PORT} \
