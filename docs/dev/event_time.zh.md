@@ -24,18 +24,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-本节你将学到如何写可感知时间变化的 Flink 程序，可以先看看[及时时间流处理]({% link concepts/timely-stream-processing.zh.md %})了解相关概念。
+本节你将学到如何写可感知时间变化的 Flink 程序，可以先看看[实时流处理]({% link concepts/timely-stream-processing.zh.md %})了解相关概念。
 
-想了解如何在 Flink 程序中使用时间的信息，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和[处理函数]({% link dev/stream/operators/process_function.zh.md %})。
+想了解如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和[处理函数]({% link dev/stream/operators/process_function.zh.md %})。
 
 * toc
 {:toc}
 
 ## 设置时间特征
 
-写 Flink DataStream 程序时，通常首先设置基础的时间特征，该设置定义了数据流的行为方式（例如，是否分配时间戳），以及哪种时间概念应该被诸如 `KeyedStream.timeWindow(Time.seconds(30))` 之类的窗口算子使用。
+写 Flink DataStream 程序时，通常先设置基础的*时间特性*，该设置定义了数据流的行为方式（例如，是否分配时间戳），以及窗口算子使用哪种时间概念，例如 `KeyedStream.timeWindow(Time.seconds(30))` 。
 
-以下示例展示了一个按小时聚合事件的 Flink 程序，窗口的行为与时间特征相适应。
+以下示例展示了一个按小时聚合事件的 Flink 程序，窗口的行为与时间特征相对应。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -89,7 +89,7 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 </div>
 </div>
 
-如果要用事件时间作为时间特征运行此示例，程序需要使用那些给数据直接定义事件时间并能自己发出水印的源，或者程序必须在收到源发出的事件流之后注入“时间戳分配器和水印生成器”，这些功能描述了访问事件时间戳的方法，以及事件流呈现的乱序程度。
+值得注意的是，如果要用*事件时间*作为时间特征运行此示例，程序需要使用那些给数据直接定义事件时间并能自己发出水印的源，或者程序必须在收到源发出的事件流之后注入“时间戳分配器和水印生成器”，这些功能描述了访问事件时间戳的方法，以及事件流呈现的乱序程度。
 
 可以参考[生成时间戳/水印]({{ site.baseurl }}/zh/dev/event_timestamps_watermarks.html)，了解如何使用 Flink DataStream API 分配时间戳和生成水印。
 
@@ -113,6 +113,6 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 
 这个规则同样适用于 `TwoInputStreamOperator`。但是，在这种情况下，算子的当前水印被定义为两个输入的最小值。
 
-该行为具体由 `OneInputStreamOperator#processWatermark`，`TwoInputStreamOperator#processWatermark1` 和 `TwoInputStreamOperator#processWatermark2`方法定义。
+该行为具体由 `OneInputStreamOperator#processWatermark`、`TwoInputStreamOperator#processWatermark1` 和 `TwoInputStreamOperator#processWatermark2`方法定义。
 
 {% top %}
