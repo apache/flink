@@ -62,7 +62,7 @@ Apache Flink ships with first class support for a number of common deployment ta
         <b>Yarn</b>
       </div>
       <div class="panel-body">
-        Deploy Flink on-top Apache Hadoop's resource manager 
+        Deploy Flink on-top of Apache Hadoop's resource manager 
         <br><a href="{{ site.baseurl }}/ops/deployment/yarn_setup.html">Learn more</a>
       </div>
     </div>
