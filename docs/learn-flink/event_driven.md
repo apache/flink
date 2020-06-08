@@ -3,7 +3,7 @@ title: Event-driven Applications
 nav-id: event-driven
 nav-pos: 5
 nav-title: Event-driven Applications
-nav-parent_id: training
+nav-parent_id: learn-flink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,8 +38,8 @@ with Flink. It is very similar to a `RichFlatMapFunction`, but with the addition
 ### Example
 
 If you've done the
-[hands-on exercise]({% link training/streaming_analytics.md %}#hands-on)
-in the [Streaming Analytics training]({% link training/streaming_analytics.md %}),
+[hands-on exercise]({% link learn-flink/streaming_analytics.md %}#hands-on)
+in the [Streaming Analytics training]({% link learn-flink/streaming_analytics.md %}),
 you will recall that it uses a `TumblingEventTimeWindow` to compute the sum of the tips for
 each driver during each hour, like this:
 
@@ -177,7 +177,7 @@ Things to consider:
 
 * What happens with late events? Events that are behind the watermark (i.e., late) are being
   dropped. If you want to do something better than this, consider using a side output, which is
-  explained in the [next section]({% link training/event_driven.md
+  explained in the [next section]({% link learn-flink/event_driven.md
   %}#side-outputs).
 
 * This example uses a `MapState` where the keys are timestamps, and sets a `Timer` for that same

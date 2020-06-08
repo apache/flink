@@ -3,7 +3,7 @@ title: Data Pipelines & ETL
 nav-id: etl
 nav-pos: 3
 nav-title: Data Pipelines & ETL
-nav-parent_id: training
+nav-parent_id: learn-flink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

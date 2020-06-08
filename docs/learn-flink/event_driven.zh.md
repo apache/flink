@@ -3,7 +3,7 @@ title: 事件驱动应用
 nav-id: 事件驱动
 nav-pos: 5
 nav-title: 事件驱动应用
-nav-parent_id: training
+nav-parent_id: learn-flink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -37,8 +37,8 @@ under the License.
 ### 示例
 
 如果你已经体验了
-[流式分析训练]({% link training/streaming_analytics.zh.md %})
-的[动手实践]({% link training/streaming_analytics.zh.md %}#hands-on)，
+[流式分析训练]({% link learn-flink/streaming_analytics.zh.md %})
+的[动手实践]({% link learn-flink/streaming_analytics.zh.md %}#hands-on)，
 你应该记得，它是采用 `TumblingEventTimeWindow` 来计算每个小时内每个司机的小费总和，
 像下面的示例这样：
 
@@ -173,7 +173,7 @@ public void processElement(
 
 * 延迟的事件怎么处理？watermark 后面的事件（即延迟的）正在被删除。
   如果你想做一些比这更高级的操作，可以考虑使用旁路输出（Side outputs），这将在[下一节]({% link 
-  training/event_driven.zh.md%}#side-outputs)中解释。
+  learn-flink/event_driven.zh.md%}#side-outputs)中解释。
 
 * 本例使用一个 `MapState`，其中 keys 是时间戳（timestamp），并为同一时间戳设置一个 Timer。
   这是一种常见的模式；它使得在 Timer 触发时查找相关信息变得简单高效。

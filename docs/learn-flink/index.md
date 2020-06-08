@@ -1,8 +1,8 @@
 ---
-title: Hands-on Training
-nav-id: training
+title: Learn Flink
+nav-id: learn-flink
 nav-pos: 2
-nav-title: '<i class="fa fa-hand-paper-o title appetizer" aria-hidden="true"></i> Hands-on Training'
+nav-title: '<i class="fa fa-hand-paper-o title appetizer" aria-hidden="true"></i> Learn Flink'
 nav-parent_id: root
 nav-show_overview: true
 ---

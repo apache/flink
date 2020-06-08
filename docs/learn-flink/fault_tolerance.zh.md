@@ -3,7 +3,7 @@ title: Fault Tolerance via State Snapshots
 nav-id: fault-tolerance
 nav-pos: 6
 nav-title: Fault Tolerance
-nav-parent_id: training
+nav-parent_id: learn-flink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -187,9 +187,9 @@ once, the following must be true:
 ## Hands-on
 
 The [Flink Operations Playground]({% link
-getting-started/docker-playgrounds/flink-operations-playground.zh.md %}) includes a section on
+try-flink/flink-operations-playground.zh.md %}) includes a section on
 [Observing Failure & Recovery]({% link
-getting-started/docker-playgrounds/flink-operations-playground.zh.md %}#observing-failure--recovery).
+try-flink/flink-operations-playground.zh.md %}#observing-failure--recovery).
 
 {% top %}
 
