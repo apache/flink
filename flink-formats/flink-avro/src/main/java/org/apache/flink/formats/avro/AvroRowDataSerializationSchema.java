@@ -187,6 +187,12 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 			case NULL:
 				converter = (schema, object) -> null;
 				break;
+			case TINYINT:
+				converter = (schema, object) -> ((Byte) object).intValue();
+				break;
+			case SMALLINT:
+				converter = (schema, object) -> ((Short) object).intValue();
+				break;
 			case BOOLEAN: // boolean
 			case INTEGER: // int
 			case INTERVAL_YEAR_MONTH: // long

@@ -186,6 +186,8 @@ public class AvroSchemaConverter {
 				return SchemaBuilder.builder().nullType();
 			case BOOLEAN:
 				return getNullableBuilder(logicalType).booleanType();
+			case TINYINT:
+			case SMALLINT:
 			case INTEGER:
 				return getNullableBuilder(logicalType).intType();
 			case BIGINT:
