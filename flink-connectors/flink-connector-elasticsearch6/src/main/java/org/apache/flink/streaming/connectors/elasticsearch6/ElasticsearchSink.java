@@ -104,10 +104,6 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param numMaxActions the maxinum number of actions to buffer per bulk request.
 		 */
 		public void setBulkFlushMaxActions(int numMaxActions) {
-			Preconditions.checkArgument(
-				numMaxActions > 0,
-				"Max number of buffered actions must be larger than 0.");
-
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(numMaxActions));
 		}
 
@@ -117,10 +113,6 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param maxSizeMb the maximum size of buffered actions, in mb.
 		 */
 		public void setBulkFlushMaxSizeMb(int maxSizeMb) {
-			Preconditions.checkArgument(
-				maxSizeMb > 0,
-				"Max size of buffered actions must be larger than 0.");
-
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB, String.valueOf(maxSizeMb));
 		}
 
@@ -130,10 +122,6 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param intervalMillis the bulk flush interval, in milliseconds.
 		 */
 		public void setBulkFlushInterval(long intervalMillis) {
-			Preconditions.checkArgument(
-				intervalMillis >= 0,
-				"Interval (in milliseconds) between each flush must be larger than or equal to 0.");
-
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS, String.valueOf(intervalMillis));
 		}
 

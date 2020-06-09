@@ -37,4 +37,13 @@ public class NoOpFailureHandler implements ActionRequestFailureHandler {
 		throw failure;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		return o instanceof NoOpFailureHandler;
+	}
+
+	@Override
+	public int hashCode() {
+		return NoOpFailureHandler.class.hashCode();
+	}
 }
