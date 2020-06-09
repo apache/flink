@@ -418,8 +418,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         t_env.create_temporary_view("source", source)
         t_env.execute_sql("select func1(a, b), func2(a, b) from source") \
             .get_job_client() \
-            .get_job_execution_result(
-                get_gateway().jvm.Thread.currentThread().getContextClassLoader()) \
+            .get_job_execution_result() \
             .result()
 
     def execute_with_statement_set(self, t_env):
@@ -427,8 +426,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         result = source.select("func1(a, b), func2(a, b)")
         t_env.create_statement_set().add_insert("sink", result).execute() \
             .get_job_client() \
-            .get_job_execution_result(
-                get_gateway().jvm.Thread.currentThread().getContextClassLoader()) \
+            .get_job_execution_result() \
             .result()
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
@@ -440,8 +438,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         result = source.select("func1(a, b), func2(a, b)")
         result.execute() \
             .get_job_client() \
-            .get_job_execution_result(
-                get_gateway().jvm.Thread.currentThread().getContextClassLoader()) \
+            .get_job_execution_result() \
             .result()
 
     def execute_with_table_execute_insert(self, t_env):
@@ -449,8 +446,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         result = source.select("func1(a, b), func2(a, b)")
         result.execute_insert("sink") \
             .get_job_client() \
-            .get_job_execution_result(
-                get_gateway().jvm.Thread.currentThread().getContextClassLoader()) \
+            .get_job_execution_result() \
             .result()
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
