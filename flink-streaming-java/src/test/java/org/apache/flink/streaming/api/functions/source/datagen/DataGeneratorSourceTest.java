@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Tests for {@link DataGeneratorSource}.
@@ -99,39 +100,44 @@ public class DataGeneratorSourceTest {
 	public void testSequenceCheckpointRestore() throws Exception {
 		final int initElement = 0;
 		final int maxElement = 100;
-		final int maxParallelsim = 2;
-
 		final Set<Long> expectedOutput = new HashSet<>();
 		for (long i = initElement; i <= maxElement; i++) {
 			expectedOutput.add(i);
 		}
+		DataGeneratorSourceTest.innerTestDataGenCheckpointRestore(
+				() -> new DataGeneratorSource<>(
+						SequenceGenerator.longGenerator(initElement, maxElement)),
+				expectedOutput);
+	}
 
-		final ConcurrentHashMap<String, List<Long>> outputCollector = new ConcurrentHashMap<>();
+	public static <T> void innerTestDataGenCheckpointRestore(
+			Supplier<DataGeneratorSource<T>> supplier,
+			Set<T> expectedOutput) throws Exception {
+		final int maxParallelsim = 2;
+		final ConcurrentHashMap<String, List<T>> outputCollector = new ConcurrentHashMap<>();
 		final OneShotLatch latchToTrigger1 = new OneShotLatch();
 		final OneShotLatch latchToWait1 = new OneShotLatch();
 		final OneShotLatch latchToTrigger2 = new OneShotLatch();
 		final OneShotLatch latchToWait2 = new OneShotLatch();
 
-		final DataGeneratorSource<Long> source1 = new DataGeneratorSource<>(
-				SequenceGenerator.longGenerator(initElement, maxElement));
-		StreamSource<Long, DataGeneratorSource<Long>> src1 = new StreamSource<>(source1);
+		final DataGeneratorSource<T> source1 = supplier.get();
+		StreamSource<T, DataGeneratorSource<T>> src1 = new StreamSource<>(source1);
 
-		final AbstractStreamOperatorTestHarness<Long> testHarness1 =
+		final AbstractStreamOperatorTestHarness<T> testHarness1 =
 			new AbstractStreamOperatorTestHarness<>(src1, maxParallelsim, 2, 0);
 		testHarness1.open();
 
-		final DataGeneratorSource<Long> source2 = new DataGeneratorSource<>(
-				SequenceGenerator.longGenerator(initElement, maxElement));
-		StreamSource<Long, DataGeneratorSource<Long>> src2 = new StreamSource<>(source2);
+		final DataGeneratorSource<T> source2 = supplier.get();
+		StreamSource<T, DataGeneratorSource<T>> src2 = new StreamSource<>(source2);
 
-		final AbstractStreamOperatorTestHarness<Long> testHarness2 =
+		final AbstractStreamOperatorTestHarness<T> testHarness2 =
 			new AbstractStreamOperatorTestHarness<>(src2, maxParallelsim, 2, 1);
 		testHarness2.open();
 
 		// run the source asynchronously
 		Thread runner1 = new Thread(() -> {
 			try {
-				source1.run(new BlockingSourceContext(
+				source1.run(new BlockingSourceContext<>(
 						"1", latchToTrigger1, latchToWait1, outputCollector, 21));
 			} catch (Throwable t) {
 				t.printStackTrace();
@@ -141,7 +147,7 @@ public class DataGeneratorSourceTest {
 		// run the source asynchronously
 		Thread runner2 = new Thread(() -> {
 			try {
-				source2.run(new BlockingSourceContext(
+				source2.run(new BlockingSourceContext<>(
 						"2", latchToTrigger2, latchToWait2, outputCollector, 32));
 			}
 			catch (Throwable t) {
@@ -165,15 +171,14 @@ public class DataGeneratorSourceTest {
 			testHarness2.snapshot(0L, 0L)
 		);
 
-		final DataGeneratorSource<Long> source3 = new DataGeneratorSource<>(
-				SequenceGenerator.longGenerator(initElement, maxElement));
-		StreamSource<Long, DataGeneratorSource<Long>> src3 = new StreamSource<>(source3);
+		final DataGeneratorSource<T> source3 = supplier.get();
+		StreamSource<T, DataGeneratorSource<T>> src3 = new StreamSource<>(source3);
 
 		final OperatorSubtaskState initState =
 				AbstractStreamOperatorTestHarness.repartitionOperatorState(
 						snapshot, maxParallelsim, 2, 1, 0);
 
-		final AbstractStreamOperatorTestHarness<Long> testHarness3 =
+		final AbstractStreamOperatorTestHarness<T> testHarness3 =
 			new AbstractStreamOperatorTestHarness<>(src3, maxParallelsim, 1, 0);
 		testHarness3.setup();
 		testHarness3.initializeState(initState);
@@ -186,7 +191,7 @@ public class DataGeneratorSourceTest {
 		// run the source asynchronously
 		Thread runner3 = new Thread(() -> {
 			try {
-				source3.run(new BlockingSourceContext(
+				source3.run(new BlockingSourceContext<>(
 						"3", latchToTrigger3, latchToWait3, outputCollector, 3));
 			}
 			catch (Throwable t) {
@@ -199,15 +204,15 @@ public class DataGeneratorSourceTest {
 		Assert.assertEquals(3, outputCollector.size()); // we have 3 tasks.
 
 		// test for at-most-once
-		Set<Long> dedupRes = new HashSet<>(Math.abs(maxElement - initElement) + 1);
-		for (Map.Entry<String, List<Long>> elementsPerTask: outputCollector.entrySet()) {
+		Set<T> dedupRes = new HashSet<>(expectedOutput.size());
+		for (Map.Entry<String, List<T>> elementsPerTask: outputCollector.entrySet()) {
 			String key = elementsPerTask.getKey();
-			List<Long> elements = outputCollector.get(key);
+			List<T> elements = outputCollector.get(key);
 
 			// this tests the correctness of the latches in the test
 			Assert.assertTrue(elements.size() > 0);
 
-			for (Long elem : elements) {
+			for (T elem : elements) {
 				if (!dedupRes.add(elem)) {
 					Assert.fail("Duplicate entry: " + elem);
 				}
@@ -219,7 +224,7 @@ public class DataGeneratorSourceTest {
 		}
 
 		// test for exactly-once
-		Assert.assertEquals(Math.abs(initElement - maxElement) + 1, dedupRes.size());
+		Assert.assertEquals(expectedOutput.size(), dedupRes.size());
 
 		latchToWait1.trigger();
 		latchToWait2.trigger();
