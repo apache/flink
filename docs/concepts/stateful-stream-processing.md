@@ -24,6 +24,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* This will be replaced by the TOC
+{:toc}
+
+## What is State?
+
 While many operations in a dataflow simply look at one individual *event at a
 time* (for example an event parser), some operations remember information
 across multiple events (for example window operators). These operations are
@@ -53,13 +58,6 @@ that Flink takes care of redistributing state across parallel instances.
 When working with state, it might also be useful to read about [Flink's state
 backends]({% link ops/state/state_backends.md %}). Flink
 provides different state backends that specify how and where state is stored.
-
-* This will be replaced by the TOC
-{:toc}
-
-## What is State?
-
-`TODO: expand this section`
 
 {% top %}
 
