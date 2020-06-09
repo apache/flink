@@ -62,22 +62,22 @@ public class HiveModuleTest {
 
 		switch (hiveVersion) {
 			case HIVE_VERSION_V1_2_0:
-				assertEquals(232, hiveModule.listFunctions().size());
+				assertEquals(231, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_0_0:
-				assertEquals(236, hiveModule.listFunctions().size());
+				assertEquals(235, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_1_1:
-				assertEquals(246, hiveModule.listFunctions().size());
+				assertEquals(245, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_2_0:
-				assertEquals(262, hiveModule.listFunctions().size());
+				assertEquals(261, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_3_4:
-				assertEquals(280, hiveModule.listFunctions().size());
+				assertEquals(279, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V3_1_1:
-				assertEquals(299, hiveModule.listFunctions().size());
+				assertEquals(298, hiveModule.listFunctions().size());
 				break;
 		}
 	}
