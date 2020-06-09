@@ -24,6 +24,8 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
+import org.rocksdb.ReadOptions;
+import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -251,6 +253,25 @@ public enum PredefinedOptions {
 	 */
 	public ColumnFamilyOptions createColumnOptions() {
 		return createColumnOptions(new ArrayList<>());
+	}
+
+	/**
+	 * Creates the {@link WriteOptions} for this pre-defined setting.
+	 *
+	 * @return The pre-defined options object.
+	 */
+	public WriteOptions createWriteOptions() {
+		return new WriteOptions().setDisableWAL(true);
+	}
+
+	/**
+	 * Creates the {@link ReadOptions} for this pre-defined setting.
+	 * We ensure total order seek in case user misuse, see FLINK-17800 for more details.
+	 *
+	 * @return The pre-defined options object.
+	 */
+	public ReadOptions createReadOptions() {
+		return RocksDBOperationUtils.createTotalOrderSeekReadOptions();
 	}
 
 }
