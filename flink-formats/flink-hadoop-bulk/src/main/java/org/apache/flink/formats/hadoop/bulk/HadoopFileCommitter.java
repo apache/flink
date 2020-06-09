@@ -43,7 +43,7 @@ public interface HadoopFileCommitter {
 	 *
 	 * @return The path of the intermediate file to commit.
 	 */
-	Path getInProgressFilePath();
+	Path getTempFilePath();
 
 	/**
 	 * Prepares the intermediates file for committing.
