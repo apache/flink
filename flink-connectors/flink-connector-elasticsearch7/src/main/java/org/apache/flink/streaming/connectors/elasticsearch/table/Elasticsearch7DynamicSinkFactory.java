@@ -94,7 +94,7 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 			.forEach(configuration::setString);
 		Elasticsearch7Configuration config = new Elasticsearch7Configuration(configuration, context.getClassLoader());
 
-		validateOptions(config, configuration);
+		validate(config, configuration);
 
 		return new Elasticsearch7DynamicSink(
 			format,
@@ -102,27 +102,27 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 			TableSchemaUtils.getPhysicalSchema(tableSchema));
 	}
 
-	private void validateOptions(Elasticsearch7Configuration config, Configuration originalConfiguration) {
+	private void validate(Elasticsearch7Configuration config, Configuration originalConfiguration) {
 		config.getFailureHandler(); // checks if we can instantiate the custom failure handler
 		config.getHosts(); // validate hosts
-		validateOptions(
+		validate(
 			config.getIndex().length() >= 1,
 			() -> String.format("'%s' must not be empty", INDEX_OPTION.key()));
-		validateOptions(
+		validate(
 			config.getBulkFlushMaxActions().map(maxActions -> maxActions >= 1).orElse(true),
 			() -> String.format(
 				"'%s' must be at least 1 character. Got: %s",
 				BULK_FLUSH_MAX_ACTIONS_OPTION.key(),
 				config.getBulkFlushMaxActions().get())
 		);
-		validateOptions(
+		validate(
 			config.getBulkFlushMaxSize().map(maxSize -> maxSize >= 1024 * 1024).orElse(true),
 			() -> String.format(
 				"'%s' must be at least 1mb character. Got: %s",
 				BULK_FLASH_MAX_SIZE_OPTION.key(),
 				originalConfiguration.get(BULK_FLASH_MAX_SIZE_OPTION).toHumanReadableString())
 		);
-		validateOptions(
+		validate(
 			config.getBulkFlushBackoffRetries().map(retries -> retries >= 1).orElse(true),
 			() -> String.format(
 				"'%s' must be at least 1. Got: %s",
@@ -131,7 +131,7 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 		);
 	}
 
-	private static void validateOptions(boolean condition, Supplier<String> message) {
+	private static void validate(boolean condition, Supplier<String> message) {
 		if (!condition) {
 			throw new ValidationException(message.get());
 		}
