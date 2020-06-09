@@ -332,20 +332,20 @@ if [ -z "$HADOOP_CONF_DIR" ]; then
     if [ -n "$HADOOP_HOME" ]; then
         # HADOOP_HOME is set. Check if its a Hadoop 1.x or 2.x HADOOP_HOME path
         if [ -d "$HADOOP_HOME/conf" ]; then
-            # its a Hadoop 1.x
+            # It's Hadoop 1.x
             HADOOP_CONF_DIR="$HADOOP_HOME/conf"
         fi
         if [ -d "$HADOOP_HOME/etc/hadoop" ]; then
-            # Its Hadoop 2.2+
+            # It's Hadoop 2.2+
             HADOOP_CONF_DIR="$HADOOP_HOME/etc/hadoop"
         fi
     fi
 fi
 
-# try and set HADOOP_CONF_DIR to some common default if it's not set
-if [ -z "$HADOOP_CONF_DIR" ]; then
+# if neither HADOOP_CONF_DIR nor HADOOP_CLASSPATH are set, use some common default (if available)
+if [ -z "$HADOOP_CONF_DIR" ] && [ -z "$HADOOP_CLASSPATH" ]; then
     if [ -d "/etc/hadoop/conf" ]; then
-        echo "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR was set."
+        echo "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR or HADOOP_CLASSPATH was set."
         HADOOP_CONF_DIR="/etc/hadoop/conf"
     fi
 fi
