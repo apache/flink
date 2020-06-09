@@ -24,50 +24,16 @@ under the License.
 -->
 
 <span class="label label-primary">Scan Source: Bounded</span>
-<span class="label label-primary">Lookup Source: Async Mode</span>
+<span class="label label-primary">Lookup Source: Sync Mode</span>
 <span class="label label-primary">Sink: Batch</span>
-<span class="label label-primary">Sink: Streaming Upsert Mode</span>
+<span class="label label-primary">Sink: Streaming</span>
 
 * This will be replaced by the TOC
 {:toc}
 
-The JDBC connector allows for reading from and writing into an JDBC client. This document describes how to setup the JDBC Connector to run SQL queries against JDBC client.
+The JDBC connector allows for reading data from and writing data into any relational databases with a JDBC driver. This document describes how to setup the JDBC connector to run SQL queries against relational databases.
 
-The connector can operate in upsert mode for exchange changelog messages with the external system using a primary key defined on the DDL, the connector can also operate in append mode for exchanging only INSERT changelog messages with the external system.
-
-**Supported Drivers:**
-
-To use JDBC connector, need to choose an actual driver to use. Here are drivers currently supported:
-<table class="table table-bordered">
-    <thead>
-      <tr>
-        <th class="text-left" style="width: 5%">Drvier name</th>
-        <th class="text-left" style="width: 5%">Group Id</th>
-        <th class="text-left" style="width: 10%">Artifact Id</th>
-        <th class="text-left" style="width: 5%">JAR</th>
-      </tr>
-    </thead>
-    <tbody>
-    <tr>
-      <td>MySQL</td>
-      <td>mysql</td>
-      <td>mysql-connector-java</td>
-      <td><a href="https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/">Download</a></td>
-    </tr>
-    <tr>
-      <td>PostgreSQL</td>
-      <td>org.postgresql</td>
-      <td>postgresql</td>
-      <td><a href="https://jdbc.postgresql.org/download.html">Download</a></td>
-    </tr>
-    <tr>
-       <td>Derby</td>
-       <td>org.apache.derby</td>
-       <td>derby</td>
-       <td><a href="http://db.apache.org/derby/derby_downloads.html">Download</a></td>
-    </tr>
-    </tbody>
-</table>
+The connector operate in UPSERT mode for exchange changelog messages with the external system if a primary key is defined on the DDL, otherwise, it operates in INSERT mode.
 
 **Catalog**
 
@@ -80,9 +46,12 @@ In order to setup the JDBC connector, the following table provide dependency inf
 
 {% if site.is_stable %}
 
-| Maven dependency                                          | SQL Client JAR         |
-| :-------------------------------------------------------- | :----------------------|
-| `flink-connector-jdbc{{site.scala_version_suffix}}`     | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
+|  Maven dependency                                |  Download                                                 |  Note                |
+| :----------------------------------------------- | :-------------------------------------------------------- | :----------------------|
+| `flink-connector-jdbc{{site.scala_version_suffix}}`|[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) | JDBC SQL Client JAR | 
+| `mysql-connector-java	`|[Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) | MySQL Driver JAR | 
+| `postgresql`|[Download](https://jdbc.postgresql.org/download.html) | PostgreSQL Driver JAR | 
+| `derby`|[Download](http://db.apache.org/derby/derby_downloads.html) | Derby Driver JAR | 
 
 {% else %}
 
@@ -99,23 +68,20 @@ The JDBC table can be defined as follows:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
-  a INT,
-  b BIGINT,
-  c DOUBLE,
-  d STRING,
-  e BOOLEAN,
-  PRIMARY KEY (a, b) NOT ENFORCED
+  id BIGINT,
+  name STRING,
+  age INT,
+  status BOOLEAN,
+  PRIMARY KEY (id) NOT ENFORCED
 ) WITH (
-   'connector'='jdbc',
-   'url'='jdbc:mysql://localhost:3306/flink-test',
-   'table-name'='jdbc_table_name'
+   'connector' = 'jdbc',
+   'url' = 'jdbc:mysql://localhost:3306/flink-test',
+   'table-name' = 'jdbc_table_name'
 )
 
 {% endhighlight %}
 </div>
 </div>
-
-<span class="label label-danger">Attention</span> Flink supports define primary key no longer extracts valid keys.
 
 **Upsert mode:** If the JDBC table was defined a primary key, the sink will work on upsert mode. Please define primary key for the table and make sure the primary key is one of the unique key sets or primary key of the underlying database . This can guarantee the output result is as expected.
 
@@ -152,7 +118,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The JDBC DB url.</td>
+      <td>The JDBC database url.</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
@@ -173,7 +139,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The JDBC user name, user name and password must be specified if any of them is specified.</td>
+      <td>The JDBC user name, 'username' and 'password' must both be specified if any of them is specified.</td>
     </tr>
     <tr>
       <td><h5>password</h5></td>
@@ -187,7 +153,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The column name used for partitioning the input, These scan partition options must all be specified if any of them is specified.</td>
+      <td>The column name used for partitioning the input. These scan partition options must all be specified if any of them is specified.In addition, 'scan.partition.num' must be specified. They describe how to partition the table when reading in parallel from multiple tasks. 'scan.partition.column' must be a numeric, date, or timestamp column from the table in question. Notice that 'scan.partition.lower-bound' and 'scan.partition.upper-bound' are just used to decide the partition stride, not for filtering the rows in table. So all rows in the table will be partitioned and returned.</td>
     </tr>
     <tr>
       <td><h5>scan.partition.num</h5></td>
@@ -213,23 +179,23 @@ Connector Options
     <tr>
       <td><h5>scan.fetch-size</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">0</td>
       <td>Integer</td>
-      <td>The number of rows that should be fetched from the database when reading per round trip.If the value specified is zero, then the hint is ignored. The default value is zero.</td>
+      <td>The number of rows that should be fetched from the database when reading per round trip. If the value specified is zero, then the hint is ignored.</td>
     </tr>     
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>The max number of rows of lookup cache. "lookup.cache.max-rows" and "lookup.cache.ttl" options must all be specified if any of them is specified.</td>
+      <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired. "lookup.cache.max-rows" and "lookup.cache.ttl" options must all be specified if any of them is specified. Cache is not enabled as default.</td>
     </tr>
     <tr>
       <td><h5>lookup.cache.ttl</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>The max time to live for each rows in lookup cache.</td>
+      <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired. Cache is not enabled as default.</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -241,16 +207,16 @@ Connector Options
     <tr>
       <td><h5>sink.buffer-flush.max-rows</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">5000</td>
+      <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>The max size of buffered records before flush.</td>
+      <td>The max size of buffered records before flush. Can be set to zero to disable it.</td>
     </tr> 
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">1s</td>
       <td>Duration</td>
-      <td>The flush interval mills, over this time, asynchronous threads will flush data.</td>
+      <td>The flush interval mills, over this time, asynchronous threads will flush data. Can be set to zero to disable it. Note, 'sink.buffer-flush.max-rows' can be set to zero with the flush interval set allowing for complete async processing of buffered actions.</td>
     </tr>
     <tr>
       <td><h5>sink.max-retries</h5></td>
@@ -333,7 +299,7 @@ Flink support connect to several JDBC dialect，the field type mappings between 
     <tr>
       <td>VARCHAR</td>
       <td>VARCHAR</td>
-      <td>VARCHAR</td>
+      <td>TEXT</td>
       <td>VARCHAR</td>
     </tr>
     <tr>

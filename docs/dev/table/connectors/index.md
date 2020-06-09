@@ -70,7 +70,7 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td>JDBC</td>
+      <td><a href="{{ site.baseurl }}/dev/table/connectors/jdbc.html">JDBC</a></td>
       <td></td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
