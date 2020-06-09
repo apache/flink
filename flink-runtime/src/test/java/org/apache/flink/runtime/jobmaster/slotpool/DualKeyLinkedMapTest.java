@@ -68,9 +68,9 @@ public class DualKeyLinkedMapTest extends TestLogger {
 		map.put(1, 1, "foobar");
 		map.put(1, 2, secondValue);
 
-		assertThat(map.getKeyB(1), nullValue());
-		assertThat(map.getKeyA(1), is(secondValue));
-		assertThat(map.getKeyB(2), is(secondValue));
+		assertThat(map.getByKeyB(1), nullValue());
+		assertThat(map.getByKeyA(1), is(secondValue));
+		assertThat(map.getByKeyB(2), is(secondValue));
 	}
 
 	@Test
@@ -81,8 +81,8 @@ public class DualKeyLinkedMapTest extends TestLogger {
 		map.put(1, 1, "foobar");
 		map.put(2, 1, secondValue);
 
-		assertThat(map.getKeyA(1), nullValue());
-		assertThat(map.getKeyB(1), is(secondValue));
-		assertThat(map.getKeyA(2), is(secondValue));
+		assertThat(map.getByKeyA(1), nullValue());
+		assertThat(map.getByKeyB(1), is(secondValue));
+		assertThat(map.getByKeyA(2), is(secondValue));
 	}
 }

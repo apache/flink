@@ -54,7 +54,7 @@ public class DualKeyLinkedMap<A, B, V> {
 		return aMap.size();
 	}
 
-	public V getKeyA(A aKey) {
+	public V getByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
 		if (value != null) {
@@ -64,11 +64,25 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V getKeyB(B bKey) {
+	public V getByKeyB(B bKey) {
 		final A aKey = bMap.get(bKey);
 
 		if (aKey != null) {
 			return aMap.get(aKey).f1;
+		} else {
+			return null;
+		}
+	}
+
+	public A getKeyA(B bKey) {
+		return bMap.get(bKey);
+	}
+
+	public B getKeyB(A aKey) {
+		final Tuple2<B, V> value = aMap.get(aKey);
+
+		if (value != null) {
+			return value.f0;
 		} else {
 			return null;
 		}
