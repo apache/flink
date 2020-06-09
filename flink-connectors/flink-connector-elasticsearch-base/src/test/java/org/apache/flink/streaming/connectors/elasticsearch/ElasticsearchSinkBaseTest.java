@@ -34,6 +34,9 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.junit.Assert;
@@ -43,6 +46,7 @@ import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -558,6 +562,26 @@ public class ElasticsearchSinkBaseTest {
 		@Override
 		public BulkProcessor.Builder createBulkProcessorBuilder(Client client, BulkProcessor.Listener listener) {
 			return null;
+		}
+
+		@Override
+		public ElasticsearchInputSplit[] createInputSplitsInternal(String index, String type, Client client, int minNumSplits) {
+			return new ElasticsearchInputSplit[0];
+		}
+
+		@Override
+		public SearchResponse search(Client client, SearchRequest searchRequest) throws IOException {
+			return null;
+		}
+
+		@Override
+		public SearchResponse scroll(Client client, SearchScrollRequest searchScrollRequest) throws IOException {
+			return null;
+		}
+
+		@Override
+		public void close(Client client) throws IOException {
+
 		}
 
 		@Nullable

@@ -19,15 +19,20 @@
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -45,25 +50,32 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.CONNECTION_MAX_RETRY_TIMEOUT_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.CONNECTION_PATH_PREFIX;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.DOCUMENT_TYPE_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FAILURE_HANDLER_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FORMAT_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.HOSTS_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.INDEX_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.KEY_DELIMITER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.SCROLL_MAX_SIZE_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.SCROLL_TIMEOUT_OPTION;
 
 /**
- * A {@link DynamicTableSinkFactory} for discovering {@link Elasticsearch7DynamicSink}.
+ * Factory for creating configured instances of {@link Elasticsearch6DynamicSource}
+ * and {@link Elasticsearch6DynamicSink}.
  */
 @Internal
-public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory {
+public class Elasticsearch6DynamicSourceSinkFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 	private static final Set<ConfigOption<?>> requiredOptions = Stream.of(
 		HOSTS_OPTION,
-		INDEX_OPTION
+		INDEX_OPTION,
+		DOCUMENT_TYPE_OPTION
 	).collect(Collectors.toSet());
 	private static final Set<ConfigOption<?>> optionalOptions = Stream.of(
 		KEY_DELIMITER_OPTION,
 		FAILURE_HANDLER_OPTION,
+		SCROLL_MAX_SIZE_OPTION,
+		SCROLL_TIMEOUT_OPTION,
 		FLUSH_ON_CHECKPOINT_OPTION,
 		BULK_FLASH_MAX_SIZE_OPTION,
 		BULK_FLUSH_MAX_ACTIONS_OPTION,
@@ -77,10 +89,30 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 	).collect(Collectors.toSet());
 
 	@Override
+	public DynamicTableSource createDynamicTableSource(Context context) {
+		TableSchema tableSchema = context.getCatalogTable().getSchema();
+		//少了validatePrimaryKey(tableSchema)
+		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+		final DecodingFormat<DeserializationSchema<RowData>> format = helper.discoverDecodingFormat(
+			DeserializationFormatFactory.class,
+			FORMAT_OPTION);
+		helper.validate();
+		Configuration configuration = new Configuration();
+		context.getCatalogTable()
+			.getOptions()
+			.forEach(configuration::setString);
+		Elasticsearch6Configuration config = new Elasticsearch6Configuration(configuration, context.getClassLoader());
+		return new Elasticsearch6DynamicSource(
+			format,
+			config,
+			TableSchemaUtils.getPhysicalSchema(tableSchema)
+		);
+	}
+
+	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
 		TableSchema tableSchema = context.getCatalogTable().getSchema();
 		ElasticsearchValidationUtils.validatePrimaryKey(tableSchema);
-
 		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
 		final EncodingFormat<SerializationSchema<RowData>> format = helper.discoverEncodingFormat(
@@ -92,17 +124,17 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 		context.getCatalogTable()
 			.getOptions()
 			.forEach(configuration::setString);
-		Elasticsearch7Configuration config = new Elasticsearch7Configuration(configuration, context.getClassLoader());
+		Elasticsearch6Configuration config = new Elasticsearch6Configuration(configuration, context.getClassLoader());
 
 		validate(config, configuration);
 
-		return new Elasticsearch7DynamicSink(
+		return new Elasticsearch6DynamicSink(
 			format,
 			config,
 			TableSchemaUtils.getPhysicalSchema(tableSchema));
 	}
 
-	private void validate(Elasticsearch7Configuration config, Configuration originalConfiguration) {
+	private void validate(Elasticsearch6Configuration config, Configuration originalConfiguration) {
 		config.getFailureHandler(); // checks if we can instantiate the custom failure handler
 		config.getHosts(); // validate hosts
 		validate(
@@ -142,7 +174,7 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 
 	@Override
 	public String factoryIdentifier() {
-		return "elasticsearch-7";
+		return "elasticsearch-6";
 	}
 
 	@Override
@@ -154,4 +186,5 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 	public Set<ConfigOption<?>> optionalOptions() {
 		return optionalOptions;
 	}
+
 }

@@ -30,15 +30,15 @@ import org.junit.rules.ExpectedException;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
 
 /**
- * Tests for validation in {@link Elasticsearch6DynamicSinkFactory}.
+ * Tests for validation in {@link Elasticsearch6DynamicSourceSinkFactory}.
  */
-public class Elasticsearch6DynamicSinkFactoryTest {
+public class Elasticsearch6DynamicSourceSinkFactoryTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void validateEmptyConfiguration() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -60,7 +60,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validateWrongIndex() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -79,7 +79,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validateWrongHosts() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -98,7 +98,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validateWrongFlushSize() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -118,7 +118,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validateWrongRetries() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -138,7 +138,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validateWrongMaxActions() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -158,7 +158,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validateWrongBackoffDelay() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -178,7 +178,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 	@Test
 	public void validatePrimaryKeyOnIllegalColumn() {
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
