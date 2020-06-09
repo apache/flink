@@ -251,17 +251,14 @@ input.addSink(sink)
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-AvroWriterFactory<?> factory = new AvroWriterFactory<>(new AvroBuilder<Address>() {
-	@Override
-	public DataFileWriter<Address> createWriter(OutputStream out) throws IOException {
-		Schema schema = ReflectData.get().getSchema(Address.class);
-		DatumWriter<Address> datumWriter = new ReflectDatumWriter<>(schema);
+AvroWriterFactory<?> factory = new AvroWriterFactory<>((AvroBuilder<Address>) out -> {
+	Schema schema = ReflectData.get().getSchema(Address.class);
+	DatumWriter<Address> datumWriter = new ReflectDatumWriter<>(schema);
 
-		DataFileWriter<Address> dataFileWriter = new DataFileWriter<>(datumWriter);
-		dataFileWriter.setCodec(CodecFactory.snappyCodec());
-		dataFileWriter.create(schema, out);
-		return dataFileWriter;
-	}
+	DataFileWriter<Address> dataFileWriter = new DataFileWriter<>(datumWriter);
+	dataFileWriter.setCodec(CodecFactory.snappyCodec());
+	dataFileWriter.create(schema, out);
+	return dataFileWriter;
 });
 
 DataStream<Address> stream = ...
