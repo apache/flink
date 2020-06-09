@@ -68,8 +68,6 @@ The set of properties will be passed to a discovery service where the service tr
 
 Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
 
-For Table API:
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -82,19 +80,36 @@ Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_
 tableEnv.registerCatalog("myhive", catalog);
 
 // Create a catalog database
-tableEnv.sqlUpdate("CREATE DATABASE mydb WITH (...)");
+tableEnv.executeSql("CREATE DATABASE mydb WITH (...)");
 
 // Create a catalog table
-tableEnv.sqlUpdate("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
 
 tableEnv.listTables(); // should return the tables in current catalog and database.
 
 {% endhighlight %}
 </div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val tableEnv = ...
+
+// Create a HiveCatalog 
+val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>")
+
+// Register the catalog
+tableEnv.registerCatalog("myhive", catalog)
+
+// Create a catalog database
+tableEnv.executeSql("CREATE DATABASE mydb WITH (...)")
+
+// Create a catalog table
+tableEnv.executeSql("CREATE TABLE mytable (name STRING, age INT) WITH (...)")
+
+tableEnv.listTables() // should return the tables in current catalog and database.
+
+{% endhighlight %}
 </div>
-
-For SQL Client:
-
+<div data-lang="SQL Client" markdown="1">
 {% highlight sql %}
 // the catalog should have been registered via yaml file
 Flink SQL> CREATE DATABASE mydb WITH (...);
@@ -104,17 +119,25 @@ Flink SQL> CREATE TABLE mytable (name STRING, age INT) WITH (...);
 Flink SQL> SHOW TABLES;
 mytable
 {% endhighlight %}
+</div>
+</div>
+
 
 For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
-### Using Java/Scala/Python API
+### Using Java/Scala
 
-Users can use Java, Scala, or Python API to create catalog tables programmatically.
+Users can use Java or Scala to create catalog tables programmatically.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-TableEnvironment tableEnv = ...
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.catalog.*;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.descriptors.Kafka;
+
+TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
 
 // Create a HiveCatalog 
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>");
@@ -123,7 +146,7 @@ Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_
 tableEnv.registerCatalog("myhive", catalog);
 
 // Create a catalog database 
-catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
+catalog.createDatabase("mydb", new CatalogDatabaseImpl(...));
 
 // Create a catalog table
 TableSchema schema = TableSchema.builder()
@@ -138,14 +161,57 @@ catalog.createTable(
             new Kafka()
                 .version("0.11")
                 ....
-                .startFromEarlist(),
+                .startFromEarlist()
+                .toProperties(),
             "my comment"
-        )
+        ),
+        false
     );
     
 List<String> tables = catalog.listTables("mydb"); // tables should contain "mytable"
 {% endhighlight %}
 
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.api._
+import org.apache.flink.table.catalog._
+import org.apache.flink.table.catalog.hive.HiveCatalog
+import org.apache.flink.table.descriptors.Kafka
+
+val tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance.build)
+
+// Create a HiveCatalog 
+val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>")
+
+// Register the catalog
+tableEnv.registerCatalog("myhive", catalog)
+
+// Create a catalog database 
+catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
+
+// Create a catalog table
+val schema = TableSchema.builder()
+    .field("name", DataTypes.STRING())
+    .field("age", DataTypes.INT())
+    .build()
+
+catalog.createTable(
+        new ObjectPath("mydb", "mytable"), 
+        new CatalogTableImpl(
+            schema,
+            new Kafka()
+                .version("0.11")
+                ....
+                .startFromEarlist()
+                .toProperties(),
+            "my comment"
+        ),
+        false
+    )
+    
+val tables = catalog.listTables("mydb") // tables should contain "mytable"
+{% endhighlight %}
 </div>
 </div>
 
@@ -158,7 +224,7 @@ For detailed DDL information, please refer to [SQL CREATE DDL]({{ site.baseurl }
 ### Database operations
 
 <div class="codetabs" markdown="1">
-<div data-lang="Java" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 // create database
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...), false);
@@ -184,7 +250,7 @@ catalog.listDatabases("mycatalog");
 ### Table operations
 
 <div class="codetabs" markdown="1">
-<div data-lang="Java" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 // create table
 catalog.createTable(new ObjectPath("mydb", "mytable"), new CatalogTableImpl(...), false);
@@ -213,7 +279,7 @@ catalog.listTables("mydb");
 ### View operations
 
 <div class="codetabs" markdown="1">
-<div data-lang="Java" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 // create view
 catalog.createTable(new ObjectPath("mydb", "myview"), new CatalogViewImpl(...), false);
@@ -243,7 +309,7 @@ catalog.listViews("mydb");
 ### Partition operations
 
 <div class="codetabs" markdown="1">
-<div data-lang="Java" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 // create view
 catalog.createPartition(
@@ -284,7 +350,7 @@ catalog.listPartitions(new ObjectPath("mydb", "mytable"), Arrays.asList(epr1, ..
 ### Function operations
 
 <div class="codetabs" markdown="1">
-<div data-lang="Java" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 // create function
 catalog.createFunction(new ObjectPath("mydb", "myfunc"), new CatalogFunctionImpl(...), false);
