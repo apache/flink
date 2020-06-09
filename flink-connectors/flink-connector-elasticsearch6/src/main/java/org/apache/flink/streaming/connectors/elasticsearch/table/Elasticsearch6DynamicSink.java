@@ -50,7 +50,7 @@ import java.util.Objects;
 @PublicEvolving
 final class Elasticsearch6DynamicSink implements DynamicTableSink {
 	@VisibleForTesting
-	static final Elasticsearch7RequestFactory REQUEST_FACTORY = new Elasticsearch7RequestFactory();
+	static final Elasticsearch6RequestFactory REQUEST_FACTORY = new Elasticsearch6RequestFactory();
 
 	private final EncodingFormat<SerializationSchema<RowData>> format;
 	private final TableSchema schema;
@@ -200,7 +200,7 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
 	/**
 	 * Version-specific creation of {@link org.elasticsearch.action.ActionRequest}s used by the sink.
 	 */
-	private static class Elasticsearch7RequestFactory implements RequestFactory {
+	private static class Elasticsearch6RequestFactory implements RequestFactory {
 		@Override
 		public UpdateRequest createUpdateRequest(
 			String index,
