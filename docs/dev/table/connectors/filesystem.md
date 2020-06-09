@@ -48,9 +48,9 @@ CREATE TABLE MyUserTable (
   'path' = 'file:///path/to/whatever',  -- required: path to a directory
   'format' = '...',                     -- required: file system connector requires to specify a format,
                                         -- Please refer to Table Formats
-                                        -- section for more details.s
+                                        -- section for more details
   'partition.default-name' = '...',     -- optional: default partition name in case the dynamic partition
-                                        -- column value is null/empty string.
+                                        -- column value is null/empty string
   
   -- optional: the option to enable shuffle data by dynamic partition fields in sink phase, this can greatly
   -- reduce the number of file for filesystem sink but may lead data skew, the default value is false.
