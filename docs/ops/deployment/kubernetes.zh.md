@@ -179,9 +179,19 @@ data:
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
-  log4j.properties: |+
+  log4j-console.properties: |+
+    # This affects logging for both user code and Flink
     rootLogger.level = INFO
-    rootLogger.appenderRef.file.ref = MainAppender
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
+
+    # Uncomment this if you want to _only_ change Flink's logging
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
     logger.akka.name = akka
     logger.akka.level = INFO
     logger.kafka.name= org.apache.kafka
@@ -190,14 +200,30 @@ data:
     logger.hadoop.level = INFO
     logger.zookeeper.name = org.apache.zookeeper
     logger.zookeeper.level = INFO
-    appender.main.name = MainAppender
-    appender.main.type = File
-    appender.main.append = false
-    appender.main.fileName = ${sys:log.file}
-    appender.main.layout.type = PatternLayout
-    appender.main.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos to the console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos in the given rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
     logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
-    logger.netty.level = ERROR
+    logger.netty.level = OFF
 {% endhighlight %}
 
 `jobmanager-service.yaml`
@@ -213,8 +239,6 @@ spec:
     port: 6123
   - name: blob-server
     port: 6124
-  - name: query-state
-    port: 6125
   - name: webui
     port: 8081
   selector:
@@ -234,7 +258,7 @@ spec:
   - name: rest
     port: 8081
     targetPort: 8081
-    nodePort: 8081
+    nodePort: 30081
   selector:
     app: flink
     component: jobmanager
@@ -269,8 +293,6 @@ spec:
           name: rpc
         - containerPort: 6124
           name: blob-server
-        - containerPort: 6125
-          name: query-state
         - containerPort: 8081
           name: webui
         livenessProbe:
@@ -290,8 +312,8 @@ spec:
           items:
           - key: flink-conf.yaml
             path: flink-conf.yaml
-          - key: log4j.properties
-            path: log4j.properties
+          - key: log4j-console.properties
+            path: log4j-console.properties
 {% endhighlight %}
 
 `taskmanager-session-deployment.yaml`
@@ -319,6 +341,8 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
+        - containerPort: 6125
+          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -336,8 +360,8 @@ spec:
           items:
           - key: flink-conf.yaml
             path: flink-conf.yaml
-          - key: log4j.properties
-            path: log4j.properties
+          - key: log4j-console.properties
+            path: log4j-console.properties
 {% endhighlight %}
 
 ### Job cluster resource definitions
@@ -349,11 +373,6 @@ kind: Job
 metadata:
   name: flink-jobmanager
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: flink
-      component: jobmanager
   template:
     metadata:
       labels:
@@ -365,14 +384,12 @@ spec:
         - name: jobmanager
           image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %}
           env:
-          args: ["standalone-job", "--job-classname", "com.job.ClassName", ["--job-id", "<job id>",] ["--fromSavepoint", "/path/to/savepoint", ["--allowNonRestoredState",]] [job arguments]]
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
             - containerPort: 6124
               name: blob-server
-            - containerPort: 6125
-              name: query-state
             - containerPort: 8081
               name: webui
           livenessProbe:
@@ -394,8 +411,8 @@ spec:
             items:
               - key: flink-conf.yaml
                 path: flink-conf.yaml
-              - key: log4j.properties
-                path: log4j.properties
+              - key: log4j-console.properties
+                path: log4j-console.properties
         - name: job-artifacts-volume
           hostPath:
             path: /host/path/to/job/artifacts
@@ -427,6 +444,8 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
+        - containerPort: 6125
+          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -446,8 +465,8 @@ spec:
           items:
           - key: flink-conf.yaml
             path: flink-conf.yaml
-          - key: log4j.properties
-            path: log4j.properties
+          - key: log4j-console.properties
+            path: log4j-console.properties
       - name: job-artifacts-volume
         hostPath:
           path: /host/path/to/job/artifacts
