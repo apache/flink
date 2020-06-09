@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.hadoop.bulk.committer;
+package org.apache.flink.formats.hadoop.bulk;
 
-import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitter;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.hadoop.conf.Configuration;
@@ -27,7 +26,10 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.junit.After;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,24 +46,59 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests the behaviors of {@link HadoopRenameFileCommitter}.
+ * Tests the behaviors of {@link HadoopFileCommitter}.
  */
-public class HadoopRenameFileCommitterTest extends AbstractTestBase {
+@RunWith(Parameterized.class)
+public abstract class AbstractFileCommitterTest extends AbstractTestBase {
 
 	private static final List<String> CONTENTS = new ArrayList<>(Arrays.asList(
 		"first line",
 		"second line",
 		"third line"));
 
+	private boolean override;
+
+	private Configuration configuration;
+
+	private Path basePath;
+
+	@Parameterized.Parameters(name = "Override: {0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
+
+	public AbstractFileCommitterTest(boolean override) throws IOException {
+		this.override = override;
+		this.configuration = getConfiguration();
+		this.basePath = getBasePath();
+	}
+
+	@After
+	public void cleanup() throws IOException {
+		cleanup(configuration, basePath);
+	}
+
+	protected abstract Configuration getConfiguration();
+
+	protected abstract HadoopFileCommitter createNewCommitter(
+		Configuration configuration,
+		Path targetFilePath) throws IOException;
+
+	protected abstract HadoopFileCommitter createPendingCommitter(
+		Configuration configuration,
+		Path targetFilePath,
+		Path tempFilePath) throws IOException;
+
+	protected abstract Path getBasePath() throws IOException;
+
+	protected abstract void cleanup(Configuration configuration, Path basePath) throws IOException;
+
 	@Test
 	public void testCommitOneFile() throws IOException {
-		Configuration configuration = new Configuration();
-
-		Path basePath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
 		Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
-		HadoopFileCommitter committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
-		writeFile(committer.getInProgressFilePath(), configuration);
+		HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
+		writeFile(committer.getTempFilePath(), configuration);
 
 		committer.preCommit();
 		verifyFileNotExists(configuration, basePath, "part-0-0.txt");
@@ -71,53 +109,49 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 
 	@Test
 	public void testCommitReWrittenFileAfterFailOver() throws IOException {
-		Configuration configuration = new Configuration();
-
-		Path basePath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
 		Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
-		HadoopFileCommitter committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
-		writeFile(committer.getInProgressFilePath(), configuration);
+		HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
+		writeFile(committer.getTempFilePath(), configuration);
+		Path firstTempFilePath = committer.getTempFilePath();
 
 		// Simulates restart the process and re-write the file.
-		committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
-		writeFile(committer.getInProgressFilePath(), configuration);
+		committer = createNewCommitter(configuration, targetFilePath);
+		writeFile(committer.getTempFilePath(), configuration);
 
 		committer.preCommit();
 		verifyFileNotExists(configuration, basePath, "part-0-0.txt");
 
 		committer.commit();
-		verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
+		verifyFolderAfterAllCommitted(
+			configuration,
+			basePath,
+			"part-0-0.txt",
+			firstTempFilePath.getName());
 	}
 
 	@Test
 	public void testCommitPreCommittedFileAfterFailOver() throws IOException {
-		Configuration configuration = new Configuration();
-
-		Path basePath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
 		Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
-		HadoopFileCommitter committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
-		writeFile(committer.getInProgressFilePath(), configuration);
+		HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
+		writeFile(committer.getTempFilePath(), configuration);
 
 		committer.preCommit();
 		verifyFileNotExists(configuration, basePath, "part-0-0.txt");
 
 		// Simulates restart the process and continue committing the file.
-		committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
+		committer = createPendingCommitter(configuration, targetFilePath, committer.getTempFilePath());
 		committer.commit();
 		verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
 	}
 
 	@Test
 	public void testRepeatCommitAfterFailOver() throws IOException {
-		Configuration configuration = new Configuration();
-
-		Path basePath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
 		Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
-		HadoopFileCommitter committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
-		writeFile(committer.getInProgressFilePath(), configuration);
+		HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
+		writeFile(committer.getTempFilePath(), configuration);
 
 		committer.preCommit();
 		verifyFileNotExists(configuration, basePath, "part-0-0.txt");
@@ -126,7 +160,7 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 		verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
 
 		// Simulates restart the process and continue committing the file.
-		committer = new HadoopRenameFileCommitter(configuration, targetFilePath);
+		committer = createPendingCommitter(configuration, targetFilePath, committer.getTempFilePath());
 		committer.commitAfterRecovery();
 
 		verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
@@ -134,17 +168,14 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 
 	@Test
 	public void testCommitMultipleFilesOneByOne() throws IOException {
-		Configuration configuration = new Configuration();
-
-		Path basePath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
 		Path targetFilePath1 = new Path(basePath, "part-0-0.txt");
 		Path targetFilePath2 = new Path(basePath, "part-1-1.txt");
 
-		HadoopFileCommitter committer1 = new HadoopRenameFileCommitter(configuration, targetFilePath1);
-		HadoopFileCommitter committer2 = new HadoopRenameFileCommitter(configuration, targetFilePath2);
+		HadoopFileCommitter committer1 = createNewCommitter(configuration, targetFilePath1);
+		HadoopFileCommitter committer2 = createNewCommitter(configuration, targetFilePath2);
 
-		writeFile(committer1.getInProgressFilePath(), configuration);
-		writeFile(committer2.getInProgressFilePath(), configuration);
+		writeFile(committer1.getTempFilePath(), configuration);
+		writeFile(committer2.getTempFilePath(), configuration);
 
 		committer1.preCommit();
 		committer1.commit();
@@ -160,17 +191,14 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 
 	@Test
 	public void testCommitMultipleFilesMixed() throws IOException {
-		Configuration configuration = new Configuration();
-
-		Path basePath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
 		Path targetFilePath1 = new Path(basePath, "part-0-0.txt");
 		Path targetFilePath2 = new Path(basePath, "part-1-1.txt");
 
-		HadoopFileCommitter committer1 = new HadoopRenameFileCommitter(configuration, targetFilePath1);
-		HadoopFileCommitter committer2 = new HadoopRenameFileCommitter(configuration, targetFilePath2);
+		HadoopFileCommitter committer1 = createNewCommitter(configuration, targetFilePath1);
+		HadoopFileCommitter committer2 = createNewCommitter(configuration, targetFilePath2);
 
-		writeFile(committer1.getInProgressFilePath(), configuration);
-		writeFile(committer2.getInProgressFilePath(), configuration);
+		writeFile(committer1.getTempFilePath(), configuration);
+		writeFile(committer2.getTempFilePath(), configuration);
 
 		committer1.preCommit();
 		committer2.preCommit();
@@ -190,7 +218,7 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 
 	private void writeFile(Path path, Configuration configuration) throws IOException {
 		FileSystem fileSystem = FileSystem.get(path.toUri(), configuration);
-		try (FSDataOutputStream fsDataOutputStream = fileSystem.create(path, true);
+		try (FSDataOutputStream fsDataOutputStream = fileSystem.create(path, override);
 			PrintWriter printWriter = new PrintWriter(fsDataOutputStream)) {
 
 			for (String line : CONTENTS) {
@@ -234,9 +262,9 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 	private void verifyFolderAfterAllCommitted(
 		Configuration configuration,
 		Path basePath,
-		String... targetFileNames) throws IOException {
+		String... expectedFileNames) throws IOException {
 
-		List<String> expectedNames = Arrays.asList(targetFileNames);
+		List<String> expectedNames = Arrays.asList(expectedFileNames);
 		Collections.sort(expectedNames);
 
 		FileSystem fileSystem = FileSystem.get(basePath.toUri(), configuration);
@@ -252,11 +280,13 @@ public class HadoopRenameFileCommitterTest extends AbstractTestBase {
 			fileNames);
 
 		for (FileStatus file : files) {
-			List<String> written = readFile(fileSystem, files[0].getPath());
-			assertEquals(
-				"Unexpected file content for file " + file.getPath(),
-				CONTENTS,
-				written);
+			if (!file.getPath().getName().startsWith(".")) {
+				List<String> written = readFile(fileSystem, files[0].getPath());
+				assertEquals(
+					"Unexpected file content for file " + file.getPath(),
+					CONTENTS,
+					written);
+			}
 		}
 	}
 

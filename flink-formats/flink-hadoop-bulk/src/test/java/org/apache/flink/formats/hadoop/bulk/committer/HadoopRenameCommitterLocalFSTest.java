@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.hadoop.bulk;
+package org.apache.flink.formats.hadoop.bulk.committer;
 
-import org.apache.flink.formats.hadoop.bulk.committer.HadoopRenameFileCommitter;
+import org.apache.flink.formats.hadoop.bulk.AbstractFileCommitterTest;
+import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitter;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -26,14 +27,26 @@ import org.apache.hadoop.fs.Path;
 import java.io.IOException;
 
 /**
- * The default hadoop file committer factory which always use {@link HadoopRenameFileCommitter}.
+ * Tests the behaviors of {@link HadoopRenameFileCommitter} with local file system.
  */
-public class DefaultHadoopFileCommitterFactory implements HadoopFileCommitterFactory {
+public class HadoopRenameCommitterLocalFSTest extends AbstractFileCommitterTest {
 
-	private static final long serialVersionUID = 1L;
+	public HadoopRenameCommitterLocalFSTest(boolean override) throws IOException {
+		super(override);
+	}
 
 	@Override
-	public HadoopFileCommitter create(
+	protected Path getBasePath() throws IOException {
+		return new Path(TEMPORARY_FOLDER.newFolder().toURI());
+	}
+
+	@Override
+	protected Configuration getConfiguration() {
+		return new Configuration();
+	}
+
+	@Override
+	protected HadoopFileCommitter createNewCommitter(
 		Configuration configuration,
 		Path targetFilePath) throws IOException {
 
@@ -41,11 +54,16 @@ public class DefaultHadoopFileCommitterFactory implements HadoopFileCommitterFac
 	}
 
 	@Override
-	public HadoopFileCommitter recoverForCommit(
+	protected HadoopFileCommitter createPendingCommitter(
 		Configuration configuration,
 		Path targetFilePath,
 		Path tempFilePath) throws IOException {
 
 		return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
+	}
+
+	@Override
+	public void cleanup(Configuration configuration, Path basePath) {
+		// Empty method.
 	}
 }

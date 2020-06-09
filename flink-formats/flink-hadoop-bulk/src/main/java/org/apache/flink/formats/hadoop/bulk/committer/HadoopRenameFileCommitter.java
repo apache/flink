@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -39,12 +40,22 @@ public class HadoopRenameFileCommitter implements HadoopFileCommitter {
 
 	private final Path targetFilePath;
 
-	private final Path inProgressFilePath;
+	private final Path tempFilePath;
 
-	public HadoopRenameFileCommitter(Configuration configuration, Path targetFilePath) {
+	public HadoopRenameFileCommitter(Configuration configuration, Path targetFilePath) throws IOException {
 		this.configuration = configuration;
 		this.targetFilePath = targetFilePath;
-		this.inProgressFilePath = generateInProgressFilePath();
+		this.tempFilePath = generateTempFilePath();
+	}
+
+	public HadoopRenameFileCommitter(
+		Configuration configuration,
+		Path targetFilePath,
+		Path inProgressPath) throws IOException {
+
+		this.configuration = configuration;
+		this.targetFilePath = targetFilePath;
+		this.tempFilePath = inProgressPath;
 	}
 
 	@Override
@@ -53,8 +64,8 @@ public class HadoopRenameFileCommitter implements HadoopFileCommitter {
 	}
 
 	@Override
-	public Path getInProgressFilePath() {
-		return inProgressFilePath;
+	public Path getTempFilePath() {
+		return tempFilePath;
 	}
 
 	@Override
@@ -75,11 +86,10 @@ public class HadoopRenameFileCommitter implements HadoopFileCommitter {
 	private void rename(boolean assertFileExists) throws IOException {
 		FileSystem fileSystem = FileSystem.get(targetFilePath.toUri(), configuration);
 
-		if (!fileSystem.exists(inProgressFilePath)) {
+		if (!fileSystem.exists(tempFilePath)) {
 			if (assertFileExists) {
-				throw new IOException(String.format("In progress file(%s) not exists.", inProgressFilePath));
+				throw new IOException(String.format("In progress file(%s) not exists.", tempFilePath));
 			} else {
-
 				// By pass the re-commit if source file not exists.
 				// TODO: in the future we may also need to check if the target file exists.
 				return;
@@ -88,20 +98,27 @@ public class HadoopRenameFileCommitter implements HadoopFileCommitter {
 
 		try {
 			// If file exists, it will be overwritten.
-			fileSystem.rename(inProgressFilePath, targetFilePath);
+			fileSystem.rename(tempFilePath, targetFilePath);
 		} catch (IOException e) {
 			throw new IOException(
-				String.format("Could not commit file from %s to %s", inProgressFilePath, targetFilePath),
+				String.format("Could not commit file from %s to %s", tempFilePath, targetFilePath),
 				e);
 		}
 	}
 
-	private Path generateInProgressFilePath() {
+	private Path generateTempFilePath() throws IOException {
 		checkArgument(targetFilePath.isAbsolute(), "Target file must be absolute");
+
+		FileSystem fileSystem = FileSystem.get(targetFilePath.toUri(), configuration);
 
 		Path parent = targetFilePath.getParent();
 		String name = targetFilePath.getName();
 
-		return new Path(parent, "." + name + ".inprogress");
+		while (true) {
+			Path candidate = new Path(parent, "." + name + ".inprogress." + UUID.randomUUID().toString());
+			if (!fileSystem.exists(candidate)) {
+				return candidate;
+			}
+		}
 	}
 }

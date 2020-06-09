@@ -33,13 +33,25 @@ import java.io.Serializable;
 public interface HadoopFileCommitterFactory extends Serializable {
 
 	/**
-	 * Creates the corresponding Hadoop file committer according to the Hadoop
-	 * configuration and the target path.
+	 * Creates a new Hadoop file committer for writing.
 	 *
 	 * @param configuration The hadoop configuration.
-	 * @param targetFilePath The target path to commit.
+	 * @param targetFilePath The target path to commit to.
 	 * @return The corresponding Hadoop file committer.
 	 */
 	HadoopFileCommitter create(Configuration configuration, Path targetFilePath) throws IOException;
+
+	/**
+	 * Creates a Hadoop file committer for commit the pending file.
+	 *
+	 * @param configuration The hadoop configuration.
+	 * @param targetFilePath The target path to commit to.
+	 * @param inProgressPath The path of the remaining pending file.
+	 * @return The corresponding Hadoop file committer.
+	 */
+	HadoopFileCommitter recoverForCommit(
+		Configuration configuration,
+		Path targetFilePath,
+		Path inProgressPath) throws IOException;
 
 }
