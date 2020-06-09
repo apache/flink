@@ -77,6 +77,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_TIME_INTERVAL;
@@ -141,9 +142,10 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 					isCompressed);
 			String extension = Utilities.getFileExtension(jobConf, isCompressed,
 					(HiveOutputFormat<?, ?>) hiveOutputFormatClz.newInstance());
-			extension = extension == null ? "" : extension;
 			OutputFileConfig outputFileConfig = OutputFileConfig.builder()
-					.withPartSuffix(extension).build();
+					.withPartPrefix("part-" + UUID.randomUUID().toString())
+					.withPartSuffix(extension == null ? "" : extension)
+					.build();
 			if (isBounded) {
 				FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
 				builder.setPartitionComputer(new HiveRowPartitionComputer(
