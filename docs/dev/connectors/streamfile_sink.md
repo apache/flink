@@ -139,6 +139,7 @@ are finalized for further encoding purposes.
 Flink comes with four built-in BulkWriter factories:
 
  - [ParquetWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetWriterFactory.html)
+ - [AvroWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroWriterFactory.html)
  - [SequenceFileWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.html)
  - [CompressWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/compress/CompressWriterFactory.html)
  - [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/writer/OrcBulkWriterFactory.html)
@@ -200,6 +201,106 @@ val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
 
 input.addSink(sink)
 
+{% endhighlight %}
+</div>
+</div>
+
+#### Avro format
+
+Flink also provides built-in support for writing data into Avro files. A list of convenience methods to create
+Avro writer factories and their associated documentation can be found in the 
+[AvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroWriters.html) class.
+
+To use the Avro writers in your application you need to add the following dependency:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+A StreamingFileSink that writes data to Avro files can be created like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.formats.avro.AvroWriters;
+import org.apache.avro.Schema;
+
+
+Schema schema = ...;
+DataStream<GenericRecord> stream = ...;
+
+final StreamingFileSink<GenericRecord> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.formats.avro.AvroWriters
+import org.apache.avro.Schema
+
+val schema: Schema = ...
+val input: DataStream[GenericRecord] = ...
+
+val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
+    .forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+For creating customized Avro writers, e.g. enabling compression, users need to create the `AvroWriterFactory`
+with a custom implementation of the [AvroBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroBuilder.html) interface:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+AvroWriterFactory<?> factory = new AvroWriterFactory<>((AvroBuilder<Address>) out -> {
+	Schema schema = ReflectData.get().getSchema(Address.class);
+	DatumWriter<Address> datumWriter = new ReflectDatumWriter<>(schema);
+
+	DataFileWriter<Address> dataFileWriter = new DataFileWriter<>(datumWriter);
+	dataFileWriter.setCodec(CodecFactory.snappyCodec());
+	dataFileWriter.create(schema, out);
+	return dataFileWriter;
+});
+
+DataStream<Address> stream = ...
+stream.addSink(StreamingFileSink.forBulkFormat(
+	outputBasePath,
+	factory).build());
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val factory = new AvroWriterFactory[Address](new AvroBuilder[Address]() {
+    override def createWriter(out: OutputStream): DataFileWriter[Address] = {
+        val schema = ReflectData.get.getSchema(classOf[Address])
+        val datumWriter = new ReflectDatumWriter[Address](schema)
+
+        val dataFileWriter = new DataFileWriter[Address](datumWriter)
+        dataFileWriter.setCodec(CodecFactory.snappyCodec)
+        dataFileWriter.create(schema, out)
+        dataFileWriter
+    }
+})
+
+val stream: DataStream[Address] = ...
+stream.addSink(StreamingFileSink.forBulkFormat(
+    outputBasePath,
+    factory).build());
 {% endhighlight %}
 </div>
 </div>
