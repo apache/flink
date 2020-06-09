@@ -52,6 +52,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 
 import org.junit.After;
 import org.junit.Test;
@@ -122,7 +123,7 @@ public class StreamTaskNetworkInputTest {
 	public void testSnapshotWithTwoInputGates() throws Exception {
 		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(
 				new int[]{ 1, 1 },
-				ChannelStateWriter.NO_OP,
+				TestSubtaskCheckpointCoordinator.INSTANCE,
 				"test",
 				new DummyCheckpointInvokable());
 
@@ -194,7 +195,7 @@ public class StreamTaskNetworkInputTest {
 				inputGate.getInputGate(),
 				new CheckpointBarrierUnaligner(
 					new int[] { numInputChannels },
-					ChannelStateWriter.NO_OP,
+					TestSubtaskCheckpointCoordinator.INSTANCE,
 					"test",
 					new DummyCheckpointInvokable())),
 			inSerializer,
