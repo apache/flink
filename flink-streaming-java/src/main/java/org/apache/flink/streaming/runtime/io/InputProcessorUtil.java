@@ -18,13 +18,13 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,7 +43,7 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
-			ChannelStateWriter channelStateWriter,
+			SubtaskCheckpointCoordinator checkpointCoordinator,
 			IndexedInputGate[] inputGates,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) {
@@ -51,7 +51,7 @@ public class InputProcessorUtil {
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
 			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels),
-			channelStateWriter,
+			checkpointCoordinator,
 			taskName,
 			generateChannelIndexToInputGateMap(inputGate),
 			generateInputGateToChannelIndexOffsetMap(inputGate),
@@ -70,7 +70,7 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
-			ChannelStateWriter channelStateWriter,
+			SubtaskCheckpointCoordinator checkpointCoordinator,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
 			Collection<IndexedInputGate> ...inputGates) {
@@ -100,7 +100,7 @@ public class InputProcessorUtil {
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
 			numberOfInputChannelsPerGate,
-			channelStateWriter,
+			checkpointCoordinator,
 			taskName,
 			generateChannelIndexToInputGateMap(unionedInputGates),
 			inputGateToChannelIndexOffset,
@@ -126,7 +126,7 @@ public class InputProcessorUtil {
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
 			StreamConfig config,
 			IntStream numberOfInputChannelsPerGate,
-			ChannelStateWriter channelStateWriter,
+			SubtaskCheckpointCoordinator checkpointCoordinator,
 			String taskName,
 			InputGate[] channelIndexToInputGate,
 			Map<InputGate, Integer> inputGateToChannelIndexOffset,
@@ -142,7 +142,7 @@ public class InputProcessorUtil {
 							toNotifyOnCheckpoint),
 						new CheckpointBarrierUnaligner(
 							numberOfInputChannelsPerGate.toArray(),
-							channelStateWriter,
+							checkpointCoordinator,
 							taskName,
 							toNotifyOnCheckpoint),
 						toNotifyOnCheckpoint);

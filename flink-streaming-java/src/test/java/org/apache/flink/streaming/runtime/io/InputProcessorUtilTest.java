@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
@@ -96,7 +97,7 @@ public class InputProcessorUtilTest {
 			CheckpointedInputGate[] checkpointedMultipleInputGate = InputProcessorUtil.createCheckpointedMultipleInputGate(
 				streamTask,
 				streamConfig,
-				new MockChannelStateWriter(),
+				new TestSubtaskCheckpointCoordinator(new MockChannelStateWriter()),
 				environment.getMetricGroup().getIOMetricGroup(),
 				streamTask.getName(),
 				inputGates);
