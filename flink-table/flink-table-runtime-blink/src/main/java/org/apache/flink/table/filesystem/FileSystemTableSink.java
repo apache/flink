@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
@@ -63,6 +64,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
@@ -126,6 +128,9 @@ public class FileSystemTableSink implements
 				partitionKeys.toArray(new String[0]));
 
 		EmptyMetaStoreFactory metaStoreFactory = new EmptyMetaStoreFactory(path);
+		OutputFileConfig outputFileConfig = OutputFileConfig.builder()
+				.withPartPrefix("part-" + UUID.randomUUID().toString())
+				.build();
 
 		if (isBounded) {
 			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
@@ -137,6 +142,7 @@ public class FileSystemTableSink implements
 			builder.setOverwrite(overwrite);
 			builder.setStaticPartitions(staticPartitions);
 			builder.setTempPath(toStagingPath());
+			builder.setOutputFileConfig(outputFileConfig);
 			return dataStream.writeUsingOutputFormat(builder.build())
 					.setParallelism(dataStream.getParallelism());
 		} else {
@@ -155,12 +161,14 @@ public class FileSystemTableSink implements
 				bucketsBuilder = StreamingFileSink.forRowFormat(
 						path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
+						.withOutputFileConfig(outputFileConfig)
 						.withRollingPolicy(rollingPolicy);
 			} else {
 				//noinspection unchecked
 				bucketsBuilder = StreamingFileSink.forBulkFormat(
 						path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
+						.withOutputFileConfig(outputFileConfig)
 						.withRollingPolicy(rollingPolicy);
 			}
 			return createStreamingSink(
