@@ -148,9 +148,18 @@ public class DataFormatConvertersTest {
 	}
 
 	private static void test(TypeInformation typeInfo, Object value) {
+		test(typeInfo, value, null);
+	}
+
+	private static void test(TypeInformation typeInfo, Object value, Object anotherValue) {
 		DataFormatConverter converter = getConverter(typeInfo);
+		final Object innerValue = converter.toInternal(value);
+		if (anotherValue != null) {
+			converter.toInternal(anotherValue);
+		}
+
 		Assert.assertTrue(Arrays.deepEquals(
-				new Object[] {converter.toExternal(converter.toInternal(value))}, new Object[] {value}));
+			new Object[] {converter.toExternal(innerValue)}, new Object[]{value}));
 	}
 
 	private static DataFormatConverter getConverter(DataType dataType) {
@@ -193,6 +202,7 @@ public class DataFormatConvertersTest {
 		test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {null, null});
 		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {null, null});
 		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"});
+		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"}, new String[] {"aa", "bb"});
 		test(new MapTypeInfo<>(Types.STRING, Types.INT), null);
 
 		HashMap<String, Integer> map = new HashMap<>();
