@@ -22,12 +22,16 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.AbstractCollection;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
 /**
- * Map which stores values under two different indices.
+ * Map which stores values under two different indices. The mapping of the primary key to the
+ * value is backed by {@link LinkedHashMap} so that the iteration order over the values and
+ * the primary key set is the insertion order. Note that there is no contract of the iteration
+ * order over the secondary key set.
  *
  * @param <A> Type of key A
  * @param <B> Type of key B
@@ -37,13 +41,13 @@ public class DualKeyLinkedMap<A, B, V> {
 
 	private final LinkedHashMap<A, Tuple2<B, V>> aMap;
 
-	private final LinkedHashMap<B, A> bMap;
+	private final HashMap<B, A> bMap;
 
 	private transient Collection<V> values;
 
 	public DualKeyLinkedMap(int initialCapacity) {
 		this.aMap = new LinkedHashMap<>(initialCapacity);
-		this.bMap = new LinkedHashMap<>(initialCapacity);
+		this.bMap = new HashMap<>(initialCapacity);
 	}
 
 	public int size() {
