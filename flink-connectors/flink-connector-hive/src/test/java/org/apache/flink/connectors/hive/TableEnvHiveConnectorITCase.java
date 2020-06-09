@@ -128,10 +128,13 @@ public class TableEnvHiveConnectorITCase {
 
 	@Test
 	public void testDifferentFormats() throws Exception {
-		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
+		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv", "avro"};
 		for (String format : formats) {
 			if (format.equals("orc") && HiveShimLoader.getHiveVersion().startsWith("2.0")) {
 				// Ignore orc test for Hive version 2.0.x for now due to FLINK-13998
+				continue;
+			} else if (format.equals("avro") && !HiveVersionTestUtil.HIVE_110_OR_LATER) {
+				// timestamp is not supported for avro tables before 1.1.0
 				continue;
 			}
 			readWriteFormat(format);
