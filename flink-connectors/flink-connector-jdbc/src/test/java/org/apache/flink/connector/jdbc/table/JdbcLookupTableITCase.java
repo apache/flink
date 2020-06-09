@@ -144,7 +144,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 		tEnv.createTemporaryView("T", t);
 
 		String cacheConfig = ", 'lookup.cache.max-rows'='4', 'lookup.cache.ttl'='10000', 'lookup.max-retries'='5'";
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 			String.format("create table lookup (" +
 				"  id1 INT," +
 				"  id2 VARCHAR," +

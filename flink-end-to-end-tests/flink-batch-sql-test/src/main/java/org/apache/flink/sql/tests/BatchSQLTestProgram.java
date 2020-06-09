@@ -48,7 +48,7 @@ import java.util.NoSuchElementException;
  *
  * <p>Parameters:
  * -outputPath output file path for CsvTableSink;
- * -sqlStatement SQL statement that will be executed as sqlUpdate
+ * -sqlStatement SQL statement that will be executed as executeSql
  */
 public class BatchSQLTestProgram {
 

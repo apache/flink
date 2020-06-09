@@ -243,8 +243,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testProjectPushDown(): Unit = {
-    tableEnv.sqlUpdate("insert into partitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test")
+    execInsertSqlAndWaitResult(
+      tableEnv, "insert into partitionedTable select x, y, a, b from originalT")
 
     check(
       "select y, b, x from partitionedTable where a=3",
