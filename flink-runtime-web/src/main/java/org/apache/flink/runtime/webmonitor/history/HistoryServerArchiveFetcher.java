@@ -263,20 +263,7 @@ class HistoryServerArchiveFetcher {
 								LOG.info("Processing archive {} finished.", jobArchivePath);
 							} catch (IOException e) {
 								LOG.error("Failure while fetching/processing job archive for job {}.", jobID, e);
-								// Make sure we do not include this job in the overview
-								try {
-									Files.delete(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
-								} catch (IOException ioe) {
-									LOG.debug("Could not delete file from overview directory.", ioe);
-								}
-
-								// Clean up job files we may have created
-								File jobDirectory = new File(webJobDir, jobID);
-								try {
-									FileUtils.deleteDirectory(jobDirectory);
-								} catch (IOException ioe) {
-									LOG.debug("Could not clean up job directory.", ioe);
-								}
+								deleteJobFiles(jobID);
 							}
 						}
 					}
@@ -302,16 +289,34 @@ class HistoryServerArchiveFetcher {
 
 			cachedArchives.removeAll(jobsToRemove);
 			jobsToRemove.forEach(removedJobID -> {
-				try {
-					Files.deleteIfExists(new File(webOverviewDir, removedJobID + JSON_FILE_ENDING).toPath());
-					FileUtils.deleteDirectory(new File(webJobDir, removedJobID));
-				} catch (IOException e) {
-					LOG.error("Failure while removing job overview for job {}.", removedJobID, e);
-				}
+				deleteJobFiles(removedJobID);
 				deleteLog.add(new ArchiveEvent(removedJobID, ArchiveEventType.DELETED));
 			});
 
 			return deleteLog;
+		}
+
+		private void deleteJobFiles(String jobID) {
+			// Make sure we do not include this job in the overview
+			try {
+				Files.deleteIfExists(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
+			} catch (IOException ioe) {
+				LOG.warn("Could not delete file from overview directory.", ioe);
+			}
+
+			// Clean up job files we may have created
+			File jobDirectory = new File(webJobDir, jobID);
+			try {
+				FileUtils.deleteDirectory(jobDirectory);
+			} catch (IOException ioe) {
+				LOG.warn("Could not clean up job directory.", ioe);
+			}
+
+			try {
+				Files.deleteIfExists(new File(webJobDir, jobID + JSON_FILE_ENDING).toPath());
+			} catch (IOException ioe) {
+				LOG.warn("Could not delete file from job directory.", ioe);
+			}
 		}
 
 	}
