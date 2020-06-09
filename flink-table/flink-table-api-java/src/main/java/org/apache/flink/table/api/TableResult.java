@@ -96,9 +96,9 @@ public interface TableResult {
 	 *         For DML operation, Flink does not support getting the real affected row count now.
 	 *         So the affected row count is always -1 (unknown) for every sink, and them will be
 	 *         returned after the job is submitted.
-	 *         Do nothing when calling CloseableIterator#close method (which will not cancel the job
-	 *         because the returned iterator does not bound to the job now).
-	 *         We can cancel the job through {@link #getJobClient()} if needed.
+	 *         Calling CloseableIterator#close method does not bind to the job.
+	 *         Therefore the `CloseableIterator#close` will not cancel the job as in the case of SELECT.
+	 *         If you need to cancel the job, you can use the {@link #getJobClient()}.
 	 *     </li>
 	 *     <li>
 	 *         For other operations, no flink job will be submitted ({@link #getJobClient()} is always empty),
