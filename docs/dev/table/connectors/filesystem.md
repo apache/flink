@@ -65,7 +65,7 @@ CREATE TABLE MyUserTable (
 
 <span class="label label-danger">Attention</span> File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
 
-<span class="label label-danger">Attention</span> The behaviour of file system connector is much different from previous one: 
+<span class="label label-danger">Attention</span> The behaviour of file system connector is much different from `previous legacy filesystem connector`: 
 the path parameter is specified for a directory not for a file and you can't get a human-readable file in the path that you declare.
 
 ## Partition Files
