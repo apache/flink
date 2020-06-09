@@ -119,7 +119,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Run Flink locally for basic testing and experimentation
-        <br><a href="{{ site.baseurl }}/ops/deployment/local.html">Learn more</a>
+        <br><a href="{% link ops/deployment/local.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -130,7 +130,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A simple solution for running Flink on bare metal or VM's 
-        <br><a href="{{ site.baseurl }}/ops/deployment/cluster_setup.html">Learn more</a>
+        <br><a href="{% link ops/deployment/cluster_setup.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -141,7 +141,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Deploy Flink on-top of Apache Hadoop's resource manager 
-        <br><a href="{{ site.baseurl }}/ops/deployment/yarn_setup.html">Learn more</a>
+        <br><a href="{% link ops/deployment/yarn_setup.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -154,7 +154,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A generic resource manager for running distriubted systems
-        <br><a href="{{ site.baseurl }}/ops/deployment/mesos.html">Learn more</a>
+        <br><a href="{% link ops/deployment/mesos.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -165,7 +165,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A popular solution for running Flink within a containerized environment
-        <br><a href="{{ site.baseurl }}/ops/deployment/docker.html">Learn more</a>
+        <br><a href="{% link ops/deployment/docker.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -176,7 +176,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         An automated system for deploying containerized applications
-        <br><a href="{{ site.baseurl }}/ops/deployment/kubernetes.html">Learn more</a>
+        <br><a href="{% link ops/deployment/kubernetes.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -247,3 +247,58 @@ Supported Environments:
 <span class="label label-primary">Azure</span>
 <span class="label label-primary">Google Cloud</span>
 <span class="label label-primary">On-Premise</span>
+
+## Deployment Best Practices
+
+### How to provide dependencies in the classpath
+
+Flink provides several approaches for providing dependencies (such as `*.jar` files or static data) to Flink or user-provided
+applications. These approaches differ based on the deployment mode and target, but also have commonalities, which are described here.
+
+To provide a dependency, there are the following options:
+- files in the **`lib/` folder** are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins. Beware that classes added here can potentially interfere with Flink, for example if you are adding a different version of a library already provided by Flink.
+
+- **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link ops/plugins.md %}) can be added here.
+
+### Download Maven dependencies locally
+
+If you need to extend the Flink with a Maven dependency (and its transitive dependencies),
+you can use an [Apache Maven](https://maven.apache.org) *pom.xml* file to download all required files into a local folder:
+
+*pom.xml*:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>docker-dependencies</artifactId>
+  <version>1.0-SNAPSHOT</version>
+
+  <dependencies>
+        <!-- Put your dependency here, for example a Hadoop GCS connector -->
+  </dependencies>
+
+  <build>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>3.1.2</version>
+          <executions>
+            <execution>
+              <id>copy-dependencies</id>
+              <phase>package</phase>
+              <goals><goal>copy-dependencies</goal></goals>
+              <configuration><outputDirectory>jars</outputDirectory></configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+  </build>
+</project>
+```
+
+Running `mvn package` in the same directory will create a `jars/` folder containing all the jar files, 
+which you can add to the desired folder, Docker image etc.
