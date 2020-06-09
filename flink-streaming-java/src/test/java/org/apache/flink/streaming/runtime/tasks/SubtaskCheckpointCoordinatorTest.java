@@ -18,11 +18,15 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -32,6 +36,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.TestCheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -46,6 +51,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -53,7 +59,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
+import static org.apache.flink.shaded.guava18.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -63,6 +71,29 @@ import static org.junit.Assert.fail;
  * Tests for {@link SubtaskCheckpointCoordinator}.
  */
 public class SubtaskCheckpointCoordinatorTest {
+
+	@Test
+	public void testInitCheckpoint() throws IOException {
+		assertTrue(initCheckpoint(true, CHECKPOINT));
+		assertFalse(initCheckpoint(true, SAVEPOINT));
+		assertFalse(initCheckpoint(false, CHECKPOINT));
+		assertFalse(initCheckpoint(false, SAVEPOINT));
+	}
+
+	private boolean initCheckpoint(boolean unalignedCheckpointEnabled, CheckpointType checkpointType) throws IOException {
+		class MockWriter extends ChannelStateWriterImpl.NoOpChannelStateWriter {
+			private boolean started;
+			@Override
+			public void start(long checkpointId, CheckpointOptions checkpointOptions) {
+				started = true;
+			}
+		}
+
+		MockWriter writer = new MockWriter();
+		SubtaskCheckpointCoordinator coordinator = coordinator(unalignedCheckpointEnabled, writer);
+		coordinator.initCheckpoint(1L, new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault()));
+		return writer.started;
+	}
 
 	@Test
 	public void testNotifyCheckpointComplete() throws Exception {
@@ -372,5 +403,21 @@ public class SubtaskCheckpointCoordinatorTest {
 		@Override
 		public void processLatencyMarker(LatencyMarker latencyMarker) {
 		}
+	}
+
+	private static SubtaskCheckpointCoordinator coordinator(boolean unalignedCheckpointEnabled, ChannelStateWriter channelStateWriter) throws IOException {
+		return new SubtaskCheckpointCoordinatorImpl(
+			new TestCheckpointStorageWorkerView(100),
+			"test",
+			StreamTaskActionExecutor.IMMEDIATE,
+			new CloseableRegistry(),
+			newDirectExecutorService(),
+			new DummyEnvironment(),
+			(message, unused) -> fail(message),
+			unalignedCheckpointEnabled,
+			(unused1, unused2) -> CompletableFuture.completedFuture(null),
+			0,
+			channelStateWriter
+		);
 	}
 }

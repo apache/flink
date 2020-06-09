@@ -315,8 +315,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return inputProcessor.prepareSnapshot(channelStateWriter, checkpointId);
 	}
 
-	protected ChannelStateWriter getChannelStateWriter() {
-		return subtaskCheckpointCoordinator.getChannelStateWriter();
+	SubtaskCheckpointCoordinator getCheckpointCoordinator() {
+		return subtaskCheckpointCoordinator;
 	}
 
 	// ------------------------------------------------------------------------
@@ -808,7 +808,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// No alignment if we inject a checkpoint
 			CheckpointMetrics checkpointMetrics = new CheckpointMetrics().setAlignmentDurationNanos(0L);
 
-			subtaskCheckpointCoordinator.getChannelStateWriter().start(checkpointMetaData.getCheckpointId(), checkpointOptions);
+			subtaskCheckpointCoordinator.initCheckpoint(checkpointMetaData.getCheckpointId(), checkpointOptions);
+
 			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
 			if (!success) {
 				declineCheckpoint(checkpointMetaData.getCheckpointId());

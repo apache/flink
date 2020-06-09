@@ -69,7 +69,6 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
@@ -122,7 +121,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS);
 	}
 
-	@VisibleForTesting
 	SubtaskCheckpointCoordinatorImpl(
 			CheckpointStorageWorkerView checkpointStorage,
 			String taskName,
@@ -134,6 +132,33 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			boolean unalignedCheckpointEnabled,
 			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot,
 			int maxRecordAbortedCheckpoints) throws IOException {
+		this(
+			checkpointStorage,
+			taskName,
+			actionExecutor,
+			closeableRegistry,
+			executorService,
+			env,
+			asyncExceptionHandler,
+			unalignedCheckpointEnabled,
+			prepareInputSnapshot,
+			maxRecordAbortedCheckpoints,
+			unalignedCheckpointEnabled ? openChannelStateWriter(taskName, checkpointStorage) : ChannelStateWriter.NO_OP);
+	}
+
+	@VisibleForTesting
+	SubtaskCheckpointCoordinatorImpl(
+			CheckpointStorageWorkerView checkpointStorage,
+			String taskName,
+			StreamTaskActionExecutor actionExecutor,
+			CloseableRegistry closeableRegistry,
+			ExecutorService executorService,
+			Environment env,
+			AsyncExceptionHandler asyncExceptionHandler,
+			boolean unalignedCheckpointEnabled,
+			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot,
+			int maxRecordAbortedCheckpoints,
+			ChannelStateWriter channelStateWriter) throws IOException {
 		this.checkpointStorage = new CachingCheckpointStorageWorkerView(checkNotNull(checkpointStorage));
 		this.taskName = checkNotNull(taskName);
 		this.checkpoints = new HashMap<>();
@@ -142,7 +167,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.env = checkNotNull(env);
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
 		this.actionExecutor = checkNotNull(actionExecutor);
-		this.channelStateWriter = unalignedCheckpointEnabled ? openChannelStateWriter() : ChannelStateWriter.NO_OP;
+		this.channelStateWriter = checkNotNull(channelStateWriter);
 		this.unalignedCheckpointEnabled = unalignedCheckpointEnabled;
 		this.prepareInputSnapshot = prepareInputSnapshot;
 		this.abortedCheckpointIds = createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
@@ -151,7 +176,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.closed = false;
 	}
 
-	private ChannelStateWriter openChannelStateWriter() {
+	private static ChannelStateWriter openChannelStateWriter(String taskName, CheckpointStorageWorkerView checkpointStorage) {
 		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(taskName, checkpointStorage);
 		writer.open();
 		return writer;
@@ -217,7 +242,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			unalignedCheckpointEnabled);
 
 		// Step (3): Prepare to spill the in-flight buffers for input and output
-		if (unalignedCheckpointEnabled && !options.getCheckpointType().isSavepoint()) {
+		if (includeChannelState(options)) {
 			prepareInflightDataSnapshot(metadata.getCheckpointId());
 		}
 
@@ -281,6 +306,17 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 		env.getTaskStateManager().notifyCheckpointAborted(checkpointId);
 		ExceptionUtils.tryRethrowException(previousException);
+	}
+
+	@Override
+	public void initCheckpoint(long id, CheckpointOptions checkpointOptions) {
+		if (includeChannelState(checkpointOptions)) {
+			channelStateWriter.start(id, checkpointOptions);
+		}
+	}
+
+	private boolean includeChannelState(CheckpointOptions checkpointOptions) {
+		return unalignedCheckpointEnabled && !checkpointOptions.getCheckpointType().isSavepoint();
 	}
 
 	@Override
@@ -397,7 +433,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
 		final Future<?> channelWrittenFuture;
-		if (unalignedCheckpointEnabled && !options.getCheckpointType().isSavepoint()) {
+		if (includeChannelState(options)) {
 			ChannelStateWriteResult writeResult = channelStateWriter.getWriteResult(metadata.getCheckpointId());
 			channelWrittenFuture = CompletableFuture.allOf(
 					writeResult.getInputChannelStateHandles(),
@@ -453,7 +489,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		long checkpointId = checkpointMetaData.getCheckpointId();
 		long started = System.nanoTime();
 
-		ChannelStateWriteResult channelStateWriteResult = checkpointOptions.getCheckpointType() == CHECKPOINT ?
+		ChannelStateWriteResult channelStateWriteResult = includeChannelState(checkpointOptions) ?
 								channelStateWriter.getWriteResult(checkpointId) :
 								ChannelStateWriteResult.EMPTY;
 
