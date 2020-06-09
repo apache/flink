@@ -26,28 +26,26 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## ProcessFunction简介
+## ProcessFunction 简介
 
-`ProcessFunction` 是一种低级别的流处理操作，基于它用户可以访问所有（非循环）流应用程序的基本构建块：
+`ProcessFunction` 是一种低级别的流处理操作，基于它用户可以访问（无环）流应用程序的所有基本构建块：
 
-   -事件（流元素）
-   -状态（容错，一致性，仅在 keyed stream 上）
-   -计时器（事件时间和处理时间，仅在 keyed stream 上）
+  - 事件（流元素）
+  - 状态（容错，一致性，仅在 keyed stream 上）
+  - 计时器（事件时间和处理时间，仅在 keyed stream 上）
 
-可以将 `ProcessFunction` 视为一种可以访问 keyed state 和计时器的 `FlatMapFunction`。
-Flink 为收到的输入流中的每个事件都调用该函数来进行处理。
+可以将 `ProcessFunction` 视为一种可以访问 keyed state 和计时器的 `FlatMapFunction`。Flink 为收到的输入流中的每个事件都调用该函数来进行处理。
 
-对于容错，与其它有状态的函数类似，`ProcessFunction` 可以通过 `RuntimeContext` 
-访问 Flink 的 [keyed state]({{ site.baseurl }}/zh/dev/stream/state/state.html)，
+对于容错，与其它有状态的函数类似，`ProcessFunction` 可以通过 `RuntimeContext` 访问 Flink 的 [keyed state]({{ site.baseurl }}/zh/dev/stream/state/state.html)。
 
-计时器允许应用程序对处理时间和 [事件时间]({{ site.baseurl }}/zh/dev/event_time.html) 中的更改做出反应。
-每次调用 `processElement(...)` 时参数中都会提供一个 `Context` 对象，该对象可以访问元素的事件时间戳和 *TimerService*。 
+计时器允许应用程序对处理时间和[事件时间]({{ site.baseurl }}/zh/dev/event_time.html)中的更改做出反应。
+每次调用 `processElement(...)` 时参数中都会提供一个 `Context` 对象，该对象可以访问元素的事件时间戳和 *TimerService*。
 `TimerService` 可用于为将来特定的事件时间/处理时间注册回调。
 特定事件时间的 `onTimer(...)` 回调函数会在当前对齐的 watermark 超过所注册的时间戳时调用。
 特定处理时间的 `onTimer(...)` 回调函数则会在物理时间注册时间时调用。
 在该调用期间，所有状态会被再次绑定到创建计时器时的键上，从而允许计时器操作与之对应的 keyed state。
 
-<span class="label label-info">Note</span> 如果想要访问 keyed state 和计时器，需要在
+<span class="label label-info">注意</span> 如果想要访问 keyed state 和计时器，需要在
  keyed stream 上使用 `ProcessFunction`。
 
 {% highlight java %}
@@ -61,21 +59,17 @@ stream.keyBy(...).process(new MyProcessFunction())
 这些函数绑定两个不同的输入，从两个不同的输入中获取元素并分别调用
 `processElement1(...)` 和 `processElement2(...)` 进行处理。
 
-实现低级别 join 一般需要遵循以下模式：:
+实现低级别 join 一般需要遵循以下模式：
 
   - 为一个输入（或两者）创建状态对象。
-  - 从输入接收元素时更新状态。
-  - 从其他输入接收元素时，查询状态并生成 join 结果。
+  - 从某个输入接收元素时更新状态。
+  - 从另一个输入接收元素时，查询状态并生成 join 结果。
 
-例如，你可能会将客户数据与金融交易进行 join，同时想要保留客户数据的状态。
-如果你希望即使在出现乱序事件时仍然可以得到完整得确定的 join 结果，你可以
-通过注册一个计时器在 客户数据流的 watermark 已经超过当前这条finance trade记录
-时计算和发送 join 结果。
+例如，你可能会将客户数据与金融交易进行 join，同时想要保留客户数据的状态。如果你希望即使在出现乱序事件时仍然可以得到完整且确定的 join 结果，你可以通过注册一个计时器在客户数据流的 watermark 已经超过当前这条 finance trade 记录时计算和发送 join 结果。
 
 ## 示例
 
-在下面的例子中，`KeyedProcessFunction` 维护每个键的计数，并且每次超过一分钟（事件时间）
-没有更新时输出一次（键，计数）对。
+在下面的例子中，`KeyedProcessFunction` 维护每个键的计数，并且每次超过一分钟（事件时间）没有更新时输出一次（键，计数）对。
 
   - 计数，键和最后修改时间存储在 `ValueState` 中，它由键隐式限定范围。
   - 对于每条记录，`KeyedProcessFunction` 递增计数器并设置最后修改时间。
@@ -104,7 +98,7 @@ import org.apache.flink.util.Collector;
 // 源数据流
 DataStream<Tuple2<String, String>> stream = ...;
 
-// apply the process function onto a keyed stream
+// 使用 process function 来处理一个 Keyed Stream 
 DataStream<Tuple2<String, Long>> result = stream
     .keyBy(0)
     .process(new CountWithTimeoutFunction());
@@ -120,7 +114,7 @@ public class CountWithTimestamp {
 }
 
 /**
- * 用来维护数量和超时的ProcessFunction实现 
+ * 用来维护数量和超时的 ProcessFunction 实现
  */
 public class CountWithTimeoutFunction
         extends KeyedProcessFunction<Tuple, Tuple2<String, String>, Tuple2<String, Long>> {
@@ -155,7 +149,7 @@ public class CountWithTimeoutFunction
         // 将更新后的状态写回
         state.update(current);
 
-        // 注册一个60s之后的事件时间回调 
+        // 注册一个 60s 之后的事件时间回调 
         ctx.timerService().registerEventTimeTimer(current.lastModified + 60000);
     }
 
@@ -186,16 +180,16 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
 
-// the source data stream
+// 源数据流
 val stream: DataStream[Tuple2[String, String]] = ...
 
-// apply the process function onto a keyed stream
+// 使用 process function 来处理一个 Keyed Stream
 val result: DataStream[Tuple2[String, Long]] = stream
   .keyBy(0)
   .process(new CountWithTimeoutFunction())
 
 /**
-  * 存储在状态中的数据结构
+  * 存储在状态中的数据类型
   */
 case class CountWithTimestamp(key: String, count: Long, lastModified: Long)
 
@@ -248,11 +242,9 @@ class CountWithTimeoutFunction extends KeyedProcessFunction[Tuple, (String, Stri
 {% top %}
 
 
-**注意：** 在 Flink 1.4.0 之前，在调用处理时间计时器时，`ProcessFunction.onTimer()` 方法
-将当前的处理时间设置为事件时间的时间戳。此行为非常不明显，用户可能不会注意到。然而，
-这样做是有害的，因为处理时间的时间戳是不确定的，并且和 watermark 不一致。此外，用户依赖于此错误的时间戳来实现逻辑很有可能导致非预期的错误。
-因此，我们决定对其进行修复。在 1.4.0 后，使用此错误的
-事件时间时间戳的 Flink 作业将失败，用户应将其作业更正为正确的逻辑。
+**注意：** 在 Flink 1.4.0 之前，在调用处理时间计时器时，`ProcessFunction.onTimer()` 方法将当前的处理时间设置为事件时间的时间戳。此行为非常不明显，用户可能不会注意到。
+然而，这样做是有害的，因为处理时间的时间戳是不确定的，并且和 watermark 不一致。此外，用户依赖于此错误的时间戳来实现逻辑很有可能导致非预期的错误。
+因此，我们决定对其进行修复。在 1.4.0 后，使用此错误的事件时间时间戳的 Flink 作业将失败，用户应将其作业更正为正确的逻辑。
 
 ## KeyedProcessFunction 简介
 
@@ -290,14 +282,13 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 
 ### Fault Tolerance
 
-计时器支持容错，它会和应用程序的状态一起进行 checkpoint。
-当进行故障恢复或从保存点启动应用程序时，计时器也会被恢复。
+计时器支持容错，它会和应用程序的状态一起进行 checkpoint。当进行故障恢复或从保存点启动应用程序时，计时器也会被恢复。
 
-<span class="label label-info">注意</span> 在恢复之前就应该触发的处理时间计时器会立即触发。
-当应用程序从故障中恢复或从保存点启动时，可能会发生这种情况。
+<span class="label label-info">注意</span> 在恢复之前就应该触发的处理时间计时器会立即触发。当应用程序从故障中恢复或从保存点启动时，可能会发生这种情况。
 
-<span class="label label-info">注意</span> 计时器总是异步 checkpoint，除非和 RocksDB backend / 增量snapshots / heap-based 计时器组合在一起（将会在 `FLINK-10026` 解决）。
-注意大量计时器会增加 checkpoint 的时间，因为计时器是需要 checkpoint 的状态的一部分。有关如何减少计时器数量，请参阅“计时器合并”部分。
+<span class="label label-info">注意</span> 除了使用基于 RocksDB backend 的增量 snapshots 并使用基于 Heap 的计时器的情况外，Flink 总是会异步执行计算器的快照操作（前者将会在 `FLINK-10026` 解决）。
+
+<span class="label label-info">注意</span> 大量计时器会增加 checkpoint 的时间，因为计时器是需要 checkpoint 的状态的一部分。有关如何减少计时器数量，请参阅“计时器合并”部分。
 
 ### Timer Coalescing
 
@@ -305,7 +296,7 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 
 
 对于精度为 1 秒（事件或处理时间）的计时器，可以将目标时间
-向下舍入为整秒。计时器最多会提前1秒，但不迟于要求的毫秒精度。
+向下舍入为整秒。计时器最多会提前 1 秒，但不迟于要求的毫秒精度。
 这样，每个键在每秒内最多有一个计时器。
 
 <div class="codetabs" markdown="1">
@@ -324,7 +315,7 @@ ctx.timerService.registerProcessingTimeTimer(coalescedTime)
 </div>
 </div>
 
-由于事件时间计时器仅在 watermark 到来时才触发，因此还可以将下一个watermark到达前的计时器与当前计时器合并：
+由于事件时间计时器仅在 watermark 到来时才触发，因此还可以将下一个 watermark 到达前的计时器与当前计时器合并：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -380,6 +371,6 @@ ctx.timerService.deleteEventTimeTimer(timestampOfTimerToStop)
 </div>
 </div>
 
-<span class="label label-info">Note</span> 如果没有注册给定时间戳的计时器，则停止计时器不会产生影响。
+<span class="label label-info">注意</span> 如果没有注册给定时间戳的计时器，则停止计时器不会产生影响。
 
 {% top %}
