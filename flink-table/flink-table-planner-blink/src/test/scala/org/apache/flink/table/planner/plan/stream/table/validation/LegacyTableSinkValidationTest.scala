@@ -65,9 +65,8 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
-    tEnv.insertInto("testSink", result)
     // must fail because table is updating table without full key
-    env.execute()
+    result.executeInsert("testSink")
   }
 
   @Test(expected = classOf[TableException])
