@@ -176,13 +176,13 @@ Flink treats these data types as black boxes and is not able to access their con
 
 *Value* types describe their serialization and deserialization manually. Instead of going through a
 general purpose serialization framework, they provide custom code for those operations by means of
-implementing the `org.apache.flinktypes.Value` interface with the methods `read` and `write`. Using
+implementing the `org.apache.flink.types.Value` interface with the methods `read` and `write`. Using
 a Value type is reasonable when general purpose serialization would be highly inefficient. An
 example would be a data type that implements a sparse vector of elements as an array. Knowing that
 the array is mostly zero, one can use a special encoding for the non-zero elements, while the
 general purpose serialization would simply write all array elements.
 
-The `org.apache.flinktypes.CopyableValue` interface supports manual internal cloning logic in a
+The `org.apache.flink.types.CopyableValue` interface supports manual internal cloning logic in a
 similar way.
 
 Flink comes with pre-defined Value types that correspond to basic data types. (`ByteValue`,
