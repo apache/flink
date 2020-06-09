@@ -29,12 +29,16 @@ import org.apache.flink.table.types.inference.strategies.MatchFamilyTypeStrategy
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.NullableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.VaryingStringTypeStrategy;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -43,11 +47,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasScale;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
@@ -117,6 +123,14 @@ public final class TypeStrategies {
 		return nullable(ConstantArgumentCount.any(), initialStrategy);
 	}
 
+	/**
+	 * A type strategy that ensures that the result type is either {@link LogicalTypeRoot#VARCHAR} or
+	 * {@link LogicalTypeRoot#VARBINARY} from their corresponding non-varying roots.
+	 */
+	public static TypeStrategy varyingString(TypeStrategy initialStrategy) {
+		return new VaryingStringTypeStrategy(initialStrategy);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Specific type strategies
 	// --------------------------------------------------------------------------------------------
@@ -158,6 +172,7 @@ public final class TypeStrategies {
 	};
 
 	/**
+<<<<<<< HEAD
 	 * Type strategy that returns the sum of an exact numeric addition that includes at least one decimal.
 	 */
 	public static final TypeStrategy DECIMAL_PLUS = callContext -> {
@@ -313,6 +328,33 @@ public final class TypeStrategies {
 			getScale(argumentType),
 			roundLength.intValueExact());
 		return Optional.of(fromLogicalToDataType(inferredType));
+	};
+
+	/**
+	 * Type strategy that returns the type of a string concatenation. It assumes that the first two
+	 * arguments are of the same family of either {@link LogicalTypeFamily#BINARY_STRING} or
+	 * {@link LogicalTypeFamily#CHARACTER_STRING}.
+	 */
+	public static final TypeStrategy STRING_CONCAT = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType type1 = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType type2 = argumentDataTypes.get(1).getLogicalType();
+		int length = getLength(type1) + getLength(type2);
+		// handle overflow
+		if (length < 0) {
+			length = CharType.MAX_LENGTH;
+		}
+		final LogicalType minimumType;
+		if (hasFamily(type1, LogicalTypeFamily.CHARACTER_STRING) || hasFamily(type2, LogicalTypeFamily.CHARACTER_STRING)) {
+			minimumType = new CharType(false, length);
+		} else if (hasFamily(type1, LogicalTypeFamily.BINARY_STRING) || hasFamily(type2, LogicalTypeFamily.BINARY_STRING)) {
+			minimumType = new BinaryType(false, length);
+		} else {
+			return Optional.empty();
+		}
+		// deal with nullability handling and varying semantics
+		return findCommonType(Arrays.asList(type1, type2, minimumType))
+			.map(TypeConversions::fromLogicalToDataType);
 	};
 
 	// --------------------------------------------------------------------------------------------
