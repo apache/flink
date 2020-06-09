@@ -99,11 +99,8 @@ class TableEnvironmentTest {
     TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
 
-    val table1 = tEnv.sqlQuery("select first from MyTable")
-    tEnv.insertInto(table1, "MySink")
-
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
-    val actual = tEnv.explain(false)
+    val actual = tEnv.explainSql("insert into MySink select first from MyTable")
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 
