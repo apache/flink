@@ -524,7 +524,7 @@ extractExecutionResults() {
 
     execution_results=$(echo "${output}" | grep ${EXECUTION_PREFIX})
     num_lines=$(echo "${execution_results}" | wc -l)
-    if [[ ${num_lines} -ne ${expected_lines} ]]; then
+    if [[ -z $execution_results || ${num_lines} -ne ${expected_lines} ]]; then
         echo "[ERROR] The execution results has unexpected number of lines, expected: ${expected_lines}, actual: ${num_lines}." 1>&2
         echo "[ERROR] An execution result line is expected following the prefix '${EXECUTION_PREFIX}'" 1>&2
         echo "$output" 1>&2
