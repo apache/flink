@@ -38,6 +38,11 @@ def word_count():
     env = ExecutionEnvironment.get_execution_environment()
     t_env = BatchTableEnvironment.create(env, t_config)
 
+    # used to test pipeline.jars and pipleline.classpaths
+    config_key = sys.argv[1]
+    config_value = sys.argv[2]
+    t_env.get_config().get_configuration().set_string(config_key, config_value)
+
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()
     result_path = tmp_dir + '/result'
@@ -55,7 +60,8 @@ def word_count():
     sink_ddl = """
         create table Results(
             word VARCHAR,
-            `count` BIGINT
+            `count` BIGINT,
+            `count_java` BIGINT
         ) with (
             'connector.type' = 'filesystem',
             'format.type' = 'csv',
@@ -65,12 +71,13 @@ def word_count():
     t_env.sql_update(sink_ddl)
 
     t_env.sql_update("create temporary system function add_one as 'add_one.add_one' language python")
+    t_env.register_java_function("add_one_java", "org.apache.flink.python.tests.util.AddOne")
 
     elements = [(word, 0) for word in content.split(" ")]
     t_env.from_elements(elements, ["word", "count"]) \
-        .select("word, add_one(count) as count") \
+        .select("word, add_one(count) as count, add_one_java(count) as count_java") \
         .group_by("word") \
-        .select("word, count(count) as count") \
+        .select("word, count(count) as count, count(count_java) as count_java") \
         .insert_into("Results")
 
     t_env.execute("word_count")
