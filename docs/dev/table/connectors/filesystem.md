@@ -48,9 +48,9 @@ CREATE TABLE MyUserTable (
   'path' = 'file:///path/to/whatever',  -- required: path to a directory
   'format' = '...',                     -- required: file system connector requires to specify a format,
                                         -- Please refer to Table Formats
-                                        -- section for more details.s
+                                        -- section for more details
   'partition.default-name' = '...',     -- optional: default partition name in case the dynamic partition
-                                        -- column value is null/empty string.
+                                        -- column value is null/empty string
   
   -- optional: the option to enable shuffle data by dynamic partition fields in sink phase, this can greatly
   -- reduce the number of file for filesystem sink but may lead data skew, the default value is false.
@@ -64,6 +64,9 @@ CREATE TABLE MyUserTable (
 <span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/ops/filesystems/index.html).
 
 <span class="label label-danger">Attention</span> File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
+
+<span class="label label-danger">Attention</span> The behaviour of file system connector is much different from `previous legacy filesystem connector`: 
+the path parameter is specified for a directory not for a file and you can't get a human-readable file in the path that you declare.
 
 ## Partition Files
 
@@ -137,7 +140,8 @@ a timeout that specifies the maximum duration for which a file can be open.
 **NOTE:** For bulk formats (parquet, orc, avro), the rolling policy in combination with the checkpoint interval(pending files
 become finished on the next checkpoint) control the size and number of these parts.
 
-**NOTE:** For row formats (csv, json), you can reduce the time interval appropriately to avoid too long delay.
+**NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.time-interval` in the connector properties and parameter `execution.checkpointing.interval` in flink-conf.yaml together
+if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc), you can just set parameter `execution.checkpointing.interval` in flink-conf.yaml.
 
 ### Partition Commit
 
