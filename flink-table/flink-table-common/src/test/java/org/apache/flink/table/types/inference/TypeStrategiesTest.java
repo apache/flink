@@ -45,9 +45,11 @@ import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
+import static org.apache.flink.table.types.inference.TypeStrategies.STRING_CONCAT;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
+import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 /**
@@ -110,14 +112,14 @@ public class TypeStrategiesTest {
 
 			// invalid return type
 			TestSpec
-				.forStrategy(TypeStrategies.explicit(DataTypes.NULL()))
+				.forStrategy(explicit(DataTypes.NULL()))
 				.inputTypes()
 				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received."),
 
 			TestSpec
 				.forStrategy(
 					"First type strategy",
-					TypeStrategies.first((callContext) -> Optional.empty(), TypeStrategies.explicit(DataTypes.INT())))
+					TypeStrategies.first((callContext) -> Optional.empty(), explicit(DataTypes.INT())))
 				.inputTypes()
 				.expectDataType(DataTypes.INT()),
 
@@ -222,7 +224,19 @@ public class TypeStrategiesTest {
 					"Find a decimal modulo",
 					TypeStrategies.DECIMAL_MOD)
 				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
-				.expectDataType(DataTypes.DECIMAL(5, 4).notNull())
+				.expectDataType(DataTypes.DECIMAL(5, 4).notNull()),
+
+			TestSpec.forStrategy(
+					"Convert to varying string",
+					varyingString(explicit(DataTypes.CHAR(12).notNull())))
+				.inputTypes(DataTypes.CHAR(12).notNull())
+				.expectDataType(DataTypes.VARCHAR(12).notNull()),
+
+			TestSpec.forStrategy(
+					"Concat two strings",
+					STRING_CONCAT)
+				.inputTypes(DataTypes.CHAR(12).notNull(), DataTypes.VARCHAR(12))
+				.expectDataType(DataTypes.VARCHAR(24))
 		);
 	}
 
@@ -316,12 +330,12 @@ public class TypeStrategiesTest {
 			InputTypeStrategies.sequence(
 				InputTypeStrategies.explicit(DataTypes.INT()),
 				InputTypeStrategies.explicit(DataTypes.STRING())),
-			TypeStrategies.explicit(DataTypes.BOOLEAN().bridgedTo(boolean.class)));
+			explicit(DataTypes.BOOLEAN().bridgedTo(boolean.class)));
 		mappings.put(
 			InputTypeStrategies.sequence(
 				InputTypeStrategies.explicit(DataTypes.INT()),
 				InputTypeStrategies.explicit(DataTypes.BOOLEAN())),
-			TypeStrategies.explicit(DataTypes.STRING()));
+			explicit(DataTypes.STRING()));
 		return TypeStrategies.mapping(mappings);
 	}
 }
