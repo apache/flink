@@ -103,7 +103,7 @@ $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> e
 ### Accessing Job Manager UI
 
 There are several ways to expose a Service onto an external (outside of your cluster) IP address.
-This can be configured using `kubernetes.service.exposed.type`.
+This can be configured using [`kubernetes.rest-service.exposed.type`]({% link ops/config.md %}#kubernetes-rest-service-exposed-type).
 
 - `ClusterIP`: Exposes the service on a cluster-internal IP.
 The Service is only reachable within the cluster. If you want to access the Job Manager ui or submit job to the existing session, you need to start a local proxy.
@@ -116,9 +116,11 @@ $ kubectl port-forward service/<ServiceName> 8081
 - `NodePort`: Exposes the service on each Node’s IP at a static port (the `NodePort`). `<NodeIP>:<NodePort>` could be used to contact the Job Manager Service. `NodeIP` could be easily replaced with Kubernetes ApiServer address.
 You could find it in your kube config file.
 
-- `LoadBalancer`: Default value, exposes the service externally using a cloud provider’s load balancer.
+- `LoadBalancer`: Exposes the service externally using a cloud provider’s load balancer.
 Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
 You can use `kubectl get services/<ClusterId>` to get EXTERNAL-IP and then construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
+
+  <span class="label label-warning">Warning!</span> Your JobManager (which can run arbitary jar files) might be exposed to the public internet, without authentication.
 
 - `ExternalName`: Map a service to a DNS name, not supported in current version.
 
