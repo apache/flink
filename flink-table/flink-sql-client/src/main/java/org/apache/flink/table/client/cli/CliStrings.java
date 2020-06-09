@@ -122,12 +122,6 @@ public final class CliStrings {
 
 	public static final String MESSAGE_EMPTY = "Result was empty.";
 
-	public static final String MESSAGE_UNKNOWN_SQL = "Unknown or invalid SQL statement.";
-
-	public static final String MESSAGE_UNKNOWN_TABLE = "Unknown table.";
-
-	public static final String MESSAGE_RESULT_SNAPSHOT_ERROR = "Could not create a snapshot of the dynamic table.";
-
 	public static final String MESSAGE_RESULT_QUIT = "Result retrieval cancelled.";
 
 	public static final String MESSAGE_SUBMITTING_STATEMENT = "Submitting SQL update statement to the cluster...";
