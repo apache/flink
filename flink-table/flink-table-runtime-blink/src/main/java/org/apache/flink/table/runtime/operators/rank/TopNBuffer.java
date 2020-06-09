@@ -23,7 +23,7 @@ import org.apache.flink.table.data.RowData;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -94,12 +94,12 @@ class TopNBuffer implements Serializable {
 	}
 
 	public void remove(RowData sortKey, RowData value) {
-		Collection<RowData> list = treeMap.get(sortKey);
-		if (list != null) {
-			if (list.remove(value)) {
+		Collection<RowData> collection = treeMap.get(sortKey);
+		if (collection != null) {
+			if (collection.remove(value)) {
 				currentTopNum -= 1;
 			}
-			if (list.size() == 0) {
+			if (collection.size() == 0) {
 				treeMap.remove(sortKey);
 			}
 		}
@@ -111,9 +111,9 @@ class TopNBuffer implements Serializable {
 	 * @param sortKey key to remove
 	 */
 	void removeAll(RowData sortKey) {
-		Collection<RowData> list = treeMap.get(sortKey);
-		if (list != null) {
-			currentTopNum -= list.size();
+		Collection<RowData> collection = treeMap.get(sortKey);
+		if (collection != null) {
+			currentTopNum -= collection.size();
 			treeMap.remove(sortKey);
 		}
 	}
@@ -127,16 +127,43 @@ class TopNBuffer implements Serializable {
 		Map.Entry<RowData, Collection<RowData>> last = treeMap.lastEntry();
 		RowData lastElement = null;
 		if (last != null) {
-			Collection<RowData> list = last.getValue();
-			lastElement = getLastElement(list);
-			if (lastElement != null) {
-				if (list.remove(lastElement)) {
-					currentTopNum -= 1;
-				}
-				if (list.size() == 0) {
-					treeMap.remove(last.getKey());
+			Collection<RowData> collection = last.getValue();
+			if (collection != null) {
+				if (collection instanceof List) {
+					// optimization for List
+					List<RowData> list = (List<RowData>) collection;
+					if (!list.isEmpty()) {
+						lastElement = list.remove(list.size() - 1);
+						currentTopNum -= 1;
+						if (list.isEmpty()) {
+							treeMap.remove(last.getKey());
+						}
+					}
+				} else {
+					lastElement = getLastElement(collection);
+					if (lastElement != null) {
+						if (collection.remove(lastElement)) {
+							currentTopNum -= 1;
+						}
+						if (collection.size() == 0) {
+							treeMap.remove(last.getKey());
+						}
+					}
 				}
 			}
+		}
+		return lastElement;
+	}
+
+	/**
+	 * Returns the last record of the last Entry in the buffer.
+	 */
+	RowData lastElement() {
+		Map.Entry<RowData, Collection<RowData>> last = treeMap.lastEntry();
+		RowData lastElement = null;
+		if (last != null) {
+			Collection<RowData> collection = last.getValue();
+			lastElement = getLastElement(collection);
 		}
 		return lastElement;
 	}
@@ -150,28 +177,32 @@ class TopNBuffer implements Serializable {
 	RowData getElement(int rank) {
 		int curRank = 0;
 		for (Map.Entry<RowData, Collection<RowData>> entry : treeMap.entrySet()) {
-			Collection<RowData> list = entry.getValue();
-
-			if (curRank + list.size() >= rank) {
-				for (RowData elem : list) {
+			Collection<RowData> collection = entry.getValue();
+			if (curRank + collection.size() >= rank) {
+				for (RowData elem : collection) {
 					curRank += 1;
 					if (curRank == rank) {
 						return elem;
 					}
 				}
 			} else {
-				curRank += list.size();
+				curRank += collection.size();
 			}
 		}
 		return null;
 	}
 
-	private RowData getLastElement(Collection<RowData> list) {
+	private RowData getLastElement(Collection<RowData> collection) {
 		RowData element = null;
-		if (list != null && !list.isEmpty()) {
-			Iterator<RowData> iter = list.iterator();
-			while (iter.hasNext()) {
-				element = iter.next();
+		if (collection != null && !collection.isEmpty()) {
+			if (collection instanceof List) {
+				// optimize for List
+				List<RowData> list = (List<RowData>) collection;
+				return list.get(list.size() - 1);
+			} else {
+				for (RowData data : collection) {
+					element = data;
+				}
 			}
 		}
 		return element;
