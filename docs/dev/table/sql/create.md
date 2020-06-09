@@ -36,7 +36,7 @@ Flink SQL supports the following CREATE statements for now:
 
 ## Run a CREATE statement
 
-CREATE statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful CREATE operation, otherwise will throw an exception.
+CREATE statements can be executed with the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method returns 'OK' for a successful CREATE operation, otherwise will throw an exception.
 
 The following examples show how to run a CREATE statement in `TableEnvironment` and in SQL CLI.
 
@@ -48,16 +48,16 @@ TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL update with a registered table
+// Execute insert SQL with a registered table
 // register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
-// run a SQL update query on the Table and emit the result to the TableSink
-tableEnv.sqlUpdate(
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
+// run an insert SQL on the Table and emit the result to the TableSink
+tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -69,38 +69,38 @@ val tableEnv = TableEnvironment.create(settings)
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // run a SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL update with a registered table
+// Execute insert SQL with a registered table
 // register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
-// run a SQL update query on the Table and emit the result to the TableSink
-tableEnv.sqlUpdate(
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+// run an insert SQL on the Table and emit the result to the TableSink
+tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # SQL query with a registered table
 # register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 # run a SQL query on the Table and retrieve the result as a new Table
-result = tableEnv.sqlQuery(
+result = table_env.sql_query(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-# SQL update with a registered table
+# Execute an INSERT SQL with a registered table
 # register a TableSink
-table_env.sql_update("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
-# run a SQL update query on the Table and emit the result to the TableSink
+table_env.execute_sql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+# run an INSERT SQL on the Table and emit the result to the TableSink
 table_env \
-    .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+    .execute_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 

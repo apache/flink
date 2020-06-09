@@ -36,7 +36,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/tab
 
 ## 执行 CREATE 语句
 
-可以使用 `TableEnvironment` 中的 `sqlUpdate()` 方法执行 CREATE 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 CREATE 语句。 若 CREATE 操作执行成功，`sqlUpdate()` 方法不返回任何内容，否则会抛出异常。
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 CREATE 语句。 若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
 
 以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 CREATE 语句。
 
@@ -46,18 +46,18 @@ CREATE 语句用于向当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/tab
 EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-// 对已经已经注册的表进行 SQL 查询
+// 对已注册的表进行 SQL 查询
 // 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL 对已注册的表进行 update 操作
+// 对已注册的表进行 INSERT 操作
 // 注册 TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
-// 在表上执行 SQL 更新查询并向 TableSink 发出结果
-tableEnv.sqlUpdate(
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
+// 在表上执行 INSERT 语句并向 TableSink 发出结果
+tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -67,40 +67,40 @@ tableEnv.sqlUpdate(
 val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
-// 对已经已经注册的表进行 SQL 查询
+// 对已注册的表进行 SQL 查询
 // 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL 对已注册的表进行 update 操作
+// 对已注册的表进行 INSERT 操作
 // 注册 TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
-// 在表上执行 SQL 更新查询并向 TableSink 发出结果
-tableEnv.sqlUpdate(
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+// 在表上执行 INSERT 语句并向 TableSink 发出结果
+tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
-# 对已经已经注册的表进行 SQL 查询
+# 对已经注册的表进行 SQL 查询
 # 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 # 在表上执行 SQL 查询，并把得到的结果作为一个新的表
-result = tableEnv.sqlQuery(
+result = table_env.sql_query(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-# SQL 对已注册的表进行 update 操作
+# 对已注册的表进行 INSERT 操作
 # 注册 TableSink
-table_env.sql_update("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
-# 在表上执行 SQL 更新查询并向 TableSink 发出结果
+table_env.execute_sql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+# 在表上执行 INSERT 语句并向 TableSink 发出结果
 table_env \
-    .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+    .execute_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 

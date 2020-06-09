@@ -2059,13 +2059,13 @@ result3 = in.order_by("a.asc").offset(10).fetch(5)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table.</p>
+        <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
         <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-orders.insertInto("OutOrders");
+orders.executeInsert("OutOrders");
 {% endhighlight %}
       </td>
     </tr>
@@ -2089,13 +2089,13 @@ orders.insertInto("OutOrders");
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table.</p>
+        <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
         <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-orders.insertInto("OutOrders")
+orders.executeInsert("OutOrders")
 {% endhighlight %}
       </td>
     </tr>
@@ -2119,13 +2119,13 @@ orders.insertInto("OutOrders")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的INSERT INTO子句。将数据输出到一个已注册的输出表中。</p>
+        <p>类似于SQL请求中的INSERT INTO子句。将数据输出到一个已注册的输出表中。`execute_insert` 方法会立即提交一个 Flink 作业，触发插入操作。</p>
 
         <p>输出表必须先在TableEnvironment中注册（详见<a href="common.html#register-a-tablesink">注册一个TableSink</a>）。此外，注册的表的模式（schema）必须和请求的结果的模式（schema）相匹配。</p>
 
 {% highlight python %}
-orders = table_env.from_path("Orders");
-orders.insert_into("OutOrders");
+orders = table_env.from_path("Orders")
+orders.execute_insert("OutOrders")
 {% endhighlight %}
       </td>
     </tr>

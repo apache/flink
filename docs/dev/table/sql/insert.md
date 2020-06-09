@@ -29,9 +29,10 @@ INSERT statements are used to add rows to a table.
 
 ## Run an INSERT statement
 
-INSERT statements are specified with the `sqlUpdate()` method of the `TableEnvironment` or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The method `sqlUpdate()` for INSERT statements is a lazy execution, they will be executed only when `TableEnvironment.execute(jobName)` is invoked.
+Single INSERT statement can be executed through the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method for INSERT statement will submit a Flink job immediately, and return a `TableResult` instance which associates the submitted job. 
+Multiple INSERT statements can be executed through the `addInsertSql()` method of the `StatementSet` which can be created by the `TableEnvironment.createStatementSet()` method. The `addInsertSql()` method is a lazy execution, they will be executed only when `StatementSet.execute()` is invoked.
 
-The following examples show how to run an INSERT statement in `TableEnvironment` and in SQL CLI.
+The following examples show how to run a single INSERT statement in `TableEnvironment` and in SQL CLI, run multiple INSERT statements in `StatementSet`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -40,12 +41,31 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
-tEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
-tEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
+tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
+tEnv.executeSql("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
 
-// run a SQL update query on the registered source table and emit the result to registered sink table
-tEnv.sqlUpdate(
+// run a single INSERT query on the registered source table and emit the result to registered sink table
+TableResult tableResult1 = tEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+// get job status through TableResult
+System.out.println(tableResult1.getJobClient().get().getJobStatus());
+
+//----------------------------------------------------------------------------
+// register another sink table named "GlassOrders" for multiple INSERT queries
+tEnv.executeSql("CREATE TABLE GlassOrders(product VARCHAR, amount INT) WITH (...)");
+
+// run multiple INSERT queries on the registered source table and emit the result to registered sink tables
+StatementSet stmtSet = tEnv.createStatementSet();
+// only single INSERT query can be accepted by `addInsertSql` method
+stmtSet.addInsertSql(
+  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+stmtSet.addInsertSql(
+  "INSERT INTO GlassOrders SELECT product, amount FROM Orders WHERE product LIKE '%Glass%'");
+// execute all statements together
+TableResult tableResult2 = stmtSet.execute();
+// get job status through TableResult
+System.out.println(tableResult2.getJobClient().get().getJobStatus());
+
 {% endhighlight %}
 </div>
 
@@ -55,27 +75,65 @@ val settings = EnvironmentSettings.newInstance()...
 val tEnv = TableEnvironment.create(settings)
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
-tEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
-tEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
+tEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
 
-// run a SQL update query on the registered source table and emit the result to registered sink table
-tEnv.sqlUpdate(
+// run a single INSERT query on the registered source table and emit the result to registered sink table
+val tableResult1 = tEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+// get job status through TableResult
+println(tableResult1.getJobClient().get().getJobStatus())
+
+//----------------------------------------------------------------------------
+// register another sink table named "GlassOrders" for multiple INSERT queries
+tEnv.executeSql("CREATE TABLE GlassOrders(product VARCHAR, amount INT) WITH (...)")
+
+// run multiple INSERT queries on the registered source table and emit the result to registered sink tables
+val stmtSet = tEnv.createStatementSet()
+// only single INSERT query can be accepted by `addInsertSql` method
+stmtSet.addInsertSql(
+  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+stmtSet.addInsertSql(
+  "INSERT INTO GlassOrders SELECT product, amount FROM Orders WHERE product LIKE '%Glass%'")
+// execute all statements together
+val tableResult2 = stmtSet.execute()
+// get job status through TableResult
+println(tableResult2.getJobClient().get().getJobStatus())
+
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # register a source table named "Orders" and a sink table named "RubberOrders"
-table_env.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
-table_env.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
+table_env.execute_sql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
 
-# run a SQL update query on the registered source table and emit the result to registered sink table
-table_env \
-    .sqlUpdate("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+# run a single INSERT query on the registered source table and emit the result to registered sink table
+table_result1 = table_env \
+    .execute_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+# get job status through TableResult
+print(table_result1get_job_client().get_job_status())
+
+#----------------------------------------------------------------------------
+# register another sink table named "GlassOrders" for multiple INSERT queries
+table_env.execute_sql("CREATE TABLE GlassOrders(product VARCHAR, amount INT) WITH (...)")
+
+# run multiple INSERT queries on the registered source table and emit the result to registered sink tables
+stmt_set = table_env.create_statement_set()
+# only single INSERT query can be accepted by `add_insert_sql` method
+stmt_set \
+    .add_insert_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+stmt_set \
+    .add_insert_sql("INSERT INTO GlassOrders SELECT product, amount FROM Orders WHERE product LIKE '%Glass%'")
+# execute all statements together
+table_result2 = stmt_set.execute()
+# get job status through TableResult
+print(table_result2.get_job_client().get_job_status())
+
 {% endhighlight %}
 </div>
 
