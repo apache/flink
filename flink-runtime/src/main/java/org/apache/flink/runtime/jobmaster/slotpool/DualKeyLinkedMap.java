@@ -26,13 +26,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * Map which stores values under two different indices. The mapping of the primary key to the
  * value is backed by {@link LinkedHashMap} so that the iteration order over the values and
- * the primary key set is the insertion order. Note that there is no contract of the iteration
- * order over the secondary key set.
+ * the primary key set is the insertion order. Note that the insertion order is not affected
+ * if a primary key is re-inserted into the map. Also note that there is no contract of the
+ * iteration order over the secondary key set.
+ *
  *
  * @param <A> Type of key A. Key A is the primary key.
  * @param <B> Type of key B. Key B is the secondary key.
@@ -90,14 +93,25 @@ class DualKeyLinkedMap<A, B, V> {
 	}
 
 	V put(A aKey, B bKey, V value) {
-		final V removedValue = removeKeyA(aKey);
-		removeKeyB(bKey);
+		final V oldValue = getValueByKeyA(aKey);
+
+		// cleanup orphaned keys if the given primary key and secondary key were not matched previously
+		if (!Objects.equals(aKey, getKeyAByKeyB(bKey))) {
+			// remove legacy secondary key as well as its corresponding primary key and value
+			removeKeyB(bKey);
+
+			// remove the secondary key that the primary key once pointed to
+			final B oldBKeyOfAKey = getKeyBByKeyA(aKey);
+			if (oldBKeyOfAKey != null) {
+				bMap.remove(oldBKeyOfAKey);
+			}
+		}
 
 		aMap.put(aKey, Tuple2.of(bKey, value));
 		bMap.put(bKey, aKey);
 
-		if (removedValue != null) {
-			return removedValue;
+		if (oldValue != null) {
+			return oldValue;
 		} else {
 			return null;
 		}

@@ -85,4 +85,34 @@ public class DualKeyLinkedMapTest extends TestLogger {
 		assertThat(map.getValueByKeyB(1), is(secondValue));
 		assertThat(map.getValueByKeyA(2), is(secondValue));
 	}
+
+	@Test
+	public void testPrimaryKeyOrderIsNotAffectedIfReInsertedWithSameSecondaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String value1 = "1";
+		map.put(1, 1, value1);
+		final String value2 = "2";
+		map.put(2, 2, value2);
+
+		final String value3 = "3";
+		map.put(1, 1, value3);
+		assertThat(map.keySetA().iterator().next(), is(1));
+		assertThat(map.values().iterator().next(), is(value3));
+	}
+
+	@Test
+	public void testPrimaryKeyOrderIsNotAffectedIfReInsertedWithDifferentSecondaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String value1 = "1";
+		map.put(1, 1, value1);
+		final String value2 = "2";
+		map.put(2, 2, value2);
+
+		final String value3 = "3";
+		map.put(1, 3, value3);
+		assertThat(map.keySetA().iterator().next(), is(1));
+		assertThat(map.values().iterator().next(), is(value3));
+	}
 }
