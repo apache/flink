@@ -41,9 +41,8 @@ public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFl
 		MemorySize derivedTotalFlinkMemorySize = jvmHeapMemorySize.add(offHeapMemorySize);
 
 		if (config.contains(JobManagerOptions.TOTAL_FLINK_MEMORY)) {
-			// derive network memory from total flink memory, and check against network min/max
 			MemorySize totalFlinkMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.TOTAL_FLINK_MEMORY);
-			if (derivedTotalFlinkMemorySize.getBytes() != totalFlinkMemorySize.getBytes()) {
+			if (derivedTotalFlinkMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(String.format(
 					"Sum of the configured JVM Heap Memory (%s) and the configured or default Off-heap Memory (%s) " +
 						"exceeds the configured Total Flink Memory (%s). Please, make the configuration consistent " +
