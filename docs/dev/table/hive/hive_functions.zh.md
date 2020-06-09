@@ -81,7 +81,14 @@ To use a Hive User Defined Function, user have to
 
 - set a HiveCatalog backed by Hive Metastore that contains that function as current catalog of the session
 - include a jar that contains that function in Flink's classpath
-- use Blink planner.
+- use Blink planner
+
+Note that Hive scalar and table functions implementing UDF, GenericUDF, and GenericUDTF interfaces should be good to run in both 
+streaming and batch mode in Flink.
+
+Due to that Hive functions are all built for batch processing, aggregate functions in Hive that implement UDAF and GenericUDAFResolver2 
+interfaces may have unpredictable behaviors when used in streaming mode in Flink. We advice users to only use Hive aggregate functions
+interfaces in batch mode.
 
 ## Using Hive User Defined Functions
 
