@@ -51,7 +51,7 @@ tableEnv.registerTableSink(
   sink);                       // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable");
+result.executeInsert("outputTable");
 
 // convert result Table into a DataStream<Row>
 DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class);
@@ -82,7 +82,7 @@ tableEnv.registerTableSink(
   sink)                           // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable")
+result.executeInsert("outputTable")
 
 // convert result Table into a DataStream[Row]
 val stream: DataStream[Row] = result.toAppendStream[Row]

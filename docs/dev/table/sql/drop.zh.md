@@ -36,7 +36,7 @@ Flink SQL 目前支持以下 DROP 语句：
 
 ## 执行 DROP 语句
 
-可以使用 `TableEnvironment` 中的 `sqlUpdate()` 方法执行 DROP 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 DROP 语句。 若 DROP 操作执行成功，`sqlUpdate()` 方法不返回任何内容，否则会抛出异常。
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 DROP 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 DROP 语句。 若 DROP 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
 
 以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 DROP 语句。
 
@@ -47,16 +47,18 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
 // 字符串数组： ["Orders"]
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 
 // 从 catalog 删除 “Orders” 表
-tableEnv.sqlUpdate("DROP TABLE Orders");
+tableEnv.executeSql("DROP TABLE Orders");
 
 // 空字符串数组
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 {% endhighlight %}
 </div>
 
@@ -66,32 +68,36 @@ val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
 // 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
 // 字符串数组： ["Orders"]
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 
 // 从 catalog 删除 “Orders” 表
-tableEnv.sqlUpdate("DROP TABLE Orders")
+tableEnv.executeSql("DROP TABLE Orders")
 
 // 空字符串数组
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # 字符串数组： ["Orders"]
-tables = tableEnv.listTable()
+tables = table_env.listTables()
+# or table_env.executeSql("SHOW TABLES").print()
 
 # 从 catalog 删除 “Orders” 表
-tableEnv.sqlUpdate("DROP TABLE Orders")
+table_env.execute_sql("DROP TABLE Orders")
 
 # 空字符串数组
-tables = tableEnv.listTable()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
