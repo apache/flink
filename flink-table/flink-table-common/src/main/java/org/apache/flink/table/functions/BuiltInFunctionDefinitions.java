@@ -59,11 +59,13 @@ import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_MOD;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_PLUS;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_SCALE0;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_TIMES;
+import static org.apache.flink.table.types.inference.TypeStrategies.STRING_CONCAT;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
+import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 
 /**
  * Dictionary of function definitions for all built-in functions.
@@ -311,129 +313,220 @@ public final class BuiltInFunctionDefinitions {
 			.build();
 
 	// string functions
+
 	public static final BuiltInFunctionDefinition CHAR_LENGTH =
 		new BuiltInFunctionDefinition.Builder()
 			.name("charLength")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.INT())))
 			.build();
+
 	public static final BuiltInFunctionDefinition INIT_CAP =
 		new BuiltInFunctionDefinition.Builder()
 			.name("initCap")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(argument(0)))
 			.build();
+
 	public static final BuiltInFunctionDefinition LIKE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("like")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition LOWER =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lower")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(argument(0)))
 			.build();
+
 	// we need LOWERCASE here to maintain compatibility for the string-based expression DSL
 	// which exposes LOWER as lowerCase()
 	public static final BuiltInFunctionDefinition LOWERCASE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lowerCase")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(argument(0)))
 			.build();
+
 	public static final BuiltInFunctionDefinition SIMILAR =
 		new BuiltInFunctionDefinition.Builder()
 			.name("similar")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition SUBSTRING =
 		new BuiltInFunctionDefinition.Builder()
 			.name("substring")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeRoot.INTEGER)),
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeRoot.INTEGER),
+						logical(LogicalTypeRoot.INTEGER))))
+			.outputTypeStrategy(nullable(varyingString(argument(0))))
 			.build();
+
 	public static final BuiltInFunctionDefinition REPLACE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("replace")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition TRIM =
 		new BuiltInFunctionDefinition.Builder()
 			.name("trim")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					logical(LogicalTypeRoot.BOOLEAN),
+					logical(LogicalTypeRoot.BOOLEAN),
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(varyingString(argument(3))))
 			.build();
+
 	public static final BuiltInFunctionDefinition UPPER =
 		new BuiltInFunctionDefinition.Builder()
 			.name("upper")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(argument(0)))
 			.build();
+
 	// we need UPPERCASE here to maintain compatibility for the string-based expression DSL
 	// which exposes UPPER as upperCase()
 	public static final BuiltInFunctionDefinition UPPERCASE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("upperCase")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(argument(0)))
 			.build();
+
 	public static final BuiltInFunctionDefinition POSITION =
 		new BuiltInFunctionDefinition.Builder()
 			.name("position")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.INT())))
 			.build();
+
 	public static final BuiltInFunctionDefinition OVERLAY =
 		new BuiltInFunctionDefinition.Builder()
 			.name("overlay")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeRoot.INTEGER)),
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeRoot.INTEGER),
+						logical(LogicalTypeRoot.INTEGER))
+				))
+			.outputTypeStrategy(nullable(STRING_CONCAT))
 			.build();
+
 	public static final BuiltInFunctionDefinition CONCAT =
 		new BuiltInFunctionDefinition.Builder()
 			.name("concat")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					varyingSequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING)),
+					varyingSequence(logical(LogicalTypeFamily.BINARY_STRING), logical(LogicalTypeFamily.BINARY_STRING))))
+			.outputTypeStrategy(nullable(STRING_CONCAT))
 			.build();
+
 	public static final BuiltInFunctionDefinition CONCAT_WS =
 		new BuiltInFunctionDefinition.Builder()
 			.name("concat_ws")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				varyingSequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition LPAD =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lpad")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeRoot.INTEGER),
+					logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition RPAD =
 		new BuiltInFunctionDefinition.Builder()
 			.name("rpad")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeRoot.INTEGER),
+					logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition REGEXP_EXTRACT =
 		new BuiltInFunctionDefinition.Builder()
 			.name("regexpExtract")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeFamily.CHARACTER_STRING)),
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeRoot.INTEGER))))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition FROM_BASE64 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("fromBase64")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition TO_BASE64 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("toBase64")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
 
 	public static final BuiltInFunctionDefinition UUID =
@@ -449,25 +542,42 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("ltrim")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+					sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING))))
+			.outputTypeStrategy(nullable(varyingString(argument(0))))
 			.build();
+
 	public static final BuiltInFunctionDefinition RTRIM =
 		new BuiltInFunctionDefinition.Builder()
 			.name("rtrim")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+					sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeFamily.CHARACTER_STRING))))
+			.outputTypeStrategy(nullable(varyingString(argument(0))))
 			.build();
+
 	public static final BuiltInFunctionDefinition REPEAT =
 		new BuiltInFunctionDefinition.Builder()
 			.name("repeat")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeRoot.INTEGER)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
+
 	public static final BuiltInFunctionDefinition REGEXP_REPLACE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("regexpReplace")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeFamily.CHARACTER_STRING),
+					logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.STRING())))
 			.build();
 
 	// math functions
@@ -1010,47 +1120,61 @@ public final class BuiltInFunctionDefinitions {
 			.build();
 
 	// crypto hash
+
 	public static final BuiltInFunctionDefinition MD5 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("md5")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.CHAR(32))))
 			.build();
+
 	public static final BuiltInFunctionDefinition SHA1 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("sha1")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.CHAR(40))))
 			.build();
+
 	public static final BuiltInFunctionDefinition SHA224 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("sha224")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.CHAR(56))))
 			.build();
+
 	public static final BuiltInFunctionDefinition SHA256 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("sha256")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.CHAR(64))))
 			.build();
+
 	public static final BuiltInFunctionDefinition SHA384 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("sha384")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.CHAR(96))))
 			.build();
+
 	public static final BuiltInFunctionDefinition SHA512 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("sha512")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.CHAR(128))))
 			.build();
+
 	public static final BuiltInFunctionDefinition SHA2 =
 		new BuiltInFunctionDefinition.Builder()
 			.name("sha2")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING), logical(LogicalTypeRoot.INTEGER)))
+			.outputTypeStrategy(nullable(explicit(DataTypes.VARCHAR(128))))
 			.build();
 
 	// time attributes
