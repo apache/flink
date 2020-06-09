@@ -41,7 +41,7 @@ public interface TableResult {
 	/**
 	 * Get the schema of result.
 	 *
-	 * <p>The schema of DDL, SHOW, EXPLAIN:
+	 * <p>The schema of DDL, USE, SHOW, EXPLAIN:
 	 * <pre>
 	 * +-------------+-------------+----------+
 	 * | column name | column type | comments |
@@ -79,6 +79,9 @@ public interface TableResult {
 
 	/**
 	 * Return the {@link ResultKind} which represents the result type.
+	 *
+	 * <p>For DDL operation and USE operation, the result kind is always {@link ResultKind#SUCCESS}.
+	 * For other operations, the result kind is always {@link ResultKind#SUCCESS_WITH_CONTENT}.
 	 */
 	ResultKind getResultKind();
 
@@ -119,6 +122,9 @@ public interface TableResult {
 
 	/**
 	 * Print the result contents as tableau form to client console.
+	 *
+	 * <p><strong>NOTE:</strong> please make sure the result data to print should be small.
+	 * Because all data will be collected to local first, and then print them to console.
 	 */
 	void print();
 }
