@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -117,7 +118,11 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 			} else if (msgClazz == AddCredit.class) {
 				AddCredit request = (AddCredit) msg;
 
-				outboundQueue.addCredit(request.receiverId, request.credit);
+				outboundQueue.addCreditOrResumeConsumption(request.receiverId, reader -> reader.addCredit(request.credit));
+			} else if (msgClazz == ResumeConsumption.class) {
+				ResumeConsumption request = (ResumeConsumption) msg;
+
+				outboundQueue.addCreditOrResumeConsumption(request.receiverId, NetworkSequenceViewReader::resumeConsumption);
 			} else {
 				LOG.warn("Received unexpected client request: {}", msg);
 			}

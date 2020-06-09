@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -33,12 +34,11 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 
-import org.apache.commons.lang3.StringUtils;
 import org.jline.terminal.Terminal;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -49,19 +49,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.client.cli.CliUtils.getStringDisplayWidth;
-import static org.apache.flink.table.client.cli.CliUtils.isFullWidth;
-import static org.apache.flink.table.client.cli.CliUtils.rowToString;
-
 /**
  * Print result in tableau mode.
  */
 public class CliTableauResultView implements AutoCloseable {
 
 	private static final int NULL_COLUMN_WIDTH = CliStrings.NULL_COLUMN.length();
-	private static final int MAX_COLUMN_WIDTH = 30;
 	private static final int DEFAULT_COLUMN_WIDTH = 20;
-	private static final String COLUMN_TRUNCATED_FLAG = "...";
 	private static final String CHANGEFLAG_COLUMN_NAME = "+/-";
 
 	private final Terminal terminal;
@@ -79,7 +73,7 @@ public class CliTableauResultView implements AutoCloseable {
 		this.sqlExecutor = sqlExecutor;
 		this.sessionId = sessionId;
 		this.resultDescriptor = resultDescriptor;
-		this.displayResultExecutorService = Executors.newSingleThreadExecutor();
+		this.displayResultExecutorService = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("CliTableauResultView"));
 	}
 
 	public void displayStreamResults() throws SqlExecutionException {
@@ -115,7 +109,7 @@ public class CliTableauResultView implements AutoCloseable {
 	public void displayBatchResults() throws SqlExecutionException {
 		Future<?> resultFuture = displayResultExecutorService.submit(() -> {
 			final List<Row> resultRows = waitBatchResults();
-			printBatchResults(resultRows);
+			PrintUtils.printAsTableauForm(resultDescriptor.getResultSchema(), resultRows.iterator(), terminal.writer());
 		});
 
 		// capture CTRL-C
@@ -194,11 +188,11 @@ public class CliTableauResultView implements AutoCloseable {
 				).toArray(String[]::new);
 
 		int[] colWidths = columnWidthsByType(columns, true);
-		String borderline = genBorderLine(colWidths);
+		String borderline = PrintUtils.genBorderLine(colWidths);
 
 		// print filed names
 		terminal.writer().println(borderline);
-		printSingleRow(colWidths, fieldNames);
+		PrintUtils.printSingleRow(colWidths, fieldNames, terminal.writer());
 		terminal.writer().println(borderline);
 		terminal.flush();
 
@@ -220,11 +214,11 @@ public class CliTableauResultView implements AutoCloseable {
 				case PAYLOAD:
 					List<Tuple2<Boolean, Row>> changes = result.getPayload();
 					for (Tuple2<Boolean, Row> change : changes) {
-						final String[] cols = rowToString(change.f1);
+						final String[] cols = PrintUtils.rowToString(change.f1);
 						String[] row = new String[cols.length + 1];
 						row[0] = change.f0 ? "+" : "-";
 						System.arraycopy(cols, 0, row, 1, cols.length);
-						printSingleRow(colWidths, row);
+						PrintUtils.printSingleRow(colWidths, row, terminal.writer());
 						receivedRowCount.incrementAndGet();
 					}
 					break;
@@ -232,64 +226,6 @@ public class CliTableauResultView implements AutoCloseable {
 					throw new SqlExecutionException("Unknown result type: " + result.getType());
 			}
 		}
-	}
-
-	private void printBatchResults(List<Row> resultRows) {
-		List<String[]> rows = new ArrayList<>(resultRows.size() + 1);
-
-		// fill field names first
-		List<TableColumn> columns = resultDescriptor.getResultSchema().getTableColumns();
-		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
-		resultRows.forEach(row -> rows.add(rowToString(row)));
-
-		int[] colWidths = columnWidthsByContent(columns, rows);
-		String borderline = genBorderLine(colWidths);
-
-		// print field names
-		terminal.writer().println(borderline);
-		printSingleRow(colWidths, rows.get(0));
-		terminal.writer().println(borderline);
-
-		// print content
-		rows.subList(1, rows.size()).forEach(row -> printSingleRow(colWidths, row));
-		if (!resultRows.isEmpty()) {
-			terminal.writer().println(borderline);
-		}
-
-		// print footer
-		terminal.writer().println(resultRows.size() + " row in set");
-		terminal.flush();
-	}
-
-	private String genBorderLine(int[] colWidths) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("+");
-		for (int width : colWidths) {
-			sb.append(StringUtils.repeat('-', width + 1));
-			sb.append("-+");
-		}
-		return sb.toString();
-	}
-
-	private void printSingleRow(int[] colWidths, String[] cols) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("|");
-		int idx = 0;
-		for (String col : cols) {
-			sb.append(" ");
-			int displayWidth = getStringDisplayWidth(col);
-			if (displayWidth <= colWidths[idx]) {
-				sb.append(StringUtils.repeat(' ', colWidths[idx] - displayWidth));
-				sb.append(col);
-			} else {
-				sb.append(truncateString(col, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
-				sb.append(COLUMN_TRUNCATED_FLAG);
-			}
-			sb.append(" |");
-			idx++;
-		}
-		terminal.writer().println(sb.toString());
-		terminal.flush();
 	}
 
 	/**
@@ -383,48 +319,6 @@ public class CliTableauResultView implements AutoCloseable {
 		} else {
 			return base + 10;
 		}
-	}
-
-	private int[] columnWidthsByContent(List<TableColumn> columns, List<String[]> rows) {
-		// fill width with field names first
-		int[] colWidths  = columns.stream().mapToInt(col -> col.getName().length()).toArray();
-
-		// fill column width with real data
-		for (String[] row : rows) {
-			for (int i = 0; i < row.length; ++i) {
-				colWidths[i] = Math.max(colWidths[i], getStringDisplayWidth(row[i]));
-			}
-		}
-
-		// adjust column width with maximum length
-		for (int i = 0; i < colWidths.length; ++i) {
-			colWidths[i] = Math.min(colWidths[i], MAX_COLUMN_WIDTH);
-		}
-
-		return colWidths;
-	}
-
-	private String truncateString(String col, int targetWidth) {
-		int passedWidth = 0;
-		int i = 0;
-		for (; i < col.length(); i++) {
-			if (isFullWidth(Character.codePointAt(col, i))) {
-				passedWidth += 2;
-			} else {
-				passedWidth += 1;
-			}
-			if (passedWidth >= targetWidth) {
-				break;
-			}
-		}
-		String substring = col.substring(0, i);
-
-		// pad with ' ' before the column
-		int lackedWidth = targetWidth - getStringDisplayWidth(substring);
-		if (lackedWidth > 0){
-			substring = StringUtils.repeat(' ', lackedWidth) + substring;
-		}
-		return substring;
 	}
 
 }

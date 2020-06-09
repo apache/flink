@@ -31,12 +31,12 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeHintMock;
-import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
@@ -64,7 +64,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static org.apache.flink.util.CoreMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -72,9 +72,11 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link DataTypeExtractor}.
  */
 @RunWith(Parameterized.class)
+@SuppressWarnings("unused")
 public class DataTypeExtractorTest {
 
-	@Parameters
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
 			// simple extraction of INT
@@ -213,9 +215,9 @@ public class DataTypeExtractorTest {
 					java.time.Period.class)
 				.expectDataType(DataTypes.INTERVAL(DataTypes.MONTH())),
 
-			// RAW with default serializer
 			TestSpec
 				.forType(
+					"RAW with default serializer",
 					new DataTypeHintMock() {
 						@Override
 						public HintFlag allowRawGlobally() {
@@ -229,9 +231,9 @@ public class DataTypeExtractorTest {
 						DataTypes.ARRAY(
 							DataTypes.RAW(new GenericTypeInfo<>(Object.class))))),
 
-			// RAW with custom serializer
 			TestSpec
 				.forType(
+					"RAW with custom serializer",
 					new DataTypeHintMock() {
 						@Override
 						public String value() {
@@ -244,11 +246,13 @@ public class DataTypeExtractorTest {
 						}
 					},
 					Integer.class)
-				.expectDataType(DataTypes.RAW(Integer.class, new IntSerializer())),
+				.expectDataType(
+					DataTypes.RAW(Object.class, (TypeSerializer) new IntSerializer())
+						.bridgedTo(Integer.class)),
 
-			// RAW with different conversion class
 			TestSpec
 				.forType(
+					"RAW with different conversion class",
 					new DataTypeHintMock() {
 						@Override
 						public String value() {
@@ -263,6 +267,26 @@ public class DataTypeExtractorTest {
 					Object.class)
 				.lookupExpects(Integer.class)
 				.expectDataType(DataTypes.RAW(new GenericTypeInfo<>(Integer.class))),
+
+			TestSpec
+				.forType(
+					"RAW with more specific conversion class",
+					new DataTypeHintMock() {
+						@Override
+						public String value() {
+							return "RAW";
+						}
+
+						@Override
+						public Class<?> bridgedTo() {
+							return RawTypeGeneric.class;
+						}
+					},
+					RawTypeSpecific.class)
+				.lookupExpects(RawTypeGeneric.class)
+				.expectDataType(
+					DataTypes.RAW(new GenericTypeInfo<>(RawTypeGeneric.class))
+						.bridgedTo(RawTypeSpecific.class)),
 
 			// MAP type with type variable magic
 			TestSpec
@@ -374,7 +398,30 @@ public class DataTypeExtractorTest {
 			// method with generic return type
 			TestSpec
 				.forMethodOutput(IntegerVarArg.class)
-				.expectDataType(DataTypes.INT())
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec
+				.forType(
+					"Structured type with invalid constructor",
+					SimplePojoWithInvalidConstructor.class)
+				.expectErrorMessage(
+					"Class '" + SimplePojoWithInvalidConstructor.class.getName() + "' has neither a " +
+						"constructor that assigns all fields nor a default constructor."),
+
+			TestSpec
+				.forType(
+					"Structured type with self reference",
+					PojoWithInvalidSelfReference.class)
+				.expectErrorMessage(
+					"Cyclic reference detected for class '" + PojoWithInvalidSelfReference.class.getName() + "'. Attributes " +
+						"of structured types must not (transitively) reference the structured type itself."),
+
+			TestSpec
+				.forType(
+					"Structured type with self reference that is avoided using RAW",
+					PojoWithRawSelfReference.class)
+				.lookupExpects(PojoWithRawSelfReference.class)
+				.expectDataType(getPojoWithRawSelfReferenceDataType())
 		);
 	}
 
@@ -404,40 +451,71 @@ public class DataTypeExtractorTest {
 
 		private final DataTypeFactoryMock typeFactory = new DataTypeFactoryMock();
 
+		private final @Nullable String description;
+
 		private final Function<DataTypeFactory, DataType> extractor;
 
 		private @Nullable DataType expectedDataType;
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(Function<DataTypeFactory, DataType> extractor) {
+		private TestSpec(@Nullable String description, Function<DataTypeFactory, DataType> extractor) {
+			this.description = description;
 			this.extractor = extractor;
 		}
 
+		static TestSpec forType(String description, Type type) {
+			return new TestSpec(description, (lookup) -> DataTypeExtractor.extractFromType(lookup, type));
+		}
+
 		static TestSpec forType(Type type) {
-			return new TestSpec((lookup) -> DataTypeExtractor.extractFromType(lookup, type));
+			return forType((String) null, type);
+		}
+
+		static TestSpec forType(String description, DataTypeHint hint, Type type) {
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromType(lookup, DataTypeTemplate.fromAnnotation(lookup, hint), type));
 		}
 
 		static TestSpec forType(DataTypeHint hint, Type type) {
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromType(lookup, DataTypeTemplate.fromAnnotation(lookup, hint), type));
+			return forType(null, hint, type);
+		}
+
+		static TestSpec forGeneric(String description, Class<?> baseClass, int genericPos, Type contextType) {
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromGeneric(lookup, baseClass, genericPos, contextType));
 		}
 
 		static TestSpec forGeneric(Class<?> baseClass, int genericPos, Type contextType) {
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromGeneric(lookup, baseClass, genericPos, contextType));
+			return forGeneric(null, baseClass, genericPos, contextType);
+		}
+
+		static TestSpec forMethodParameter(String description, Class<?> clazz, int paramPos) {
+			final Method method = clazz.getMethods()[0];
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromMethodParameter(lookup, clazz, method, paramPos));
 		}
 
 		static TestSpec forMethodParameter(Class<?> clazz, int paramPos) {
+			return forMethodParameter(null, clazz, paramPos);
+		}
+
+		static TestSpec forMethodOutput(String description, Class<?> clazz) {
 			final Method method = clazz.getMethods()[0];
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromMethodParameter(lookup, clazz, method, paramPos));
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
 		}
 
 		static TestSpec forMethodOutput(Class<?> clazz) {
-			final Method method = clazz.getMethods()[0];
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
+			return forMethodOutput(null, clazz);
 		}
 
 		boolean hasErrorMessage() {
@@ -459,6 +537,17 @@ public class DataTypeExtractorTest {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
 		}
+
+		@Override
+		public String toString() {
+			if (description != null) {
+				return description;
+			}
+			if (expectedDataType != null) {
+				return "Expected data type: " + expectedDataType;
+			}
+			return "Expected error: " + expectedErrorMessage;
+		}
 	}
 
 	static void runExtraction(TestSpec testSpec) {
@@ -479,21 +568,22 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(simplePojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute("intField", new IntType(true)),
-				new StructuredType.StructuredAttribute("primitiveBooleanField", new BooleanType(false)),
-				new StructuredType.StructuredAttribute("primitiveIntField", new IntType(false)),
-				new StructuredType.StructuredAttribute("stringField", new VarCharType(VarCharType.MAX_LENGTH))));
+				new StructuredAttribute("intField", new IntType(true)),
+				new StructuredAttribute("primitiveBooleanField", new BooleanType(false)),
+				new StructuredAttribute("primitiveIntField", new IntType(false)),
+				new StructuredAttribute("stringField", new VarCharType(VarCharType.MAX_LENGTH))));
 		builder.setFinal(true);
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("intField", DataTypes.INT());
-		fields.put("primitiveBooleanField", DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class));
-		fields.put("primitiveIntField", DataTypes.INT().notNull().bridgedTo(int.class));
-		fields.put("stringField", DataTypes.STRING());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.INT(),
+			DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class),
+			DataTypes.INT().notNull().bridgedTo(int.class),
+			DataTypes.STRING()
+		);
 
-		return new FieldsDataType(structuredType, simplePojoClass, fields);
+		return new FieldsDataType(structuredType, simplePojoClass, fieldDataTypes);
 	}
 
 	/**
@@ -503,25 +593,26 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(complexPojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"mapField",
 					new MapType(new VarCharType(VarCharType.MAX_LENGTH), new IntType())),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"simplePojoField",
 					getSimplePojoDataType(simplePojoClass).getLogicalType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"someObject",
 					new TypeInformationRawType<>(new GenericTypeInfo<>(Object.class)))));
 		builder.setFinal(true);
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("mapField", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()));
-		fields.put("simplePojoField", getSimplePojoDataType(simplePojoClass));
-		fields.put("someObject", DataTypes.RAW(new GenericTypeInfo<>(Object.class)));
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()),
+			getSimplePojoDataType(simplePojoClass),
+			DataTypes.RAW(new GenericTypeInfo<>(Object.class))
+		);
 
-		return new FieldsDataType(structuredType, complexPojoClass, fields);
+		return new FieldsDataType(structuredType, complexPojoClass, fieldDataTypes);
 	}
 
 	/**
@@ -531,67 +622,92 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(pojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"z",
 					new BigIntType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"y",
 					new BooleanType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"x",
 					new IntType())));
 		builder.setFinal(true);
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("z", DataTypes.BIGINT());
-		fields.put("y", DataTypes.BOOLEAN());
-		fields.put("x", DataTypes.INT());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.BIGINT(),
+			DataTypes.BOOLEAN(),
+			DataTypes.INT()
+		);
 
-		return new FieldsDataType(structuredType, pojoClass, fields);
+		return new FieldsDataType(structuredType, pojoClass, fieldDataTypes);
 	}
 
 	private static DataType getOuterTupleDataType() {
 		final StructuredType.Builder builder = StructuredType.newBuilder(Tuple2.class);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f0",
 					new IntType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f1",
 					getInnerTupleDataType().getLogicalType())));
 		builder.setFinal(true);
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("f0", DataTypes.INT());
-		fields.put("f1", getInnerTupleDataType());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.INT(),
+			getInnerTupleDataType()
+		);
 
-		return new FieldsDataType(structuredType, Tuple2.class, fields);
+		return new FieldsDataType(structuredType, Tuple2.class, fieldDataTypes);
 	}
 
 	private static DataType getInnerTupleDataType() {
 		final StructuredType.Builder builder = StructuredType.newBuilder(Tuple2.class);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f0",
 					new VarCharType(VarCharType.MAX_LENGTH)),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f1",
 					new BooleanType())));
 		builder.setFinal(true);
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("f0", DataTypes.STRING());
-		fields.put("f1", DataTypes.BOOLEAN());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.STRING(),
+			DataTypes.BOOLEAN()
+		);
 
-		return new FieldsDataType(structuredType, Tuple2.class, fields);
+		return new FieldsDataType(structuredType, Tuple2.class, fieldDataTypes);
+	}
+
+	private static DataType getPojoWithRawSelfReferenceDataType() {
+		final StructuredType.Builder builder = StructuredType.newBuilder(PojoWithRawSelfReference.class);
+		builder.attributes(
+			Arrays.asList(
+				new StructuredAttribute(
+					"integer",
+					new IntType()),
+				new StructuredAttribute(
+					"reference",
+					new TypeInformationRawType<>(new GenericTypeInfo<>(PojoWithRawSelfReference.class)))));
+		builder.setFinal(true);
+		builder.setInstantiable(true);
+		final StructuredType structuredType = builder.build();
+
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.INT(),
+			DataTypes.RAW(new GenericTypeInfo<>(PojoWithRawSelfReference.class))
+		);
+
+		return new FieldsDataType(structuredType, PojoWithRawSelfReference.class, fieldDataTypes);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -867,5 +983,59 @@ public class DataTypeExtractorTest {
 	 */
 	public static class IntegerVarArg extends VarArgMethod<Integer> {
 		// nothing to do
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class RawTypeGeneric {
+		// nothing to do
+	}
+
+	private static class RawTypeSpecific extends RawTypeGeneric {
+		// nothing to do
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Default constructor is missing.
+	 */
+	public static class SimplePojoWithInvalidConstructor {
+		public Integer intField;
+		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		public String stringField;
+
+		public SimplePojoWithInvalidConstructor(Integer intField) {
+			this.intField = intField;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Self reference in attribute.
+	 */
+	public static class PojoWithInvalidSelfReference {
+		public Integer integer;
+		public PojoWithInvalidSelfReferenceNested nestedPojo;
+	}
+
+	/**
+	 * Nested POJO for self reference test.
+	 */
+	public static class PojoWithInvalidSelfReferenceNested {
+		public PojoWithInvalidSelfReference reference;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Self reference in attribute that is fixed with RAW type.
+	 */
+	public static class PojoWithRawSelfReference {
+		public Integer integer;
+		@DataTypeHint(value = "RAW", bridgedTo = PojoWithRawSelfReference.class)
+		public PojoWithRawSelfReference reference;
 	}
 }

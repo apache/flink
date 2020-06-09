@@ -143,6 +143,6 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 			default:
 				throw new TableException("Unsupported type: " + orderType);
 		}
-		return valueLiteral(value, fromLogicalTypeToDataType(orderType));
+		return valueLiteral(value, fromLogicalTypeToDataType(orderType).notNull());
 	}
 }

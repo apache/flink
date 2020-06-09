@@ -83,9 +83,10 @@ public class MultipleInputStreamTaskTestHarnessBuilder<OUT> extends StreamTaskMa
 		for (int i = 0; i < inputSerializers.size(); i++) {
 			TypeSerializer<?> inputSerializer = inputSerializers.get(i);
 			inputGates[i] = new StreamTestSingleInputGate<>(
-					inputChannelsPerGate.get(i),
-					bufferSize,
-					inputSerializer);
+				inputChannelsPerGate.get(i),
+				i,
+				inputSerializer,
+				bufferSize);
 
 			StreamEdge streamEdge = new StreamEdge(
 				sourceVertexDummy,

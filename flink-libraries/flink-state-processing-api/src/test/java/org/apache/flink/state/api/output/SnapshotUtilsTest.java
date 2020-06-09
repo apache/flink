@@ -64,7 +64,7 @@ public class SnapshotUtilsTest {
 
 		Path path = new Path(folder.newFolder().getAbsolutePath());
 
-		SnapshotUtils.snapshot(operator, 0, 0L, storage, path);
+		SnapshotUtils.snapshot(operator, 0, 0L, true, false, storage, path);
 
 		Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
 	}
@@ -128,6 +128,10 @@ public class SnapshotUtilsTest {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("notifyCheckpointComplete");
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 
 		@Override

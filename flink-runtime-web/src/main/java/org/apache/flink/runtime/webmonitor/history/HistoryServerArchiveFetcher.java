@@ -186,11 +186,13 @@ class HistoryServerArchiveFetcher {
 		@Override
 		public void run() {
 			try {
+				LOG.debug("Starting archive fetching.");
 				List<ArchiveEvent> events = new ArrayList<>();
 				Set<String> jobsToRemove = new HashSet<>(cachedArchives);
 				for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
 					Path refreshDir = refreshLocation.getPath();
 					FileSystem refreshFS = refreshLocation.getFs();
+					LOG.debug("Checking archive directory {}.", refreshDir);
 
 					// contents of /:refreshDir
 					FileStatus[] jobArchives;
@@ -214,7 +216,11 @@ class HistoryServerArchiveFetcher {
 							continue;
 						}
 						jobsToRemove.remove(jobID);
-						if (!cachedArchives.contains(jobID)) {
+
+						if (cachedArchives.contains(jobID)) {
+							LOG.trace("Ignoring archive {} because it was already fetched.", jobArchivePath);
+						} else {
+							LOG.info("Processing archive {}.", jobArchivePath);
 							try {
 								for (ArchivedJson archive : FsJobArchivist.getArchivedJsons(jobArchive.getPath())) {
 									String path = archive.getPath();
@@ -224,6 +230,7 @@ class HistoryServerArchiveFetcher {
 									if (path.equals(JobsOverviewHeaders.URL)) {
 										target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
 									} else if (path.equals("/joboverview")) { // legacy path
+										LOG.debug("Migrating legacy archive {}", jobArchivePath);
 										json = convertLegacyJobOverview(json);
 										target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
 									} else {
@@ -253,6 +260,7 @@ class HistoryServerArchiveFetcher {
 								}
 								events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
 								cachedArchives.add(jobID);
+								LOG.info("Processing archive {} finished.", jobArchivePath);
 							} catch (IOException e) {
 								LOG.error("Failure while fetching/processing job archive for job {}.", jobID, e);
 								// Make sure we do not include this job in the overview
@@ -281,6 +289,7 @@ class HistoryServerArchiveFetcher {
 					updateJobOverview(webOverviewDir, webDir);
 				}
 				events.forEach(jobArchiveEventListener::accept);
+				LOG.debug("Finished archive fetching.");
 			} catch (Exception e) {
 				LOG.error("Critical failure while fetching/processing job archives.", e);
 			}

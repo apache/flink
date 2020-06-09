@@ -26,12 +26,11 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -45,6 +44,7 @@ import org.apache.flink.metrics.MetricGroup;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -113,6 +113,11 @@ class CepRuntimeContext implements RuntimeContext {
 	@Override
 	public DistributedCache getDistributedCache() {
 		return runtimeContext.getDistributedCache();
+	}
+
+	@Override
+	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName){
+		return runtimeContext.getExternalResourceInfos(resourceName);
 	}
 
 	// -----------------------------------------------------------------------------------
@@ -191,11 +196,6 @@ class CepRuntimeContext implements RuntimeContext {
 	@Override
 	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
 			final AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
-
-	@Override
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(final FoldingStateDescriptor<T, ACC> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 

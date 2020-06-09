@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
 import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker;
-import org.apache.flink.table.planner.plan.type.RepeatFamilyOperandTypeChecker;
 
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -38,6 +37,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -192,7 +192,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			ReturnTypes.explicit(SqlTypeName.VARCHAR),
 			SqlTypeTransforms.TO_NULLABLE),
 		null,
-		new RepeatFamilyOperandTypeChecker(SqlTypeFamily.CHARACTER),
+		OperandTypes.repeat(SqlOperandCountRanges.from(1), OperandTypes.STRING),
 		SqlFunctionCategory.STRING);
 
 	/**
@@ -205,7 +205,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			ReturnTypes.explicit(SqlTypeName.VARCHAR),
 			SqlTypeTransforms.TO_NULLABLE),
 		null,
-		new RepeatFamilyOperandTypeChecker(SqlTypeFamily.CHARACTER),
+		OperandTypes.repeat(SqlOperandCountRanges.from(1), OperandTypes.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction LOG = new SqlFunction(

@@ -29,7 +29,9 @@ import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.hadoop.util.VersionUtil;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -163,8 +165,8 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 		try {
 			final Path directory = new Path(basePath, pathSuffix);
 
-			YarnFileStageTest.testCopyFromLocalRecursive(fs.getHadoopFileSystem(),
-				new org.apache.hadoop.fs.Path(directory.toUri()), Path.CUR_DIR, tempFolder, false);
+			YarnFileStageTest.testRegisterMultipleLocalResources(fs.getHadoopFileSystem(),
+				new org.apache.hadoop.fs.Path(directory.toUri()), Path.CUR_DIR, tempFolder, false, false);
 		} finally {
 			// clean up
 			fs.delete(basePath, true);
@@ -174,6 +176,9 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	@Test
 	@RetryOnFailure(times = 3)
 	public void testRecursiveUploadForYarnS3n() throws Exception {
+		// skip test on Hadoop 3: https://issues.apache.org/jira/browse/HADOOP-14738
+		Assume.assumeTrue("This test is skipped for Hadoop versions above 3", VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0);
+
 		try {
 			Class.forName("org.apache.hadoop.fs.s3native.NativeS3FileSystem");
 		} catch (ClassNotFoundException e) {

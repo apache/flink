@@ -29,7 +29,7 @@ LogicalProject(EXPR$0=[ARRAY(_UTF-16LE'Hi', _UTF-16LE'Hello', $2)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ARRAY(_UTF-16LE'Hi', _UTF-16LE'Hello', c) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -47,7 +47,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c], where=[AND(<(a, 10), >(b, 20))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -65,7 +65,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c], where=[OR(<(a, 10), >(a, 20))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -83,7 +83,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$3=[||($2, TRIM(FLAG(BOTH), _UTF-16LE
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, CAST(_UTF-16LE'你好':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS c, CAST(_UTF-16LE'你好世界':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS EXPR$3], where=[=(c, _UTF-16LE'你好':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -104,7 +104,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, CAST(1984-07-12) AS b, CAST(14:34:24) AS c, CAST(1984-07-12 14:34:24:TIMESTAMP(3)) AS d], where=[AND(=(b, 1984-07-12), =(c, 14:34:24), =(d, 1984-07-12 14:34:24:TIMESTAMP(3)))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -122,7 +122,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, CAST(_UTF-16LE'xx':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS c], where=[AND(IN(b, 1, 3, 4, 5, 6), =(c, _UTF-16LE'xx':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -140,7 +140,7 @@ LogicalProject(EXPR$0=[ROW($0, $1, $2)], EXPR$1=[ARRAY(12, $1)], EXPR$2=[MAP($0,
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ROW(a, b, c) AS EXPR$0, ARRAY(12, b) AS EXPR$1, MAP(a, c) AS EXPR$2], where=[=(ROW(a, b, c), CAST(ROW(_UTF-16LE'foo', 12, 1984-07-12 14:34:24)))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable5, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable5, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -160,7 +160,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c], where=[AND(>(b, 0), <(a, 50))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -177,7 +177,7 @@ LogicalProject(_1=[$0._1], _2=[$0._2], c=[$2], _10=[$1._1], _20=[$1._2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a._1 AS _1, a._2 AS _2, c, b._1 AS _10, b._2 AS _20])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -194,7 +194,7 @@ LogicalProject(c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -211,7 +211,7 @@ LogicalProject(EXPR$0=[MAP($0, $2)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[MAP(a, c) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -229,7 +229,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c], where=[OR(NOT IN(b, 1, 3, 4, 5, 6), =(c, _UTF-16LE'xx':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -247,7 +247,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c], where=[>(b, 0)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -264,7 +264,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, c])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -280,7 +280,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(a)]]], fields=[a])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(a)]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -297,7 +297,7 @@ LogicalProject(EXPR$0=[MAP($1, 30, 10, $0)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[MAP(b, 30, 10, a) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -315,7 +315,7 @@ LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, +(b, 1) AS EXPR$1], where=[>(b, 2)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -338,7 +338,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$3=[1984-07-12], EXPR$4=[14:34:24], E
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, 1984-07-12 AS EXPR$3, 14:34:24 AS EXPR$4, 1984-07-12 14:34:24 AS EXPR$5])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -354,7 +354,7 @@ LogicalProject(1-_./Ü=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -371,7 +371,7 @@ LogicalProject(EXPR$0=[ROW(1, _UTF-16LE'Hi', $0)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ROW(1, _UTF-16LE'Hi', a) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

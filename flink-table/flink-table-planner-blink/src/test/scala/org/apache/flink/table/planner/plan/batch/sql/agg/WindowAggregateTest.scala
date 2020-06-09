@@ -18,9 +18,8 @@
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 
@@ -46,7 +45,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, Int, Timestamp)]("MyTable2", 'a, 'b, 'c, 'd, 'ts)
-    util.tableEnv.sqlUpdate(
+    util.tableEnv.executeSql(
       s"""
          |create table MyTable3 (
          |  a int,

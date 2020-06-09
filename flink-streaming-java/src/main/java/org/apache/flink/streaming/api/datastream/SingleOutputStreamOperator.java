@@ -55,7 +55,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * we can catch the case when a side output with a matching id is requested for a different
 	 * type because this would lead to problems at runtime.
 	 */
-	private Map<OutputTag<?>, TypeInformation> requestedSideOutputs = new HashMap<>();
+	private Map<OutputTag<?>, TypeInformation<?>> requestedSideOutputs = new HashMap<>();
 
 	private boolean wasSplitApplied = false;
 

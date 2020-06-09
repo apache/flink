@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -68,23 +69,27 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		TaskManagerServices taskManagerServices = createTaskManagerServices(createTaskManagerServiceConfiguration(config));
 
-		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
+		try {
+			TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
-		// verify configured directories for local state
-		String[] split = rootDirString.split(",");
-		File[] rootDirectories = taskStateManager.getLocalStateRootDirectories();
-		for (int i = 0; i < split.length; ++i) {
-			Assert.assertEquals(
-				new File(split[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
-				rootDirectories[i]);
-		}
+			// verify configured directories for local state
+			String[] split = rootDirString.split(",");
+			File[] rootDirectories = taskStateManager.getLocalStateRootDirectories();
+			for (int i = 0; i < split.length; ++i) {
+				Assert.assertEquals(
+					new File(split[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
+					rootDirectories[i]);
+			}
 
-		// verify local recovery mode
-		Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
+			// verify local recovery mode
+			Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
 
-		Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
-		for (File rootDirectory : rootDirectories) {
-			FileUtils.deleteFileOrDirectory(rootDirectory);
+			Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
+			for (File rootDirectory : rootDirectories) {
+				FileUtils.deleteFileOrDirectory(rootDirectory);
+			}
+		} finally {
+			taskManagerServices.shutDown();
 		}
 	}
 
@@ -101,18 +106,22 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		TaskManagerServices taskManagerServices = createTaskManagerServices(taskManagerServicesConfiguration);
 
-		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
+		try {
+			TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
-		String[] tmpDirPaths = taskManagerServicesConfiguration.getTmpDirPaths();
-		File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();
+			String[] tmpDirPaths = taskManagerServicesConfiguration.getTmpDirPaths();
+			File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();
 
-		for (int i = 0; i < tmpDirPaths.length; ++i) {
-			Assert.assertEquals(
-				new File(tmpDirPaths[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
-				localStateRootDirectories[i]);
+			for (int i = 0; i < tmpDirPaths.length; ++i) {
+				Assert.assertEquals(
+					new File(tmpDirPaths[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
+					localStateRootDirectories[i]);
+			}
+
+			Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
+		} finally {
+			taskManagerServices.shutDown();
 		}
-
-		Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
 	}
 
 	/**
@@ -216,7 +225,8 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 			TaskManagerServicesConfiguration config) throws Exception {
 		return TaskManagerServices.fromConfiguration(
 			config,
+			VoidPermanentBlobService.INSTANCE,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			Executors.directExecutor());
+			Executors.newDirectExecutorService());
 	}
 }

@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.sql.{Date, Time, Timestamp}
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -196,26 +196,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
-
-    testTableApi(
-      'f7.cast(Types.SQL_DATE),
-      "f7.cast(SQL_DATE)",
-      "2002-11-09")
-
-    testTableApi(
-      'f7.cast(Types.SQL_DATE).cast(Types.INT),
-      "f7.cast(SQL_DATE).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f7.cast(Types.SQL_TIME),
-      "f7.cast(SQL_TIME)",
-      "00:00:12")
-
-    testTableApi(
-      'f7.cast(Types.SQL_TIME).cast(Types.INT),
-      "f7.cast(SQL_TIME).cast(INT)",
-      "12000")
 
     testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP),

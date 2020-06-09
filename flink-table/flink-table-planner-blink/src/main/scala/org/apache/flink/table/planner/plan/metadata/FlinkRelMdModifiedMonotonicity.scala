@@ -26,10 +26,9 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAgg
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
 import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
-
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._
@@ -41,6 +40,8 @@ import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.sql.{SqlKind, SqlOperatorBinding}
 import org.apache.calcite.util.Util
+import org.apache.flink.table.connector.source.ScanTableSource
+import org.apache.flink.types.RowKind
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
@@ -50,7 +51,7 @@ import scala.collection.JavaConversions._
 
 /**
   * FlinkRelMdModifiedMonotonicity supplies a default implementation of
-  * [[FlinkRelMetadataQuery.getRelModifiedMonotonicity]] for logical algebra.
+  * [[FlinkRelMetadataQuery#getRelModifiedMonotonicity]] for logical algebra.
   */
 class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMonotonicity] {
 
@@ -61,6 +62,14 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       case _: FlinkLogicalDataStreamTableScan | _: StreamExecDataStreamScan =>
         val table = rel.getTable.unwrap(classOf[FlinkPreparingTableBase])
         table.getStatistic.getRelModifiedMonotonicity
+      case _: FlinkLogicalTableSourceScan | _: StreamExecTableSourceScan =>
+        val table = rel.getTable.unwrap(classOf[TableSourceTable])
+        table.tableSource match {
+          case sts: ScanTableSource if !sts.getChangelogMode.containsOnly(RowKind.INSERT) =>
+            // changelog source can't produce CONSTANT ModifiedMonotonicity
+            new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
+          case _ => null
+        }
       case _ => null
     }
 
@@ -292,7 +301,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(
       rel: StreamExecGroupWindowAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    if (allAppend(mq, rel.getInput) && !rel.producesUpdates) {
+    if (allAppend(mq, rel.getInput) && !rel.emitStrategy.produceUpdates) {
       constants(rel.getRowType.getFieldCount)
     } else {
       null
@@ -467,7 +476,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecWindowJoin,
+      rel: StreamExecIntervalJoin,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     // window join won't have update
     constants(rel.getRowType.getFieldCount)

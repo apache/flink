@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 /**
  * A stream operator that emits watermark in a given event-time interval.
@@ -42,8 +42,8 @@ import org.apache.flink.table.dataformat.BaseRow;
  * using processing time.
  */
 public class RowTimeMiniBatchAssginerOperator
-	extends AbstractStreamOperator<BaseRow>
-	implements OneInputStreamOperator<BaseRow, BaseRow> {
+	extends AbstractStreamOperator<RowData>
+	implements OneInputStreamOperator<RowData, RowData> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -69,7 +69,7 @@ public class RowTimeMiniBatchAssginerOperator
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement(StreamRecord<RowData> element) throws Exception {
 		// forward records
 		output.collect(element);
 	}

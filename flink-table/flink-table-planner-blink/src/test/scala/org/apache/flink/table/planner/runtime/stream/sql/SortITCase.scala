@@ -19,17 +19,17 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSort
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Ignore, _}
 
 import scala.collection.mutable
 
@@ -203,8 +203,6 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected, sink.getRetractResults)
   }
 
-  // FIXME
-  @Ignore("Enable after StreamExecJoin implements ExecNode.")
   @Test
   def testSortWithWhere(): Unit = {
     val sqlQuery =

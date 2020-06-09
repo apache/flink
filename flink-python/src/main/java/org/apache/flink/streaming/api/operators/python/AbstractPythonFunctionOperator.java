@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.operators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -118,7 +117,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		try {
 			this.bundleStarted = new AtomicBoolean(false);
 
-			reserveMemoryForPythonWorker();
+			if (config.isUsingManagedMemory()) {
+				reserveMemoryForPythonWorker();
+			}
 
 			this.maxBundleSize = config.getMaxBundleSize();
 			if (this.maxBundleSize <= 0) {
@@ -177,8 +178,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 				pythonFunctionRunner = null;
 			}
 			if (reservedMemory > 0) {
-				getContainingTask().getEnvironment().getMemoryManager().releaseMemory(
-					this, MemoryType.OFF_HEAP, reservedMemory);
+				getContainingTask().getEnvironment().getMemoryManager().releaseMemory(this, reservedMemory);
 				reservedMemory = -1;
 			}
 		} finally {
@@ -282,7 +282,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		long availableManagedMemory = memoryManager.computeMemorySize(
 			getOperatorConfig().getManagedMemoryFraction());
 		if (requiredPythonWorkerMemory <= availableManagedMemory) {
-			memoryManager.reserveMemory(this, MemoryType.OFF_HEAP, requiredPythonWorkerMemory);
+			memoryManager.reserveMemory(this, requiredPythonWorkerMemory);
 			LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);
 			this.reservedMemory = requiredPythonWorkerMemory;
 			// TODO enforce the memory limit of the Python worker

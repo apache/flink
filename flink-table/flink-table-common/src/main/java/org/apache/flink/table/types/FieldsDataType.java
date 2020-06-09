@@ -25,39 +25,33 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 
 /**
- * A data type that contains field data types (e.g. {@code ROW} or structured types).
+ * A data type that contains field data types (i.e. row, structured, and distinct types).
  *
  * @see DataTypes for a list of supported data types
  */
 @PublicEvolving
 public final class FieldsDataType extends DataType {
 
-	private final Map<String, DataType> fieldDataTypes;
+	private final List<DataType> fieldDataTypes;
 
 	public FieldsDataType(
 			LogicalType logicalType,
 			@Nullable Class<?> conversionClass,
-			Map<String, DataType> fieldDataTypes) {
+			List<DataType> fieldDataTypes) {
 		super(logicalType, conversionClass);
-		this.fieldDataTypes = Collections.unmodifiableMap(
-			new HashMap<>(
-				Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.")));
+		this.fieldDataTypes = Preconditions.checkNotNull(
+			fieldDataTypes,
+			"Field data types must not be null.");
 	}
 
 	public FieldsDataType(
 			LogicalType logicalType,
-			Map<String, DataType> fieldDataTypes) {
+			List<DataType> fieldDataTypes) {
 		this(logicalType, null, fieldDataTypes);
-	}
-
-	public Map<String, DataType> getFieldDataTypes() {
-		return fieldDataTypes;
 	}
 
 	@Override
@@ -82,6 +76,11 @@ public final class FieldsDataType extends DataType {
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
 			fieldDataTypes);
+	}
+
+	@Override
+	public List<DataType> getChildren() {
+		return fieldDataTypes;
 	}
 
 	@Override

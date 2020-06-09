@@ -1,19 +1,19 @@
 /*
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.api.connector.source.mocks;
@@ -67,6 +67,10 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 		return endIndex;
 	}
 
+	public boolean isAvailable() {
+		return !isFinished() && !records.isEmpty();
+	}
+
 	public boolean isFinished() {
 		return index == endIndex;
 	}
@@ -90,7 +94,7 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id, records.toArray(new Integer[0]), endIndex, index);
+		return Objects.hash(id, Arrays.hashCode(records.toArray(new Integer[0])), endIndex, index);
 	}
 
 	@Override
@@ -104,5 +108,11 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 				index == that.index &&
 				Arrays.equals(records.toArray(new Integer[0]), that.records.toArray(new Integer[0])) &&
 				endIndex == that.endIndex;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("MockSourceSplit(id=%d, num_records=%d, endIndex=%d, currentIndex=%d)",
+				id, records.size(), endIndex, index);
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
@@ -83,7 +84,7 @@ public class CliClient {
 	 * afterwards using {@link #close()}.
 	 */
 	@VisibleForTesting
-	public CliClient(Terminal terminal, String sessionId, Executor executor) {
+	public CliClient(Terminal terminal, String sessionId, Executor executor, Path historyFilePath) {
 		this.terminal = terminal;
 		this.sessionId = sessionId;
 		this.executor = executor;
@@ -106,6 +107,18 @@ public class CliClient {
 		lineReader.setVariable(LineReader.ERRORS, 1);
 		// perform code completion case insensitive
 		lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
+		// set history file path
+		if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
+			String msg = "Command history file path: " + historyFilePath;
+			// print it in the command line as well as log file
+			System.out.println(msg);
+			LOG.info(msg);
+			lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
+		} else {
+			String msg = "Unable to create history file: " + historyFilePath;
+			System.out.println(msg);
+			LOG.warn(msg);
+		}
 
 		// create prompt
 		prompt = new AttributedStringBuilder()
@@ -120,8 +133,8 @@ public class CliClient {
 	 * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
 	 * afterwards using {@link #close()}.
 	 */
-	public CliClient(String sessionId, Executor executor) {
-		this(createDefaultTerminal(), sessionId, executor);
+	public CliClient(String sessionId, Executor executor, Path historyFilePath) {
+		this(createDefaultTerminal(), sessionId, executor, historyFilePath);
 	}
 
 	public Terminal getTerminal() {
@@ -240,11 +253,14 @@ public class CliClient {
 	// --------------------------------------------------------------------------------------------
 
 	private Optional<SqlCommandCall> parseCommand(String line) {
-		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(line);
-		if (!parsedLine.isPresent()) {
-			printError(CliStrings.MESSAGE_UNKNOWN_SQL);
+		final SqlCommandCall parsedLine;
+		try {
+			parsedLine = SqlCommandParser.parse(executor.getSqlParser(sessionId), line);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return Optional.empty();
 		}
-		return parsedLine;
+		return Optional.of(parsedLine);
 	}
 
 	private void callCommand(SqlCommandCall cmdCall) {
@@ -300,10 +316,10 @@ public class CliClient {
 				callInsert(cmdCall);
 				break;
 			case CREATE_TABLE:
-				callCreateTable(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_TABLE_CREATED);
 				break;
 			case DROP_TABLE:
-				callDropTable(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_TABLE_REMOVED);
 				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
@@ -311,20 +327,38 @@ public class CliClient {
 			case DROP_VIEW:
 				callDropView(cmdCall);
 				break;
+			case CREATE_FUNCTION:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_CREATED);
+				break;
+			case DROP_FUNCTION:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_REMOVED);
+				break;
+			case ALTER_FUNCTION:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_FUNCTION_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_FUNCTION_FAILED);
+				break;
 			case SOURCE:
 				callSource(cmdCall);
 				break;
 			case CREATE_DATABASE:
-				callCreateDatabase(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_DATABASE_CREATED);
 				break;
 			case DROP_DATABASE:
-				callDropDatabase(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_DATABASE_REMOVED);
 				break;
 			case ALTER_DATABASE:
-				callAlterDatabase(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_DATABASE_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_DATABASE_FAILED);
 				break;
 			case ALTER_TABLE:
-				callAlterTable(cmdCall);
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED,
+						CliStrings.MESSAGE_ALTER_TABLE_FAILED);
+				break;
+			case CREATE_CATALOG:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_CATALOG_CREATED);
+				break;
+			case DROP_CATALOG:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_CATALOG_REMOVED);
 				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
@@ -496,7 +530,8 @@ public class CliClient {
 	private void callExplain(SqlCommandCall cmdCall) {
 		final String explanation;
 		try {
-			explanation = executor.explainStatement(sessionId, cmdCall.operands[0]);
+			TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
+			explanation = tableResult.collect().next().getField(0).toString();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -558,25 +593,6 @@ public class CliClient {
 			return false;
 		}
 		return true;
-	}
-
-	private void callCreateTable(SqlCommandCall cmdCall) {
-		try {
-			executor.createTable(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-			return;
-		}
-	}
-
-	private void callDropTable(SqlCommandCall cmdCall) {
-		try {
-			executor.dropTable(sessionId, cmdCall.operands[0]);
-			printInfo(CliStrings.MESSAGE_TABLE_REMOVED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
 	}
 
 	private void callCreateView(SqlCommandCall cmdCall) {
@@ -648,43 +664,16 @@ public class CliClient {
 		call.ifPresent(this::callCommand);
 	}
 
-	private void callCreateDatabase(SqlCommandCall cmdCall) {
-		final String createDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, createDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_CREATED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
+	private void callDdl(String ddl, String successMessage) {
+		callDdl(ddl, successMessage, null);
 	}
 
-	private void callDropDatabase(SqlCommandCall cmdCall) {
-		final String dropDatabaseStmt = cmdCall.operands[0];
+	private void callDdl(String ddl, String successMessage, String errorMessage) {
 		try {
-			executor.executeUpdate(sessionId, dropDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_REMOVED);
+			executor.executeSql(sessionId, ddl);
+			printInfo(successMessage);
 		} catch (SqlExecutionException e) {
-			printExecutionException(e);
-		}
-	}
-
-	private void callAlterDatabase(SqlCommandCall cmdCall) {
-		final String alterDatabaseStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, alterDatabaseStmt);
-			printInfo(CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_DATABASE_ALTER_FAILED, e);
-		}
-	}
-
-	private void callAlterTable(SqlCommandCall cmdCall) {
-		final String alterTableStmt = cmdCall.operands[0];
-		try {
-			executor.executeUpdate(sessionId, alterTableStmt);
-			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
-		} catch (SqlExecutionException e) {
-			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
+			printExecutionException(errorMessage, e);
 		}
 	}
 

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockDeserializationSchema;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -55,8 +57,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -86,13 +90,21 @@ public class RMQSourceTest {
 
 	private volatile Exception exception;
 
-	@Before
-	public void beforeTest() throws Exception {
-
+	/**
+	 * Gets a mock context for initializing the source's state via {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction#initializeState}.
+	 * @throws Exception
+	 */
+	FunctionInitializationContext getMockContext() throws Exception {
 		OperatorStateStore mockStore = Mockito.mock(OperatorStateStore.class);
 		FunctionInitializationContext mockContext = Mockito.mock(FunctionInitializationContext.class);
 		Mockito.when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
-		Mockito.when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
+		Mockito.when(mockStore.getListState(any(ListStateDescriptor.class))).thenReturn(null);
+		return mockContext;
+	}
+
+	@Before
+	public void beforeTest() throws Exception {
+		FunctionInitializationContext mockContext = getMockContext();
 
 		source = new RMQTestSource();
 		source.initializeState(mockContext);
@@ -135,6 +147,26 @@ public class RMQSourceTest {
 		} catch (RuntimeException ex) {
 			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
 		}
+	}
+
+	@Test
+	public void testOpenCallDeclaresQueueInStandardMode() throws Exception {
+		FunctionInitializationContext mockContext = getMockContext();
+
+		RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+		ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+		Connection connection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+
+		Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+		Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+		Mockito.when(connection.createChannel()).thenReturn(channel);
+
+		RMQSource<String> rmqSource = new RMQMockedRuntimeTestSource(connectionConfig);
+		rmqSource.initializeState(mockContext);
+		rmqSource.open(new Configuration());
+
+		Mockito.verify(channel).queueDeclare(RMQTestSource.QUEUE_NAME, true, false, false, null);
 	}
 
 	@Test
@@ -285,6 +317,39 @@ public class RMQSourceTest {
 		assertEquals("passTest", testObj.getFactory().getPassword());
 	}
 
+	@Test
+	public void testOpen() throws Exception {
+		MockDeserializationSchema<String> deserializationSchema = new MockDeserializationSchema<>();
+
+		RMQSource<String> consumer = new RMQTestSource(deserializationSchema);
+		AbstractStreamOperatorTestHarness<String> testHarness = new AbstractStreamOperatorTestHarness<>(
+			new StreamSource<>(consumer), 1, 1, 0
+		);
+
+		testHarness.open();
+		assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
+	}
+
+	@Test
+	public void testOverrideConnection() throws Exception {
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource() {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+	}
+
 	private static class ConstructorTestClass extends RMQSource<String> {
 
 		private ConnectionFactory factory;
@@ -338,14 +403,54 @@ public class RMQSourceTest {
 		}
 	}
 
-	private class RMQTestSource extends RMQSource<String> {
+	/**
+	 * A base class of {@link RMQTestSource} for testing functions that rely on the {@link RuntimeContext}.
+	 */
+	private static class RMQMockedRuntimeTestSource extends RMQSource<String> {
+		static final String QUEUE_NAME = "queueDummy";
 
+		static final RMQConnectionConfig CONNECTION_CONFIG = new RMQConnectionConfig
+			.Builder()
+			.setHost("hostTest")
+			.setPort(999)
+			.setUserName("userTest")
+			.setPassword("passTest")
+			.setVirtualHost("/")
+			.build();
+
+		protected RuntimeContext runtimeContext = Mockito.mock(StreamingRuntimeContext.class);
+
+		public RMQMockedRuntimeTestSource(RMQConnectionConfig connectionConfig, DeserializationSchema<String> deserializationSchema) {
+			super(connectionConfig, QUEUE_NAME, true, deserializationSchema);
+		}
+
+		public RMQMockedRuntimeTestSource(DeserializationSchema<String> deserializationSchema) {
+			this(CONNECTION_CONFIG, deserializationSchema);
+		}
+
+		public RMQMockedRuntimeTestSource(RMQConnectionConfig connectionConfig) {
+			this(connectionConfig, new StringDeserializationScheme());
+		}
+
+		public RMQMockedRuntimeTestSource() {
+			this(new StringDeserializationScheme());
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return runtimeContext;
+		}
+	}
+
+	private class RMQTestSource extends RMQMockedRuntimeTestSource {
 		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
 
 		public RMQTestSource() {
-			super(new RMQConnectionConfig.Builder().setHost("hostTest")
-					.setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/").build()
-				, "queueDummy", true, new StringDeserializationScheme());
+			super();
+		}
+
+		public RMQTestSource(DeserializationSchema<String> deserializationSchema) {
+			super(deserializationSchema);
 		}
 
 		@Override
@@ -412,8 +517,8 @@ public class RMQSourceTest {
 		}
 
 		@Override
-		public RuntimeContext getRuntimeContext() {
-			return Mockito.mock(StreamingRuntimeContext.class);
+		public void setRuntimeContext(RuntimeContext t) {
+			this.runtimeContext = t;
 		}
 
 		@Override

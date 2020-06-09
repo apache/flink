@@ -107,7 +107,7 @@ public class LogicalTypeGeneralizationTest {
 				// NULL only
 				{
 					Arrays.asList(new NullType(), new NullType()),
-					new NullType()
+					null
 				},
 
 				// NULL with other types
@@ -206,8 +206,8 @@ public class LogicalTypeGeneralizationTest {
 
 				// one APPROXIMATE_NUMERIC and one EXACT_NUMERIC type
 				{
-					Arrays.asList(new DoubleType(), new IntType()),
-					new DoubleType()
+					Arrays.asList(new IntType(), new FloatType()),
+					new FloatType()
 				},
 
 				// two APPROXIMATE_NUMERIC and one DECIMAL type

@@ -61,7 +61,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -167,6 +167,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -182,6 +183,9 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -295,9 +299,7 @@ public class JobMasterTest extends TestLogger {
 			final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-			final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(
-				configuration,
-				jobManagerSharedServices.getRestartStrategyFactory());
+			final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
 
 			final JobMaster jobMaster = new JobMaster(
 				rpcService1,
@@ -633,13 +635,15 @@ public class JobMasterTest extends TestLogger {
 		final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
 		final CountDownLatch registrationAttempts = new CountDownLatch(2);
 
-		resourceManagerGateway.setRegisterJobManagerConsumer(tuple -> {
+		resourceManagerGateway.setRegisterJobManagerFunction((jobMasterId, resourceID, s, jobID) -> {
 			jobManagerRegistrationFuture.complete(
 				Tuple3.of(
-					tuple.f0,
-					tuple.f1,
-					tuple.f3));
+					jobMasterId,
+					resourceID,
+					jobID));
 			registrationAttempts.countDown();
+
+			return CompletableFuture.completedFuture(resourceManagerGateway.getJobMasterRegistrationSuccess());
 		});
 
 		resourceManagerGateway.setDisconnectJobManagerConsumer(tuple -> disconnectedJobManagerFuture.complete(tuple.f0));
@@ -930,11 +934,16 @@ public class JobMasterTest extends TestLogger {
 			final OneShotLatch firstJobManagerRegistration = new OneShotLatch();
 			final OneShotLatch secondJobManagerRegistration = new OneShotLatch();
 
-			firstResourceManagerGateway.setRegisterJobManagerConsumer(
-				jobMasterIdResourceIDStringJobIDTuple4 -> firstJobManagerRegistration.trigger());
+			firstResourceManagerGateway.setRegisterJobManagerFunction((jobMasterId, resourceID, s, jobID) -> {
+				firstJobManagerRegistration.trigger();
+				return CompletableFuture.completedFuture(firstResourceManagerGateway.getJobMasterRegistrationSuccess());
+			});
 
-			secondResourceManagerGateway.setRegisterJobManagerConsumer(
-				jobMasterIdResourceIDStringJobIDTuple4 -> secondJobManagerRegistration.trigger());
+			secondResourceManagerGateway.setRegisterJobManagerFunction(
+				(jobMasterId, resourceID, s, jobID) -> {
+					secondJobManagerRegistration.trigger();
+					return CompletableFuture.completedFuture(secondResourceManagerGateway.getJobMasterRegistrationSuccess());
+				});
 
 			notifyResourceManagerLeaderListeners(firstResourceManagerGateway);
 
@@ -974,8 +983,10 @@ public class JobMasterTest extends TestLogger {
 			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 			final BlockingQueue<JobMasterId> registrationsQueue = new ArrayBlockingQueue<>(1);
 
-			testingResourceManagerGateway.setRegisterJobManagerConsumer(
-				jobMasterIdResourceIDStringJobIDTuple4 -> registrationsQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
+			testingResourceManagerGateway.setRegisterJobManagerFunction((jobMasterId, resourceID, s, jobID) -> {
+				registrationsQueue.offer(jobMasterId);
+				return CompletableFuture.completedFuture(testingResourceManagerGateway.getJobMasterRegistrationSuccess());
+			});
 
 			final ResourceManagerId resourceManagerId = testingResourceManagerGateway.getFencingToken();
 			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
@@ -1016,8 +1027,10 @@ public class JobMasterTest extends TestLogger {
 			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 
 			final BlockingQueue<JobMasterId> registrationQueue = new ArrayBlockingQueue<>(1);
-			testingResourceManagerGateway.setRegisterJobManagerConsumer(
-				jobMasterIdResourceIDStringJobIDTuple4 -> registrationQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
+			testingResourceManagerGateway.setRegisterJobManagerFunction((jobMasterId, resourceID, s, jobID) -> {
+				registrationQueue.offer(jobMasterId);
+				return CompletableFuture.completedFuture(testingResourceManagerGateway.getJobMasterRegistrationSuccess());
+			});
 
 			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
@@ -1047,7 +1060,7 @@ public class JobMasterTest extends TestLogger {
 	public void testRequestNextInputSplitWithLocalFailover() throws Exception {
 
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
-			FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
+			FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
 		final Function<List<List<InputSplit>>, Collection<InputSplit>> expectFailedExecutionInputSplits = inputSplitsPerTask -> inputSplitsPerTask.get(0);
 
@@ -1059,7 +1072,6 @@ public class JobMasterTest extends TestLogger {
 		configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 		configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(0));
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
-
 
 		final Function<List<List<InputSplit>>, Collection<InputSplit>> expectAllRemainingInputSplits = this::flattenCollection;
 
@@ -1624,9 +1636,7 @@ public class JobMasterTest extends TestLogger {
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(
-			configuration,
-			jobManagerSharedServices.getRestartStrategyFactory());
+		final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
 
 		final JobMaster jobMaster = new JobMaster(
 			rpcService,
@@ -2022,17 +2032,18 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	private Collection<OperatorState> createOperatorState(OperatorID... operatorIds) {
+		Random random = new Random();
 		Collection<OperatorState> operatorStates = new ArrayList<>(operatorIds.length);
 
 		for (OperatorID operatorId : operatorIds) {
 			final OperatorState operatorState = new OperatorState(operatorId, 1, 42);
 			final OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-				new OperatorStreamStateHandle(
-					Collections.emptyMap(),
-					new ByteStreamStateHandle("foobar", new byte[0])),
+				new OperatorStreamStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("foobar", new byte[0])),
 				null,
 				null,
-				null);
+				null,
+				singleton(createNewInputChannelStateHandle(10, random)),
+				singleton(createNewResultSubpartitionStateHandle(10, random)));
 			operatorState.putState(0, subtaskState);
 			operatorStates.add(operatorState);
 		}
@@ -2057,6 +2068,7 @@ public class JobMasterTest extends TestLogger {
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
+			false,
 			false,
 			0);
 		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(

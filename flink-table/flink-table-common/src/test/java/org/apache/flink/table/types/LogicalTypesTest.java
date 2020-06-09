@@ -67,15 +67,18 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -518,7 +521,7 @@ public class LogicalTypesTest {
 			"`cat`.`db`.`User`",
 			new Class[]{Row.class, User.class},
 			new Class[]{Row.class, Human.class, User.class},
-			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE},
+			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE},
 			createUserType(true, false)
 		);
 
@@ -574,26 +577,37 @@ public class LogicalTypesTest {
 
 	@Test
 	public void testRawType() {
+		final RawType<Human> rawType = new RawType<>(
+			Human.class,
+			new KryoSerializer<>(Human.class, new ExecutionConfig()));
+		final String className = "org.apache.flink.table.types.LogicalTypesTest$Human";
+		// use rawType.getSerializerString() to regenerate the following string
+		final String serializerString =
+			"AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
+			"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +
+			"VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY" +
+			"2FsVHlwZXNUZXN0JEh1bWFuAQAAADUAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNh" +
+			"bFR5cGVzVGVzdCRIdW1hbgEAAAA5ADNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWx" +
+			"UeXBlc1Rlc3QkSHVtYW4AAAAAAClvcmcuYXBhY2hlLmF2cm8uZ2VuZXJpYy5HZW5lcmljRGF0YSRBcn" +
+			"JheQEAAAArAClvcmcuYXBhY2hlLmF2cm8uZ2VuZXJpYy5HZW5lcmljRGF0YSRBcnJheQEAAAC2AFVvc" +
+			"mcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMk" +
+			"RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB" +
+			"ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3" +
+			"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=";
+
 		testAll(
-			new RawType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
-				"RAW('org.apache.flink.table.types.LogicalTypesTest$Human', " +
-					"'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
-					"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +
-					"VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY" +
-					"2FsVHlwZXNUZXN0JEh1bWFuAQAAADUAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNh" +
-					"bFR5cGVzVGVzdCRIdW1hbgEAAAA5ADNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWx" +
-					"UeXBlc1Rlc3QkSHVtYW4AAAAAAClvcmcuYXBhY2hlLmF2cm8uZ2VuZXJpYy5HZW5lcmljRGF0YSRBcn" +
-					"JheQEAAAArAClvcmcuYXBhY2hlLmF2cm8uZ2VuZXJpYy5HZW5lcmljRGF0YSRBcnJheQEAAAC2AFVvc" +
-					"mcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMk" +
-					"RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB" +
-					"ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3" +
-					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=')",
+			rawType,
+			"RAW('" + className + "', '" + serializerString + "')",
 			"RAW('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
 			new Class[]{Human.class, User.class}, // every User is Human
 			new Class[]{Human.class},
 			new LogicalType[]{},
 			new RawType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig()))
 		);
+
+		assertThat(
+			RawType.restore(LogicalTypesTest.class.getClassLoader(), className, serializerString),
+			equalTo(rawType));
 	}
 
 	@Test
@@ -661,14 +675,16 @@ public class LogicalTypesTest {
 
 		testInvalidStringSerializability(structuredType);
 
-		testStringSummary(structuredType, User.class.getName());
+		testStringSummary(structuredType, "*" + User.class.getName() + "*");
 
 		testConversions(
 			structuredType,
 			new Class[]{Row.class, User.class},
 			new Class[]{Row.class, Human.class, User.class});
 
-		testChildren(structuredType, new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE});
+		testChildren(
+			structuredType,
+			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE});
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -677,8 +693,8 @@ public class LogicalTypesTest {
 		LogicalType nullableType,
 		String serializableString,
 		String summaryString,
-		Class[] supportedInputClasses,
-		Class[] supportedOutputClasses,
+		Class<?>[] supportedInputClasses,
+		Class<?>[] supportedOutputClasses,
 		LogicalType[] children,
 		LogicalType otherType) {
 
@@ -746,7 +762,7 @@ public class LogicalTypesTest {
 		assertEquals(summaryString, type.asSummaryString());
 	}
 
-	private static void testConversions(LogicalType type, Class[] inputs, Class[] outputs) {
+	private static void testConversions(LogicalType type, Class<?>[] inputs, Class<?>[] outputs) {
 		for (Class<?> clazz : inputs) {
 			assertTrue(type.supportsInputConversion(clazz));
 		}
@@ -780,6 +796,8 @@ public class LogicalTypesTest {
 
 	private static final LogicalType UDT_SETTING_TYPE = new IntType();
 
+	private static final LogicalType UDT_TIMESTAMP_TYPE = new TimestampType();
+
 	private StructuredType createHumanType(boolean useDifferentImplementation) {
 		return StructuredType.newBuilder(
 				ObjectIdentifier.of("cat", "db", "Human"),
@@ -806,8 +824,9 @@ public class LogicalTypesTest {
 		}
 		return builder
 			.attributes(
-				Collections.singletonList(
-					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
+				Arrays.asList(
+					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE),
+					new StructuredType.StructuredAttribute("timestamp", UDT_TIMESTAMP_TYPE)))
 			.description("User type desc.")
 			.setFinal(isFinal)
 			.setInstantiable(true)
@@ -825,5 +844,6 @@ public class LogicalTypesTest {
 
 	private static final class User extends Human {
 		public int setting;
+		public LocalDateTime timestamp;
 	}
 }

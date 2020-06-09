@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.UnionTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -46,7 +46,7 @@ class BatchExecUnion(
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   require(all, "Only support union all now")
 
@@ -110,9 +110,9 @@ class BatchExecUnion(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val transformations = getInputNodes.map {
-      input => input.translateToPlan(planner).asInstanceOf[Transformation[BaseRow]]
+      input => input.translateToPlan(planner).asInstanceOf[Transformation[RowData]]
     }
     ExecNode.setManagedMemoryWeight(new UnionTransformation(transformations))
   }

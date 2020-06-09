@@ -31,13 +31,21 @@ import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
+
 /**
  * Transformations for transforming one data type to another.
  *
  * @see TypeTransformation
  */
 @Internal
-public class TypeTransformations {
+public final class TypeTransformations {
+
+	/**
+	 * Transformation that uses internal data structures for all conversion classes.
+	 */
+	public static final TypeTransformation TO_INTERNAL_CLASS =
+		(dataType) -> dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
 
 	/**
 	 * Returns a type transformation that transforms data type to a new data type whose conversion
@@ -72,5 +80,11 @@ public class TypeTransformations {
 	 */
 	public static TypeTransformation toNullable() {
 		return DataType::nullable;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private TypeTransformations() {
+		// no instantiation
 	}
 }

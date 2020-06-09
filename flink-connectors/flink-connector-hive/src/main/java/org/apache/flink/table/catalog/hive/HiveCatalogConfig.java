@@ -23,16 +23,10 @@ package org.apache.flink.table.catalog.hive;
  */
 public class HiveCatalogConfig {
 
-	// Database related configs
-	public static final String DATABASE_LOCATION_URI = "database.location_uri";
-
 	// Table related configs
 	public static final String COMMENT = "comment";
 	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
 
 	// Partition related configs
 	public static final String PARTITION_LOCATION = "partition.location";
-
-	// config prefix for the table schema of a generic table
-	public static final String GENERIC_TABLE_SCHEMA_PREFIX = "generic.table.schema";
 }

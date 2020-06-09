@@ -20,15 +20,14 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTrait, FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, ModifyKindSetTrait, UpdateKindTrait}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
-
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -62,7 +61,8 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
     val agg: StreamExecGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 
-    val needRetraction = StreamExecRetractionRules.isAccRetract(realInput)
+    val needRetraction = !ChangelogPlanUtils.isInsertOnly(
+      realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
     val needRetractionArray = AggregateUtil.getNeedRetractions(
@@ -93,7 +93,8 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val agg: StreamExecGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
-    val needRetraction = StreamExecRetractionRules.isAccRetract(realInput)
+    val needRetraction = !ChangelogPlanUtils.isInsertOnly(
+      realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
     val needRetractionArray = AggregateUtil.getNeedRetractions(
@@ -130,8 +131,10 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       agg.grouping,
       input.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
-    // local agg shouldn't produce AccRetract Message
-    val localAggTraitSet = input.getTraitSet.plus(AccModeTrait(AccMode.Acc))
+    // local agg shouldn't produce insert only messages
+    val localAggTraitSet = input.getTraitSet
+      .plus(ModifyKindSetTrait.INSERT_ONLY)
+      .plus(UpdateKindTrait.NONE)
     val localHashAgg = new StreamExecLocalGroupAggregate(
       agg.getCluster,
       localAggTraitSet,

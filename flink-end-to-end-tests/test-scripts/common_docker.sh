@@ -33,8 +33,40 @@ function containers_health_check() {
   done
 }
 
-function build_image_with_jar() {
-    local job_artifacts=$1
-    local image_name=${2:-flink-job}
-    ./build.sh --from-local-dist --job-artifacts ${job_artifacts} --image-name ${image_name}
+function build_image() {
+    local image_name=${1:-flink-job}
+
+    echo "Starting fileserver for Flink distribution"
+    pushd ${FLINK_DIR}/..
+    tar -czf "${TEST_DATA_DIR}/flink.tgz" flink-*
+    popd
+    pushd ${TEST_DATA_DIR}
+    start_file_server
+    local server_pid=$!
+
+    echo "Preparing Dockeriles"
+    git clone https://github.com/apache/flink-docker.git --branch dev-master --single-branch
+    cd flink-docker
+    ./add-custom.sh -u localhost:9999/flink.tgz -n ${image_name}
+
+    echo "Building images"
+    docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
+    popd
+}
+
+function start_file_server() {
+    command -v python >/dev/null 2>&1
+    if [[ $? -eq 0 ]]; then
+      python ${TEST_INFRA_DIR}/python2_fileserver.py &
+      return
+    fi
+
+    command -v python3 >/dev/null 2>&1
+    if [[ $? -eq 0 ]]; then
+      python ${TEST_INFRA_DIR}/python3_fileserver.py &
+      return
+    fi
+
+    echo "Could not find python(3) installation for starting fileserver."
+    exit 1
 }

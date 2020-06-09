@@ -26,7 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> type of the {@link ResourceIDRetrievable}
  */
-public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable> implements ResourceManagerFactory<T> {
+public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable> extends ResourceManagerFactory<T> {
 
 	@Override
 	public ResourceManager<T> createResourceManager(
@@ -53,8 +53,9 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		return createActiveResourceManager(
+			MetricRegistry metricRegistry,
+			String hostname) throws Exception {
+		return super.createResourceManager(
 			createActiveResourceManagerConfiguration(configuration),
 			resourceId,
 			rpcService,
@@ -63,22 +64,12 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			fatalErrorHandler,
 			clusterInformation,
 			webInterfaceUrl,
-			resourceManagerMetricGroup);
+			metricRegistry,
+			hostname);
 	}
 
-	public static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
+	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
-
-	protected abstract ResourceManager<T> createActiveResourceManager(
-		Configuration configuration,
-		ResourceID resourceId,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		FatalErrorHandler fatalErrorHandler,
-		ClusterInformation clusterInformation,
-		@Nullable String webInterfaceUrl,
-		ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception;
 }

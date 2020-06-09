@@ -32,9 +32,9 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -148,23 +148,6 @@ public class ContinuousFileProcessingTest {
 
 		} catch (FileNotFoundException e) {
 			Assert.assertEquals("The provided file path " + format.getFilePath() + " does not exist.", e.getMessage());
-		}
-	}
-
-	@Test(expected = ExpectedTestException.class)
-	public void testExceptionHandling() throws Exception {
-		TextInputFormat format = new TextInputFormat(new Path(hdfsURI + "/" + UUID.randomUUID() + "/")) {
-			@Override
-			public void close() {
-				throw new ExpectedTestException();
-			}
-		};
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(format);
-		harness.getExecutionConfig().setAutoWatermarkInterval(10);
-		harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = harness) {
-			tester.open();
 		}
 	}
 
@@ -330,7 +313,7 @@ public class ContinuousFileProcessingTest {
 	private <T> OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, T> createHarness(FileInputFormat<T> format) throws Exception {
 		ExecutionConfig config = new ExecutionConfig();
 		return new OneInputStreamOperatorTestHarness<>(
-			new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config),
+			new ContinuousFileReaderOperatorFactory(format, TypeExtractor.getInputFormatTypes(format), config),
 			TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config));
 	}
 

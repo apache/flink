@@ -27,6 +27,8 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -78,7 +80,12 @@ public final class CollectionDataType extends DataType {
 		return new CollectionDataType(
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
-			elementDataType);
+			ensureElementConversionClass(elementDataType, newConversionClass));
+	}
+
+	@Override
+	public List<DataType> getChildren() {
+		return Collections.singletonList(elementDataType);
 	}
 
 	@Override
@@ -118,5 +125,16 @@ public final class CollectionDataType extends DataType {
 			return Array.newInstance(elementDataType.getConversionClass(), 0).getClass();
 		}
 		return clazz;
+	}
+
+	private DataType ensureElementConversionClass(
+			DataType elementDataType,
+			Class<?> clazz) {
+		// arrays are a special case because their element conversion class depends on the
+		// outer conversion class
+		if (logicalType.getTypeRoot() == LogicalTypeRoot.ARRAY && clazz.isArray()) {
+			return elementDataType.bridgedTo(clazz.getComponentType());
+		}
+		return elementDataType;
 	}
 }

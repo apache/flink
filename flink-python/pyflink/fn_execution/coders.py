@@ -29,12 +29,16 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
-from pyflink.fn_execution import coder_impl
+from pyflink.fn_execution import coder_impl as slow_coder_impl
+try:
+    from pyflink.fn_execution import fast_coder_impl as coder_impl
+except ImportError:
+    coder_impl = slow_coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.sdk_worker_main import pipeline_options
 from pyflink.table.types import Row, TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType
+    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
@@ -128,6 +132,9 @@ class RowCoder(FlattenRowCoder):
     def _create_impl(self):
         return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders])
 
+    def get_impl(self):
+        return self._create_impl()
+
     def to_type_hint(self):
         return Row
 
@@ -144,6 +151,9 @@ class CollectionCoder(FastCoder):
 
     def _create_impl(self):
         raise NotImplementedError
+
+    def get_impl(self):
+        return self._create_impl()
 
     def is_deterministic(self):
         return self._elem_coder.is_deterministic()
@@ -190,6 +200,9 @@ class MapCoder(FastCoder):
     def _create_impl(self):
         return coder_impl.MapCoderImpl(self._key_coder.get_impl(), self._value_coder.get_impl())
 
+    def get_impl(self):
+        return self._create_impl()
+
     def is_deterministic(self):
         return self._key_coder.is_deterministic() and self._value_coder.is_deterministic()
 
@@ -218,6 +231,9 @@ class DeterministicCoder(FastCoder, ABC):
 
     def is_deterministic(self):
         return True
+
+    def get_impl(self):
+        return self._create_impl()
 
 
 class BigIntCoder(DeterministicCoder):
@@ -262,7 +278,7 @@ class SmallIntCoder(DeterministicCoder):
     """
 
     def _create_impl(self):
-        return coder_impl.SmallIntImpl()
+        return coder_impl.SmallIntCoderImpl()
 
     def to_type_hint(self):
         return int
@@ -408,7 +424,7 @@ class ArrowCoder(DeterministicCoder):
         self._timezone = timezone
 
     def _create_impl(self):
-        return coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
+        return slow_coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def to_type_hint(self):
         import pandas as pd
@@ -421,44 +437,51 @@ class ArrowCoder(DeterministicCoder):
             return pa.schema([pa.field(n, to_arrow_type(t), t._nullable)
                               for n, t in zip(row_type.field_names(), row_type.field_types())])
 
-        def _to_data_type(field):
-            if field.type.type_name == flink_fn_execution_pb2.Schema.TINYINT:
-                return TinyIntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.SMALLINT:
-                return SmallIntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.INT:
-                return IntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.BIGINT:
-                return BigIntType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.BOOLEAN:
-                return BooleanType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.FLOAT:
-                return FloatType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.DOUBLE:
-                return DoubleType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
-                return VarCharType(0x7fffffff, field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
-                return VarBinaryType(0x7fffffff, field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
-                return DecimalType(field.type.decimal_info.precision,
-                                   field.type.decimal_info.scale,
-                                   field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.DATE:
-                return DateType(field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TIME:
-                return TimeType(field.type.time_info.precision, field.type.nullable)
-            elif field.type.type_name == \
+        def _to_data_type(field_type):
+            if field_type.type_name == flink_fn_execution_pb2.Schema.TINYINT:
+                return TinyIntType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.SMALLINT:
+                return SmallIntType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.INT:
+                return IntType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.BIGINT:
+                return BigIntType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.BOOLEAN:
+                return BooleanType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.FLOAT:
+                return FloatType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.DOUBLE:
+                return DoubleType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
+                return VarCharType(0x7fffffff, field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
+                return VarBinaryType(0x7fffffff, field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
+                return DecimalType(field_type.decimal_info.precision,
+                                   field_type.decimal_info.scale,
+                                   field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.DATE:
+                return DateType(field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.TIME:
+                return TimeType(field_type.time_info.precision, field_type.nullable)
+            elif field_type.type_name == \
                     flink_fn_execution_pb2.Schema.LOCAL_ZONED_TIMESTAMP:
-                return LocalZonedTimestampType(field.type.local_zoned_timestamp_info.precision,
-                                               field.type.nullable)
-            elif field.type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
-                return TimestampType(field.type.timestamp_info.precision, field.type.nullable)
+                return LocalZonedTimestampType(field_type.local_zoned_timestamp_info.precision,
+                                               field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
+                return TimestampType(field_type.timestamp_info.precision, field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.ARRAY:
+                return ArrayType(_to_data_type(field_type.collection_element_type),
+                                 field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
+                return RowType(
+                    [RowField(f.name, _to_data_type(f.type), f.description)
+                     for f in field_type.row_schema.fields], field_type.nullable)
             else:
-                raise ValueError("field_type %s is not supported." % field.type)
+                raise ValueError("field_type %s is not supported." % field_type)
 
         def _to_row_type(row_schema):
-            return RowType([RowField(f.name, _to_data_type(f)) for f in row_schema.fields])
+            return RowType([RowField(f.name, _to_data_type(f.type)) for f in row_schema.fields])
 
         timezone = pytz.timezone(pipeline_options.view_as(DebugOptions).lookup_experiment(
             "table.exec.timezone"))

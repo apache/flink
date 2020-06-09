@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +38,7 @@ public abstract class WatermarkAssignerOperatorTestBase {
 	protected Tuple2<Long, Long> validateElement(Object element, long nextElementValue, long currentWatermark) {
 		if (element instanceof StreamRecord) {
 			@SuppressWarnings("unchecked")
-			StreamRecord<BaseRow> record = (StreamRecord<BaseRow>) element;
+			StreamRecord<RowData> record = (StreamRecord<RowData>) element;
 			assertEquals(nextElementValue, record.getValue().getLong(0));
 			return new Tuple2<>(nextElementValue + 1, currentWatermark);
 		}

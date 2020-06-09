@@ -20,17 +20,17 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.runtime.utils.JavaPojos.{Device, Order, ProductItem}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.runtime.utils.JavaPojos.{Device, Order, Person, ProductItem}
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, StringSink}
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 import java.util.Collections
 
 /**
-  * Integration tests for methods on [[org.apache.flink.table.api.scala.StreamTableEnvironment]].
+  * Integration tests for methods on [[StreamTableEnvironment]].
   */
 class StreamTableEnvironmentITCase extends StreamingTestBase {
 
@@ -80,7 +80,7 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
     ))
 
     // register DataStream as Table
-    tEnv.createTemporaryView("devices", devices,'deviceId, 'deviceName, 'metrics)
+    tEnv.createTemporaryView("devices", devices, 'deviceId, 'deviceName, 'metrics)
 
     val result = tEnv.sqlQuery("SELECT * FROM devices WHERE deviceId >= 2")
     val sink = new StringSink[Device]()
@@ -91,6 +91,27 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
     val expected = List(
       "Device{deviceId=2, deviceName='device2', metrics={}}",
       "Device{deviceId=3, deviceName='device3', metrics={B=20}}")
+    assertEquals(expected.sorted, sink.getResults.sorted)
+  }
+
+  @Test
+  def testToRetractStreamWithPojoType(): Unit = {
+    val persons = env.fromCollection(Seq(
+      new Person("bob", 1),
+      new Person("Liz", 2),
+      new Person("Jack", 3)
+    ))
+
+    tEnv.createTemporaryView("person", persons)
+    val sink = new StringSink[(Boolean, Person)]()
+    // reorder the fields (fields order in PojoTypeInfo is [age, name])
+    tEnv.sqlQuery("select name, age from person").toRetractStream[Person].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "(true,Person{name='bob', age=1})",
+      "(true,Person{name='Liz', age=2})",
+      "(true,Person{name='Jack', age=3})")
     assertEquals(expected.sorted, sink.getResults.sorted)
   }
 }

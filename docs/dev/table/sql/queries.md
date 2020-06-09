@@ -47,13 +47,13 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
 // SQL query with an inlined (unregistered) table
-Table table = tableEnv.fromDataStream(ds, "user, product, amount");
+Table table = tableEnv.fromDataStream(ds, $("user"), $("product"), $("amount"));
 Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
 // SQL query with a registered table
 // register the DataStream as view "Orders"
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"));
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
@@ -84,13 +84,13 @@ val tableEnv = StreamTableEnvironment.create(env)
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
 // SQL query with an inlined (unregistered) table
-val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val table = ds.toTable(tableEnv, $"user", $"product", $"amount")
 val result = tableEnv.sqlQuery(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 
 // SQL query with a registered table
 // register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount")
 // run a SQL query on the Table and retrieve the result as a new Table
 val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -198,9 +198,18 @@ tableReference:
   [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName [ dynamicTableOptions ]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
   | UNNEST '(' expression ')'
+
+dynamicTableOptions:
+  /*+ OPTIONS(key=val [, key=val]*) */
+
+key:
+  stringLiteral
+
+val:
+  stringLiteral
 
 values:
   VALUES expression [, expression ]*
@@ -285,7 +294,7 @@ String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`)
 
 ## Operations
 
-### Show and Use
+### Show, Describe, and Use
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -314,8 +323,28 @@ SHOW DATABASES;
 {% highlight sql %}
 SHOW TABLES;
 {% endhighlight %}
+        <p>Show all views in the current database in the current catalog</p>
+{% highlight sql %}
+SHOW VIEWS;
+{% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td>
+        <strong>Describe</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+			<p>Describe the schema of the given table.</p>
+{% highlight sql %}
+DESCRIBE myTable;
+{% endhighlight %}
+            <p>Describe the schema of the given view.</p>
+{% highlight sql %}
+DESCRIBE myView;
+{% endhighlight %}
+      </td>
+    </tr>    
     <tr>
       <td>
         <strong>Use</strong><br>
@@ -566,15 +595,15 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
-        <p>For example, the following predicates are valid window join conditions:</p>
+        <p>A interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
           <li><code>ltime = rtime</code></li>
@@ -889,7 +918,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
 // select top-5 products per category which have the maximum sales.
 Table result1 = tableEnv.sqlQuery(
@@ -910,7 +939,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // register the DataStream under the name "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // select top-5 products per category which have the maximum sales.
@@ -944,7 +973,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
 // select top-5 products per category which have the maximum sales.
 Table result1 = tableEnv.sqlQuery(
@@ -965,7 +994,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // register the DataStream under the name "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // select top-5 products per category which have the maximum sales.
@@ -1024,7 +1053,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.createTemporaryView("Orders", ds, "order_id, user, product, number, proctime.proctime");
+tableEnv.createTemporaryView("Orders", ds, $("order_id"), $("user"), $("product"), $("number"), $("proctime").proctime());
 
 // remove duplicate rows on order_id and keep the first occurrence row,
 // because there shouldn't be two orders with the same order_id.
@@ -1046,7 +1075,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, 'order_id, 'user, 'product, 'number, 'proctime.proctime)
+tableEnv.createTemporaryView("Orders", ds, $"order_id", $"user", $"product", $"number", $"proctime".proctime)
 
 // remove duplicate rows on order_id and keep the first occurrence row,
 // because there shouldn't be two orders with the same order_id.
@@ -1127,7 +1156,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>exclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">interval joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1136,7 +1165,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>inclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-      <p>The resulting attribute is a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <p>The resulting attribute is a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">interval joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1144,7 +1173,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>Returns a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <td><p>Returns a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">interval joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
   </tbody>
 </table>
@@ -1162,7 +1191,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"), $("proctime").proctime(), $("rowtime").rowtime());
 
 // compute SUM(amount) per day (in event-time)
 Table result1 = tableEnv.sqlQuery(
@@ -1199,7 +1228,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount", $"proctime".proctime, $"rowtime".rowtime)
 
 // compute SUM(amount) per day (in event-time)
 val result1 = tableEnv.sqlQuery(

@@ -18,6 +18,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
@@ -29,11 +30,13 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +95,11 @@ public class CliResultViewTest {
 		Thread resultViewRunner = null;
 		CliClient cli = null;
 		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, executor);
+			cli = new CliClient(
+					TerminalUtils.createDummyTerminal(),
+					sessionId,
+					executor,
+					File.createTempFile("history", "tmp").toPath());
 			resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
 			resultViewRunner.start();
 		} finally {
@@ -195,6 +202,11 @@ public class CliResultViewTest {
 		}
 
 		@Override
+		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
@@ -220,7 +232,7 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+		public Parser getSqlParser(String sessionId) {
 			return null;
 		}
 

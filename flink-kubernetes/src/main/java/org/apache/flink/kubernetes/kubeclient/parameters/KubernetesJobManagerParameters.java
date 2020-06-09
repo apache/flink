@@ -29,9 +29,11 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -78,6 +80,15 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
 	}
 
+	@Override
+	public List<Map<String, String>> getTolerations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
+	}
+
+	public Map<String, String> getRestServiceAnnotations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS).orElse(Collections.emptyMap());
+	}
+
 	public String getJobManagerMainContainerName() {
 		return JOB_MANAGER_MAIN_CONTAINER_NAME;
 	}
@@ -92,6 +103,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
 	public int getRestPort() {
 		return flinkConfig.getInteger(RestOptions.PORT);
+	}
+
+	public int getRestBindPort() {
+		return Integer.valueOf(flinkConfig.getString(RestOptions.BIND_PORT));
 	}
 
 	public int getRPCPort() {
@@ -117,5 +132,9 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
 	public KubernetesConfigOptions.ServiceExposedType getRestServiceExposedType() {
 		return flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+	}
+
+	public boolean isInternalServiceEnabled() {
+		return !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig);
 	}
 }

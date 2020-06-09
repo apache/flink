@@ -27,18 +27,19 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.BatchQueryConfig
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.python.PythonFunctionInfo
+import org.apache.flink.table.functions.python.{PythonFunctionInfo, PythonFunctionKind}
 import org.apache.flink.table.plan.nodes.CommonPythonCalc
-import org.apache.flink.table.plan.nodes.dataset.DataSetPythonCalc.PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME
+import org.apache.flink.table.plan.nodes.dataset.DataSetPythonCalc.{ARROW_PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME, PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME}
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode for Python ScalarFunctions.
@@ -65,11 +66,9 @@ class DataSetPythonCalc(
     new DataSetPythonCalc(cluster, traitSet, child, getRowType, program, ruleDescription)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 
-    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val flatMapFunctionResultTypeInfo = new RowTypeInfo(
       getForwardedFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
@@ -81,7 +80,7 @@ class DataSetPythonCalc(
     val flatMapFunctionOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       flatMapFunctionResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val flatMapFunction = getPythonScalarFunctionFlatMap(
-      getConfig(tableEnv.getConfig),
+      getConfig(tableEnv.execEnv, tableEnv.getConfig),
       flatMapFunctionInputRowType,
       flatMapFunctionOutputRowType,
       calcProgram)
@@ -94,7 +93,12 @@ class DataSetPythonCalc(
     inputRowType: RowType,
     outputRowType: RowType,
     calcProgram: RexProgram) = {
-    val clazz = loadClass(PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME)
+    val clazz = if (calcProgram.getExprList.asScala.exists(
+      containsPythonCall(_, PythonFunctionKind.PANDAS))) {
+      loadClass(ARROW_PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME)
+    } else {
+      loadClass(PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME)
+    }
     val ctor = clazz.getConstructor(
       classOf[Configuration],
       classOf[Array[PythonFunctionInfo]],
@@ -118,4 +122,7 @@ class DataSetPythonCalc(
 object DataSetPythonCalc {
   val PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME =
     "org.apache.flink.table.runtime.functions.python.PythonScalarFunctionFlatMap"
+
+  val ARROW_PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME =
+    "org.apache.flink.table.runtime.functions.python.arrow.ArrowPythonScalarFunctionFlatMap"
 }

@@ -42,7 +42,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationS
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.IntegerSource;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
@@ -231,7 +230,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		createTestTopic(topic, 1, 1);
 
 		TypeInformationSerializationSchema<Integer> schema = new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
-		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper(schema);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
@@ -262,7 +260,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 			.addSource(new InfiniteIntegerSource())
 			.map(new BrokerRestartingMapper<>(failAfterElements));
 
-		StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, keyedSerializationSchema, properties, new FlinkKafkaPartitioner<Integer>() {
+		StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, schema, properties, new FlinkKafkaPartitioner<Integer>() {
 			@Override
 			public int partition(Integer record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
 				return partition;
@@ -273,7 +271,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 			inputStream.addSink(kafkaSink.getUserFunction());
 		}
 		else {
-			kafkaServer.produceIntoKafka(inputStream, topic, keyedSerializationSchema, properties, new FlinkKafkaPartitioner<Integer>() {
+			kafkaServer.produceIntoKafka(inputStream, topic, schema, properties, new FlinkKafkaPartitioner<Integer>() {
 				@Override
 				public int partition(Integer record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
 					return partition;
@@ -332,7 +330,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		TypeInformationSerializationSchema<Integer> schema = new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
-		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper<>(schema);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
@@ -359,10 +356,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 			};
 
 			if (regularSink) {
-				StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic + i, keyedSerializationSchema, properties, partitioner);
+				StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic + i, schema, properties, partitioner);
 				inputStream.addSink(kafkaSink.getUserFunction());
 			} else {
-				kafkaServer.produceIntoKafka(inputStream, topic + i, keyedSerializationSchema, properties, partitioner);
+				kafkaServer.produceIntoKafka(inputStream, topic + i, schema, properties, partitioner);
 			}
 		}
 
@@ -528,6 +525,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 
 		@Override

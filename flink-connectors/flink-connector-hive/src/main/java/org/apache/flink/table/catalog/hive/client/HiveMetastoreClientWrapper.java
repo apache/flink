@@ -266,4 +266,21 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		hiveShim.alterPartition(client, databaseName, tableName, partition);
 	}
 
+	public void createTableWithConstraints(
+			Table table,
+			Configuration conf,
+			UniqueConstraint pk,
+			List<Byte> pkTraits,
+			List<String> notNullCols,
+			List<Byte> nnTraits) {
+		hiveShim.createTableWithConstraints(
+				client,
+				table,
+				conf,
+				pk,
+				pkTraits,
+				notNullCols,
+				nnTraits);
+	}
+
 }

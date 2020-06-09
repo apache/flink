@@ -18,8 +18,9 @@
 
 package org.apache.flink.tests.util.kafka;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.Hadoop;
+import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
@@ -35,6 +36,7 @@ import org.apache.flink.shaded.guava18.com.google.common.base.Charsets;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,10 +53,14 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -63,7 +69,7 @@ import static org.junit.Assert.assertThat;
  * End-to-end test for the kafka SQL connectors.
  */
 @RunWith(Parameterized.class)
-@Category(value = {TravisGroup1.class, FailsOnJava11.class, Hadoop.class})
+@Category(value = {TravisGroup1.class, FailsOnJava11.class})
 public class SQLClientKafkaITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SQLClientKafkaITCase.class);
@@ -89,36 +95,47 @@ public class SQLClientKafkaITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
+	private final String kafkaVersion;
 	private final String kafkaSQLVersion;
 	private Path result;
 	private Path sqlClientSessionConf;
 
+	@ClassRule
+	public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
+
 	private static final Path sqlAvroJar = TestUtils.getResourceJar(".*avro.jar");
 	private static final Path sqlJsonJar = TestUtils.getResourceJar(".*json.jar");
 	private static final Path sqlToolBoxJar = TestUtils.getResourceJar(".*SqlToolbox.jar");
+	private final List<Path> apacheAvroJars = new ArrayList<>();
 	private final Path sqlConnectorKafkaJar;
 
 	public SQLClientKafkaITCase(String kafkaVersion, String kafkaSQLVersion, String kafkaSQLJarPattern) {
 		this.kafka = KafkaResource.get(kafkaVersion);
+		this.kafkaVersion = kafkaVersion;
 		this.kafkaSQLVersion = kafkaSQLVersion;
 
 		this.sqlConnectorKafkaJar = TestUtils.getResourceJar(kafkaSQLJarPattern);
 	}
 
 	@Before
-	public void before() {
+	public void before() throws Exception {
+		DOWNLOAD_CACHE.before();
 		Path tmpPath = tmp.getRoot().toPath();
 		LOG.info("The current temporary path: {}", tmpPath);
 		this.sqlClientSessionConf = tmpPath.resolve("sql-client-session.conf");
 		this.result = tmpPath.resolve("result");
+
+		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/apache/avro/avro/1.8.2/avro-1.8.2.jar", tmpPath));
+		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar", tmpPath));
+		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-mapper-asl/1.9.13/jackson-mapper-asl-1.9.13.jar", tmpPath));
 	}
 
 	@Test
 	public void testKafka() throws Exception {
 		try (ClusterController clusterController = flink.startCluster(2)) {
 			// Create topic and send message
-			String testJsonTopic = "test-json";
-			String testAvroTopic = "test-avro";
+			String testJsonTopic = "test-json-" + kafkaVersion + "-" + UUID.randomUUID().toString();
+			String testAvroTopic = "test-avro-" + kafkaVersion + "-" + UUID.randomUUID().toString();
 			kafka.createTopic(1, 1, testJsonTopic);
 			String[] messages = new String[]{
 					"{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
@@ -179,6 +196,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlStatement1)
 				.addJar(sqlAvroJar)
+				.addJars(apacheAvroJars)
 				.addJar(sqlJsonJar)
 				.addJar(sqlConnectorKafkaJar)
 				.addJar(sqlToolBoxJar)
@@ -194,6 +212,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlStatement2)
 				.addJar(sqlAvroJar)
+				.addJars(apacheAvroJars)
 				.addJar(sqlJsonJar)
 				.addJar(sqlConnectorKafkaJar)
 				.addJar(sqlToolBoxJar)
@@ -217,8 +236,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	private void checkCsvResultFile() throws Exception {
 		boolean success = false;
-		long maxRetries = 10, duration = 5000L;
-		for (int i = 0; i < maxRetries; i++) {
+		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+		while (!success && deadline.hasTimeLeft()) {
 			if (Files.exists(result)) {
 				byte[] bytes = Files.readAllBytes(result);
 				String[] lines = new String(bytes, Charsets.UTF_8).split("\n");
@@ -238,8 +257,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 			} else {
 				LOG.info("The target CSV {} does not exist now", result);
 			}
-			Thread.sleep(duration);
+			Thread.sleep(500);
 		}
-		Assert.assertTrue("Timeout(" + (maxRetries * duration) + " sec) to read the correct CSV results.", success);
+		Assert.assertTrue("Did not get expected results before timeout.", success);
 	}
 }

@@ -26,8 +26,9 @@ import org.apache.flink.table.plan.rules.common._
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 import org.apache.flink.table.plan.rules.logical.{ExtendedAggregateExtractProjectRule, _}
-
 import org.apache.calcite.rel.logical.{LogicalJoin, LogicalProject}
+import org.apache.flink.table.plan.rules.batch.DataSetPythonCorrelateRule
+import org.apache.flink.table.plan.rules.stream.DataStreamPythonCorrelateRule
 
 object FlinkRuleSets {
 
@@ -145,7 +146,8 @@ object FlinkRuleSets {
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
     FlinkLogicalTableAggregate.CONVERTER,
-    FlinkLogicalWindowTableAggregate.CONVERTER
+    FlinkLogicalWindowTableAggregate.CONVERTER,
+    FlinkLogicalSink.CONVERTER
   )
 
   /**
@@ -165,6 +167,7 @@ object FlinkRuleSets {
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )
@@ -216,7 +219,9 @@ object FlinkRuleSets {
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
     DataSetCorrelateRule.INSTANCE,
-    BatchTableSourceScanRule.INSTANCE
+    DataSetPythonCorrelateRule.INSTANCE,
+    BatchTableSourceScanRule.INSTANCE,
+    DataSetSinkRule.INSTANCE
   )
 
   /**
@@ -262,7 +267,8 @@ object FlinkRuleSets {
     DataStreamTableAggregateRule.INSTANCE,
     DataStreamGroupWindowTableAggregateRule.INSTANCE,
     DataStreamPythonCalcRule.INSTANCE,
-    DataStreamPythonCorrelateRule.INSTANCE
+    DataStreamPythonCorrelateRule.INSTANCE,
+    DataStreamSinkRule.INSTANCE
   )
 
   /**

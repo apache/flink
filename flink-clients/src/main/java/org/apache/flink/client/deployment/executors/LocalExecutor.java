@@ -21,7 +21,6 @@ package org.apache.flink.client.deployment.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.program.PerJobMiniClusterFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 
+import java.net.MalformedURLException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -65,7 +65,7 @@ public class LocalExecutor implements PipelineExecutor {
 	}
 
 	@Override
-	public CompletableFuture<? extends JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
+	public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
@@ -81,7 +81,7 @@ public class LocalExecutor implements PipelineExecutor {
 		return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory).submitJob(jobGraph);
 	}
 
-	private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration) {
+	private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration) throws MalformedURLException {
 		// This is a quirk in how LocalEnvironment used to work. It sets the default parallelism
 		// to <num taskmanagers> * <num task slots>. Might be questionable but we keep the behaviour
 		// for now.
@@ -95,6 +95,6 @@ public class LocalExecutor implements PipelineExecutor {
 			plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 		}
 
-		return FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, 1);
+		return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 	}
 }

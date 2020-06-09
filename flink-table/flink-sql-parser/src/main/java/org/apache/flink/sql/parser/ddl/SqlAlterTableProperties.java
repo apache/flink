@@ -37,7 +37,11 @@ public class SqlAlterTableProperties extends SqlAlterTable {
 	private final SqlNodeList propertyList;
 
 	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		super(pos, tableName);
+		this(pos, tableName, null, propertyList);
+	}
+
+	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec, SqlNodeList propertyList) {
+		super(pos, tableName, partitionSpec);
 		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
 	}
 
@@ -63,7 +67,7 @@ public class SqlAlterTableProperties extends SqlAlterTable {
 		writer.endList(withFrame);
 	}
 
-	private void printIndent(SqlWriter writer) {
+	protected void printIndent(SqlWriter writer) {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");

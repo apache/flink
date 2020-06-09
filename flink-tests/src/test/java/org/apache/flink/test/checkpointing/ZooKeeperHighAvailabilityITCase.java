@@ -54,7 +54,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -64,7 +63,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -96,7 +94,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration tests for {@link org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore}.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
@@ -424,6 +421,10 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 			if (checkpointId >= minimalCheckpointIdIncludingData.get()) {
 				checkpointCompletedIncludingData.compareAndSet(false, true);
 			}
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 	}
 

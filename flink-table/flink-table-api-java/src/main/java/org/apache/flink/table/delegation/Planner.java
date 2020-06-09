@@ -20,6 +20,7 @@ package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -79,10 +80,10 @@ public interface Planner {
 	 *
 	 * @param operations The collection of relational queries for which the AST
 	 * and execution plan will be returned.
-	 * @param extended if the plan should contain additional properties such as
-	 * e.g. estimated cost, traits
+	 * @param extraDetails The extra explain details which the explain result should include,
+	 *   e.g. estimated cost, changelog mode for streaming
 	 */
-	String explain(List<Operation> operations, boolean extended);
+	String explain(List<Operation> operations, ExplainDetail... extraDetails);
 
 	/**
 	 * Returns completion hints for the given statement at the given cursor position.

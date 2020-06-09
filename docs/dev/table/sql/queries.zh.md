@@ -47,13 +47,13 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
 // 使用 SQL 查询内联的（未注册的）表
-Table table = tableEnv.fromDataStream(ds, "user, product, amount");
+Table table = tableEnv.fromDataStream(ds, $("user"), $("product"), $("amount"));
 Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
 // SQL 查询一个已经注册的表
 // 根据视图 "Orders" 创建一个 DataStream
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"));
 // 在表上执行 SQL 查询并得到以新表返回的结果
 Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
@@ -84,13 +84,13 @@ val tableEnv = StreamTableEnvironment.create(env)
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
 // 使用 SQL 查询内联的（未注册的）表
-val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val table = ds.toTable(tableEnv, $"user", $"product", $"amount")
 val result = tableEnv.sqlQuery(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 
 // SQL 查询一个已经注册的表
 // 使用名称 "Orders" 注册一个 DataStream 
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount")
 // 在表上执行 SQL 查询并得到以新表返回的结果
 val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -198,9 +198,18 @@ tableReference:
   [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName [ dynamicTableOptions ]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
   | UNNEST '(' expression ')'
+
+dynamicTableOptions:
+  /*+ OPTIONS(key=val [, key=val]*) */
+
+key:
+  stringLiteral
+
+val:
+  stringLiteral
 
 values:
   VALUES expression [, expression ]*
@@ -285,7 +294,7 @@ Flink SQL 对于标识符（表、属性、函数名）有类似于 Java 的词�
 
 ## 操作符
 
-### Show 与 Use
+### Show, Describe 与 Use
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -314,8 +323,28 @@ SHOW DATABASES;
 {% highlight sql %}
 SHOW TABLES;
 {% endhighlight %}
+        <p>显示当前数据库、Catalog中的所有视图</p>
+{% highlight sql %}
+SHOW VIEWS;
+{% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td>
+        <strong>Describe</strong><br>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+      <td>
+			<p>描述给定表的 Schema</p>
+{% highlight sql %}
+DESCRIBE myTable;
+{% endhighlight %}
+            <p>描述给定视图的 Schema</p>
+{% highlight sql %}
+DESCRIBE myView;
+{% endhighlight %}
+      </td>
+    </tr>    
     <tr>
       <td>
         <strong>Use</strong><br>
@@ -566,15 +595,15 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p><b>注意：</b> 时间窗口 join 是常规 join 的子集，可以使用流的方式进行处理。</p>
+        <p><b>注意：</b>Interval join （时间区间关联）是常规 join 的子集，可以使用流的方式进行处理。</p>
 
-        <p>时间窗口join需要至少一个 equi-join 谓词和一个限制了双方时间的 join 条件。例如使用两个适当的范围谓词（<code>&lt;, &lt;=, &gt;=, &gt;</code>），一个 <code>BETWEEN</code> 谓词或一个比较两个输入表中相同类型的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性</a> （即处理时间和事件时间）的相等谓词</p>
-        <p>比如，以下谓词是合法的窗口 join 条件：</p>
+        <p>Interval join需要至少一个 equi-join 谓词和一个限制了双方时间的 join 条件。例如使用两个适当的范围谓词（<code>&lt;, &lt;=, &gt;=, &gt;</code>），一个 <code>BETWEEN</code> 谓词或一个比较两个输入表中相同类型的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性</a> （即处理时间和事件时间）的相等谓词</p>
+        <p>比如，以下谓词是合法的 interval join 条件：</p>
 
         <ul>
           <li><code>ltime = rtime</code></li>
@@ -908,7 +937,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // 读取外部数据源的 DataStream
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // 注册名为 “ShopSales” 的 DataStream
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // 选择每个分类中销量前5的产品
@@ -942,7 +971,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // 从外部数据源读取 DataStream
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // 把 DataStream 注册为表，表名是 “ShopSales”
-tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
 // 选择每个分类中销量前5的产品
 Table result1 = tableEnv.sqlQuery(
@@ -963,7 +992,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // 从外部数据源读取 DataStream
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // 注册名为 “ShopSales” 的数据源
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // 选择每个分类中销量前5的产品
@@ -1021,7 +1050,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // 从外部数据源读取 DataStream
 DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
 // 注册名为 “Orders” 的 DataStream
-tableEnv.createTemporaryView("Orders", ds, "order_id, user, product, number, proctime.proctime");
+tableEnv.createTemporaryView("Orders", ds, $("order_id"), $("user"), $("product"), $("number"), $("proctime").proctime());
 
 // 由于不应该出现两个订单有同一个order_id，所以根据 order_id 去除重复的行，并保留第一行
 Table result1 = tableEnv.sqlQuery(
@@ -1042,7 +1071,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // 从外部数据源读取 DataStream
 val ds: DataStream[(String, String, String, Int)] = env.addSource(...)
 // 注册名为 “Orders” 的 DataStream
-tableEnv.createTemporaryView("Orders", ds, 'order_id, 'user, 'product, 'number, 'proctime.proctime)
+tableEnv.createTemporaryView("Orders", ds, $"order_id", $"user", $"product", $"number", $"proctime".proctime)
 
 // 由于不应该出现两个订单有同一个order_id，所以根据 order_id 去除重复的行，并保留第一行
 val result1 = tableEnv.sqlQuery(
@@ -1122,7 +1151,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以外</i>的上界时间戳。</p>
-        <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+        <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1131,7 +1160,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以内</i>的上界时间戳。</p>
-      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1139,7 +1168,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回一个可用于后续需要基于时间的操作的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time">处理时间参数</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>.</p></td>
+      <td><p>返回一个可用于后续需要基于时间的操作的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time">处理时间参数</a>，比如<a href="#joins">interval join</a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>.</p></td>
     </tr>
   </tbody>
 </table>
@@ -1157,7 +1186,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // 从外部数据源读取 DataSource
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 // 使用“Orders”作为表名把 DataStream 注册为表
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"), $("proctime").proctime(), $("rowtime").rowtime());
 
 // 计算每日的 SUM(amount)（使用事件时间）
 Table result1 = tableEnv.sqlQuery(
@@ -1194,7 +1223,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 // 从外部数据源读取 DataSource
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 // 计算每日（使用处理时间）的 SUM(amount) 
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount", $"proctime".proctime, $"rowtime".rowtime)
 
 // 计算每日的 SUM(amount) （使用事件时间）
 val result1 = tableEnv.sqlQuery(

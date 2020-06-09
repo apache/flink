@@ -25,6 +25,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -89,6 +91,11 @@ public final class KeyValueDataType extends DataType {
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
 			keyDataType,
 			valueDataType);
+	}
+
+	@Override
+	public List<DataType> getChildren() {
+		return Arrays.asList(keyDataType, valueDataType);
 	}
 
 	@Override

@@ -103,6 +103,11 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	}
 
 	@Override
+	public CatalogTable copy(Map<String, String> options) {
+		throw new UnsupportedOperationException("ConnectorCatalogTable cannot copy with new table options");
+	}
+
+	@Override
 	public CatalogBaseTable copy() {
 		return this;
 	}
@@ -117,7 +122,7 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 		return Optional.empty();
 	}
 
-	private static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
+	public static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
 		TableSchema tableSchema = source.getTableSchema();
 		if (isBatch) {
 			return tableSchema;

@@ -62,7 +62,7 @@ public abstract class UserDefinedType extends LogicalType {
 		this.description = description;
 	}
 
-	public Optional<ObjectIdentifier> getOptionalObjectIdentifier() {
+	public Optional<ObjectIdentifier> getObjectIdentifier() {
 		return Optional.ofNullable(objectIdentifier);
 	}
 

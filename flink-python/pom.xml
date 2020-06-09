@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -135,7 +135,31 @@ under the License.
 					<groupId>commons-codec</groupId>
 					<artifactId>commons-codec</artifactId>
 				</exclusion>
+				<exclusion>
+					<!-- Override arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-buffer</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- Override arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<!-- Bump arrow netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-buffer</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump arrow netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-common</artifactId>
+			<version>4.1.44.Final</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -247,7 +271,6 @@ under the License.
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
 								<delete dir="${project.basedir}/build"/>
-								<delete dir="${project.basedir}/dist"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
 							</target>
 						</configuration>
@@ -381,6 +404,60 @@ under the License.
 					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC</argLine>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>testUDF1</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction1.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func1
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testUDF2</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction2.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func2
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testJavaDDL</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/PythonFunctionFactoryTest.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/javaDDL
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>test-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

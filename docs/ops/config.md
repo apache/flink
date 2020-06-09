@@ -51,15 +51,17 @@ If you use Flink with [Yarn]({{site.baseurl}}/ops/deployment/yarn_setup.html), [
 
 The default memory sizes support simple streaming/batch applications, but are too low to yield good performance for more complex applications.
 
-  - `jobmanager.heap.size`: Sets the size of the *Flink Master* (JobManager / ResourceManager / Dispatcher) JVM heap.
-  - `taskmanager.memory.process.size`: Total size of the TaskManager process, including everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (network, managed memory, JVM Heap, etc.).
+  - `jobmanager.memory.process.size`: Total size of the *Flink Master* (JobManager / ResourceManager / Dispatcher) process.
+  - `taskmanager.memory.process.size`: Total size of the TaskManager process.
+
+The total sizes include everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (JVM Heap, Off-Heap, for Task Managers also network, managed memory etc.).
 
 These value are configured as memory sizes, for example *1536m* or *2g*.
 
 **Parallelism**
 
   - `taskmanager.numberOfTaskSlots`: The number of slots that a TaskManager offers *(default: 1)*. Each slot can take one task or pipeline.
-    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/runtime.html#task-slots-and-resources) concepts section for details.
+    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/flink-architecture.html#task-slots-and-resources) concepts section for details.
 
      Running more smaller TaskManagers with one slot each is a good starting point and leads to the best isolation between tasks. Dedicating the same resources to fewer larger TaskManagers with more slots can help to increase resource utilization, at the cost of weaker isolation between the tasks (more tasks share the same JVM).
 
@@ -154,7 +156,9 @@ These configuration values control the way that TaskManagers and JobManagers use
 Flink tries to shield users as much as possible from the complexity of configuring the JVM for data-intensive processing.
 In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performane tuning and fixing memory related errors.
 
-For a detailed explanation of how these options interact, see the [documentation on TaskManager memory configuration]({{site.baseurl}}/ops/memory/mem_setup.html).
+For a detailed explanation of how these options interact,
+see the documentation on [TaskManager]({{site.baseurl}}/ops/memory/mem_setup_tm.html) and
+[JobManager]({{site.baseurl}}/ops/memory/mem_setup_master.html) memory configurations.
 
 {% include generated/common_memory_section.html %}
 
@@ -418,6 +422,10 @@ These options may be removed in a future release.
 ----
 
 # Backup
+
+#### Client
+
+{% include generated/client_configuration.html %}
 
 #### Execution
 

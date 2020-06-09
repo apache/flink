@@ -160,23 +160,33 @@ public class CoreOptions {
 
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of all Flink processes with.").build());
 
 	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.jobmanager")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the JobManager with.").build());
 
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the TaskManager with.").build());
 
 	public static final ConfigOption<String> FLINK_HS_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.historyserver")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the HistoryServer with.").build());
+
+	public static final ConfigOption<String> FLINK_CLI_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.client")
+		.stringType()
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the Flink Client with.").build());
 
 	/**
 	 * This options is here only for documentation generation, it is only
@@ -232,6 +242,17 @@ public class CoreOptions {
 		.noDefaultValue()
 		.withDescription("Path to yarn configuration directory. It is required to run flink on YARN. You can also" +
 			" set it via environment variable.");
+
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_HBASE_CONF_DIR = ConfigOptions
+		.key("env.hbase.conf.dir")
+		.noDefaultValue()
+		.withDescription("Path to hbase configuration directory. It is required to read HBASE configuration." +
+			" You can also set it via environment variable.");
 
 	// ------------------------------------------------------------------------
 	//  generic io

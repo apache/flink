@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -120,12 +120,6 @@ under the License.
 									<include>io.prometheus:*</include>
 								</includes>
 							</artifactSet>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>io.prometheus.client</pattern>
-									<shadedPattern>org.apache.flink.shaded.io.prometheus.client</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>

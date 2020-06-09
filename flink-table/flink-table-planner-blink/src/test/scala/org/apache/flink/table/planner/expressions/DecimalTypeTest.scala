@@ -18,29 +18,13 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Types}
-import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.types.logical.DecimalType
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 import org.junit.{Ignore, Test}
 
 class DecimalTypeTest extends ExpressionTestBase {
-
-  private def DECIMAL = (p: Int, s: Int) => new DecimalType(p, s)
-
-  private def BOOL = DataTypes.BOOLEAN.getLogicalType
-
-  private def INT = DataTypes.INT.getLogicalType
-
-  private def LONG = DataTypes.BIGINT.getLogicalType
-
-  private def DOUBLE = DataTypes.DOUBLE.getLogicalType
-
-  private def STRING = DataTypes.STRING.getLogicalType
 
   @Test
   def testDecimalLiterals(): Unit = {
@@ -48,20 +32,17 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       11.2,
       "11.2",
-      "11.2",
       "11.2")
 
     // implicit double
     testAllApis(
       0.7623533651719233,
       "0.7623533651719233",
-      "0.7623533651719233",
       "0.7623533651719233")
 
     // explicit decimal (with precision of 19)
     testAllApis(
       BigDecimal("1234567891234567891"),
-      "1234567891234567891p",
       "1234567891234567891",
       "1234567891234567891")
 
@@ -83,48 +64,40 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       Double.MaxValue,
       Double.MaxValue.toString,
-      Double.MaxValue.toString,
       Double.MaxValue.toString)
 
     testAllApis(
       Double.MinValue,
       Double.MinValue.toString,
-      Double.MinValue.toString,
       Double.MinValue.toString)
 
     testAllApis(
       Double.MinValue.cast(DataTypes.FLOAT),
-      s"${Double.MinValue}.cast(FLOAT)",
       s"CAST(${Double.MinValue} AS FLOAT)",
       Float.NegativeInfinity.toString)
 
     testAllApis(
       Byte.MinValue.cast(DataTypes.TINYINT),
-      s"(${Byte.MinValue}).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT)",
       Byte.MinValue.toString)
 
     testAllApis(
       Byte.MinValue.cast(DataTypes.TINYINT) - 1.cast(DataTypes.TINYINT),
-      s"(${Byte.MinValue}).cast(BYTE) - (1).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT) - CAST(1 AS TINYINT)",
       Byte.MaxValue.toString)
 
     testAllApis(
       Short.MinValue.cast(DataTypes.SMALLINT),
-      s"(${Short.MinValue}).cast(SHORT)",
       s"CAST(${Short.MinValue} AS SMALLINT)",
       Short.MinValue.toString)
 
     testAllApis(
       Int.MinValue.cast(DataTypes.INT) - 1,
-      s"(${Int.MinValue}).cast(INT) - 1",
       s"CAST(${Int.MinValue} AS INT) - 1",
       Int.MaxValue.toString)
 
     testAllApis(
       Long.MinValue.cast(DataTypes.BIGINT()),
-      s"(${Long.MinValue}L).cast(LONG)",
       s"CAST(${Long.MinValue} AS BIGINT)",
       Long.MinValue.toString)
   }
@@ -132,16 +105,14 @@ class DecimalTypeTest extends ExpressionTestBase {
   @Ignore
   @Test
   def testDefaultDecimalCasting(): Unit = {
-    // from String
+//    // from String
     testTableApi(
       "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
-      "'123456789123456789123456789'.cast(DECIMAL)",
       "123456789123456789123456789")
 
     // from double
     testAllApis(
       'f3.cast(DataTypes.DECIMAL(38, 0)),
-      "f3.cast(DECIMAL)",
       "CAST(f3 AS DECIMAL)",
       "4")
   }
@@ -156,38 +127,32 @@ class DecimalTypeTest extends ExpressionTestBase {
     // to double
     testAllApis(
       'f0.cast(DataTypes.DOUBLE),
-      "f0.cast(DOUBLE)",
       "CAST(f0 AS DOUBLE)",
       "1.2345678912345679E8")
 
     // to int
     testAllApis(
       'f4.cast(DataTypes.INT),
-      "f4.cast(INT)",
       "CAST(f4 AS INT)",
       "123456789")
 
     // to long
     testAllApis(
       'f4.cast(DataTypes.BIGINT()),
-      "f4.cast(LONG)",
       "CAST(f4 AS BIGINT)",
       "123456789")
 
     // to boolean (not SQL compliant)
     testTableApi(
       'f1.cast(DataTypes.BOOLEAN),
-      "f1.cast(BOOLEAN)",
       "true")
 
     testTableApi(
       'f5.cast(DataTypes.BOOLEAN),
-      "f5.cast(BOOLEAN)",
       "false")
 
     testTableApi(
       BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
-      "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
 
     // testing padding behaviour
@@ -208,38 +173,32 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f1 + 12,
       "f1 + 12",
-      "f1 + 12",
       "123456789123456789123456801")
 
     // implicit cast to decimal
     testAllApis(
-      valueLiteral(12) + 'f1,
-      "12 + f1",
+      lit(12) + 'f1,
       "12 + f1",
       "123456789123456789123456801")
 
     testAllApis(
       'f1 + BigDecimal("12.3"),
-      "f1 + 12.3p",
       "f1 + 12.3",
       "123456789123456789123456801.3"
     )
 
     testAllApis(
-      valueLiteral(BigDecimal("12.3").bigDecimal) + 'f1,
-      "12.3p + f1",
+      lit(BigDecimal("12.3").bigDecimal) + 'f1,
       "12.3 + f1",
       "123456789123456789123456801.3")
 
     testAllApis(
       'f1 + 'f1,
       "f1 + f1",
-      "f1 + f1",
       "246913578246913578246913578")
 
     testAllApis(
       'f1 - 'f1,
-      "f1 - f1",
       "f1 - f1",
       "0")
 
@@ -252,19 +211,16 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f1 / 'f1,
       "f1 / f1",
-      "f1 / f1",
       "1.00000000")
     // Decimal(30,0) / Decimal(30, 0) => Decimal(61,31) => Decimal(38,8)
 
     testAllApis(
       'f1 % 'f1,
-      "f1 % f1",
       "MOD(f1, f1)",
       "0")
 
     testAllApis(
       -'f0,
-      "-f0",
       "-f0",
       "-123456789.123456789123456789")
   }
@@ -274,48 +230,40 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f1 < 12,
       "f1 < 12",
-      "f1 < 12",
       "false")
 
     testAllApis(
       'f1 > 12,
       "f1 > 12",
-      "f1 > 12",
       "true")
 
     testAllApis(
       'f1 === 12,
-      "f1 === 12",
       "f1 = 12",
       "false")
 
     testAllApis(
       'f5 === 0,
-      "f5 === 0",
       "f5 = 0",
       "true")
 
     testAllApis(
       'f1 === BigDecimal("123456789123456789123456789"),
-      "f1 === 123456789123456789123456789p",
       "f1 = CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "true")
 
     testAllApis(
       'f1 !== BigDecimal("123456789123456789123456789"),
-      "f1 !== 123456789123456789123456789p",
       "f1 <> CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "false")
 
     testAllApis(
       'f4 < 'f0,
       "f4 < f0",
-      "f4 < f0",
       "true")
 
     testAllApis(
       12.toExpr < 'f1,
-      "12 < f1",
       "12 < f1",
       "true")
 
@@ -328,41 +276,35 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       12.toExpr - 'f37,
       "12 - f37",
-      "12 - f37",
       "10")
 
     testAllApis(
       12.toExpr + 'f37,
-      "12 + f37",
       "12 + f37",
       "14")
 
     testAllApis(
       12.toExpr * 'f37,
       "12 * f37",
-      "12 * f37",
       "24")
 
     testAllApis(
       12.toExpr / 'f37,
       "12 / f37",
-      "12 / f37",
       "6")
   }
 
   @Test
-  def testFieldAcess(): Unit = {
+  def testFieldAccess(): Unit = {
 
     // the most basic case
     testAllApis(
       'f6,
       "f6",
-      "f6",
       "123")
 
     testAllApis(
       'f7,
-      "f7",
       "f7",
       "123.45")
 
@@ -370,12 +312,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f8,
       "f8",
-      "f8",
       "100.00")
 
     testAllApis(
       'f8 + 'f8,
-      "f8 + f8",
       "f8 + f8",
       "200.00")
 
@@ -383,12 +323,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f9,
       "f9",
-      "f9",
       "100.10")
 
     testAllApis(
       'f9 + 'f9,
-      "f9 + f9",
       "f9 + f9",
       "200.20")
 
@@ -396,12 +334,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f10,
       "f10",
-      "f10",
       "100.00")
 
     testAllApis(
       'f10 + 'f10,
-      "f10 + f10",
       "f10 + f10",
       "200.00")
 
@@ -409,12 +345,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f11,
       "f11",
-      "f11",
       "null")
 
     testAllApis(
       'f12,
-      "f12",
       "f12",
       "null")
   }
@@ -424,7 +358,6 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     testAllApis(
       + 'f6,
-      "+f6",
       "+f6",
       "123")
 
@@ -436,7 +369,6 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     testAllApis(
       - (( + 'f6) - ( - 'f7)),
-      "- (( + f6) - ( - f7))",
       "- (( + f6) - ( - f7))",
       "-246.45")
   }
@@ -450,12 +382,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f13 + 'f14,
       "f13 + f14",
-      "f13 + f14",
       "300.2434")
 
     testAllApis(
       'f13 - 'f14,
-      "f13 - f14",
       "f13 - f14",
       "-100.0034")
 
@@ -464,24 +394,20 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f7 + 'f2,
       "f7 + f2",
-      "f7 + f2",
       "165.45")
 
     testAllApis(
       'f2 + 'f7,
-      "f2 + f7",
       "f2 + f7",
       "165.45")
 
     testAllApis(
       'f7 + 'f3,
       "f7 + f3",
-      "f7 + f3",
       "127.65")
 
     testAllApis(
       'f3 + 'f7,
-      "f3 + f7",
       "f3 + f7",
       "127.65")
 
@@ -494,12 +420,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f15 + 'f16,
       "f15 + f16",
-      "f15 + f16",
       "300.0246913578012345678901234567")
 
     testAllApis(
       'f15 - 'f16,
-      "f15 - f16",
       "f15 - f16",
       "-100.0000000000012345678901234567")
 
@@ -507,12 +431,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f17 + 'f18,
       "f17 + f18",
-      "f17 + f18",
       "null")
 
     testAllApis(
       'f17 - 'f18,
-      "f17 - f18",
       "f17 - f18",
       "null")
 
@@ -520,13 +442,11 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f19 + 'f19,
       "f19 + f19",
-      "f19 + f19",
       "null")
 
     // overflows in subexpression
     testAllApis(
       'f19 + 'f19 - 'f19,
-      "f19 + f19 - f19",
       "f19 + f19 - f19",
       "null")
   }
@@ -541,12 +461,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f20 * 'f20,
       "f20 * f20",
-      "f20 * f20",
       "1.0000")
 
     testAllApis(
       'f20 * 'f21,
-      "f20 * f21",
       "f20 * f21",
       "2.000000")
 
@@ -555,24 +473,20 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f20 * 'f22,
       "f20 * f22",
-      "f20 * f22",
       "200.00")
 
     testAllApis(
       'f22 * 'f20,
-      "f22 * f20",
       "f22 * f20",
       "200.00")
 
     testAllApis(
       'f20 * 'f23,
       "f20 * f23",
-      "f20 * f23",
       "3.14")
 
     testAllApis(
       'f23 * 'f20,
-      "f23 * f20",
       "f23 * f20",
       "3.14")
 
@@ -581,18 +495,15 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f24 * 'f24,
       "f24 * f24",
-      "f24 * f24",
       "1.000000000000")
 
     testAllApis(
       'f24 * 'f25,
       "f24 * f25",
-      "f24 * f25",
       "2.0000000000000000")
 
     testAllApis(
       'f26 * 'f26,
-      "f26 * f26",
       "f26 * f26",
       "0.00010000000000000000000000000000000000"
     )
@@ -605,7 +516,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f27 * 'f28,
       "f27 * f28",
-      "f27 * f28",
       "0.00000060000000000000"
     )
 
@@ -613,14 +523,12 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f29 * 'f29,
       "f29 * f29",
-      "f29 * f29",
       "null"
     )
 
     //(60,40)=>(38,38), no space for integral part
     testAllApis(
       'f30 * 'f30,
-      "f30 * f30",
       "f30 * f30",
       "null"
     )
@@ -634,12 +542,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f31 / 'f32,
       "f31 / f32",
-      "f31 / f32",
       "0.333333")
 
     testAllApis(
       'f31 / 'f33,
-      "f31 / f33",
       "f31 / f33",
       "0.3333333")
 
@@ -652,7 +558,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f31 / 'f35,
       "f31 / f35",
-      "f31 / f35",
       "0.333333")
 
     // INT => DECIMAL(10,0)
@@ -660,13 +565,11 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f36 / 'f37,
       "f36 / f37",
-      "f36 / f37",
       "0.5000000000000")
 
 
     testAllApis(
       'f37 / 'f36,
-      "f37 / f36",
       "f37 / f36",
       "2.00000000000")
 
@@ -674,19 +577,16 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f36 / 'f38,
       "f36 / f38",
-      "f36 / f38",
       (1.0/3.0).toString)
 
     testAllApis(
       'f38 / 'f36,
-      "f38 / f36",
       "f38 / f36",
       (3.0/1.0).toString)
 
     // result overflow, because result type integral part is reduced
     testAllApis(
       'f39 / 'f40,
-      "f39 / f40",
       "f39 / f40",
       "null")
   }
@@ -696,50 +596,42 @@ class DecimalTypeTest extends ExpressionTestBase {
     // MOD(Exact1, Exact2) => Exact2
     testAllApis(
       'f41 % 'f42,
-      "f41 % f42",
       "mod(f41, f42)",
       "3.0000")
 
     testAllApis(
       'f42 % 'f41,
-      "f42 % f41",
       "mod(f42, f41)",
       "2.0000")
 
     testAllApis(
       'f41 % 'f43,
-      "f41 % f43",
       "mod(f41, f43)",
       "3.00")
 
     testAllApis(
       'f43 % 'f41,
-      "f43 % f41",
       "mod(f43, f41)",
       "1.00")
 
     // signs. consistent with Java's % operator.
     testAllApis(
       'f44 % 'f45,
-      "f44 % f45",
       "mod(f44, f45)",
       (3%5).toString)
 
     testAllApis(
       -'f44 % 'f45,
-      "-f44 % f45",
       "mod(-f44, f45)",
       ((-3)%5).toString)
 
     testAllApis(
       'f44 % -'f45,
-      "f44 % -f45",
       "mod(f44, -f45)",
       (3%(-5)).toString)
 
     testAllApis(
       -'f44 % -'f45,
-      "-f44 % -f45",
       "mod(-f44, -f45)",
       ((-3)%(-5)).toString)
 
@@ -747,7 +639,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     // (In T-SQL, s2 is expanded to s1, so that there's no rounding.)
     testAllApis(
       'f46 % 'f47,
-      "f46 % f47",
       "mod(f46, f47)",
       "3.1234")
   }
@@ -757,34 +648,29 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     testAllApis(
       ifThenElse('f48 > 'f49, 'f48, 'f49),
-      "ifThenElse(greaterThan(f48, f49), f48, f49)",
       "if(f48 > f49, f48, f49)",
       "3.14")
 
     testAllApis(
       'f48.abs(),
-      "f48.abs()",
       "abs(f48)",
       "3.14"
     )
 
     testAllApis(
       (-'f48).abs(),
-      "(-f48).abs()",
       "abs(-f48)",
       "3.14"
     )
 
     testAllApis(
       'f48.floor(),
-      "f48.floor()",
       "floor(f48)",
       "3"
     )
 
     testAllApis(
       'f48.ceil(),
-      "f48.ceil()",
       "ceil(f48)",
       "4"
     )
@@ -792,20 +678,17 @@ class DecimalTypeTest extends ExpressionTestBase {
     // calcite: SIGN(Decimal(p,s))=>Decimal(p,s)
     testAllApis(
       'f48.sign(),
-      "f48.sign()",
       "sign(f48)",
       "1.00"
     )
 
     testAllApis(
       (-'f48).sign(),
-      "(-f48).sign()",
       "sign(-f48)",
       "-1.00"
     )
     testAllApis(
       ('f48 - 'f48).sign(),
-      "(f48 - f48).sign()",
       "sign(f48 - f48)",
       "0.00"
     )
@@ -813,19 +696,16 @@ class DecimalTypeTest extends ExpressionTestBase {
     // ROUND(Decimal(p,s)[,INT])
     testAllApis(
       'f50.round(0),
-      "f50.round(0)",
       "round(f50)",
       "647")
 
     testAllApis(
       'f50.round(0),
-      "f50.round(0)",
       "round(f50,0)",
       "647")
 
     testAllApis(
       'f50.round(1),
-      "f50.round(1)",
       "round(f50,1)",
       "646.6")
 
@@ -837,67 +717,56 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     testAllApis(
       'f50.round(3),
-      "f50.round(3)",
       "round(f50,3)",
       "646.646")
 
     testAllApis(
       'f50.round(4),
-      "f50.round(4)",
       "round(f50,4)",
       "646.646")
 
     testAllApis(
       'f50.round(-1),
-      "f50.round(-1)",
       "round(f50,-1)",
       "650")
 
     testAllApis(
       'f50.round(-2),
-      "f50.round(-2)",
       "round(f50,-2)",
       "600")
 
     testAllApis(
       'f50.round(-3),
-      "f50.round(-3)",
       "round(f50,-3)",
       "1000")
 
     testAllApis(
       'f50.round(-4),
-      "f50.round(-4)",
       "round(f50,-4)",
       "0")
 
     testAllApis(
       'f51.round(1),
-      "f51.round(1)",
       "round(f51,1)",
       "100.0")
 
     testAllApis(
       (-'f51).round(1),
-      "(-f51).round(1)",
       "round(-f51,1)",
       "-100.0")
 
     testAllApis(
       ('f51).round(-1),
-      "(f51).round(-1)",
       "round(f51,-1)",
       "100")
 
     testAllApis(
       (-'f51).round(-1),
-      "(-f51).round(-1)",
       "round(-f51,-1)",
       "-100")
 
     testAllApis(
       ('f52).round(-1),
-      "(f52).round(-1)",
       "round(f52,-1)",
       "null")
   }
@@ -1221,6 +1090,11 @@ class DecimalTypeTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test
+  def testCompareDecimalColWithNull(): Unit = {
+    testSqlApi("f35>cast(1234567890123.123 as decimal(20,16))", "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
@@ -1231,8 +1105,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     testData.setField(3, 4.2)
     testData.setField(4, BigDecimal("123456789").bigDecimal)
     testData.setField(5, BigDecimal("0.000").bigDecimal)
-
-    //convert ITCase to unit Test
     testData.setField(6, BigDecimal("123").bigDecimal)
     testData.setField(7, BigDecimal("123.45").bigDecimal)
     testData.setField(8, BigDecimal("100.004").bigDecimal)
@@ -1294,93 +1166,87 @@ class DecimalTypeTest extends ExpressionTestBase {
     testData.setField(64, BigDecimal("1").bigDecimal)
     testData.setField(65, 1)
     testData.setField(66, 1.0)
-
     testData.setField(67, BigDecimal("1").bigDecimal)
     testData.setField(68, BigDecimal("99").bigDecimal)
     testData.setField(69, 99)
     testData.setField(70, 99.0)
 
-
-
     testData
   }
 
-  override def typeInfo: RowTypeInfo = {
-    new RowTypeInfo(
-      /* 0 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 18)),
-      /* 1 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 0)),
-      /* 2 */ Types.INT(),
-      /* 3 */ Types.DOUBLE(),
-      /* 4 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 0)),
-      /* 5 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 3)),
+  override def testDataType: DataType = DataTypes.ROW(
+    DataTypes.FIELD("f0", DataTypes.DECIMAL(30, 18)),
+    DataTypes.FIELD("f1", DataTypes.DECIMAL(30, 0)),
+    DataTypes.FIELD("f2", DataTypes.INT()),
+    DataTypes.FIELD("f3", DataTypes.DOUBLE()),
+    DataTypes.FIELD("f4", DataTypes.DECIMAL(10, 0)),
+    DataTypes.FIELD("f5", DataTypes.DECIMAL(10, 3)),
+    DataTypes.FIELD("f6", DataTypes.DECIMAL(10, 0)),
+    DataTypes.FIELD("f7", DataTypes.DECIMAL(7, 2)),
+    DataTypes.FIELD("f8", DataTypes.DECIMAL(7, 2)),
+    DataTypes.FIELD("f9", DataTypes.DECIMAL(7, 2)),
+    DataTypes.FIELD("f10", DataTypes.DECIMAL(5, 2)),
+    DataTypes.FIELD("f11", DataTypes.DECIMAL(2, 0)),
+    DataTypes.FIELD("f12", DataTypes.DECIMAL(4, 2)),
+    DataTypes.FIELD("f13", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f14", DataTypes.DECIMAL(10, 4)),
+    DataTypes.FIELD("f15", DataTypes.DECIMAL(38, 10)),
+    DataTypes.FIELD("f16", DataTypes.DECIMAL(38, 28)),
+    DataTypes.FIELD("f17", DataTypes.DECIMAL(38, 10)),
+    DataTypes.FIELD("f18", DataTypes.DECIMAL(38, 28)),
+    DataTypes.FIELD("f19", DataTypes.DECIMAL(38, 0)),
+    DataTypes.FIELD("f20", DataTypes.DECIMAL(5, 2)),
+    DataTypes.FIELD("f21", DataTypes.DECIMAL(10, 4)),
+    DataTypes.FIELD("f22", DataTypes.INT()),
+    DataTypes.FIELD("f23", DataTypes.DOUBLE()),
+    DataTypes.FIELD("f24", DataTypes.DECIMAL(30, 6)),
+    DataTypes.FIELD("f25", DataTypes.DECIMAL(30, 10)),
+    DataTypes.FIELD("f26", DataTypes.DECIMAL(30, 20)),
+    DataTypes.FIELD("f27", DataTypes.DECIMAL(38, 10)),
+    DataTypes.FIELD("f28", DataTypes.DECIMAL(38, 10)),
+    DataTypes.FIELD("f29", DataTypes.DECIMAL(38, 0)),
+    DataTypes.FIELD("f30", DataTypes.DECIMAL(30, 20)),
+    DataTypes.FIELD("f31", DataTypes.DECIMAL(20, 2)),
+    DataTypes.FIELD("f32", DataTypes.DECIMAL(2, 1)),
+    DataTypes.FIELD("f33", DataTypes.DECIMAL(4, 3)),
+    DataTypes.FIELD("f34", DataTypes.DECIMAL(20, 10)),
+    DataTypes.FIELD("f35", DataTypes.DECIMAL(20, 16)),
+    DataTypes.FIELD("f36", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f37", DataTypes.INT()),
+    DataTypes.FIELD("f38", DataTypes.DOUBLE()),
+    DataTypes.FIELD("f39", DataTypes.DECIMAL(30, 0)),
+    DataTypes.FIELD("f40", DataTypes.DECIMAL(30, 20)),
+    DataTypes.FIELD("f41", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f42", DataTypes.DECIMAL(10, 4)),
+    DataTypes.FIELD("f43", DataTypes.INT()),
+    DataTypes.FIELD("f44", DataTypes.DECIMAL(1, 0)),
+    DataTypes.FIELD("f45", DataTypes.DECIMAL(1, 0)),
+    DataTypes.FIELD("f46", DataTypes.DECIMAL(10, 4)),
+    DataTypes.FIELD("f47", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f48", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f49", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f50", DataTypes.DECIMAL(10, 3)),
+    DataTypes.FIELD("f51", DataTypes.DECIMAL(4, 2)),
+    DataTypes.FIELD("f52", DataTypes.DECIMAL(38, 0)),
+    DataTypes.FIELD("f53", DataTypes.DECIMAL(8, 4)),
+    DataTypes.FIELD("f54", DataTypes.DECIMAL(10, 2)),
+    DataTypes.FIELD("f55", DataTypes.STRING()),
+    DataTypes.FIELD("f56", DataTypes.DECIMAL(8, 2)),
+    DataTypes.FIELD("f57", DataTypes.DOUBLE()),
+    DataTypes.FIELD("f58", DataTypes.STRING()),
+    DataTypes.FIELD("f59", DataTypes.STRING()),
+    DataTypes.FIELD("f60", DataTypes.DECIMAL(4, 2)),
+    DataTypes.FIELD("f61", DataTypes.STRING()),
+    DataTypes.FIELD("f62", DataTypes.INT()),
+    DataTypes.FIELD("f63", DataTypes.DECIMAL(8, 2)),
+    DataTypes.FIELD("f64", DataTypes.DECIMAL(8, 4)),
+    DataTypes.FIELD("f65", DataTypes.INT()),
+    DataTypes.FIELD("f66", DataTypes.DOUBLE()),
+    DataTypes.FIELD("f67", DataTypes.DECIMAL(1, 0)),
+    DataTypes.FIELD("f68", DataTypes.DECIMAL(2, 0)),
+    DataTypes.FIELD("f69", DataTypes.INT()),
+    DataTypes.FIELD("f70", DataTypes.DOUBLE())
+  )
 
-      //convert ITCase to unit Test
-      /* 6 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 0)),
-      /* 7 */ fromLogicalTypeToTypeInfo(DECIMAL(7, 2)),
-      /* 8 */ fromLogicalTypeToTypeInfo(DECIMAL(7, 2)),
-      /* 9 */ fromLogicalTypeToTypeInfo(DECIMAL(7, 2)),
-      /* 10 */ fromLogicalTypeToTypeInfo(DECIMAL(5, 2)),
-      /* 11 */ fromLogicalTypeToTypeInfo(DECIMAL(2, 0)),
-      /* 12 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 2)),
-      /* 13 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 14 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 15 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 16 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 28)),
-      /* 17 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 18 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 28)),
-      /* 19 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 0)),
-      /* 20 */ fromLogicalTypeToTypeInfo(DECIMAL(5, 2)),
-      /* 21 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 22 */ Types.INT(),
-      /* 23 */ Types.DOUBLE(),
-      /* 24 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 6)),
-      /* 25 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 10)),
-      /* 26 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 20)),
-      /* 27 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 28 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 29 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 0)),
-      /* 30 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 20)),
-      /* 31 */ fromLogicalTypeToTypeInfo(DECIMAL(20, 2)),
-      /* 32 */ fromLogicalTypeToTypeInfo(DECIMAL(2, 1)),
-      /* 33 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 3)),
-      /* 34 */ fromLogicalTypeToTypeInfo(DECIMAL(20, 10)),
-      /* 35 */ fromLogicalTypeToTypeInfo(DECIMAL(20, 16)),
-      /* 36 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 37 */ Types.INT(),
-      /* 38 */ Types.DOUBLE(),
-      /* 39 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 0)),
-      /* 40 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 20)),
-      /* 41 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 42 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 43 */ Types.INT(),
-      /* 44 */ fromLogicalTypeToTypeInfo(DECIMAL(1, 0)),
-      /* 45 */ fromLogicalTypeToTypeInfo(DECIMAL(1, 0)),
-      /* 46 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 47 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 48 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 49 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 50 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 3)),
-      /* 51 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 2)),
-      /* 52 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 0)),
-      /* 53 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 4)),
-      /* 54 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 55 */ Types.STRING(),
-      /* 56 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 2)),
-      /* 57 */ Types.DOUBLE(),
-      /* 58 */ Types.STRING(),
-      /* 59 */ Types.STRING(),
-      /* 60 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 2)),
-      /* 61 */ Types.STRING(),
-      /* 62 */ Types.INT(),
-      /* 63 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 2)),
-      /* 64 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 4)),
-      /* 65 */ Types.INT(),
-      /* 66 */ Types.DOUBLE(),
-
-      /* 67 */ fromLogicalTypeToTypeInfo(DECIMAL(1, 0)),
-      /* 68 */ fromLogicalTypeToTypeInfo(DECIMAL(2, 0)),
-      /* 69 */ Types.INT(),
-      /* 70 */ Types.DOUBLE()
-    )
-  }
+  override def containsLegacyTypes: Boolean = false
 }

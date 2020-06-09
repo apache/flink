@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -32,17 +33,19 @@ import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -102,7 +105,7 @@ public class SavepointEnvironment implements Environment {
 
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
-		this.ioManager = new IOManagerAsync();
+		this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
 		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 	}
@@ -139,7 +142,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		throw new UnsupportedOperationException(ERROR_MSG);
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	}
 
 	@Override
@@ -198,6 +201,13 @@ public class SavepointEnvironment implements Environment {
 	}
 
 	@Override
+	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+		// We will still construct a StreamingRuntimeContext from this SavepointEnvironment at the moment. So, throwing
+		// Exception here would cause issue. When there is a bounded DataStream API, this class would be removed.
+		return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+	}
+
+	@Override
 	public AccumulatorRegistry getAccumulatorRegistry() {
 		return accumulatorRegistry;
 	}
@@ -239,17 +249,17 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public ResultPartitionWriter[] getAllWriters() {
+		return new ResultPartitionWriter[0];
+	}
+
+	@Override
+	public IndexedInputGate getInputGate(int index) {
 		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
-	public InputGate getInputGate(int index) {
-		throw new UnsupportedOperationException(ERROR_MSG);
-	}
-
-	@Override
-	public InputGate[] getAllInputGates() {
-		throw new UnsupportedOperationException(ERROR_MSG);
+	public IndexedInputGate[] getAllInputGates() {
+		return new IndexedInputGate[0];
 	}
 
 	@Override

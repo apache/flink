@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -50,7 +50,7 @@ public class OperatorState implements CompositeStateHandle {
 
 	/** The state of the operator coordinator. Null, if no such state exists. */
 	@Nullable
-	private StreamStateHandle coordinatorState;
+	private ByteStreamStateHandle coordinatorState;
 
 	/** The parallelism of the operator when it was checkpointed. */
 	private final int parallelism;
@@ -96,13 +96,13 @@ public class OperatorState implements CompositeStateHandle {
 		}
 	}
 
-	public void setCoordinatorState(@Nullable StreamStateHandle coordinatorState) {
+	public void setCoordinatorState(@Nullable ByteStreamStateHandle coordinatorState) {
 		checkState(this.coordinatorState == null, "coordinator state already set");
 		this.coordinatorState = coordinatorState;
 	}
 
 	@Nullable
-	public StreamStateHandle getCoordinatorState() {
+	public ByteStreamStateHandle getCoordinatorState() {
 		return coordinatorState;
 	}
 

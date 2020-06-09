@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -39,6 +40,10 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
+	public void readRecoveredState(ChannelStateReader stateReader) {
+	}
+
+	@Override
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
@@ -54,13 +59,27 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	public final boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+	}
+
+	@Override
+	public boolean addBufferConsumer(BufferConsumer bufferConsumer,	int targetChannel, boolean isPriorityEvent) throws IOException {
 		bufferConsumer.close();
 		return true;
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+		throw new UnsupportedOperationException();
+	}
+
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

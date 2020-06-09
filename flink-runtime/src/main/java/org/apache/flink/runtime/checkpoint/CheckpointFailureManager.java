@@ -99,6 +99,7 @@ public class CheckpointFailureManager {
 		switch (reason) {
 			case PERIODIC_SCHEDULER_SHUTDOWN:
 			case TOO_MANY_CONCURRENT_CHECKPOINTS:
+			case TOO_MANY_CHECKPOINT_REQUESTS:
 			case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
 			case NOT_ALL_REQUIRED_TASKS_RUNNING:
 			case CHECKPOINT_SUBSUMED:
@@ -108,6 +109,7 @@ public class CheckpointFailureManager {
 			case JOB_FAILOVER_REGION:
 			//for compatibility purposes with user job behavior
 			case CHECKPOINT_DECLINED_TASK_NOT_READY:
+			case CHECKPOINT_DECLINED_TASK_CLOSING:
 			case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
 			case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
 			case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
@@ -115,15 +117,16 @@ public class CheckpointFailureManager {
 			case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
 			case EXCEPTION:
-			case CHECKPOINT_EXPIRED:
 			case TASK_FAILURE:
 			case TASK_CHECKPOINT_FAILURE:
+			case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
 			case TRIGGER_CHECKPOINT_FAILURE:
 			case FINALIZE_CHECKPOINT_FAILURE:
 				//ignore
 				break;
 
 			case CHECKPOINT_DECLINED:
+			case CHECKPOINT_EXPIRED:
 				//we should make sure one checkpoint only be counted once
 				if (countedCheckpointIds.add(checkpointId)) {
 					continuousFailureCounter.incrementAndGet();

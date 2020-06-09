@@ -26,12 +26,11 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
 
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -41,6 +40,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -65,16 +65,6 @@ public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<Tas
 		MemorySize.parse("7m"),
 		MemorySize.parse("8m"));
 
-	private static final int NUMBER_OF_SLOTS = 2;
-
-	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE = ResourceProfile.newBuilder()
-		.setCpuCores(new CPUResource(0.5))
-		.setTaskHeapMemory(MemorySize.parse("3m").divide(NUMBER_OF_SLOTS))
-		.setTaskOffHeapMemory(MemorySize.parse("2m"))
-		.setNetworkMemory(MemorySize.parse("5m").divide(NUMBER_OF_SLOTS))
-		.setManagedMemory(MemorySize.parse("3m"))
-		.build();
-
 	public TaskExecutorProcessUtilsTest() {
 		super(TM_PROCESS_MEMORY_OPTIONS, TM_LEGACY_HEAP_OPTIONS, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
@@ -92,6 +82,23 @@ public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<Tas
 		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.NETWORK_MEMORY_MAX.key())), is(TM_RESOURCE_SPEC.getNetworkMemSize()));
 		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.NETWORK_MEMORY_MIN.key())), is(TM_RESOURCE_SPEC.getNetworkMemSize()));
 		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key())), is(TM_RESOURCE_SPEC.getManagedMemorySize()));
+	}
+
+	@Test
+	public void testProcessSpecFromWorkerResourceSpec() {
+		final WorkerResourceSpec workerResourceSpec = new WorkerResourceSpec.Builder()
+			.setCpuCores(1.0)
+			.setTaskHeapMemoryMB(100)
+			.setTaskOffHeapMemoryMB(200)
+			.setNetworkMemoryMB(300)
+			.setManagedMemoryMB(400)
+			.build();
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(new Configuration(), workerResourceSpec);
+		assertEquals(workerResourceSpec.getCpuCores(), taskExecutorProcessSpec.getCpuCores());
+		assertEquals(workerResourceSpec.getTaskHeapSize(), taskExecutorProcessSpec.getTaskHeapSize());
+		assertEquals(workerResourceSpec.getTaskOffHeapSize(), taskExecutorProcessSpec.getTaskOffHeapSize());
+		assertEquals(workerResourceSpec.getNetworkMemSize(), taskExecutorProcessSpec.getNetworkMemSize());
+		assertEquals(workerResourceSpec.getManagedMemSize(), taskExecutorProcessSpec.getManagedMemorySize());
 	}
 
 	@Test
@@ -429,20 +436,6 @@ public class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<Tas
 
 		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(conf);
 		assertThat(taskExecutorProcessSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
-	}
-
-	@Test
-	public void testCreateDefaultWorkerSlotProfiles() {
-		assertThat(
-			TaskExecutorProcessUtils.createDefaultWorkerSlotProfiles(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
-			is(Arrays.asList(DEFAULT_RESOURCE_PROFILE, DEFAULT_RESOURCE_PROFILE)));
-	}
-
-	@Test
-	public void testGenerateDefaultSlotProfile() {
-		assertThat(
-			TaskExecutorProcessUtils.generateDefaultSlotResourceProfile(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
-			is(DEFAULT_RESOURCE_PROFILE));
 	}
 
 	@Test

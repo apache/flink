@@ -52,6 +52,7 @@ public class Constants {
 	public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
 
 	// Use fixed port in kubernetes, it needs to be exposed.
+	public static final int REST_PORT = 8081;
 	public static final int BLOB_SERVER_PORT = 6124;
 	public static final int TASK_MANAGER_RPC_PORT = 6122;
 
@@ -73,4 +74,10 @@ public class Constants {
 	public static final String ENV_FLINK_POD_IP_ADDRESS = "_POD_IP_ADDRESS";
 
 	public static final String POD_IP_FIELD_PATH = "status.podIP";
+
+	public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
+
+	public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
+
+	public static final String RESTART_POLICY_OF_NEVER = "Never";
 }

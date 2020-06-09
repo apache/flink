@@ -30,10 +30,10 @@ LogicalProject(x=[$0])
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[=(a, x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[x]])
    +- Calc(select=[x])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(x, y)]]], fields=[x, y])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(x, y)]]], fields=[x, y])
 ]]>
     </Resource>
   </TestCase>
@@ -55,9 +55,9 @@ Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
    +- Exchange(distribution=[hash[b]])
       +- Union(all=[true], union=[a, b, c])
          :- Calc(select=[a, b, c], where=[>(a, 0)])
-         :  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Calc(select=[a, b, c], where=[>(a, 0)])
-            +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -77,13 +77,13 @@ LogicalProject(EXPR$0=[$1])
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[=(a, EXPR$0)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[EXPR$0]])
    +- Calc(select=[EXPR$0])
       +- GroupAggregate(groupBy=[y], select=[y, SUM(x) AS EXPR$0])
          +- Exchange(distribution=[hash[y]])
             +- Calc(select=[x, y], where=[LIKE(y, _UTF-16LE'%Hanoi%')])
-               +- TableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
 ]]>
     </Resource>
   </TestCase>
@@ -102,9 +102,9 @@ LogicalProject(b=[$1], c=[$2])
       <![CDATA[
 Union(all=[true], union=[b, c])
 :- Calc(select=[b, c])
-:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[b, c])
-   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -127,13 +127,13 @@ Join(joinType=[LeftSemiJoin], where=[=(b, w)], select=[a, b, c], leftInputSpec=[
 :- Exchange(distribution=[hash[b]])
 :  +- Join(joinType=[LeftSemiJoin], where=[=(a, x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- TableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[x]])
 :        +- Calc(select=[x])
-:           +- TableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
 +- Exchange(distribution=[hash[w]])
    +- Calc(select=[w])
-      +- TableSourceScan(table=[[default_catalog, default_database, tableC, source: [TestTableSource(w, z)]]], fields=[w, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableC, source: [TestTableSource(w, z)]]], fields=[w, z])
 ]]>
     </Resource>
   </TestCase>

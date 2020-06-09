@@ -45,12 +45,20 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		return bufferProvider.requestBufferBuilderBlocking();
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 	}
 
 	@Override
-	public synchronized boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		return bufferProvider.requestBufferBuilder(targetChannel);
+	}
+
+	@Override
+	public synchronized boolean addBufferConsumer(
+			BufferConsumer bufferConsumer,
+			int targetChannel,
+			boolean isPriorityEvent) throws IOException {
 		checkState(targetChannel < getNumberOfSubpartitions());
 		bufferConsumers.add(bufferConsumer);
 		processBufferConsumers();

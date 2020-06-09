@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -46,21 +46,21 @@ class ModifiedMonotonicityTest extends TableTestBase {
   def testMaxWithRetractOptimize(): Unit = {
     val query =
       "SELECT a1, MAX(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testMinWithRetractOptimize(): Unit = {
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MIN(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testMinCanNotOptimize(): Unit = {
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -71,7 +71,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
       .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
       "group by a1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -81,7 +81,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
       .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -92,7 +92,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
       .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

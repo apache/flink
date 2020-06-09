@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -41,23 +42,23 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
 	private final String podName;
 
-	private final int taskManagerMemoryMB;
-
 	private final String dynamicProperties;
 
 	private final ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
+	private final Map<String, Long> taskManagerExternalResources;
+
 	public KubernetesTaskManagerParameters(
 			Configuration flinkConfig,
 			String podName,
-			int taskManagerMemoryMB,
 			String dynamicProperties,
-			ContaineredTaskManagerParameters containeredTaskManagerParameters) {
+			ContaineredTaskManagerParameters containeredTaskManagerParameters,
+			Map<String, Long> taskManagerExternalResources) {
 		super(flinkConfig);
 		this.podName = checkNotNull(podName);
-		this.taskManagerMemoryMB = taskManagerMemoryMB;
 		this.dynamicProperties = checkNotNull(dynamicProperties);
 		this.containeredTaskManagerParameters = checkNotNull(containeredTaskManagerParameters);
+		this.taskManagerExternalResources = checkNotNull(taskManagerExternalResources);
 	}
 
 	@Override
@@ -84,6 +85,11 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
 	}
 
+	@Override
+	public List<Map<String, String>> getTolerations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
+	}
+
 	public String getTaskManagerMainContainerName() {
 		return TASK_MANAGER_MAIN_CONTAINER_NAME;
 	}
@@ -93,11 +99,15 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	}
 
 	public int getTaskManagerMemoryMB() {
-		return taskManagerMemoryMB;
+		return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getTotalProcessMemorySize().getMebiBytes();
 	}
 
 	public double getTaskManagerCPU() {
 		return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getCpuCores().getValue().doubleValue();
+	}
+
+	public Map<String, Long> getTaskManagerExternalResources() {
+		return taskManagerExternalResources;
 	}
 
 	public int getRPCPort() {

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
@@ -51,8 +52,8 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 	}
 
 	@Override
-	public void emitDataSet(DataSet<Row> dataSet) {
-		dataSet
+	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
+		return dataSet
 			.map(SpendReportTableSink::format)
 			.output(new LoggerOutputFormat());
 	}

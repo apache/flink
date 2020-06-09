@@ -20,9 +20,10 @@ package org.apache.flink.client.deployment;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,8 +37,10 @@ public abstract class AbstractContainerizedClusterClientFactory<ClusterID> imple
 	public ClusterSpecification getClusterSpecification(Configuration configuration) {
 		checkNotNull(configuration);
 
-		final int jobManagerMemoryMB = ConfigurationUtils
-			.getJobManagerHeapMemory(configuration)
+		final int jobManagerMemoryMB = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
+				configuration,
+				JobManagerOptions.TOTAL_PROCESS_MEMORY)
+			.getTotalProcessMemorySize()
 			.getMebiBytes();
 
 		final int taskManagerMemoryMB = TaskExecutorProcessUtils

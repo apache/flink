@@ -19,7 +19,6 @@ package org.apache.flink.table.module.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -28,6 +27,8 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -61,22 +62,22 @@ public class HiveModuleTest {
 
 		switch (hiveVersion) {
 			case HIVE_VERSION_V1_2_0:
-				assertEquals(232, hiveModule.listFunctions().size());
+				assertEquals(231, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_0_0:
-				assertEquals(236, hiveModule.listFunctions().size());
+				assertEquals(235, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_1_1:
-				assertEquals(246, hiveModule.listFunctions().size());
+				assertEquals(245, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_2_0:
-				assertEquals(262, hiveModule.listFunctions().size());
+				assertEquals(261, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_3_4:
-				assertEquals(280, hiveModule.listFunctions().size());
+				assertEquals(279, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V3_1_1:
-				assertEquals(299, hiveModule.listFunctions().size());
+				assertEquals(298, hiveModule.listFunctions().size());
 				break;
 		}
 	}
@@ -112,20 +113,25 @@ public class HiveModuleTest {
 		tEnv.unloadModule("core");
 		tEnv.loadModule("hive", new HiveModule());
 
-		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select concat('an', 'bn')"));
+		List<Row> results = Lists.newArrayList(
+				tEnv.sqlQuery("select concat('an', 'bn')").execute().collect());
 		assertEquals("[anbn]", results.toString());
 
-		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab', cast('cdefghi' as varchar(5)))"));
+		results = Lists.newArrayList(
+				tEnv.sqlQuery("select concat('ab', cast('cdefghi' as varchar(5)))").execute().collect());
 		assertEquals("[abcdefg]", results.toString());
 
-		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab',cast(12.34 as decimal(10,5)))"));
+		results = Lists.newArrayList(
+				tEnv.sqlQuery("select concat('ab',cast(12.34 as decimal(10,5)))").execute().collect());
 		assertEquals("[ab12.34]", results.toString());
 
-		results = TableUtils.collectToList(tEnv.sqlQuery("select concat(cast('2018-01-19' as date),cast('2019-12-27 17:58:23.385' as timestamp))"));
+		results = Lists.newArrayList(
+				tEnv.sqlQuery("select concat(cast('2018-01-19' as date),cast('2019-12-27 17:58:23.385' as timestamp))").execute().collect());
 		assertEquals("[2018-01-192019-12-27 17:58:23.385]", results.toString());
 
 		// TODO: null cannot be a constant argument at the moment. This test will make more sense when that changes.
-		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab',cast(null as int))"));
+		results = Lists.newArrayList(
+				tEnv.sqlQuery("select concat('ab',cast(null as int))").execute().collect());
 		assertEquals("[null]", results.toString());
 	}
 
@@ -136,7 +142,7 @@ public class HiveModuleTest {
 		tEnv.unloadModule("core");
 		tEnv.loadModule("hive", new HiveModule());
 
-		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select negative(5.1)"));
+		List<Row> results = Lists.newArrayList(tEnv.sqlQuery("select negative(5.1)").execute().collect());
 
 		assertEquals("[-5.1]", results.toString());
 	}
@@ -157,7 +163,8 @@ public class HiveModuleTest {
 		tableEnv.unloadModule("core");
 		tableEnv.loadModule("hive", new HiveModule());
 
-		List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select str_to_map('a:1,b:2,c:3',',',':')"));
+		List<Row> results = Lists.newArrayList(
+				tableEnv.sqlQuery("select str_to_map('a:1,b:2,c:3',',',':')").execute().collect());
 
 		assertEquals("[{a=1, b=2, c=3}]", results.toString());
 	}

@@ -75,7 +75,7 @@ public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("MAP");
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
-		writer.sep(",");
+		writer.sep(","); // configures the writer
 		keyType.unparse(writer, leftPrec, rightPrec);
 		// Default is nullable.
 		if (!keyType.getNullable()) {

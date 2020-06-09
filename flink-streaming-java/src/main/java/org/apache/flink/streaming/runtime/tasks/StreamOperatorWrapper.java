@@ -56,6 +56,8 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
 	private StreamOperatorWrapper<?, ?> next;
 
+	private boolean closed;
+
 	StreamOperatorWrapper(
 		OP wrapped,
 		Optional<ProcessingTimeService> processingTimeService,
@@ -79,6 +81,15 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 	}
 
 	/**
+	 * Checks if the wrapped operator has been closed.
+	 *
+	 * <p>Note that this method must be called in the task thread.
+	 */
+	public boolean isClosed() {
+		return closed;
+	}
+
+	/**
 	 * Ends an input of the operator contained by this wrapper.
 	 *
 	 * @param inputId the input ID starts from 1 which indicates the first input.
@@ -88,6 +99,12 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 			((BoundedOneInput) wrapped).endInput();
 		} else if (wrapped instanceof BoundedMultiInput) {
 			((BoundedMultiInput) wrapped).endInput(inputId);
+		}
+	}
+
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		if (!closed) {
+			wrapped.notifyCheckpointComplete(checkpointId);
 		}
 	}
 
@@ -130,7 +147,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 		// step 3. send a closed mail to ensure that the mails that are from the operator and still in the mailbox
 		//         are completed before exiting the following mailbox processing loop
 		CompletableFuture<Void> closedFuture = quiesceProcessingTimeService()
-			.thenCompose(unused  -> deferCloseOperatorToMailbox(actionExecutor))
+			.thenCompose(unused -> deferCloseOperatorToMailbox(actionExecutor))
 			.thenCompose(unused -> sendClosedMail());
 
 		// run the mailbox processing loop until all operations are finished
@@ -183,7 +200,10 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 	}
 
 	private void closeOperator(StreamTaskActionExecutor actionExecutor) throws Exception {
-		actionExecutor.runThrowing(wrapped::close);
+		actionExecutor.runThrowing(() -> {
+			closed = true;
+			wrapped.close();
+		});
 	}
 
 	static class ReadIterator implements Iterator<StreamOperatorWrapper<?, ?>>, Iterable<StreamOperatorWrapper<?, ?>> {

@@ -285,6 +285,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true,
 						false,
+						false,
 						0),
 				null));
 
@@ -350,6 +351,11 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 			}
 
 			return super.notifyCheckpointCompleteAsync(checkpointId);
+		}
+
+		@Override
+		public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 

@@ -19,16 +19,18 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Creates an internal Service which forwards the requests from the TaskManager(s) to the
@@ -36,46 +38,64 @@ import java.util.List;
  * Note that only the non-HA scenario relies on this Service for internal communication, since
  * in the HA mode, the TaskManager(s) directly connects to the JobManager via IP address.
  */
-public class InternalServiceDecorator extends AbstractServiceDecorator {
+public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
+
+	private final KubernetesJobManagerParameters kubernetesJobManagerParameters;
 
 	public InternalServiceDecorator(KubernetesJobManagerParameters kubernetesJobManagerParameters) {
-		super(kubernetesJobManagerParameters);
+		this.kubernetesJobManagerParameters = checkNotNull(kubernetesJobManagerParameters);
 	}
 
 	@Override
 	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-		final String serviceName = getServiceName();
+		if (!kubernetesJobManagerParameters.isInternalServiceEnabled()) {
+			return Collections.emptyList();
+		}
+
+		final String serviceName = getInternalServiceName(kubernetesJobManagerParameters.getClusterId());
+
+		final Service headlessService = new ServiceBuilder()
+			.withApiVersion(Constants.API_VERSION)
+			.withNewMetadata()
+				.withName(serviceName)
+				.withLabels(kubernetesJobManagerParameters.getCommonLabels())
+				.endMetadata()
+			.withNewSpec()
+				.withClusterIP(Constants.HEADLESS_SERVICE_CLUSTER_IP)
+				.withSelector(kubernetesJobManagerParameters.getLabels())
+				.addNewPort()
+					.withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
+					.withPort(kubernetesJobManagerParameters.getRPCPort())
+					.endPort()
+				.addNewPort()
+					.withName(Constants.BLOB_SERVER_PORT_NAME)
+					.withPort(kubernetesJobManagerParameters.getBlobServerPort())
+					.endPort()
+				.endSpec()
+			.build();
 
 		// Set job manager address to namespaced service name
 		final String namespace = kubernetesJobManagerParameters.getNamespace();
-		kubernetesJobManagerParameters.getFlinkConfiguration()
-			.setString(JobManagerOptions.ADDRESS, serviceName + "." + namespace);
+		kubernetesJobManagerParameters.getFlinkConfiguration().setString(
+			JobManagerOptions.ADDRESS,
+			getNamespacedInternalServiceName(serviceName, namespace));
 
-		return super.buildAccompanyingKubernetesResources();
+		return Collections.singletonList(headlessService);
 	}
 
-	@Override
-	protected List<ServicePort> getServicePorts() {
-		final List<ServicePort> servicePorts = super.getServicePorts();
 
-		servicePorts.add(getServicePort(
-			Constants.JOB_MANAGER_RPC_PORT_NAME,
-			kubernetesJobManagerParameters.getRPCPort()));
-		servicePorts.add(getServicePort(
-			Constants.BLOB_SERVER_PORT_NAME,
-			kubernetesJobManagerParameters.getBlobServerPort()));
-
-		return servicePorts;
+	/**
+	 * Generate name of the internal Service.
+	 */
+	public static String getInternalServiceName(String clusterId) {
+		return clusterId;
 	}
 
-	@Override
-	protected KubernetesConfigOptions.ServiceExposedType getServiceType() {
-		return KubernetesConfigOptions.ServiceExposedType.ClusterIP;
-	}
-
-	@Override
-	protected String getServiceName() {
-		return KubernetesUtils.getInternalServiceName(kubernetesJobManagerParameters.getClusterId());
+	/**
+	 * Generate namespaced name of the internal Service.
+	 */
+	public static String getNamespacedInternalServiceName(String clusterId, String namespace) {
+		return getInternalServiceName(clusterId) + "." + namespace;
 	}
 }
 

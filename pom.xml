@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.11-SNAPSHOT</version>
+	<version>1.12-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -87,6 +87,7 @@ under the License.
 		<module>flink-ml-parent</module>
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
+		<module>flink-external-resources</module>
 	</modules>
 
 	<properties>
@@ -102,7 +103,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j2-test.properties</log4j.configuration>
-		<flink.shaded.version>10.0</flink.shaded.version>
+		<flink.shaded.version>11.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
@@ -119,11 +120,11 @@ under the License.
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.10</zookeeper.version>
+		<zookeeper.version>3.4.14</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.10.1</jackson.version>
-		<prometheus.version>0.3.0</prometheus.version>
+		<prometheus.version>0.8.1</prometheus.version>
 		<avro.version>1.8.2</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
@@ -146,7 +147,8 @@ under the License.
 		<minikdc.version>3.2.0</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
-		<orc.version>1.4.3</orc.version>
+		<hive.connector.orc.version>1.4.3</hive.connector.orc.version>
+		<orc.version>1.5.6</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
@@ -154,8 +156,6 @@ under the License.
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
 		<japicmp.referenceVersion>1.10.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<test.scheduler.type></test.scheduler.type>
-		<test.groups></test.groups>
 	</properties>
 
 	<dependencies>
@@ -163,7 +163,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.11-SNAPSHOT</version>
+			<version>1.12-SNAPSHOT</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -307,10 +307,14 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-hadoop-2</artifactId>
-				<version>${hadoop.version}-${flink.shaded.version}</version>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${hadoop.version}</version>
 				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
 					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
@@ -323,10 +327,74 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-				<version>${hadoop.version}-${flink.shaded.version}</version>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${hadoop.version}</version>
 				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-mapreduce-client-core</artifactId>
+				<version>${hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-yarn-common</artifactId>
+				<version>${hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-yarn-client</artifactId>
+				<version>${hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
 					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
@@ -541,7 +609,7 @@ under the License.
 				<version>1.20</version>
 			</dependency>
 
-			<!-- Managed dependency required for HBase in flink-hbase -->
+			<!-- Managed dependency required for HBase in flink-connector-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
@@ -754,19 +822,6 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>legacy-scheduler</id>
-			<properties>
-				<test.scheduler.type>legacy</test.scheduler.type>
-				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler</test.groups>
-			</properties>
-			<activation>
-				<property>
-					<name>legacy-scheduler</name>
-				</property>
-			</activation>
-		</profile>
-
-		<profile>
 			<id>scala-2.11</id>
 			<properties>
 				<scala.version>2.11.12</scala.version>
@@ -951,6 +1006,7 @@ under the License.
 							<compilerArgs combine.children="append">
 								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 							</compilerArgs>
 						</configuration>
 					</plugin>
@@ -1400,6 +1456,8 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 
 						<!-- snapshots -->
+						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
+						<exclude>**/src/test/resources/**/test-data</exclude>
 						<exclude>**/src/test/resources/*-snapshot</exclude>
 						<exclude>**/src/test/resources/*.snapshot</exclude>
 						<exclude>**/src/test/resources/*-savepoint</exclude>
@@ -1411,6 +1469,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
+						<exclude>flink-formats/flink-json/src/test/resources/*.txt</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
@@ -1472,14 +1531,13 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.22.1</version>
 				<configuration>
-					<groups>${test.groups}</groups>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
-						<jobmanager.scheduler>${test.scheduler.type}</jobmanager.scheduler>
+						<hadoop.version>${hadoop.version}</hadoop.version>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
@@ -1734,7 +1792,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.1.1</version><!--$NO-MVN-MAN-VER$-->
+					<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>
@@ -1812,14 +1870,18 @@ under the License.
 				<plugin>
 					<groupId>pl.project13.maven</groupId>
 					<artifactId>git-commit-id-plugin</artifactId>
-					<!-- Don't use 2.1.14 as it is incompatible with various maven versions -->
-					<version>2.1.10</version>
+					<version>4.0.0</version>
 					<configuration>
 						<excludeProperties>
-							<excludeProperty>git.build.*</excludeProperty>
+							<excludeProperty>git.build.user.*</excludeProperty>
+							<excludeProperty>git.commit.user.*</excludeProperty>
 							<excludeProperty>git.branch.*</excludeProperty>
 							<excludeProperty>git.remote.*</excludeProperty>
 						</excludeProperties>
+
+						<!-- This is the same as the default date time format of this plugin.      -->
+						<!-- Because we want to parse the result we are fixing it to avoid problems. -->
+						<dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
 					</configuration>
 				</plugin>
 
@@ -1899,6 +1961,9 @@ under the License.
 							<onlyModified>true</onlyModified>
 							<includes>
 								<include>@org.apache.flink.annotation.Public</include>
+								<!-- The following line is un-commented by tools/releasing/update_japicmp_configuration.sh
+								 	as part of the release process -->
+								<!--<include>@org.apache.flink.annotation.PublicEvolving</include>-->
 							</includes>
 							<excludes>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>

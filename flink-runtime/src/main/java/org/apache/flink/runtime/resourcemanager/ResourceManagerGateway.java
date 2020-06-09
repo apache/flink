@@ -28,13 +28,15 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.FileType;
@@ -50,7 +52,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The {@link ResourceManager}'s RPC gateway interface.
  */
-public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId> {
+public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager {
 
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
@@ -237,4 +239,13 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @return Future which is completed with the historical log list
 	 */
 	CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the thread dump from the given {@link TaskExecutor}.
+	 *
+	 * @param taskManagerId taskManagerId identifying the {@link TaskExecutor} to get the thread dump from
+	 * @param timeout timeout of the asynchronous operation
+	 * @return Future containing the thread dump information
+	 */
+	CompletableFuture<ThreadDumpInfo> requestThreadDump(ResourceID taskManagerId, @RpcTimeout Time timeout);
 }

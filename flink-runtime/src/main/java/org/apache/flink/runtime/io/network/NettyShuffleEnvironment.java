@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
@@ -95,6 +96,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	private final SingleInputGateFactory singleInputGateFactory;
 
+	private final Executor ioExecutor;
+
 	private boolean isClosed;
 
 	NettyShuffleEnvironment(
@@ -105,7 +108,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			ResultPartitionManager resultPartitionManager,
 			FileChannelManager fileChannelManager,
 			ResultPartitionFactory resultPartitionFactory,
-			SingleInputGateFactory singleInputGateFactory) {
+			SingleInputGateFactory singleInputGateFactory,
+			Executor ioExecutor) {
 		this.taskExecutorResourceId = taskExecutorResourceId;
 		this.config = config;
 		this.networkBufferPool = networkBufferPool;
@@ -115,6 +119,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 		this.fileChannelManager = fileChannelManager;
 		this.resultPartitionFactory = resultPartitionFactory;
 		this.singleInputGateFactory = singleInputGateFactory;
+		this.ioExecutor = ioExecutor;
 		this.isClosed = false;
 	}
 
@@ -149,9 +154,11 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	@Override
 	public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
-		for (ResultPartitionID partitionId : partitionIds) {
-			resultPartitionManager.releasePartition(partitionId, null);
-		}
+		ioExecutor.execute(() -> {
+			for (ResultPartitionID partitionId : partitionIds) {
+				resultPartitionManager.releasePartition(partitionId, null);
+			}
+		});
 	}
 
 	/**
@@ -184,17 +191,18 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	}
 
 	@Override
-	public Collection<ResultPartition> createResultPartitionWriters(
+	public List<ResultPartition> createResultPartitionWriters(
 			ShuffleIOOwnerContext ownerContext,
 			List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
-			int counter = 0;
-			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter] = resultPartitionFactory.create(ownerContext.getOwnerName(), counter, rpdd);
-				counter++;
+			for (int partitionIndex = 0; partitionIndex < resultPartitions.length; partitionIndex++) {
+				resultPartitions[partitionIndex] = resultPartitionFactory.create(
+					ownerContext.getOwnerName(),
+					partitionIndex,
+					resultPartitionDeploymentDescriptors.get(partitionIndex));
 			}
 
 			registerOutputMetrics(config.isNetworkDetailedMetrics(), ownerContext.getOutputGroup(), resultPartitions);
@@ -203,7 +211,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	}
 
 	@Override
-	public Collection<SingleInputGate> createInputGates(
+	public List<SingleInputGate> createInputGates(
 			ShuffleIOOwnerContext ownerContext,
 			PartitionProducerStateProvider partitionProducerStateProvider,
 			List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
@@ -215,18 +223,18 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(networkInputGroup, ownerContext.getParentGroup());
 
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
-			int counter = 0;
-			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
+			for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
+				final InputGateDeploymentDescriptor igdd = inputGateDeploymentDescriptors.get(gateIndex);
 				SingleInputGate inputGate = singleInputGateFactory.create(
 					ownerContext.getOwnerName(),
-					counter,
+					gateIndex,
 					igdd,
 					partitionProducerStateProvider,
 					inputChannelMetrics);
 				InputGateID id = new InputGateID(igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
 				inputGatesById.put(id, inputGate);
 				inputGate.getCloseFuture().thenRun(() -> inputGatesById.remove(id));
-				inputGates[counter++] = inputGate;
+				inputGates[gateIndex] = inputGate;
 			}
 
 			registerInputMetrics(config.isNetworkDetailedMetrics(), networkInputGroup, inputGates);

@@ -17,17 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLookupJoin
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
 
-import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rex.RexProgram
 
 /**
@@ -49,9 +45,9 @@ object BatchExecLookupJoinRule {
     override protected def transform(
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
-        tableSource: TableSource[_],
+        temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonLookupJoin = {
-      doTransform(join, input, tableSource, calcProgram)
+      doTransform(join, input, temporalTable, calcProgram)
     }
   }
 
@@ -61,9 +57,9 @@ object BatchExecLookupJoinRule {
     override protected def transform(
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
-        tableSource: TableSource[_],
+        temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonLookupJoin = {
-      doTransform(join, input, tableSource, calcProgram)
+      doTransform(join, input, temporalTable, calcProgram)
     }
 
   }
@@ -71,19 +67,10 @@ object BatchExecLookupJoinRule {
   private def doTransform(
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
-      tableSource: TableSource[_],
+      temporalTable: RelOptTable,
       calcProgram: Option[RexProgram]): BatchExecLookupJoin = {
     val joinInfo = join.analyzeCondition
     val cluster = join.getCluster
-    val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val tableRowType = typeFactory.buildRelNodeRowType(
-      tableSource.getTableSchema.getFieldNames,
-      tableSource.getTableSchema.getFieldDataTypes.map(fromDataTypeToLogicalType).map {
-        case t: TimestampType =>
-          if (t.getKind == TimestampKind.REGULAR) t else new TimestampType(3)
-        case t => t
-      }
-    )
 
     val providedTrait = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val requiredTrait = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
@@ -92,8 +79,7 @@ object BatchExecLookupJoinRule {
       cluster,
       providedTrait,
       convInput,
-      tableSource,
-      tableRowType,
+      temporalTable,
       calcProgram,
       joinInfo,
       join.getJoinType)

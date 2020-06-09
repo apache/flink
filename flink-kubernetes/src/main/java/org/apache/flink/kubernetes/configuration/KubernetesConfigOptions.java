@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ExternalResourceOptions;
 
 import java.util.List;
 import java.util.Map;
@@ -133,8 +134,8 @@ public class KubernetesConfigOptions {
 		key("kubernetes.cluster-id")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("The cluster id used for identifying the unique flink cluster. If it's not set, " +
-			"the client will generate a random UUID name.");
+		.withDescription("The cluster-id, which should be no more than 45 characters, is used for identifying " +
+			"a unique Flink cluster. If not set, the client will automatically generate it with a random ID.");
 
 	public static final ConfigOption<String> CONTAINER_IMAGE =
 		key("kubernetes.container.image")
@@ -185,6 +186,48 @@ public class KubernetesConfigOptions {
 		.noDefaultValue()
 		.withDescription("The user-specified annotations that are set to the TaskManager pod. The value could be " +
 			"in the form of a1:v1,a2:v2");
+
+	public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_TOLERATIONS =
+		key("kubernetes.jobmanager.tolerations")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("The user-specified tolerations to be set to the JobManager pod. The value should be " +
+				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
+
+	public static final ConfigOption<List<Map<String, String>>> TASK_MANAGER_TOLERATIONS =
+		key("kubernetes.taskmanager.tolerations")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("The user-specified tolerations to be set to the TaskManager pod. The value should be " +
+				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
+
+	public static final ConfigOption<Map<String, String>> REST_SERVICE_ANNOTATIONS =
+		key("kubernetes.rest-service.annotations")
+			.mapType()
+			.noDefaultValue()
+			.withDescription("The user-specified annotations that are set to the rest Service. The value should be " +
+				"in the form of a1:v1,a2:v2");
+
+	/** Defines the configuration key of that external resource in Kubernetes. This is used as a suffix in an actual config. */
+	public static final String EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX = "kubernetes.config-key";
+
+	/**
+	 * If configured, Flink will add "resources.limits.&gt;config-key&lt;" and "resources.requests.&gt;config-key&lt;" to the main
+	 * container of TaskExecutor and set the value to {@link ExternalResourceOptions#EXTERNAL_RESOURCE_AMOUNT}.
+	 *
+	 * <p>It is intentionally included into user docs while unused.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY =
+		key(ExternalResourceOptions.genericKeyWithSuffix(EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX))
+			.stringType()
+			.noDefaultValue()
+			.withDescription("If configured, Flink will add \"resources.limits.<config-key>\" and \"resources.requests.<config-key>\" " +
+				"to the main container of TaskExecutor and set the value to the value of " + ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT.key() + ".");
 
 	/**
 	 * The flink rest service exposed type.

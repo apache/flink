@@ -46,7 +46,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -84,7 +85,7 @@ public class StreamSQLTestProgram {
 
 		ParameterTool params = ParameterTool.fromArgs(args);
 		String outputPath = params.getRequired("outputPath");
-		String planner = params.get("planner", "old");
+		String planner = params.get("planner", "blink");
 
 		final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
 		builder.inStreamingMode();
@@ -108,8 +109,8 @@ public class StreamSQLTestProgram {
 
 		final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, settings);
 
-		tEnv.registerTableSource("table1", new GeneratorTableSource(10, 100, 60, 0));
-		tEnv.registerTableSource("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
 
 		int overWindowSizeSeconds = 1;
 		int tumbleWindowSizeSeconds = 10;

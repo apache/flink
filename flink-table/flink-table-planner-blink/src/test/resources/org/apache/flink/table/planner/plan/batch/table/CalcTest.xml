@@ -26,7 +26,7 @@ LogicalProject(_c0=[org$apache$flink$table$planner$plan$batch$table$CalcTest$giv
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[giveMeCaseClass$().my AS _c0, giveMeCaseClass$().clazz AS _c1, giveMeCaseClass$().my AS _c2, giveMeCaseClass$().clazz AS _c3])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -43,7 +43,7 @@ LogicalFilter(condition=[=(MOD($0, 2), 1)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b], where=[AND(>(a, 0), <(b, 2), =(MOD(a, 2), 1))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -57,7 +57,7 @@ LogicalProject(a$_1=[$0._1], a$_2=[$0._2], c=[$2], b$_1=[$1._1], b$_2=[$1._2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a._1 AS a$_1, a._2 AS a$_2, c, b._1 AS b$_1, b._2 AS b$_2])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -71,7 +71,7 @@ LogicalProject(a$_1=[$0._1], a$_2=[$0._2], b=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a._1 AS a$_1, a._2 AS a$_2, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -88,7 +88,7 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
 SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_SUM(a) AS sum$0, Partial_MAX(b) AS max$1])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -106,7 +106,7 @@ Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -123,7 +123,7 @@ LogicalProject(a=[$0], c=[$1])
 HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c])
 +- Exchange(distribution=[hash[a, c]])
    +- LocalHashAggregate(groupBy=[a, c], select=[a, c])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -142,7 +142,7 @@ Calc(select=[word, CAST(2:BIGINT) AS frequency], where=[=(EXPR$0, 2)])
 +- HashAggregate(isMerge=[true], groupBy=[word], select=[word, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[word]])
       +- LocalHashAggregate(groupBy=[word], select=[word, Partial_SUM(frequency) AS sum$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, frequency)]]], fields=[word, frequency])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, frequency)]]], fields=[word, frequency])
 ]]>
     </Resource>
   </TestCase>
@@ -160,7 +160,7 @@ Calc(select=[a])
 +- HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c])
    +- Exchange(distribution=[hash[a, c]])
       +- LocalHashAggregate(groupBy=[a, c], select=[a, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -180,7 +180,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[k]])
       +- LocalHashAggregate(groupBy=[k], select=[k, Partial_SUM(a) AS sum$0])
          +- Calc(select=[a, MyHashCode$(c) AS k])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -200,7 +200,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[k]])
       +- LocalHashAggregate(groupBy=[k], select=[k, Partial_SUM(a) AS sum$0])
          +- Calc(select=[a, UPPER(c) AS k])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -214,7 +214,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -228,7 +228,7 @@ LogicalProject(_c0=[hashCode($2)], b=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[MyHashCode$(c) AS _c0, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

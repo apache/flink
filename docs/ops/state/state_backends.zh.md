@@ -71,7 +71,7 @@ MemoryStateBackend 适用场景：
   - 本地开发和调试。
   - 状态很小的 Job，例如：由每次只处理一条记录的函数（Map、FlatMap、Filter 等）构成的 Job。Kafka Consumer 仅仅需要非常小的状态。
 
-建议同时将 [managed memory](../memory/mem_setup.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+建议同时将 [managed memory](../memory/mem_setup_tm.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
 ### FsStateBackend
 
@@ -92,7 +92,7 @@ FsStateBackend 适用场景:
   - 状态比较大、窗口比较长、key/value 状态比较大的 Job。
   - 所有高可用的场景。
 
-建议同时将 [managed memory](../memory/mem_setup.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+建议同时将 [managed memory](../memory/mem_setup_tm.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
 ### RocksDBStateBackend
 
@@ -205,6 +205,8 @@ RocksDBStateBackend 支持*增量快照*。不同于产生一个包含所有数�
 虽然状态数据量很大时我们推荐使用增量快照，但这并不是默认的快照机制，您需要通过下述配置手动开启该功能：
   - 在 `flink-conf.yaml` 中设置：`state.backend.incremental: true` 或者
   - 在代码中按照右侧方式配置（来覆盖默认配置）：`RocksDBStateBackend backend = new RocksDBStateBackend(filebackend, true);`
+
+需要注意的是，一旦启用了增量快照，网页上展示的 `Checkpointed Data Size` 只代表增量上传的数据量，而不是一次快照的完整数据量。
 
 ### 内存管理
 

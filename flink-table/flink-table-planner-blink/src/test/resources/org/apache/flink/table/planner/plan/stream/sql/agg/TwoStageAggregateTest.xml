@@ -36,7 +36,7 @@ Calc(select=[EXPR$0])
       +- LocalGroupAggregate(groupBy=[b], select=[b, AVG(a) AS (sum$0, count$1)])
          +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -58,7 +58,7 @@ GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordT
    +- LocalGroupAggregate(select=[AVG($f0) AS (sum$0, count$1)]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
       +- Calc(select=[CAST(a) AS $f0]), rowType=[RecordType(DOUBLE $f0)]
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
   </TestCase>
@@ -82,7 +82,7 @@ Calc(select=[EXPR$0])
       +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS count$0])
          +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -106,7 +106,7 @@ Calc(select=[EXPR$0, EXPR$1])
       +- LocalGroupAggregate(groupBy=[d], select=[d, MIN(c) AS min$0, AVG(a) AS (sum$1, count$2)])
          +- Calc(select=[+(b, 3) AS d, c, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -128,7 +128,7 @@ GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
    +- LocalGroupAggregate(select=[COUNT(a) AS count$0])
       +- Calc(select=[a])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -153,7 +153,7 @@ Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
          +- Calc(select=[CAST(2:BIGINT) AS b, a], where=[=(b, 2:BIGINT)])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -177,7 +177,7 @@ Calc(select=[4 AS four, EXPR$1])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
          +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

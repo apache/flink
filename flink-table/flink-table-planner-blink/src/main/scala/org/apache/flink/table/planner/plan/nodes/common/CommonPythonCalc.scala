@@ -23,13 +23,13 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.{PythonFunctionInfo, PythonFunctionKind}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConversions._
@@ -46,14 +46,17 @@ trait CommonPythonCalc extends CommonPythonBase {
 
     val udfInputOffsets = inputNodes.toArray
       .map(_._1)
-      .collect { case inputRef: RexInputRef => inputRef.getIndex }
+      .collect {
+        case inputRef: RexInputRef => inputRef.getIndex
+        case fac: RexFieldAccess => fac.getField.getIndex
+      }
     (udfInputOffsets, pythonFunctionInfos)
   }
 
   private def getPythonScalarFunctionOperator(
       config: Configuration,
-      inputRowTypeInfo: BaseRowTypeInfo,
-      outputRowTypeInfo: BaseRowTypeInfo,
+      inputRowTypeInfo: RowDataTypeInfo,
+      outputRowTypeInfo: RowDataTypeInfo,
       udfInputOffsets: Array[Int],
       pythonFunctionInfos: Array[PythonFunctionInfo],
       forwardedFields: Array[Int],
@@ -77,14 +80,14 @@ trait CommonPythonCalc extends CommonPythonBase {
       outputRowTypeInfo.toRowType,
       udfInputOffsets,
       forwardedFields)
-      .asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]]
+      .asInstanceOf[OneInputStreamOperator[RowData, RowData]]
   }
 
   def createPythonOneInputTransformation(
-      inputTransform: Transformation[BaseRow],
+      inputTransform: Transformation[RowData],
       calcProgram: RexProgram,
       name: String,
-      config: Configuration): OneInputTransformation[BaseRow, BaseRow] = {
+      config: Configuration): OneInputTransformation[RowData, RowData] = {
     val pythonRexCalls = calcProgram.getProjectList
       .map(calcProgram.expandLocalRef)
       .collect { case call: RexCall => call }
@@ -99,9 +102,9 @@ trait CommonPythonCalc extends CommonPythonBase {
       extractPythonScalarFunctionInfos(pythonRexCalls)
 
     val inputLogicalTypes =
-      inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].getLogicalTypes
-    val pythonOperatorInputTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val pythonOperatorResultTyeInfo = new BaseRowTypeInfo(
+      inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo].getLogicalTypes
+    val pythonOperatorInputTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val pythonOperatorResultTyeInfo = new RowDataTypeInfo(
       forwardedFields.map(inputLogicalTypes(_)) ++
         pythonRexCalls.map(node => FlinkTypeFactory.toLogicalType(node.getType)): _*)
 
@@ -126,9 +129,9 @@ trait CommonPythonCalc extends CommonPythonBase {
 
 object CommonPythonCalc {
   val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.scalar.BaseRowPythonScalarFunctionOperator"
+    "org.apache.flink.table.runtime.operators.python.scalar.RowDataPythonScalarFunctionOperator"
 
   val ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
     "org.apache.flink.table.runtime.operators.python.scalar.arrow." +
-      "BaseRowArrowPythonScalarFunctionOperator"
+      "RowDataArrowPythonScalarFunctionOperator"
 }

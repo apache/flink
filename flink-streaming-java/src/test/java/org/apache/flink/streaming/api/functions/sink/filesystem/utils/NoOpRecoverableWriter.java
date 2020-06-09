@@ -50,7 +50,7 @@ public class NoOpRecoverableWriter implements RecoverableWriter {
 
 	@Override
 	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		throw new UnsupportedOperationException();
+		return false;
 	}
 
 	@Override

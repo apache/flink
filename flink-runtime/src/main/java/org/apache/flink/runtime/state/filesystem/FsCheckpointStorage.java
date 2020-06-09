@@ -169,6 +169,8 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 
 	@Override
 	public CheckpointStateOutputStream createTaskOwnedStateStream() {
+		// as the comment of CheckpointStorageWorkerView#createTaskOwnedStateStream said we may change into shared state,
+		// so we use CheckpointedStateScope.SHARED here.
 		return new FsCheckpointStateOutputStream(
 				taskOwnedStateDirectory,
 				fileSystem,

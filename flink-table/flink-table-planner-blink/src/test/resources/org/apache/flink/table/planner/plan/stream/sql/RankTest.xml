@@ -55,16 +55,15 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
-      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-         +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-            +- Calc(select=[a, b, count_c], updateAsRetraction=[false], accMode=[Acc])
-               +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-                  +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-                     +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Calc(select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[single], changelogMode=[I,UA,D])
+      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
+         +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
+            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+               +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+                  +- Calc(select=[a, b], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -318,10 +317,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-   +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I])
+   +- Calc(select=[a, b, c], changelogMode=[I])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -346,10 +345,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-   +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I])
+   +- Calc(select=[a, b, c], changelogMode=[I])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -380,12 +379,12 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -416,12 +415,12 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b, c], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -455,15 +454,15 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC], select=[a, b, count_c], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-               +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-                  +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I,UB,UA,D])
+   +- Calc(select=[a], changelogMode=[I,UB,UA,D])
+      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC], select=[a, b, count_c], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
+            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+               +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+                  +- Calc(select=[a, b], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -532,12 +531,12 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], where=[>=(c, 0)], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b, c], where=[>=(c, 0)], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -670,11 +669,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, 10:BIGINT AS $3], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-      +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Calc(select=[a, b, c, 10:BIGINT AS $3], changelogMode=[I,UA,D])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a, b, c], changelogMode=[I])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -705,12 +704,12 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(b) AS b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(b) AS b, SUM(c) AS sum_c], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[a]], changelogMode=[I])
+         +- Calc(select=[a, b, c], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -737,11 +736,11 @@ LogicalProject(row_num=[$3], a=[$0], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[row_num, a, c], where=[IS NOT NULL(b)], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-      +- Calc(select=[a, b, c], where=[>(c, 1000)], updateAsRetraction=[false], accMode=[Acc])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Calc(select=[row_num, a, c], where=[IS NOT NULL(b)], changelogMode=[I,UB,UA,D])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a, b, c], where=[>(c, 1000)], changelogMode=[I])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -775,13 +774,12 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-   +- Calc(select=[a, b, count_c], updateAsRetraction=[false], accMode=[Acc])
-      +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-         +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -811,11 +809,11 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[category]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[category, shopId]], updateAsRetraction=[true], accMode=[Acc])
-         +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[category]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[category, shopId]], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

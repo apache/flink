@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.api.stream
 
-import java.math.BigDecimal
-
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.TimestampWithEqualWatermark
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
+
+import java.math.BigDecimal
 
 class StreamTableEnvironmentValidationTest extends TableTestBase {
 
@@ -128,7 +129,8 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   def testInvalidTimeCharacteristicByPosition(): Unit = {
     val data = List((1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"))
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())

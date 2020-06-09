@@ -42,6 +42,8 @@ import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -52,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -63,6 +66,8 @@ import static org.junit.Assert.fail;
  * Tests for the {@link AkkaRpcActor}.
  */
 public class AkkaRpcActorTest extends TestLogger {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActorTest.class);
 
 	// ------------------------------------------------------------------------
 	//  shared test members
@@ -426,6 +431,60 @@ public class AkkaRpcActorTest extends TestLogger {
 			onStopFuture.complete(null);
 			RpcUtils.terminateRpcEndpoint(endpoint, timeout);
 		}
+	}
+
+	@Test
+	public void canReuseEndpointNameAfterTermination() throws Exception {
+		final String endpointName = "not_unique";
+		try (SimpleRpcEndpoint simpleRpcEndpoint1 = new SimpleRpcEndpoint(akkaRpcService, endpointName)) {
+
+			simpleRpcEndpoint1.start();
+
+			simpleRpcEndpoint1.closeAsync().join();
+
+			try (SimpleRpcEndpoint simpleRpcEndpoint2 = new SimpleRpcEndpoint(akkaRpcService, endpointName)) {
+				simpleRpcEndpoint2.start();
+
+				assertThat(simpleRpcEndpoint2.getAddress(), is(equalTo(simpleRpcEndpoint1.getAddress())));
+			}
+		}
+	}
+
+	@Test
+	public void terminationFutureDoesNotBlockRpcEndpointCreation() throws Exception {
+		try (final SimpleRpcEndpoint simpleRpcEndpoint = new SimpleRpcEndpoint(akkaRpcService, "foobar")) {
+			final CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+
+			// Creating a new RpcEndpoint within the termination future ensures that
+			// completing the termination future won't block the RpcService
+			final CompletableFuture<SimpleRpcEndpoint> foobar2 = terminationFuture.thenApply(ignored -> new SimpleRpcEndpoint(akkaRpcService, "foobar2"));
+
+			simpleRpcEndpoint.closeAsync();
+
+			final SimpleRpcEndpoint simpleRpcEndpoint2 = foobar2.join();
+			simpleRpcEndpoint2.close();
+		}
+	}
+
+	@Test
+	public void resolvesRunningAkkaRpcActor() throws Exception {
+		final String endpointName = "foobar";
+
+		try (RpcEndpoint simpleRpcEndpoint1 = createRpcEndpointWithRandomNameSuffix(endpointName);
+			RpcEndpoint simpleRpcEndpoint2 = createRpcEndpointWithRandomNameSuffix(endpointName)) {
+
+			simpleRpcEndpoint1.closeAsync().join();
+
+			final String wildcardName = AkkaRpcServiceUtils.createWildcardName(endpointName);
+			final String wildcardAddress = AkkaRpcServiceUtils.getLocalRpcUrl(wildcardName);
+			final RpcGateway rpcGateway = akkaRpcService.connect(wildcardAddress, RpcGateway.class).join();
+
+			assertThat(rpcGateway.getAddress(), is(equalTo(simpleRpcEndpoint2.getAddress())));
+		}
+	}
+
+	private RpcEndpoint createRpcEndpointWithRandomNameSuffix(String prefix) {
+		return new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(prefix));
 	}
 
 	// ------------------------------------------------------------------------

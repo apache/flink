@@ -45,23 +45,23 @@ public class DatadogHttpClientTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithEmptyKey() {
-		new DatadogHttpClient("", null, 123, false);
+		new DatadogHttpClient("", null, 123, DataCenter.US, false);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithNullKey() {
-		new DatadogHttpClient(null, null, 123, false);
+		new DatadogHttpClient(null, null, 123, DataCenter.US, false);
 	}
 
 	@Test
 	public void testGetProxyWithNullProxyHost() {
-		DatadogHttpClient client = new DatadogHttpClient("anApiKey", null, 123, false);
+		DatadogHttpClient client = new DatadogHttpClient("anApiKey", null, 123, DataCenter.US, false);
 		assert(client.getProxy() == Proxy.NO_PROXY);
 	}
 
 	@Test
 	public void testGetProxy() {
-		DatadogHttpClient client = new DatadogHttpClient("anApiKey", "localhost", 123, false);
+		DatadogHttpClient client = new DatadogHttpClient("anApiKey", "localhost", 123, DataCenter.US, false);
 
 		assertTrue(client.getProxy().address() instanceof InetSocketAddress);
 

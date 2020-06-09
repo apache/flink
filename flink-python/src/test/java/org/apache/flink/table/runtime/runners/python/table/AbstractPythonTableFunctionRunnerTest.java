@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 
 /**
- * Base class for PythonTableFunctionRunner and BaseRowPythonTableFunctionRunner test.
+ * Base class for PythonTableFunctionRunner and RowDataPythonTableFunctionRunner test.
  *
  * @param <IN>  Type of the input elements.
  */

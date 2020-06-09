@@ -20,34 +20,42 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
-
-import javax.annotation.Nullable;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * The client to talk with kubernetes.
+ * The client to talk with kubernetes. The interfaces will be called both in Client and ResourceManager. To avoid
+ * potentially blocking the execution of RpcEndpoint's main thread, these interfaces
+ * {@link #createTaskManagerPod(KubernetesPod)}, {@link #stopPod(String)} should be implemented asynchronously.
  */
 public interface FlinkKubeClient extends AutoCloseable {
 
 	/**
 	 * Create the Master components, this can include the Deployment, the ConfigMap(s), and the Service(s).
 	 *
+	 * @param kubernetesJMSpec jobmanager specification
 	 */
 	void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec);
 
 	/**
 	 * Create task manager pod.
+	 *
+	 * @param kubernetesPod taskmanager pod
+	 * @return  Return the taskmanager pod creation future
 	 */
-	void createTaskManagerPod(KubernetesPod kubernetesPod);
+	CompletableFuture<Void> createTaskManagerPod(KubernetesPod kubernetesPod);
 
 	/**
 	 * Stop a specified pod by name.
 	 *
 	 * @param podName pod name
+	 * @return  Return the pod stop future
 	 */
-	void stopPod(String podName);
+	CompletableFuture<Void> stopPod(String podName);
 
 	/**
 	 * Stop cluster and clean up all resources, include services, auxiliary services and all running pods.
@@ -57,31 +65,20 @@ public interface FlinkKubeClient extends AutoCloseable {
 	void stopAndCleanupCluster(String clusterId);
 
 	/**
-	 * Get the kubernetes internal service of the given flink clusterId.
-	 *
-	 * @param clusterId cluster id
-	 * @return Return the internal service of the specified cluster id. Return null if the service does not exist.
-	 */
-	@Nullable
-	KubernetesService getInternalService(String clusterId);
-
-	/**
 	 * Get the kubernetes rest service of the given flink clusterId.
 	 *
 	 * @param clusterId cluster id
-	 * @return Return the rest service of the specified cluster id. Return null if the service does not exist.
+	 * @return Return the optional rest service of the specified cluster id.
 	 */
-	@Nullable
-	KubernetesService getRestService(String clusterId);
+	Optional<KubernetesService> getRestService(String clusterId);
 
 	/**
 	 * Get the rest endpoint for access outside cluster.
 	 *
 	 * @param clusterId cluster id
-	 * @return Return null if the service does not exist or could not extract the Endpoint from the service.
+	 * @return Return empty if the service does not exist or could not extract the Endpoint from the service.
 	 */
-	@Nullable
-	Endpoint getRestEndpoint(String clusterId);
+	Optional<Endpoint> getRestEndpoint(String clusterId);
 
 	/**
 	 * List the pods with specified labels.
@@ -100,9 +97,10 @@ public interface FlinkKubeClient extends AutoCloseable {
 	 * Watch the pods selected by labels and do the {@link PodCallbackHandler}.
 	 *
 	 * @param labels labels to filter the pods to watch
-	 * @param callbackHandler {@link PodCallbackHandler} will be called when the watcher receive the corresponding events.
+	 * @param podCallbackHandler podCallbackHandler which reacts to pod events
+	 * @return Return a watch for pods. It needs to be closed after use.
 	 */
-	void watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler callbackHandler);
+	KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler podCallbackHandler);
 
 	/**
 	 * Callback handler for kubernetes pods.
@@ -116,6 +114,8 @@ public interface FlinkKubeClient extends AutoCloseable {
 		void onDeleted(List<KubernetesPod> pods);
 
 		void onError(List<KubernetesPod> pods);
+
+		void handleFatalError(Throwable throwable);
 	}
 
 }

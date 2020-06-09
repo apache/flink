@@ -17,18 +17,18 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 
 import java.io.Closeable;
 import java.io.IOException;
 
 /**
- * Resettable buffer that add {@link BaseRow} and return {@link BinaryRow} iterator.
+ * Resettable buffer that add {@link RowData} and return {@link BinaryRowData} iterator.
  *
  * <p>Instructions:
  * 1.{@link #reset()}
- * 2.multi {@link #add(BaseRow)}
+ * 2.multi {@link #add(RowData)}
  * 3.{@link #complete()}
  * 4.multi {@link #newIterator()}
  * repeat the above steps or {@link #close()}.
@@ -43,7 +43,7 @@ public interface ResettableRowBuffer extends Closeable {
 	/**
 	 * Appends the specified row to the end of this buffer.
 	 */
-	void add(BaseRow row) throws IOException;
+	void add(RowData row) throws IOException;
 
 	/**
 	 * Finally, complete add.
@@ -63,7 +63,7 @@ public interface ResettableRowBuffer extends Closeable {
 	/**
 	 * Row iterator that can be reset.
 	 */
-	interface ResettableIterator extends RowIterator<BinaryRow>, Closeable {
+	interface ResettableIterator extends RowIterator<BinaryRowData>, Closeable {
 
 		/**
 		 * Re-initialize the iterator, start from begin row.

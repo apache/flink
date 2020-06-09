@@ -60,6 +60,7 @@ import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
@@ -81,13 +82,16 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -280,6 +284,62 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				objectIdentifier.getDatabaseName(),
 				objectIdentifier.getObjectName()
 			).build();
+		}
+
+		@Override
+		public RelNode visit(ValuesQueryOperation values) {
+			RelDataType rowType = relBuilder.getTypeFactory().buildLogicalRowType(values.getTableSchema());
+			if (values.getValues().isEmpty()) {
+				relBuilder.values(rowType);
+				return relBuilder.build();
+			}
+
+			List<List<RexLiteral>> rexLiterals = new ArrayList<>();
+			List<List<RexNode>> rexProjections = new ArrayList<>();
+
+			splitToProjectionsAndLiterals(values, rexLiterals, rexProjections);
+
+			int inputs = 0;
+			if (rexLiterals.size() != 0) {
+				inputs += 1;
+				relBuilder.values(rexLiterals, rowType);
+			}
+
+			if (rexProjections.size() != 0) {
+				inputs += rexProjections.size();
+				applyProjections(values, rexProjections);
+			}
+
+			if (inputs > 1) {
+				relBuilder.union(true, inputs);
+			}
+			return relBuilder.build();
+		}
+
+		private void applyProjections(ValuesQueryOperation values, List<List<RexNode>> rexProjections) {
+			List<RelNode> relNodes = rexProjections.stream().map(exprs -> {
+				relBuilder.push(LogicalValues.createOneRow(relBuilder.getCluster()));
+				relBuilder.project(exprs, asList(values.getTableSchema().getFieldNames()));
+				return relBuilder.build();
+			}).collect(toList());
+			relBuilder.pushAll(relNodes);
+		}
+
+		private void splitToProjectionsAndLiterals(
+				ValuesQueryOperation values,
+				List<List<RexLiteral>> rexValues,
+				List<List<RexNode>> rexProjections) {
+			values.getValues().stream()
+				.map(this::convertToRexNodes)
+				.forEach(row -> {
+						boolean allLiterals = row.stream().allMatch(expr -> expr instanceof RexLiteral);
+						if (allLiterals) {
+							rexValues.add(row.stream().map(expr -> (RexLiteral) expr).collect(toList()));
+						} else {
+							rexProjections.add(row);
+						}
+					}
+				);
 		}
 
 		@Override

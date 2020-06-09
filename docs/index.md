@@ -36,16 +36,16 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 * **Docker Playgrounds**: Set up a sandboxed Flink environment in just a few minutes to explore and play with Flink.
   * [Run and manage Flink streaming applications](./getting-started/docker-playgrounds/flink-operations-playground.html)
 
-* **Concepts**: Learn about Flink's basic concepts to better understand the documentation.
-  * [Dataflow Programming Model](concepts/programming-model.html)
-  * [Distributed Runtime](concepts/runtime.html)
+* **Concepts**: Learn about Flink's concepts to better understand the documentation.
+  * [Stateful Stream Processing](concepts/stateful-stream-processing.html)
+  * [Timely Stream Processing](concepts/timely-stream-processing.html)
+  * [Flink Architecture](concepts/flink-architecture.html)
   * [Glossary](concepts/glossary.html)
 
 ## API References
 
 The API references list and explain all features of Flink's APIs.
 
-* [Basic API Concepts](dev/api_concepts.html)
 * [DataStream API](dev/datastream_api.html)
 * [DataSet API](dev/batch/index.html)
 * [Table API &amp; SQL](dev/table/index.html)

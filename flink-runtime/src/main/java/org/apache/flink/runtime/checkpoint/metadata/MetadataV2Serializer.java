@@ -23,6 +23,8 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
+import javax.annotation.Nullable;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -56,8 +58,8 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader) throws IOException {
-		return deserializeMetadata(dis);
+	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader, String externalPointer) throws IOException {
+		return deserializeMetadata(dis, externalPointer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -89,7 +91,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 	}
 
 	@Override
-	protected OperatorState deserializeOperatorState(DataInputStream dis) throws IOException {
+	protected OperatorState deserializeOperatorState(DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 		final OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
 		final int parallelism = dis.readInt();
 		final int maxParallelism = dis.readInt();
@@ -106,7 +108,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 
 		for (int j = 0; j < numSubTaskStates; j++) {
 			final int subtaskIndex = dis.readInt();
-			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis);
+			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis, context);
 			taskState.putState(subtaskIndex, subtaskState);
 		}
 
@@ -125,7 +127,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 	}
 
 	@Override
-	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
+	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 		// read two unused fields for compatibility:
 		//   - "duration"
 		//   - number of legacy states
@@ -138,6 +140,6 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 					"no longer supported.");
 		}
 
-		return super.deserializeSubtaskState(dis);
+		return super.deserializeSubtaskState(dis, context);
 	}
 }

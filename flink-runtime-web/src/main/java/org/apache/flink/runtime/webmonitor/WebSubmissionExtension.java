@@ -90,7 +90,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			jarDir,
 			configuration,
 			executor,
-			() -> new DetachedApplicationRunner(true, true));
+			() -> new DetachedApplicationRunner(true));
 
 		final JarDeleteHandler jarDeleteHandler = new JarDeleteHandler(
 			leaderRetriever,
@@ -125,7 +125,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 		webSubmissionHandlers.add(Tuple2.of(JarRunHeaders.getInstance(), jarRunHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarDeleteHeaders.getInstance(), jarDeleteHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), jarPlanHandler));
-		webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), postJarPlanHandler));
+		webSubmissionHandlers.add(Tuple2.of(JarPlanPostHeaders.getInstance(), postJarPlanHandler));
 	}
 
 	@Override

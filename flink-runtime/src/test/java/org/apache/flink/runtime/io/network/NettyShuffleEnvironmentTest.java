@@ -19,14 +19,18 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -40,6 +44,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
@@ -77,9 +83,9 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
-		// outgoing: 1 buffer per channel (always)
-		// incoming: 2 exclusive buffers per channel
-		final int bufferCount = 14 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
+		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
+		final int bufferCount = 18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}
@@ -90,13 +96,34 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithInsufficientBuffers() throws Exception {
-		// outgoing: 1 buffer per channel (always)
-		// incoming: 2 exclusive buffers per channel
+		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
+		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
 		final int bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
 		testRegisterTaskWithLimitedBuffers(bufferCount);
+	}
+
+	@Test
+	public void testSlowIODoesNotBlockRelease() throws Exception {
+		BlockerSync sync = new BlockerSync();
+		ResultPartitionManager blockingResultPartitionManager = new ResultPartitionManager() {
+			@Override
+			public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
+				sync.blockNonInterruptible();
+				super.releasePartition(partitionId, cause);
+			}
+		};
+
+		NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder()
+			.setResultPartitionManager(blockingResultPartitionManager)
+			.setIoExecutor(Executors.newFixedThreadPool(1))
+			.build();
+
+		shuffleEnvironment.releasePartitionsLocally(Collections.singleton(new ResultPartitionID()));
+		sync.awaitBlocker();
+		sync.releaseBlocker();
 	}
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
@@ -127,21 +154,29 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, channels);
 		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, channels);
 		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, rp4Channels);
+		InputChannel[] ic1 = new InputChannel[channels];
+		InputChannel[] ic2 = new InputChannel[channels];
+		InputChannel[] ic3 = new InputChannel[channels];
+		InputChannel[] ic4 = new InputChannel[rp4Channels];
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
+		ic4[0] = createRemoteInputChannel(ig4, 0, rp1, connManager);
+		ic4[1] = createRemoteInputChannel(ig4, 0, rp2, connManager);
+		ic4[2] = createRemoteInputChannel(ig4, 0, rp3, connManager);
+		ic4[3] = createRemoteInputChannel(ig4, 0, rp4, connManager);
+		ig4.setInputChannels(ic4);
 
-		createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
+		ic1[0] = createRemoteInputChannel(ig1, 1, rp1, connManager);
+		ic1[1] = createRemoteInputChannel(ig1, 1, rp4, connManager);
+		ig1.setInputChannels(ic1);
 
-		createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
+		ic2[0] = createRemoteInputChannel(ig2, 1, rp2, connManager);
+		ic2[1] = createRemoteInputChannel(ig2, 2, rp4, connManager);
+		ig2.setInputChannels(ic2);
 
-		createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
-		createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
+		ic3[0] = createRemoteInputChannel(ig3, 1, rp3, connManager);
+		ic3[1] = createRemoteInputChannel(ig3, 3, rp4, connManager);
+		ig3.setInputChannels(ic3);
 
 		Task.setupPartitionsAndGates(resultPartitions, inputGates);
 
@@ -158,10 +193,10 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(0, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
 
 		assertEquals(floatingBuffers, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(floatingBuffers, ig2.getBufferPool().getMaxNumberOfMemorySegments());
@@ -205,17 +240,15 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 			.build());
 	}
 
-	private static void createRemoteInputChannel(
+	private static RemoteInputChannel createRemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartition resultPartition,
-			ConnectionManager connManager,
-			MemorySegmentProvider memorySegmentProvider) {
-		InputChannelBuilder.newBuilder()
+			ConnectionManager connManager) {
+		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionId(resultPartition.getPartitionId())
 			.setConnectionManager(connManager)
-			.setMemorySegmentProvider(memorySegmentProvider)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 }

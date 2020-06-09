@@ -19,9 +19,11 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -35,7 +37,7 @@ public class FunctionDefinitionUtilTest {
 				TestScalarFunction.class.getName()
 		);
 
-		assertTrue(((ScalarFunctionDefinition) fd).getScalarFunction() instanceof TestScalarFunction);
+		assertTrue(fd instanceof TestScalarFunction);
 	}
 
 	@Test
@@ -45,14 +47,14 @@ public class FunctionDefinitionUtilTest {
 			TestTableFunction.class.getName()
 		);
 
-		assertTrue(((TableFunctionDefinition) fd1).getTableFunction() instanceof TestTableFunction);
+		assertTrue(fd1 instanceof TestTableFunction);
 
 		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
 				"test",
 				TestTableFunctionWithoutResultType.class.getName()
 		);
 
-		assertTrue(((TableFunctionDefinition) fd2).getTableFunction() instanceof TestTableFunctionWithoutResultType);
+		assertTrue(fd2 instanceof TestTableFunctionWithoutResultType);
 	}
 
 	@Test
@@ -62,6 +64,7 @@ public class FunctionDefinitionUtilTest {
 			TestAggFunction.class.getName()
 		);
 
+		// TODO aggregate functions still use marker interface
 		assertTrue(((AggregateFunctionDefinition) fd1).getAggregateFunction() instanceof TestAggFunction);
 
 		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
@@ -71,6 +74,8 @@ public class FunctionDefinitionUtilTest {
 
 		assertTrue(((AggregateFunctionDefinition) fd2).getAggregateFunction()
 				instanceof TestAggFunctionWithoutResultType);
+		assertEquals(((AggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
+		assertEquals(((AggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
 
 	}
 
@@ -81,6 +86,7 @@ public class FunctionDefinitionUtilTest {
 			TestTableAggFunction.class.getName()
 		);
 
+		// TODO table aggregate functions still use marker interface
 		assertTrue(((TableAggregateFunctionDefinition) fd1).getTableAggregateFunction() instanceof TestTableAggFunction);
 
 		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
@@ -90,6 +96,8 @@ public class FunctionDefinitionUtilTest {
 
 		assertTrue(((TableAggregateFunctionDefinition) fd2).getTableAggregateFunction()
 				instanceof TestTableAggFunctionWithoutResultType);
+		assertEquals(((TableAggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
+		assertEquals(((TableAggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
 	}
 
 	/**
@@ -143,14 +151,14 @@ public class FunctionDefinitionUtilTest {
 	/**
 	 * Test function.
 	 */
-	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, Long> {
+	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, String> {
 		@Override
-		public Long createAccumulator() {
+		public String createAccumulator() {
 			return null;
 		}
 
 		@Override
-		public Long getValue(Long accumulator) {
+		public Long getValue(String accumulator) {
 			return null;
 		}
 	}
@@ -178,9 +186,9 @@ public class FunctionDefinitionUtilTest {
 	/**
 	 * Test function.
 	 */
-	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, Long> {
+	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, String> {
 		@Override
-		public Long createAccumulator() {
+		public String createAccumulator() {
 			return null;
 		}
 	}

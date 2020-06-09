@@ -994,6 +994,25 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	/**
+	 * Notify the task of this execution about a aborted checkpoint.
+	 *
+	 * @param abortCheckpointId of the subsumed checkpoint
+	 * @param timestamp of the subsumed checkpoint
+	 */
+	public void notifyCheckpointAborted(long abortCheckpointId, long timestamp) {
+		final LogicalSlot slot = assignedResource;
+
+		if (slot != null) {
+			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
+
+			taskManagerGateway.notifyCheckpointAborted(attemptId, getVertex().getJobId(), abortCheckpointId, timestamp);
+		} else {
+			LOG.debug("The execution has no slot assigned. This indicates that the execution is " +
+				"no longer running.");
+		}
+	}
+
+	/**
 	 * Trigger a new checkpoint on the task of this execution.
 	 *
 	 * @param checkpointId of th checkpoint to trigger
@@ -1568,7 +1587,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (error == null) {
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			} else {
-				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+				if (LOG.isInfoEnabled()) {
+					final String locationInformation = getAssignedResource() != null ? getAssignedResource().toString() : "not deployed";
+
+					LOG.info(
+						"{} ({}) switched from {} to {} on {}.",
+						getVertex().getTaskNameWithSubtaskIndex(),
+						getAttemptId(),
+						currentState,
+						targetState,
+						locationInformation,
+						error);
+				}
 			}
 
 			if (targetState.isTerminal()) {

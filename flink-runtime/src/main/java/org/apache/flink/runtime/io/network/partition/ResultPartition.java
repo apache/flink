@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -150,6 +151,14 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		partitionManager.registerResultPartition(this);
 	}
 
+	@Override
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		for (ResultSubpartition subpartition : subpartitions) {
+			subpartition.readRecoveredState(stateReader);
+		}
+		LOG.debug("{}: Finished reading recovered state.", this);
+	}
+
 	public String getOwningTaskName() {
 		return owningTaskName;
 	}
@@ -158,8 +167,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return partitionId;
 	}
 
-	int getPartitionIndex() {
+	public int getPartitionIndex() {
 		return partitionIndex;
+	}
+
+	@Override
+	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+		return subpartitions[subpartitionIndex];
 	}
 
 	@Override
@@ -193,14 +207,23 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkInProduceState();
 
-		return bufferPool.requestBufferBuilderBlocking();
+		return bufferPool.requestBufferBuilderBlocking(targetChannel);
 	}
 
 	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
+		return bufferBuilder;
+	}
+
+	@Override
+	public boolean addBufferConsumer(
+			BufferConsumer bufferConsumer,
+			int subpartitionIndex,
+			boolean isPriorityEvent) throws IOException {
 		checkNotNull(bufferConsumer);
 
 		ResultSubpartition subpartition;
@@ -213,7 +236,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			throw ex;
 		}
 
-		return subpartition.add(bufferConsumer);
+		return subpartition.add(bufferConsumer, isPriorityEvent);
 	}
 
 	@Override

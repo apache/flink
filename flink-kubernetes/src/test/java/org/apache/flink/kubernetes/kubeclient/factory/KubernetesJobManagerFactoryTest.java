@@ -24,8 +24,10 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -38,7 +40,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -51,6 +52,7 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -65,18 +67,23 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 	protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
+		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
+	}
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
-		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
-		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
-
 		this.kubernetesJobManagerSpecification =
-			KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+			KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 	}
 
 	@Test
@@ -128,7 +135,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 		final Map<String, Quantity> requests = resultedMainContainer.getResources().getRequests();
 		assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
-		assertEquals(JOB_MANAGER_MEMORY + "Mi", requests.get("memory").getAmount());
+		assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
 
 		assertEquals(1, resultedMainContainer.getCommand().size());
 		assertEquals(3, resultedMainContainer.getArgs().size());
@@ -166,21 +173,22 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 		final List<Service> internalServiceCandidates = resultServices
 				.stream()
-				.filter(x -> x.getMetadata().getName().equals(KubernetesUtils.getInternalServiceName(CLUSTER_ID)))
+				.filter(x -> x.getMetadata().getName().equals(InternalServiceDecorator.getInternalServiceName(CLUSTER_ID)))
 				.collect(Collectors.toList());
 		assertEquals(1, internalServiceCandidates.size());
 
 		final List<Service> restServiceCandidates = resultServices
 				.stream()
-				.filter(x -> x.getMetadata().getName().equals(KubernetesUtils.getRestServiceName(CLUSTER_ID)))
+				.filter(x -> x.getMetadata().getName().equals(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID)))
 				.collect(Collectors.toList());
 		assertEquals(1, restServiceCandidates.size());
 
 		final Service resultInternalService = internalServiceCandidates.get(0);
 		assertEquals(2, resultInternalService.getMetadata().getLabels().size());
 
-		assertEquals(resultInternalService.getSpec().getType(), "ClusterIP");
-		assertEquals(3, resultInternalService.getSpec().getPorts().size());
+		assertNull(resultInternalService.getSpec().getType());
+		assertEquals(Constants.HEADLESS_SERVICE_CLUSTER_IP, resultInternalService.getSpec().getClusterIP());
+		assertEquals(2, resultInternalService.getSpec().getPorts().size());
 		assertEquals(5, resultInternalService.getSpec().getSelector().size());
 
 		final Service resultRestService = restServiceCandidates.get(0);
@@ -213,7 +221,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	@Test
 	public void testExistingHadoopConfigMap() throws IOException {
 		flinkConfig.set(KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP, EXISTING_HADOOP_CONF_CONFIG_MAP);
-		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
 		assertFalse(kubernetesJobManagerSpecification.getAccompanyingResources().stream()
 			.anyMatch(resource -> resource.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID))));
@@ -226,7 +234,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	public void testHadoopConfConfigMap() throws IOException {
 		setHadoopConfDirEnv();
 		generateHadoopConfFileItems();
-		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
 		final ConfigMap resultConfigMap = (ConfigMap) kubernetesJobManagerSpecification.getAccompanyingResources()
 			.stream()
@@ -246,7 +254,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	@Test
 	public void testEmptyHadoopConfDirectory() throws IOException {
 		setHadoopConfDirEnv();
-		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
 		assertFalse(kubernetesJobManagerSpecification.getAccompanyingResources().stream()
 			.anyMatch(resource -> resource.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID))));

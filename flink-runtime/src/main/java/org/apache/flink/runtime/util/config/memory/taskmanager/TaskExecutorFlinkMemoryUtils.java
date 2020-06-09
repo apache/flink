@@ -160,11 +160,11 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
 		return ProcessMemoryUtils.deriveWithInverseFraction("network memory", base, getNetworkMemoryRangeFraction(config));
 	}
 
-	private static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
+	public static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
 		return ProcessMemoryUtils.getMemorySizeFromConfig(config, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY);
 	}
 
-	private static MemorySize getFrameworkOffHeapMemorySize(final Configuration config) {
+	public static MemorySize getFrameworkOffHeapMemorySize(final Configuration config) {
 		return ProcessMemoryUtils.getMemorySizeFromConfig(config, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY);
 	}
 

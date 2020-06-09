@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.TestLimitableTableSource
@@ -32,8 +33,8 @@ class LimitITCase extends BatchTestBase {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    val rowType = new RowTypeInfo(type3.getFieldTypes, Array("a", "b", "c"))
-    tEnv.registerTableSource("LimitTable", new TestLimitableTableSource(data3, rowType))
+    TestLimitableTableSource.createTemporaryTable(
+      tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
   }
 
   @Test
@@ -99,11 +100,10 @@ class LimitITCase extends BatchTestBase {
       5)
   }
 
-  @Ignore // TODO support limit without sort in table api.
-  @Test
+  @Test(expected = classOf[ValidationException])
   def testTableLimitWithLimitTable(): Unit = {
     Assert.assertEquals(
-      executeQuery(tEnv.scan("LimitTable").fetch(5)).size,
+      executeQuery(tEnv.from("LimitTable").fetch(5)).size,
       5)
   }
 

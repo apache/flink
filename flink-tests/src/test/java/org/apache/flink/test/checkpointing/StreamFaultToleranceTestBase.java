@@ -28,14 +28,12 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,7 +47,6 @@ import static org.junit.Assert.fail;
  * Test base for fault tolerant streaming programs.
  */
 @RunWith(Parameterized.class)
-@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 	@Parameterized.Parameters(name = "FailoverStrategy: {0}")

@@ -34,17 +34,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 /**
  * Test for consuming a pipelined result only partially.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class PartialConsumePipelinedResultTest extends TestLogger {
 
 	// Test configuration
@@ -121,7 +118,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
 			for (int i = 0; i < 8; i++) {
-				final BufferBuilder bufferBuilder = writer.getBufferBuilder();
+				final BufferBuilder bufferBuilder = writer.getBufferBuilder(0);
 				writer.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
 				Thread.sleep(50);
 				bufferBuilder.finish();
@@ -141,6 +138,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			InputGate gate = getEnvironment().getInputGate(0);
+			gate.requestPartitions();
 			Buffer buffer = gate.getNext().orElseThrow(IllegalStateException::new).getBuffer();
 			if (buffer != null) {
 				buffer.recycleBuffer();

@@ -44,10 +44,12 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
 
 import org.junit.Test;
@@ -83,6 +85,39 @@ public class DependencyTest {
 
 	@Test
 	public void testTableFactoryDiscovery() throws Exception {
+		final LocalExecutor executor = createExecutor();
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			final TableSchema result = executor.getTableSchema(sessionId, "TableNumber1");
+			final TableSchema expected = TableSchema.builder()
+				.field("IntegerField1", Types.INT())
+				.field("StringField1", Types.STRING())
+				.field("rowtimeField", Types.SQL_TIMESTAMP())
+				.build();
+
+			assertEquals(expected, result);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
+	public void testSqlParseWithUserClassLoader() throws Exception {
+		final LocalExecutor executor = createExecutor();
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			final Parser sqlParser = executor.getSqlParser(sessionId);
+			List<Operation> operations = sqlParser.parse("SELECT IntegerField1, StringField1 FROM TableNumber1");
+
+			assertTrue(operations != null && operations.size() == 1);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	private LocalExecutor createExecutor() throws Exception {
 		// create environment
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_CONNECTOR_TYPE", CONNECTOR_TYPE_VALUE);
@@ -92,24 +127,12 @@ public class DependencyTest {
 
 		// create executor with dependencies
 		final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
-		final LocalExecutor executor = new LocalExecutor(
+		return new LocalExecutor(
 			env,
 			Collections.singletonList(dependency),
 			new Configuration(),
 			new DefaultCLI(new Configuration()),
 			new DefaultClusterClientServiceLoader());
-
-		final SessionContext session = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(session);
-
-		final TableSchema result = executor.getTableSchema(sessionId, "TableNumber1");
-		final TableSchema expected = TableSchema.builder()
-			.field("IntegerField1", Types.INT())
-			.field("StringField1", Types.STRING())
-			.field("rowtimeField", Types.SQL_TIMESTAMP())
-			.build();
-
-		assertEquals(expected, result);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -234,10 +257,6 @@ public class DependencyTest {
 
 		@Override
 		public Catalog createCatalog(String name, Map<String, String> properties) {
-			// Test HiveCatalogFactory.createCatalog
-			// But not use it for testing purpose
-			assertTrue(super.createCatalog(name, properties) != null);
-
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here

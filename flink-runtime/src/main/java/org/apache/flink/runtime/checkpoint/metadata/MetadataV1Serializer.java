@@ -44,7 +44,7 @@ public class MetadataV1Serializer implements MetadataSerializer {
 	}
 
 	@Override
-	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
+	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader cl, String externalPointer) throws IOException {
 		throw new IOException("This savepoint / checkpoint version (Flink 1.1 / 1.2) is no longer supported.");
 	}
 }

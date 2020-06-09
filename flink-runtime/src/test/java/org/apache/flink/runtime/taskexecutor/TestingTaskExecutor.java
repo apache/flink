@@ -19,13 +19,16 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -40,9 +43,10 @@ class TestingTaskExecutor extends TaskExecutor {
 			TaskManagerConfiguration taskManagerConfiguration,
 			HighAvailabilityServices haServices,
 			TaskManagerServices taskExecutorServices,
+			ExternalResourceInfoProvider externalResourceInfoProvider,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			String metricQueryServiceAddress,
+			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
 			TaskExecutorPartitionTracker partitionTracker,
@@ -52,6 +56,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			taskManagerConfiguration,
 			haServices,
 			taskExecutorServices,
+			externalResourceInfoProvider,
 			heartbeatServices,
 			taskManagerMetricGroup,
 			metricQueryServiceAddress,
@@ -75,5 +80,9 @@ class TestingTaskExecutor extends TaskExecutor {
 
 	void waitUntilStarted() {
 		startFuture.join();
+	}
+
+	MainThreadExecutable getMainThreadExecutableForTesting() {
+		return this.rpcServer;
 	}
 }

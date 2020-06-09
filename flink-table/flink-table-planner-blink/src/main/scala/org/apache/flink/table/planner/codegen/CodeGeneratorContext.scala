@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
@@ -32,10 +32,10 @@ import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
-
 import org.apache.calcite.avatica.util.DateTimeUtils
-
 import java.util.TimeZone
+
+import org.apache.flink.table.data.conversion.DataStructureConverter
 
 import scala.collection.mutable
 
@@ -380,12 +380,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable null [[org.apache.flink.table.dataformat.GenericRow]] to the member area.
+    * Adds a reusable null [[org.apache.flink.table.dataformat.GenericRowData]] to the member area.
     */
   def addReusableNullRow(rowTerm: String, arity: Int): Unit = {
     addReusableOutputRecord(
       RowType.of((0 until arity).map(_ => new IntType()): _*),
-      classOf[GenericRow],
+      classOf[GenericRowData],
       rowTerm)
   }
 
@@ -431,12 +431,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
 
-    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
+    reusableMemberStatements.add(s"private $TIMESTAMP_DATA $fieldTerm;")
 
     val field =
       s"""
          |$fieldTerm =
-         |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
+         |  $TIMESTAMP_DATA.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -475,12 +475,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val timestamp = addReusableTimestamp()
 
     // declaration
-    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
+    reusableMemberStatements.add(s"private $TIMESTAMP_DATA $fieldTerm;")
 
     // assignment
     val field =
       s"""
-         |$fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(
+         |$fieldTerm = $TIMESTAMP_DATA.fromEpochMillis(
          |  $timestamp.getMillisecond() +
          |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
          |""".stripMargin
@@ -537,7 +537,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
     * Adds a reusable TimeZone to the member area of the generated class.
     */
-  def addReusableTimeZone(): String = {
+  def addReusableSessionTimeZone(): String = {
     val zoneID = TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getID
     val stmt =
       s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
@@ -665,6 +665,33 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
+   * Adds a reusable [[DataStructureConverter]] to the member area of the generated class.
+   *
+   * @param converter converter to be added
+   * @param classLoaderTerm term to access the [[ClassLoader]] for user-defined classes
+   */
+  def addReusableConverter(
+      converter: DataStructureConverter[_, _],
+      classLoaderTerm: String = null)
+    : String = {
+
+    val converterTerm = addReusableObject(converter, "converter")
+
+    val openConverter = if (classLoaderTerm != null) {
+      s"""
+         |$converterTerm.open($classLoaderTerm);
+       """.stripMargin
+    } else {
+      s"""
+         |$converterTerm.open(getRuntimeContext().getUserCodeClassLoader());
+       """.stripMargin
+    }
+    reusableOpenStatements.add(openConverter)
+
+    converterTerm
+  }
+
+  /**
     * Adds a reusable [[TypeSerializer]] to the member area of the generated class.
     *
     * @param t the internal type which used to generate internal type serializer
@@ -678,7 +705,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
       case None =>
         val term = newName("typeSerializer")
-        val ser = InternalSerializers.create(t, new ExecutionConfig)
+        val ser = InternalSerializers.create(t)
         addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
         reusableTypeSerializers(t) = term
         term

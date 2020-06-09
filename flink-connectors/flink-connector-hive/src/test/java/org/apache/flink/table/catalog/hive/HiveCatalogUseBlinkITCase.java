@@ -25,11 +25,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
@@ -41,11 +41,14 @@ import org.apache.flink.table.functions.hive.util.TestHiveGenericUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -211,8 +214,8 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					false
 			);
 
-			tEnv.sqlUpdate(format("insert into %s " + selectSql, sinkTableName));
-			tEnv.execute("myjob");
+			TableEnvUtil.execInsertSqlAndWaitResult(
+					tEnv, format("insert into %s " + selectSql, sinkTableName));
 
 			// assert written result
 			StringBuilder builder = new StringBuilder();
@@ -249,49 +252,47 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 	@Test
 	public void testTimestampUDF() throws Exception {
-		hiveCatalog.createFunction(new ObjectPath("default", "myyear"),
-				new CatalogFunctionImpl(UDFYear.class.getCanonicalName()),
-				false);
 
-		hiveShell.execute("create table src(ts timestamp)");
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		tableEnv.executeSql(String.format("create function myyear as '%s'", UDFYear.class.getName()));
+		tableEnv.executeSql("create table src(ts timestamp)");
 		try {
 			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
 					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
 					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
 					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-			tableEnv.useCatalog(hiveCatalog.getName());
 
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select myyear(ts) as y from src"));
+			List<Row> results = Lists.newArrayList(
+					tableEnv.sqlQuery("select myyear(ts) as y from src").execute().collect());
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[2013, 2019]", results.toString());
 		} finally {
-			hiveShell.execute("drop table src");
+			tableEnv.executeSql("drop table src");
 		}
 	}
 
 	@Test
 	public void testDateUDF() throws Exception {
-		hiveCatalog.createFunction(new ObjectPath("default", "mymonth"),
-				new CatalogFunctionImpl(UDFMonth.class.getCanonicalName()),
-				false);
 
-		hiveShell.execute("create table src(dt date)");
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		tableEnv.executeSql(String.format("create function mymonth as '%s'", UDFMonth.class.getName()));
+		tableEnv.executeSql("create table src(dt date)");
 		try {
 			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
 					.addRow(new Object[]{Date.valueOf("2019-01-19")})
 					.addRow(new Object[]{Date.valueOf("2019-03-02")})
 					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-			tableEnv.useCatalog(hiveCatalog.getName());
 
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select mymonth(dt) as m from src order by m"));
+			List<Row> results = Lists.newArrayList(
+					tableEnv.sqlQuery("select mymonth(dt) as m from src order by m").execute().collect());
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[1, 3]", results.toString());
 		} finally {
-			hiveShell.execute("drop table src");
+			tableEnv.executeSql("drop table src");
 		}
 	}
 

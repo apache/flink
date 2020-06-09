@@ -24,12 +24,17 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -152,6 +158,20 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 
 			LOG.warn("Could not retrieve the web interface URL for the cluster.", e);
 			return "Unknown address.";
+		}
+	}
+
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+			JobID jobId,
+			OperatorID operatorId,
+			CoordinationRequest request) {
+		try {
+			SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
+			return miniCluster.deliverCoordinationRequestToCoordinator(jobId, operatorId, serializedRequest);
+		} catch (IOException e) {
+			LOG.error("Error while sending coordination request", e);
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 

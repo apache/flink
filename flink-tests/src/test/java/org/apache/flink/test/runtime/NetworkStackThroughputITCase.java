@@ -36,11 +36,9 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +48,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * Manually test the throughput of the network stack.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class NetworkStackThroughputITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);

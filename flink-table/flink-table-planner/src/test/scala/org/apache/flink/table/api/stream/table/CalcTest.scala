@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.utils.TableTestBase
@@ -111,7 +112,7 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where(s"${(1 to 30).map("b = " + _).mkString(" || ")} && c = 'xx'")
+      .where((1 to 30).map($"b" === _).reduce((ex1, ex2) => ex1 || ex2) && ($"c" === "xx"))
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -128,7 +129,7 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where(s"${(1 to 30).map("b != " + _).mkString(" && ")} || c != 'xx'")
+      .where((1 to 30).map($"b" !== _).reduce((ex1, ex2) => ex1 && ex2) || ($"c" !== "xx"))
 
     val expected = unaryNode(
       "DataStreamCalc",

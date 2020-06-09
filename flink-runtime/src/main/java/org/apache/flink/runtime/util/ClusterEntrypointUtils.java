@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -58,5 +61,19 @@ public final class ClusterEntrypointUtils {
 		} else {
 			return new File(libDirectory).getParentFile();
 		}
+	}
+
+	/**
+	 * Gets and verify the io-executor pool size based on configuration.
+	 *
+	 * @param config The configuration to read.
+	 * @return The legal io-executor pool size.
+	 */
+	public static int getPoolSize(Configuration config) {
+		final int poolSize = config.getInteger(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, 4 * Hardware.getNumberCPUCores());
+		Preconditions.checkArgument(poolSize > 0,
+			String.format("Illegal pool size (%s) of io-executor, please re-configure '%s'.",
+				poolSize, ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE.key()));
+		return poolSize;
 	}
 }

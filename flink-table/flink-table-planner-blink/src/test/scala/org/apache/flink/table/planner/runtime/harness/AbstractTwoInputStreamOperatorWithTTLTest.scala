@@ -24,11 +24,11 @@ import org.apache.flink.runtime.state.VoidNamespace
 import org.apache.flink.streaming.api.operators.InternalTimer
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.runtime.harness.HarnessTestBase.TestingBaseRowKeySelector
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.runtime.harness.HarnessTestBase.TestingRowDataKeySelector
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.HEAP_BACKEND
 import org.apache.flink.table.runtime.operators.join.temporal.BaseTwoInputStreamOperatorWithStateRetention
-import org.apache.flink.table.runtime.util.StreamRecordUtils.record
+import org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.{Description, TypeSafeMatcher}
@@ -46,9 +46,9 @@ class AbstractTwoInputStreamOperatorWithTTLTest
   extends HarnessTestBase(HEAP_BACKEND) {
 
   @transient
-  private var recordAForFirstKey: StreamRecord[BaseRow] = _
+  private var recordAForFirstKey: StreamRecord[RowData] = _
   @transient
-  private var recordBForFirstKey: StreamRecord[BaseRow] = _
+  private var recordBForFirstKey: StreamRecord[RowData] = _
 
   private val minRetentionTime = Time.milliseconds(2)
   private val maxRetentionTime = Time.milliseconds(4)
@@ -56,15 +56,15 @@ class AbstractTwoInputStreamOperatorWithTTLTest
   private var operatorUnderTest: StubOperatorWithStateTTL = _
 
   private var testHarness
-  : KeyedTwoInputStreamOperatorTestHarness[JLong, BaseRow, BaseRow, BaseRow] = _
+  : KeyedTwoInputStreamOperatorTestHarness[JLong, RowData, RowData, RowData] = _
 
   @Before
   def createTestHarness(): Unit = {
     operatorUnderTest = new StubOperatorWithStateTTL(minRetentionTime, maxRetentionTime)
     testHarness = createTestHarness(operatorUnderTest)
     testHarness.open()
-    recordAForFirstKey = record(1L: JLong, "hello")
-    recordBForFirstKey = record(1L: JLong, "world")
+    recordAForFirstKey = insertRecord(1L: JLong, "hello")
+    recordBForFirstKey = insertRecord(1L: JLong, "world")
   }
 
   @After
@@ -124,10 +124,10 @@ class AbstractTwoInputStreamOperatorWithTTLTest
   // -------------------------------- Test Utilities --------------------------------
 
   private def createTestHarness(operator: BaseTwoInputStreamOperatorWithStateRetention) = {
-    new KeyedTwoInputStreamOperatorTestHarness[JLong, BaseRow, BaseRow, BaseRow](
+    new KeyedTwoInputStreamOperatorTestHarness[JLong, RowData, RowData, RowData](
       operator,
-      new TestingBaseRowKeySelector(0),
-      new TestingBaseRowKeySelector(0),
+      new TestingRowDataKeySelector(0),
+      new TestingRowDataKeySelector(0),
       BasicTypeInfo.LONG_TYPE_INFO,
       1,
       1,
@@ -169,11 +169,11 @@ class AbstractTwoInputStreamOperatorWithTTLTest
       firedCleanUpTimers.append(time)
     }
 
-    override def processElement1(element: StreamRecord[BaseRow]): Unit = {
+    override def processElement1(element: StreamRecord[RowData]): Unit = {
       registerProcessingCleanupTimer()
     }
 
-    override def processElement2(element: StreamRecord[BaseRow]): Unit = {
+    override def processElement2(element: StreamRecord[RowData]): Unit = {
       registerProcessingCleanupTimer()
     }
 

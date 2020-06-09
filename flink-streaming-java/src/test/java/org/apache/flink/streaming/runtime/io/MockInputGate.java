@@ -18,15 +18,21 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Mock {@link InputGate}.
@@ -40,6 +46,8 @@ public class MockInputGate extends InputGate {
 	private final boolean[] closed;
 
 	private final boolean finishAfterLastBuffer;
+
+	private ArrayList<Integer> lastUnblockedChannels = new ArrayList<>();
 
 	public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
 		this(numberOfChannels, bufferOrEvents, true);
@@ -62,8 +70,22 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		return CompletableFuture.completedFuture(null);
+	}
+
+	@Override
+	public void requestPartitions() {
+	}
+
+	@Override
 	public int getNumberOfInputChannels() {
 		return numberOfChannels;
+	}
+
+	@Override
+	public InputChannel getChannel(int channelIndex) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
@@ -102,6 +124,21 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
+	public void resumeConsumption(int channelIndex) {
+		lastUnblockedChannels.add(channelIndex);
+	}
+
+	public ArrayList<Integer> getAndResetLastUnblockedChannels() {
+		ArrayList<Integer> unblockedChannels = lastUnblockedChannels;
+		lastUnblockedChannels = new ArrayList<>();
+		return unblockedChannels;
+	}
+
+	@Override
 	public void close() {
+	}
+
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener listener) {
 	}
 }

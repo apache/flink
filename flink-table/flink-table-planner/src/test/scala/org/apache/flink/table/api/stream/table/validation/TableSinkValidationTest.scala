@@ -20,11 +20,13 @@ package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.runtime.stream.table.{TestAppendSink, TestUpsertSink}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
 
 class TableSinkValidationTest extends TableTestBase {
@@ -35,7 +37,8 @@ class TableSinkValidationTest extends TableTestBase {
     val tEnv = StreamTableEnvironment.create(env)
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestAppendSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
@@ -54,7 +57,8 @@ class TableSinkValidationTest extends TableTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestUpsertSink(Array("len", "cTrue"), false))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "testSink", new TestUpsertSink(Array("len", "cTrue"), false))
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
     .groupBy('len, 'cTrue)
@@ -72,7 +76,8 @@ class TableSinkValidationTest extends TableTestBase {
 
     val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTableSink("testSink", new TestAppendSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("testSink", new TestAppendSink)
 
     ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
       .select('c, 'g)

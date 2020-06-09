@@ -19,9 +19,9 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.junit.Test
 
 class SortValidationTest extends TableTestBase {

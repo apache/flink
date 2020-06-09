@@ -31,12 +31,10 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertTrue;
@@ -47,7 +45,6 @@ import static org.junit.Assert.fail;
  *  a) throw errors during runtime
  *  b) are not compatible with existing accumulator.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class AccumulatorErrorITCase extends TestLogger {
 	private static final String FAULTY_CLONE_ACCUMULATOR = "faulty-clone";
 	private static final String FAULTY_MERGE_ACCUMULATOR = "faulty-merge";

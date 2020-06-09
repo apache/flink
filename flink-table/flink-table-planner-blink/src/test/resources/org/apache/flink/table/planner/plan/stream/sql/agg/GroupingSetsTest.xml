@@ -38,7 +38,7 @@ Calc(select=[d, c, g])
    +- Exchange(distribution=[hash[d, g, $e]])
       +- Expand(projects=[d, g, $e])
          +- Calc(select=[MOD(deptno, 20) AS d, gender AS g])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -61,7 +61,7 @@ Calc(select=[c])
    +- Exchange(distribution=[hash[$f0, $e]])
       +- Expand(projects=[$f0, $e])
          +- Calc(select=[1 AS $f0])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -87,7 +87,7 @@ Calc(select=[d1, -(d1, 1) AS d0, c])
    +- Exchange(distribution=[hash[d1, $e]])
       +- Expand(projects=[d1, $e])
          +- Calc(select=[+(deptno, 1) AS d1])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -113,7 +113,7 @@ Calc(select=[d, c, g])
    +- Exchange(distribution=[hash[d, g, $e]])
       +- Expand(projects=[d, g, $e])
          +- Calc(select=[MOD(deptno, 20) AS d, gender AS g])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -136,7 +136,7 @@ Calc(select=[c])
    +- Exchange(distribution=[hash[$f0, $e]])
       +- Expand(projects=[$f0, $e])
          +- Calc(select=[1 AS $f0])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -158,7 +158,7 @@ Calc(select=[deptno, c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
-            +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
   </TestCase>
@@ -191,7 +191,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -217,7 +217,7 @@ GroupAggregate(groupBy=[EXPR$0], select=[EXPR$0])
          +- Exchange(distribution=[hash[deptno, gender, $e]])
             +- Expand(projects=[deptno, gender, $e])
                +- Calc(select=[deptno, gender])
-                  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -251,9 +251,9 @@ Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-
          +- Calc(select=[deptno, deptno0, gender, ename])
             +- Join(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0, dname], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :- Exchange(distribution=[hash[deptno]])
-               :  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
                +- Exchange(distribution=[hash[deptno]])
-                  +- TableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
 ]]>
     </Resource>
   </TestCase>
@@ -286,7 +286,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -316,7 +316,7 @@ Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:
    +- Exchange(distribution=[hash[gender, deptno, $e]])
       +- Expand(projects=[gender, deptno, $e])
          +- Calc(select=[gender, CAST(10) AS deptno], where=[=(deptno, 10)])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -339,7 +339,7 @@ Calc(select=[+(deptno, 1) AS EXPR$0, c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -376,7 +376,7 @@ Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:B
          +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
             +- Expand(projects=[deptno, job, empno, ename, sal, $e])
                +- Calc(select=[deptno, job, empno, ename, sal])
-                  +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -410,7 +410,7 @@ Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) A
       +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT), CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT))])
          +- Expand(projects=[deptno, gender, $e])
             +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -442,7 +442,7 @@ Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) A
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -475,7 +475,7 @@ Calc(select=[deptno, gender, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -505,7 +505,7 @@ Calc(select=[deptno, job, c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT
    +- Exchange(distribution=[hash[deptno, job, $e]])
       +- Expand(projects=[deptno, job, $e])
          +- Calc(select=[deptno, job])
-            +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -527,7 +527,7 @@ Calc(select=[c, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[deptno], select=[deptno, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno]])
       +- Calc(select=[deptno])
-         +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -552,7 +552,7 @@ Calc(select=[c, deptno, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -577,7 +577,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -598,7 +598,7 @@ Calc(select=[b, c, a])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -632,7 +632,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) A
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a, COUNT(*) AS cnt])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -656,7 +656,7 @@ Calc(select=[EXPR$0, c])
    +- Exchange(distribution=[hash[EXPR$0, $e]])
       +- Expand(projects=[EXPR$0, $e])
          +- Calc(select=[+(deptno, 1) AS EXPR$0])
-            +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
   </TestCase>
@@ -686,7 +686,7 @@ Calc(select=[c])
             +- Exchange(distribution=[hash[deptno, $e]])
                +- Expand(projects=[deptno, $e])
                   +- Calc(select=[deptno])
-                     +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -715,7 +715,7 @@ Calc(select=[deptno, a, 0:BIGINT AS g, 0:BIGINT AS gb, 0:BIGINT AS gib])
 +- GroupAggregate(groupBy=[deptno], select=[deptno, AVG(age) AS a])
    +- Exchange(distribution=[hash[deptno]])
       +- Calc(select=[deptno, age])
-         +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
   </TestCase>
@@ -748,7 +748,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -781,7 +781,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -804,7 +804,7 @@ Calc(select=[deptno, c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -830,7 +830,7 @@ Calc(select=[+($f0, 1) AS half1, c])
    +- Exchange(distribution=[hash[$f0, gender, $f2, $e]])
       +- Expand(projects=[$f0, gender, $f2, $e])
          +- Calc(select=[/(deptno, 2) AS $f0, gender, SUBSTRING(ename, 1, 1) AS $f2])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -855,7 +855,7 @@ Calc(select=[gender, +(deptno, 1) AS EXPR$1, c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
          +- Calc(select=[deptno, gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -877,7 +877,7 @@ Calc(select=[gender, c])
    +- Exchange(distribution=[hash[gender, $e]])
       +- Expand(projects=[gender, $e])
          +- Calc(select=[gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -902,7 +902,7 @@ Calc(select=[gender, c])
          +- Exchange(distribution=[hash[gender, $e]])
             +- Expand(projects=[gender, $e])
                +- Calc(select=[gender])
-                  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -928,7 +928,7 @@ Calc(select=[+(deptno, 1) AS d1, c], where=[>(c, 3)])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -951,7 +951,7 @@ Calc(select=[+(deptno, 1) AS EXPR$0, c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])
          +- Calc(select=[deptno])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>

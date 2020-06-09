@@ -47,7 +47,7 @@ case $DAEMON in
     ;;
 
     (standalonejob)
-        CLASS_TO_RUN=org.apache.flink.container.entrypoint.StandaloneJobClusterEntryPoint
+        CLASS_TO_RUN=org.apache.flink.container.entrypoint.StandaloneApplicationClusterEntryPoint
     ;;
 
     (*)
