@@ -58,7 +58,7 @@ public class LocalStandaloneHBaseResource implements HBaseResource {
 	}
 
 	private static String getHBaseDownloadUrl() {
-		return "http://archive.apache.org/dist/hbase/1.4.3/hbase-1.4.3-bin.tar.gz";
+		return "https://archive.apache.org/dist/hbase/1.4.3/hbase-1.4.3-bin.tar.gz";
 	}
 
 	@Override
