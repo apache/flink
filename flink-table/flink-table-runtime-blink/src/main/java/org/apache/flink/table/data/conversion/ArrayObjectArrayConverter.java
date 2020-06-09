@@ -115,7 +115,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 		for (int pos = 0; pos < length; pos++) {
 			writeElement(pos, external[pos]);
 		}
-		return completeWriter();
+		return completeWriter().copy();
 	}
 
 	private E[] toJavaArray(ArrayData internal) {

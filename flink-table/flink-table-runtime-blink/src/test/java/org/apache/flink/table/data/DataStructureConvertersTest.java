@@ -345,6 +345,12 @@ public class DataStructureConvertersTest {
 							null
 						)
 					})
+				.convertedToWithAnotherValue(
+					Row[].class,
+					new Row[] {
+						Row.of(null, null),
+						Row.of(new PojoWithImmutableFields(10, "Bob"), null)
+					})
 		);
 	}
 
@@ -368,6 +374,11 @@ public class DataStructureConvertersTest {
 			fromConverter.open(DataStructureConvertersTest.class.getClassLoader());
 
 			final Object internalValue = fromConverter.toInternalOrNull(from.getValue());
+
+			final Object anotherValue = testSpec.conversionsWithAnotherValue.get(from.getKey());
+			if (anotherValue != null) {
+				fromConverter.toInternalOrNull(anotherValue);
+			}
 
 			for (Map.Entry<Class<?>, Object> to : testSpec.conversions.entrySet()) {
 				final DataType toDataType = testSpec.dataType.bridgedTo(to.getKey());
@@ -395,12 +406,15 @@ public class DataStructureConvertersTest {
 
 		private final Map<Class<?>, Object> conversions;
 
+		private final Map<Class<?>, Object> conversionsWithAnotherValue;
+
 		private @Nullable String expectedErrorMessage;
 
 		private TestSpec(String description, DataType dataType) {
 			this.description = description;
 			this.dataType = dataType;
 			this.conversions = new LinkedHashMap<>();
+			this.conversionsWithAnotherValue = new LinkedHashMap<>();
 		}
 
 		static TestSpec forDataType(AbstractDataType<?> dataType) {
@@ -417,6 +431,11 @@ public class DataStructureConvertersTest {
 
 		<T> TestSpec convertedTo(Class<T> clazz, T value) {
 			conversions.put(clazz, value);
+			return this;
+		}
+
+		<T> TestSpec convertedToWithAnotherValue(Class<T> clazz, T value) {
+			conversionsWithAnotherValue.put(clazz, value);
 			return this;
 		}
 
