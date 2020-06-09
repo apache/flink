@@ -44,7 +44,7 @@ public class HiveModule implements Module {
 	// a set of functions that shouldn't be overridden by HiveModule
 	@VisibleForTesting
 	static final Set<String> BUILT_IN_FUNC_BLACKLIST = Collections.unmodifiableSet(new HashSet<>(
-			Arrays.asList("dense_rank", "first_value", "lag", "last_value", "lead", "rank", "row_number",
+			Arrays.asList("count", "dense_rank", "first_value", "lag", "last_value", "lead", "rank", "row_number",
 					"hop", "hop_end", "hop_proctime", "hop_rowtime", "hop_start",
 					"session", "session_end", "session_proctime", "session_rowtime", "session_start",
 					"tumble", "tumble_end", "tumble_proctime", "tumble_rowtime", "tumble_start")));
