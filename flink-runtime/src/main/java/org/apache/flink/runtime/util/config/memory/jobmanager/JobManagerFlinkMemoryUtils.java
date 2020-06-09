@@ -84,7 +84,7 @@ public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFl
 			LOG.warn(
 				"The configured or derived JVM heap memory size ({}) is less than its recommended minimum value ({})",
 				jvmHeapSize.toHumanReadableString(),
-				JobManagerOptions.MIN_JVM_HEAP_SIZE);
+				JobManagerOptions.MIN_JVM_HEAP_SIZE.toHumanReadableString());
 		}
 	}
 

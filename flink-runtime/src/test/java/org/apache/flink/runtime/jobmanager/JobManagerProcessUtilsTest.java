@@ -58,28 +58,45 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 
 	@Test
 	public void testConfigJvmHeapMemory() {
+		MemorySize jvmHeapSize = MemorySize.parse("50m");
+
+		Configuration conf = new Configuration();
+		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeapSize);
+
+		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
+		assertThat(JobManagerProcessSpec.getJvmHeapMemorySize(), is(jvmHeapSize));
+	}
+
+	@Test
+	public void testLogVerifyJvmHeapSizeAndJobStoreCacheSize() {
 		MemorySize jvmHeapMemory = MemorySize.parse("50m");
 
 		Configuration conf = new Configuration();
 		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeapMemory);
 
-		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
-		assertThat(jobManagerProcessSpec.getJvmHeapMemorySize(), is(jvmHeapMemory));
+		JobManagerProcessUtils.processSpecFromConfig(conf);
 		MatcherAssert.assertThat(
 			testLoggerResource.getMessages(),
-			hasItem(containsString("The configured or derived JVM heap memory size (50.000mb (52428800 bytes)) is less than its recommended minimum value (128 mb)")));
+			hasItem(containsString(String.format("The configured or derived JVM heap memory size (%s) is less than its recommended minimum value (%s)",
+				jvmHeapMemory.toHumanReadableString(),
+				JobManagerOptions.MIN_JVM_HEAP_SIZE.toHumanReadableString()))));
 
 		jvmHeapMemory = MemorySize.parse("150m");
 
 		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeapMemory);
 		conf.set(JobManagerOptions.JOB_STORE_CACHE_SIZE, 200L * 1024L * 1024L);
 
-		jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
-		assertThat(jobManagerProcessSpec.getJvmHeapMemorySize(), is(jvmHeapMemory));
+		JobManagerProcessUtils.processSpecFromConfig(conf);
+		MemorySize jobStoreCacheSize =
+			MemorySize.parse(conf.getLong(JobManagerOptions.JOB_STORE_CACHE_SIZE) + "b");
 		MatcherAssert.assertThat(
 			testLoggerResource.getMessages(),
-			hasItem(containsString("The configured or derived JVM heap memory size (jobmanager.memory.heap.size: 150.000mb (157286400 bytes)) is less than the configured or default size " +
-				"of the job store cache (jobstore.cache-size: 200.000mb (209715200 bytes))")));
+			hasItem(containsString(String.format("The configured or derived JVM heap memory size (%s: %s) is less than the configured or default size " +
+				"of the job store cache (%s: %s)",
+				JobManagerOptions.JVM_HEAP_MEMORY.key(),
+				jvmHeapMemory.toHumanReadableString(),
+				JobManagerOptions.JOB_STORE_CACHE_SIZE.key(),
+				jobStoreCacheSize.toHumanReadableString()))));
 	}
 
 	@Test
