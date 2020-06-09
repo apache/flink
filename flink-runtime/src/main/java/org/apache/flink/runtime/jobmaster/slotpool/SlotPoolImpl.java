@@ -356,7 +356,7 @@ public class SlotPoolImpl implements SlotPool {
 	}
 
 	private void slotRequestToResourceManagerFailed(SlotRequestId slotRequestID, Throwable failure) {
-		final PendingRequest request = pendingRequests.getKeyA(slotRequestID);
+		final PendingRequest request = pendingRequests.getValueByKeyA(slotRequestID);
 		if (request != null) {
 			if (isBatchRequestAndFailureCanBeIgnored(request, failure)) {
 				log.debug("Ignoring failed request to the resource manager for a batch slot request.");
@@ -694,7 +694,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		final PendingRequest pendingRequest = pendingRequests.getKeyB(allocationID);
+		final PendingRequest pendingRequest = pendingRequests.getValueByKeyB(allocationID);
 		if (pendingRequest != null) {
 			if (isBatchRequestAndFailureCanBeIgnored(pendingRequest, cause)) {
 				log.debug("Ignoring allocation failure for batch slot request {}.", pendingRequest.getSlotRequestId());
@@ -1050,11 +1050,11 @@ public class SlotPoolImpl implements SlotPool {
 		 * @return The allocated slot, null if we can't find a match
 		 */
 		AllocatedSlot get(final AllocationID allocationID) {
-			return allocatedSlotsById.getKeyA(allocationID);
+			return allocatedSlotsById.getValueByKeyA(allocationID);
 		}
 
 		AllocatedSlot get(final SlotRequestId slotRequestId) {
-			return allocatedSlotsById.getKeyB(slotRequestId);
+			return allocatedSlotsById.getValueByKeyB(slotRequestId);
 		}
 
 		/**
