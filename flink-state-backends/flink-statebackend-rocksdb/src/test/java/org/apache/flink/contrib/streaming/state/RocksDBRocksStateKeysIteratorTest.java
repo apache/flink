@@ -65,7 +65,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 	@Parameterized.Parameters(name = "User misuse optimizeForPointLookup = {0}")
 	public static List<Boolean> parameters() {
-		return Arrays.asList(true, false);
+		return Arrays.asList(false, true);
 	}
 
 	@Rule
@@ -73,7 +73,6 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 	@Test
 	public void testIterator() throws Exception{
-
 		// test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
 		testIteratorHelper(IntSerializer.INSTANCE, StringSerializer.INSTANCE, 128, i -> i);
 
@@ -110,7 +109,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 				@Override
 				public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-					return currentOptions.optimizeForPointLookup(40960);
+					return currentOptions.optimizeForPointLookup(64);
 				}
 			});
 		}

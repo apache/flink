@@ -45,14 +45,14 @@ public class RocksDBNativeMetricMonitorTest {
 	private static final String COLUMN_FAMILY_NAME = "column-family";
 
 	@Rule
-	public RocksDBResource rocksDBResource = new RocksDBResource();
+	public RocksDBResource rocksDBResource = new RocksDBResource(false);
 
 	@Test
 	public void testMetricMonitorLifecycle() throws Throwable {
 		//We use a local variable here to manually control the life-cycle.
 		// This allows us to verify that metrics do not try to access
 		// RocksDB after the monitor was closed.
-		RocksDBResource localRocksDBResource = new RocksDBResource();
+		RocksDBResource localRocksDBResource = new RocksDBResource(false);
 		localRocksDBResource.before();
 
 		SimpleMetricRegistry registry = new SimpleMetricRegistry();
@@ -100,7 +100,7 @@ public class RocksDBNativeMetricMonitorTest {
 
 	@Test
 	public void testReturnsUnsigned() throws Throwable {
-		RocksDBResource localRocksDBResource = new RocksDBResource();
+		RocksDBResource localRocksDBResource = new RocksDBResource(false);
 		localRocksDBResource.before();
 
 		SimpleMetricRegistry registry = new SimpleMetricRegistry();

@@ -141,7 +141,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 	}
 
 	/**
-	 * Gets the RocksDB {@link WriteOptions} to be used for RocksDB instances.
+	 * Gets the RocksDB {@link WriteOptions} to be used for write operations.
 	 */
 	public WriteOptions getWriteOptions() {
 		// initial options from pre-defined profile
@@ -157,7 +157,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 	}
 
 	/**
-	 * Gets the RocksDB {@link ReadOptions} to be used for RocksDB instances.
+	 * Gets the RocksDB {@link ReadOptions} to be used for read operations.
 	 */
 	public ReadOptions getReadOptions() {
 		// initial options from pre-defined profile

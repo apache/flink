@@ -258,7 +258,7 @@ public enum PredefinedOptions {
 	/**
 	 * Creates the {@link WriteOptions} for this pre-defined setting.
 	 *
-	 * @return The pre-defined options object.
+	 * @return The pre-defined write options.
 	 */
 	public WriteOptions createWriteOptions() {
 		return new WriteOptions().setDisableWAL(true);
@@ -268,7 +268,7 @@ public enum PredefinedOptions {
 	 * Creates the {@link ReadOptions} for this pre-defined setting.
 	 * We ensure total order seek in case user misuse, see FLINK-17800 for more details.
 	 *
-	 * @return The pre-defined options object.
+	 * @return The pre-defined read options.
 	 */
 	public ReadOptions createReadOptions() {
 		return RocksDBOperationUtils.createTotalOrderSeekReadOptions();

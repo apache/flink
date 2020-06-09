@@ -25,14 +25,28 @@ import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 
 import org.junit.Rule;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link RocksDBCachingPriorityQueueSet}.
  */
+@RunWith(Parameterized.class)
 public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends InternalPriorityQueueTestBase {
 
+	@Parameterized.Parameter
+	public boolean userMisUseOptimizePointLookUp;
+
+	@Parameterized.Parameters(name = "userMisUseOptimizePointLookUp: {0}")
+	public static Collection<Boolean> data() {
+		return Arrays.asList(false, true);
+	}
+
 	@Rule
-	public final RocksDBResource rocksDBResource = new RocksDBResource();
+	public final RocksDBResource rocksDBResource = new RocksDBResource(userMisUseOptimizePointLookUp);
 
 	@Override
 	protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
