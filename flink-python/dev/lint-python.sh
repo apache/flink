@@ -28,10 +28,10 @@ function download() {
     local DOWNLOAD_STATUS=
     if hash "wget" 2>/dev/null; then
         # because of the difference of all versions of wget, so we turn of the option --show-progress
-        wget "$1" -O "$2" -q
+        wget "$1" -O "$2" -q -T20 -t3
         DOWNLOAD_STATUS="$?"
     else
-        curl "$1" -o "$2" --progress-bar
+        curl "$1" -o "$2" --progress-bar --connect-timeout 20 --retry 3
         DOWNLOAD_STATUS="$?"
     fi
     if [ $DOWNLOAD_STATUS -ne 0 ]; then
