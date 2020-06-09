@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
@@ -81,16 +80,22 @@ class ElasticsearchConfiguration {
 		return config.get(ElasticsearchOptions.DOCUMENT_TYPE_OPTION);
 	}
 
-	public Optional<Integer> getBulkFlushMaxActions() {
-		return config.getOptional(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION);
+	public int getBulkFlushMaxActions() {
+		int maxActions = config.get(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION);
+		// convert 0 to -1, because Elasticsearch client use -1 to disable this configuration.
+		return maxActions == 0 ? -1 : maxActions;
 	}
 
-	public Optional<Integer> getBulkFlushMaxSize() {
-		return config.getOptional(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION).map(MemorySize::getMebiBytes);
+	public long getBulkFlushMaxByteSize() {
+		long maxSize = config.get(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION).getBytes();
+		// convert 0 to -1, because Elasticsearch client use -1 to disable this configuration.
+		return maxSize == 0 ? -1 : maxSize;
 	}
 
-	public Optional<Long> getBulkFlushInterval() {
-		return config.getOptional(BULK_FLUSH_INTERVAL_OPTION).map(Duration::toMillis);
+	public long getBulkFlushInterval() {
+		long interval = config.get(BULK_FLUSH_INTERVAL_OPTION).toMillis();
+		// convert 0 to -1, because Elasticsearch client use -1 to disable this configuration.
+		return interval == 0 ? -1 : interval;
 	}
 
 	public boolean isBulkFlushBackoffEnabled() {

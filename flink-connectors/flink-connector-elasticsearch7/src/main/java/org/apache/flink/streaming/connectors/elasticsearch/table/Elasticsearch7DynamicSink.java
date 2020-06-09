@@ -128,9 +128,9 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 				upsertFunction);
 
 			builder.setFailureHandler(config.getFailureHandler());
-			config.getBulkFlushMaxActions().ifPresent(builder::setBulkFlushMaxActions);
-			config.getBulkFlushMaxSize().ifPresent(builder::setBulkFlushMaxSizeMb);
-			config.getBulkFlushInterval().ifPresent(builder::setBulkFlushInterval);
+			builder.setBulkFlushMaxActions(config.getBulkFlushMaxActions());
+			builder.setBulkFlushMaxSizeMb((int) (config.getBulkFlushMaxByteSize() >> 20));
+			builder.setBulkFlushInterval(config.getBulkFlushInterval());
 			builder.setBulkFlushBackoff(config.isBulkFlushBackoffEnabled());
 			config.getBulkFlushBackoffType().ifPresent(builder::setBulkFlushBackoffType);
 			config.getBulkFlushBackoffRetries().ifPresent(builder::setBulkFlushBackoffRetries);
