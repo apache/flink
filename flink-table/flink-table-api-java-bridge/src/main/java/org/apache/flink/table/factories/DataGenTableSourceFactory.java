@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigOptions.OptionBuilder;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
@@ -173,13 +174,17 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 	}
 
 	private DataGenerator createSequenceGenerator(String name, DataType type, ReadableConfig options) {
-		OptionBuilder startKey = key(FIELDS + "." + name + "." + START);
-		OptionBuilder endKey = key(FIELDS + "." + name + "." + END);
+		String startKeyStr = FIELDS + "." + name + "." + START;
+		String endKeyStr = FIELDS + "." + name + "." + END;
+		OptionBuilder startKey = key(startKeyStr);
+		OptionBuilder endKey = key(endKeyStr);
 
 		options.getOptional(startKey.stringType().noDefaultValue()).orElseThrow(
-				() -> new ValidationException("Could not find required property '" + startKey + "'."));
+				() -> new ValidationException(
+						"Could not find required property '" + startKeyStr + "' for sequence generator."));
 		options.getOptional(endKey.stringType().noDefaultValue()).orElseThrow(
-				() -> new ValidationException("Could not find required property '" + endKey + "'."));
+				() -> new ValidationException(
+						"Could not find required property '" + endKeyStr + "' for sequence generator."));
 
 		switch (type.getLogicalType().getTypeRoot()) {
 			case CHAR:
@@ -288,6 +293,13 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 				RuntimeContext runtimeContext) throws Exception {
 			for (int i = 0; i < fieldGenerators.length; i++) {
 				fieldGenerators[i].open(fieldNames[i], context, runtimeContext);
+			}
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			for (DataGenerator generator : fieldGenerators) {
+				generator.snapshotState(context);
 			}
 		}
 

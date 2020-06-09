@@ -79,7 +79,7 @@ public class StatefulSequenceSourceTest {
 			@Override
 			public void run() {
 				try {
-					source1.run(new BlockingSourceContext("1", latchToTrigger1, latchToWait1, outputCollector, 21));
+					source1.run(new BlockingSourceContext<>("1", latchToTrigger1, latchToWait1, outputCollector, 21));
 				}
 				catch (Throwable t) {
 					t.printStackTrace();
@@ -93,7 +93,7 @@ public class StatefulSequenceSourceTest {
 			@Override
 			public void run() {
 				try {
-					source2.run(new BlockingSourceContext("2", latchToTrigger2, latchToWait2, outputCollector, 32));
+					source2.run(new BlockingSourceContext<>("2", latchToTrigger2, latchToWait2, outputCollector, 32));
 				}
 				catch (Throwable t) {
 					t.printStackTrace();
@@ -139,7 +139,7 @@ public class StatefulSequenceSourceTest {
 			@Override
 			public void run() {
 				try {
-					source3.run(new BlockingSourceContext("3", latchToTrigger3, latchToWait3, outputCollector, 3));
+					source3.run(new BlockingSourceContext<>("3", latchToTrigger3, latchToWait3, outputCollector, 3));
 				}
 				catch (Throwable t) {
 					t.printStackTrace();
@@ -186,22 +186,22 @@ public class StatefulSequenceSourceTest {
 	/**
 	 * Test SourceContext.
 	 */
-	public static class BlockingSourceContext implements SourceFunction.SourceContext<Long> {
+	public static class BlockingSourceContext<T> implements SourceFunction.SourceContext<T> {
 
 		private final String name;
 
 		private final Object lock;
 		private final OneShotLatch latchToTrigger;
 		private final OneShotLatch latchToWait;
-		private final ConcurrentHashMap<String, List<Long>> collector;
+		private final ConcurrentHashMap<String, List<T>> collector;
 
 		private final int threshold;
 		private int counter = 0;
 
-		private final List<Long> localOutput;
+		private final List<T> localOutput;
 
 		public BlockingSourceContext(String name, OneShotLatch latchToTrigger, OneShotLatch latchToWait,
-									ConcurrentHashMap<String, List<Long>> output, int elemToFire) {
+									ConcurrentHashMap<String, List<T>> output, int elemToFire) {
 			this.name = name;
 			this.lock = new Object();
 			this.latchToTrigger = latchToTrigger;
@@ -210,19 +210,19 @@ public class StatefulSequenceSourceTest {
 			this.threshold = elemToFire;
 
 			this.localOutput = new ArrayList<>();
-			List<Long> prev = collector.put(name, localOutput);
+			List<T> prev = collector.put(name, localOutput);
 			if (prev != null) {
 				Assert.fail();
 			}
 		}
 
 		@Override
-		public void collectWithTimestamp(Long element, long timestamp) {
+		public void collectWithTimestamp(T element, long timestamp) {
 			collect(element);
 		}
 
 		@Override
-		public void collect(Long element) {
+		public void collect(T element) {
 			localOutput.add(element);
 			if (++counter == threshold) {
 				latchToTrigger.trigger();

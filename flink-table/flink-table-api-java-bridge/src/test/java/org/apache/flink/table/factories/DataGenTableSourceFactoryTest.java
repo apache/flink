@@ -21,14 +21,17 @@ package org.apache.flink.table.factories;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
+import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DataGenTableSourceFactory.DataGenTableSource;
@@ -37,8 +40,12 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
@@ -80,12 +87,8 @@ public class DataGenTableSourceFactoryTest {
 		descriptor.putLong(FIELDS + ".f2." + START, 50);
 		descriptor.putLong(FIELDS + ".f2." + END, 60);
 
-		DynamicTableSource source = FactoryUtil.createTableSource(
-				null,
-				ObjectIdentifier.of("", "", ""),
-				new CatalogTableImpl(TEST_SCHEMA, descriptor.asMap(), ""),
-				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+		DynamicTableSource source = createSource(
+				TEST_SCHEMA, descriptor.asMap());
 
 		assertTrue(source instanceof DataGenTableSource);
 
@@ -141,5 +144,87 @@ public class DataGenTableSourceFactoryTest {
 			Assert.assertTrue(f1 >= 10 && f1 <= 100);
 			Assert.assertEquals(i + 50, row.getLong(2));
 		}
+	}
+
+	@Test
+	public void testSequenceCheckpointRestore() throws Exception {
+		DescriptorProperties descriptor = new DescriptorProperties();
+		descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+		descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+		descriptor.putLong(FIELDS + ".f0." + START, 0);
+		descriptor.putLong(FIELDS + ".f0." + END, 100);
+
+		DynamicTableSource dynamicTableSource = createSource(
+				TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+				descriptor.asMap());
+
+		DataGenTableSource dataGenTableSource = (DataGenTableSource) dynamicTableSource;
+		DataGeneratorSource<RowData> source = dataGenTableSource.createSource();
+
+		final int initElement = 0;
+		final int maxElement = 100;
+		final Set<RowData> expectedOutput = new HashSet<>();
+		for (long i = initElement; i <= maxElement; i++) {
+			expectedOutput.add(GenericRowData.of(i));
+		}
+		DataGeneratorSourceTest.innerTestDataGenCheckpointRestore(
+				() -> {
+					try {
+						return InstantiationUtil.clone(source);
+					} catch (IOException | ClassNotFoundException e) {
+						throw new RuntimeException(e);
+					}
+				}, expectedOutput);
+	}
+
+	@Test
+	public void testLackStartForSequence() {
+		try {
+			DescriptorProperties descriptor = new DescriptorProperties();
+			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+			descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+			descriptor.putLong(FIELDS + ".f0." + END, 100);
+
+			createSource(
+					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+					descriptor.asMap());
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage().contains(
+					"Could not find required property 'fields.f0.start' for sequence generator."));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
+	}
+
+	@Test
+	public void testLackEndForSequence() {
+		try {
+			DescriptorProperties descriptor = new DescriptorProperties();
+			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+			descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+			descriptor.putLong(FIELDS + ".f0." + START, 0);
+
+			createSource(
+					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+					descriptor.asMap());
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage().contains(
+					"Could not find required property 'fields.f0.end' for sequence generator."));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
+	}
+
+	private static DynamicTableSource createSource(TableSchema schema, Map<String, String> options) {
+		return FactoryUtil.createTableSource(
+				null,
+				ObjectIdentifier.of("", "", ""),
+				new CatalogTableImpl(schema, options, ""),
+				new Configuration(),
+				Thread.currentThread().getContextClassLoader());
 	}
 }
