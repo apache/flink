@@ -1138,7 +1138,7 @@ public class DataFormatConverters {
 				}
 			}
 			reuseWriter.complete();
-			return reuseArray;
+			return reuseArray.copy();
 		}
 
 		@Override
