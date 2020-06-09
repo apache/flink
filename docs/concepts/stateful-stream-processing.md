@@ -61,12 +61,6 @@ provides different state backends that specify how and where state is stored.
 
 {% top %}
 
-## State in Stream & Batch Processing
-
-`TODO: What is this section about? Do we even need it?`
-
-{% top %}
-
 ## Keyed State
 
 Keyed state is maintained in what can be thought of as an embedded key/value
@@ -250,8 +244,6 @@ See [Restart Strategies]({% link dev/task_failure_recovery.md
 
 ### State Backends
 
-`TODO: expand this section`
-
 The exact data structures in which the key/values indexes are stored depends on
 the chosen [state backend]({% link
 ops/state/state_backends.md %}). One state backend stores data in an in-memory
@@ -267,8 +259,6 @@ logic.
 {% top %}
 
 ### Savepoints
-
-`TODO: expand this section`
 
 All programs that use checkpointing can resume execution from a **savepoint**.
 Savepoints allow both updating your programs and your Flink cluster without
@@ -309,10 +299,6 @@ parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually
 give *exactly once* guarantees even in *at least once* mode.
 
 {% top %}
-
-## End-to-end Exactly-Once Programs
-
-`TODO: add`
 
 ## State and Fault Tolerance in Batch Programs
 
