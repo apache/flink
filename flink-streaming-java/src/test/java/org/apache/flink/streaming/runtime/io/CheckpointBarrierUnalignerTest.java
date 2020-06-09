@@ -524,7 +524,7 @@ public class CheckpointBarrierUnalignerTest {
 	public void testProcessCancellationBarrierAfterNotifyBarrierReceived() throws Exception {
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(
-			new int[] { 1 }, ChannelStateWriter.NO_OP, "test", invokable);
+			new int[] { 1 }, TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable);
 
 		ThreadSafeUnaligner unaligner = handler.getThreadSafeUnaligner();
 		// should trigger respective checkpoint
@@ -547,7 +547,7 @@ public class CheckpointBarrierUnalignerTest {
 	public void testProcessCancellationBarrierAfterProcessBarrier() throws Exception {
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(
-			new int[] { 1 }, ChannelStateWriter.NO_OP, "test", invokable);
+			new int[] { 1 }, TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable);
 
 		// should trigger respective checkpoint
 		handler.processBarrier(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), 0);
@@ -564,7 +564,7 @@ public class CheckpointBarrierUnalignerTest {
 	public void testProcessCancellationBarrierBeforeProcessAndReceiveBarrier() throws Exception {
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(
-			new int[] { 1 }, ChannelStateWriter.NO_OP, "test", invokable);
+			new int[] { 1 }, TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable);
 
 		handler.processCancellationBarrier(new CancelCheckpointMarker(DEFAULT_CHECKPOINT_ID));
 
@@ -609,7 +609,7 @@ public class CheckpointBarrierUnalignerTest {
 		final int numberOfChannels = 2;
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(
-			new int[] { numberOfChannels }, ChannelStateWriter.NO_OP, "test", invokable);
+			new int[] { numberOfChannels }, TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable);
 
 		ThreadSafeUnaligner unaligner = handler.getThreadSafeUnaligner();
 		// should trigger respective checkpoint
