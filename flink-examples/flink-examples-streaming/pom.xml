@@ -94,7 +94,8 @@ under the License.
         </dependency>
 
 		<!-- Dependencies for MatrixVectorMul. We exclude native libraries
-		because it is not available in all the operating systems and architectures -->
+		because it is not available in all the operating systems and architectures. Moreover,
+		we also want to enable users to compile and run MatrixVectorMul in different runtime environments.-->
 		<dependency>
 			<groupId>org.jcuda</groupId>
 			<artifactId>jcuda</artifactId>
@@ -396,6 +397,42 @@ under the License.
 				</executions>
 			</plugin>
 
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>MatrixVectorMul</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>MatrixVectorMul</finalName>
+							<artifactSet>
+								<includes>
+									<include>org.jcuda:*</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/gpu/MatrixVectorMul.class</include>
+										<include>org/apache/flink/streaming/examples/gpu/MatrixVectorMul$*.class</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.gpu.MatrixVectorMul</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 
 			<!-- Scala Compiler -->
 			<plugin>

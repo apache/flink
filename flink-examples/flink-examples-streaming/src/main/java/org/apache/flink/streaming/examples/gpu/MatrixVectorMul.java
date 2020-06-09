@@ -58,7 +58,12 @@ import java.util.UUID;
  * <li>accelerate complex calculation with GPU resources.
  * </ul>
  *
- * <p>Notice that you need to add jcuda natives libraries by executing example/streaming/add-jcuda-dependency.sh in your Flink distribution.
+ * <p>Notice that you need to add JCuda natives libraries in your Flink distribution by the following steps:
+ * <ul>
+ * <li>download the JCuda native libraries bundle for your CUDA version from http://www.jcuda.org/downloads/
+ * <li>copy the native libraries jcuda-natives and jcublas-natives for your CUDA version, operating system and architecture
+ * to the "lib/" folder of your Flink distribution
+ * </ul>
  */
 public class MatrixVectorMul {
 
@@ -156,6 +161,7 @@ public class MatrixVectorMul {
 		public void open(Configuration parameters) {
 			// When multiple instances of this class and JCuda exist in different class loaders, then we will get UnsatisfiedLinkError.
 			// To avoid that, we need to temporarily override the java.io.tmpdir, where the JCuda store its native library, with a random path.
+			// For more details please refer to https://issues.apache.org/jira/browse/FLINK-5408 and the discussion in http://apache-flink-user-mailing-list-archive.2336050.n4.nabble.com/Classloader-and-removal-of-native-libraries-td14808.html
 			final String originTempDir = System.getProperty("java.io.tmpdir");
 			final String newTempDir = originTempDir + "/jcuda-" + UUID.randomUUID();
 			System.setProperty("java.io.tmpdir", newTempDir);
