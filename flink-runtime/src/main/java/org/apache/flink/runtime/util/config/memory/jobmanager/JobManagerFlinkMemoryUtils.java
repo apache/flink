@@ -40,23 +40,61 @@ public class JobManagerFlinkMemoryUtils implements FlinkMemoryUtils<JobManagerFl
 	public JobManagerFlinkMemory deriveFromRequiredFineGrainedOptions(Configuration config) {
 		MemorySize jvmHeapMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.JVM_HEAP_MEMORY);
 		MemorySize offHeapMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.OFF_HEAP_MEMORY);
-		MemorySize derivedTotalFlinkMemorySize = jvmHeapMemorySize.add(offHeapMemorySize);
 
 		if (config.contains(JobManagerOptions.TOTAL_FLINK_MEMORY)) {
 			// derive network memory from total flink memory, and check against network min/max
 			MemorySize totalFlinkMemorySize = ProcessMemoryUtils.getMemorySizeFromConfig(config, JobManagerOptions.TOTAL_FLINK_MEMORY);
-			if (derivedTotalFlinkMemorySize.getBytes() != totalFlinkMemorySize.getBytes()) {
-				throw new IllegalConfigurationException(String.format(
-					"Sum of the configured JVM Heap Memory (%s) and the configured or default Off-heap Memory (%s) " +
-						"exceeds the configured Total Flink Memory (%s). Please, make the configuration consistent " +
-						"or configure only one option: either JVM Heap or Total Flink Memory.",
-					jvmHeapMemorySize.toHumanReadableString(),
-					offHeapMemorySize.toHumanReadableString(),
-					totalFlinkMemorySize.toHumanReadableString()));
+			if (config.contains(JobManagerOptions.OFF_HEAP_MEMORY)) {
+				// off-heap memory is explicitly set by user
+				sanityCheckTotalFlinkMemory(totalFlinkMemorySize, jvmHeapMemorySize, totalFlinkMemorySize);
+			} else {
+				// off-heap memory is not explicitly set by user, derive it from Total Flink Memory and JVM Heap
+				offHeapMemorySize = deriveOffHeapMemory(jvmHeapMemorySize, totalFlinkMemorySize, offHeapMemorySize);
 			}
 		}
 
 		return createJobManagerFlinkMemory(config, jvmHeapMemorySize, offHeapMemorySize);
+	}
+
+	private static void sanityCheckTotalFlinkMemory(
+			MemorySize totalFlinkMemorySize,
+			MemorySize jvmHeapMemorySize,
+			MemorySize offHeapMemorySize) {
+		MemorySize derivedTotalFlinkMemorySize = jvmHeapMemorySize.add(offHeapMemorySize);
+		if (derivedTotalFlinkMemorySize.getBytes() != totalFlinkMemorySize.getBytes()) {
+			throw new IllegalConfigurationException(String.format(
+				"Sum of the configured JVM Heap Memory (%s) and the configured Off-heap Memory (%s) " +
+					"does not match the configured Total Flink Memory (%s). Please, make the configuration consistent " +
+					"or configure only one option: either JVM Heap or Total Flink Memory.",
+				jvmHeapMemorySize.toHumanReadableString(),
+				offHeapMemorySize.toHumanReadableString(),
+				totalFlinkMemorySize.toHumanReadableString()));
+		}
+	}
+
+	private static MemorySize deriveOffHeapMemory(
+			MemorySize jvmHeapMemorySize,
+			MemorySize totalFlinkMemorySize,
+			MemorySize defaultOffHeapMemorySize) {
+		if (totalFlinkMemorySize.getBytes() < jvmHeapMemorySize.getBytes()) {
+			throw new IllegalConfigurationException(String.format(
+				"The configured JVM Heap Memory (%s) exceeds the configured Total Flink Memory (%s). " +
+					"Please, make the configuration consistent or configure only one option: either JVM Heap " +
+					"or Total Flink Memory.",
+				jvmHeapMemorySize.toHumanReadableString(),
+				totalFlinkMemorySize.toHumanReadableString()));
+		}
+		MemorySize offHeapMemorySize = totalFlinkMemorySize.subtract(jvmHeapMemorySize);
+		if (offHeapMemorySize.getBytes() != defaultOffHeapMemorySize.getBytes()) {
+			LOG.info(
+				"The Off-Heap Memory size ({}) is derived the configured Total Flink Memory size ({}) minus " +
+					"the configured JVM Heap Memory size ({}). The default Off-Heap Memory size ({}) is ignored.",
+				offHeapMemorySize.toHumanReadableString(),
+				totalFlinkMemorySize.toHumanReadableString(),
+				jvmHeapMemorySize.toHumanReadableString(),
+				defaultOffHeapMemorySize.toHumanReadableString());
+		}
+		return offHeapMemorySize;
 	}
 
 	@Override
