@@ -32,10 +32,8 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -63,7 +61,9 @@ public class SqlCommandParserTest {
 				// desc xx
 				TestItem.validSql("DESC MyTable", SqlCommand.DESC, "MyTable").cannotParseComment(),
 				TestItem.validSql("DESC         MyTable     ", SqlCommand.DESC, "MyTable").cannotParseComment(),
-				TestItem.invalidSql("DESC "), // no table name
+				TestItem.invalidSql("DESC ", // no table name
+						SqlExecutionException.class,
+						"Non-query expression encountered in illegal context"),
 				// describe xx
 				TestItem.validSql("DESCRIBE MyTable",
 						SqlCommand.DESCRIBE,
@@ -71,12 +71,19 @@ public class SqlCommandParserTest {
 				TestItem.validSql("DESCRIBE         MyTable     ",
 						SqlCommand.DESCRIBE,
 						"`default_catalog`.`default_database`.`MyTable`"),
-				TestItem.invalidSql("DESCRIBE "), // no table name
+				TestItem.invalidSql("DESCRIBE ", // no table name
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\" "),
 				// explain xx
 				TestItem.validSql("EXPLAIN SELECT a FROM MyTable",
 						SqlCommand.EXPLAIN,
 						"EXPLAIN PLAN FOR SELECT a FROM MyTable").cannotParseComment(),
-				TestItem.invalidSql("EXPLAIN "), // no query
+				TestItem.validSql("EXPLAIN INSERT INTO MySink(a) SELECT a FROM MyTable",
+						SqlCommand.EXPLAIN,
+						"EXPLAIN PLAN FOR INSERT INTO MySink(a) SELECT a FROM MyTable").cannotParseComment(),
+				TestItem.invalidSql("EXPLAIN ", // no query
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
 				// explain plan for xx
 				TestItem.validSql("EXPLAIN PLAN FOR SELECT a FROM MyTable",
 						SqlCommand.EXPLAIN,
@@ -87,7 +94,7 @@ public class SqlCommandParserTest {
 				TestItem.validSql("EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable",
 						SqlCommand.EXPLAIN,
 						"EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable"),
-				TestItem.sqlWithException("EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT xxx FROM MyTable",
+				TestItem.invalidSql("EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT xxx FROM MyTable",
 						SqlExecutionException.class,
 						"Column 'xxx' not found in any table"),
 				// select xx
@@ -110,12 +117,16 @@ public class SqlCommandParserTest {
 						SqlCommand.CREATE_VIEW,
 						"`default_catalog`.`default_database`.`x`",
 						"SELECT 1 + 1\nFROM `default_catalog`.`default_database`.`MyTable` AS `MyTable`"),
-				TestItem.invalidSql("CREATE VIEW x SELECT 1+1 "), // missing AS
+				TestItem.invalidSql("CREATE VIEW x SELECT 1+1 ", // missing AS
+						SqlExecutionException.class,
+						"Encountered \"SELECT\""),
 				// drop view xx
 				TestItem.validSql("DROP VIEW TestView1",
 						SqlCommand.DROP_VIEW,
 						"`default_catalog`.`default_database`.`TestView1`"),
-				TestItem.invalidSql("DROP VIEW "), // missing name
+				TestItem.invalidSql("DROP VIEW ", // missing name
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
 				// set
 				TestItem.validSql("SET", SqlCommand.SET).cannotParseComment(),
 				TestItem.validSql("SET x=y", SqlCommand.SET, "x", "y").cannotParseComment(),
@@ -136,7 +147,9 @@ public class SqlCommandParserTest {
 				// use xx
 				TestItem.validSql("USE CATALOG catalog1;", SqlCommand.USE_CATALOG, "catalog1"),
 				TestItem.validSql("use `default`;", SqlCommand.USE, "default"),
-				TestItem.invalidSql("use catalog "), // no catalog name
+				TestItem.invalidSql("use catalog ", // no catalog name
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
 				// create database xx
 				TestItem.validSql("create database db1;", SqlCommand.CREATE_DATABASE, "create database db1"),
 				// drop database xx
@@ -152,8 +165,12 @@ public class SqlCommandParserTest {
 						SqlCommand.ALTER_TABLE,
 						"alter table MyTable set ('k1'='v1', 'k2'='v2')"),
 				// create table xx
-				TestItem.invalidSql("CREATE tables"),
-				TestItem.invalidSql("CREATE    tables"),
+				TestItem.invalidSql("CREATE table",
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
+				TestItem.invalidSql("CREATE    tables",
+						SqlExecutionException.class,
+						"Encountered \"tables\""),
 				TestItem.validSql("create Table hello", SqlCommand.CREATE_TABLE, "create Table hello"),
 				TestItem.validSql("create Table hello(a int)", SqlCommand.CREATE_TABLE, "create Table hello(a int)"),
 				TestItem.validSql("CREATE TABLE T(\n"
@@ -174,8 +191,12 @@ public class SqlCommandParserTest {
 								+ "  'k1' = 'v1',\n"
 								+ "  'k2' = 'v2')"),
 				// drop table xx
-				TestItem.invalidSql("DROP table"),
-				TestItem.invalidSql("DROP   tables"),
+				TestItem.invalidSql("DROP table",
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
+				TestItem.invalidSql("DROP   tables",
+						SqlExecutionException.class,
+						"Encountered \"tables\""),
 				TestItem.validSql("DROP TABLE t1", SqlCommand.DROP_TABLE, "DROP TABLE t1"),
 				TestItem.validSql("DROP TABLE IF EXISTS t1", SqlCommand.DROP_TABLE, "DROP TABLE IF EXISTS t1"),
 				TestItem.validSql("DROP TABLE IF EXISTS catalog1.db1.t1", SqlCommand.DROP_TABLE,
@@ -197,9 +218,15 @@ public class SqlCommandParserTest {
 				TestItem.validSql("SHOW MODULES", SqlCommand.SHOW_MODULES).cannotParseComment(),
 				TestItem.validSql("  SHOW    MODULES   ", SqlCommand.SHOW_MODULES).cannotParseComment(),
 				// Test create function.
-				TestItem.invalidSql("CREATE FUNCTION "),
-				TestItem.invalidSql("CREATE FUNCTIONS "),
-				TestItem.invalidSql("CREATE    FUNCTIONS "),
+				TestItem.invalidSql("CREATE FUNCTION ",
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
+				TestItem.invalidSql("CREATE FUNCTIONS ",
+						SqlExecutionException.class,
+						"Encountered \"FUNCTIONS\""),
+				TestItem.invalidSql("CREATE    FUNCTIONS ",
+						SqlExecutionException.class,
+						"Encountered \"FUNCTIONS\""),
 				TestItem.validSql("CREATE FUNCTION catalog1.db1.func1 as 'class_name'",
 						SqlCommand.CREATE_FUNCTION,
 						"CREATE FUNCTION catalog1.db1.func1 as 'class_name'"),
@@ -210,9 +237,15 @@ public class SqlCommandParserTest {
 						SqlCommand.CREATE_FUNCTION,
 						"CREATE TEMPORARY SYSTEM FUNCTION func1 as 'class_name' LANGUAGE JAVA"),
 				// drop function xx
-				TestItem.invalidSql("DROP FUNCTION "),
-				TestItem.invalidSql("DROP FUNCTIONS "),
-				TestItem.invalidSql("DROP    FUNCTIONS "),
+				TestItem.invalidSql("DROP FUNCTION ",
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
+				TestItem.invalidSql("DROP FUNCTIONS ",
+						SqlExecutionException.class,
+						"Encountered \"FUNCTIONS\""),
+				TestItem.invalidSql("DROP    FUNCTIONS ",
+						SqlExecutionException.class,
+						"Encountered \"FUNCTIONS\""),
 				TestItem.validSql("DROP FUNCTION catalog1.db1.func1",
 						SqlCommand.DROP_FUNCTION,
 						"DROP FUNCTION catalog1.db1.func1"),
@@ -223,9 +256,15 @@ public class SqlCommandParserTest {
 						SqlCommand.DROP_FUNCTION,
 						"DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1"),
 				// alter function xx
-				TestItem.invalidSql("ALTER FUNCTION "),
-				TestItem.invalidSql("ALTER FUNCTIONS "),
-				TestItem.invalidSql("ALTER    FUNCTIONS "),
+				TestItem.invalidSql("ALTER FUNCTION ",
+						SqlExecutionException.class,
+						"Encountered \"<EOF>\""),
+				TestItem.invalidSql("ALTER FUNCTIONS ",
+						SqlExecutionException.class,
+						"Encountered \"FUNCTIONS\""),
+				TestItem.invalidSql("ALTER    FUNCTIONS ",
+						SqlExecutionException.class,
+						"Encountered \"FUNCTIONS\""),
 				TestItem.validSql("ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'",
 						SqlCommand.ALTER_FUNCTION,
 						"ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'"),
@@ -235,7 +274,7 @@ public class SqlCommandParserTest {
 				TestItem.validSql("ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
 						SqlCommand.ALTER_FUNCTION,
 						"ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'"),
-				TestItem.sqlWithException(
+				TestItem.invalidSql(
 						"ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
 						SqlExecutionException.class,
 						"Alter temporary system function is not supported")
@@ -246,50 +285,29 @@ public class SqlCommandParserTest {
 	}
 
 	private void runTestItem(TestItem item) {
-		if (item.isValidSqlCmd) {
-			runValidSql(item);
-		} else {
-			runInvalidSql(item);
-		}
-	}
-
-	private void runValidSql(TestItem item) {
-		Tuple2<Boolean, Optional<SqlCommandCall>> checkFlagAndActualCall = parseSqlAndCheckException(item);
+		Tuple2<Boolean, SqlCommandCall> checkFlagAndActualCall = parseSqlAndCheckException(item);
 		if (!checkFlagAndActualCall.f0) {
 			return;
 		}
-		Optional<SqlCommandCall> actualCall = checkFlagAndActualCall.f1;
-		if (!actualCall.isPresent()) {
-			fail("test statement: " + item.sql);
-		}
+		SqlCommandCall actualCall = checkFlagAndActualCall.f1;
 		assertNotNull(item.expectedCmd);
 		assertEquals("test statement: " + item.sql,
-				new SqlCommandCall(item.expectedCmd, item.expectedOperands), actualCall.get());
+				new SqlCommandCall(item.expectedCmd, item.expectedOperands), actualCall);
 
 		String stmtWithComment = "-- comments \n " + item.sql;
-		actualCall = SqlCommandParser.parse(parser, stmtWithComment);
-		if (item.cannotParseComment) {
-			assertFalse(actualCall.isPresent());
-		} else {
-			if (!actualCall.isPresent()) {
+		try {
+			actualCall = SqlCommandParser.parse(parser, stmtWithComment);
+		} catch (SqlExecutionException e) {
+			if (!item.cannotParseComment) {
 				fail("test statement: " + item.sql);
 			}
-			assertEquals(item.expectedCmd, actualCall.get().command);
-		}
-	}
-
-	public void runInvalidSql(TestItem item) {
-		Tuple2<Boolean, Optional<SqlCommandCall>> checkFlagAndActualCall = parseSqlAndCheckException(item);
-		if (!checkFlagAndActualCall.f0) {
 			return;
 		}
-		if (checkFlagAndActualCall.f1.isPresent()) {
-			fail("test statement: " + item.sql);
-		}
+		assertEquals(item.expectedCmd, actualCall.command);
 	}
 
-	private Tuple2<Boolean, Optional<SqlCommandCall>> parseSqlAndCheckException(TestItem item) {
-		Optional<SqlCommandCall> call = Optional.empty();
+	private Tuple2<Boolean, SqlCommandCall> parseSqlAndCheckException(TestItem item) {
+		SqlCommandCall call = null;
 		Throwable actualException = null;
 		try {
 			call = SqlCommandParser.parse(parser, item.sql);
@@ -320,12 +338,11 @@ public class SqlCommandParserTest {
 						"test statement: " + item.sql);
 			}
 		}
-		return Tuple2.of(false, Optional.empty());
+		return Tuple2.of(false, null);
 	}
 
 	private static class TestItem {
 		private final String sql;
-		private final boolean isValidSqlCmd;
 		private boolean cannotParseComment = true;
 		private @Nullable
 		SqlCommand expectedCmd = null;
@@ -333,29 +350,26 @@ public class SqlCommandParserTest {
 		private Class<? extends Throwable> expectedException = null;
 		private String expectedExceptionMsg = null;
 
-		private TestItem(String sql, boolean isValidSqlCmd) {
+		private TestItem(String sql) {
 			this.sql = sql;
-			this.isValidSqlCmd = isValidSqlCmd;
 		}
 
-		public static TestItem invalidSql(String sql) {
-			return new TestItem(sql, false);
+		public static TestItem invalidSql(
+				String sql,
+				Class<? extends Throwable> expectedException,
+				String exceptedMsg) {
+			TestItem testItem = new TestItem(sql);
+			testItem.expectedException = expectedException;
+			testItem.expectedExceptionMsg = exceptedMsg;
+			return testItem;
 		}
 
 		public static TestItem validSql(
 				String sql, SqlCommand expectedCmd, String... expectedOperands) {
-			TestItem testItem = new TestItem(sql, true);
+			TestItem testItem = new TestItem(sql);
 			testItem.expectedCmd = expectedCmd;
 			testItem.expectedOperands = expectedOperands;
 			testItem.cannotParseComment = false; // default is false
-			return testItem;
-		}
-
-		public static TestItem sqlWithException(String sql, Class<? extends Throwable> expectedException,
-				String exceptedMsg) {
-			TestItem testItem = new TestItem(sql, true);
-			testItem.expectedException = expectedException;
-			testItem.expectedExceptionMsg = exceptedMsg;
 			return testItem;
 		}
 
