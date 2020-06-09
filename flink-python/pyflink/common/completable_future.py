@@ -43,18 +43,24 @@ class CompletableFuture(object):
         Completes this CompletableFuture if not already completed.
 
         :return: true if this task is now cancelled
+
+        .. versionadded:: 1.11.0
         """
         return self._j_completable_future.cancel(True)
 
     def cancelled(self) -> bool:
         """
         Returns true if this CompletableFuture was cancelled before it completed normally.
+
+        .. versionadded:: 1.11.0
         """
         return self._j_completable_future.isCancelled()
 
     def done(self) -> bool:
         """
         Returns true if completed in any fashion: normally, exceptionally, or via cancellation.
+
+        .. versionadded:: 1.11.0
         """
         return self._j_completable_future.isDone()
 
@@ -63,6 +69,8 @@ class CompletableFuture(object):
         Waits if necessary for this future to complete, and then returns its result.
 
         :return: the result value
+
+        .. versionadded:: 1.11.0
         """
         if self._py_class is None:
             return self._j_completable_future.get()
@@ -72,6 +80,8 @@ class CompletableFuture(object):
     def exception(self):
         """
         Returns the exception that was set on this future or None if no exception was set.
+
+        .. versionadded:: 1.11.0
         """
         if self._j_completable_future.isCompletedExceptionally():
             try:
