@@ -45,6 +45,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -60,6 +62,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -228,6 +231,25 @@ public class HiveTableSinkITCase {
 		}
 	}
 
+	@Test
+	public void testBatchAppend() {
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+		tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tEnv.useCatalog(hiveCatalog.getName());
+		tEnv.executeSql("create database db1");
+		tEnv.useDatabase("db1");
+		try {
+			tEnv.executeSql("create table append_table (i int, j int)");
+			TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into append_table select 1, 1");
+			TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into append_table select 2, 2");
+			ArrayList<Row> rows = Lists.newArrayList(tEnv.executeSql("select * from append_table").collect());
+			rows.sort(Comparator.comparingInt(o -> (int) o.getField(0)));
+			Assert.assertEquals(Arrays.asList(Row.of(1, 1), Row.of(2, 2)), rows);
+		} finally {
+			tEnv.executeSql("drop database db1 cascade");
+		}
+	}
+
 	@Test(timeout = 120000)
 	public void testDefaultSerPartStreamingWrite() throws Exception {
 		testStreamingWrite(true, false, true, this::checkSuccessFiles);
@@ -251,6 +273,34 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testNonPartStreamingMrWrite() throws Exception {
 		testStreamingWrite(false, true, false, (p) -> {});
+	}
+
+	@Test(timeout = 120000)
+	public void testStreamingAppend() throws Exception {
+		testStreamingWrite(false, false, false, (p) -> {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(1);
+			StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+			tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+			tEnv.useCatalog(hiveCatalog.getName());
+
+			TableEnvUtil.execInsertSqlAndWaitResult(
+					tEnv,
+					"insert into db1.sink_table select 6,'a','b','2020-05-03','12'");
+
+			assertBatch("db1.sink_table", Arrays.asList(
+					"1,a,b,2020-05-03,7",
+					"1,a,b,2020-05-03,7",
+					"2,p,q,2020-05-03,8",
+					"2,p,q,2020-05-03,8",
+					"3,x,y,2020-05-03,9",
+					"3,x,y,2020-05-03,9",
+					"4,x,y,2020-05-03,10",
+					"4,x,y,2020-05-03,10",
+					"5,x,y,2020-05-03,11",
+					"5,x,y,2020-05-03,11",
+					"6,a,b,2020-05-03,12"));
+		});
 	}
 
 	private void checkSuccessFiles(String path) {
@@ -317,6 +367,18 @@ public class HiveTableSinkITCase {
 					tEnv.sqlQuery("select * from my_table"),
 					"sink_table");
 
+			assertBatch("db1.sink_table", Arrays.asList(
+					"1,a,b,2020-05-03,7",
+					"1,a,b,2020-05-03,7",
+					"2,p,q,2020-05-03,8",
+					"2,p,q,2020-05-03,8",
+					"3,x,y,2020-05-03,9",
+					"3,x,y,2020-05-03,9",
+					"4,x,y,2020-05-03,10",
+					"4,x,y,2020-05-03,10",
+					"5,x,y,2020-05-03,11",
+					"5,x,y,2020-05-03,11"));
+
 			// using batch table env to query.
 			List<String> results = new ArrayList<>();
 			TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
@@ -344,6 +406,19 @@ public class HiveTableSinkITCase {
 		} finally {
 			tEnv.executeSql("drop database db1 cascade");
 		}
+	}
+
+	private void assertBatch(String table, List<String> expected) {
+		// using batch table env to query.
+		List<String> results = new ArrayList<>();
+		TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		batchTEnv.useCatalog(hiveCatalog.getName());
+		batchTEnv.executeSql("select * from " + table).collect()
+				.forEachRemaining(r -> results.add(r.toString()));
+		results.sort(String::compareTo);
+		expected.sort(String::compareTo);
+		Assert.assertEquals(expected, results);
 	}
 
 	private RowTypeInfo createHiveDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
