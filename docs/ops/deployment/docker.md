@@ -152,6 +152,8 @@ the *Flink Master* and *TaskManagers*:
 
 * **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the *Flink Master* and *TaskManagers*:
 
+    *Dockerfile*:
+
     ```dockerfile
     FROM flink
     ADD /host/path/to/job/artifacts/1 /opt/flink/usrlib/artifacts/1
@@ -233,6 +235,8 @@ To provide a custom location for the Flink configuration files, you can
 
 * or add them to your **custom Flink image**, build and run it:
 
+    *Dockerfile*:
+
     ```dockerfile
     FROM flink
     ADD /host/path/to/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
@@ -264,10 +268,14 @@ There are several ways in which you can further customize the Flink image:
 
 * install custom software (e.g. python)
 * enable (symlink) optional libraries or plugins from `/opt/flink/opt` into `/opt/flink/lib` or `/opt/flink/plugins`
-* add other libraries to `/opt/flink/lib` (e.g. [hadoop](hadoop.html#adding-hadoop-to-lib))
+* add other libraries to `/opt/flink/lib` (e.g. [hadoop](#extend-with-maven))
 * add other plugins to `/opt/flink/plugins`
 
-you can achieve this in several ways:
+All files in the `/opt/flink/lib/` folder are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins.
+
+Files in the `/opt/flink/plugins/` are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({{ site.baseurl }}/ops/plugins.html) can be added here.
+
+You can customize the Flink image in several ways:
 
 * **override the container entry point** with a custom script where you can run any bootstrap actions.
 At the end you can call the standard `/docker-entrypoint.sh` script of the Flink image with the same arguments
@@ -303,6 +311,8 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
 
 * **extend the Flink image** by writing a custom `Dockerfile` and build a custom image:
 
+    *Dockerfile*:
+
     ```dockerfile
     FROM flink
 
@@ -319,12 +329,56 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
     ENV VAR_NAME value
     ```
 
+    **Commands for building**:
+
     ```sh
     docker build -t custom_flink_image .
     # optional push to your docker image registry if you have it,
     # e.g. to distribute the custom image to your cluster
     docker push custom_flink_image
     ```
+
+    <a name="extend-with-maven"></a>
+    If you need to **extend the Flink image with a Maven dependency (and its transitive dependencies)**,
+you can use a Maven *pom.xml* file such as:
+
+   *pom.xml*:
+
+    ```xml
+    <?xml version="1.0" encoding="UTF-8"?>
+    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+      <modelVersion>4.0.0</modelVersion>
+
+      <groupId>org.apache.flink</groupId>
+      <artifactId>docker-dependencies</artifactId>
+      <version>1.0-SNAPSHOT</version>
+
+      <dependencies>
+            <!-- Put your dependency here, for example a Hadoop GCS connector -->
+      </dependencies>
+
+      <build>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-dependency-plugin</artifactId>
+              <version>3.1.2</version>
+              <executions>
+                <execution>
+                  <id>copy-dependencies</id>
+                  <phase>package</phase>
+                  <goals><goal>copy-dependencies</goal></goals>
+                  <configuration><outputDirectory>jars</outputDirectory></configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+      </build>
+    </project>
+    ```
+  
+    Running `mvn package` will create a `jars/` folder containing all the jar files, which you can add to your Docker image.
 
 {% top %}
 
@@ -397,6 +451,7 @@ The next chapters show examples of configuration files to run Flink.
 ### Session Cluster with Docker Compose
 
 **docker-compose.yml:**
+
 ```yaml
 version: "2.2"
 services:
@@ -430,6 +485,7 @@ See also [how to specify the Flink Master arguments](#flink-master-additional-co
 in the `command` for the `jobmanager` service.
 
 **docker-compose.yml:**
+
 ```yaml
 version: "2.2"
 services:

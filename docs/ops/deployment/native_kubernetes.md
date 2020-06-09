@@ -116,9 +116,11 @@ $ kubectl port-forward service/<ServiceName> 8081
 - `NodePort`: Exposes the service on each Node’s IP at a static port (the `NodePort`). `<NodeIP>:<NodePort>` could be used to contact the Job Manager Service. `NodeIP` could be easily replaced with Kubernetes ApiServer address.
 You could find it in your kube config file.
 
-- `LoadBalancer`: Default value, exposes the service externally using a cloud provider’s load balancer.
+- `LoadBalancer`: **Default value**, exposes the service externally using a cloud provider’s load balancer.
 Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
 You can use `kubectl get services/<ClusterId>` to get EXTERNAL-IP and then construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
+
+  <span class="label label-warning">Warning!</span> Your JobManager (which can run arbitary jar files) might be exposed to the public internet, without authentication.
 
 - `ExternalName`: Map a service to a DNS name, not supported in current version.
 
