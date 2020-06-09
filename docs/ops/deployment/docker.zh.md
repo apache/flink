@@ -152,6 +152,8 @@ the *Flink Master* and *TaskManagers*:
 
 * **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the *Flink Master* and *TaskManagers*:
 
+    *Dockerfile*:
+
     ```dockerfile
     FROM flink
     ADD /host/path/to/job/artifacts/1 /opt/flink/usrlib/artifacts/1
@@ -233,6 +235,8 @@ To provide a custom location for the Flink configuration files, you can
 
 * or add them to your **custom Flink image**, build and run it:
 
+    *Dockerfile*:
+
     ```dockerfile
     FROM flink
     ADD /host/path/to/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
@@ -264,10 +268,12 @@ There are several ways in which you can further customize the Flink image:
 
 * install custom software (e.g. python)
 * enable (symlink) optional libraries or plugins from `/opt/flink/opt` into `/opt/flink/lib` or `/opt/flink/plugins`
-* add other libraries to `/opt/flink/lib` (e.g. [hadoop](hadoop.html#adding-hadoop-to-lib))
+* add other libraries to `/opt/flink/lib` (e.g. Hadoop)
 * add other plugins to `/opt/flink/plugins`
 
-you can achieve this in several ways:
+See also: [How to provide dependencies in the classpath]({% link index.md %}#how-to-provide-dependencies-in-the-classpath).
+
+You can customize the Flink image in several ways:
 
 * **override the container entry point** with a custom script where you can run any bootstrap actions.
 At the end you can call the standard `/docker-entrypoint.sh` script of the Flink image with the same arguments
@@ -303,6 +309,8 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
 
 * **extend the Flink image** by writing a custom `Dockerfile` and build a custom image:
 
+    *Dockerfile*:
+
     ```dockerfile
     FROM flink
 
@@ -318,6 +326,8 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
 
     ENV VAR_NAME value
     ```
+
+    **Commands for building**:
 
     ```sh
     docker build -t custom_flink_image .
@@ -397,6 +407,7 @@ The next chapters show examples of configuration files to run Flink.
 ### Session Cluster with Docker Compose
 
 **docker-compose.yml:**
+
 ```yaml
 version: "2.2"
 services:
@@ -430,6 +441,7 @@ See also [how to specify the Flink Master arguments](#flink-master-additional-co
 in the `command` for the `jobmanager` service.
 
 **docker-compose.yml:**
+
 ```yaml
 version: "2.2"
 services:
