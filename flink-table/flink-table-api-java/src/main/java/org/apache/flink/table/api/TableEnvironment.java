@@ -325,7 +325,6 @@ public interface TableEnvironment {
 	 * Creates a table from a table source.
 	 *
 	 * @param source table source used as table
-	 * @deprecated use {@link #createTemporaryView(String, Table)}.
 	 */
 	@Deprecated
 	Table fromTableSource(TableSource<?> source);
