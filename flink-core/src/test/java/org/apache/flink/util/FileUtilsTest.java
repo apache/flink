@@ -409,7 +409,7 @@ public class FileUtilsTest extends TestLogger {
 	}
 
 	/**
-	 * Generate some directories in a original directory based on the {@code compressDir}.
+	 * Generate some directories in a original directory based on the {@code testDir}.
 	 * @param testDir the path of the directory where the test directories are generated
 	 * @param compressDir the path of directory to be verified
 	 * @throws IOException if I/O error occurs while generating the directories

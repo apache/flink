@@ -535,7 +535,8 @@ public final class FileUtils {
 		FileSystem targetFs = target.getFileSystem();
 
 		Path absolutePath = absolutizePath(directory);
-		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
+		Path absoluteTargetPath = absolutizePath(target);
+		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(absoluteTargetPath, FileSystem.WriteMode.NO_OVERWRITE))) {
 			addToZip(absolutePath, sourceFs, absolutePath.getParent(), out);
 		}
 		return target;
