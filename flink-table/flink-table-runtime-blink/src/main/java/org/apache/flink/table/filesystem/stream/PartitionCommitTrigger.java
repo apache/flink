@@ -18,93 +18,52 @@
 
 package org.apache.flink.table.filesystem.stream;
 
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.StringUtils;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_TRIGGER;
 
 /**
- * Abstract commit trigger, store partitions in state and provide {@link #committablePartitions}
- * for trigger.
+ * Partition commit trigger.
  * See {@link PartitionTimeCommitTigger}.
  * See {@link ProcTimeCommitTigger}.
  */
-public abstract class PartitionCommitTrigger {
+public interface PartitionCommitTrigger {
 
-	public static final String PARTITION_TIME = "partition-time";
-	public static final String PROCESS_TIME = "process-time";
-
-	private static final ListStateDescriptor<List<String>> PENDING_PARTITIONS_STATE_DESC =
-			new ListStateDescriptor<>(
-					"pending-partitions",
-					new ListSerializer<>(StringSerializer.INSTANCE));
-
-	protected final ListState<List<String>> pendingPartitionsState;
-	protected final Set<String> pendingPartitions;
-
-	protected PartitionCommitTrigger(
-			boolean isRestored, OperatorStateStore stateStore) throws Exception {
-		this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
-		this.pendingPartitions = new HashSet<>();
-		if (isRestored) {
-			pendingPartitions.addAll(pendingPartitionsState.get().iterator().next());
-		}
-	}
+	String PARTITION_TIME = "partition-time";
+	String PROCESS_TIME = "process-time";
 
 	/**
 	 * Add a pending partition.
 	 */
-	public void addPartition(String partition) {
-		if (!StringUtils.isNullOrWhitespaceOnly(partition)) {
-			this.pendingPartitions.add(partition);
-		}
-	}
+	void addPartition(String partition);
 
 	/**
 	 * Get committable partitions, and cleanup useless watermarks and partitions.
 	 */
-	public abstract List<String> committablePartitions(long checkpointId) throws IOException;
+	List<String> committablePartitions(long checkpointId) throws IOException;
 
 	/**
 	 * End input, return committable partitions and clear.
 	 */
-	public List<String> endInput() {
-		ArrayList<String> partitions = new ArrayList<>(pendingPartitions);
-		pendingPartitions.clear();
-		return partitions;
-	}
+	List<String> endInput();
 
 	/**
 	 * Snapshot state.
 	 */
-	public void snapshotState(long checkpointId, long watermark) throws Exception {
-		pendingPartitionsState.clear();
-		pendingPartitionsState.add(new ArrayList<>(pendingPartitions));
-	}
+	void snapshotState(long checkpointId, long watermark) throws Exception;
 
-	public static PartitionCommitTrigger create(
+	static PartitionCommitTrigger create(
 			boolean isRestored,
 			OperatorStateStore stateStore,
 			Configuration conf,
 			ClassLoader cl,
 			List<String> partitionKeys,
-			ProcessingTimeService procTimeService,
-			FileSystem fileSystem,
-			Path locationPath) throws Exception {
+			ProcessingTimeService procTimeService) throws Exception {
 		String trigger = conf.get(SINK_PARTITION_COMMIT_TRIGGER);
 		switch (trigger) {
 			case PARTITION_TIME:
@@ -112,7 +71,7 @@ public abstract class PartitionCommitTrigger {
 						isRestored, stateStore, conf, cl, partitionKeys);
 			case PROCESS_TIME:
 				return new ProcTimeCommitTigger(
-						isRestored, stateStore, conf, procTimeService, fileSystem, locationPath);
+						isRestored, stateStore, conf, procTimeService);
 			default:
 				throw new UnsupportedOperationException(
 						"Unsupported partition commit trigger: " + trigger);
