@@ -61,7 +61,7 @@ public interface HBaseResource extends ExternalResource {
 	/**
 	 * Returns the configured HBaseResource implementation, or a {@link LocalStandaloneHBaseResource} if none is configured.
 	 *
-	 * @return configured HbaseResource, or {@link LocalStandaloneHBaseResource} is none is configured
+	 * @return configured HbaseResource, or {@link LocalStandaloneHBaseResource} if none is configured
 	 */
 	static HBaseResource get() {
 		return FactoryUtils.loadAndInvokeFactory(
