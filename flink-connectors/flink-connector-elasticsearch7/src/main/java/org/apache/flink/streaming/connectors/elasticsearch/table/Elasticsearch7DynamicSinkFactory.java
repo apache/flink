@@ -108,17 +108,20 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 		validate(
 			config.getIndex().length() >= 1,
 			() -> String.format("'%s' must not be empty", INDEX_OPTION.key()));
+		int maxActions = config.getBulkFlushMaxActions();
 		validate(
-			config.getBulkFlushMaxActions().map(maxActions -> maxActions >= 1).orElse(true),
+			maxActions == -1 || maxActions >= 1,
 			() -> String.format(
 				"'%s' must be at least 1 character. Got: %s",
 				BULK_FLUSH_MAX_ACTIONS_OPTION.key(),
-				config.getBulkFlushMaxActions().get())
+				maxActions)
 		);
+		long maxSize = config.getBulkFlushMaxByteSize();
+		long mb1 = 1024 * 1024;
 		validate(
-			config.getBulkFlushMaxSize().map(maxSize -> maxSize >= 1024 * 1024).orElse(true),
+			maxSize == -1 || (maxSize >= mb1 && maxSize % mb1 == 0),
 			() -> String.format(
-				"'%s' must be at least 1mb character. Got: %s",
+				"'%s' must be in MB granularity. Got: %s",
 				BULK_FLASH_MAX_SIZE_OPTION.key(),
 				originalConfiguration.get(BULK_FLASH_MAX_SIZE_OPTION).toHumanReadableString())
 		);

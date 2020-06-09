@@ -102,7 +102,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"'sink.bulk-flush.max-size' must be at least 1mb character. Got: 1024 bytes");
+			"'sink.bulk-flush.max-size' must be in MB granularity. Got: 1024 bytes");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
@@ -142,7 +142,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"'sink.bulk-flush.max-actions' must be at least 1 character. Got: 0");
+			"'sink.bulk-flush.max-actions' must be at least 1 character. Got: -2");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
@@ -151,7 +151,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
 				.withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
 				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-				.withOption(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "0")
+				.withOption(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "-2")
 				.build()
 		);
 	}
