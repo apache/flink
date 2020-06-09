@@ -24,7 +24,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.util.PythonDependencyUtils;
+import org.apache.flink.util.OperatingSystem;
 
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -68,6 +70,9 @@ public class PythonDependencyInfoTest {
 
 	@Test
 	public void testParsePythonFiles() {
+		// Skip this test on Windows as we can not control the Window Driver letters.
+		Assume.assumeFalse(OperatingSystem.isWindows());
+
 		Configuration config = new Configuration();
 		Map<String, String> pythonFiles = new HashMap<>();
 		pythonFiles.put("python_file_{SHA256_0}", "test_file1.py");
@@ -83,6 +88,9 @@ public class PythonDependencyInfoTest {
 
 	@Test
 	public void testParsePythonRequirements() throws IOException {
+		// Skip this test on Windows as we can not control the Window Driver letters.
+		Assume.assumeFalse(OperatingSystem.isWindows());
+
 		Configuration config = new Configuration();
 		config.set(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE, new HashMap<>());
 		config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
@@ -102,6 +110,9 @@ public class PythonDependencyInfoTest {
 
 	@Test
 	public void testParsePythonArchives() {
+		// Skip this test on Windows as we can not control the Window Driver letters.
+		Assume.assumeFalse(OperatingSystem.isWindows());
+
 		Configuration config = new Configuration();
 		Map<String, String> pythonArchives = new HashMap<>();
 		pythonArchives.put("python_archive_{SHA256_0}", "py27.zip");
