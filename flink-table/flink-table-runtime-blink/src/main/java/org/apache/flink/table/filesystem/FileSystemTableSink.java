@@ -131,6 +131,7 @@ public class FileSystemTableSink implements
 		OutputFileConfig outputFileConfig = OutputFileConfig.builder()
 				.withPartPrefix("part-" + UUID.randomUUID().toString())
 				.build();
+		FileSystemFactory fsFactory = FileSystem::get;
 
 		if (isBounded) {
 			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
@@ -139,6 +140,7 @@ public class FileSystemTableSink implements
 			builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
 			builder.setFormatFactory(createOutputFormatFactory());
 			builder.setMetaStoreFactory(metaStoreFactory);
+			builder.setFileSystemFactory(fsFactory);
 			builder.setOverwrite(overwrite);
 			builder.setStaticPartitions(staticPartitions);
 			builder.setTempPath(toStagingPath());
@@ -179,7 +181,8 @@ public class FileSystemTableSink implements
 					overwrite,
 					dataStream,
 					bucketsBuilder,
-					metaStoreFactory);
+					metaStoreFactory,
+					fsFactory);
 		}
 	}
 
@@ -191,7 +194,8 @@ public class FileSystemTableSink implements
 			boolean overwrite,
 			DataStream<RowData> inputStream,
 			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
-			TableMetaStoreFactory msFactory) {
+			TableMetaStoreFactory msFactory,
+			FileSystemFactory fsFactory) {
 		if (overwrite) {
 			throw new IllegalStateException("Streaming mode not support overwrite.");
 		}
@@ -208,7 +212,7 @@ public class FileSystemTableSink implements
 		// save committer when we don't need it.
 		if (partitionKeys.size() > 0 && conf.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
 			StreamingFileCommitter committer = new StreamingFileCommitter(
-					path, tableIdentifier, partitionKeys, msFactory, conf);
+					path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
 			returnStream = writerStream
 					.transform(StreamingFileCommitter.class.getSimpleName(), Types.VOID, committer)
 					.setParallelism(1)

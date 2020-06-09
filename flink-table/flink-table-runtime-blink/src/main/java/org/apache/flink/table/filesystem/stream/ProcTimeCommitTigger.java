@@ -18,60 +18,88 @@
 
 package org.apache.flink.table.filesystem.stream;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.StringUtils;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
 
 /**
- * Partition commit trigger by path creation time and processing time service,
- * if 'current processing time' > 'partition directory creation time' + 'delay', will commit the partition.
- *
- * <p>It is hard to get partition start time from writer, so just get creation time from file system.
+ * Partition commit trigger by creation time and processing time service,
+ * if 'current processing time' > 'partition creation time' + 'delay', will commit the partition.
  */
-public class ProcTimeCommitTigger extends PartitionCommitTrigger {
+public class ProcTimeCommitTigger implements PartitionCommitTrigger {
 
+	private static final ListStateDescriptor<Map<String, Long>> PENDING_PARTITIONS_STATE_DESC =
+			new ListStateDescriptor<>(
+					"pending-partitions-with-time",
+					new MapSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE));
+
+	private final ListState<Map<String, Long>> pendingPartitionsState;
+	private final Map<String, Long> pendingPartitions;
 	private final long commitDelay;
 	private final ProcessingTimeService procTimeService;
-	private final FileSystem fileSystem;
-	private final Path locationPath;
 
 	public ProcTimeCommitTigger(
 			boolean isRestored,
 			OperatorStateStore stateStore,
 			Configuration conf,
-			ProcessingTimeService procTimeService,
-			FileSystem fileSystem,
-			Path locationPath) throws Exception {
-		super(isRestored, stateStore);
+			ProcessingTimeService procTimeService) throws Exception {
+		this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
+		this.pendingPartitions = new HashMap<>();
+		if (isRestored) {
+			pendingPartitions.putAll(pendingPartitionsState.get().iterator().next());
+		}
+
 		this.procTimeService = procTimeService;
-		this.fileSystem = fileSystem;
-		this.locationPath = locationPath;
 		this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
 	}
 
 	@Override
-	public List<String> committablePartitions(long checkpointId) throws IOException {
+	public void addPartition(String partition) {
+		if (!StringUtils.isNullOrWhitespaceOnly(partition)) {
+			this.pendingPartitions.putIfAbsent(partition, procTimeService.getCurrentProcessingTime());
+		}
+	}
+
+	@Override
+	public List<String> committablePartitions(long checkpointId) {
 		List<String> needCommit = new ArrayList<>();
 		long currentProcTime = procTimeService.getCurrentProcessingTime();
-		Iterator<String> iter = pendingPartitions.iterator();
+		Iterator<Map.Entry<String, Long>> iter = pendingPartitions.entrySet().iterator();
 		while (iter.hasNext()) {
-			String partition = iter.next();
-			long creationTime = fileSystem.getFileStatus(new Path(locationPath, partition))
-					.getModificationTime();
-			if (currentProcTime > creationTime + commitDelay) {
-				needCommit.add(partition);
+			Map.Entry<String, Long> entry = iter.next();
+			long creationTime = entry.getValue();
+			if (commitDelay == 0 || currentProcTime > creationTime + commitDelay) {
+				needCommit.add(entry.getKey());
 				iter.remove();
 			}
 		}
 		return needCommit;
+	}
+
+	@Override
+	public void snapshotState(long checkpointId, long watermark) throws Exception {
+		pendingPartitionsState.clear();
+		pendingPartitionsState.add(new HashMap<>(pendingPartitions));
+	}
+
+	@Override
+	public List<String> endInput() {
+		ArrayList<String> partitions = new ArrayList<>(pendingPartitions.keySet());
+		pendingPartitions.clear();
+		return partitions;
 	}
 }

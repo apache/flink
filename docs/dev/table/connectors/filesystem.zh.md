@@ -146,6 +146,8 @@ After writing a partition, it is often necessary to notify downstream applicatio
 - Trigger: The timing of the commit of the partition can be determined by the watermark with the time extracted from the partition, or by processing time.
 - Policy: How to commit a partition, built-in policies support for the commit of success files and metastore, you can also implement your own policies, such as triggering hive's analysis to generate statistics, or merging small files, etc.
 
+**NOTE:** Partition Commit only works in dynamic partition inserting.
+
 #### Partition commit trigger
 
 To define when to commit a partition, providing partition commit trigger:

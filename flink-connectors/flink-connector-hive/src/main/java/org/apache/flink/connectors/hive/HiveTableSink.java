@@ -127,6 +127,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 			StorageDescriptor sd = table.getSd();
 			HiveTableMetaStoreFactory msFactory = new HiveTableMetaStoreFactory(
 					jobConf, hiveVersion, dbName, tableName);
+			HadoopFileSystemFactory fsFactory = new HadoopFileSystemFactory(jobConf);
 
 			Class hiveOutputFormatClz = hiveShim.getHiveOutputFormatClass(
 					Class.forName(sd.getOutputFormat()));
@@ -158,7 +159,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						partitionColumns));
 				builder.setDynamicGrouped(dynamicGrouping);
 				builder.setPartitionColumns(partitionColumns);
-				builder.setFileSystemFactory(new HadoopFileSystemFactory(jobConf));
+				builder.setFileSystemFactory(fsFactory);
 				builder.setFormatFactory(new HiveOutputFormatFactory(recordWriterFactory));
 				builder.setMetaStoreFactory(
 						msFactory);
@@ -213,7 +214,8 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						overwrite,
 						dataStream,
 						builder,
-						msFactory);
+						msFactory,
+						fsFactory);
 			}
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);

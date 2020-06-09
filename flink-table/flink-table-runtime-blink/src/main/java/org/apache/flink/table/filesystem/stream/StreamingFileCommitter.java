@@ -19,7 +19,6 @@
 package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -29,10 +28,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.filesystem.EmptyMetaStoreFactory;
+import org.apache.flink.table.filesystem.FileSystemFactory;
 import org.apache.flink.table.filesystem.MetastoreCommitPolicy;
 import org.apache.flink.table.filesystem.PartitionCommitPolicy;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -75,6 +76,8 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 
 	private final TableMetaStoreFactory metaStoreFactory;
 
+	private final FileSystemFactory fsFactory;
+
 	private transient PartitionCommitTrigger trigger;
 
 	private transient TaskTracker taskTracker;
@@ -88,11 +91,13 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 			ObjectIdentifier tableIdentifier,
 			List<String> partitionKeys,
 			TableMetaStoreFactory metaStoreFactory,
+			FileSystemFactory fsFactory,
 			Configuration conf) {
 		this.locationPath = locationPath;
 		this.tableIdentifier = tableIdentifier;
 		this.partitionKeys = partitionKeys;
 		this.metaStoreFactory = metaStoreFactory;
+		this.fsFactory = fsFactory;
 		this.conf = conf;
 		PartitionCommitPolicy.validatePolicyChain(
 				metaStoreFactory instanceof EmptyMetaStoreFactory,
@@ -103,22 +108,25 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
 		currentWatermark = Long.MIN_VALUE;
-		FileSystem fileSystem = locationPath.getFileSystem();
 		this.trigger = PartitionCommitTrigger.create(
 				context.isRestored(),
 				context.getOperatorStateStore(),
 				conf,
 				getUserCodeClassloader(),
 				partitionKeys,
-				getProcessingTimeService(),
-				fileSystem,
-				locationPath);
+				getProcessingTimeService());
 		this.policies = PartitionCommitPolicy.createPolicyChain(
 				getUserCodeClassloader(),
 				conf.get(SINK_PARTITION_COMMIT_POLICY_KIND),
 				conf.get(SINK_PARTITION_COMMIT_POLICY_CLASS),
 				conf.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
-				fileSystem);
+				() -> {
+					try {
+						return fsFactory.create(locationPath.toUri());
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				});
 	}
 
 	@Override

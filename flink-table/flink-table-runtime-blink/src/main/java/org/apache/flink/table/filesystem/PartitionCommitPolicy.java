@@ -26,6 +26,7 @@ import org.apache.flink.table.api.ValidationException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -99,7 +100,7 @@ public interface PartitionCommitPolicy {
 			String policyKind,
 			String customClass,
 			String successFileName,
-			FileSystem fileSystem) {
+			Supplier<FileSystem> fsSupplier) {
 		if (policyKind == null) {
 			return Collections.emptyList();
 		}
@@ -109,7 +110,7 @@ public interface PartitionCommitPolicy {
 				case METASTORE:
 					return new MetastoreCommitPolicy();
 				case SUCCESS_FILE:
-					return new SuccessFileCommitPolicy(successFileName, fileSystem);
+					return new SuccessFileCommitPolicy(successFileName, fsSupplier.get());
 				case CUSTOM:
 					try {
 						return (PartitionCommitPolicy) cl.loadClass(customClass).newInstance();
