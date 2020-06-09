@@ -89,6 +89,11 @@ There can be the following possible sources of *Off-heap* memory consumption:
 * Flink framework dependencies (e.g. Akka network communication)
 * User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
+<span class="label label-info">Note</span> If you have configured the [Total Flink Memory](mem_setup.html#configure-total-memory)
+and the [JVM Heap](#configure-jvm-heap) explicitly but you have not configured the *Off-heap* memory, the size of the *Off-heap* memory
+will be derived as the [Total Flink Memory](mem_setup.html#configure-total-memory) minus the [JVM Heap](#configure-jvm-heap).
+The default value of the *Off-heap* memory option will be ignored.
+
 ## Local Execution
 
 If you run Flink locally (e.g. from your IDE) without creating a cluster, then the Master memory configuration options are ignored.

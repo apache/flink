@@ -50,7 +50,7 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1536m");
 
 	@Rule
-	public final TestLoggerResource testLoggerResource = new TestLoggerResource(JobManagerFlinkMemoryUtils.class, Level.WARN);
+	public final TestLoggerResource testLoggerResource = new TestLoggerResource(JobManagerFlinkMemoryUtils.class, Level.INFO);
 
 	public JobManagerProcessUtilsTest() {
 		super(JM_PROCESS_MEMORY_OPTIONS, JM_LEGACY_HEAP_OPTIONS, JobManagerOptions.TOTAL_PROCESS_MEMORY);
@@ -128,6 +128,42 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		conf.set(JobManagerOptions.OFF_HEAP_MEMORY, offHeapMemory);
 
 		validateFail(conf);
+	}
+
+	@Test
+	public void testJvmHeapExceedsTotalFlinkMemoryFailure() {
+		MemorySize totalFlinkMemory = MemorySize.ofMebiBytes(100);
+		MemorySize jvmHeap = MemorySize.ofMebiBytes(150);
+
+		Configuration conf = new Configuration();
+		conf.set(JobManagerOptions.TOTAL_FLINK_MEMORY, totalFlinkMemory);
+		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeap);
+
+		validateFail(conf);
+	}
+
+	@Test
+	public void testOffHeapMemoryDerivedFromJvmHeapAndTotalFlinkMemory() {
+		MemorySize jvmHeap = MemorySize.ofMebiBytes(150);
+		MemorySize defaultOffHeap = JobManagerOptions.OFF_HEAP_MEMORY.defaultValue();
+		MemorySize expectedOffHeap = MemorySize.ofMebiBytes(100).add(defaultOffHeap);
+		MemorySize totalFlinkMemory = jvmHeap.add(expectedOffHeap);
+
+		Configuration conf = new Configuration();
+		conf.set(JobManagerOptions.TOTAL_FLINK_MEMORY, totalFlinkMemory);
+		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeap);
+
+		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
+		assertThat(JobManagerProcessSpec.getJvmDirectMemorySize(), is(expectedOffHeap));
+		MatcherAssert.assertThat(
+			testLoggerResource.getMessages(),
+			hasItem(containsString(String.format(
+				"The Off-Heap Memory size (%s) is derived the configured Total Flink Memory size (%s) minus " +
+					"the configured JVM Heap Memory size (%s). The default Off-Heap Memory size (%s) is ignored.",
+				expectedOffHeap.toHumanReadableString(),
+				totalFlinkMemory.toHumanReadableString(),
+				jvmHeap.toHumanReadableString(),
+				defaultOffHeap.toHumanReadableString()))));
 	}
 
 	@Override
