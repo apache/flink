@@ -33,7 +33,6 @@ You can download a [convenience script]({{ site.baseurl }}/downloads/setup-pyfli
 You can specify the version parameter to generate a Python virtual environment required for the corresponding PyFlink version, otherwise the most recent version will be installed.
 
 {% highlight bash %}
-$ curl -O https:{{ site.baseurl }}/downloads/setup-pyflink-virtual-env.sh
 {% if site.is_stable %}
 $ sh setup-pyflink-virtual-env.sh {{ site.version }}
 {% else %}
