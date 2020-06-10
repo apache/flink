@@ -18,9 +18,7 @@
 ################################################################################
 
 set -Eeuo pipefail
-set -x
 CURRENT_DIR=`cd "$(dirname "$0")" && pwd -P`
-cd "${CURRENT_DIR}/../"
 source "${CURRENT_DIR}"/common.sh
 source "${CURRENT_DIR}"/common_yarn_docker.sh
 
