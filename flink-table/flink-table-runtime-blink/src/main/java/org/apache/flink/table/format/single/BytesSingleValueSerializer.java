@@ -16,18 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.format.single;
+
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
+import java.io.IOException;
 
 /**
- * Single value format validator.
+ * Single value serializer for bytes array.
  */
-
-public class SingleValueValidator extends FormatDescriptorValidator{
-
-	public static final String FORMAT_TYPE_VALUE = "single-value";
+public class BytesSingleValueSerializer extends SingleValueSerializer<byte[]> {
 
 	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
+	public byte[] deserialize(byte[] message) throws IOException {
+		return message;
 	}
+
+	@Override
+	public boolean isEndOfStream(byte[] nextElement) {
+		return false;
+	}
+
+	@Override
+	public byte[] serialize(byte[] element) {
+		return element;
+	}
+
+	@Override
+	public TypeInformation<byte[]> getProducedType() {
+		return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+	}
+
 }

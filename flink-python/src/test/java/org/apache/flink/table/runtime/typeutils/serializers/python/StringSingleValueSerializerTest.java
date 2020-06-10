@@ -16,14 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.single.value.serializer;
+package org.apache.flink.table.runtime.typeutils.serializers.python;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Single serializer interface.
+ * Test for {@link StringSerializer}.
  */
-public abstract class SingleValueSerializer<T> implements SerializationSchema<T> ,
-	DeserializationSchema<T> {
+public class StringSingleValueSerializerTest extends SerializerTestBase<String> {
+
+	@Override
+	protected TypeSerializer<String> createSerializer() {
+		return StringSerializer.INSTANCE;
+	}
+
+	@Override
+	protected int getLength() {
+		return -1;
+	}
+
+	@Override
+	protected Class<String> getTypeClass() {
+		return String.class;
+	}
+
+	@Override
+	protected String[] getTestData() {
+		return new String[]{"pyflink", "flink"};
+	}
 }

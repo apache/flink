@@ -16,36 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.single.value.serializer;
+package org.apache.flink.table.format.single;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.FormatDescriptor;
 
-import java.io.IOException;
+import java.util.Map;
+
+import static org.apache.flink.table.format.single.SingleValueValidator.FORMAT_TYPE_VALUE;
 
 /**
- * single value serializer for string .
+ * Format descriptor for SINGLE-VALUE.
  */
-public class StringSerializer extends SingleValueSerializer<String> {
+public class SingleValue extends FormatDescriptor {
 
-	@Override
-	public String deserialize(byte[] message) throws IOException {
-		return new String(message);
+	/**
+	 * Format descriptor for SINGLE-VALUE.
+	 */
+	public SingleValue() {
+		super(FORMAT_TYPE_VALUE, 1);
 	}
 
 	@Override
-	public boolean isEndOfStream(String nextElement) {
-		return false;
+	protected Map<String, String> toFormatProperties() {
+		final DescriptorProperties properties = new DescriptorProperties();
+		return properties.asMap();
 	}
-
-	@Override
-	public byte[] serialize(String element) {
-		return element.getBytes();
-	}
-
-	@Override
-	public TypeInformation<String> getProducedType() {
-		return BasicTypeInfo.STRING_TYPE_INFO;
-	}
-
 }

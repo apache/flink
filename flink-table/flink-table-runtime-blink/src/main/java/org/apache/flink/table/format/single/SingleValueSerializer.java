@@ -16,28 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.format.single;
 
-import java.util.Map;
-
-import static org.apache.flink.table.descriptors.SingleValueValidator.FORMAT_TYPE_VALUE;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 
 /**
- * Format descriptor for SINGLE-VALUE.
+ * Single serializer interface.
  */
-public class SingleValue extends FormatDescriptor {
-
-	/**
-	 * Format descriptor for SINGLE-VALUE.
-	 */
-	public SingleValue() {
-		super(FORMAT_TYPE_VALUE, 1);
-	}
-
-	@Override
-	protected Map<String, String> toFormatProperties() {
-		final DescriptorProperties properties = new DescriptorProperties();
-
-		return properties.asMap();
-	}
+public abstract class SingleValueSerializer<T> implements SerializationSchema<T> ,
+	DeserializationSchema<T> {
 }

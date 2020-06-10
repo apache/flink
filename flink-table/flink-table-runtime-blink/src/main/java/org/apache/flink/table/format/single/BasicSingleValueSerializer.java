@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.single.value.serializer;
+package org.apache.flink.table.format.single;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
@@ -28,14 +28,14 @@ import java.io.IOException;
 /**
  * Single value serializer for java basic value.
  */
-public class BasicValueSerializer<T> extends SingleValueSerializer<T> {
+public class BasicSingleValueSerializer<T> extends SingleValueSerializer<T> {
 
 	private TypeSerializerSingleton<T> typeSerializer;
 	private DataInputDeserializer dataInputDeserializer;
 	private DataOutputSerializer dataOutputSerializer;
 	private TypeInformation<T> typeInfo;
 
-	public BasicValueSerializer(TypeSerializerSingleton<T> typeSerializer, TypeInformation<T> typeInfo) {
+	public BasicSingleValueSerializer(TypeSerializerSingleton<T> typeSerializer, TypeInformation<T> typeInfo) {
 		this.typeSerializer = typeSerializer;
 		this.dataInputDeserializer = new DataInputDeserializer();
 		this.dataOutputSerializer = new DataOutputSerializer(1);
@@ -57,12 +57,11 @@ public class BasicValueSerializer<T> extends SingleValueSerializer<T> {
 	public byte[] serialize(T element) {
 		try {
 			this.typeSerializer.serialize(element, dataOutputSerializer);
-
 			byte[] buffer = dataOutputSerializer.getCopyOfBuffer();
 			dataOutputSerializer.clear();
 			return buffer;
 		} catch (IOException e) {
-			throw new RuntimeException("serialize error", e);
+			throw new RuntimeException("Failed to deserialize ", e);
 		}
 	}
 
