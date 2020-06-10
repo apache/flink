@@ -57,6 +57,9 @@ stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
 pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
 
+statefundocs_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-master
+statefundocs_stable_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-stable
+
 # Flag whether this is a stable version or not. Used for the quickstart page.
 is_stable: false
 
