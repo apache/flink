@@ -58,7 +58,7 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td>Elasticsearch</td>
+      <td><a href="{% link dev/table/connectors/elasticsearch.zh.md %}">Elasticsearch</a></td>
       <td>6.x & 7.x</td>
       <td>Not supported</td>
       <td>Streaming Sink, Batch Sink</td>
@@ -76,7 +76,7 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{ site.baseurl }}/dev/table/connectors/hbase.html">Apache HBase</a></td>
+      <td><a href="{% link dev/table/connectors/hbase.zh.md %}">Apache HBase</a></td>
       <td>1.4.x</td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
