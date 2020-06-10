@@ -38,27 +38,27 @@ Flink supports the following formats:
     <tbody>
         <tr>
           <td>CSV</td>
-          <td><a href="{{ site.baseurl }}/dev/table/connectors/kafka.html">Apache Kafka</a>,
+          <td>Apache Kafka,
           <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
         </tr>
         <tr>
          <td>JSON</td>
-         <td><a href="{{ site.baseurl }}/dev/table/connectors/kafka.html">Apache Kafka</a>,
+         <td>Apache Kafka,
           <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a>,
-          <a href="{{ site.baseurl }}/dev/table/connectors/elasticsearch.html">Elasticsearch</a></td>
+          Elasticsearch</td>
        </tr>
         <tr>
           <td><a href="{{ site.baseurl }}/dev/table/connectors/formats/avro.html">Apache Avro</a></td>
-          <td><a href="{{ site.baseurl }}/dev/table/connectors/kafka.html">Apache Kafka</a>,
+          <td>Apache Kafka,
            <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
         </tr>
         <tr>
          <td>Debezium JSON</td>
-         <td><a href="{{ site.baseurl }}/dev/table/connectors/kafka.html">Apache Kafka</a></td>
+         <td>Apache Kafka</td>
         </tr>
         <tr>
          <td>Canal JSON</td>
-         <td><a href="{{ site.baseurl }}/dev/table/connectors/kafka.html">Apache Kafka</a></td>
+         <td>Apache Kafka</td>
         </tr>
         <tr>
          <td>Apache Parquet</td>
