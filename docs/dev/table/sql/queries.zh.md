@@ -380,7 +380,7 @@ Flink SQL 对于标识符（表、属性、函数名）有类似于 Java 的词�
 
 ## 操作符
 
-### Show 与 Use
+### Show
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -412,22 +412,6 @@ SHOW TABLES;
         <p>显示当前数据库、Catalog中的所有视图</p>
 {% highlight sql %}
 SHOW VIEWS;
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>Use</strong><br>
-        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
-      </td>
-      <td>
-      <p>为本次会话设置 catalog </p>
-{% highlight sql %}
-USE CATALOG mycatalog;
-{% endhighlight %}
-            <p>为会话设置一个属于当前 catalog 的数据库</p>
-{% highlight sql %}
-USE mydatabase;
 {% endhighlight %}
       </td>
     </tr>
