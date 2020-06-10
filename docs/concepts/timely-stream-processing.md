@@ -36,7 +36,7 @@ analysis, when doing aggregations based on certain time periods (typically
 called windows), or when you do event processing where the time when an event
 occurred is important.
 
-In the following sections we will highlight some of the topics that you should
+In the following sections, we will highlight some of the topics that you should
 consider when working with timely Flink Applications.
 
 ## Latency & Completeness
