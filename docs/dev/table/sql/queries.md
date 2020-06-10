@@ -375,7 +375,7 @@ String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`)
 
 ## Operations
 
-### Show, Describe, and Use
+### Show and Use
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -410,22 +410,6 @@ SHOW VIEWS;
 {% endhighlight %}
       </td>
     </tr>
-    <tr>
-      <td>
-        <strong>Describe</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
-      </td>
-      <td>
-			<p>Describe the schema of the given table.</p>
-{% highlight sql %}
-DESCRIBE myTable;
-{% endhighlight %}
-            <p>Describe the schema of the given view.</p>
-{% highlight sql %}
-DESCRIBE myView;
-{% endhighlight %}
-      </td>
-    </tr>    
     <tr>
       <td>
         <strong>Use</strong><br>
