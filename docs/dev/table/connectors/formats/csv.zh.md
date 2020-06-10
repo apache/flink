@@ -53,7 +53,7 @@ CREATE TABLE user_behavior (
   item_id BIGINT,
   category_id BIGINT,
   behavior STRING,
-  ts TIMESTAMP(3),
+  ts TIMESTAMP(3)
 ) WITH (
  'connector' = 'kafka',
  'topic' = 'user_behavior',
@@ -91,14 +91,14 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
-      <td>Optional field delimiter character (',' by default).</td>
+      <td>Field delimiter character (',' by default).</td>
     </tr>
     <tr>
       <td><h5>line-delimiter</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>\n</code></td>
       <td>String</td>
-      <td>Optional line delimiter ('\n' by default, otherwise
+      <td>Line delimiter ('\n' by default, otherwise
       '\r' or '\r\n' are allowed), unicode is supported if
       the delimiter is an invisible special character,
       e.g. U&'\\000D' is the unicode representation of carriage return '\r'
@@ -109,7 +109,7 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional flag to disabled quote character for enclosing field values (false by default)
+      <td>Flag to disabled quote character for enclosing field values (false by default)
       if true, quote-character can not be set.</td>
     </tr>
     <tr>
@@ -117,14 +117,14 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
-      <td>Optional quote character for enclosing field values ('"' by default).</td>
+      <td>Quote character for enclosing field values ('"' by default).</td>
     </tr>
     <tr>
       <td><h5>allow-comments</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional flag to ignore comment lines that start with '#'
+      <td>Flag to ignore comment lines that start with '#'
       (disabled by default);
       if enabled, make sure to also ignore parse errors to allow empty rows.</td>
     </tr>
@@ -133,7 +133,7 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional flag to skip fields and rows with parse errors instead of failing;
+      <td>Flag to skip fields and rows with parse errors instead of failing;
       fields are set to null in case of errors.</td>
     </tr>
     <tr>
@@ -141,7 +141,7 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
-      <td>Optional array element delimiter string for separating
+      <td>Array element delimiter string for separating
       array and row element values (';' by default).</td>
     </tr>
     <tr>
@@ -149,14 +149,14 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Optional escape character for escaping values (disabled by default).</td>
+      <td>Escape character for escaping values (disabled by default).</td>
     </tr>
     <tr>
       <td><h5>null-literal</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Optional null literal string that is interpreted as a
+      <td>Null literal string that is interpreted as a
       null value (disabled by default).</td>
     </tr>
     </tbody>
