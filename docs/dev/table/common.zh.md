@@ -1431,6 +1431,8 @@ Table API 提供了一种机制来解释计算 `Table` 的逻辑和优化查询�
 2. 优化的逻辑查询计划，以及
 3. 物理执行计划。
 
+可以用 `TableEnvironment.explainSql()` 方法和 `TableEnvironment.executeSql()` 方法支持执行一个 `EXPLAIN` 语句获取逻辑和优化查询计划，请参阅 [EXPLAIN]({{ site.baseurl }}/zh/dev/table/sql/explain.html) 页面.
+
 以下代码展示了一个示例以及对给定 `Table` 使用 `Table.explain()` 方法的相应输出：
 
 <div class="codetabs" markdown="1">
