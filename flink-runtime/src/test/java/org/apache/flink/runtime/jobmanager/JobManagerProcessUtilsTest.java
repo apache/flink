@@ -63,8 +63,8 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		Configuration conf = new Configuration();
 		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeapSize);
 
-		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
-		assertThat(JobManagerProcessSpec.getJvmHeapMemorySize(), is(jvmHeapSize));
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
+		assertThat(jobManagerProcessSpec.getJvmHeapMemorySize(), is(jvmHeapSize));
 	}
 
 	@Test
@@ -207,9 +207,9 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		log.info("Validating in configuration with explicit jvm heap.");
 		Configuration config = configWithExplicitJvmHeap();
 		config.addAll(customConfig);
-		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
-		assertThat(JobManagerProcessSpec.getJvmHeapMemorySize(), is(JVM_HEAP_SIZE));
-		validateFunc.accept(JobManagerProcessSpec);
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
+		assertThat(jobManagerProcessSpec.getJvmHeapMemorySize(), is(JVM_HEAP_SIZE));
+		validateFunc.accept(jobManagerProcessSpec);
 	}
 
 	private void validateFailInConfigWithExplicitJvmHeap(Configuration customConfig) {
@@ -224,9 +224,9 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		log.info("Validating in configuration with explicit total flink memory size.");
 		Configuration config = configWithExplicitTotalFlinkMem();
 		config.addAll(customConfig);
-		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
-		assertThat(JobManagerProcessSpec.getTotalFlinkMemorySize(), is(TOTAL_FLINK_MEM_SIZE));
-		validateFunc.accept(JobManagerProcessSpec);
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
+		assertThat(jobManagerProcessSpec.getTotalFlinkMemorySize(), is(TOTAL_FLINK_MEM_SIZE));
+		validateFunc.accept(jobManagerProcessSpec);
 	}
 
 	private void validateFailInConfigWithExplicitTotalFlinkMem(Configuration customConfig) {
@@ -242,10 +242,10 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		log.info("Validating in configuration with explicit total flink and jvm heap memory size.");
 		Configuration config = configWithExplicitTotalFlinkAndJvmHeapMem();
 		config.addAll(customConfig);
-		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
-		assertThat(JobManagerProcessSpec.getTotalFlinkMemorySize(), is(TOTAL_FLINK_MEM_SIZE));
-		assertThat(JobManagerProcessSpec.getJvmHeapMemorySize(), is(JVM_HEAP_SIZE));
-		validateFunc.accept(JobManagerProcessSpec);
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
+		assertThat(jobManagerProcessSpec.getTotalFlinkMemorySize(), is(TOTAL_FLINK_MEM_SIZE));
+		assertThat(jobManagerProcessSpec.getJvmHeapMemorySize(), is(JVM_HEAP_SIZE));
+		validateFunc.accept(jobManagerProcessSpec);
 	}
 
 	private void validateFailInConfigWithExplicitTotalFlinkAndJvmHeapMem(Configuration customConfig) {
@@ -260,9 +260,9 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		log.info("Validating in configuration with explicit total process memory size.");
 		Configuration config = configWithExplicitTotalProcessMem();
 		config.addAll(customConfig);
-		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
-		assertThat(JobManagerProcessSpec.getTotalProcessMemorySize(), is(TOTAL_PROCESS_MEM_SIZE));
-		validateFunc.accept(JobManagerProcessSpec);
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
+		assertThat(jobManagerProcessSpec.getTotalProcessMemorySize(), is(TOTAL_PROCESS_MEM_SIZE));
+		validateFunc.accept(jobManagerProcessSpec);
 	}
 
 	private void validateFailInConfigWithExplicitTotalProcessMem(Configuration customConfig) {
