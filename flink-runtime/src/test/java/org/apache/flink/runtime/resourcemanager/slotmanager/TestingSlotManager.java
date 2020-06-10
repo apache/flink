@@ -119,8 +119,8 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public void registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
-
+	public boolean registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+		return true;
 	}
 
 	@Override

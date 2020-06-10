@@ -30,6 +30,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -60,7 +61,11 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	/** Flink configuration uploaded by client. */
 	protected final Configuration flinkClientConfig;
 
-	private final PendingWorkerCounter pendingWorkerCounter;
+	private final PendingWorkerCounter requestedNotAllocatedWorkerCounter;
+	private final PendingWorkerCounter requestedNotRegisteredWorkerCounter;
+
+	/** Maps from worker's resource id to its resource spec. */
+	private final Map<ResourceID, WorkerResourceSpec> allocatedNotRegisteredWorkerResourceSpecs;
 
 	public ActiveResourceManager(
 			Configuration flinkConfig,
@@ -94,7 +99,9 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 		// Load the flink config uploaded by flink client
 		this.flinkClientConfig = loadClientConfiguration();
 
-		pendingWorkerCounter = new PendingWorkerCounter();
+		requestedNotAllocatedWorkerCounter = new PendingWorkerCounter();
+		requestedNotRegisteredWorkerCounter = new PendingWorkerCounter();
+		allocatedNotRegisteredWorkerResourceSpecs = new HashMap<>();
 	}
 
 	protected CompletableFuture<Void> getStopTerminationFutureOrCompletedExceptionally(@Nullable Throwable exception) {
@@ -110,12 +117,25 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 
 	protected abstract Configuration loadClientConfiguration();
 
-	protected int getNumPendingWorkers() {
-		return pendingWorkerCounter.getTotalNum();
+	@Override
+	protected void onTaskManagerRegistration(WorkerRegistration<WorkerType> workerTypeWorkerRegistration) {
+		notifyAllocatedWorkerRegistered(workerTypeWorkerRegistration.getResourceID());
 	}
 
-	protected int getNumPendingWorkersFor(WorkerResourceSpec workerResourceSpec) {
-		return pendingWorkerCounter.getNum(workerResourceSpec);
+	protected int getNumRequestedNotAllocatedWorkers() {
+		return requestedNotAllocatedWorkerCounter.getTotalNum();
+	}
+
+	protected int getNumRequestedNotAllocatedWorkersFor(WorkerResourceSpec workerResourceSpec) {
+		return requestedNotAllocatedWorkerCounter.getNum(workerResourceSpec);
+	}
+
+	protected int getNumRequestedNotRegisteredWorkers() {
+		return requestedNotRegisteredWorkerCounter.getTotalNum();
+	}
+
+	protected int getNumRequestedNotRegisteredWorkersFor(WorkerResourceSpec workerResourceSpec) {
+		return requestedNotRegisteredWorkerCounter.getNum(workerResourceSpec);
 	}
 
 	/**
@@ -123,17 +143,23 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	 * @param workerResourceSpec resource spec of the requested worker
 	 * @return updated number of pending workers for the given resource spec
 	 */
-	protected int notifyNewWorkerRequested(WorkerResourceSpec workerResourceSpec) {
-		return pendingWorkerCounter.increaseAndGet(workerResourceSpec);
+	protected PendingWorkerNums notifyNewWorkerRequested(WorkerResourceSpec workerResourceSpec) {
+		return new PendingWorkerNums(
+			requestedNotAllocatedWorkerCounter.increaseAndGet(workerResourceSpec),
+			requestedNotRegisteredWorkerCounter.increaseAndGet(workerResourceSpec));
 	}
 
 	/**
 	 * Notify that a worker with the given resource spec has been allocated.
 	 * @param workerResourceSpec resource spec of the requested worker
+	 * @param resourceID id of the allocated resource
 	 * @return updated number of pending workers for the given resource spec
 	 */
-	protected int notifyNewWorkerAllocated(WorkerResourceSpec workerResourceSpec) {
-		return pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
+	protected PendingWorkerNums notifyNewWorkerAllocated(WorkerResourceSpec workerResourceSpec, ResourceID resourceID) {
+		allocatedNotRegisteredWorkerResourceSpecs.put(resourceID, workerResourceSpec);
+		return new PendingWorkerNums(
+			requestedNotAllocatedWorkerCounter.decreaseAndGet(workerResourceSpec),
+			requestedNotRegisteredWorkerCounter.getNum(workerResourceSpec));
 	}
 
 	/**
@@ -141,8 +167,58 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	 * @param workerResourceSpec resource spec of the requested worker
 	 * @return updated number of pending workers for the given resource spec
 	 */
-	protected int notifyNewWorkerAllocationFailed(WorkerResourceSpec workerResourceSpec) {
-		return pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
+	protected PendingWorkerNums notifyNewWorkerAllocationFailed(WorkerResourceSpec workerResourceSpec) {
+		return new PendingWorkerNums(
+			requestedNotAllocatedWorkerCounter.decreaseAndGet(workerResourceSpec),
+			requestedNotRegisteredWorkerCounter.decreaseAndGet(workerResourceSpec));
+	}
+
+	/**
+	 * Notify that a worker with the given resource spec has been registered.
+	 * @param resourceID id of the registered worker resource
+	 */
+	private void notifyAllocatedWorkerRegistered(ResourceID resourceID) {
+		WorkerResourceSpec workerResourceSpec = allocatedNotRegisteredWorkerResourceSpecs.remove(resourceID);
+		if (workerResourceSpec == null) {
+			// ignore workers from previous attempt
+			return;
+		}
+		requestedNotRegisteredWorkerCounter.decreaseAndGet(workerResourceSpec);
+	}
+
+	/**
+	 * Notify that a worker with the given resource spec has been stopped.
+	 * @param resourceID id of the stopped worker resource
+	 */
+	protected void notifyAllocatedWorkerStopped(ResourceID resourceID) {
+		WorkerResourceSpec workerResourceSpec = allocatedNotRegisteredWorkerResourceSpecs.remove(resourceID);
+		if (workerResourceSpec == null) {
+			// ignore already registered workers
+			return;
+		}
+		requestedNotRegisteredWorkerCounter.decreaseAndGet(workerResourceSpec);
+	}
+
+	/**
+	 * Number of workers pending for allocation/registration.
+	 */
+	protected static class PendingWorkerNums {
+
+		private final int numNotAllocated;
+		private final int numNotRegistered;
+
+		private PendingWorkerNums(int numNotAllocated, int numNotRegistered) {
+			this.numNotAllocated = numNotAllocated;
+			this.numNotRegistered = numNotRegistered;
+		}
+
+		public int getNumNotAllocated() {
+			return numNotAllocated;
+		}
+
+		public int getNumNotRegistered() {
+			return numNotRegistered;
+		}
 	}
 
 	/**
