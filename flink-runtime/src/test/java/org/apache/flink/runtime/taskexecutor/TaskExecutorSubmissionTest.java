@@ -97,6 +97,8 @@ import static org.mockito.Mockito.mock;
  */
 public class TaskExecutorSubmissionTest extends TestLogger {
 
+	private static final long TEST_TIMEOUT = 20000L;
+
 	@Rule
 	public final TestName testName = new TestName();
 
@@ -107,7 +109,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	/**
 	 * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testTaskSubmission() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -134,7 +136,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that the TaskManager sends a proper exception back to the sender if the submit task
 	 * message fails.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testSubmitTaskFailure() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -160,7 +162,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	/**
 	 * Tests that we can cancel the task of the TaskManager given that we've submitted it.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testTaskSubmissionAndCancelling() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -205,7 +207,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that submitted tasks will fail when attempting to send/receive data if no
 	 * ResultPartitions/InputGates are set up.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testGateChannelEdgeMismatch() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -247,7 +249,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		}
 	}
 
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testRunJobWithForwardChannel() throws Exception {
 		ResourceID producerLocation = ResourceID.generate();
 		NettyShuffleDescriptor sdd =
@@ -307,7 +309,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * state update back to the job manager.
 	 * the second one blocks to be canceled
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testCancellingDependentAndStateUpdateFails() throws Exception {
 		ResourceID producerLocation = ResourceID.generate();
 		NettyShuffleDescriptor sdd =
@@ -373,7 +375,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	/**
 	 * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testRemotePartitionNotFound() throws Exception {
 		final int dataPort = NetUtils.getAvailablePort();
 		Configuration config = new Configuration();
@@ -460,7 +462,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	/**
 	 *  Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testLocalPartitionNotFound() throws Exception {
 		ResourceID producerLocation = ResourceID.generate();
 		NettyShuffleDescriptor shuffleDescriptor =
@@ -509,7 +511,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
 	 * schedule or update consumers call.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testFailingScheduleOrUpdateConsumers() throws Exception {
 		final Configuration configuration = new Configuration();
 
@@ -566,7 +568,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	/**
 	 * Tests request of task back pressure.
 	 */
-	@Test(timeout = 20000L)
+	@Test(timeout = TEST_TIMEOUT)
 	public void testRequestTaskBackPressure() throws Exception {
 		final NettyShuffleDescriptor shuffleDescriptor = newBuilder().buildLocal();
 		final TaskDeploymentDescriptor tdd = createSender(shuffleDescriptor, OutputBlockedInvokable.class);
