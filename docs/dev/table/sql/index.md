@@ -35,6 +35,7 @@ This page lists all the supported statements supported in Flink SQL for now:
 - [INSERT](insert.html)
 - [SQL HINTS](hints.html)
 - [DESCRIBE](describe.html)
+- [EXPLAIN](explain.html)
 
 ## Data Types
 

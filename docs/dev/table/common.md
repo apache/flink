@@ -1442,6 +1442,8 @@ This is done through the `Table.explain()` method or `StatementSet.explain()` me
 2. the optimized logical query plan, and
 3. the physical execution plan.
 
+`TableEnvironment.explainSql()` and `TableEnvironment.executeSql()` support execute a `EXPLAIN` statement to get the plans, Please refer to [EXPLAIN]({{ site.baseurl }}/dev/table/sql/explain.html) page.
+
 The following code shows an example and the corresponding output for given `Table` using `Table.explain()` method:
 
 <div class="codetabs" markdown="1">

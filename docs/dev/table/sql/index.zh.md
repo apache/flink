@@ -35,6 +35,7 @@ under the License.
 - [INSERT](insert.html)
 - [SQL HINTS](hints.html)
 - [DESCRIBE](describe.html)
+- [EXPLAIN](explain.html)
 
 ## 数据类型
 
