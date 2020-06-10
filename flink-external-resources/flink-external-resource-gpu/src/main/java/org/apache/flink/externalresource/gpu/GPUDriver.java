@@ -61,7 +61,7 @@ class GPUDriver implements ExternalResourceDriver {
 	static final ConfigOption<String> DISCOVERY_SCRIPT_PATH =
 		key("discovery-script.path")
 			.stringType()
-			.defaultValue(String.format("%s/external-resource-gpu/nvidia-gpu-discovery.sh", ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS));
+			.defaultValue(String.format("%s/external_resource_gpu/nvidia-gpu-discovery.sh", ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS));
 
 	@VisibleForTesting
 	static final ConfigOption<String> DISCOVERY_SCRIPT_ARG =
