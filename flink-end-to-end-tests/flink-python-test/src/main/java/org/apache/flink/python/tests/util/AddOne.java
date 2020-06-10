@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.tests;
+package org.apache.flink.python.tests.util;
 
 import org.apache.flink.table.functions.ScalarFunction;
 
 /**
  * Scala UDF for testing.
  */
-public class TestScalarUdf extends ScalarFunction {
+public class AddOne extends ScalarFunction {
 	public long eval(long input) {
 		return input + 1;
 	}

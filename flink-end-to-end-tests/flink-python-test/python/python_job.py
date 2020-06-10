@@ -71,7 +71,7 @@ def word_count():
     t_env.sql_update(sink_ddl)
 
     t_env.sql_update("create temporary system function add_one as 'add_one.add_one' language python")
-    t_env.register_java_function("add_one_java", "org.apache.flink.python.tests.TestScalarUdf")
+    t_env.register_java_function("add_one_java", "org.apache.flink.python.tests.util.AddOne")
 
     elements = [(word, 0) for word in content.split(" ")]
     t_env.from_elements(elements, ["word", "count"]) \
