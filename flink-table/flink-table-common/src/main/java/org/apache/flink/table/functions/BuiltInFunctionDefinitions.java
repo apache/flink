@@ -54,11 +54,11 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.sequenc
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_MOD;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_TIMES;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_DIVIDE;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_SCALE0;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_MOD;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_PLUS;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_SCALE0;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_TIMES;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
