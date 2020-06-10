@@ -53,7 +53,7 @@ CREATE TABLE user_behavior (
   item_id BIGINT,
   category_id BIGINT,
   behavior STRING,
-  ts TIMESTAMP(3),
+  ts TIMESTAMP(3)
 ) WITH (
  'connector' = 'kafka',
  'topic' = 'user_behavior',
