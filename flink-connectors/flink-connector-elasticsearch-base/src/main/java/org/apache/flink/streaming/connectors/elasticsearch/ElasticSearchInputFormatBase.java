@@ -147,9 +147,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 	}
 
 	@Override
-	public void configure(Configuration parameters) throws IOException {
-		client = callBridge.createClient(userConfig);
-		callBridge.verifyClientConnection(client);
+	public void configure(Configuration parameters) {
 
 	}
 
@@ -170,6 +168,8 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 
 	@Override
 	public void open(ElasticsearchInputSplit split) throws IOException {
+		client = callBridge.createClient(userConfig);
+		callBridge.verifyClientConnection(client);
 		SearchRequest searchRequest = new SearchRequest(index);
 		if (type == null) {
 			searchRequest.types(Strings.EMPTY_ARRAY);

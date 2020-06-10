@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticSearchInputFormatBase;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -31,6 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Elasticsearch 7.x InputFormat reading data from Elasticsearch.
+ * And it doesn't need type in this version
+ *
+ * @param <T> Type of the elements handled by this InputFormat
+ */
 @PublicEvolving
 public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T, RestHighLevelClient> {
 
@@ -61,7 +68,8 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 	public static class Builder<T> {
 		private Map<String, String> userConfig = new HashMap<>();
 		private List<HttpHost> httpHosts;
-		private RestClientFactory restClientFactory = restClientBuilder -> { };
+		private RestClientFactory restClientFactory = restClientBuilder -> {
+		};
 		private DeserializationSchema<T> deserializationSchema;
 		private String[] fieldNames;
 		private TypeInformation<T> rowDataTypeInfo;

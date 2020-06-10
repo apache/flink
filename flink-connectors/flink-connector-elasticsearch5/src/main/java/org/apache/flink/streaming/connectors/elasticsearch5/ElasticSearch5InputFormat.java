@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticSearchInputFormatBase;
 import org.apache.flink.util.Preconditions;
+
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.index.query.QueryBuilder;
 
@@ -31,6 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Elasticsearch 5.x InputFormat reading data from Elasticsearch.
+ * And it need type in this version
+ *
+ * @param <T> Type of the elements handled by this InputFormat
+ */
 @PublicEvolving
 public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T, TransportClient> {
 

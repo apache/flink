@@ -18,13 +18,14 @@
 package org.apache.flink.streaming.connectors.elasticsearch7;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchInputSplit;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
@@ -216,9 +217,9 @@ public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<R
 
 	@Override
 	public RequestIndexer createBulkProcessorIndexer(
-			BulkProcessor bulkProcessor,
-			boolean flushOnCheckpoint,
-			AtomicLong numPendingRequestsRef) {
+		BulkProcessor bulkProcessor,
+		boolean flushOnCheckpoint,
+		AtomicLong numPendingRequestsRef) {
 		return new Elasticsearch7BulkProcessorIndexer(
 			bulkProcessor,
 			flushOnCheckpoint,
