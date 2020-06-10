@@ -369,9 +369,12 @@ public class YarnResourceManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testStopWorker() throws Exception {
+	public void testStopWorkerAfterRegistration() throws Exception {
 		new Context() {{
-			final CompletableFuture<Void> addContainerRequestFuture = new CompletableFuture<>();
+			final List<CompletableFuture<Void>> addContainerRequestFutures = new ArrayList<>();
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
 			final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> releaseAssignedContainerFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
@@ -379,7 +382,8 @@ public class YarnResourceManagerTest extends TestLogger {
 
 			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) -> addContainerRequestFuture.complete(null));
+			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
 			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
 			testingYarnAMRMClientAsync.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null));
 			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
@@ -393,7 +397,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				Container testingContainer = createTestingContainer();
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
-				verifyFutureCompleted(addContainerRequestFuture);
+				verifyFutureCompleted(addContainerRequestFutures.get(0));
 				verifyFutureCompleted(removeContainerRequestFuture);
 				verifyFutureCompleted(startContainerAsyncFuture);
 
@@ -450,11 +454,49 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				verifyFutureCompleted(stopContainerAsyncFuture);
 				verifyFutureCompleted(releaseAssignedContainerFuture);
+				assertFalse(addContainerRequestFutures.get(1).isDone());
 			});
 
 			// It's now safe to access the SlotManager state since the ResourceManager has been stopped.
 			assertThat(rmServices.slotManager.getNumberRegisteredSlots(), Matchers.equalTo(0));
 			assertThat(resourceManager.getNumberOfRegisteredTaskManagers().get(), Matchers.equalTo(0));
+		}};
+	}
+
+	@Test
+	public void testStopWorkerBeforeRegistration() throws Exception {
+		new Context() {{
+			final List<CompletableFuture<Void>> addContainerRequestFutures = new ArrayList<>();
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
+			final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
+			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
+
+			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
+			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
+			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
+			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
+
+			runTest(() -> {
+				// Request slot from SlotManager.
+				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
+
+				// Callback from YARN when container is allocated.
+				Container testingContainer = createTestingContainer();
+				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+
+				verifyFutureCompleted(addContainerRequestFutures.get(0));
+				verifyFutureCompleted(removeContainerRequestFuture);
+				verifyFutureCompleted(startContainerAsyncFuture);
+
+				ContainerStatus testingContainerStatus = createTestingContainerStatus(testingContainer.getId());
+				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
+
+				verifyFutureCompleted(addContainerRequestFutures.get(1));
+			});
 		}};
 	}
 
