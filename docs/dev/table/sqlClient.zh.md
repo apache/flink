@@ -65,7 +65,7 @@ SELECT 'Hello World';
 
 该查询不需要 table source，并且只产生一行结果。CLI 将从集群中检索结果并将其可视化。按 `Q` 键退出结果视图。
 
-CLI 为维护和可视化结果提供**两种模式**。
+CLI 为维护和可视化结果提供**三种模式**。
 
 **表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
 
@@ -79,7 +79,14 @@ SET execution.result-mode=table;
 SET execution.result-mode=changelog;
 {% endhighlight %}
 
-你可以用如下查询来查看两种结果模式的运行情况：
+**Tableau模式**（tableau mode）更接近传统的数据库，会将执行的结果以制表的形式直接打在屏幕之上。具体显示的内容会取决于作业
+执行模式的不同(`execution.type`)：
+
+{% highlight text %}
+SET execution.result-mode=tableau;
+{% endhighlight %}
+
+你可以用如下查询来查看三种结果模式的运行情况：
 
 {% highlight sql %}
 SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
@@ -105,7 +112,33 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-这两种结果模式在 SQL 查询的原型设计过程中都非常有用。这两种模式结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI 界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](sqlClient.html#configuration)（`max-table-result-rows`）的限制。
+*Tableau模式* 下，如果这个查询以流的方式执行，那么将显示以下内容：
+{% highlight text %}
++-----+----------------------+----------------------+
+| +/- |                 name |                  cnt |
++-----+----------------------+----------------------+
+|   + |                  Bob |                    1 |
+|   + |                Alice |                    1 |
+|   + |                 Greg |                    1 |
+|   - |                  Bob |                    1 |
+|   + |                  Bob |                    2 |
++-----+----------------------+----------------------+
+Received a total of 5 rows
+{% endhighlight %}
+
+如果这个查询以批的方式执行，显示的内容如下：
+{% highlight text %}
++-------+-----+
+|  name | cnt |
++-------+-----+
+| Alice |   1 |
+|   Bob |   2 |
+|  Greg |   1 |
++-------+-----+
+3 rows in set
+{% endhighlight %}
+
+这几种结果模式在 SQL 查询的原型设计过程中都非常有用。这些模式的结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI 界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](sqlClient.html#configuration)（`max-table-result-rows`）的限制。
 
 <span class="label label-danger">注意</span> 在批处理环境下执行的查询只能用表格模式进行检索。
 
