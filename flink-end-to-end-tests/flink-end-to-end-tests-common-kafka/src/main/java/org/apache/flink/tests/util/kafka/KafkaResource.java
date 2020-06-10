@@ -102,7 +102,7 @@ public interface KafkaResource extends ExternalResource {
 	/**
 	 * Returns the configured KafkaResource implementation, or a {@link LocalStandaloneKafkaResource} if none is configured.
 	 *
-	 * @return configured KafkaResource, or {@link LocalStandaloneKafkaResource} is none is configured
+	 * @return configured KafkaResource, or {@link LocalStandaloneKafkaResource} if none is configured
 	 */
 	static KafkaResource get(final String version) {
 		return FactoryUtils.loadAndInvokeFactory(
