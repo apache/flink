@@ -207,17 +207,17 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 					podWorkerResources.get(podName),
 					"Unrecognized pod {}. Pods from previous attempt should have already been added.", podName);
 
-				final int pendingNum = getNumPendingWorkersFor(workerResourceSpec);
+				final int pendingNum = getNumRequestedNotAllocatedWorkersFor(workerResourceSpec);
 				Preconditions.checkState(pendingNum > 0, "Should not receive more workers than requested.");
 
-				notifyNewWorkerAllocated(workerResourceSpec);
+				notifyNewWorkerAllocated(workerResourceSpec, resourceID);
 				final KubernetesWorkerNode worker = new KubernetesWorkerNode(resourceID);
 				workerNodes.put(resourceID, worker);
 
 				log.info("Received new TaskManager pod: {}", podName);
 			}
 			log.info("Received {} new TaskManager pods. Remaining pending pod requests: {}",
-				pods.size() - duplicatePodNum, getNumPendingWorkers());
+				pods.size() - duplicatePodNum, getNumRequestedNotAllocatedWorkers());
 		});
 	}
 
@@ -267,7 +267,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			createKubernetesTaskManagerParameters(workerResourceSpec);
 
 		podWorkerResources.put(parameters.getPodName(), workerResourceSpec);
-		final int pendingWorkerNum = notifyNewWorkerRequested(workerResourceSpec);
+		final int pendingWorkerNum = notifyNewWorkerRequested(workerResourceSpec).getNumNotAllocated();
 
 		log.info("Requesting new TaskManager pod with <{},{}>. Number pending requests {}.",
 			parameters.getTaskManagerMemoryMB(),
@@ -327,7 +327,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			final WorkerResourceSpec workerResourceSpec = entry.getKey();
 			final int requiredTaskManagers = entry.getValue();
 
-			while (requiredTaskManagers > getNumPendingWorkersFor(workerResourceSpec)) {
+			while (requiredTaskManagers > getNumRequestedNotRegisteredWorkersFor(workerResourceSpec)) {
 				requestKubernetesPod(workerResourceSpec);
 			}
 		}
@@ -360,6 +360,8 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			notifyNewWorkerAllocationFailed(
 				Preconditions.checkNotNull(workerResourceSpec,
 					"Worker resource spec of current attempt pending worker should be known."));
+		} else {
+			notifyAllocatedWorkerStopped(resourceId);
 		}
 	}
 

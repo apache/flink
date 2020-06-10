@@ -1193,7 +1193,7 @@ public class SlotManagerImpl implements SlotManager {
 	}
 
 	@VisibleForTesting
-	static ResourceProfile generateDefaultSlotResourceProfile(WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
+	public static ResourceProfile generateDefaultSlotResourceProfile(WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
 		return ResourceProfile.newBuilder()
 			.setCpuCores(workerResourceSpec.getCpuCores().divide(numSlotsPerWorker))
 			.setTaskHeapMemory(workerResourceSpec.getTaskHeapSize().divide(numSlotsPerWorker))
