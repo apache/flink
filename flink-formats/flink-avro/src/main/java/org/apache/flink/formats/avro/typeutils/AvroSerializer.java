@@ -170,7 +170,11 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T createInstance() {
-		return InstantiationUtil.instantiate(type);
+		if (!isGenericRecord(type)) {
+			return InstantiationUtil.instantiate(type);
+		} else {
+			return (T) new GenericData.Record(schema.getAvroSchema());
+		}
 	}
 
 	@Override
