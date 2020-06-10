@@ -474,7 +474,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 		final ResourceID resourceId = new ResourceID(containerId.toString());
 		// release the failed container
-		YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
+		workerNodeMap.remove(resourceId);
 		resourceManagerClient.releaseAssignedContainer(containerId);
 		// and ask for a new one
 		requestYarnContainerIfRequired();
