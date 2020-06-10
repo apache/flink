@@ -36,14 +36,14 @@ or implement your own plugins for custom resource types.
 
 In general, the external resource framework does two things:
 
-  - Set the corresponding fields of the resource requests (for requesting resources from underlying systems) with respect to your configurations.
+  - Set the corresponding fields of the resource requests (for requesting resources from the underlying system) with respect to your configuration.
 
   - Provide operators with the *information* needed for using the resources.
 
 When deployed on resource management systems (Kubernetes / Yarn), the external resource framework will ensure that the allocated pod/container
 will contain the desired external resources. Currently, many resource management systems support external resources. For example,
 Kubernetes supports GPU, FPGA, etc. through its [Device Plugin](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/)
-mechanism since v1.10, and Yarn supports GPU and FPGA since 2.10 and 3.1. External resources are not supported by Flink’s Mesos
+mechanism since v1.10, and Yarn supports GPU and FPGA resources since 2.10 and 3.1. External resources are not supported by Flink’s Mesos
 integration at the moment. In Standalone mode, the user has to ensure that the external resources are available.
 
 The external resource framework will provide the corresponding *information* to operators. The external resource information,
@@ -74,7 +74,7 @@ defined here will go into effect in the external resource framework.
 For each external resource, you could configure the below options. The **\<resource_name\>** in all the below configuration options
 corresponds to the name listed in the **external resource list**:
 
-  - **Amount** (`external.<resource_name>.amount`): This is the quantity of the external resource that should be requested from the external systems.
+  - **Amount** (`external.<resource_name>.amount`): This is the quantity of the external resource that should be requested from the external system.
 
   - **Config key in Yarn** (`external-resource.<resource_name>.yarn.config-key`): *optional*. If configured, the external
   resource framework will add this key to the resource profile of container requests for Yarn. The value will be set to the
@@ -98,11 +98,11 @@ An example configuration that specifies two external resources:
 external-resources: gpu;fpga # Define two external resources, "gpu" and "fpga".
 
 external-resource.gpu.driver-factory.class: org.apache.flink.externalresource.gpu.GPUDriverFactory # Define the driver factory class of gpu resource.
-external-resource.gpu.amount: 2 # Define the amount of gpu resource per task executor.
+external-resource.gpu.amount: 2 # Define the amount of gpu resource per TaskManager.
 external-resource.gpu.param.discovery-script.args: --enable-coordination # Define the custom param discovery-script.args which will be passed into the gpu driver.
 
 external-resource.fpga.driver-factory.class: org.apache.flink.externalresource.fpga.FPGADriverFactory # Define the driver factory class of fpga resource.
-external-resource.fpga.amount: 1 # Define the amount of fpga resource per task executor.
+external-resource.fpga.amount: 1 # Define the amount of fpga resource per TaskManager.
 external-resource.fpga.yarn.config-key: yarn.io/fpga # Define the corresponding config key of fpga in Yarn.
 {% endhighlight %}
 
@@ -255,8 +255,11 @@ We provide a first-party plugin for GPU resources. The plugin leverages a discov
 be accessed from the resource *information* via the property "index". We provide a default discovery script that can be used to discover
 NVIDIA GPUs. You can also provide your custom script.
 
+We provide [an example](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java)
+which shows how to use the GPUs to do matrix-vector multiplication in Flink.
+
 <div class="alert alert-info">
-     <strong>Note:</strong> Currently, for all the operators, RuntimeContext#getExternalResourceInfos returns the same set of resource information. That means, the same set of GPU devices are always accessible to all the operators running in the same task executor. There is no operator level isolation at the moment.
+     <strong>Note:</strong> Currently, for all the operators, RuntimeContext#getExternalResourceInfos returns the same set of resource information. That means, the same set of GPU devices are always accessible to all the operators running in the same TaskManager. There is no operator level isolation at the moment.
 </div>
 
 ### Pre-requisites
@@ -287,7 +290,7 @@ For the GPU plugin, you need to specify the common external resource configurati
 
   - `external-resources`: You need to append your resource name (e.g. gpu) for GPU resources to it.
 
-  - `external-resource.<resource_name>.amount`: The amount of GPU devices per task executor.
+  - `external-resource.<resource_name>.amount`: The amount of GPU devices per TaskManager.
 
   - `external-resource.<resource_name>.yarn.config-key`: For Yarn, the config key of GPU is `yarn.io/gpu`. Notice that
   Yarn only supports NVIDIA GPU at the moment.
@@ -312,7 +315,7 @@ An example configuration for GPU resource:
 {% highlight bash %}
 external-resources: gpu
 external-resource.gpu.driver-factory.class: org.apache.flink.externalresource.gpu.GPUDriverFactory # Define the driver factory class of gpu resource.
-external-resource.gpu.amount: 2 # Define the amount of gpu resource per task executor.
+external-resource.gpu.amount: 2 # Define the amount of gpu resource per TaskManager.
 external-resource.gpu.param.discovery-script.path: plugins/external-resource-gpu/nvidia-gpu-discovery.sh
 external-resource.gpu.param.discovery-script.args: --enable-coordination # Define the custom param "discovery-script.args" which will be passed into the gpu driver.
 
@@ -331,9 +334,9 @@ We provide a default discovery script for NVIDIA GPU, located at `plugins/extern
 Flink distribution. The script gets the indexes of visible GPU resources through the `nvidia-smi` command. It tries to return
 the required amount (specified by `external-resource.<resource_name>.amount`) of GPU indexes in a list, and exit with non-zero if the amount cannot be satisfied.
 
-For standalone mode, multiple task executors might be co-located on the same machine, and each GPU device is visible to all
-the task executors. The default discovery script supports a coordination mode, in which it leverages a coordination file to
-synchronize the allocation state of GPU devices and ensure each GPU device can only be used by one task executor process. The relevant arguments are:
+For standalone mode, multiple TaskManagers might be co-located on the same machine, and each GPU device is visible to all
+the TaskManagers. The default discovery script supports a coordination mode, in which it leverages a coordination file to
+synchronize the allocation state of GPU devices and ensure each GPU device can only be used by one TaskManager process. The relevant arguments are:
 
   - `--enable-coordination-mode`: Enable the coordination mode.
 
