@@ -34,6 +34,7 @@ under the License.
 - [ALTER TABLE, DATABASE, FUNCTION](alter.html)
 - [INSERT](insert.html)
 - [SQL HINTS](hints.html)
+- [DESCRIBE](describe.html)
 
 ## 数据类型
 
