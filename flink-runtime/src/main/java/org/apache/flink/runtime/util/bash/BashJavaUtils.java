@@ -113,7 +113,7 @@ public class BashJavaUtils {
 		LOG.info("Final Master Memory configuration:");
 		LOG.info("  Total Process Memory: {}", spec.getTotalProcessMemorySize().toHumanReadableString());
 		LOG.info("    Total Flink Memory: {}", flinkMemory.getTotalFlinkMemorySize().toHumanReadableString());
-		LOG.info("      Heap:             {}", flinkMemory.getJvmHeapMemorySize().toHumanReadableString());
+		LOG.info("      JVM Heap:         {}", flinkMemory.getJvmHeapMemorySize().toHumanReadableString());
 		LOG.info("      Off-heap:         {}", flinkMemory.getJvmDirectMemorySize().toHumanReadableString());
 		LOG.info("    JVM Metaspace:      {}", spec.getJvmMetaspaceSize().toHumanReadableString());
 		LOG.info("    JVM Overhead:       {}", spec.getJvmOverheadSize().toHumanReadableString());
@@ -123,19 +123,19 @@ public class BashJavaUtils {
 		TaskExecutorFlinkMemory flinkMemory = spec.getFlinkMemory();
 		MemorySize totalOffHeapMemory = flinkMemory.getManaged().add(flinkMemory.getJvmDirectMemorySize());
 		LOG.info("Final TaskExecutor Memory configuration:");
-		LOG.info("  Total Process Memory:      {}", spec.getTotalProcessMemorySize().toHumanReadableString());
-		LOG.info("    Total Flink Memory:      {}", flinkMemory.getTotalFlinkMemorySize().toHumanReadableString());
-		LOG.info("      Total Heap Memory:     {}", flinkMemory.getJvmHeapMemorySize().toHumanReadableString());
-		LOG.info("        Framework:           {}", flinkMemory.getFrameworkHeap().toHumanReadableString());
-		LOG.info("        Task:                {}", flinkMemory.getTaskHeap().toHumanReadableString());
-		LOG.info("      Total Off-heap Memory: {}", totalOffHeapMemory.toHumanReadableString());
-		LOG.info("        Managed:             {}", flinkMemory.getManaged().toHumanReadableString());
-		LOG.info("        Total Direct Memory: {}", flinkMemory.getJvmDirectMemorySize().toHumanReadableString());
-		LOG.info("          Framework:         {}", flinkMemory.getFrameworkOffHeap().toHumanReadableString());
-		LOG.info("          Task:              {}", flinkMemory.getTaskOffHeap().toHumanReadableString());
-		LOG.info("          Network:           {}", flinkMemory.getNetwork().toHumanReadableString());
-		LOG.info("    JVM Metaspace:           {}", spec.getJvmMetaspaceSize().toHumanReadableString());
-		LOG.info("    JVM Overhead:            {}", spec.getJvmOverheadSize().toHumanReadableString());
+		LOG.info("  Total Process Memory:          {}", spec.getTotalProcessMemorySize().toHumanReadableString());
+		LOG.info("    Total Flink Memory:          {}", flinkMemory.getTotalFlinkMemorySize().toHumanReadableString());
+		LOG.info("      Total JVM Heap Memory:     {}", flinkMemory.getJvmHeapMemorySize().toHumanReadableString());
+		LOG.info("        Framework:               {}", flinkMemory.getFrameworkHeap().toHumanReadableString());
+		LOG.info("        Task:                    {}", flinkMemory.getTaskHeap().toHumanReadableString());
+		LOG.info("      Total Off-heap Memory:     {}", totalOffHeapMemory.toHumanReadableString());
+		LOG.info("        Managed:                 {}", flinkMemory.getManaged().toHumanReadableString());
+		LOG.info("        Total JVM Direct Memory: {}", flinkMemory.getJvmDirectMemorySize().toHumanReadableString());
+		LOG.info("          Framework:             {}", flinkMemory.getFrameworkOffHeap().toHumanReadableString());
+		LOG.info("          Task:                  {}", flinkMemory.getTaskOffHeap().toHumanReadableString());
+		LOG.info("          Network:               {}", flinkMemory.getNetwork().toHumanReadableString());
+		LOG.info("    JVM Metaspace:               {}", spec.getJvmMetaspaceSize().toHumanReadableString());
+		LOG.info("    JVM Overhead:                {}", spec.getJvmOverheadSize().toHumanReadableString());
 	}
 
 	/**
