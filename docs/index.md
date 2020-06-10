@@ -43,7 +43,7 @@ To quickly get a general understanding of how Flink works and what it offers for
 
 * Our [Self-paced Training Course]({% link learn-flink/index.md %}) includes a set of lessons and hands-on exercises that provide a step-by-step introduction to Flink.
 
-* The [Concepts]({% link concepts/index.md %}) section covers what you need to know about Flink before exploring the reference documentation.
+* The [Concepts]({% link concepts/index.md %}) section explains what you need to know about Flink before exploring the reference documentation.
 
 </div>
 <div class="col-sm-6" markdown="1">
@@ -56,8 +56,8 @@ The reference documentation covers all the details. Some starting points:
 <div class="col-sm-6" markdown="1">
 
 * [DataStream API]({% link dev/datastream_api.md %})
-* [DataSet API]({% link dev/batch/index.md %})
 * [Table API &amp; SQL]({% link dev/table/index.md %})
+* [Stateful Functions]({% if site.is_stable %} {{ site.statefundocs_stable_baseurl }} {% else %} {{ site.statefundocs_baseurl }} {% endif %})
 
 </div>
 <div class="col-sm-6" markdown="1">
