@@ -39,9 +39,9 @@ public class FutureCompletingBlockingQueue<T> extends LinkedBlockingQueue<T> {
 
 	private final FutureNotifier futureNotifier;
 	/**
-	 *  The default capacity  for {@link LinkedBlockingQueue}.
+	 * The default capacity for {@link LinkedBlockingQueue}.
 	 */
-	private final static Integer DEFAULT_CAPACITY = 10000;
+	private static final Integer DEFAULT_CAPACITY = 10000;
 
 	public FutureCompletingBlockingQueue(FutureNotifier futureNotifier) {
 		this(futureNotifier, DEFAULT_CAPACITY);
