@@ -21,6 +21,8 @@ package org.apache.flink.client.program;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.configuration.ConfigConstants;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,7 +30,9 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.net.URL;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -71,5 +75,24 @@ public class PackagedProgramTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testBuilderThrowExceptionIfjarFileAndEntryPointClassNameAreBothNull() throws ProgramInvocationException {
 		PackagedProgram.newBuilder().build();
+	}
+
+	@Test
+	public void testGetJobJarAndDependencies() throws ProgramInvocationException {
+		Configuration configuration = new Configuration();
+
+		List<String> jars = Arrays.asList("file:/path/a.jar", "file:/path/b.jar");
+		configuration.set(PipelineOptions.JARS, jars);
+
+		PackagedProgram packagedProgram = PackagedProgram
+			.newBuilder()
+			.setConfiguration(configuration)
+			.setEntryPointClassName(ClientTest.TestEager.class.getName())
+			.build();
+
+		List<URL> jobJars = packagedProgram.getJobJarAndDependencies();
+
+		Assert.assertEquals(2, jobJars.size());
+		Assert.assertArrayEquals(jobJars.stream().map(URL::toString).toArray(), jars.toArray());
 	}
 }

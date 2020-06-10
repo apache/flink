@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
@@ -91,6 +92,8 @@ public class PackagedProgram {
 	 */
 	private final boolean isPython;
 
+	private final Configuration configuration;
+
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
 	 * arguments. For generating the plan the class defined in the className parameter
@@ -121,6 +124,8 @@ public class PackagedProgram {
 
 		// whether the job is a Python job.
 		this.isPython = isPython(entryPointClassName);
+
+		this.configuration = configuration;
 
 		// load the jar file if exists
 		this.jarFile = loadJarFile(jarFile);
@@ -220,7 +225,10 @@ public class PackagedProgram {
 	 * Returns all provided libraries needed to run the program.
 	 */
 	public List<URL> getJobJarAndDependencies() {
-		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+		List<URL> pipelineJars = getPipelineJars();
+		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + pipelineJars.size() + 1);
+
+		libs.addAll(pipelineJars);
 
 		if (jarFile != null) {
 			libs.add(jarFile);
@@ -238,6 +246,20 @@ public class PackagedProgram {
 		}
 
 		return libs;
+	}
+
+	/**
+	 * Return to user set pipeline.jars
+	 */
+	private List<URL> getPipelineJars(){
+		List<URL> pipelineJars = null;
+		try {
+			pipelineJars = ExecutionConfigAccessor.fromConfiguration(configuration).getJars();
+		} catch (MalformedURLException e) {
+			throw new RuntimeException("URL is invalid. This should not happen.", e);
+		}
+
+		return pipelineJars;
 	}
 
 	/**
