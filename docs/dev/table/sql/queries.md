@@ -916,7 +916,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // ingest a DataStream from an external source
-DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
+DataStream<Tuple4<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
 tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
@@ -971,7 +971,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // ingest a DataStream from an external source
-DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
+DataStream<Tuple4<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
 tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
@@ -1051,7 +1051,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // ingest a DataStream from an external source
-DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
+DataStream<Tuple4<String, String, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
 tableEnv.createTemporaryView("Orders", ds, $("order_id"), $("user"), $("product"), $("number"), $("proctime").proctime());
 
