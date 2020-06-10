@@ -206,5 +206,3 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -pyexec venv.zip/.conda/bin/python \
     -py /tmp/python_job.py \
     pipeline.jars file:/tmp/PythonUdfSqlJobExample.jar"
-
-cluster_shutdown
