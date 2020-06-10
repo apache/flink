@@ -33,7 +33,7 @@ under the License.
 
 The HBase connector allows for reading from and writing to an HBase cluster. This document describes how to setup the HBase Connector to run SQL queries against HBase.
 
-The connector can operate in upsert mode for exchange changelog messages with the external system using a primary key defined on the DDL. But the primary key can only be defined on the HBase rowkey field. If the PRIMARY KEY clause is not declared, the HBase connector will take rowkey as the primary key by default.
+HBase always works in upsert mode for exchange changelog messages with the external system using a primary key defined on the DDL. The primary key must be defined on the HBase rowkey field (rowkey field must be declared). If the PRIMARY KEY clause is not declared, the HBase connector will take rowkey as the primary key by default.
 
 <span class="label label-danger">Attention</span> HBase as a Lookup Source does not use any cache, data is always queried directly through the HBase client.
 
