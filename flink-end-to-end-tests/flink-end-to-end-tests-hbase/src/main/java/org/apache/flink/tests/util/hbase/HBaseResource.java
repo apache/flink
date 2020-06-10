@@ -52,7 +52,7 @@ public interface HBaseResource extends ExternalResource {
 	 * @param tableName    table to put data
 	 * @param rowKey       rowKey of the given data
 	 * @param columnFamily columnFamily of the given data
-	 * @param key          key of the given data
+	 * @param columnQualifier          column qualifier of the given data
 	 * @param value        value of the given data
 	 * @throws IOException
 	 */
