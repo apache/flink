@@ -1,0 +1,330 @@
+---
+title: "CSV Format"
+nav-title: CSV
+nav-parent_id: sql-formats
+nav-pos: 1
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<span class="label label-info">Format: Serialization Schema</span>
+<span class="label label-info">Format: Deserialization Schema</span>
+
+* This will be replaced by the TOC
+{:toc}
+
+The [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) format allows to read and write CSV data based on an CSV schema. Currently, the CSV schema is derived from table schema.
+
+Dependencies
+------------
+
+In order to setup the CSV format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+
+| Maven dependency   | SQL Client JAR         |
+| :----------------- | :----------------------|
+| `flink-csv`        | The `flink-csv-{{site.version}}.jar` is a built-in jar of SQL-CLI. |
+
+How to create a table with CSV format
+----------------
+
+Here is an example to create a table using Kafka connector and CSV format.
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE user_behavior (
+  user_id BIGINT,
+  item_id BIGINT,
+  category_id BIGINT,
+  behavior STRING,
+  ts TIMESTAMP(3),
+) WITH (
+ 'connector' = 'kafka',
+ 'topic' = 'user_behavior',
+ 'properties.bootstrap.servers' = 'localhost:9092',
+ 'properties.group.id' = 'testGroup',
+ 'format' = 'csv'
+)
+{% endhighlight %}
+</div>
+</div>
+
+Format Options
+----------------
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-center" style="width: 8%">Required</th>
+        <th class="text-center" style="width: 7%">Default</th>
+        <th class="text-center" style="width: 10%">Type</th>
+        <th class="text-center" style="width: 50%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>format</h5></td>
+      <td>required</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify what format to use, here should be 'csv'.</td>
+    </tr>
+    <tr>
+      <td><h5>field-delimiter</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>,</code></td>
+      <td>String</td>
+      <td>Optional field delimiter character (',' by default).</td>
+    </tr>
+    <tr>
+      <td><h5>line-delimiter</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>\n</code></td>
+      <td>String</td>
+      <td>Optional line delimiter ('\n' by default, otherwise
+      '\r' or '\r\n' are allowed), unicode is supported if
+      the delimiter is an invisible special character,
+      e.g. U&'\\000D' is the unicode representation of carriage return '\r'
+      e.g. U&'\\000A' is the unicode representation of line feed '\n'.</td>
+    </tr>
+    <tr>
+      <td><h5>disable-quote-character</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to disabled quote character for enclosing field values (false by default)
+      if true, quote-character can not be set.</td>
+    </tr>
+    <tr>
+      <td><h5>quote-character</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>"</code></td>
+      <td>String</td>
+      <td>Optional quote character for enclosing field values ('"' by default).</td>
+    </tr>
+    <tr>
+      <td><h5>allow-comments</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to ignore comment lines that start with '#'
+      (disabled by default);
+      if enabled, make sure to also ignore parse errors to allow empty rows.</td>
+    </tr>
+    <tr>
+      <td><h5>ignore-parse-errors</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to skip fields and rows with parse errors instead of failing;
+      fields are set to null in case of errors.</td>
+    </tr>
+    <tr>
+      <td><h5>array-element-delimiter</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>;</code></td>
+      <td>String</td>
+      <td>Optional array element delimiter string for separating
+      array and row element values (';' by default).</td>
+    </tr>
+    <tr>
+      <td><h5>escape-character</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Optional escape character for escaping values (disabled by default).</td>
+    </tr>
+    <tr>
+      <td><h5>null-literal</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Optional null literal string that is interpreted as a
+      null value (disabled by default).</td>
+    </tr>
+    </tbody>
+</table>
+
+Data Type Mapping
+----------------
+
+Currently, the CSV schema is always derived from table schema. Explicitly defining an CSV schema is not supported yet.
+
+Flink CSV format uses utility class `com.fasterxml.jackson.databind.node.ObjectNode` (for serialization) and `com.fasterxml.jackson.databind.JsonNode` (for deserialization) provided by `jackson` to convert Flink Data Types to and from CSV text.
+
+The following table lists the type mapping from Flink type to CSV type.
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left">Flink Data Type</th>
+        <th class="text-center">CSV conversion</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>NULL</td>
+      <td>
+      {% highlight java %}
+      NullNode nullNode()
+      null
+    {% endhighlight %}
+    </td>
+    </tr>
+    <tr>
+      <td>CHAR / VARCHAR / STRING</td>
+      <td>
+      {% highlight java %}
+      TextNode textNode(String text)
+      String asText()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>BOOLEAN</td>
+      <td>
+      {% highlight java %}
+      BooleanNode booleanNode(boolean v)
+      boolean asBoolean()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>BINARY / VARBINARY</td>
+      <td>
+      {% highlight java %}
+      BinaryNode binaryNode(byte[] data)
+      byte[] binaryValue()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>DECIMAL</td>
+      <td>
+      {% highlight java %}
+      ValueNode numberNode(BigDecimal v)
+      BigDecimal decimalValue()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>TINYINT</td>
+      <td>
+      {% highlight java %}
+      NumericNode numberNode(byte v)
+      byte Byte.parseByte(String s)
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>SMALLINT</td>
+      <td>
+      {% highlight java %}
+      NumericNode numberNode(short v)
+      short Short.parseShort(String s)
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>INT/INTERVAL_YEAR_MONTH</td>
+      <td>
+      {% highlight java %}
+      NumericNode numberNode(int v)
+      int asInt()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>BIGINT/INTERVAL_DAY_TIME</td>
+      <td>
+      {% highlight java %}
+      NumericNode numberNode(long v)
+      long asLong()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>FLOAT</td>
+      <td>
+      {% highlight java %}
+      NumericNode numberNode(float v)
+      (float) double asDouble()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>DOUBLE</td>
+      <td>
+      {% highlight java %}
+      NumericNode numberNode(double v)
+      double asDouble()
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>DATE</td>
+      <td>
+      {% highlight java %}
+      TextNode textNode(String isoLocalDate)
+      (int) Date.valueOf(String isoLocalDate)
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>TIME</td>
+      <td>
+      {% highlight java %}
+      TextNode textNode(String isoLocalTime)
+      LocalTime Time.valueOf(String isoLocalTime)
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>TIMESTAMP</td>
+      <td>
+      {% highlight java %}
+      TextNode textNode(String isoLocalDateTime)
+      Timestamp Timestamp.valueOf(String isoLocalDateTime)
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>ARRAY</td>
+      <td>
+      {% highlight java %}
+      JsonNode get(int index) // For each array item, only deserialization supported.
+      {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>ROW</td>
+      <td>
+      {% highlight java %}
+      JsonNode get(String fieldName) // For each field, only deserialization supported.
+      {% endhighlight %}
+      </td>
+    </tr>
+    </tbody>
+</table>
+
+
+
+
+
