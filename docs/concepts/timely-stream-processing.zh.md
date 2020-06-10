@@ -24,16 +24,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-`TODO: add introduction`
-
 * This will be replaced by the TOC
 {:toc}
 
-## Latency & Completeness
+## Introduction
 
-`TODO: add these two sections`
+Timely steam processing is an extension of [stateful stream processing]({% link
+concepts/stateful-stream-processing.zh.md %}) in which time plays some role in the
+computation. Among other things, this is the case when you do time series
+analysis, when doing aggregations based on certain time periods (typically
+called windows), or when you do event processing where the time when an event
+occured is important.
 
-### Latency vs. Completeness in Batch & Stream Processing
+In the following sections we will highlight some of the topics that you should
+consider when working with timely Flink Applications.
 
 {% top %}
 
