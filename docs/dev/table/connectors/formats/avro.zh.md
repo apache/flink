@@ -92,11 +92,8 @@ Format Options
 Data Type Mapping
 ----------------
 
-Currently, the Avro schema is always derived from table schema, explicitly define an Avro schema is not supported yet. So here only lists the conversion from Flink type to Avro type.
-
-### Conversion from Flink type to Avro type
-
-The following table lists the conversion from the supported Flink type to Avro type.
+Currently, the Avro schema is always derived from table schema. Explicitly defining an Avro schema is not supported yet.
+So the following table lists the type mapping from Flink type to Avro type.
 
 <table class="table table-bordered">
     <thead>
