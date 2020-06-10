@@ -91,14 +91,14 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional flag to specify whether to fail if a field is missing or not, false by default.</td>
+      <td>Flag to specify whether to fail if a field is missing or not, false by default.</td>
     </tr>
     <tr>
       <td><h5>ignore-parse-errors</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional flag to skip fields and rows with parse errors instead of failing;
+      <td>Flag to skip fields and rows with parse errors instead of failing;
       fields are set to null in case of errors, false by default.</td>
     </tr>
     </tbody>
