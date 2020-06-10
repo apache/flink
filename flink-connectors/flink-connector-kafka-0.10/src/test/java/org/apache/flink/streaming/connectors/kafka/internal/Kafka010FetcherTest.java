@@ -70,7 +70,7 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
  * Unit tests for the {@link Kafka010Fetcher}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(KafkaConsumerThread.class)
+@PrepareForTest(Kafka010ConsumerThread.class)
 public class Kafka010FetcherTest {
 
 	@Test
@@ -176,7 +176,7 @@ public class Kafka010FetcherTest {
 
 		// check that there were no errors in the fetcher
 		final Throwable fetcherError = error.get();
-		if (fetcherError != null && !(fetcherError instanceof Handover.ClosedException)) {
+		if (fetcherError != null && !(fetcherError instanceof Handover010.ClosedException)) {
 			throw new Exception("Exception in the fetcher", fetcherError);
 		}
 
@@ -324,7 +324,7 @@ public class Kafka010FetcherTest {
 
 		// check that there were no errors in the fetcher
 		final Throwable caughtError = error.get();
-		if (caughtError != null && !(caughtError instanceof Handover.ClosedException)) {
+		if (caughtError != null && !(caughtError instanceof Handover010.ClosedException)) {
 			throw new Exception("Exception in the fetcher", caughtError);
 		}
 	}

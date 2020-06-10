@@ -69,10 +69,10 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	private final KafkaDeserializationSchema<T> deserializer;
 
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
-	private final Handover handover;
+	private final Handover010 handover010;
 
 	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher. */
-	private final KafkaConsumerThread consumerThread;
+	private final Kafka010ConsumerThread consumerThread;
 
 	/** Flag to mark the main work loop as alive. */
 	private volatile boolean running = true;
@@ -103,11 +103,11 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				useMetrics);
 
 		this.deserializer = deserializer;
-		this.handover = new Handover();
+		this.handover010 = new Handover010();
 
-		this.consumerThread = new KafkaConsumerThread(
+		this.consumerThread = new Kafka010ConsumerThread(
 				LOG,
-				handover,
+			handover010,
 				kafkaProperties,
 				unassignedPartitionsQueue,
 				"Kafka 0.10 Fetcher for " + taskNameWithSubtasks,
@@ -127,7 +127,7 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	@Override
 	public void runFetchLoop() throws Exception {
 		try {
-			final Handover handover = this.handover;
+			final Handover010 handover010 = this.handover010;
 
 			// kick off the actual Kafka consumer
 			consumerThread.start();
@@ -135,7 +135,7 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			while (running) {
 				// this blocks until we get the next records
 				// it automatically re-throws exceptions encountered in the consumer thread
-				final ConsumerRecords<byte[], byte[]> records = handover.pollNext();
+				final ConsumerRecords<byte[], byte[]> records = handover010.pollNext();
 
 				// get the records for each topic partition
 				for (KafkaTopicPartitionState<T, TopicPartition> partition : subscribedPartitionStates()) {
@@ -183,7 +183,7 @@ public class Kafka010Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	public void cancel() {
 		// flag the main thread to exit. A thread interrupt will come anyways.
 		running = false;
-		handover.close();
+		handover010.close();
 		consumerThread.shutdown();
 	}
 

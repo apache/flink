@@ -55,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The thread the runs the {@link KafkaConsumer}, connecting to the brokers and polling records.
- * The thread pushes the data into a {@link Handover} to be picked up by the fetcher that will
+ * The thread pushes the data into a {@link Handover010} to be picked up by the fetcher that will
  * deserialize and emit the records.
  *
  * <p><b>IMPORTANT:</b> This thread must not be interrupted when attempting to shut it down.
@@ -67,13 +67,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to the KafkaConsumer calls that change signature.
  */
 @Internal
-public class KafkaConsumerThread<T> extends Thread {
+public class Kafka010ConsumerThread<T> extends Thread {
 
 	/** Logger for this consumer. */
 	private final Logger log;
 
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
-	private final Handover handover;
+	private final Handover010 handover010;
 
 	/** The next offsets that the main thread should commit and the commit callback. */
 	private final AtomicReference<Tuple2<Map<TopicPartition, OffsetAndMetadata>, KafkaCommitCallback>> nextOffsetsToCommit;
@@ -124,9 +124,9 @@ public class KafkaConsumerThread<T> extends Thread {
 	/** Ratelimiter. */
 	private FlinkConnectorRateLimiter rateLimiter;
 
-	public KafkaConsumerThread(
+	public Kafka010ConsumerThread(
 			Logger log,
-			Handover handover,
+			Handover010 handover010,
 			Properties kafkaProperties,
 			ClosableBlockingQueue<KafkaTopicPartitionState<T, TopicPartition>> unassignedPartitionsQueue,
 			String threadName,
@@ -140,7 +140,7 @@ public class KafkaConsumerThread<T> extends Thread {
 		setDaemon(true);
 
 		this.log = checkNotNull(log);
-		this.handover = checkNotNull(handover);
+		this.handover010 = checkNotNull(handover010);
 		this.kafkaProperties = checkNotNull(kafkaProperties);
 		this.consumerMetricGroup = checkNotNull(consumerMetricGroup);
 		this.subtaskMetricGroup = checkNotNull(subtaskMetricGroup);
@@ -169,7 +169,7 @@ public class KafkaConsumerThread<T> extends Thread {
 		}
 
 		// this is the means to talk to FlinkKafkaConsumer's main thread
-		final Handover handover = this.handover;
+		final Handover010 handover010 = this.handover010;
 
 		// This method initializes the KafkaConsumer and guarantees it is torn down properly.
 		// This is important, because the consumer has multi-threading issues,
@@ -178,7 +178,7 @@ public class KafkaConsumerThread<T> extends Thread {
 			this.consumer = getConsumer(kafkaProperties);
 		}
 		catch (Throwable t) {
-			handover.reportError(t);
+			handover010.reportError(t);
 			return;
 		}
 
@@ -269,10 +269,10 @@ public class KafkaConsumerThread<T> extends Thread {
 				}
 
 				try {
-					handover.produce(records);
+					handover010.produce(records);
 					records = null;
 				}
-				catch (Handover.WakeupException e) {
+				catch (Handover010.WakeupException e) {
 					// fall through the loop
 				}
 			}
@@ -282,11 +282,11 @@ public class KafkaConsumerThread<T> extends Thread {
 			// let the main thread know and exit
 			// it may be that this exception comes because the main thread closed the handover, in
 			// which case the below reporting is irrelevant, but does not hurt either
-			handover.reportError(t);
+			handover010.reportError(t);
 		}
 		finally {
 			// make sure the handover is closed if it is not already closed or has an error
-			handover.close();
+			handover010.close();
 
 			// If a ratelimiter was created, make sure it's closed.
 			if (rateLimiter != null) {
@@ -316,7 +316,7 @@ public class KafkaConsumerThread<T> extends Thread {
 		// an exception if a concurrent call is in progress
 
 		// this wakes up the consumer if it is blocked handing over records
-		handover.wakeupProducer();
+		handover010.wakeupProducer();
 
 		// this wakes up the consumer if it is blocked in a kafka poll
 		synchronized (consumerReassignmentLock) {
@@ -358,7 +358,7 @@ public class KafkaConsumerThread<T> extends Thread {
 		}
 
 		// if the consumer is blocked in a poll() or handover operation, wake it up to commit soon
-		handover.wakeupProducer();
+		handover010.wakeupProducer();
 
 		synchronized (consumerReassignmentLock) {
 			if (consumer != null) {
