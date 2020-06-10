@@ -427,9 +427,10 @@ public class SlotManagerImpl implements SlotManager {
 	 *
 	 * @param taskExecutorConnection for the new task manager
 	 * @param initialSlotReport for the new task manager
+	 * @return True if the task manager has not been registered before and is registered successfully; otherwise false
 	 */
 	@Override
-	public void registerTaskManager(final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+	public boolean registerTaskManager(final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
 		checkInit();
 
 		LOG.debug("Registering TaskManager {} under {} at the SlotManager.", taskExecutorConnection.getResourceID(), taskExecutorConnection.getInstanceID());
@@ -437,11 +438,12 @@ public class SlotManagerImpl implements SlotManager {
 		// we identify task managers by their instance id
 		if (taskManagerRegistrations.containsKey(taskExecutorConnection.getInstanceID())) {
 			reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
+			return false;
 		} else {
 			if (isMaxSlotNumExceededAfterRegistration(initialSlotReport)) {
 				LOG.info("The total number of slots exceeds the max limitation {}, release the excess resource.", maxSlotNum);
 				resourceActions.releaseResource(taskExecutorConnection.getInstanceID(), new FlinkException("The total number of slots exceeds the max limitation."));
-				return;
+				return false;
 			}
 
 			// first register the TaskManager
@@ -466,6 +468,8 @@ public class SlotManagerImpl implements SlotManager {
 					slotStatus.getResourceProfile(),
 					taskExecutorConnection);
 			}
+
+			return true;
 		}
 
 	}
@@ -1193,7 +1197,7 @@ public class SlotManagerImpl implements SlotManager {
 	}
 
 	@VisibleForTesting
-	static ResourceProfile generateDefaultSlotResourceProfile(WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
+	public static ResourceProfile generateDefaultSlotResourceProfile(WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
 		return ResourceProfile.newBuilder()
 			.setCpuCores(workerResourceSpec.getCpuCores().divide(numSlotsPerWorker))
 			.setTaskHeapMemory(workerResourceSpec.getTaskHeapSize().divide(numSlotsPerWorker))

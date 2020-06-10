@@ -404,11 +404,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		final WorkerRegistration<WorkerType> workerTypeWorkerRegistration = taskExecutors.get(taskManagerResourceId);
 
 		if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
-			slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport);
+			if (slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport)) {
+				onTaskManagerRegistration(workerTypeWorkerRegistration);
+			}
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {
 			return FutureUtils.completedExceptionally(new ResourceManagerException(String.format("Unknown TaskManager registration id %s.", taskManagerRegistrationId)));
 		}
+	}
+
+	protected void onTaskManagerRegistration(WorkerRegistration<WorkerType> workerTypeWorkerRegistration) {
+		// noop
 	}
 
 	@Override
