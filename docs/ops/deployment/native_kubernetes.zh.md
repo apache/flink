@@ -100,7 +100,7 @@ $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> e
 ### 访问 Job Manager UI
 
 有几种方法可以将服务暴露到外部（集群外部） IP 地址。
-可以使用 `kubernetes.service.exposed.type` 进行配置。
+可以使用 [`kubernetes.rest-service.exposed.type`]({% link ops/config.zh.md %}#kubernetes-rest-service-exposed-type) 进行配置。
 
 - `ClusterIP`：通过集群内部 IP 暴露服务。
 该服务只能在集群中访问。如果想访问 JobManager ui 或将作业提交到现有 session，则需要启动一个本地代理。
@@ -113,9 +113,11 @@ $ kubectl port-forward service/<ServiceName> 8081
 - `NodePort`：通过每个 Node 上的 IP 和静态端口（`NodePort`）暴露服务。`<NodeIP>:<NodePort>` 可以用来连接 JobManager 服务。`NodeIP` 可以很容易地用 Kubernetes ApiServer 地址替换。
 你可以在 kube 配置文件找到它。
 
-- `LoadBalancer`：默认值，使用云提供商的负载均衡器在外部暴露服务。
+- `LoadBalancer`：使用云提供商的负载均衡器在外部暴露服务。
 由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，因为你可能在客户端日志中获得一个 `NodePort` 的 JobManager Web 界面。
 你可以使用 `kubectl get services/<ClusterId>` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
+
+  <span class="label label-warning">警告!</span> JobManager 可能会在无需认证的情况下暴露在公网上，同时可以提交任务运行。
 
 - `ExternalName`：将服务映射到 DNS 名称，当前版本不支持。
 
