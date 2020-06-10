@@ -154,7 +154,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 
 	BinaryArrayData completeWriter() {
 		reuseWriter.complete();
-		return reuseArray;
+		return reuseArray.copy();
 	}
 
 	// --------------------------------------------------------------------------------------------

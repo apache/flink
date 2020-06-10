@@ -87,6 +87,8 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 /**
  * Tests for {@link DataStructureConverters}.
@@ -371,6 +373,20 @@ public class DataStructureConvertersTest {
 					new Object[]{toConverter.toExternalOrNull(internalValue)});
 			}
 		}
+	}
+
+	@Test
+	public void TestObjectArrayConverter() {
+		Row[] rowArray1 = new Row[] {Row.of("a", 1), Row.of("b", 2), Row.of("c", 3)};
+		Row[] rowArray2 = new Row[] {Row.of("a", 3), Row.of("b", 0), Row.of("c", 2)};
+		DataType dataType = DataTypes.ARRAY(DataTypes.ROW(
+				DataTypes.FIELD("name", DataTypes.STRING()),
+				DataTypes.FIELD("count", DataTypes.INT())));
+		final DataStructureConverter<Object, Object> toConverter =
+			simulateSerialization(DataStructureConverters.getConverter(dataType));
+		toConverter.open(DataStructureConvertersTest.class.getClassLoader());
+		assertEquals(toConverter.toInternal(rowArray1), toConverter.toInternal(rowArray1));
+		assertNotEquals(toConverter.toInternal(rowArray1), toConverter.toInternal(rowArray2));
 	}
 
 	// --------------------------------------------------------------------------------------------

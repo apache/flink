@@ -165,6 +165,18 @@ public class DataFormatConvertersTest {
 	}
 
 	@Test
+	public void TestObjectArrayConverter() {
+		Row[] rowArray1 = new Row[] {Row.of("a", 1), Row.of("b", 2), Row.of("c", 3)};
+		Row[] rowArray2 = new Row[] {Row.of("a", 3), Row.of("b", 0), Row.of("c", 2)};
+		DataType dataType = DataTypes.ARRAY(DataTypes.ROW(
+			DataTypes.FIELD("name", DataTypes.STRING()),
+			DataTypes.FIELD("count", DataTypes.INT())));
+		DataFormatConverter converter = DataFormatConverters.getConverterForDataType(dataType);
+		Assert.assertEquals(converter.toInternal(rowArray1), converter.toInternal(rowArray1));
+		Assert.assertNotEquals(converter.toInternal(rowArray1), converter.toInternal(rowArray2));
+	}
+
+	@Test
 	public void testTypes() {
 		for (int i = 0; i < simpleTypes.length; i++) {
 			test(simpleTypes[i], simpleValues[i]);
