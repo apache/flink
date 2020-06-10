@@ -78,10 +78,8 @@ public class RocksDBResource extends ExternalResource {
 	/** Resources to close. */
 	private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
-	public RocksDBResource(boolean userMisuseOptimizeForPointLookup) {
+	public RocksDBResource() {
 		this(new RocksDBOptionsFactory() {
-			private static final long serialVersionUID = 1L;
-
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				//close it before reuse the reference.
@@ -103,8 +101,7 @@ public class RocksDBResource extends ExternalResource {
 					LOG.error("Close previous ColumnOptions's instance failed.", e);
 				}
 
-				ColumnFamilyOptions columnOptions = PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions(handlesToClose);
-				return userMisuseOptimizeForPointLookup ? columnOptions.optimizeForPointLookup(64) : columnOptions;
+				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions(handlesToClose).optimizeForPointLookup(40960);
 			}
 		});
 	}

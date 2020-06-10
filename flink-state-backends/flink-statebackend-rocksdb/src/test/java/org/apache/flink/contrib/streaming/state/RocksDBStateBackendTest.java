@@ -55,7 +55,6 @@ import org.mockito.stubbing.Answer;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
@@ -101,24 +100,13 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ValueState<Integer> testState1;
 	private ValueState<String> testState2;
 
-	@Parameterized.Parameters(name = "Incremental checkpointing: {0}, user misuse optimizeForPointLookup: {1}.")
-	public static Collection<Boolean[]> parameters() {
-		return Arrays.asList(
-			new Boolean[]{true, true},
-			new Boolean[]{true, false},
-			new Boolean[]{false, true},
-			new Boolean[]{false, false});
+	@Parameterized.Parameters(name = "Incremental checkpointing: {0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(false, true);
 	}
 
 	@Parameterized.Parameter
 	public boolean enableIncrementalCheckpointing;
-
-	/**
-	 * Verify the state logic is still right even user misuse {@link ColumnFamilyOptions#optimizeForPointLookup(long)}.
-	 * See FLINK-17800 for more details.
-	 */
-	@Parameterized.Parameter(1)
-	public boolean userMisuseOptimizeForPointLookup;
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -147,21 +135,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		Configuration configuration = new Configuration();
 		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
 		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
-		if (userMisuseOptimizeForPointLookup) {
-			backend.setRocksDBOptions(new RocksDBOptionsFactory() {
-				private static final long serialVersionUID = 1L;
-
-				@Override
-				public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-					return currentOptions;
-				}
-
-				@Override
-				public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-					return optimizePointLookupOption(currentOptions);
-				}
-			});
-		}
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
@@ -206,7 +179,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				IntSerializer.INSTANCE,
 				spy(db),
 				defaultCFHandle,
-				userMisuseOptimizeForPointLookup ? optimizePointLookupOption(optionsContainer.getColumnOptions()) : optionsContainer.getColumnOptions())
+				optionsContainer.getColumnOptions())
 			.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
 			.build();
 
@@ -262,9 +235,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	@Test
 	public void testCorrectMergeOperatorSet() throws Exception {
 		prepareRocksDB();
-		final ColumnFamilyOptions columnFamilyOptions = userMisuseOptimizeForPointLookup ?
-			spy(optimizePointLookupOption(new ColumnFamilyOptions())) :
-			spy(new ColumnFamilyOptions());
+		final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
 		RocksDBKeyedStateBackend<Integer> test = null;
 
 		try {
@@ -533,10 +504,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				backend.dispose();
 			}
 		}
-	}
-
-	private ColumnFamilyOptions optimizePointLookupOption(ColumnFamilyOptions columnFamilyOptions) {
-		return columnFamilyOptions.optimizeForPointLookup(64);
 	}
 
 	private void checkRemove(IncrementalRemoteKeyedStateHandle remove, SharedStateRegistry registry) throws Exception {

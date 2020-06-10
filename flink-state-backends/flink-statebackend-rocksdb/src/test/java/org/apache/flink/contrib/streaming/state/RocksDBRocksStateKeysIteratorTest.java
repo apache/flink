@@ -33,21 +33,14 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -58,21 +51,14 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for the RocksIteratorWrapper.
  */
-@RunWith(Parameterized.class)
 public class RocksDBRocksStateKeysIteratorTest {
-	@Parameterized.Parameter
-	public boolean userMisUseOptimizePointLookUp;
-
-	@Parameterized.Parameters(name = "User misuse optimizeForPointLookup = {0}")
-	public static List<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	@Test
 	public void testIterator() throws Exception{
+
 		// test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
 		testIteratorHelper(IntSerializer.INSTANCE, StringSerializer.INSTANCE, 128, i -> i);
 
@@ -97,22 +83,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 		String dbPath = tmp.newFolder().getAbsolutePath();
 		String checkpointPath = tmp.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), TernaryBoolean.TRUE);
-		if (userMisUseOptimizePointLookUp) {
-			backend.setRocksDBOptions(new RocksDBOptionsFactory() {
-				private static final long serialVersionUID = 1L;
-
-				@Override
-				public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-					return currentOptions;
-				}
-
-				@Override
-				public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-					return currentOptions.optimizeForPointLookup(64);
-				}
-			});
-		}
+		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), true);
 		backend.setDbStoragePath(dbPath);
 
 		MockEnvironment env = MockEnvironment.builder().build();

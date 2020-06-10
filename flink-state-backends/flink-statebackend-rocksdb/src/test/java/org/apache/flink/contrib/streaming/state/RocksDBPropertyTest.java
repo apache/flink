@@ -31,7 +31,7 @@ import org.rocksdb.RocksDBException;
 public class RocksDBPropertyTest {
 
 	@Rule
-	public RocksDBResource rocksDBResource = new RocksDBResource(false);
+	public RocksDBResource rocksDBResource = new RocksDBResource();
 
 	@Test
 	public void testRocksDBPropertiesValid() throws RocksDBException {
