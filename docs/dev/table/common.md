@@ -444,9 +444,9 @@ Identifiers follow SQL requirements which means that they can be escaped with a 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-TableEnvironment tEnv = ...;
-tEnv.useCatalog("custom_catalog");
-tEnv.useDatabase("custom_database");
+TableEnvironment tableEnv = ...;
+tableEnv.useCatalog("custom_catalog");
+tableEnv.useDatabase("custom_database");
 
 Table table = ...;
 
@@ -458,8 +458,8 @@ tableEnv.createTemporaryView("exampleView", table);
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
 
-// register the view named 'example.View' in the catalog named 'custom_catalog'
-// in the database named 'custom_database' 
+// register the view named 'View' in the catalog named 'custom_catalog'
+// in the database named 'example' 
 tableEnv.createTemporaryView("`example.View`", table);
 
 // register the view named 'exampleView' in the catalog named 'other_catalog'
