@@ -53,33 +53,31 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * Tests that the Elasticsearch sink works properly with json.
 	 */
 	public void runElasticsearchSinkTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getJsonSinkFunction);
+		runElasticSearchSinkTest("elasticsearch-sink-test-json-index", SourceSinkDataTestKit::getJsonSinkFunction);
 	}
 
 	/**
 	 * Tests that the Elasticsearch sink works properly with cbor.
 	 */
 	public void runElasticsearchSinkCborTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getCborSinkFunction);
+		runElasticSearchSinkTest("elasticsearch-sink-test-cbor-index", SourceSinkDataTestKit::getCborSinkFunction);
 	}
 
 	/**
 	 * Tests that the Elasticsearch sink works properly with smile.
 	 */
 	public void runElasticsearchSinkSmileTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getSmileSinkFunction);
+		runElasticSearchSinkTest("elasticsearch-sink-test-smile-index", SourceSinkDataTestKit::getSmileSinkFunction);
 	}
 
 	/**
 	 * Tests that the Elasticsearch sink works properly with yaml.
 	 */
 	public void runElasticsearchSinkYamlTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getYamlSinkFunction);
+		runElasticSearchSinkTest("elasticsearch-sink-test-yaml-index", SourceSinkDataTestKit::getYamlSinkFunction);
 	}
 
-	private void runElasticSearchSinkTest(Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory) throws Exception {
-		final String index = "elasticsearch-sink-test-index";
-
+	private void runElasticSearchSinkTest(String index, Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
