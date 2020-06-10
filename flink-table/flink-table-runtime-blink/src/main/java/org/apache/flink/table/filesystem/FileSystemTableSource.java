@@ -123,15 +123,15 @@ public class FileSystemTableSource implements
 		@SuppressWarnings("unchecked")
 		TypeInformation<RowData> typeInfo =
 				(TypeInformation<RowData>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
-		DataStreamSource<RowData> source;
-		if (partitionKeys.isEmpty()) {
-			source = execEnv.createInput(getInputFormat(), typeInfo);
-		} else {
-			// Avoid using ContinuousFileMonitoringFunction
-			InputFormatSourceFunction<RowData> func = new InputFormatSourceFunction<>(getInputFormat(), typeInfo);
-			source = execEnv.addSource(func, explainSource(), typeInfo);
-		}
+		// Avoid using ContinuousFileMonitoringFunction
+		InputFormatSourceFunction<RowData> func = new InputFormatSourceFunction<>(getInputFormat(), typeInfo);
+		DataStreamSource<RowData> source = execEnv.addSource(func, explainSource(), typeInfo);
 		return source.name(explainSource());
+	}
+
+	@Override
+	public boolean isBounded() {
+		return true;
 	}
 
 	private InputFormat<RowData, ?> getInputFormat() {
