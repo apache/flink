@@ -914,7 +914,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // 接收来自外部数据源的 DataStream
-DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
+DataStream<Tuple4<String, String, String, Long>> ds = env.addSource(...);
 // 把 DataStream 注册为表，表名是 “ShopSales”
 tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
 
@@ -969,7 +969,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // 从外部数据源读取 DataStream
-DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
+DataStream<Tuple4<String, String, String, Long>> ds = env.addSource(...);
 // 把 DataStream 注册为表，表名是 “ShopSales”
 tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
@@ -1048,7 +1048,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // 从外部数据源读取 DataStream
-DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
+DataStream<Tuple4<String, String, String, Integer>> ds = env.addSource(...);
 // 注册名为 “Orders” 的 DataStream
 tableEnv.createTemporaryView("Orders", ds, $("order_id"), $("user"), $("product"), $("number"), $("proctime").proctime());
 
