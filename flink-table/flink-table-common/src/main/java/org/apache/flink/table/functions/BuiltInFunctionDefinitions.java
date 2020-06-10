@@ -55,10 +55,10 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.varying
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_MOD;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_PRODUCT;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_QUOTIENT;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_TIMES;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_DIVIDE;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_SCALE0;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_SUM;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_PLUS;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
@@ -72,6 +72,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 public final class BuiltInFunctionDefinitions {
 
 	// logic functions
+
 	public static final BuiltInFunctionDefinition AND =
 		new BuiltInFunctionDefinition.Builder()
 			.name("and")
@@ -85,6 +86,7 @@ public final class BuiltInFunctionDefinitions {
 			)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition OR =
 		new BuiltInFunctionDefinition.Builder()
 			.name("or")
@@ -98,6 +100,7 @@ public final class BuiltInFunctionDefinitions {
 			)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition NOT =
 		new BuiltInFunctionDefinition.Builder()
 			.name("not")
@@ -105,6 +108,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(sequence(logical(LogicalTypeRoot.BOOLEAN)))
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition IF =
 		new BuiltInFunctionDefinition.Builder()
 			.name("ifThenElse")
@@ -119,6 +123,7 @@ public final class BuiltInFunctionDefinitions {
 			.build();
 
 	// comparison functions
+
 	public static final BuiltInFunctionDefinition EQUALS =
 		new BuiltInFunctionDefinition.Builder()
 			.name("equals")
@@ -126,6 +131,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(TWO_EQUALS_COMPARABLE)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition GREATER_THAN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("greaterThan")
@@ -133,6 +139,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition GREATER_THAN_OR_EQUAL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("greaterThanOrEqual")
@@ -140,6 +147,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition LESS_THAN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lessThan")
@@ -147,6 +155,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition LESS_THAN_OR_EQUAL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lessThanOrEqual")
@@ -154,6 +163,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition NOT_EQUALS =
 		new BuiltInFunctionDefinition.Builder()
 			.name("notEquals")
@@ -161,6 +171,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(TWO_EQUALS_COMPARABLE)
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition IS_NULL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isNull")
@@ -168,6 +179,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(wildcardWithCount(ConstantArgumentCount.of(1)))
 			.outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
 			.build();
+
 	public static final BuiltInFunctionDefinition IS_NOT_NULL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isNotNull")
@@ -175,6 +187,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(wildcardWithCount(ConstantArgumentCount.of(1)))
 			.outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
 			.build();
+
 	public static final BuiltInFunctionDefinition IS_TRUE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isTrue")
@@ -182,6 +195,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(sequence(logical(LogicalTypeRoot.BOOLEAN)))
 			.outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
 			.build();
+
 	public static final BuiltInFunctionDefinition IS_FALSE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isFalse")
@@ -189,6 +203,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(sequence(logical(LogicalTypeRoot.BOOLEAN)))
 			.outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
 			.build();
+
 	public static final BuiltInFunctionDefinition IS_NOT_TRUE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isNotTrue")
@@ -196,6 +211,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(sequence(logical(LogicalTypeRoot.BOOLEAN)))
 			.outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
 			.build();
+
 	public static final BuiltInFunctionDefinition IS_NOT_FALSE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isNotFalse")
@@ -203,6 +219,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(sequence(logical(LogicalTypeRoot.BOOLEAN)))
 			.outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
 			.build();
+
 	public static final BuiltInFunctionDefinition BETWEEN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("between")
@@ -210,6 +227,7 @@ public final class BuiltInFunctionDefinitions {
 			.inputTypeStrategy(comparable(ConstantArgumentCount.of(3), StructuredComparision.FULL))
 			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
+
 	public static final BuiltInFunctionDefinition NOT_BETWEEN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("notBetween")
@@ -472,7 +490,7 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(
 				nullable(
 					first(
-						DECIMAL_SUM,
+						DECIMAL_PLUS,
 						COMMON,
 						explicit(DataTypes.STRING()))))
 			.build();
@@ -493,7 +511,7 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(
 				nullable(
 					first(
-						DECIMAL_SUM,
+						DECIMAL_PLUS,
 						COMMON)))
 			.build();
 
@@ -508,7 +526,7 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(
 				nullable(
 					first(
-						DECIMAL_QUOTIENT,
+						DECIMAL_DIVIDE,
 						matchFamily(0, LogicalTypeFamily.INTERVAL),
 						COMMON)))
 			.build();
@@ -525,7 +543,7 @@ public final class BuiltInFunctionDefinitions {
 			.outputTypeStrategy(
 				nullable(
 					first(
-						DECIMAL_PRODUCT,
+						DECIMAL_TIMES,
 						matchFamily(0, LogicalTypeFamily.INTERVAL),
 						COMMON)))
 			.build();

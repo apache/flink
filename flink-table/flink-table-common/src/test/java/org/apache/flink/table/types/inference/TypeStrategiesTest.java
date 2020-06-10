@@ -199,21 +199,21 @@ public class TypeStrategiesTest {
 			TestSpec
 				.forStrategy(
 					"Find a decimal sum",
-					TypeStrategies.DECIMAL_SUM)
+					TypeStrategies.DECIMAL_PLUS)
 				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
 				.expectDataType(DataTypes.DECIMAL(6, 4).notNull()),
 
 			TestSpec
 				.forStrategy(
 					"Find a decimal quotient",
-					TypeStrategies.DECIMAL_QUOTIENT)
+					TypeStrategies.DECIMAL_DIVIDE)
 				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
 				.expectDataType(DataTypes.DECIMAL(11, 8).notNull()),
 
 			TestSpec
 				.forStrategy(
 					"Find a decimal product",
-					TypeStrategies.DECIMAL_PRODUCT)
+					TypeStrategies.DECIMAL_TIMES)
 				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
 				.expectDataType(DataTypes.DECIMAL(8, 6).notNull()),
 

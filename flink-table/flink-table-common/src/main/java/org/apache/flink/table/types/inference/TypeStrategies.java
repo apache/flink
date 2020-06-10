@@ -160,7 +160,7 @@ public final class TypeStrategies {
 	/**
 	 * Type strategy that returns the sum of an exact numeric addition that includes at least one decimal.
 	 */
-	public static final TypeStrategy DECIMAL_SUM = callContext -> {
+	public static final TypeStrategy DECIMAL_PLUS = callContext -> {
 		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 		final LogicalType addend1 = argumentDataTypes.get(0).getLogicalType();
 		final LogicalType addend2 = argumentDataTypes.get(1).getLogicalType();
@@ -186,7 +186,7 @@ public final class TypeStrategies {
 	 * Type strategy that returns the quotient of an exact numeric division that includes at least
 	 * one decimal.
 	 */
-	public static final TypeStrategy DECIMAL_QUOTIENT = callContext -> {
+	public static final TypeStrategy DECIMAL_DIVIDE = callContext -> {
 		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 		final LogicalType dividend = argumentDataTypes.get(0).getLogicalType();
 		final LogicalType divisor = argumentDataTypes.get(1).getLogicalType();
@@ -212,7 +212,7 @@ public final class TypeStrategies {
 	 * Type strategy that returns the product of an exact numeric multiplication that includes at least
 	 * one decimal.
 	 */
-	public static final TypeStrategy DECIMAL_PRODUCT = callContext -> {
+	public static final TypeStrategy DECIMAL_TIMES = callContext -> {
 		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 		final LogicalType factor1 = argumentDataTypes.get(0).getLogicalType();
 		final LogicalType factor2 = argumentDataTypes.get(1).getLogicalType();
