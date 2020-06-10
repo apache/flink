@@ -62,14 +62,11 @@ As mentioned before in the [total memory description](mem_setup.html#configure-t
 for the Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
 It gives more control over the available *JVM Heap* which is used by:
 
-* Flink framework (e.g. *Job cache*)
+* Flink framework
 * User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
 The required size of *JVM Heap* is mostly driven by the number of running jobs, their structure, and requirements for
 the mentioned user code.
-
-The *Job cache* resides in the *JVM Heap*. It can be configured by
-[`jobstore.cache-size`](../config.html#jobstore-cache-size) which must be less than the configured or derived *JVM Heap* size.
 
 <span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
 neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
