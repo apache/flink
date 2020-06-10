@@ -39,12 +39,6 @@ occured is important.
 In the following sections we will highlight some of the topics that you should
 consider when working with timely Flink Applications.
 
-## Latency & Completeness
-
-`TODO: add these two sections`
-
-### Latency vs. Completeness in Batch & Stream Processing
-
 {% top %}
 
 ## Notions of Time: Event Time and Processing Time
