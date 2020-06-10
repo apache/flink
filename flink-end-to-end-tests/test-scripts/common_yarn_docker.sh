@@ -157,6 +157,8 @@ function debug_copy_and_show_logs {
     application_id=`docker exec master bash -c "yarn application -list -appStates ALL" | grep "Flink" | grep "cluster" | awk '{print \$1}'`
 
     echo "Application ID: $application_id"
+    docker exec master bash -c "yarn application -kill $application_id"
+    sleep 10
     docker exec master bash -c "yarn logs -applicationId $application_id"
     docker exec master bash -c "kdestroy"
 }
