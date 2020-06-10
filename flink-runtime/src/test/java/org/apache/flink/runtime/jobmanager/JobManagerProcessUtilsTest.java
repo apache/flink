@@ -84,27 +84,6 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 	}
 
 	@Test
-	public void testLogFailureOfJobStoreCacheSizeVerification() {
-		MemorySize jvmHeapMemory = MemorySize.parse("150m");
-		MemorySize jobStoreCacheSize = MemorySize.parse("200m");
-
-		Configuration conf = new Configuration();
-		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeapMemory);
-		conf.set(JobManagerOptions.JOB_STORE_CACHE_SIZE, jobStoreCacheSize.getBytes());
-
-		JobManagerProcessUtils.processSpecFromConfig(conf);
-		MatcherAssert.assertThat(
-			testLoggerResource.getMessages(),
-			hasItem(containsString(String.format(
-				"The configured or derived JVM heap memory size (%s: %s) is less than the configured or default size " +
-					"of the job store cache (%s: %s)",
-				JobManagerOptions.JVM_HEAP_MEMORY.key(),
-				jvmHeapMemory.toHumanReadableString(),
-				JobManagerOptions.JOB_STORE_CACHE_SIZE.key(),
-				jobStoreCacheSize.toHumanReadableString()))));
-	}
-
-	@Test
 	public void testConfigOffHeapMemory() {
 		MemorySize offHeapMemory = MemorySize.parse("100m");
 
