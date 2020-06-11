@@ -239,11 +239,11 @@ The following table lists the type mapping from Flink type to CSV type.
     </tr>
     <tr>
       <td>ARRAY</td>
-      <td>array <span class="label label-danger">Note</span> only deserialization is supported.</td>
+      <td>array</td>
     </tr>
     <tr>
       <td>ROW</td>
-      <td>object <span class="label label-danger">Note</span> only deserialization is supported.</td>
+      <td>object</td>
     </tr>
     </tbody>
 </table>
