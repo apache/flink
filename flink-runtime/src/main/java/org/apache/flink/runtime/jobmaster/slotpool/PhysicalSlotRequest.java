@@ -42,11 +42,11 @@ public class PhysicalSlotRequest {
 		this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
 	}
 
-	SlotRequestId getSlotRequestId() {
+	public SlotRequestId getSlotRequestId() {
 		return slotRequestId;
 	}
 
-	SlotProfile getSlotProfile() {
+	public SlotProfile getSlotProfile() {
 		return slotProfile;
 	}
 
@@ -63,7 +63,7 @@ public class PhysicalSlotRequest {
 
 		private final PhysicalSlot physicalSlot;
 
-		Result(final SlotRequestId slotRequestId, final PhysicalSlot physicalSlot) {
+		public Result(final SlotRequestId slotRequestId, final PhysicalSlot physicalSlot) {
 			this.slotRequestId = slotRequestId;
 			this.physicalSlot = physicalSlot;
 		}
