@@ -545,7 +545,18 @@ public class CheckpointCoordinator {
 							final PendingCheckpoint checkpoint =
 								FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
 
-							if (throwable == null && checkpoint != null) {
+							Preconditions.checkState(
+								checkpoint != null || throwable != null,
+								"Either the pending checkpoint needs to be created or an error must have been occurred.");
+
+							if (throwable != null) {
+								// the initialization might not be finished yet
+								if (checkpoint == null) {
+									onTriggerFailure(request, throwable);
+								} else {
+									onTriggerFailure(checkpoint, throwable);
+								}
+							} else {
 								if (checkpoint.isDiscarded()) {
 									onTriggerFailure(
 										checkpoint,
@@ -567,13 +578,6 @@ public class CheckpointCoordinator {
 
 									onTriggerSuccess();
 								}
-							} else {
-									// the initialization might not be finished yet
-									if (checkpoint == null) {
-										onTriggerFailure(request, throwable);
-									} else {
-										onTriggerFailure(checkpoint, throwable);
-									}
 							}
 
 							return null;
