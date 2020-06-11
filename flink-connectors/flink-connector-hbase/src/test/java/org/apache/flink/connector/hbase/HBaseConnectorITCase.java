@@ -50,9 +50,10 @@ import org.apache.flink.table.planner.sinks.CollectTableSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -66,8 +67,10 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import scala.Option;
 
@@ -453,6 +456,38 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
+	private String getDDLForTestTable3() {
+		String quorum = getZookeeperQuorum();
+		if (isLegacyConnector) {
+			return "CREATE TABLE hbase (\n" +
+				"    rowkey INT," +
+				"    family1 ROW<col1 INT>,\n" +
+				"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
+				"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
+				"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
+				") WITH (\n" +
+				"    'connector.type' = 'hbase',\n" +
+				"    'connector.version' = '1.4.3',\n" +
+				"    'connector.table-name' = '" + TEST_TABLE_3 + "',\n" +
+				"    'connector.zookeeper.quorum' = '" + quorum + "',\n" +
+				"    'connector.zookeeper.znode.parent' = '/hbase' " +
+				")";
+		} else {
+			return "CREATE TABLE hbase (\n" +
+				"    rowkey INT," +
+				"    family1 ROW<col1 INT>,\n" +
+				"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
+				"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
+				"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
+				") WITH (\n" +
+				"    'connector' = 'hbase-1.4',\n" +
+				"    'table-name' = '" + TEST_TABLE_3 + "',\n" +
+				"    'zookeeper.quorum' = '" + quorum + "',\n" +
+				"    'zookeeper.znode.parent' = '/hbase' " +
+				")";
+		}
+	}
+
 	@Test
 	public void testTableSourceSinkWithDDL() throws Exception {
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -462,36 +497,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		tEnv.createTemporaryView("src", ds);
 
 		// register hbase table
-		String quorum = getZookeeperQuorum();
-		String ddl;
-		if (isLegacyConnector) {
-			ddl = "CREATE TABLE hbase (\n" +
-				"    rowkey INT," +
-				"    family1 ROW<col1 INT>,\n" +
-				"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
-				"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
-				"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
-				") WITH (\n" +
-				"    'connector.type' = 'hbase',\n" +
-				"    'connector.version' = '1.4.3',\n" +
-				"    'connector.table-name' = 'testTable3',\n" +
-				"    'connector.zookeeper.quorum' = '" + quorum + "',\n" +
-				"    'connector.zookeeper.znode.parent' = '/hbase' " +
-				")";
-		} else {
-			ddl = "CREATE TABLE hbase (\n" +
-				"    rowkey INT," +
-				"    family1 ROW<col1 INT>,\n" +
-				"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
-				"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
-				"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
-				") WITH (\n" +
-				"    'connector' = 'hbase-1.4',\n" +
-				"    'table-name' = 'testTable3',\n" +
-				"    'zookeeper.quorum' = '" + quorum + "',\n" +
-				"    'zookeeper.znode.parent' = '/hbase' " +
-				")";
-		}
+		String ddl = getDDLForTestTable3();
 		tEnv.executeSql(ddl);
 
 		String query = "INSERT INTO hbase " +
@@ -532,6 +538,63 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testHBaseLookupTableSource() throws Exception {
+		if (OLD_PLANNER.equals(planner)) {
+			// lookup table source is only supported in blink planner, skip for old planner
+			return;
+		}
+		StreamExecutionEnvironment streamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment streamTableEnv = StreamTableEnvironment.create(streamEnv, streamSettings);
+
+		// prepare dimension table data.
+		DataStream<Row> ds = streamEnv.fromCollection(testData1).returns(testTypeInfo1);
+		streamTableEnv.createTemporaryView("testData", ds);
+		String ddl = getDDLForTestTable3();
+		streamTableEnv.executeSql(ddl);
+
+		String query = "INSERT INTO hbase " +
+			"SELECT rowkey, ROW(f1c1), ROW(f2c1, f2c2), ROW(f3c1, f3c2, f3c3), ROW(f4c1, f4c2, f4c3) " +
+			"FROM testData";
+		TableEnvUtil.execInsertSqlAndWaitResult(streamTableEnv, query);
+		StreamITCase.clear();
+
+		// prepare a source table
+		String srcTableName = "src";
+		DataStream<Row> srcDs = streamEnv.fromCollection(testData2).returns(testTypeInfo2);
+		Table in = streamTableEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
+		streamTableEnv.registerTable(srcTableName, in);
+
+		// perform a temporal table join query
+		String dimJoinQuery = "SELECT" +
+			" a," +
+			" b," +
+			" family1.col1," +
+			" family2.col1," +
+			" family2.col2," +
+			" family3.col1," +
+			" family3.col2," +
+			" family3.col3," +
+			" family4.col1," +
+			" family4.col2," +
+			" family4.col3" +
+			" FROM src JOIN hbase FOR SYSTEM_TIME AS OF src.proc as h ON src.a = h.rowkey";
+		Iterator<Row> collected = streamTableEnv.executeSql(dimJoinQuery).collect();
+		List<String> result = Lists.newArrayList(collected).stream()
+			.map(Row::toString)
+			.sorted()
+			.collect(Collectors.toList());
+
+		// check result, the time type in collected result is LOCAL_DATE_TIME, LOCAL_DATE, LOCAL_TIME
+		List<String> expected = new ArrayList<>();
+		expected.add("1,1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18,19:00");
+		expected.add("2,2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18,19:01");
+		expected.add("3,2,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02");
+		expected.add("3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02");
+
+		assertEquals(expected, result);
+	}
+
 
 	// -------------------------------------------------------------------------------------
 	// HBase lookup source tests
@@ -548,81 +611,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		testData2.add(Row.of(2, 2L, "Hello"));
 		testData2.add(Row.of(3, 2L, "Hello world"));
 		testData2.add(Row.of(3, 3L, "Hello world!"));
-	}
-
-	@Test
-	public void testHBaseLookupTableSource() throws Exception {
-		if (OLD_PLANNER.equals(planner)) {
-			// lookup table source is only supported in blink planner, skip for old planner
-			return;
-		}
-		StreamExecutionEnvironment streamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment streamTableEnv = StreamTableEnvironment.create(streamEnv, streamSettings);
-		StreamITCase.clear();
-
-		// prepare a source table
-		String srcTableName = "src";
-		DataStream<Row> ds = streamEnv.fromCollection(testData2).returns(testTypeInfo2);
-		Table in = streamTableEnv.fromDataStream(ds, $("a"), $("b"), $("c"), $("proc").proctime());
-		streamTableEnv.registerTable(srcTableName, in);
-
-		if (isLegacyConnector) {
-			Map<String, String> tableProperties = hbaseTableProperties();
-			TableSource<?> source = TableFactoryService
-				.find(HBaseTableFactory.class, tableProperties)
-				.createTableSource(tableProperties);
-			((TableEnvironmentInternal) streamTableEnv).registerTableSourceInternal("hbaseLookup", source);
-		} else {
-			streamTableEnv.executeSql(
-					"CREATE TABLE hbaseLookup (" +
-					" family1 ROW<col1 INT>," +
-					" rk INT," +
-					" family2 ROW<col1 STRING, col2 BIGINT>," +
-					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
-					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
-					" 'table-name' = '" + TEST_TABLE_1 + "'," +
-					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
-					")");
-		}
-		// perform a temporal table join query
-		String query = "SELECT a,family1.col1, family3.col3 FROM src " +
-			"JOIN hbaseLookup FOR SYSTEM_TIME AS OF src.proc as h ON src.a = h.rk";
-		Table result = streamTableEnv.sqlQuery(query);
-
-		DataStream<Row> resultSet = streamTableEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink<>());
-
-		streamEnv.execute();
-
-		List<String> expected = new ArrayList<>();
-		expected.add("1,10,Welt-1");
-		expected.add("2,20,Welt-2");
-		expected.add("3,30,Welt-3");
-		expected.add("3,30,Welt-3");
-
-		StreamITCase.compareWithList(expected);
-	}
-
-	private static Map<String, String> hbaseTableProperties() {
-		Map<String, String> properties = new HashMap<>();
-		properties.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_HBASE);
-		properties.put(CONNECTOR_VERSION, CONNECTOR_VERSION_VALUE_143);
-		properties.put(CONNECTOR_PROPERTY_VERSION, "1");
-		properties.put(CONNECTOR_TABLE_NAME, TEST_TABLE_1);
-		properties.put(CONNECTOR_ZK_QUORUM, getZookeeperQuorum());
-		// schema
-		String[] columnNames = {FAMILY1, ROWKEY, FAMILY2, FAMILY3};
-		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{F1COL1}, Types.INT);
-		TypeInformation<Row> f2 = Types.ROW_NAMED(new String[]{F2COL1, F2COL2}, Types.STRING, Types.LONG);
-		TypeInformation<Row> f3 = Types.ROW_NAMED(new String[]{F3COL1, F3COL2, F3COL3}, Types.DOUBLE, Types.BOOLEAN, Types.STRING);
-		TypeInformation[] columnTypes = new TypeInformation[]{f1, Types.INT, f2, f3};
-
-		DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		TableSchema tableSchema = new TableSchema(columnNames, columnTypes);
-		descriptorProperties.putTableSchema(SCHEMA, tableSchema);
-		descriptorProperties.putProperties(properties);
-		return descriptorProperties.asMap();
 	}
 
 	// ------------------------------- Utilities -------------------------------------------------
