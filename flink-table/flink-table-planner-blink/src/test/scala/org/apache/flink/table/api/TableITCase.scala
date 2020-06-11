@@ -119,12 +119,15 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     val it = tableResult.collect()
     it.close()
-    try {
-      assertNotEquals(JobStatus.RUNNING, tableResult.getJobClient.get().getJobStatus.get())
+    val jobStatus = try {
+      Some(tableResult.getJobClient.get().getJobStatus.get())
     } catch {
       // ignore the exception,
       // because the MiniCluster maybe already been shut down when getting job status
       case _: Throwable => None
+    }
+    if (jobStatus.isDefined) {
+      assertNotEquals(JobStatus.RUNNING, jobStatus.get)
     }
   }
 
