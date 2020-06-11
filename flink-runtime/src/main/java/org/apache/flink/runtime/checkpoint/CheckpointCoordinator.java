@@ -538,44 +538,45 @@ public class CheckpointCoordinator {
 									coordinatorsToCheckpoint, pendingCheckpoint, timer),
 							timer);
 
-			CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
-				.whenCompleteAsync(
-					(ignored, throwable) -> {
-						final PendingCheckpoint checkpoint =
-							FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
+			FutureUtils.assertNoException(
+				CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
+					.whenCompleteAsync(
+						(ignored, throwable) -> {
+							final PendingCheckpoint checkpoint =
+								FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
 
-						if (throwable == null && checkpoint != null) {
-							if (checkpoint.isDiscarded()) {
-								onTriggerFailure(
-									checkpoint,
-									new CheckpointException(
-										CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
-										checkpoint.getFailureCause()));
-							} else {
-								// no exception, no discarding, everything is OK
-								final long checkpointId = checkpoint.getCheckpointId();
-								snapshotTaskState(
-									timestamp,
-									checkpointId,
-									checkpoint.getCheckpointStorageLocation(),
-									request.props,
-									executions,
-									request.advanceToEndOfTime);
-
-								coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
-
-								onTriggerSuccess();
-							}
-						} else {
-								// the initialization might not be finished yet
-								if (checkpoint == null) {
-									onTriggerFailure(request, throwable);
+							if (throwable == null && checkpoint != null) {
+								if (checkpoint.isDiscarded()) {
+									onTriggerFailure(
+										checkpoint,
+										new CheckpointException(
+											CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
+											checkpoint.getFailureCause()));
 								} else {
-									onTriggerFailure(checkpoint, throwable);
+									// no exception, no discarding, everything is OK
+									final long checkpointId = checkpoint.getCheckpointId();
+									snapshotTaskState(
+										timestamp,
+										checkpointId,
+										checkpoint.getCheckpointStorageLocation(),
+										request.props,
+										executions,
+										request.advanceToEndOfTime);
+
+									coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
+
+									onTriggerSuccess();
 								}
-						}
-					},
-					timer);
+							} else {
+									// the initialization might not be finished yet
+									if (checkpoint == null) {
+										onTriggerFailure(request, throwable);
+									} else {
+										onTriggerFailure(checkpoint, throwable);
+									}
+							}
+						},
+						timer));
 		} catch (Throwable throwable) {
 			onTriggerFailure(request, throwable);
 		}
