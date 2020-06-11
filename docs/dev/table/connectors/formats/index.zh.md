@@ -42,7 +42,7 @@ Flink supports the following formats:
           <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
         </tr>
         <tr>
-         <td>JSON</td>
+         <td><a href="{{ site.baseurl }}/dev/table/connectors/formats/json.html">JSON</a></td>
          <td>Apache Kafka,
           <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a>,
           Elasticsearch</td>
