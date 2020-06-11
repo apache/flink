@@ -25,7 +25,6 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.function.RunnableWithException;
 
 import javax.annotation.Nullable;
@@ -48,27 +47,6 @@ public final class ExceptionUtils {
 
 	/** The stringified representation of a null exception reference. */
 	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
-
-	private static final String TM_DIRECT_OOM_ERROR_MESSAGE = String.format(
-		"Direct buffer memory. The direct out-of-memory error has occurred. This can mean two things: either job(s) require(s) " +
-			"a larger size of JVM direct memory or there is a direct memory leak. The direct memory can be " +
-			"allocated by user code or some of its dependencies. In this case '%s' configuration option should be " +
-			"increased. Flink framework and its dependencies also consume the direct memory, mostly for network " +
-			"communication. The most of network memory is managed by Flink and should not result in out-of-memory " +
-			"error. In certain special cases, in particular for jobs with high parallelism, the framework may " +
-			"require more direct memory which is not managed by Flink. In this case '%s' configuration option " +
-			"should be increased. If the error persists then there is probably a direct memory leak which has to " +
-			"be investigated and fixed. The task executor has to be shutdown...",
-		TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
-		TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
-
-	private static final String TM_METASPACE_OOM_ERROR_MESSAGE = String.format(
-		"Metaspace. The metaspace out-of-memory error has occurred. This can mean two things: either the job requires " +
-			"a larger size of JVM metaspace to load classes or there is a class loading leak. In the first case " +
-			"'%s' configuration option should be increased. If the error persists (usually in cluster after " +
-			"several job (re-)submissions) then there is probably a class loading leak which has to be " +
-			"investigated and fixed. The task executor has to be shutdown...",
-		TaskManagerOptions.JVM_METASPACE.key());
 
 	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
@@ -142,24 +120,33 @@ public final class ExceptionUtils {
 	 * {@code null} if the argument was {@code null}
 	 */
 	@Nullable
-	public static Throwable tryEnrichTaskManagerError(@Nullable Throwable exception) {
-		if (exception instanceof OutOfMemoryError) {
-			return tryEnrichTaskManagerOutOfMemoryError((OutOfMemoryError) exception);
+	static Throwable tryEnrichOutOfMemoryError(
+			@Nullable Throwable exception,
+			String jvmMetaspaceOomNewErrorMessage,
+			String jvmDirectOomNewErrorMessage) {
+		boolean isOom = exception instanceof OutOfMemoryError;
+		if (!isOom) {
+			return exception;
 		}
 
-		return exception;
-	}
-
-	private static Throwable tryEnrichTaskManagerOutOfMemoryError(OutOfMemoryError oom) {
+		OutOfMemoryError oom = (OutOfMemoryError) exception;
 		if (isMetaspaceOutOfMemoryError(oom)) {
-			return changeOutOfMemoryErrorMessage(oom, TM_METASPACE_OOM_ERROR_MESSAGE);
+			return changeOutOfMemoryErrorMessage(oom, jvmMetaspaceOomNewErrorMessage);
 		} else if (isDirectOutOfMemoryError(oom)) {
-			return changeOutOfMemoryErrorMessage(oom, TM_DIRECT_OOM_ERROR_MESSAGE);
+			return changeOutOfMemoryErrorMessage(oom, jvmDirectOomNewErrorMessage);
 		}
 
 		return oom;
 	}
 
+	/**
+	 * Rewrites the error message of a {@link OutOfMemoryError}.
+	 *
+	 * @param oom original {@link OutOfMemoryError}
+	 * @param newMessage new error message
+	 * @return the origianl {@link OutOfMemoryError} if it already has the new error message or
+	 * a new {@link OutOfMemoryError} with the new error message
+	 */
 	private static OutOfMemoryError changeOutOfMemoryErrorMessage(OutOfMemoryError oom, String newMessage) {
 		if (oom.getMessage().equals(newMessage)) {
 			return oom;
