@@ -38,8 +38,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	private Pipeline pipeline;
 
-	public OptimizerPlanEnvironment(Configuration configuration) {
-		super(configuration);
+	public OptimizerPlanEnvironment(Configuration configuration, ClassLoader userClassloader) {
+		super(configuration, userClassloader);
 	}
 
 	@Override

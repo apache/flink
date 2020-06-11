@@ -24,8 +24,18 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.testutils.ClassLoaderUtils;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -36,6 +46,9 @@ import static org.junit.Assert.assertThat;
  * flink-streaming-java.
  */
 public class PackagedProgramUtilsTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * This tests whether configuration forwarding from a {@link Configuration} to the environment
@@ -64,6 +77,58 @@ public class PackagedProgramUtilsTest {
 		ExecutionConfig executionConfig = ((Plan) pipeline).getExecutionConfig();
 
 		assertThat(executionConfig.isAutoTypeRegistrationDisabled(), is(true));
+	}
+
+	@Test
+	public void testUserClassloaderForConfiguration() throws Exception {
+		String userSerializerClassName = "UserSerializer";
+		List<URL> userUrls = getClassUrls(userSerializerClassName);
+
+		PackagedProgram packagedProgram = PackagedProgram.newBuilder()
+			.setUserClassPaths(userUrls)
+			.setEntryPointClassName(DataSetTestProgram.class.getName())
+			.build();
+
+		Configuration config = new Configuration();
+		config.set(PipelineOptions.KRYO_DEFAULT_SERIALIZERS, Collections.singletonList(
+			String.format("class:%s,serializer:%s", PackagedProgramUtilsTest.class.getName() , userSerializerClassName)
+		));
+
+		Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(
+			packagedProgram,
+			config,
+			1 /* parallelism */,
+			false /* suppress output */);
+
+		ExecutionConfig executionConfig = ((Plan) pipeline).getExecutionConfig();
+
+		assertThat(
+			executionConfig.getDefaultKryoSerializerClasses().get(PackagedProgramUtilsTest.class).getName(),
+			is(userSerializerClassName));
+	}
+
+	private List<URL> getClassUrls(String className) throws IOException {
+		URLClassLoader urlClassLoader = ClassLoaderUtils.compileAndLoadJava(
+			temporaryFolder.newFolder(),
+			className + ".java",
+			"import com.esotericsoftware.kryo.Kryo;\n" +
+				"import com.esotericsoftware.kryo.Serializer;\n" +
+				"import com.esotericsoftware.kryo.io.Input;\n" +
+				"import com.esotericsoftware.kryo.io.Output;\n"
+				+ "public class " + className + " extends Serializer {\n" +
+				"\t@Override\n" +
+				"\tpublic void write(\n" +
+				"\t\tKryo kryo,\n" +
+				"\t\tOutput output,\n" +
+				"\t\tObject object) {\n" +
+				"\t}\n" +
+				"\n" +
+				"\t@Override\n" +
+				"\tpublic Object read(Kryo kryo, Input input, Class type) {\n" +
+				"\t\treturn null;\n" +
+				"\t}\n" +
+				"}");
+		return Arrays.asList(urlClassLoader.getURLs());
 	}
 
 	/** Test program for the DataSet API. */

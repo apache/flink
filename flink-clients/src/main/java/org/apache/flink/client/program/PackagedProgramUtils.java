@@ -101,7 +101,7 @@ public class PackagedProgramUtils {
 			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 
 			// temporary hack to support the optimizer plan preview
-			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(configuration);
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(configuration, prog.getUserCodeClassLoader());
 			if (parallelism > 0) {
 				env.setParallelism(parallelism);
 			}
