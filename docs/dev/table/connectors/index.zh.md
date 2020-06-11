@@ -52,7 +52,7 @@ Flink natively support various connectors. The following tables list all availab
     </thead>
     <tbody>
     <tr>
-      <td>Filesystem</td>
+      <td><a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
       <td></td>
       <td>Bounded and Unbounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>

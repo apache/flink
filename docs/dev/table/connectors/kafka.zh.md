@@ -44,13 +44,9 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 
 | Kafka Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% endif %} |
-| 0.11.x              | `flink-connector-kafka-011{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-011{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% endif %} |
-| 0.10.x              | `flink-connector-kafka-010{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-010{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% endif %} |
-
-<span class="label label-danger">Attention</span> The Kafka SQL sink does not support exactly-once writes to Kafka.
-
-The dependency downloading links is only available for stable releases.
+| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
+| 0.11.x              | `flink-connector-kafka-011{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-011{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
+| 0.10.x              | `flink-connector-kafka-010{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-010{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
 
 Flink's streaming connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
@@ -203,11 +199,11 @@ If config option `sink.partitioner` is not specified, a partition will be assign
 
 ### Consistency guarantees
 The Kafka SQL sink only supports at-least-once writes now, for exactly-once writes, use the `DataStream` connector, see
-[Kafka Producers And Fault Tolerance]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance) for more details.
+<a href="{{ site.baseurl }}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance">Kafka Producers And Fault Tolerance</a> for more details.
 
 Data Type Mapping
 ----------------
 Kafka connector requires to specify a format, thus the supported data types are decided by the specific formats it specifies.
-Please refer to [Table Formats]({{ site.baseurl }}/dev/table/connectors/formats/index.html) section for more details.
+Please refer to <a href="{{ site.baseurl }}/dev/table/connectors/formats/index.html">Table Formats</a> section for more details.
 
 {% top %}
