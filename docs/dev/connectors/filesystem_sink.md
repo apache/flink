@@ -42,7 +42,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{site.baseurl}}/dev/projectsetup/dependencies.html)
+[here]({{site.baseurl}}/dev/project-configuration.html)
 for information about how to package the program with the libraries for
 cluster execution.
 

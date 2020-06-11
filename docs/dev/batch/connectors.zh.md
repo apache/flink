@@ -186,7 +186,7 @@ This [GitHub repository documents how to use MongoDB with Apache Flink (starting
 ## Hive Connector
 
 Starting from 1.9.0, Apache Flink provides Hive connector to access Apache Hive tables. [HiveCatalog]({{ site.baseurl }}/zh/dev/table/catalogs.html#hivecatalog) is required in order to use the Hive connector.
-After HiveCatalog is setup, please refer to [Reading & Writing Hive Tables]({{ site.baseurl }}/zh/dev/table/hive/read_write_hive.html) for the usage of the Hive connector and its limitations.
+After HiveCatalog is setup, please refer to [Reading & Writing Hive Tables]({{ site.baseurl }}/zh/dev/table/hive/hive_read_write.html) for the usage of the Hive connector and its limitations.
 Same as HiveCatalog, the officially supported Apache Hive versions for Hive connector are 2.3.4 and 1.2.1.
 
 {% top %}

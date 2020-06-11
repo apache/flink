@@ -369,4 +369,4 @@ Hive tables, views, partitions, functions within Flink.
 
 ## DML
 
-Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
+Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/hive_read_write.html)
