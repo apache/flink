@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.WindowStagger;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -60,6 +61,23 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 
 		when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
 		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(5000, 10000)));
+	}
+
+	@Test
+	public void testWindowAssignmentWithStagger() {
+		WindowAssigner.WindowAssignerContext mockContext =
+				mock(WindowAssigner.WindowAssignerContext.class);
+
+		TumblingProcessingTimeWindows assigner = TumblingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(0), WindowStagger.NATURAL);
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(150L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(150, 5150)));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(5049L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(150, 5150)));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(5150L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(5150, 10150)));
 	}
 
 	@Test

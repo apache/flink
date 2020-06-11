@@ -137,7 +137,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 *
 	 * @return The time policy.
 	 */
-	public static TumblingProcessingTimeWindows of(Time size, Time offset, WindowStagger windowStagger) throws Exception {
+	public static TumblingProcessingTimeWindows of(Time size, Time offset, WindowStagger windowStagger) {
 		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), windowStagger);
 	}
 
