@@ -46,6 +46,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.functions.AsyncTableFunction;
@@ -87,7 +88,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
+import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toLocalDateTime;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
@@ -283,7 +284,9 @@ public class HiveTableSource implements
 		}
 
 		String consumeOffset = configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
-		long currentReadTime = toMills(consumeOffset);
+		// to Local zone mills instead of UTC mills
+		long currentReadTime = TimestampData.fromLocalDateTime(toLocalDateTime(consumeOffset))
+				.toTimestamp().getTime();
 
 		Duration monitorInterval = configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL);
 

@@ -74,17 +74,11 @@ public class HiveMapredSplitReader implements SplitReader {
 	//StructObjectInspector in hive helps us to look into the internal structure of a struct object.
 	private final StructObjectInspector structObjectInspector;
 
-	// Remember whether a row instance is reused. No need to set partition fields for reused rows
-	private boolean rowReused = false;
-
-	//Necessary info to init deserializer
-	private final List<String> partitionKeys;
-
 	private final DataFormatConverters.DataFormatConverter[] converters;
 
-	private final HiveTablePartition hiveTablePartition;
-
 	private final HiveShim hiveShim;
+
+	private final GenericRowData row;
 
 	public HiveMapredSplitReader(
 			JobConf jobConf,
@@ -93,7 +87,7 @@ public class HiveMapredSplitReader implements SplitReader {
 			int[] selectedFields,
 			HiveTableInputSplit split,
 			HiveShim hiveShim) throws IOException {
-		this.hiveTablePartition = split.getHiveTablePartition();
+		HiveTablePartition hiveTablePartition = split.getHiveTablePartition();
 		StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
 		jobConf.set(INPUT_DIR, sd.getLocation());
 		InputFormat mapredInputFormat;
@@ -128,18 +122,30 @@ public class HiveMapredSplitReader implements SplitReader {
 		}
 
 		this.selectedFields = selectedFields;
-		this.partitionKeys = partitionKeys;
-		converters = Arrays.stream(selectedFields)
+		this.converters = Arrays.stream(selectedFields)
 				.mapToObj(i -> fieldTypes[i])
 				.map(DataFormatConverters::getConverterForDataType)
 				.toArray(DataFormatConverters.DataFormatConverter[]::new);
 		this.hiveShim = hiveShim;
+
+		// construct reuse row
+		this.row = new GenericRowData(selectedFields.length);
+		// set partition columns
+		if (!partitionKeys.isEmpty()) {
+			for (int i = 0; i < selectedFields.length; i++) {
+				if (selectedFields[i] >= structFields.size()) {
+					String partition = partitionKeys.get(selectedFields[i] - structFields.size());
+					row.setField(i, converters[i].toInternal(hiveTablePartition.getPartitionSpec().get(partition)));
+				}
+			}
+		}
 	}
 
 	@Override
 	public boolean reachedEnd() throws IOException {
 		if (!fetched) {
-			fetchNext();
+			hasNext = recordReader.next(key, value);
+			fetched = true;
 		}
 		return !hasNext;
 	}
@@ -150,8 +156,6 @@ public class HiveMapredSplitReader implements SplitReader {
 		if (reachedEnd()) {
 			return null;
 		}
-		final GenericRowData row = reuse instanceof GenericRowData ?
-				(GenericRowData) reuse : new GenericRowData(selectedFields.length);
 		try {
 			//Use HiveDeserializer to deserialize an object out of a Writable blob
 			Object hiveRowStruct = deserializer.deserialize(value);
@@ -168,25 +172,8 @@ public class HiveMapredSplitReader implements SplitReader {
 			LOG.error("Error happens when converting hive data type to flink data type.");
 			throw new FlinkHiveException(e);
 		}
-		if (!rowReused) {
-			// set partition columns
-			if (!partitionKeys.isEmpty()) {
-				for (int i = 0; i < selectedFields.length; i++) {
-					if (selectedFields[i] >= structFields.size()) {
-						String partition = partitionKeys.get(selectedFields[i] - structFields.size());
-						row.setField(i, converters[i].toInternal(hiveTablePartition.getPartitionSpec().get(partition)));
-					}
-				}
-			}
-			rowReused = true;
-		}
 		this.fetched = false;
 		return row;
-	}
-
-	private void fetchNext() throws IOException {
-		hasNext = recordReader.next(key, value);
-		fetched = true;
 	}
 
 	@Override
