@@ -392,7 +392,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 						return registerTaskExecutorInternal(taskExecutorGateway, taskExecutorRegistration);
 					}
 				} else {
-					log.info("Ignoring outdated TaskExecutorGateway connection.");
+					log.debug("Ignoring outdated TaskExecutorGateway connection for {}.", resourceId);
 					return new RegistrationResponse.Decline("Decline outdated task executor registration.");
 				}
 			},
