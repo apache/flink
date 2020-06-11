@@ -102,7 +102,7 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>For filesystem connector only, the compression codec for avro. Support deflate, snappy, bzip2, xz.</td>
+      <td>For <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a> only, the compression codec for avro. Default no compression. Support deflate, snappy, bzip2, xz.</td>
     </tr>
     </tbody>
 </table>
