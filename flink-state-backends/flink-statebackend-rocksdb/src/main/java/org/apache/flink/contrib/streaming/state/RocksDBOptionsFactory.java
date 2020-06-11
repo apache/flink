@@ -23,7 +23,6 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.WriteOptions;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -34,7 +33,7 @@ import java.util.Collection;
  * <p>A typical pattern to use this OptionsFactory is as follows:
  *
  * <pre>{@code
- * rocksDbBackend.setOptions(new RocksDBOptionsFactory() {
+ * rocksDbBackend.setRocksDBOptions(new RocksDBOptionsFactory() {
  *
  *		public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
  *			return currentOptions.setMaxOpenFiles(1024);
@@ -51,8 +50,7 @@ import java.util.Collection;
  * });
  * }</pre>
  */
-@SuppressWarnings("deprecation")
-public interface RocksDBOptionsFactory extends OptionsFactory, java.io.Serializable {
+public interface RocksDBOptionsFactory extends java.io.Serializable {
 
 	/**
 	 * This method should set the additional options on top of the current options object.
@@ -125,27 +123,5 @@ public interface RocksDBOptionsFactory extends OptionsFactory, java.io.Serializa
 	 */
 	default ReadOptions createReadOptions(ReadOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		return currentOptions;
-	}
-
-	// ------------------------------------------------------------------------
-	//  for compatibility
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Do not override these methods, they are only to maintain interface compatibility with
-	 * prior versions. They will be removed in one of the next versions.
-	 */
-	@Override
-	default DBOptions createDBOptions(DBOptions currentOptions) {
-		return createDBOptions(currentOptions, new ArrayList<>());
-	}
-
-	/**
-	 * Do not override these methods, they are only to maintain interface compatibility with
-	 * prior versions. They will be removed in one of the next versions.
-	 */
-	@Override
-	default ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
-		return createColumnOptions(currentOptions, new ArrayList<>());
 	}
 }

@@ -682,11 +682,11 @@ class RocksDBStateBackend(StateBackend):
                                            The options factory must have a default constructor.
         """
         gateway = get_gateway()
-        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.OptionsFactory
+        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.RocksDBOptionsFactory
         j_options_factory_clz = load_java_class(options_factory_class_name)
         if not get_java_class(JOptionsFactory).isAssignableFrom(j_options_factory_clz):
-            raise ValueError("The input class not implements OptionsFactory.")
-        self._j_rocks_db_state_backend.setOptions(j_options_factory_clz.newInstance())
+            raise ValueError("The input class not implements RocksDBOptionsFactory.")
+        self._j_rocks_db_state_backend.setRocksDBOptions(j_options_factory_clz.newInstance())
 
     def get_options(self):
         """
@@ -695,7 +695,7 @@ class RocksDBStateBackend(StateBackend):
 
         :return: The fully-qualified class name of the options factory in Java.
         """
-        j_options_factory = self._j_rocks_db_state_backend.getOptions()
+        j_options_factory = self._j_rocks_db_state_backend.getRocksDBOptions()
         if j_options_factory is not None:
             return j_options_factory.getClass().getName()
         else:
