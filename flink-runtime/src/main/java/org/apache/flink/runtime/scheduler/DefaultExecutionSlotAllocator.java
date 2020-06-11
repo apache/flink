@@ -43,13 +43,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Default {@link ExecutionSlotAllocator} which will use {@link SlotProvider} to allocate slots and
  * keep the unfulfilled requests for further cancellation.
  */
-public class DefaultExecutionSlotAllocator extends AbstractExecutionSlotAllocator {
+class DefaultExecutionSlotAllocator extends AbstractExecutionSlotAllocator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionSlotAllocator.class);
 
 	private final SlotProviderStrategy slotProviderStrategy;
 
-	public DefaultExecutionSlotAllocator(
+	DefaultExecutionSlotAllocator(
 			final SlotProviderStrategy slotProviderStrategy,
 			final PreferredLocationsRetriever preferredLocationsRetriever) {
 
