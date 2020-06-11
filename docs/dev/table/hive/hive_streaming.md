@@ -43,8 +43,9 @@ The Hive Streaming Sink re-use Filesystem Streaming Sink to integrate Hadoop Out
 Hadoop RecordWriters are Bulk-encoded Formats, Bulk Formats rolls files on every checkpoint.
 
 By default, now only have renaming committer, this means S3 filesystem can not supports exactly-once,
-if you want to use Hive streaming sink in S3 filesystem, You can configure the following parameters
-in `TableConfig` (note that these parameters affect all sinks of the job):
+if you want to use Hive streaming sink in S3 filesystem, You can configure the following parameter to
+false to use Flink native writers (only work for parquet and orc) in `TableConfig` (note that these
+parameters affect all sinks of the job):
 
 <table class="table table-bordered">
   <thead>
@@ -122,7 +123,7 @@ real-time minute level.
         <td><h5>streaming-source.enable</h5></td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>Enable streaming source or not. NOTES: For non-partition table, please make sure that each file should be put atomically into the target directory, otherwise the reader may get incomplete data.</td>
+        <td>Enable streaming source or not. NOTES: Please make sure that each partition/file should be written atomically, otherwise the reader may get incomplete data.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.monitor-interval</h5></td>
@@ -134,28 +135,29 @@ real-time minute level.
         <td><h5>streaming-source.consume-order</h5></td>
         <td style="word-wrap: break-word;">create-time</td>
         <td>String</td>
-        <td>The consume order of streaming source, support create-time and partition-time. create-time compare partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file create time in filesystem; partition-time compare time represented by partition name. For non-partition table, this value should always be 'create-time'.</td>
+        <td>The consume order of streaming source, support create-time and partition-time. create-time compare partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem; partition-time compare time represented by partition name, if the partition folder somehow gets updated, e.g. changing ACL attributes, it can affect how the data is consumed. For non-partition table, this value should always be 'create-time'.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.consume-start-offset</h5></td>
         <td style="word-wrap: break-word;">1970-00-00</td>
         <td>String</td>
-        <td>Start offset for streaming consuming. How to parse and compare offsets depends on your order. For create-time and partition-time, should be a timestamp string. For partition-time, will use partition time extractor to extract time from partition.</td>
+        <td>Start offset for streaming consuming. How to parse and compare offsets depends on your order. For create-time and partition-time, should be a timestamp string (yyyy-[m]m-[d]d [hh:mm:ss]). For partition-time, will use partition time extractor to extract time from partition.</td>
     </tr>
   </tbody>
 </table>
 
 Note:
 
-- Monitor strategy is scan all directories/files in location path now. If there is too more partitions, will have performance problems.
-- Streaming reading requires that the file or partition is atomic in the view of hive metastore and does not support append writing.
+- Monitor strategy is to scan all directories/files in location path now. If there are too many partitions, there will be performance problems.
+- Streaming reading for non-partitioned requires that each file should be put atomically into the target directory.
+- Streaming reading for partitioned requires that each partition should be add atomically in the view of hive metastore. This means that new data added to an existing partition won't be consumed.
 - Streaming reading not support watermark grammar in Flink DDL. So it can not be used for window operators.
 
 The below shows how to read Hive table incrementally. 
 
 {% highlight sql %}
 
-SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'=’true’, 'streaming-source.consume-start-offset'='2020-05-20') */;
+SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'='true', 'streaming-source.consume-start-offset'='2020-05-20') */;
 
 {% endhighlight %}
 
