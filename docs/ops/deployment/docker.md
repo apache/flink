@@ -268,12 +268,10 @@ There are several ways in which you can further customize the Flink image:
 
 * install custom software (e.g. python)
 * enable (symlink) optional libraries or plugins from `/opt/flink/opt` into `/opt/flink/lib` or `/opt/flink/plugins`
-* add other libraries to `/opt/flink/lib` (e.g. [hadoop](#extend-with-maven))
+* add other libraries to `/opt/flink/lib` (e.g. Hadoop)
 * add other plugins to `/opt/flink/plugins`
 
-All files in the `/opt/flink/lib/` folder are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins.
-
-Files in the `/opt/flink/plugins/` are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({{ site.baseurl }}/ops/plugins.html) can be added here.
+See also: [How to provide dependencies in the classpath]({% link index.md %}#how-to-provide-dependencies-in-the-classpath).
 
 You can customize the Flink image in several ways:
 
@@ -337,48 +335,6 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
     # e.g. to distribute the custom image to your cluster
     docker push custom_flink_image
     ```
-
-    <a name="extend-with-maven"></a>
-    If you need to **extend the Flink image with a Maven dependency (and its transitive dependencies)**,
-you can use a Maven *pom.xml* file such as:
-
-   *pom.xml*:
-
-    ```xml
-    <?xml version="1.0" encoding="UTF-8"?>
-    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-      <modelVersion>4.0.0</modelVersion>
-
-      <groupId>org.apache.flink</groupId>
-      <artifactId>docker-dependencies</artifactId>
-      <version>1.0-SNAPSHOT</version>
-
-      <dependencies>
-            <!-- Put your dependency here, for example a Hadoop GCS connector -->
-      </dependencies>
-
-      <build>
-          <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-dependency-plugin</artifactId>
-              <version>3.1.2</version>
-              <executions>
-                <execution>
-                  <id>copy-dependencies</id>
-                  <phase>package</phase>
-                  <goals><goal>copy-dependencies</goal></goals>
-                  <configuration><outputDirectory>jars</outputDirectory></configuration>
-                </execution>
-              </executions>
-            </plugin>
-          </plugins>
-      </build>
-    </project>
-    ```
-  
-    Running `mvn package` will create a `jars/` folder containing all the jar files, which you can add to your Docker image.
 
 {% top %}
 
