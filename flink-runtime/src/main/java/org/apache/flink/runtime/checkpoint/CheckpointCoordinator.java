@@ -538,48 +538,51 @@ public class CheckpointCoordinator {
 									coordinatorsToCheckpoint, pendingCheckpoint, timer),
 							timer);
 
-			CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
-				.whenCompleteAsync(
-					(ignored, throwable) -> {
-						final PendingCheckpoint checkpoint =
-							FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
+			FutureUtils.assertNoException(
+				CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
+					.handleAsync(
+						(ignored, throwable) -> {
+							final PendingCheckpoint checkpoint =
+								FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
 
-						Preconditions.checkState(
-							checkpoint != null || throwable != null,
-							"Either the pending checkpoint needs to be created or an error must have been occurred.");
+							Preconditions.checkState(
+								checkpoint != null || throwable != null,
+								"Either the pending checkpoint needs to be created or an error must have been occurred.");
 
-						if (throwable != null) {
-							// the initialization might not be finished yet
-							if (checkpoint == null) {
-								onTriggerFailure(request, throwable);
+							if (throwable != null) {
+								// the initialization might not be finished yet
+								if (checkpoint == null) {
+									onTriggerFailure(request, throwable);
+								} else {
+									onTriggerFailure(checkpoint, throwable);
+								}
 							} else {
-								onTriggerFailure(checkpoint, throwable);
-							}
-						} else {
-							if (checkpoint.isDiscarded()) {
-								onTriggerFailure(
-									checkpoint,
-									new CheckpointException(
-										CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
-										checkpoint.getFailureCause()));
-							} else {
-								// no exception, no discarding, everything is OK
-								final long checkpointId = checkpoint.getCheckpointId();
-								snapshotTaskState(
-									timestamp,
-									checkpointId,
-									checkpoint.getCheckpointStorageLocation(),
-									request.props,
-									executions,
-									request.advanceToEndOfTime);
+								if (checkpoint.isDiscarded()) {
+									onTriggerFailure(
+										checkpoint,
+										new CheckpointException(
+											CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
+											checkpoint.getFailureCause()));
+								} else {
+									// no exception, no discarding, everything is OK
+									final long checkpointId = checkpoint.getCheckpointId();
+									snapshotTaskState(
+										timestamp,
+										checkpointId,
+										checkpoint.getCheckpointStorageLocation(),
+										request.props,
+										executions,
+										request.advanceToEndOfTime);
 
-								coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
+									coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
 
-								onTriggerSuccess();
+									onTriggerSuccess();
+								}
 							}
-						}
-					},
-					timer);
+
+							return null;
+						},
+						timer));
 		} catch (Throwable throwable) {
 			onTriggerFailure(request, throwable);
 		}
