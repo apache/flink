@@ -26,11 +26,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Factory for {@link DefaultExecutionSlotAllocator}.
  */
-public class DefaultExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
+class DefaultExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
 
 	private final SlotProviderStrategy slotProvider;
 
-	public DefaultExecutionSlotAllocatorFactory(final SlotProviderStrategy slotProvider) {
+	DefaultExecutionSlotAllocatorFactory(final SlotProviderStrategy slotProvider) {
 		this.slotProvider = checkNotNull(slotProvider);
 	}
 
