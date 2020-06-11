@@ -266,7 +266,7 @@ public class DataStreamAllroundTestJobFactory {
 					cleanupMode = CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
 					break;
 				case "delete":
-					cleanupMode = CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION;
+					cleanupMode = CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_FAILURE;
 					break;
 				default:
 					throw new IllegalArgumentException("Unknown clean up mode for externalized checkpoints: " + cleanupModeConfig);

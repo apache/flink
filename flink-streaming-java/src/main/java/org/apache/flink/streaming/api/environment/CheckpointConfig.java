@@ -338,10 +338,11 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * the meta data and actual program state.
 	 *
 	 * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an
-	 * externalized checkpoint should be cleaned up on job cancellation. If you
-	 * choose to retain externalized checkpoints on cancellation you have you
-	 * handle checkpoint clean up manually when you cancel the job as well
-	 * (terminating with job status {@link JobStatus#CANCELED}).
+	 * externalized checkpoint should be cleaned up when the job is finished or cancelled.
+	 * If you choose to retain externalized checkpoints on finished or cancelled state,
+	 * you must manually clean up the checkpoints when the job is
+	 * finished (terminating with job status {@link JobStatus#FINISHED}
+	 * or cancelled (terminating with job status {@link JobStatus#CANCELED}).
 	 *
 	 * <p>The target directory for externalized checkpoints is configured
 	 * via {@link org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
@@ -435,52 +436,50 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Cleanup behaviour for externalized checkpoints when the job is cancelled.
+	 * Cleanup behaviour for externalized checkpoints when the job is in a terminal state.
 	 */
 	@PublicEvolving
 	public enum ExternalizedCheckpointCleanup {
 
 		/**
-		 * Delete externalized checkpoints on job cancellation.
+		 * Retain externalized checkpoints on job failure.
+		 * External checkpoints will be deleted on
+		 * {@link JobStatus#CANCELED} and {@link JobStatus#FINISHED}.
 		 *
 		 * <p>All checkpoint state will be deleted when you cancel the owning
 		 * job, both the meta data and actual program state. Therefore, you
 		 * cannot resume from externalized checkpoints after the job has been
-		 * cancelled.
+		 * cancelled or finished.</p>
 		 *
-		 * <p>Note that checkpoint state is always kept if the job terminates
-		 * with state {@link JobStatus#FAILED}.
+		 * <p>Checkpoint state point is kept if the job terminates with the following state:
+		 * {@link JobStatus#FAILED}</p>
 		 */
-		DELETE_ON_CANCELLATION(true),
+		RETAIN_ON_FAILURE,
 
 		/**
-		 * Retain externalized checkpoints on job cancellation.
+		 * Retain externalized checkpoints on job failure and cancellation.
+		 * External checkpoints will be deleted on {@link JobStatus#FINISHED}.
 		 *
 		 * <p>All checkpoint state is kept when you cancel the owning job. You
 		 * have to manually delete both the checkpoint meta data and actual
-		 * program state after cancelling the job.
+		 * program state after cancelling the job.</p>
 		 *
-		 * <p>Note that checkpoint state is always kept if the job terminates
-		 * with state {@link JobStatus#FAILED}.
+		 * <p>Checkpoint state point is kept if the job terminates with the following state:
+		 * {@link JobStatus#FAILED} and {@link JobStatus#CANCELED}</p>
 		 */
-		RETAIN_ON_CANCELLATION(false);
-
-		private final boolean deleteOnCancellation;
-
-		ExternalizedCheckpointCleanup(boolean deleteOnCancellation) {
-			this.deleteOnCancellation = deleteOnCancellation;
-		}
+		RETAIN_ON_CANCELLATION,
 
 		/**
-		 * Returns whether persistent checkpoints shall be discarded on
-		 * cancellation of the job.
+		 * Retain externalized checkpoints on all terminal states.
 		 *
-		 * @return <code>true</code> if persistent checkpoints shall be discarded
-		 * on cancellation of the job.
+		 * <p>All checkpoint state is kept in this mode. You
+		 * have to manually delete both the checkpoint meta data and actual
+		 * program state after the job is completed.</p>
+		 *
+		 * <p>Checkpoint state point is kept if the job terminates with the following state:
+		 * {@link JobStatus#FAILED}, {@link JobStatus#CANCELED}, and {@link JobStatus#FINISHED}</p>
 		 */
-		public boolean deleteOnCancellation() {
-			return deleteOnCancellation;
-		}
+		RETAIN_ON_SUCCESS;
 	}
 
 	/**

@@ -302,6 +302,15 @@ public class CheckpointProperties implements Serializable {
 			false,  // Retain on failure
 			false); // Retain on suspension
 
+	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_SUCCESS = new CheckpointProperties(
+			false,
+			CheckpointType.CHECKPOINT,
+			true,
+			false,   // Retain on success
+			false,  // Retain on cancellation
+			false,  // Retain on failure
+			false); // Retain on suspension
+
 
 	/**
 	 * Creates the checkpoint properties for a (manually triggered) savepoint.
@@ -337,6 +346,8 @@ public class CheckpointProperties implements Serializable {
 				return CHECKPOINT_RETAINED_ON_FAILURE;
 			case RETAIN_ON_CANCELLATION:
 				return CHECKPOINT_RETAINED_ON_CANCELLATION;
+			case RETAIN_ON_SUCCESS:
+				return CHECKPOINT_RETAINED_ON_SUCCESS;
 			default:
 				throw new IllegalArgumentException("unknown policy: " + policy);
 		}

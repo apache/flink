@@ -894,9 +894,19 @@ public class StreamingJobGraphGenerator {
 			if (cleanup == null) {
 				throw new IllegalStateException("Externalized checkpoints enabled, but no cleanup mode configured.");
 			}
-			retentionAfterTermination = cleanup.deleteOnCancellation() ?
-					CheckpointRetentionPolicy.RETAIN_ON_FAILURE :
-					CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
+			switch (cleanup) {
+				case RETAIN_ON_CANCELLATION:
+					retentionAfterTermination = CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
+					break;
+				case RETAIN_ON_FAILURE:
+					retentionAfterTermination = CheckpointRetentionPolicy.RETAIN_ON_FAILURE;
+					break;
+				case RETAIN_ON_SUCCESS:
+					retentionAfterTermination = CheckpointRetentionPolicy.RETAIN_ON_SUCCESS;
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown ExternalizedCheckpointCleanup: " + cleanup);
+			}
 		} else {
 			retentionAfterTermination = CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 		}
