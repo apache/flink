@@ -76,14 +76,6 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 		return size;
 	}
 
-	public long getGlobalOffset() {
-		return globalOffset;
-	}
-
-	public WindowStagger getWindowStagger() {
-		return windowStagger;
-	}
-
 	@Override
 	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
 		return ProcessingTimeTrigger.create();
@@ -128,8 +120,8 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	/**
 	 * Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
-	 * elements to time windows based on the element timestamp, offset and a staggering offset sampled
-	 * from uniform distribution(0, window size) for each pane.
+	 * elements to time windows based on the element timestamp, offset and a staggering offset,
+	 * depending on the staggering policy.
 	 *
 	 * @param size The size of the generated windows.
 	 * @param offset The offset which window start would be shifted by.

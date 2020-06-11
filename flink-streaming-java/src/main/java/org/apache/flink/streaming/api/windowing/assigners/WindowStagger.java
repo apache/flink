@@ -51,8 +51,9 @@ public enum WindowStagger {
 	},
 
 	/**
-	 * Stagger offset is the ingestion delay in processing time, which is the difference between first event ingestion time and its corresponding processing window start time
-	 * in the partitioned operator. In other words, each partitioned window starts when its first pane created.
+	 * When the first event is received, the partitioned operator is assigned a stagger offset,
+	 * which is the lag of that event in its corresponding un-offset processing time window,
+	 * so that the following panes are always aligned with respect to the first event.
 	 */
 	NATURAL {
 		@Override
