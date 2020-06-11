@@ -804,30 +804,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	/**
-	 * The options factory supplied here was prone to resource leaks, because it did not have a way
-	 * to register native handles / objects that need to be disposed when the state backend is closed.
-	 *
-	 * @deprecated Use {@link #setRocksDBOptions(RocksDBOptionsFactory)} instead.
-	 */
-	@Deprecated
-	public void setOptions(OptionsFactory optionsFactory) {
-		this.rocksDbOptionsFactory = optionsFactory instanceof RocksDBOptionsFactory
-				? (RocksDBOptionsFactory) optionsFactory
-				: new RocksDBOptionsFactoryAdapter(optionsFactory);
-	}
-
-	/**
-	 * The options factory supplied here was prone to resource leaks, because it did not have a way
-	 * to register native handles / objects that need to be disposed when the state backend is closed.
-	 *
-	 * @deprecated Use {@link #setRocksDBOptions(RocksDBOptionsFactory)} and {@link #getRocksDBOptions()} instead.
-	 */
-	@Deprecated
-	public OptionsFactory getOptions() {
-		return RocksDBOptionsFactoryAdapter.unwrapIfAdapter(rocksDbOptionsFactory);
-	}
-
-	/**
 	 * Gets the number of threads used to transfer files while snapshotting/restoring.
 	 */
 	public int getNumberOfTransferThreads() {

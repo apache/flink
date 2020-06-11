@@ -552,7 +552,6 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
 
 		assertTrue(rocksDbBackend.getRocksDBOptions() instanceof TestOptionsFactory);
-		assertTrue(rocksDbBackend.getOptions() instanceof TestOptionsFactory);
 
 		try (RocksDBResourceContainer optionsContainer = rocksDbBackend.createOptionsAndResourceContainer()) {
 			DBOptions dbOptions = optionsContainer.getDbOptions();
@@ -640,7 +639,7 @@ public class RocksDBStateBackendConfigTest {
 
 		assertEquals(original.isIncrementalCheckpointsEnabled(), copy.isIncrementalCheckpointsEnabled());
 		assertArrayEquals(original.getDbStoragePaths(), copy.getDbStoragePaths());
-		assertEquals(original.getOptions(), copy.getOptions());
+		assertEquals(original.getRocksDBOptions(), copy.getRocksDBOptions());
 		assertEquals(original.getPredefinedOptions(), copy.getPredefinedOptions());
 
 		FsStateBackend copyCheckpointBackend = (FsStateBackend) copy.getCheckpointBackend();
