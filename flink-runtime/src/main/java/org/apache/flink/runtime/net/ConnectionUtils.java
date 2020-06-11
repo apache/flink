@@ -388,7 +388,7 @@ public class ConnectionUtils {
 						} else if (retrievalState == LeaderRetrievalState.NEWLY_RETRIEVED) {
 							targetAddress = AkkaUtils.getInetSocketAddressFromAkkaURL(akkaURL);
 
-							LOG.info("Retrieved new target address {}.", targetAddress);
+							LOG.debug("Retrieved new target address {} for akka URL {}.", targetAddress, akkaURL);
 
 							retrievalState = LeaderRetrievalState.RETRIEVED;
 
