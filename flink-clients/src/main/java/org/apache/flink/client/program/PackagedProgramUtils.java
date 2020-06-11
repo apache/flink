@@ -135,9 +135,15 @@ public enum PackagedProgramUtils {
 		}
 
 		// temporary hack to support the optimizer plan preview
-		OptimizerPlanEnvironment benv = new OptimizerPlanEnvironment(configuration, parallelism);
+		OptimizerPlanEnvironment benv = new OptimizerPlanEnvironment(
+			configuration,
+			program.getUserCodeClassLoader(),
+			parallelism);
 		benv.setAsContext();
-		StreamPlanEnvironment senv = new StreamPlanEnvironment(configuration, parallelism);
+		StreamPlanEnvironment senv = new StreamPlanEnvironment(
+			configuration,
+			program.getUserCodeClassLoader(),
+			parallelism);
 		senv.setAsContext();
 
 		try {
