@@ -294,16 +294,16 @@ tables:
       type: csv
       fields:
         - name: MyField1
-          type: INT
+          data-type: INT
         - name: MyField2
-          type: VARCHAR
+          data-type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
     schema:
       - name: MyField1
-        type: INT
+        data-type: INT
       - name: MyField2
-        type: VARCHAR
+        data-type: VARCHAR
   - name: MyCustomView
     type: view
     query: "SELECT MyField2 FROM MyTableSource"
