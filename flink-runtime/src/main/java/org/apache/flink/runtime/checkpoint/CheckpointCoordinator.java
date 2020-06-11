@@ -540,7 +540,7 @@ public class CheckpointCoordinator {
 
 			FutureUtils.assertNoException(
 				CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
-					.whenCompleteAsync(
+					.handleAsync(
 						(ignored, throwable) -> {
 							final PendingCheckpoint checkpoint =
 								FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
@@ -575,6 +575,8 @@ public class CheckpointCoordinator {
 										onTriggerFailure(checkpoint, throwable);
 									}
 							}
+
+							return null;
 						},
 						timer));
 		} catch (Throwable throwable) {
