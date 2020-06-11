@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -58,6 +59,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
@@ -75,7 +77,6 @@ public class SubtaskCheckpointCoordinatorTest {
 	@Test
 	public void testInitCheckpoint() throws IOException {
 		assertTrue(initCheckpoint(true, CHECKPOINT));
-		assertFalse(initCheckpoint(true, SAVEPOINT));
 		assertFalse(initCheckpoint(false, CHECKPOINT));
 		assertFalse(initCheckpoint(false, SAVEPOINT));
 	}
@@ -91,7 +92,9 @@ public class SubtaskCheckpointCoordinatorTest {
 
 		MockWriter writer = new MockWriter();
 		SubtaskCheckpointCoordinator coordinator = coordinator(unalignedCheckpointEnabled, writer);
-		coordinator.initCheckpoint(1L, new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault()));
+		CheckpointStorageLocationReference locationReference = CheckpointStorageLocationReference.getDefault();
+		CheckpointOptions options = new CheckpointOptions(checkpointType, locationReference, true, unalignedCheckpointEnabled);
+		coordinator.initCheckpoint(1L, options);
 		return writer.started;
 	}
 
@@ -120,9 +123,39 @@ public class SubtaskCheckpointCoordinatorTest {
 	}
 
 	@Test
+	public void testSavepointNotResultingInPriorityEvents() throws Exception {
+		MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+
+		SubtaskCheckpointCoordinator coordinator = new MockSubtaskCheckpointCoordinatorBuilder()
+				.setUnalignedCheckpointEnabled(true)
+				.setEnvironment(mockEnvironment)
+				.build();
+
+		AtomicReference<Boolean> broadcastedPriorityEvent = new AtomicReference<>(null);
+		final OperatorChain<?, ?> operatorChain = new OperatorChain(
+				new MockStreamTaskBuilder(mockEnvironment).build(),
+				new NonRecordWriter<>()) {
+			@Override
+			public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+				super.broadcastEvent(event, isPriorityEvent);
+				broadcastedPriorityEvent.set(isPriorityEvent);
+			}
+		};
+
+		coordinator.checkpointState(
+				new CheckpointMetaData(0, 0),
+				new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
+				new CheckpointMetrics(),
+				operatorChain,
+				() -> false);
+
+		assertEquals(false, broadcastedPriorityEvent.get());
+	}
+
+	@Test
 	public void testSkipChannelStateForSavepoints() throws Exception {
 		SubtaskCheckpointCoordinator coordinator = new MockSubtaskCheckpointCoordinatorBuilder()
-			.setUnalignedCheckpointEnabled(false)
+			.setUnalignedCheckpointEnabled(true)
 			.setPrepareInputSnapshot((u1, u2) -> {
 				fail("should not prepare input snapshot for savepoint");
 				return null;
@@ -414,7 +447,6 @@ public class SubtaskCheckpointCoordinatorTest {
 			newDirectExecutorService(),
 			new DummyEnvironment(),
 			(message, unused) -> fail(message),
-			unalignedCheckpointEnabled,
 			(unused1, unused2) -> CompletableFuture.completedFuture(null),
 			0,
 			channelStateWriter
