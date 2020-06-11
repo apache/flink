@@ -35,7 +35,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	private ExecutionEnvironment env;
 
 	protected StreamPlanEnvironment(ExecutionEnvironment env) {
-		super(env.getConfiguration());
+		super(env.getExecutorServiceLoader(), env.getConfiguration(), env.getUserCodeClassLoader());
 		this.env = env;
 
 		int parallelism = env.getParallelism();
