@@ -364,4 +364,4 @@ catalogs:
 
 ## DML
 
-Flink 支持 DML 写入 Hive 表，请参考[读写 Hive 表]({{ site.baseurl }}/zh/dev/table/hive/read_write_hive.html)
+Flink 支持 DML 写入 Hive 表，请参考[读写 Hive 表]({{ site.baseurl }}/zh/dev/table/hive/hive_read_write.html)

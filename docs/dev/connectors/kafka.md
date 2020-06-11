@@ -70,7 +70,7 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 </div>
 
 Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
+See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
 
 ## Kafka Consumer
 

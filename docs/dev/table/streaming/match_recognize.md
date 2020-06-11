@@ -93,7 +93,7 @@ project.
 {% endhighlight %}
 
 Alternatively, you can also add the dependency to the cluster classpath (see the
-[dependency section]({{ site.baseurl}}/dev/projectsetup/dependencies.html) for more information).
+[dependency section]({{ site.baseurl}}/dev/project-configuration.html) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
 [SQL Client]({{ site.baseurl}}/dev/table/sqlClient.html), you don't have to do anything as all the

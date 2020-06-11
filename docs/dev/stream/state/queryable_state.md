@@ -180,7 +180,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 {% endhighlight %}
 </div>
 
-For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
+For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/project-configuration.html).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 

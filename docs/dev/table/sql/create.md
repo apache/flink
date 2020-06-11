@@ -231,7 +231,7 @@ CREATE TABLE Orders (
     order_time TIMESTAMP(3)
 ) WITH ( 
     'connector' = 'kafka',
-    'startup-mode' = 'earliest-offset'
+    'scan.startup.mode' = 'earliest-offset'
 );
 
 CREATE TABLE Orders_with_watermark (
@@ -239,7 +239,7 @@ CREATE TABLE Orders_with_watermark (
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
 ) WITH (
     -- Overwrite the startup-mode
-    'startup-mode' = 'latest-offset'
+    'scan.startup.mode' = 'latest-offset'
 )
 LIKE Orders;
 {% endhighlight %}
@@ -253,7 +253,7 @@ CREATE TABLE Orders_with_watermark (
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
 ) WITH (
     'connector' = 'kafka',
-    'startup-mode' = 'latest-offset'
+    'scan.startup.mode' = 'latest-offset'
 );
 {% endhighlight %}
 
