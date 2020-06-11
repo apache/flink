@@ -82,7 +82,7 @@ public class FileSystemOptions {
 							" create-time compare partition/file creation time, this is not the" +
 							" partition create time in Hive metaStore, but the folder/file modification" +
 							" time in filesystem, if the partition folder somehow gets updated," +
-							" e.g. changing ACL attributes, it can affect how the data is consumed." +
+							" e.g. add new file into folder, it can affect how the data is consumed." +
 							" partition-time compare time represented by partition name.\n" +
 							"For non-partition table, this value should always be 'create-time'.");
 

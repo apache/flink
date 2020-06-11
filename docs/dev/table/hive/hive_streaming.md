@@ -135,7 +135,7 @@ real-time minute level.
         <td><h5>streaming-source.consume-order</h5></td>
         <td style="word-wrap: break-word;">create-time</td>
         <td>String</td>
-        <td>The consume order of streaming source, support create-time and partition-time. create-time compare partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem; partition-time compare time represented by partition name, if the partition folder somehow gets updated, e.g. changing ACL attributes, it can affect how the data is consumed. For non-partition table, this value should always be 'create-time'.</td>
+        <td>The consume order of streaming source, support create-time and partition-time. create-time compare partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem; partition-time compare time represented by partition name, if the partition folder somehow gets updated, e.g. add new file into folder, it can affect how the data is consumed. For non-partition table, this value should always be 'create-time'.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.consume-start-offset</h5></td>
