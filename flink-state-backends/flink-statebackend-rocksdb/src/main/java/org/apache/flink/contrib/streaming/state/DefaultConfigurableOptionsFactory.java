@@ -336,10 +336,10 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 	 * Creates a {@link DefaultConfigurableOptionsFactory} instance from a {@link ReadableConfig}.
 	 *
 	 * <p>If no options within {@link RocksDBConfigurableOptions} has ever been configured,
-	 * the created OptionsFactory would not override anything defined in {@link PredefinedOptions}.
+	 * the created RocksDBOptionsFactory would not override anything defined in {@link PredefinedOptions}.
 	 *
-	 * @param configuration Configuration to be used for the ConfigurableOptionsFactory creation
-	 * @return A ConfigurableOptionsFactory created from the given configuration
+	 * @param configuration Configuration to be used for the ConfigurableRocksDBOptionsFactory creation
+	 * @return A ConfigurableRocksDBOptionsFactory created from the given configuration
 	 */
 	@Override
 	public DefaultConfigurableOptionsFactory configure(ReadableConfig configuration) {

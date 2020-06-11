@@ -74,7 +74,7 @@ public class RocksDBOptions {
 		.defaultValue(DEFAULT.name())
 		.withDescription(String.format("The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. " +
 			"Current supported candidate predefined-options are %s, %s, %s or %s. Note that user customized options and options " +
-			"from the OptionsFactory are applied on top of these predefined ones.",
+			"from the RocksDBOptionsFactory are applied on top of these predefined ones.",
 			DEFAULT.name(), SPINNING_DISK_OPTIMIZED.name(), SPINNING_DISK_OPTIMIZED_HIGH_MEM.name(), FLASH_SSD_OPTIMIZED.name()));
 
 	/**
