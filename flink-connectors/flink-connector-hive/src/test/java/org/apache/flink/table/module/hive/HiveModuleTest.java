@@ -168,4 +168,21 @@ public class HiveModuleTest {
 
 		assertEquals("[{a=1, b=2, c=3}]", results.toString());
 	}
+
+	@Test
+	public void testEmptyStringLiteralParameters() {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule());
+
+		// UDF
+		List<Row> results = Lists.newArrayList(
+				tableEnv.sqlQuery("select regexp_replace('foobar','oo|ar','')").execute().collect());
+		assertEquals("[fb]", results.toString());
+
+		// GenericUDF
+		results = Lists.newArrayList(tableEnv.sqlQuery("select length('')").execute().collect());
+		assertEquals("[0]", results.toString());
+	}
 }
