@@ -97,6 +97,13 @@ Format Options
       <td>String</td>
       <td>Specify what format to use, here should be <code>'avro'</code>.</td>
     </tr>
+    <tr>
+      <td><h5>avro.codec</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>For filesystem connector only, the compression codec for avro. Support deflate, snappy, bzip2, xz.</td>
+    </tr>
     </tbody>
 </table>
 
