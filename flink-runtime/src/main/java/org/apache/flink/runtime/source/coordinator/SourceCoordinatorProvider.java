@@ -74,8 +74,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> implements Op
 				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
 		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
-				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
-						context);
+				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, context);
 		return new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
 	}
 

@@ -22,21 +22,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Unit tests for ExecutorNotifier.
@@ -59,8 +53,7 @@ public class ExecutorNotifierTest {
 		});
 		this.notifier = new ExecutorNotifier(
 				this.workerExecutor,
-				this.executorToNotify,
-				(t, e) -> exceptionInHandler = e);
+				this.executorToNotify);
 	}
 
 	@After
@@ -106,75 +99,6 @@ public class ExecutorNotifierTest {
 		latch.await();
 		closeExecutorToNotify();
 		assertEquals(exception, exceptionInHandler);
-	}
-
-	@Test
-	public void testCancelCallable() throws InterruptedException {
-		CountDownLatch syncLatch = new CountDownLatch(1);
-		CountDownLatch blockingLatch = new CountDownLatch(1);
-		testCancel(
-				syncLatch,
-				blockingLatch,
-				() -> {
-					syncLatch.countDown();
-					blockingLatch.await();
-					return 0;
-				},
-				(v, e) -> fail("The callable should be canceled."));
-	}
-
-	@Test
-	public void testCancelHandler() throws InterruptedException {
-		CountDownLatch syncLatch = new CountDownLatch(1);
-		CountDownLatch blockingLatch = new CountDownLatch(1);
-		testCancel(
-				syncLatch,
-				blockingLatch,
-				() -> 1234, (v, e) -> {
-					try {
-						syncLatch.countDown();
-						blockingLatch.await();
-					} catch (InterruptedException e1) {
-						throw new RuntimeException("Interrupted");
-					}
-				});
-	}
-
-	// ------------- private helpers -------------
-
-	private void testCancel(
-			CountDownLatch syncLatch,
-			CountDownLatch blockingLatch,
-			Callable<Integer> callable,
-			BiConsumer<Integer, Throwable> handler) throws InterruptedException {
-		List<Integer> results = new ArrayList<>();
-		AtomicInteger i = new AtomicInteger(0);
-		// Invoke the given callable first.
-		notifier.notifyReadyAsync(callable, handler);
-		// Add two new async calls.
-		notifier.notifyReadyAsync(() -> i.incrementAndGet() * 100, (v, e) -> results.add(v + 1));
-		notifier.notifyReadyAsync(() -> i.incrementAndGet() * 100, (v, e) -> results.add(v + 1), 0, 100);
-		syncLatch.await();
-		// Close the notifier to ensure all the async calls finish.
-		Thread t = new Thread(() -> {
-			try {
-				notifier.close();
-			} catch (InterruptedException e) {
-				fail("Interrupted unexpectedly while closing the notifier.");
-			}
-		});
-		t.start();
-		// Blocking wait util the closing thread blocks or finishes.
-		while (t.isAlive() && t.getState() != Thread.State.WAITING && t.getState() != Thread.State.TIMED_WAITING) {
-			Thread.sleep(1);
-		}
-		blockingLatch.countDown();
-		t.join();
-		// Shutdown the executorToNotify to ensure everything has been executed.
-		executorToNotify.shutdown();
-		executorToNotify.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-		// The results should be empty.
-		assertTrue(results.isEmpty());
 	}
 
 	private void closeExecutorToNotify() throws InterruptedException {
