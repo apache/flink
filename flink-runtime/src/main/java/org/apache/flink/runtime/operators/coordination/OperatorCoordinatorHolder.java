@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.util.ComponentClosingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -37,6 +38,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -107,7 +109,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorCoordinatorCheckpointContext {
 
-	private final OperatorCoordinator coordinator;
+	private final OperatorCoordinator.Provider provider;
 	private final OperatorID operatorId;
 	private final LazyInitializedCoordinatorContext context;
 	private final OperatorEventValve eventValve;
@@ -115,12 +117,23 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	private final int operatorParallelism;
 	private final int operatorMaxParallelism;
 
+	// The fields that needs to be initialized lazily.
 	private Consumer<Throwable> globalFailureHandler;
 	private ComponentMainThreadExecutor mainThreadExecutor;
+
+	// The coordinator and the coordinator context may be assigned new instances
+	// when resetToCheckpoint() is invoked.
+	private OperatorCoordinator coordinator;
+	private QuiesceableContext coordinatorContext;
+
+	// Whether the coordinator has started.
+	private boolean started;
 
 	private OperatorCoordinatorHolder(
 			final OperatorID operatorId,
 			final OperatorCoordinator coordinator,
+			final QuiesceableContext coordinatorContext,
+			final OperatorCoordinator.Provider provider,
 			final LazyInitializedCoordinatorContext context,
 			final OperatorEventValve eventValve,
 			final int operatorParallelism,
@@ -128,10 +141,13 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 		this.operatorId = checkNotNull(operatorId);
 		this.coordinator = checkNotNull(coordinator);
+		this.coordinatorContext = coordinatorContext;
+		this.provider = provider;
 		this.context = checkNotNull(context);
 		this.eventValve = checkNotNull(eventValve);
 		this.operatorParallelism = operatorParallelism;
 		this.operatorMaxParallelism = operatorMaxParallelism;
+		this.started = false;
 	}
 
 	public void lazyInitialize(SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -151,6 +167,11 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 	public OperatorCoordinator coordinator() {
 		return coordinator;
+	}
+
+	@VisibleForTesting
+	public OperatorCoordinator.Context context() {
+		return context;
 	}
 
 	@Override
@@ -177,6 +198,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		mainThreadExecutor.assertRunningInMainThread();
 		checkState(context.isInitialized(), "Coordinator Context is not yet initialized");
 		coordinator.start();
+		started = true;
 	}
 
 	@Override
@@ -221,8 +243,30 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		// ideally we would like to check this here, however this method is called early during
 		// execution graph construction, before the main thread executor is set
 
+		// This method closes the current instance of coordinator and creates a new instance as
+		// replacement. Because all the methods in this class effectively run in the scheduler
+		// executor, we don't have to worry about synchronization issues when doing this.
+
+		// Quiesce the coordinator context so the current coordinator can no longer communicate
+		// with the job master.
+		coordinatorContext.quiesce();
+		// Reset the event valve to cleanup any pending events from the current coordinator.
 		eventValve.reset();
+		// Close the current coordinator asynchronously and fail the job if the current
+		// coordinator failed to close. This avoids resource leak.
+		ComponentClosingUtils.closeAsynchronously(
+				"SourceCoordinatorSubjectToReset",
+				() -> coordinator.close(),
+				context::failJob);
+		// Create a new instance of the coordinator.
+		coordinatorContext = new QuiesceableContext(context);
+		coordinator = provider.create(coordinatorContext);
+		// Reset the new instance to checkpoint.
 		coordinator.resetToCheckpoint(checkpointData);
+		// Start the new coordinator if the previous coordinator has started.
+		if (started) {
+			coordinator.start();
+		}
 	}
 
 	private void checkpointCompleteInternal(long checkpointId) {
@@ -334,11 +378,14 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		final LazyInitializedCoordinatorContext context = new LazyInitializedCoordinatorContext(
 				opId, valve, operatorName, operatorParallelism);
 
-		final OperatorCoordinator coordinator = coordinatorProvider.create(context);
+		final QuiesceableContext coordinatorContext = new QuiesceableContext(context);
+		final OperatorCoordinator coordinator = coordinatorProvider.create(coordinatorContext);
 
 		return new OperatorCoordinatorHolder(
 				opId,
 				coordinator,
+				coordinatorContext,
+				coordinatorProvider,
 				context,
 				valve,
 				operatorParallelism,
@@ -437,6 +484,82 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public int currentParallelism() {
 			return operatorParallelism;
+		}
+	}
+
+	/**
+	 * A wrapper class around the operator coordinator context to allow quiescence.
+	 * When a new operator coordinator is created, we need to quiesce the old
+	 * operator coordinator to prevent it from making any further impact to the
+	 * job master. This is done by quiesce the operator coordinator context.
+	 * After the quiescence, the "reading" methods will still work, but the
+	 * "writing" methods will either become a no-op or fail immediately.
+	 */
+	private static class QuiesceableContext implements OperatorCoordinator.Context {
+		private final OperatorCoordinator.Context context;
+		private AtomicInteger numThreadsSendingEvent;
+		private volatile boolean quiesced;
+
+		private QuiesceableContext(OperatorCoordinator.Context context) {
+			this.context = context;
+			numThreadsSendingEvent = new AtomicInteger(0);
+			quiesced = false;
+		}
+
+		@Override
+		public OperatorID getOperatorId() {
+			return context.getOperatorId();
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> sendEvent(
+				OperatorEvent evt,
+				int targetSubtask) throws TaskNotRunningException {
+			// Do not enter the sending procedure if the context has been quiesced.
+			ensureNotQuiesced();
+			// Bump the number of threads sending events to indicate someone is in the process.
+			// After this step, the quiesce() call will wait until this sending invocation is
+			// done. Note that after increment the numThreadSendingEvent, we need to check
+			// the quiesced state again because quiesce() maybe called after the previous
+			// quiesce state check and before we increment the numThreadSendingEvent.
+			numThreadsSendingEvent.incrementAndGet();
+			try {
+				// Check the quiesced state again.
+				ensureNotQuiesced();
+				return context.sendEvent(evt, targetSubtask);
+			} finally {
+				numThreadsSendingEvent.decrementAndGet();
+			}
+		}
+
+		@Override
+		public void failJob(Throwable cause) {
+			ensureNotQuiesced();
+			context.failJob(cause);
+		}
+
+		@Override
+		public int currentParallelism() {
+			return context.currentParallelism();
+		}
+
+		private void quiesce() {
+			quiesced = true;
+			while (numThreadsSendingEvent.get() > 0) {
+				// Technically speaking, we don't have to sleep here because we should
+				// jump out of this while-loop very quickly.
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					// let it go.
+				}
+			}
+		}
+
+		private void ensureNotQuiesced() {
+			if (quiesced) {
+				throw new RuntimeException("The context has been quiesced.");
+			}
 		}
 	}
 }

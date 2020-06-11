@@ -37,7 +37,9 @@ import javax.annotation.concurrent.GuardedBy;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
@@ -48,9 +50,11 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * A test that ensures the before/after conditions around event sending and checkpoint are met.
@@ -305,7 +309,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 	}
 
 	private void checkpointEventValueAtomicity(
-			final Function<OperatorCoordinator.Context, OperatorCoordinator> coordinatorCtor) throws Exception {
+			final Function<OperatorCoordinator.Context, OperatorCoordinator> coordinator) throws Exception {
 
 		final ManuallyTriggeredScheduledExecutorService executor = new ManuallyTriggeredScheduledExecutorService();
 		final ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutorServiceAdapter(
@@ -313,7 +317,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 
 		final TestEventSender sender = new TestEventSender();
 		final OperatorCoordinatorHolder holder = createCoordinatorHolder(
-				sender, coordinatorCtor, mainThreadExecutor);
+				sender, coordinator, mainThreadExecutor);
 
 		// give the coordinator some time to emit some events
 		Thread.sleep(new Random().nextInt(10) + 20);
@@ -336,6 +340,68 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		for (int i = 0; i < checkpointedNumber; i++) {
 			assertEquals(i, ((TestOperatorEvent) sender.events.get(i).event).getValue());
 		}
+	}
+
+	@Test
+	public void testContextQuiescedAfterResetToCheckpoint() throws Exception {
+		final TestEventSender sender = new TestEventSender();
+		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
+
+		byte[] checkpoint = triggerAndCompleteCheckpoint(holder, 10L).get();
+
+		OperatorCoordinator.Context contextBeforeReset = getCoordinator(holder).getContext();
+		holder.resetToCheckpoint(checkpoint);
+		try {
+			contextBeforeReset.sendEvent(new TestOperatorEvent(1234), 0);
+			fail("Sending operator event to a quiesced context should fail.");
+		} catch (RuntimeException e) {
+			assertEquals("The context has been quiesced.", e.getMessage());
+		}
+
+		try {
+			contextBeforeReset.failJob(new Exception());
+			fail("Calling failJob() on a quiesced context should fail.");
+		} catch (RuntimeException e) {
+			assertEquals("The context has been quiesced.", e.getMessage());
+		}
+	}
+
+	@Test
+	public void testCoordinatorRecreatedAfterResetToCheckpoint() throws Exception {
+		final TestEventSender sender = new TestEventSender();
+		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
+
+		byte[] checkpoint = triggerAndCompleteCheckpoint(holder, 10L).get();
+
+		OperatorCoordinator coordinatorBeforeReset = holder.coordinator();
+		OperatorCoordinator.Context contextBeforeReset = getCoordinator(holder).getContext();
+		holder.resetToCheckpoint(checkpoint);
+		assertNotEquals(coordinatorBeforeReset, holder.coordinator());
+		assertNotEquals(contextBeforeReset, getCoordinator(holder).getContext());
+	}
+
+	@Test (timeout = 30_000L)
+	public void testFailJobOnCoordinatorCloseFailure() throws Exception {
+		final ManuallyTriggeredScheduledExecutorService executor = new ManuallyTriggeredScheduledExecutorService();
+		final ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutorServiceAdapter(
+				(ScheduledExecutorService) executor, Thread.currentThread());
+
+		final TestEventSender sender = new TestEventSender();
+		final OperatorCoordinatorHolder holder = createCoordinatorHolder(
+				sender, FailOnClosingTestCoordinator::new, mainThreadExecutor);
+
+		holder.resetToCheckpoint(new byte[0]);
+		// Loop to trigger the main executor until receiving the failJob() invocation.
+		while (globalFailure == null) {
+			if (executor.numQueuedRunnables() > 0) {
+				executor.trigger();
+			} else {
+				Thread.sleep(1);
+			}
+		}
+		assertEquals("Fake exception to fail the job.", getRootCause(globalFailure).getMessage());
+		// Reset global failure so the after test check won't fail.
+		globalFailure = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -410,9 +476,40 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		return holder;
 	}
 
+	private Throwable getRootCause(Throwable t) {
+		Throwable rootCause = t;
+		while (rootCause.getCause() != null) {
+			rootCause = rootCause.getCause();
+		}
+		return rootCause;
+	}
+
 	// ------------------------------------------------------------------------
 	//   test implementations
 	// ------------------------------------------------------------------------
+
+	private static final class FailOnClosingTestCoordinator extends CheckpointEventOrderTestBaseCoordinator {
+
+		FailOnClosingTestCoordinator(Context context) {
+			super(context);
+		}
+
+		@Override
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
+				result.complete(new byte[0]);
+		}
+
+		@Override
+		protected void step() throws Exception {
+			// do nothing.
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			throw new Exception("Fake exception to fail the job.");
+		}
+	}
 
 	private static final class FutureCompletedInstantlyTestCoordinator extends CheckpointEventOrderTestBaseCoordinator {
 

@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Callable;
@@ -77,9 +76,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> implements Op
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
 				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
 						context);
-		OperatorCoordinator coordinator =
-				new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
-		return new RecreateOnResetOperatorCoordinator(context, this, coordinator);
+		return new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
 	}
 
 	/**
