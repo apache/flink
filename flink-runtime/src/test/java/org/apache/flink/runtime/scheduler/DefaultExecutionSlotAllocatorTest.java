@@ -54,6 +54,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorTestUtils.createSchedulingRequirements;
+import static org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorTestUtils.findSlotAssignmentByExecutionVertexId;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -278,27 +280,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 				slotProvider,
 				Time.seconds(10)),
 			new DefaultPreferredLocationsRetriever(stateLocationRetriever, inputsLocationsRetriever));
-	}
-
-	private List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(ExecutionVertexID... executionVertexIds) {
-		List<ExecutionVertexSchedulingRequirements> schedulingRequirements = new ArrayList<>(executionVertexIds.length);
-
-		for (ExecutionVertexID executionVertexId : executionVertexIds) {
-			schedulingRequirements.add(new ExecutionVertexSchedulingRequirements.Builder()
-					.withExecutionVertexId(executionVertexId).build());
-		}
-		return schedulingRequirements;
-	}
-
-	private SlotExecutionVertexAssignment findSlotAssignmentByExecutionVertexId(
-			ExecutionVertexID executionVertexId,
-			Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments) {
-		return slotExecutionVertexAssignments.stream()
-				.filter(slotExecutionVertexAssignment -> slotExecutionVertexAssignment.getExecutionVertexId().equals(executionVertexId))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException(String.format(
-						"SlotExecutionVertexAssignment with execution vertex id %s not found",
-						executionVertexId)));
 	}
 
 	private static class AllocationToggableSlotProvider implements SlotProvider {
