@@ -19,24 +19,31 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.FilterableTableSource;
-import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.sources.LimitableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
+import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
+import org.apache.flink.table.utils.TableConnectorUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,7 +59,8 @@ import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFor
 /**
  * File system table source.
  */
-public class FileSystemTableSource extends InputFormatTableSource<RowData> implements
+public class FileSystemTableSource implements
+		StreamTableSource<RowData>,
 		PartitionableTableSource,
 		ProjectableTableSource<RowData>,
 		LimitableTableSource<RowData>,
@@ -111,7 +119,22 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 	}
 
 	@Override
-	public InputFormat<RowData, ?> getInputFormat() {
+	public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+		@SuppressWarnings("unchecked")
+		TypeInformation<RowData> typeInfo =
+				(TypeInformation<RowData>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
+		// Avoid using ContinuousFileMonitoringFunction
+		InputFormatSourceFunction<RowData> func = new InputFormatSourceFunction<>(getInputFormat(), typeInfo);
+		DataStreamSource<RowData> source = execEnv.addSource(func, explainSource(), typeInfo);
+		return source.name(explainSource());
+	}
+
+	@Override
+	public boolean isBounded() {
+		return true;
+	}
+
+	private InputFormat<RowData, ?> getInputFormat() {
 		// When this table has no partition, just return a empty source.
 		if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
 			return new CollectionInputFormat<>(new ArrayList<>(), null);
@@ -301,7 +324,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 
 	@Override
 	public String explainSource() {
-		return super.explainSource() +
+		return TableConnectorUtils.generateRuntimeName(getClass(), getTableSchema().getFieldNames()) +
 				(readPartitions == null ? "" : ", readPartitions=" + readPartitions) +
 				(selectFields == null ? "" : ", selectFields=" + Arrays.toString(selectFields)) +
 				(limit == null ? "" : ", limit=" + limit) +
