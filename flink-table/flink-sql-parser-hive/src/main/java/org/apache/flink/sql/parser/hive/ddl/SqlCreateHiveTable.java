@@ -64,9 +64,19 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			SqlNodeList partColList, @Nullable SqlCharStringLiteral comment, boolean isTemporary, boolean isExternal,
 			HiveTableRowFormat rowFormat, HiveTableStoredAs storedAs, SqlCharStringLiteral location) throws ParseException {
 
-		super(pos, tableName, columnList, creationContext.constraints,
-				HiveDDLUtils.checkReservedTableProperties(propertyList), extractPartColIdentifiers(partColList), null,
-				comment, null, isTemporary);
+		super(
+				pos,
+				tableName,
+				columnList,
+				creationContext.constraints,
+				HiveDDLUtils.checkReservedTableProperties(propertyList),
+				extractPartColIdentifiers(partColList),
+				null,
+				HiveDDLUtils.unescapeStringLiteral(comment),
+				null,
+				isTemporary
+		);
+		HiveDDLUtils.unescapeProperties(propertyList);
 
 		this.origColList = HiveDDLUtils.deepCopyColList(columnList);
 		this.origPartColList = partColList != null ?
@@ -465,6 +475,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 					list.add(HiveDDLUtils.toTableOption(prop, delimitPropToValue.get(prop), pos));
 				}
 			}
+			HiveDDLUtils.unescapeProperties(list);
 			return list;
 		}
 
