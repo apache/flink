@@ -192,7 +192,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 					"'.Use formats like '50 s' or '1 min' to specify the timeout.");
 		}
 
-		LOG.info("Messages have a max timeout of " + timeout);
+		LOG.debug("Messages have a max timeout of " + timeout);
 
 		Time finiteRegistrationDuration;
 		try {
