@@ -134,7 +134,7 @@ The following table lists the type mapping from Flink type to Orc type.
     </tr>
     <tr>
       <td>DECIMAL</td>
-      <td>DECIMAL</td>
+      <td>decimal</td>
       <td>DECIMAL</td>
     </tr>
     <tr>
@@ -159,12 +159,12 @@ The following table lists the type mapping from Flink type to Orc type.
     </tr>
     <tr>
       <td>FLOAT</td>
-      <td>DOUBLE</td>
+      <td>double</td>
       <td>FLOAT</td>
     </tr>
     <tr>
       <td>DOUBLE</td>
-      <td>DOUBLE</td>
+      <td>double</td>
       <td>DOUBLE</td>
     </tr>
     <tr>
@@ -174,7 +174,7 @@ The following table lists the type mapping from Flink type to Orc type.
     </tr>
     <tr>
       <td>TIMESTAMP</td>
-      <td>TIMESTAMP</td>
+      <td>timestamp</td>
       <td>TIMESTAMP</td>
     </tr>
     </tbody>
