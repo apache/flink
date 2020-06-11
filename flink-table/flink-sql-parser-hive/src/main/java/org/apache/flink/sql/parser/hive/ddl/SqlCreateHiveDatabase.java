@@ -43,7 +43,13 @@ public class SqlCreateHiveDatabase extends SqlCreateDatabase {
 
 	public SqlCreateHiveDatabase(SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList,
 			SqlCharStringLiteral comment, SqlCharStringLiteral location, boolean ifNotExists) throws ParseException {
-		super(pos, databaseName, HiveDDLUtils.checkReservedDBProperties(propertyList), comment, ifNotExists);
+		super(
+				pos,
+				databaseName,
+				HiveDDLUtils.checkReservedDBProperties(propertyList),
+				HiveDDLUtils.unescapeStringLiteral(comment),
+				ifNotExists
+		);
 		HiveDDLUtils.ensureNonGeneric(propertyList);
 		originPropList = new SqlNodeList(propertyList.getList(), propertyList.getParserPosition());
 		// mark it as a hive database

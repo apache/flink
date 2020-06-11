@@ -278,8 +278,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						")");
 		sql("alter table tbl set serdeproperties('line.delim'='\n')")
 				.ok("ALTER TABLE `TBL` SET SERDEPROPERTIES (\n" +
-						"  'line.delim' = '\n" +
-						"'\n" +
+						"  'line.delim' = '\n'\n" +
 						")");
 	}
 
@@ -299,6 +298,15 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1)\n" +
 						"RENAME TO\n" +
 						"PARTITION (`P` = 2)");
+	}
+
+	@Test
+	public void testAlterTableProperties() {
+		sql("alter table tbl set tblproperties('k1'='v1','k2'='v2')")
+				.ok("ALTER TABLE `TBL` SET TBLPROPERTIES (\n" +
+						"  'k1' = 'v1',\n" +
+						"  'k2' = 'v2'\n" +
+						")");
 	}
 
 	// TODO: support EXCHANGE PARTITION, RECOVER PARTITIONS

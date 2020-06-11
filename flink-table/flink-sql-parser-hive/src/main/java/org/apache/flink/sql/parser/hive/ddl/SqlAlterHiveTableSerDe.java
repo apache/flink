@@ -42,6 +42,7 @@ public class SqlAlterHiveTableSerDe extends SqlAlterHiveTable {
 	public SqlAlterHiveTableSerDe(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec,
 			SqlNodeList propertyList, SqlCharStringLiteral serdeLib) throws ParseException {
 		super(CHANGE_SERDE_PROPS, pos, tableName, partitionSpec, HiveDDLUtils.checkReservedTableProperties(propertyList));
+		HiveDDLUtils.unescapeProperties(propertyList);
 		// remove the last property which is the ALTER_TABLE_OP
 		origSerDeProps = new SqlNodeList(propertyList.getList().subList(0, propertyList.size() - 1),
 				propertyList.getParserPosition());
