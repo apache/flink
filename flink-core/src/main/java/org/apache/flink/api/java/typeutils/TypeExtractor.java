@@ -1816,10 +1816,10 @@ public class TypeExtractor {
 			if(hasGetter && hasSetter) {
 				return true;
 			} else {
-				if(!hasGetter) {
+				if(!hasGetter && clazz != Row.class) {
 					LOG.info(clazz+" does not contain a getter for field "+f.getName() );
 				}
-				if(!hasSetter) {
+				if(!hasSetter && clazz != Row.class) {
 					LOG.info(clazz+" does not contain a setter for field "+f.getName() );
 				}
 				return false;
@@ -1858,7 +1858,7 @@ public class TypeExtractor {
 		List<PojoField> pojoFields = new ArrayList<PojoField>();
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
-			if(!isValidPojoField(field, clazz, typeHierarchy)) {
+			if(!isValidPojoField(field, clazz, typeHierarchy) && clazz != Row.class) {
 				LOG.info("Class " + clazz + " cannot be used as a POJO type because not all fields are valid POJO fields, " +
 					"and must be processed as GenericType. Please read the Flink documentation " +
 					"on \"Data Types & Serialization\" for details of the effect on performance.");
