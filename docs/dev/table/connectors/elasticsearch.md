@@ -2,7 +2,7 @@
 title: "Elasticsearch SQL Connector"
 nav-title: Elasticsearch
 nav-parent_id: sql-connectors
-nav-pos: 3
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -263,4 +263,6 @@ Data Type Mapping
 ----------------
 
 Elasticsearch stores document in a JSON string. So the data type mapping is between Flink data type and JSON data type.
-Flink uses built-in `'json'` format for Elasticsearch connector. Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">JSON Format</a> page for more type mapping details.
+Flink uses built-in `'json'` format for Elasticsearch connector. Please refer to [JSON Format]({% link dev/table/connectors/formats/json.md %}) page for more type mapping details.
+
+{% top %}

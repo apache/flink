@@ -86,57 +86,57 @@ Format Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be 'csv'.</td>
+      <td>Specify what format to use, here should be <code>'csv'</code>.</td>
     </tr>
     <tr>
       <td><h5>csv.field-delimiter</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
-      <td>Field delimiter character (',' by default).</td>
+      <td>Field delimiter character (<code>','</code> by default).</td>
     </tr>
     <tr>
       <td><h5>csv.line-delimiter</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>\n</code></td>
       <td>String</td>
-      <td>Line delimiter ('\n' by default, otherwise
-      '\r' or '\r\n' are allowed), unicode is supported if
-      the delimiter is an invisible special character,
-      e.g. U&'\\000D' is the unicode representation of carriage return '\r'
-      e.g. U&'\\000A' is the unicode representation of line feed '\n'.</td>
+      <td>Line delimiter, <code>\n</code> by default. Note the <code>\n</code> and <code>\r</code> are invisible special characters, you have to use unicode to specify them in plain SQL.
+          <ul>
+           <li>e.g. <code>'csv.line-delimiter' = U&'\\000D'</code> specifies the to use carriage return <code>\r</code> as line delimiter.</li>
+           <li>e.g. <code>'csv.line-delimiter' = U&'\\000A'</code> specifies the to use line feed <code>\n</code> as line delimiter.</li>
+          </ul>
+      </td>
     </tr>
     <tr>
       <td><h5>csv.disable-quote-character</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Flag to disabled quote character for enclosing field values (false by default)
-      if true, quote-character can not be set.</td>
+      <td>Disabled quote character for enclosing field values (false by default).
+      If true, option <code>'csv.quote-character'</code> must be set.</td>
     </tr>
     <tr>
       <td><h5>csv.quote-character</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
-      <td>Quote character for enclosing field values ('"' by default).</td>
+      <td>Quote character for enclosing field values (<code>"</code> by default).</td>
     </tr>
     <tr>
       <td><h5>csv.allow-comments</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Flag to ignore comment lines that start with '#'
-      (disabled by default);
-      if enabled, make sure to also ignore parse errors to allow empty rows.</td>
+      <td>Ignore comment lines that start with <code>'#'</code> (disabled by default).
+      If enabled, make sure to also ignore parse errors to allow empty rows.</td>
     </tr>
     <tr>
       <td><h5>csv.ignore-parse-errors</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Flag to skip fields and rows with parse errors instead of failing;
-      fields are set to null in case of errors.</td>
+      <td>Skip fields and rows with parse errors instead of failing.
+      Fields are set to null in case of errors.</td>
     </tr>
     <tr>
       <td><h5>csv.array-element-delimiter</h5></td>
@@ -144,7 +144,7 @@ Format Options
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
       <td>Array element delimiter string for separating
-      array and row element values (';' by default).</td>
+      array and row element values (<code>';'</code> by default).</td>
     </tr>
     <tr>
       <td><h5>csv.escape-character</h5></td>
@@ -158,8 +158,7 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Null literal string that is interpreted as a
-      null value (disabled by default).</td>
+      <td>Null literal string that is interpreted as a null value (disabled by default).</td>
     </tr>
     </tbody>
 </table>
@@ -176,74 +175,74 @@ The following table lists the type mapping from Flink type to CSV type.
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink Data Type</th>
-        <th class="text-center">CSV Data Type</th>
+        <th class="text-left">Flink SQL type</th>
+        <th class="text-left">CSV type</th>
       </tr>
     </thead>
     <tbody>
     <tr>
-      <td>CHAR / VARCHAR / STRING</td>
-      <td>string</td>
+      <td><code>CHAR / VARCHAR / STRING</code></td>
+      <td><code>string</code></td>
     </tr>
     <tr>
-      <td>BOOLEAN</td>
-      <td>boolean</td>
+      <td><code>BOOLEAN</code></td>
+      <td><code>boolean</code></td>
     </tr>
     <tr>
-      <td>BINARY / VARBINARY</td>
-      <td>string with encoding: base64</td>
+      <td><code>BINARY / VARBINARY</code></td>
+      <td><code>string with encoding: base64</code></td>
     </tr>
     <tr>
-      <td>DECIMAL</td>
-      <td>number</td>
+      <td><code>DECIMAL</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>TINYINT</td>
-      <td>number</td>
+      <td><code>TINYINT</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>SMALLINT</td>
-      <td>number</td>
+      <td><code>SMALLINT</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>INT</td>
-      <td>number</td>
+      <td><code>INT</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>BIGINT</td>
-      <td>number</td>
+      <td><code>BIGINT</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>FLOAT</td>
-      <td>number</td>
+      <td><code>FLOAT</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>DOUBLE</td>
-      <td>number</td>
+      <td><code>DOUBLE</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>DATE</td>
-      <td>string with format: date</td>
+      <td><code>DATE</code></td>
+      <td><code>string with format: date</code></td>
     </tr>
     <tr>
-      <td>TIME</td>
-      <td>string with format: time</td>
+      <td><code>TIME</code></td>
+      <td><code>string with format: time</code></td>
     </tr>
     <tr>
-      <td>TIMESTAMP</td>
-      <td>string with format: date-time</td>
+      <td><code>TIMESTAMP</code></td>
+      <td><code>string with format: date-time</code></td>
     </tr>
     <tr>
-      <td>INTERVAL</td>
-      <td>number</td>
+      <td><code>INTERVAL</code></td>
+      <td><code>number</code></td>
     </tr>
     <tr>
-      <td>ARRAY</td>
-      <td>array</td>
+      <td><code>ARRAY</code></td>
+      <td><code>array</code></td>
     </tr>
     <tr>
-      <td>ROW</td>
-      <td>object</td>
+      <td><code>ROW</code></td>
+      <td><code>object</code></td>
     </tr>
     </tbody>
 </table>

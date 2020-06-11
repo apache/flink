@@ -2,7 +2,7 @@
 title: "JDBC SQL Connector"
 nav-title: JDBC
 nav-parent_id: sql-connectors
-nav-pos: 9
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -546,3 +546,5 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     </tr>
     </tbody>
 </table>
+
+{% top %}

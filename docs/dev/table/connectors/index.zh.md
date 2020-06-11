@@ -29,9 +29,9 @@ Flink's Table API & SQL programs can be connected to other external systems for 
 
 This page describes how to register table sources and table sinks in Flink using the natively supported connectors. After a source or sink has been registered, it can be accessed by Table API & SQL statements.
 
-<span class="label label-info">NOTE</span> If you want to implement your own *custom* table source or sink, have a look at the [user-defined sources & sinks page](sourceSinks.html).
+<span class="label label-info">NOTE</span> If you want to implement your own *custom* table source or sink, have a look at the [user-defined sources & sinks page]({% link dev/table/sourceSinks.md %}).
 
-<span class="label label-danger">Attention</span> Flink Table & SQL introduces a new set of connector options since 1.11.0, if you are using the legacy connector options, please refer to the [legacy documentation]({{ site.baseurl }}/dev/table/connect.html).
+<span class="label label-danger">Attention</span> Flink Table & SQL introduces a new set of connector options since 1.11.0, if you are using the legacy connector options, please refer to the [legacy documentation]({% link dev/table/connect.md %}).
 
 * This will be replaced by the TOC
 {:toc}
@@ -52,31 +52,31 @@ Flink natively support various connectors. The following tables list all availab
     </thead>
     <tbody>
     <tr>
-      <td><a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
+      <td><a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
       <td></td>
       <td>Bounded and Unbounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{% link dev/table/connectors/elasticsearch.zh.md %}">Elasticsearch</a></td>
+      <td><a href="{% link dev/table/connectors/elasticsearch.md %}">Elasticsearch</a></td>
       <td>6.x & 7.x</td>
       <td>Not supported</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td>[Apache Kafka]({{ site.baseurl }}/dev/table/connectors/kafka.html)</td>
+      <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a></td>
       <td>0.10+</td>
       <td>Unbounded Scan</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{% link dev/table/connectors/jdbc.zh.md %}">JDBC</a></td>
+      <td><a href="{% link dev/table/connectors/jdbc.md %}">JDBC</a></td>
       <td></td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{% link dev/table/connectors/hbase.zh.md %}">Apache HBase</a></td>
+      <td><a href="{% link dev/table/connectors/hbase.md %}">Apache HBase</a></td>
       <td>1.4.x</td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
@@ -115,7 +115,7 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-In this way the desired connection properties are converted into string-based key-value pairs. So-called [table factories](sourceSinks.html#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
+In this way the desired connection properties are converted into string-based key-value pairs. So-called [table factories]({% link dev/table/sourceSinks.md %}#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
 
 If no factory can be found or multiple factories match for the given properties, an exception will be thrown with additional information about considered factories and supported properties.
 
@@ -169,11 +169,11 @@ CREATE TABLE MyTable (
 
 Time attributes are essential when working with unbounded streaming tables. Therefore both proctime and rowtime attributes can be defined as part of the schema.
 
-For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming/time_attributes.html).
+For more information about time handling in Flink and especially event-time, we recommend the general [event-time section]({% link dev/table/streaming/time_attributes.md %}).
 
 #### Proctime Attributes
 
-In order to declare a proctime attribute in the schema, you can use [Computed Column syntax]({{ site.baseurl }}/dev/table/sql/create.html#create-table) to declare a computed column which is generated from `PROCTIME()` builtin function.
+In order to declare a proctime attribute in the schema, you can use [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table) to declare a computed column which is generated from `PROCTIME()` builtin function.
 The computed column is a virtual column which is not stored in the physical data.
 
 <div class="codetabs" markdown="1">
@@ -195,7 +195,7 @@ CREATE TABLE MyTable (
 
 In order to control the event-time behavior for tables, Flink provides predefined timestamp extractors and watermark strategies.
 
-Please refer to [CREATE TABLE statements](sql/create.html#create-table) for more information about defining time attributes in DDL.
+Please refer to [CREATE TABLE statements]({% link dev/table/sql/create.md %}#create-table) for more information about defining time attributes in DDL.
 
 The following timestamp extractors are supported:
 
@@ -263,6 +263,6 @@ Make sure to always declare both timestamps and watermarks. Watermarks are requi
 
 ### SQL Types
 
-Please see the [Data Types](types.html) page about how to declare a type in SQL.
+Please see the [Data Types]({% link dev/table/types.md %}) page about how to declare a type in SQL.
 
 {% top %}

@@ -37,28 +37,28 @@ Flink supports the following formats:
     </thead>
     <tbody>
         <tr>
-          <td><a href="{{ site.baseurl }}/dev/table/connectors/formats/csv.html">CSV</a></td>
-          <td>Apache Kafka,
+          <td><a href="{% link dev/table/connectors/formats/csv.zh.md %}">CSV</a></td>
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
-         <td><a href="{{ site.baseurl }}/dev/table/connectors/formats/json.html">JSON</a></td>
-         <td>Apache Kafka,
+         <td><a href="{% link dev/table/connectors/formats/json.zh.md %}">JSON</a></td>
+         <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a>,
           <a href="{% link dev/table/connectors/elasticsearch.zh.md %}">Elasticsearch</a></td>
        </tr>
         <tr>
           <td><a href="{% link dev/table/connectors/formats/avro.zh.md %}">Apache Avro</a></td>
-          <td>Apache Kafka,
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
            <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
          <td>Debezium JSON</td>
-         <td>Apache Kafka</td>
+         <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a></td>
         </tr>
         <tr>
          <td>Canal JSON</td>
-         <td>Apache Kafka</td>
+         <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a></td>
         </tr>
         <tr>
          <td>Apache Parquet</td>
