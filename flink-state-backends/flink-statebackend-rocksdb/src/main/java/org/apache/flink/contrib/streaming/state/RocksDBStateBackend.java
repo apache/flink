@@ -811,9 +811,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public void setOptions(OptionsFactory optionsFactory) {
-		this.rocksDbOptionsFactory = optionsFactory instanceof RocksDBOptionsFactory
-				? (RocksDBOptionsFactory) optionsFactory
-				: new RocksDBOptionsFactoryAdapter(optionsFactory);
+		this.rocksDbOptionsFactory = new RocksDBOptionsFactoryAdapter(optionsFactory);
 	}
 
 	/**

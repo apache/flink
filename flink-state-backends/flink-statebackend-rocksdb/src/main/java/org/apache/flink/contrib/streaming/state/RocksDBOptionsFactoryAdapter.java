@@ -67,9 +67,9 @@ final class RocksDBOptionsFactoryAdapter implements ConfigurableRocksDBOptionsFa
 	}
 
 	@Nullable
-	public static OptionsFactory unwrapIfAdapter(RocksDBOptionsFactory factory) {
+	static OptionsFactory unwrapIfAdapter(RocksDBOptionsFactory factory) {
 		return factory instanceof RocksDBOptionsFactoryAdapter
 				? ((RocksDBOptionsFactoryAdapter) factory).optionsFactory
-				: factory;
+				: new OptionsFactoryAdapter(factory);
 	}
 }
