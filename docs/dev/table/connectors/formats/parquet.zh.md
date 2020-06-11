@@ -87,7 +87,7 @@ Format Options
       <td>Specify what format to use, here should be 'parquet'.</td>
     </tr>
     <tr>
-      <td><h5>utc-timezone</h5></td>
+      <td><h5>parquet.utc-timezone</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
