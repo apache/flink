@@ -82,7 +82,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private final AsyncExceptionHandler asyncExceptionHandler;
 	private final ChannelStateWriter channelStateWriter;
 	private final StreamTaskActionExecutor actionExecutor;
-	private final boolean unalignedCheckpointEnabled;
 	private final BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot;
 	/** The IDs of the checkpoint for which we are notified aborted. */
 	private final Set<Long> abortedCheckpointIds;
@@ -139,7 +138,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			executorService,
 			env,
 			asyncExceptionHandler,
-			unalignedCheckpointEnabled,
 			prepareInputSnapshot,
 			maxRecordAbortedCheckpoints,
 			unalignedCheckpointEnabled ? openChannelStateWriter(taskName, checkpointStorage) : ChannelStateWriter.NO_OP);
@@ -154,7 +152,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			ExecutorService executorService,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
-			boolean unalignedCheckpointEnabled,
 			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot,
 			int maxRecordAbortedCheckpoints,
 			ChannelStateWriter channelStateWriter) throws IOException {
@@ -167,7 +164,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
 		this.actionExecutor = checkNotNull(actionExecutor);
 		this.channelStateWriter = checkNotNull(channelStateWriter);
-		this.unalignedCheckpointEnabled = unalignedCheckpointEnabled;
 		this.prepareInputSnapshot = prepareInputSnapshot;
 		this.abortedCheckpointIds = createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
 		this.lastCheckpointId = -1L;
@@ -253,10 +249,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		// Step (2): Send the checkpoint barrier downstream
 		operatorChain.broadcastEvent(
 			new CheckpointBarrier(metadata.getCheckpointId(), metadata.getTimestamp(), options),
-			unalignedCheckpointEnabled);
+			options.isUnalignedCheckpoint());
 
 		// Step (3): Prepare to spill the in-flight buffers for input and output
-		if (includeChannelState(options)) {
+		if (options.isUnalignedCheckpoint()) {
 			prepareInflightDataSnapshot(metadata.getCheckpointId());
 		}
 
@@ -326,13 +322,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	@Override
 	public void initCheckpoint(long id, CheckpointOptions checkpointOptions) {
-		if (includeChannelState(checkpointOptions)) {
+		if (checkpointOptions.isUnalignedCheckpoint()) {
 			channelStateWriter.start(id, checkpointOptions);
 		}
-	}
-
-	private boolean includeChannelState(CheckpointOptions checkpointOptions) {
-		return unalignedCheckpointEnabled && !checkpointOptions.getCheckpointType().isSavepoint();
 	}
 
 	@Override
@@ -499,7 +491,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		long checkpointId = checkpointMetaData.getCheckpointId();
 		long started = System.nanoTime();
 
-		ChannelStateWriteResult channelStateWriteResult = includeChannelState(checkpointOptions) ?
+		ChannelStateWriteResult channelStateWriteResult = checkpointOptions.isUnalignedCheckpoint() ?
 								channelStateWriter.getAndRemoveWriteResult(checkpointId) :
 								ChannelStateWriteResult.EMPTY;
 
