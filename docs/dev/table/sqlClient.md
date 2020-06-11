@@ -87,6 +87,10 @@ The displaying content will be influenced by the query execution type(`execution
 SET execution.result-mode=tableau;
 {% endhighlight %}
 
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of 
+this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
+Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+
 You can use the following query to see all the result modes in action:
 
 {% highlight sql %}
@@ -141,7 +145,7 @@ And if you ran the query in batch mode, the displayed result would be:
 
 All these result modes can be useful during the prototyping of SQL queries. In all these modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
 
-<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
 
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
