@@ -544,20 +544,28 @@ public class CheckpointCoordinator {
 						final PendingCheckpoint checkpoint =
 							FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
 
-						if (throwable == null && checkpoint != null && !checkpoint.isDiscarded()) {
-							// no exception, no discarding, everything is OK
-							final long checkpointId = checkpoint.getCheckpointId();
-							snapshotTaskState(
-								timestamp,
-								checkpointId,
-								checkpoint.getCheckpointStorageLocation(),
-								request.props,
-								executions,
-								request.advanceToEndOfTime);
+						if (throwable == null && checkpoint != null) {
+							if (checkpoint.isDiscarded()) {
+								onTriggerFailure(
+									checkpoint,
+									new CheckpointException(
+										CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
+										checkpoint.getFailureCause()));
+							} else {
+								// no exception, no discarding, everything is OK
+								final long checkpointId = checkpoint.getCheckpointId();
+								snapshotTaskState(
+									timestamp,
+									checkpointId,
+									checkpoint.getCheckpointStorageLocation(),
+									request.props,
+									executions,
+									request.advanceToEndOfTime);
 
-							coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
+								coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
 
-							onTriggerSuccess();
+								onTriggerSuccess();
+							}
 						} else {
 								// the initialization might not be finished yet
 								if (checkpoint == null) {
