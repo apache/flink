@@ -38,7 +38,7 @@ In order to setup the CSV format, the following table provides dependency inform
 
 | Maven dependency   | SQL Client JAR         |
 | :----------------- | :----------------------|
-| `flink-csv`        | The `flink-csv-{{site.version}}.jar` is a built-in jar of SQL-CLI. |
+| `flink-csv`        | Built-in               |
 
 How to create a table with CSV format
 ----------------
@@ -59,7 +59,9 @@ CREATE TABLE user_behavior (
  'topic' = 'user_behavior',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
- 'format' = 'csv'
+ 'format' = 'csv',
+ 'csv.ignore-parse-errors' = 'true',
+ 'csv.allow-comments' = 'true'
 )
 {% endhighlight %}
 </div>
@@ -87,14 +89,14 @@ Format Options
       <td>Specify what format to use, here should be 'csv'.</td>
     </tr>
     <tr>
-      <td><h5>field-delimiter</h5></td>
+      <td><h5>csv.field-delimiter</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
       <td>Field delimiter character (',' by default).</td>
     </tr>
     <tr>
-      <td><h5>line-delimiter</h5></td>
+      <td><h5>csv.line-delimiter</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>\n</code></td>
       <td>String</td>
@@ -105,7 +107,7 @@ Format Options
       e.g. U&'\\000A' is the unicode representation of line feed '\n'.</td>
     </tr>
     <tr>
-      <td><h5>disable-quote-character</h5></td>
+      <td><h5>csv.disable-quote-character</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
@@ -113,14 +115,14 @@ Format Options
       if true, quote-character can not be set.</td>
     </tr>
     <tr>
-      <td><h5>quote-character</h5></td>
+      <td><h5>csv.quote-character</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
       <td>Quote character for enclosing field values ('"' by default).</td>
     </tr>
     <tr>
-      <td><h5>allow-comments</h5></td>
+      <td><h5>csv.allow-comments</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
@@ -129,7 +131,7 @@ Format Options
       if enabled, make sure to also ignore parse errors to allow empty rows.</td>
     </tr>
     <tr>
-      <td><h5>ignore-parse-errors</h5></td>
+      <td><h5>csv.ignore-parse-errors</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
@@ -137,7 +139,7 @@ Format Options
       fields are set to null in case of errors.</td>
     </tr>
     <tr>
-      <td><h5>array-element-delimiter</h5></td>
+      <td><h5>csv.array-element-delimiter</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
@@ -145,14 +147,14 @@ Format Options
       array and row element values (';' by default).</td>
     </tr>
     <tr>
-      <td><h5>escape-character</h5></td>
+      <td><h5>csv.escape-character</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Escape character for escaping values (disabled by default).</td>
     </tr>
     <tr>
-      <td><h5>null-literal</h5></td>
+      <td><h5>csv.null-literal</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
@@ -167,7 +169,7 @@ Data Type Mapping
 
 Currently, the CSV schema is always derived from table schema. Explicitly defining an CSV schema is not supported yet.
 
-Flink CSV format uses utility class `com.fasterxml.jackson.databind.node.ObjectNode` (for serialization) and `com.fasterxml.jackson.databind.JsonNode` (for deserialization) provided by `jackson` to convert Flink Data Types to and from CSV text.
+Flink CSV format uses [jackson databind API](https://github.com/FasterXML/jackson-databind) to parse and generate CSV string.
 
 The following table lists the type mapping from Flink type to CSV type.
 
@@ -175,151 +177,73 @@ The following table lists the type mapping from Flink type to CSV type.
     <thead>
       <tr>
         <th class="text-left">Flink Data Type</th>
-        <th class="text-center">CSV conversion</th>
+        <th class="text-center">CSV Data Type</th>
       </tr>
     </thead>
     <tbody>
     <tr>
-      <td>NULL</td>
-      <td>
-      {% highlight java %}
-      NullNode nullNode()
-      null
-    {% endhighlight %}
-    </td>
-    </tr>
-    <tr>
       <td>CHAR / VARCHAR / STRING</td>
-      <td>
-      {% highlight java %}
-      TextNode textNode(String text)
-      String asText()
-      {% endhighlight %}
-      </td>
+      <td>string</td>
     </tr>
     <tr>
       <td>BOOLEAN</td>
-      <td>
-      {% highlight java %}
-      BooleanNode booleanNode(boolean v)
-      boolean asBoolean()
-      {% endhighlight %}
-      </td>
+      <td>boolean</td>
     </tr>
     <tr>
       <td>BINARY / VARBINARY</td>
-      <td>
-      {% highlight java %}
-      BinaryNode binaryNode(byte[] data)
-      byte[] binaryValue()
-      {% endhighlight %}
-      </td>
+      <td>string with encoding: base64</td>
     </tr>
     <tr>
       <td>DECIMAL</td>
-      <td>
-      {% highlight java %}
-      ValueNode numberNode(BigDecimal v)
-      BigDecimal decimalValue()
-      {% endhighlight %}
-      </td>
+      <td>number</td>
     </tr>
     <tr>
       <td>TINYINT</td>
-      <td>
-      {% highlight java %}
-      NumericNode numberNode(byte v)
-      byte Byte.parseByte(String s)
-      {% endhighlight %}
-      </td>
+      <td>number</td>
     </tr>
     <tr>
       <td>SMALLINT</td>
-      <td>
-      {% highlight java %}
-      NumericNode numberNode(short v)
-      short Short.parseShort(String s)
-      {% endhighlight %}
-      </td>
+      <td>number</td>
     </tr>
     <tr>
-      <td>INT/INTERVAL_YEAR_MONTH</td>
-      <td>
-      {% highlight java %}
-      NumericNode numberNode(int v)
-      int asInt()
-      {% endhighlight %}
-      </td>
+      <td>INT</td>
+      <td>number</td>
     </tr>
     <tr>
-      <td>BIGINT/INTERVAL_DAY_TIME</td>
-      <td>
-      {% highlight java %}
-      NumericNode numberNode(long v)
-      long asLong()
-      {% endhighlight %}
-      </td>
+      <td>BIGINT</td>
+      <td>number</td>
     </tr>
     <tr>
       <td>FLOAT</td>
-      <td>
-      {% highlight java %}
-      NumericNode numberNode(float v)
-      (float) double asDouble()
-      {% endhighlight %}
-      </td>
+      <td>number</td>
     </tr>
     <tr>
       <td>DOUBLE</td>
-      <td>
-      {% highlight java %}
-      NumericNode numberNode(double v)
-      double asDouble()
-      {% endhighlight %}
-      </td>
+      <td>number</td>
     </tr>
     <tr>
       <td>DATE</td>
-      <td>
-      {% highlight java %}
-      TextNode textNode(String isoLocalDate)
-      (int) Date.valueOf(String isoLocalDate)
-      {% endhighlight %}
-      </td>
+      <td>string with format: date</td>
     </tr>
     <tr>
       <td>TIME</td>
-      <td>
-      {% highlight java %}
-      TextNode textNode(String isoLocalTime)
-      LocalTime Time.valueOf(String isoLocalTime)
-      {% endhighlight %}
-      </td>
+      <td>string with format: time</td>
     </tr>
     <tr>
       <td>TIMESTAMP</td>
-      <td>
-      {% highlight java %}
-      TextNode textNode(String isoLocalDateTime)
-      Timestamp Timestamp.valueOf(String isoLocalDateTime)
-      {% endhighlight %}
-      </td>
+      <td>string with format: date-time</td>
+    </tr>
+    <tr>
+      <td>INTERVAL</td>
+      <td>number</td>
     </tr>
     <tr>
       <td>ARRAY</td>
-      <td>
-      {% highlight java %}
-      JsonNode get(int index) // For each array item, only deserialization supported.
-      {% endhighlight %}
-      </td>
+      <td>array <span class="label label-danger">Note</span> only deserialization is supported.</td>
     </tr>
     <tr>
       <td>ROW</td>
-      <td>
-      {% highlight java %}
-      JsonNode get(String fieldName) // For each field, only deserialization supported.
-      {% endhighlight %}
-      </td>
+      <td>object <span class="label label-danger">Note</span> only deserialization is supported.</td>
     </tr>
     </tbody>
 </table>
