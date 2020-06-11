@@ -36,9 +36,20 @@ Dependencies
 
 In order to setup the Avro format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-avro`       | [Pre-bundled Hadoop](https://flink.apache.org/downloads.html#additional-components) |
+<div class="codetabs" markdown="1">
+<div data-lang="SQL Client JAR" markdown="1">
+Avro format is part of the binary distribution, but requires additional [Hadoop dependency]({% link ops/deployment/hadoop.zh.md %}) for cluster execution.
+</div>
+<div data-lang="Maven dependency" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+</div>
 
 How to create a table with Avro format
 ----------------
@@ -53,7 +64,7 @@ CREATE TABLE user_behavior (
   item_id BIGINT,
   category_id BIGINT,
   behavior STRING,
-  ts TIMESTAMP(3),
+  ts TIMESTAMP(3)
 ) WITH (
  'connector' = 'kafka',
  'topic' = 'user_behavior',
