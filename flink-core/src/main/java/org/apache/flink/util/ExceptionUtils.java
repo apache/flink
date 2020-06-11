@@ -120,7 +120,7 @@ public final class ExceptionUtils {
 	 * {@code null} if the argument was {@code null}
 	 */
 	@Nullable
-	static Throwable tryEnrichOutOfMemoryError(
+	public static Throwable tryEnrichOutOfMemoryError(
 			@Nullable Throwable exception,
 			String jvmMetaspaceOomNewErrorMessage,
 			String jvmDirectOomNewErrorMessage) {
