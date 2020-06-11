@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.core.execution.JobClient;
@@ -441,6 +442,32 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
 
 		catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
+	}
+
+	@Override
+	public void registerTableSource(String name, TableSource<?> tableSource) {
+		// only accept StreamTableSource and LookupableTableSource here
+		// TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge module now
+		registerTableSourceInternal(name, tableSource);
+	}
+
+	@Override
+	public void registerTableSink(
+			String name,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			TableSink<?> tableSink) {
+		registerTableSink(name, tableSink.configure(fieldNames, fieldTypes));
+	}
+
+	@Override
+	public void registerTableSink(String name, TableSink<?> configuredSink) {
+		// validate
+		if (configuredSink.getTableSchema().getFieldCount() == 0) {
+			throw new TableException("Table schema cannot be empty.");
+		}
+
+		registerTableSinkInternal(name, configuredSink);
 	}
 
 	@Override
