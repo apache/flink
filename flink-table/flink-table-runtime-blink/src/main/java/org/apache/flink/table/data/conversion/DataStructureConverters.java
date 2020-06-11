@@ -115,10 +115,8 @@ public final class DataStructureConverters {
 		putConverter(LogicalTypeRoot.ARRAY, long[].class, constructor(ArrayLongArrayConverter::new));
 		putConverter(LogicalTypeRoot.ARRAY, float[].class, constructor(ArrayFloatArrayConverter::new));
 		putConverter(LogicalTypeRoot.ARRAY, double[].class, constructor(ArrayDoubleArrayConverter::new));
-		putConverter(LogicalTypeRoot.MAP, Map.class, MapMapConverter::createForMapType);
-		putConverter(LogicalTypeRoot.MAP, MapData.class, identity());
-		putConverter(LogicalTypeRoot.MULTISET, Map.class, MapMapConverter::createForMultisetType);
 		putConverter(LogicalTypeRoot.MULTISET, MapData.class, identity());
+		putConverter(LogicalTypeRoot.MAP, MapData.class, identity());
 		putConverter(LogicalTypeRoot.ROW, Row.class, RowRowConverter::create);
 		putConverter(LogicalTypeRoot.ROW, RowData.class, identity());
 		putConverter(LogicalTypeRoot.STRUCTURED_TYPE, Row.class, RowRowConverter::create);
@@ -149,6 +147,10 @@ public final class DataStructureConverters {
 		switch (logicalType.getTypeRoot()) {
 			case ARRAY:
 				return ArrayObjectArrayConverter.create(dataType);
+			case MULTISET:
+				return MapMapConverter.createForMultisetType(dataType);
+			case MAP:
+				return MapMapConverter.createForMapType(dataType);
 			case DISTINCT_TYPE:
 				return getConverterInternal(dataType.getChildren().get(0));
 			case STRUCTURED_TYPE:
