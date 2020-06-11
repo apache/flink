@@ -2,7 +2,7 @@
 title: "Apache Kafka SQL Connector"
 nav-title: Kafka
 nav-parent_id: sql-connectors
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading data from and writing data to Kafka topics.
+The Elasticsearch connector allows for reading data from and writing data into Kafka topics.
 
 Dependencies
 ------------
@@ -44,15 +44,18 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 
 | Kafka Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
-| 0.11.x              | `flink-connector-kafka-011{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-011{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
-| 0.10.x              | `flink-connector-kafka-010{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-010{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
+| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
+| 0.11.x              | `flink-connector-kafka-011{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-011{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
+| 0.10.x              | `flink-connector-kafka-010{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-010{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
 
-Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
+The Kafka connectors are not currently part of the binary distribution.
+See how to link with them for cluster execution [here]({% link dev/project-configuration.md %}).
 
 How to create a Kafka table
 ----------------
+
+The example below shows how to create a Kafka table:
+
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
@@ -93,7 +96,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, for Kafka the options are: 'kafka', 'kafka-0.11', 'kafka-0.10'.</td>
+      <td>Specify what connector to use, for Kafka the options are: <code>'kafka'</code>, <code>'kafka-0.11'</code>, <code>'kafka-0.10'</code>.</td>
     </tr>
     <tr>
       <td><h5>topic</h5></td>
@@ -107,23 +110,23 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Kafka server connection string.</td>
+      <td>Comma separated list of Kafka brokers.</td>
     </tr>
     <tr>
       <td><h5>properties.group.id</h5></td>
       <td>required by source</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Consumer group in Kafka consumer, no need for Kafka producer</td>
+      <td>The id of the consumer group for Kafka source, optional for Kafka sink.</td>
     </tr>
     <tr>
       <td><h5>format</h5></td>
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Kafka connector requires to specify a format,
-      the supported formats are 'csv', 'json' and 'avro'.
-      Please refer to [Table Formats]({{ site.baseurl }}/dev/table/connect.html#table-formats) section for more details.
+      <td>The format used to deserialize and serialize Kafka messages.
+      The supported formats are <code>'csv'</code>, <code>'json'</code>, <code>'avro'</code>, <code>'debezium-json'</code> and <code>'canal-json'</code>.
+      Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">Formats</a> page for more details and more format options.
       </td>
     </tr>
     <tr>
@@ -131,14 +134,15 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">group-offsets</td>
       <td>String</td>
-      <td>Startup mode for Kafka consumer, valid enumerations are <code>'earliest-offset'</code>, <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> or <code>'specific-offsets'</code>.</td>
+      <td>Startup mode for Kafka consumer, valid values are <code>'earliest-offset'</code>, <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> and <code>'specific-offsets'</code>.
+       See the following <a href="#start-reading-position">Start Reading Position</a> for more details.</td>
     </tr>
     <tr>
       <td><h5>scan.startup.specific-offsets</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specifies offsets for each partition in case of 'specific-offsets' startup mode, e.g. `partition:0,offset:42;partition:1,offset:300`.
+      <td>Specify offsets for each partition in case of <code>'specific-offsets'</code> startup mode, e.g. <code>'partition:0,offset:42;partition:1,offset:300'</code>.
       </td>
     </tr>
     <tr>
@@ -146,18 +150,18 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Long</td>
-      <td>Timestamp used in case of 'timestamp' startup mode, the 'timestamp' represents the milliseconds that have passed since January 1, 1970 00:00:00.000 GMT, e.g. '1591776274000' for '2020-06-10 16:04:34 +08:00'.</td>
+      <td>Start from the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> startup mode.</td>
     </tr>
     <tr>
       <td><h5>sink.partitioner</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Output partitioning from Flink's partitions into Kafka's partitions. Valid enumerations are
+      <td>Output partitioning from Flink's partitions into Kafka's partitions. Valid values are
       <ul>
-        <li><span markdown="span">`fixed`</span>: each Flink partition ends up in at most one Kafka partition.</li>
-        <li><span markdown="span">`round-robin`</span>: a Flink partition is distributed to Kafka partitions round-robin.</li>
-        <li><span markdown="span">`custom class name`</span>: use a custom FlinkKafkaPartitioner subclass.</li>
+        <li><code>fixed</code>: each Flink partition ends up in at most one Kafka partition.</li>
+        <li><code>round-robin</code>: a Flink partition is distributed to Kafka partitions round-robin.</li>
+        <li>Custom <code>FlinkKafkaPartitioner</code> subclass: e.g. <code>'org.mycompany.MyPartitioner'</code>.</li>
       </ul>
       </td>
     </tr>
@@ -167,7 +171,8 @@ Connector Options
 Features
 ----------------
 
-### Specify the Start Reading Position
+### Start Reading Position
+
 The config option `scan.startup.mode` specifies the startup mode for Kafka consumer. The valid enumerations are:
 <ul>
 <li><span markdown="span">`group-offsets`</span>: start from committed offsets in ZK / Kafka brokers of a specific consumer group.</li>
@@ -185,25 +190,20 @@ If `specific-offsets` is specified, another config option `scan.startup.specific
 e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`.
 
 ### Sink Partitioning
-The config option `sink.partitioner` specifies output partitioning from Flink's partitions into Kafka's partitions. The valid enumerations are:
-<ul>
-<li><span markdown="span">`fixed`</span>: each Flink partition ends up in at most one Kafka partition.</li>
-<li><span markdown="span">`round-robin`</span>: a Flink partition is distributed to Kafka partitions round-robin.</li>
-<li><span markdown="span">`custom class name`</span>: use a custom FlinkKafkaPartitioner subclass.</li>
-</ul>
 
-<span class="label label-danger">Note</span> If the option value it neither `fixed` nor `round-robin`, then Flink would try to parse as
-the `custom class name`, if that is not a full class name that implements `FlinkKafkaPartitioner`, an exception would be thrown.
-
-If config option `sink.partitioner` is not specified, a partition will be assigned in a round-robin fashion.
+The config option `sink.partitioner` specifies output partitioning from Flink's partitions into Kafka's partitions.
+By default, a Kafka sink writes to at most as many partitions as its own parallelism (each parallel instance of the sink writes to exactly one partition).
+In order to distribute the writes to more partitions or control the routing of rows into partitions, a custom sink partitioner can be provided. The `round-robin` partitioner is useful to avoid an unbalanced partitioning.
+However, it will cause a lot of network connections between all the Flink instances and all the Kafka brokers.
 
 ### Consistency guarantees
-The Kafka SQL sink only supports at-least-once writes now, for exactly-once writes, use the `DataStream` connector, see
-<a href="{{ site.baseurl }}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance">Kafka Producers And Fault Tolerance</a> for more details.
+
+By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
 
 Data Type Mapping
 ----------------
-Kafka connector requires to specify a format, thus the supported data types are decided by the specific formats it specifies.
-Please refer to <a href="{{ site.baseurl }}/dev/table/connectors/formats/index.html">Table Formats</a> section for more details.
+
+Kafka stores message keys and values as bytes, so Kafka doesn't have schema or data types. The Kafka messages are deserialized and serialized by formats, e.g. csv, json, avro.
+Thus, the data type mapping is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.md %}) pages for more details.
 
 {% top %}
