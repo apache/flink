@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Elasticsearch connector allows for writing into an index of the Elasticsearch search engine. This document describes how to setup the Elasticsearch Connector to run SQL queries against Elasticsearch.
+The Elasticsearch connector allows for writing into an index of the Elasticsearch engine. This document describes how to setup the Elasticsearch Connector to run SQL queries against Elasticsearch.
 
 The connector can operate in upsert mode for exchanging UPDATE/DELETE messages with the external system using the primary key defined on the DDL.
 
@@ -38,7 +38,7 @@ If no primary key is defined on the DDL, the connector can only operate in appen
 Dependencies
 ------------
 
-In order to setup the Elasticsearch connector, the following table provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+In order to setup the Elasticsearch connector, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
 | Elasticsearch Version   | Maven dependency                                                   | SQL Client JAR         |
 | :---------------------- | :----------------------------------------------------------------- | :----------------------|
@@ -237,8 +237,8 @@ Features
 ### Key Handling
 
 Elasticsearch sink can work in either upsert mode or append mode, it depends on whether primary key is defined.
-If primary key is defined, Elasticsearch sink works in upsert mode which can consume queries contain UPDATE/DELETE messages.
-If primary key is not defined, Elasticsearch sink works in append mode which can only consume queries contain INSERT only messages.
+If primary key is defined, Elasticsearch sink works in upsert mode which can consume queries containing UPDATE/DELETE messages.
+If primary key is not defined, Elasticsearch sink works in append mode which can only consume queries containing INSERT only messages.
 
 In Elasticsearch connector, the primary key is used to calculate the Elasticsearch document id, which is a string of up to 512 bytes. It cannot have whitespaces.
 The Elasticsearch connector generates a document ID string for every row by concatenating all primary key fields in the order defined in the DDL using a key delimiter specified by `document-id.key-delimiter`.
