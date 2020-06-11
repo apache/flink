@@ -1,5 +1,5 @@
 ---
-title: "Reading & Writing Hive Tables"
+title: "Hive Read & Write"
 nav-parent_id: hive_tableapi
 nav-pos: 2
 ---
@@ -184,6 +184,38 @@ This feature is turned on by default. If there is a problem, you can use this co
 table.exec.hive.fallback-mapred-reader=true
 {% endhighlight %}
 
+### Source Parallelism Inference
+
+By default, Flink infers the hive source parallelism based on the number of splits, and the number of
+splits is based on the number of files and the number of blocks in the files.
+
+Flink allows you to flexibly configure the policy of parallelism inference. You can configure the
+following parameters in `TableConfig` (note that these parameters affect all sources of the job):
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.infer-source-parallelism</h5></td>
+        <td style="word-wrap: break-word;">true</td>
+        <td>Boolean</td>
+        <td>If is true, source parallelism is inferred according to splits number. If is false, parallelism of source are set by config.</td>
+    </tr>
+    <tr>
+        <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
+        <td style="word-wrap: break-word;">1000</td>
+        <td>Integer</td>
+        <td>Sets max infer parallelism for source operator.</td>
+    </tr>
+  </tbody>
+</table>
 
 ## Roadmap
 

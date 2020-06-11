@@ -64,9 +64,8 @@ public class FileSystemOptions {
 					.booleanType()
 					.defaultValue(false)
 					.withDescription("Enable streaming source or not.\n" +
-							"NOTES: For non-partition table, please make sure that " +
-							"each file should be put atomically into the target directory, " +
-							"otherwise the reader may get incomplete data.");
+							" NOTES: Please make sure that each partition/file should be written" +
+							" atomically, otherwise the reader may get incomplete data.");
 
 	public static final ConfigOption<Duration> STREAMING_SOURCE_MONITOR_INTERVAL =
 			key("streaming-source.monitor-interval")
@@ -81,8 +80,9 @@ public class FileSystemOptions {
 					.withDescription("The consume order of streaming source," +
 							" support create-time and partition-time." +
 							" create-time compare partition/file creation time, this is not the" +
-							" partition create time in Hive metaStore, but the folder/file create" +
-							" time in filesystem;" +
+							" partition create time in Hive metaStore, but the folder/file modification" +
+							" time in filesystem, if the partition folder somehow gets updated," +
+							" e.g. add new file into folder, it can affect how the data is consumed." +
 							" partition-time compare time represented by partition name.\n" +
 							"For non-partition table, this value should always be 'create-time'.");
 
@@ -92,7 +92,8 @@ public class FileSystemOptions {
 					.defaultValue("1970-00-00")
 					.withDescription("Start offset for streaming consuming." +
 							" How to parse and compare offsets depends on your order." +
-							" For create-time and partition-time, should be a timestamp string." +
+							" For create-time and partition-time, should be a timestamp" +
+							" string (yyyy-[m]m-[d]d [hh:mm:ss])." +
 							" For partition-time, will use partition time extractor to" +
 							" extract time from partition.");
 
