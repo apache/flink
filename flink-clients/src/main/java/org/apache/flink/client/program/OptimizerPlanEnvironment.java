@@ -35,8 +35,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		return pipeline;
 	}
 
-	public OptimizerPlanEnvironment(Configuration configuration, int parallelism) {
-		super(configuration);
+	public OptimizerPlanEnvironment(Configuration configuration, ClassLoader userClassloader, int parallelism) {
+		super(configuration, userClassloader);
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		}
