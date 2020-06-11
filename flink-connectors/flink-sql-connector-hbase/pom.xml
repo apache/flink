@@ -73,6 +73,7 @@ under the License.
 								<excludes>
 									<exclude>org.apache.hbase:hbase-metrics*</exclude>
 									<exclude>org.apache.hbase:hbase-server*</exclude>
+									<exclude>org.apache.hbase:hbase-hadoop*-compat</exclude>
 								</excludes>
 							</artifactSet>
 							<filters>
@@ -104,28 +105,23 @@ under the License.
 									<shadedPattern>org.apache.flink.hbase.shaded.com.yammer.metrics</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>commons-logging</pattern>
-									<shadedPattern>org.apache.flink.hbase.shaded.commons-logging</shadedPattern>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.commons</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>commons-lang</pattern>
-									<shadedPattern>org.apache.flink.hbase.shaded.commons-lang</shadedPattern>
+									<pattern>org.apache.jute</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.jute</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>commons-configuration</pattern>
-									<shadedPattern>org.apache.flink.hbase.shaded.commons-configuration</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>commons-codec</pattern>
-									<shadedPattern>org.apache.flink.hbase.shaded.commons-codec</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>io.netty:netty-all</pattern>
-									<shadedPattern>org.apache.flink.hbase.shaded.com.yammer.metrics</shadedPattern>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.io.netty</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.hbase</pattern>
 									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.hbase</shadedPattern>
+									<!-- HBase client uses shaded KeyValueCodec to encode data and put the class name in
+ 										the header of request, the HBase region server can not load the shaded
+										KeyValueCodec class when decode the data, so we exclude them here. -->
 									<excludes>
 										<exclude>org.apache.hadoop.hbase.codec.*</exclude>
 									</excludes>

@@ -35,9 +35,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * {@link HBaseResource} that downloads hbase and set up a local hbase cluster.
@@ -150,19 +152,12 @@ public class LocalStandaloneHBaseResource implements HBaseResource {
 
 	@Override
 	public void createTable(String tableName, String... columnFamilies) throws IOException {
-		final StringBuilder createTableBuilder = new StringBuilder();
-		createTableBuilder.append("create").append(" ");
-		createTableBuilder.append(String.format("'%s'", tableName)).append(",");
-		for (final String columnFamily : columnFamilies) {
-			createTableBuilder
-				.append(String.format("{NAME=>'%s'}", columnFamily))
-				.append(",");
-		}
+		final String createTable = String.format("create '%s',", tableName) +
+			Arrays.stream(columnFamilies)
+				.map(cf -> String.format("{NAME=>'%s'}", cf))
+				.collect(Collectors.joining(","));
 
-		// Remove last illegal comma
-		createTableBuilder.deleteCharAt(createTableBuilder.lastIndexOf(","));
-
-		executeHBaseShell(createTableBuilder.toString());
+		executeHBaseShell(createTable);
 	}
 
 	@Override
@@ -177,16 +172,9 @@ public class LocalStandaloneHBaseResource implements HBaseResource {
 	}
 
 	@Override
-	public void putData(String tableName, String rowKey, String columnFamily, String key, String value) throws IOException {
-		final StringBuilder putDataBuilder = new StringBuilder();
-		putDataBuilder
-			.append("put").append(" ")
-			.append(String.format("'%s'", tableName)).append(",")
-			.append(String.format("'%s'", rowKey)).append(",")
-			.append(String.format("'%s:%s'", columnFamily, key)).append(",")
-			.append(String.format("'%s'", value));
-
-		executeHBaseShell(putDataBuilder.toString());
+	public void putData(String tableName, String rowKey, String columnFamily, String columnQualifier, String value) throws IOException {
+		executeHBaseShell(
+			String.format("put '%s','%s','%s:%s','%s'", tableName, rowKey, columnFamily, columnQualifier, value));
 	}
 
 	private void executeHBaseShell(String cmd) throws IOException {

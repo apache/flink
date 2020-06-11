@@ -49,14 +49,14 @@ public interface HBaseResource extends ExternalResource {
 	/**
 	 * Put the given data to the given table.
 	 *
-	 * @param tableName    table to put data
-	 * @param rowKey       rowKey of the given data
-	 * @param columnFamily columnFamily of the given data
-	 * @param columnQualifier          column qualifier of the given data
-	 * @param value        value of the given data
+	 * @param tableName       table to put data
+	 * @param rowKey          row key of the given data
+	 * @param columnFamily    column family of the given data
+	 * @param columnQualifier column qualifier of the given data
+	 * @param value           value of the given data
 	 * @throws IOException
 	 */
-	void putData(String tableName, String rowKey, String columnFamily, String key, String value) throws IOException;
+	void putData(String tableName, String rowKey, String columnFamily, String columnQualifier, String value) throws IOException;
 
 	/**
 	 * Returns the configured HBaseResource implementation, or a {@link LocalStandaloneHBaseResource} if none is configured.

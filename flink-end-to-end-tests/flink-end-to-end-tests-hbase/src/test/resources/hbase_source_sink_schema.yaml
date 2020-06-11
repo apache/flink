@@ -19,14 +19,6 @@
 tables:
   - name: MyHBaseSource
     type: source-table
-    connector:
-      type: "hbase"
-      property-version: 1
-      version: "1.4.3"
-      table-name: "source_table"
-      zookeeper:
-        quorum: "localhost:2181"
-        znode.parent: "/hbase"
     schema:
       - name: rowkey
         type: STRING
@@ -34,11 +26,24 @@ tables:
         type: ROW<c1 STRING>
       - name: b
         type: ROW<c1 STRING>
-  - name: MyHBaseSink
-    type: sink-table
     connector:
       type: "hbase"
-      property-version: 1
+      version: "1.4.3"
+      table-name: "source_table"
+      zookeeper:
+        quorum: "localhost:2181"
+        znode.parent: "/hbase"
+  - name: MyHBaseSink
+    type: sink-table
+    schema:
+      - name: rowkey
+        type: STRING
+      - name: a
+        type: ROW<c1 STRING>
+      - name: b
+        type: ROW<c1 STRING>
+    connector:
+      type: "hbase"
       version: "1.4.3"
       table-name: "sink_table"
       zookeeper:
@@ -48,10 +53,3 @@ tables:
         max-size: "2mb"
         max-rows: 1000
         interval: "2s"
-    schema:
-      - name: rowkey
-        type: STRING
-      - name: a
-        type: ROW<c1 STRING>
-      - name: b
-        type: ROW<c1 STRING>

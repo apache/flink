@@ -78,7 +78,7 @@ public class SQLClientHBaseITCase extends TestLogger {
 	public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
 
 	private static final Path sqlToolBoxJar = TestUtils.getResourceJar(".*SqlToolbox.jar");
-	private static final Path sqlConnectorHBaseJar = TestUtils.getResourceJar(".*SqlConnectorHbase.jar");
+	private static final Path sqlConnectorHBaseJar = TestUtils.getResourceJar(".*hbase.jar");
 	private Path shadedHadoopJar;
 	private Path sqlClientSessionConf;
 

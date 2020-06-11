@@ -1439,4 +1439,120 @@ possible configurations would overwhelm and obscure the important.
 			Number of rows in a batch operation above which a warning will be logged.
 		</description>
 	</property>
+
+	<!--NOTE: Hbase client try to load the class that configured in hbase-default.xml. -->
+	<!--But actually all these classes were already shaded and can't be loaded by those default name, -->
+	<!--so the following properties are excluded.-->
+	<!--<property>-->
+		<!--<name>hbase.master.logcleaner.plugins</name>-->
+		<!--<value>org.apache.hadoop.hbase.master.cleaner.TimeToLiveLogCleaner</value>-->
+		<!--<description>A comma-separated list of BaseLogCleanerDelegate invoked by-->
+			<!--the LogsCleaner service. These WAL cleaners are called in order,-->
+			<!--so put the cleaner that prunes the most files in front. To-->
+			<!--implement your own BaseLogCleanerDelegate, just put it in HBase's classpath-->
+			<!--and add the fully qualified class name here. Always add the above-->
+			<!--default log cleaners in the list.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.master.hfilecleaner.plugins</name>-->
+		<!--<value>org.apache.hadoop.hbase.master.cleaner.TimeToLiveHFileCleaner</value>-->
+		<!--<description>A comma-separated list of BaseHFileCleanerDelegate invoked by-->
+			<!--the HFileCleaner service. These HFiles cleaners are called in order,-->
+			<!--so put the cleaner that prunes the most files in front. To-->
+			<!--implement your own BaseHFileCleanerDelegate, just put it in HBase's classpath-->
+			<!--and add the fully qualified class name here. Always add the above-->
+			<!--default log cleaners in the list as they will be overwritten in-->
+			<!--hbase-site.xml.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.regionserver.hlog.reader.impl</name>-->
+		<!--<value>org.apache.hadoop.hbase.regionserver.wal.ProtobufLogReader</value>-->
+		<!--<description>The WAL file reader implementation.</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.regionserver.hlog.writer.impl</name>-->
+		<!--<value>org.apache.hadoop.hbase.regionserver.wal.ProtobufLogWriter</value>-->
+		<!--<description>The WAL file writer implementation.</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.regionserver.region.split.policy</name>-->
+		<!--<value>org.apache.hadoop.hbase.regionserver.IncreasingToUpperBoundRegionSplitPolicy</value>-->
+		<!--<description>-->
+			<!--A split policy determines when a region should be split. The various other split policies that-->
+			<!--are available currently are BusyRegionSplitPolicy, ConstantSizeRegionSplitPolicy,-->
+			<!--DisabledRegionSplitPolicy, DelimitedKeyPrefixRegionSplitPolicy, KeyPrefixRegionSplitPolicy etc.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.status.publisher.class</name>-->
+		<!--<value>org.apache.hadoop.hbase.master.ClusterStatusPublisher$MulticastPublisher</value>-->
+		<!--<description>-->
+			<!--Implementation of the status publication with a multicast message.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.status.listener.class</name>-->
+		<!--<value>org.apache.hadoop.hbase.client.ClusterStatusListener$MulticastListener</value>-->
+		<!--<description>-->
+			<!--Implementation of the status listener with a multicast message.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.rest.filter.classes</name>-->
+		<!--<value>org.apache.hadoop.hbase.rest.filter.GzipFilter</value>-->
+		<!--<description>-->
+			<!--Servlet filters for REST service.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.master.loadbalancer.class</name>-->
+		<!--<value>org.apache.hadoop.hbase.master.balancer.StochasticLoadBalancer</value>-->
+		<!--<description>-->
+			<!--Class used to execute the regions balancing when the period occurs.-->
+			<!--See the class comment for more on how it works-->
+			<!--http://hbase.apache.org/devapidocs/org/apache/hadoop/hbase/master/balancer/StochasticLoadBalancer.html-->
+			<!--It replaces the DefaultLoadBalancer as the default (since renamed-->
+			<!--as the SimpleLoadBalancer).-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.coordinated.state.manager.class</name>-->
+		<!--<value>org.apache.hadoop.hbase.coordination.ZkCoordinatedStateManager</value>-->
+		<!--<description>Fully qualified name of class implementing coordinated state manager.</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.http.filter.initializers</name>-->
+		<!--<value>org.apache.hadoop.hbase.http.lib.StaticUserWebFilter</value>-->
+		<!--<description>-->
+			<!--A comma separated list of class names. Each class in the list must extend-->
+			<!--org.apache.hadoop.hbase.http.FilterInitializer. The corresponding Filter will-->
+			<!--be initialized. Then, the Filter will be applied to all user facing jsp-->
+			<!--and servlet web pages.-->
+			<!--The ordering of the list defines the ordering of the filters.-->
+			<!--The default StaticUserWebFilter add a user principal as defined by the-->
+			<!--hbase.http.staticuser.user property.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.replication.rpc.codec</name>-->
+		<!--<value>org.apache.hadoop.hbase.codec.KeyValueCodecWithTags</value>-->
+		<!--<description>-->
+			<!--The codec that is to be used when replication is enabled so that-->
+			<!--the tags are also replicated. This is used along with HFileV3 which-->
+			<!--supports tags in them. If tags are not used or if the hfile version used-->
+			<!--is HFileV2 then KeyValueCodec can be used as the replication codec. Note that-->
+			<!--using KeyValueCodecWithTags for replication when there are no tags causes no harm.-->
+		<!--</description>-->
+	<!--</property>-->
+	<!--<property>-->
+		<!--<name>hbase.master.normalizer.class</name>-->
+		<!--<value>org.apache.hadoop.hbase.master.normalizer.SimpleRegionNormalizer</value>-->
+		<!--<description>-->
+			<!--Class used to execute the region normalization when the period occurs.-->
+			<!--See the class comment for more on how it works-->
+			<!--http://hbase.apache.org/devapidocs/org/apache/hadoop/hbase/master/normalizer/SimpleRegionNormalizer.html-->
+		<!--</description>-->
+	<!--</property>-->
 </configuration>
