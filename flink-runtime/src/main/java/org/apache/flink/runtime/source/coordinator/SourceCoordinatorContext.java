@@ -128,13 +128,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
 	@Override
 	public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
-		try {
-			operatorCoordinatorContext.sendEvent(new SourceEventWrapper(event), subtaskId);
-		} catch (TaskNotRunningException e) {
-			throw new FlinkRuntimeException(String.format("Failed to send event %s to subtask %d",
-					event,
-					subtaskId), e);
-		}
+		callInCoordinatorThread(() -> {
+			try {
+				operatorCoordinatorContext.sendEvent(new SourceEventWrapper(event), subtaskId);
+				return null;
+			} catch (TaskNotRunningException e) {
+				throw new FlinkRuntimeException(
+						String.format("Failed to send event %s to subtask %d", event, subtaskId), e);
+			}
+		}, String.format("Failed to send event %s to subtask %d", event, subtaskId));
 	}
 
 	@Override
@@ -150,34 +152,28 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	@Override
 	public void assignSplits(SplitsAssignment<SplitT> assignment) {
 		// Ensure the split assignment is done by the the coordinator executor.
-		if (!coordinatorThreadFactory.isCurrentThreadCoordinatorThread()) {
-			try {
-				coordinatorExecutor.submit(() -> assignSplits(assignment)).get();
-				return;
-			} catch (InterruptedException | ExecutionException e) {
-				throw new FlinkRuntimeException("Failed to assign splits due to", e);
+		callInCoordinatorThread(() -> {
+			// Ensure all the subtasks in the assignment have registered.
+			for (Integer subtaskId : assignment.assignment().keySet()) {
+				if (!registeredReaders.containsKey(subtaskId)) {
+					throw new IllegalArgumentException(String.format(
+							"Cannot assign splits %s to subtask %d because the subtask is not registered.",
+							registeredReaders.get(subtaskId), subtaskId));
+				}
 			}
-		}
 
-		// Ensure all the subtasks in the assignment have registered.
-		for (Integer subtaskId : assignment.assignment().keySet()) {
-			if (!registeredReaders.containsKey(subtaskId)) {
-				throw new IllegalArgumentException(String.format(
-						"Cannot assign splits %s to subtask %d because the subtask is not registered.",
-						registeredReaders.get(subtaskId), subtaskId));
-			}
-		}
-
-		assignmentTracker.recordSplitAssignment(assignment);
-		assignment.assignment().forEach(
-				(id, splits) -> {
-					try {
-						operatorCoordinatorContext.sendEvent(new AddSplitEvent<>(splits), id);
-					} catch (TaskNotRunningException e) {
-						throw new FlinkRuntimeException(String.format(
-								"Failed to assign splits %s to reader %d.", splits, id), e);
-					}
-				});
+			assignmentTracker.recordSplitAssignment(assignment);
+			assignment.assignment().forEach(
+					(id, splits) -> {
+						try {
+							operatorCoordinatorContext.sendEvent(new AddSplitEvent<>(splits), id);
+						} catch (TaskNotRunningException e) {
+							throw new FlinkRuntimeException(String.format(
+									"Failed to assign splits %s to reader %d.", splits, id), e);
+						}
+					});
+			return null;
+		}, String.format("Failed to assign splits %s due to ", assignment));
 	}
 
 	@Override
@@ -279,5 +275,30 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 */
 	void onCheckpointComplete(long checkpointId) {
 		assignmentTracker.onCheckpointComplete(checkpointId);
+	}
+
+	// ---------------- private helper methods -----------------
+
+	/**
+	 * A helper method that delegates the callable to the coordinator thread if the
+	 * current thread is not the coordinator thread, otherwise call the callable right away.
+	 *
+	 * @param callable the callable to delegate.
+	 */
+	private <V> V callInCoordinatorThread(Callable<V> callable, String errorMessage) {
+		// Ensure the split assignment is done by the the coordinator executor.
+		if (!coordinatorThreadFactory.isCurrentThreadCoordinatorThread()) {
+			try {
+				return coordinatorExecutor.submit(callable).get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new FlinkRuntimeException(errorMessage, e);
+			}
+		}
+
+		try {
+			return callable.call();
+		} catch (Exception e) {
+			throw new FlinkRuntimeException(errorMessage, e);
+		}
 	}
 }
