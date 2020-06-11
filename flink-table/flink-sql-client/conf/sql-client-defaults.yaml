@@ -104,7 +104,7 @@ execution:
   time-characteristic: event-time
   # interval in ms for emitting periodic watermarks
   periodic-watermarks-interval: 200
-  # 'changelog' or 'table' presentation of results
+  # 'changelog', 'table' or 'tableau' presentation of results
   result-mode: table
   # maximum number of maintained rows in 'table' presentation of results
   max-table-result-rows: 1000000
