@@ -54,6 +54,9 @@ public class DirectoryMonitorDiscovery implements PartitionDiscovery {
 		return partitions;
 	}
 
+	/**
+	 * Find suitable partitions, extract timestamp and compare it with previousTimestamp.
+	 */
 	@VisibleForTesting
 	static List<Tuple2<List<String>, Long>> suitablePartitions(
 			Context context,
