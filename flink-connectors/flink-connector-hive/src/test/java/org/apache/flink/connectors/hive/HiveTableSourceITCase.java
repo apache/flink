@@ -473,7 +473,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				" b STRING" +
 				") PARTITIONED BY (ts STRING) TBLPROPERTIES (" +
 				"'streaming-source.enable'='true'," +
-				"'streaming-source.monitor-interval'='100ms'," +
+				"'streaming-source.monitor-interval'='1s'," +
 				"'streaming-source.consume-order'='partition-time'" +
 				")");
 
@@ -502,6 +502,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				}
 				HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 						.addRow(new Object[]{i, String.valueOf(i)})
+						.addRow(new Object[]{i, i + "_copy"})
 						.commit("ts='2020-05-06 00:" + i + "0:00'");
 			}
 		};
@@ -514,10 +515,15 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		List<String> expected = Arrays.asList(
 				"+I(0,0,2020-05-06 00:00:00)",
 				"+I(1,1,2020-05-06 00:10:00)",
+				"+I(1,1_copy,2020-05-06 00:10:00)",
 				"+I(2,2,2020-05-06 00:20:00)",
+				"+I(2,2_copy,2020-05-06 00:20:00)",
 				"+I(3,3,2020-05-06 00:30:00)",
+				"+I(3,3_copy,2020-05-06 00:30:00)",
 				"+I(4,4,2020-05-06 00:40:00)",
-				"+I(5,5,2020-05-06 00:50:00)"
+				"+I(4,4_copy,2020-05-06 00:40:00)",
+				"+I(5,5,2020-05-06 00:50:00)",
+				"+I(5,5_copy,2020-05-06 00:50:00)"
 		);
 		List<String> results = sink.getJavaAppendResults();
 		results.sort(String::compareTo);
