@@ -750,6 +750,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 					"default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'.");
 		}
 
+		log.info("Triggering {}savepoint for job {}.", cancelJob ? "cancel-with-" : "", jobGraph.getJobID());
+
 		if (cancelJob) {
 			checkpointCoordinator.stopCheckpointScheduler();
 		}
@@ -859,6 +861,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 					"while cancelling via -s :targetDirectory or configure a cluster-wide " +
 					"default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'."));
 		}
+
+		log.info("Triggering stop-with-savepoint for job {}.", jobGraph.getJobID());
 
 		// we stop the checkpoint coordinator so that we are guaranteed
 		// to have only the data of the synchronous savepoint committed.
