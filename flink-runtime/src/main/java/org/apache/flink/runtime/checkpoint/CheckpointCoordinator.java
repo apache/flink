@@ -544,27 +544,39 @@ public class CheckpointCoordinator {
 						final PendingCheckpoint checkpoint =
 							FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
 
-						if (throwable == null && checkpoint != null && !checkpoint.isDiscarded()) {
-							// no exception, no discarding, everything is OK
-							final long checkpointId = checkpoint.getCheckpointId();
-							snapshotTaskState(
-								timestamp,
-								checkpointId,
-								checkpoint.getCheckpointStorageLocation(),
-								request.props,
-								executions,
-								request.advanceToEndOfTime);
+						Preconditions.checkState(
+							checkpoint != null || throwable != null,
+							"Either the pending checkpoint needs to be created or an error must have been occurred.");
 
-							coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
-
-							onTriggerSuccess();
+						if (throwable != null) {
+							// the initialization might not be finished yet
+							if (checkpoint == null) {
+								onTriggerFailure(request, throwable);
+							} else {
+								onTriggerFailure(checkpoint, throwable);
+							}
 						} else {
-								// the initialization might not be finished yet
-								if (checkpoint == null) {
-									onTriggerFailure(request, throwable);
-								} else {
-									onTriggerFailure(checkpoint, throwable);
-								}
+							if (checkpoint.isDiscarded()) {
+								onTriggerFailure(
+									checkpoint,
+									new CheckpointException(
+										CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
+										checkpoint.getFailureCause()));
+							} else {
+								// no exception, no discarding, everything is OK
+								final long checkpointId = checkpoint.getCheckpointId();
+								snapshotTaskState(
+									timestamp,
+									checkpointId,
+									checkpoint.getCheckpointStorageLocation(),
+									request.props,
+									executions,
+									request.advanceToEndOfTime);
+
+								coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
+
+								onTriggerSuccess();
+							}
 						}
 					},
 					timer);
