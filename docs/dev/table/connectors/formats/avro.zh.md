@@ -38,7 +38,7 @@ In order to setup the Avro format, the following table provides dependency infor
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL Client JAR" markdown="1">
-Avro format is part of the binary distribution, but requires additional [Hadoop dependency]({% link ops/deployment/hadoop.zh.md %}) for cluster execution.
+Avro format is part of the binary distribution, but requires additional [Hadoop dependency]({% link ops/deployment/hadoop.md %}) for cluster execution.
 </div>
 <div data-lang="Maven dependency" markdown="1">
 {% highlight xml %}
@@ -95,7 +95,7 @@ Format Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be 'avro'.</td>
+      <td>Specify what format to use, here should be <code>'avro'</code>.</td>
     </tr>
     </tbody>
 </table>
@@ -109,9 +109,9 @@ So the following table lists the type mapping from Flink type to Avro type.
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink Data Type</th>
-        <th class="text-center">Avro type</th>
-        <th class="text-center">Avro logical type</th>
+        <th class="text-left">Flink SQL type</th>
+        <th class="text-left">Avro type</th>
+        <th class="text-left">Avro logical type</th>
       </tr>
     </thead>
     <tbody>
@@ -121,85 +121,85 @@ So the following table lists the type mapping from Flink type to Avro type.
       <td></td>
     </tr>
     <tr>
-      <td>BOOLEAN</td>
-      <td>boolean</td>
+      <td><code>BOOLEAN</code></td>
+      <td><code>boolean</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>BINARY / VARBINARY</td>
-      <td>bytes</td>
+      <td><code>BINARY / VARBINARY</code></td>
+      <td><code>bytes</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>DECIMAL</td>
-      <td>fixed</td>
-      <td>decimal</td>
+      <td><code>DECIMAL</code></td>
+      <td><code>fixed</code></td>
+      <td><code>decimal</code></td>
     </tr>
     <tr>
-      <td>TINYINT</td>
-      <td>int</td>
+      <td><code>TINYINT</code></td>
+      <td><code>int</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>SMALLINT</td>
-      <td>int</td>
+      <td><code>SMALLINT</code></td>
+      <td><code>int</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>INT</td>
-      <td>int</td>
+      <td><code>INT</code></td>
+      <td><code>int</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>BIGINT</td>
-      <td>long</td>
+      <td><code>BIGINT</code></td>
+      <td><code>long</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>FLOAT</td>
-      <td>float</td>
+      <td><code>FLOAT</code></td>
+      <td><code>float</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>DOUBLE</td>
-      <td>double</td>
+      <td><code>DOUBLE</code></td>
+      <td><code>double</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>DATE</td>
-      <td>int</td>
-      <td>date</td>
+      <td><code>DATE</code></td>
+      <td><code>int</code></td>
+      <td><code>date</code></td>
     </tr>
     <tr>
-      <td>TIME</td>
-      <td>int</td>
-      <td>time-millis</td>
+      <td><code>TIME</code></td>
+      <td><code>int</code></td>
+      <td><code>time-millis</code></td>
     </tr>
     <tr>
-      <td>TIMESTAMP</td>
-      <td>long</td>
-      <td>timestamp-millis</td>
+      <td><code>TIMESTAMP</code></td>
+      <td><code>long</code></td>
+      <td><code>timestamp-millis</code></td>
     </tr>
     <tr>
-      <td>ARRAY</td>
-      <td>array</td>
+      <td><code>ARRAY</code></td>
+      <td><code>array</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>MAP<br>
+      <td><code>MAP</code><br>
       (key must be string/char/varchar type)</td>
-      <td>map</td>
+      <td><code>map</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>MULTISET<br>
+      <td><code>MULTISET</code><br>
       (element must be string/char/varchar type)</td>
-      <td>map</td>
+      <td><code>map</code></td>
       <td></td>
     </tr>
     <tr>
-      <td>ROW</td>
-      <td>record</td>
+      <td><code>ROW</code></td>
+      <td><code>record</code></td>
       <td></td>
     </tr>
     </tbody>
@@ -207,7 +207,7 @@ So the following table lists the type mapping from Flink type to Avro type.
 
 In addition to the types listed above, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
 
-You can refer to Avro Specification for more information about Avro types: [https://avro.apache.org/docs/current/spec.html](https://avro.apache.org/docs/current/spec.html).
+You can refer to [Avro Specification](https://avro.apache.org/docs/current/spec.html) for more information about Avro types.
 
 
 

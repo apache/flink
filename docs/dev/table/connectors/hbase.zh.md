@@ -2,7 +2,7 @@
 title: "HBase SQL Connector"
 nav-title: HBase
 nav-parent_id: sql-connectors
-nav-pos: 9
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,8 +34,6 @@ under the License.
 The HBase connector allows for reading from and writing to an HBase cluster. This document describes how to setup the HBase Connector to run SQL queries against HBase.
 
 HBase always works in upsert mode for exchange changelog messages with the external system using a primary key defined on the DDL. The primary key must be defined on the HBase rowkey field (rowkey field must be declared). If the PRIMARY KEY clause is not declared, the HBase connector will take rowkey as the primary key by default.
-
-<span class="label label-danger">Attention</span> HBase as a Lookup Source does not use any cache, data is always queried directly through the HBase client.
 
 Dependencies
 ------------
@@ -89,7 +87,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be 'hbase-1.4'.</td>
+      <td>Specify what connector to use, here should be <code>'hbase-1.4'</code>.</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
@@ -126,7 +124,7 @@ Connector Options
       <td>MemorySize</td>
       <td>Writing option, maximum size in memory of buffered rows for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
-      Can be set to '0' to disable it.
+      Can be set to <code>'0'</code> to disable it.
       </td>
     </tr>
     <tr>
@@ -136,7 +134,7 @@ Connector Options
       <td>Integer</td>
       <td>Writing option, maximum number of rows to buffer for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
-      Can be set to '0' to disable it.
+      Can be set to <code>'0'</code> to disable it.
       </td>
     </tr>
     <tr>
@@ -146,8 +144,8 @@ Connector Options
       <td>Duration</td>
       <td>Writing option, the interval to flush any buffered rows.
       This can improve performance for writing data to HBase database, but may increase the latency.
-      Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows'
-      can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.
+      Can be set to <code>'0'</code> to disable it. Note, both <code>'sink.buffer-flush.max-size'</code> and <code>'sink.buffer-flush.max-rows'</code>
+      can be set to <code>'0'</code> with the flush interval set allowing for complete async processing of buffered actions.
       </td>
     </tr>
     </tbody>
@@ -169,13 +167,13 @@ The data type mappings are as follows:
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink Data Type</th>
-        <th class="text-center">HBase conversion</th>
+        <th class="text-left">Flink SQL type</th>
+        <th class="text-left">HBase conversion</th>
       </tr>
     </thead>
     <tbody>
     <tr>
-      <td>CHAR / VARCHAR / STRING</td>
+      <td><code>CHAR / VARCHAR / STRING</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(String s)
@@ -184,7 +182,7 @@ String toString(byte[] b)
       </td>
     </tr>
     <tr>
-      <td>BOOLEAN</td>
+      <td><code>BOOLEAN</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(boolean b)
@@ -193,11 +191,11 @@ boolean toBoolean(byte[] b)
       </td>
     </tr>
     <tr>
-      <td>BINARY / VARBINARY</td>
+      <td><code>BINARY / VARBINARY</code></td>
       <td>Returns <code>byte[]</code> as is.</td>
     </tr>
     <tr>
-      <td>DECIMAL</td>
+      <td><code>DECIMAL</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(BigDecimal v)
@@ -206,7 +204,7 @@ BigDecimal toBigDecimal(byte[] b)
       </td>
     </tr>
     <tr>
-      <td>TINYINT</td>
+      <td><code>TINYINT</code></td>
       <td>
 {% highlight java %}
 new byte[] { val }
@@ -215,7 +213,7 @@ bytes[0] // returns first and only byte from bytes
       </td>
     </tr>
     <tr>
-      <td>SMALLINT</td>
+      <td><code>SMALLINT</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(short val)
@@ -224,7 +222,7 @@ short toShort(byte[] bytes)
       </td>
     </tr>
     <tr>
-      <td>INT</td>
+      <td><code>INT</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(int val)
@@ -233,7 +231,7 @@ int toInt(byte[] bytes)
       </td>
     </tr>
     <tr>
-      <td>BIGINT</td>
+      <td><code>BIGINT</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(long val)
@@ -242,7 +240,7 @@ long toLong(byte[] bytes)
       </td>
     </tr>
     <tr>
-      <td>FLOAT</td>
+      <td><code>FLOAT</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(float val)
@@ -251,7 +249,7 @@ float toFloat(byte[] bytes)
       </td>
     </tr>
     <tr>
-      <td>DOUBLE</td>
+      <td><code>DOUBLE</code></td>
       <td>
 {% highlight java %}
 byte[] toBytes(double val)
@@ -260,28 +258,30 @@ double toDouble(byte[] bytes)
       </td>
     </tr>
     <tr>
-      <td>DATE</td>
+      <td><code>DATE</code></td>
       <td>Stores the number of days since epoch as int value.</td>
     </tr>
     <tr>
-      <td>TIME</td>
+      <td><code>TIME</code></td>
       <td>Stores the number of milliseconds of the day as int value.</td>
     </tr>
     <tr>
-      <td>TIMESTAMP</td>
+      <td><code>TIMESTAMP</code></td>
       <td>Stores the milliseconds since epoch as long value.</td>
     </tr>
     <tr>
-      <td>ARRAY</td>
+      <td><code>ARRAY</code></td>
       <td>Not supported</td>
     </tr>
     <tr>
-      <td>MAP / MULTISET</td>
+      <td><code>MAP / MULTISET<code></td>
       <td>Not supported</td>
     </tr>
     <tr>
-      <td>ROW</td>
+      <td><code>ROW</code></td>
       <td>Not supported</td>
     </tr>
     </tbody>
 </table>
+
+{% top %}
