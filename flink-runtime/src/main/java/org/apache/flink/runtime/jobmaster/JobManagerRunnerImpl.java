@@ -272,7 +272,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	public void grantLeadership(final UUID leaderSessionID) {
 		synchronized (lock) {
 			if (shutdown) {
-				log.info("JobManagerRunner already shutdown.");
+				log.debug("JobManagerRunner cannot be granted leadership because it is already shut down.");
 				return;
 			}
 
@@ -365,7 +365,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	public void revokeLeadership() {
 		synchronized (lock) {
 			if (shutdown) {
-				log.info("JobManagerRunner already shutdown.");
+				log.debug("Ignoring revoking leadership because JobManagerRunner is already shut down.");
 				return;
 			}
 
