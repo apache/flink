@@ -1222,7 +1222,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		try {
 			return parseKryoSerializers(classLoader, kryoSerializers);
 		} catch (Exception e) {
-			throw new IllegalArgumentException("Could not configure kryo serializers from " + kryoSerializers);
+			throw new IllegalArgumentException(
+				String.format(
+					"Could not configure kryo serializers from %s. The expected format is:" +
+						"'class:<fully qualified class name>,serializer:<fully qualified serializer name>;...",
+					kryoSerializers), e);
 		}
 	}
 
