@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.concurrent.CompletableFuture;
@@ -33,20 +34,28 @@ public class SlotExecutionVertexAssignment {
 
 	private final ExecutionVertexID executionVertexId;
 
+	private final SlotRequestId slotRequestId;
+
 	private final CompletableFuture<LogicalSlot> logicalSlotFuture;
 
 	public SlotExecutionVertexAssignment(
 			ExecutionVertexID executionVertexId,
+			SlotRequestId slotRequestId,
 			CompletableFuture<LogicalSlot> logicalSlotFuture) {
 		this.executionVertexId = checkNotNull(executionVertexId);
+		this.slotRequestId = checkNotNull(slotRequestId);
 		this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
 	}
 
-	public ExecutionVertexID getExecutionVertexId() {
+	ExecutionVertexID getExecutionVertexId() {
 		return executionVertexId;
 	}
 
-	public CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
+	SlotRequestId getSlotRequestId() {
+		return slotRequestId;
+	}
+
+	CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
 		return logicalSlotFuture;
 	}
 }

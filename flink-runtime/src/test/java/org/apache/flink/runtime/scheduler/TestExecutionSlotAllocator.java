@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
@@ -75,7 +76,7 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 		for (ExecutionVertexSchedulingRequirements schedulingRequirements : schedulingRequirementsCollection) {
 			final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
 			final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
-			result.add(new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture));
+			result.add(new SlotExecutionVertexAssignment(executionVertexId, new SlotRequestId(), logicalSlotFuture));
 		}
 		return result;
 	}

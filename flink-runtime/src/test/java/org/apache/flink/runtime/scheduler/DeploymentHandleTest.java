@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
@@ -58,7 +59,10 @@ public class DeploymentHandleTest {
 	@Before
 	public void setUp() {
 		logicalSlotFuture = new CompletableFuture<>();
-		final SlotExecutionVertexAssignment slotExecutionVertexAssignment = new SlotExecutionVertexAssignment(TEST_EXECUTION_VERTEX_ID, logicalSlotFuture);
+		final SlotExecutionVertexAssignment slotExecutionVertexAssignment = new SlotExecutionVertexAssignment(
+			TEST_EXECUTION_VERTEX_ID,
+			new SlotRequestId(),
+			logicalSlotFuture);
 		deploymentHandle = new DeploymentHandle(
 			TEST_EXECUTION_VERTEX_VERSION,
 			TEST_DEPLOYMENT_OPTION,
