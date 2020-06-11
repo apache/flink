@@ -61,6 +61,8 @@ import static org.mockito.Mockito.when;
  */
 public class HeartbeatManagerTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(HeartbeatManagerTest.class);
+	public static final long HEARTBEAT_INTERVAL = 50L;
+	public static final long HEARTBEAT_TIMEOUT = 200L;
 
 	/**
 	 * Tests that regular heartbeat signal triggers the right callback functions in the
@@ -145,9 +147,7 @@ public class HeartbeatManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testHeartbeatTimeout() throws Exception {
-		long heartbeatTimeout = 100L;
 		int numHeartbeats = 6;
-		long heartbeatInterval = 20L;
 		final int payload = 42;
 
 		ResourceID ownResourceID = new ResourceID("foobar");
@@ -160,7 +160,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			.createNewTestingHeartbeatListener();
 
 		HeartbeatManagerImpl<Integer, Integer> heartbeatManager = new HeartbeatManagerImpl<>(
-			heartbeatTimeout,
+			HEARTBEAT_TIMEOUT,
 			ownResourceID,
 			heartbeatListener,
 			TestingUtils.defaultScheduledExecutor(),
@@ -173,12 +173,12 @@ public class HeartbeatManagerTest extends TestLogger {
 
 		for (int i = 0; i < numHeartbeats; i++) {
 			heartbeatManager.receiveHeartbeat(targetResourceID, payload);
-			Thread.sleep(heartbeatInterval);
+			Thread.sleep(HEARTBEAT_INTERVAL);
 		}
 
 		assertFalse(timeoutFuture.isDone());
 
-		ResourceID timeoutResourceID = timeoutFuture.get(2 * heartbeatTimeout, TimeUnit.MILLISECONDS);
+		ResourceID timeoutResourceID = timeoutFuture.get(2 * HEARTBEAT_TIMEOUT, TimeUnit.MILLISECONDS);
 
 		assertEquals(targetResourceID, timeoutResourceID);
 	}
@@ -193,8 +193,6 @@ public class HeartbeatManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testHeartbeatCluster() throws Exception {
-		long heartbeatTimeout = 100L;
-		long heartbeatPeriod = 20L;
 		ResourceID resourceIdTarget = new ResourceID("foobar");
 		ResourceID resourceIDSender = new ResourceID("barfoo");
 		final int targetPayload = 42;
@@ -214,15 +212,15 @@ public class HeartbeatManagerTest extends TestLogger {
 			.createNewTestingHeartbeatListener();
 
 		HeartbeatManagerImpl<String, Integer> heartbeatManagerTarget = new HeartbeatManagerImpl<>(
-			heartbeatTimeout,
+			HEARTBEAT_TIMEOUT,
 			resourceIdTarget,
 			heartbeatListenerTarget,
 			TestingUtils.defaultScheduledExecutor(),
 			LOG);
 
 		HeartbeatManagerSenderImpl<Integer, String> heartbeatManagerSender = new HeartbeatManagerSenderImpl<>(
-			heartbeatPeriod,
-			heartbeatTimeout,
+			HEARTBEAT_INTERVAL,
+			HEARTBEAT_TIMEOUT,
 			resourceIDSender,
 			heartbeatListenerSender,
 			TestingUtils.defaultScheduledExecutor(),
@@ -231,17 +229,17 @@ public class HeartbeatManagerTest extends TestLogger {
 		heartbeatManagerTarget.monitorTarget(resourceIDSender, heartbeatManagerSender);
 		heartbeatManagerSender.monitorTarget(resourceIdTarget, heartbeatManagerTarget);
 
-		Thread.sleep(2 * heartbeatTimeout);
+		Thread.sleep(2 * HEARTBEAT_TIMEOUT);
 
 		assertFalse(targetHeartbeatTimeoutFuture.isDone());
 
 		heartbeatManagerTarget.stop();
 
-		ResourceID timeoutResourceID = targetHeartbeatTimeoutFuture.get(2 * heartbeatTimeout, TimeUnit.MILLISECONDS);
+		ResourceID timeoutResourceID = targetHeartbeatTimeoutFuture.get(2 * HEARTBEAT_TIMEOUT, TimeUnit.MILLISECONDS);
 
 		assertThat(timeoutResourceID, is(resourceIdTarget));
 
-		int numberHeartbeats = (int) (2 * heartbeatTimeout / heartbeatPeriod);
+		int numberHeartbeats = (int) (2 * HEARTBEAT_TIMEOUT / HEARTBEAT_INTERVAL);
 
 		final Matcher<Integer> numberHeartbeatsMatcher = greaterThanOrEqualTo(numberHeartbeats / 2);
 		assertThat(numReportPayloadCallsTarget.get(), is(numberHeartbeatsMatcher));
