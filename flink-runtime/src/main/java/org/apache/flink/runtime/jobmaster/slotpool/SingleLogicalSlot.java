@@ -166,7 +166,7 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 		return slotSharingGroupId;
 	}
 
-	static SingleLogicalSlot allocateFromPhysicalSlot(
+	public static SingleLogicalSlot allocateFromPhysicalSlot(
 			final SlotRequestId slotRequestId,
 			final PhysicalSlot physicalSlot,
 			final Locality locality,
