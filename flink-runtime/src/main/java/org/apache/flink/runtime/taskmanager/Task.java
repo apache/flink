@@ -75,6 +75,7 @@ import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.types.Either;
@@ -754,7 +755,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// an exception was thrown as a side effect of cancelling
 			// ----------------------------------------------------------------
 
-			t = ExceptionUtils.tryEnrichTaskManagerError(t);
+			t = TaskManagerExceptionUtils.tryEnrichTaskManagerError(t);
 
 			try {
 				// check if the exception is unrecoverable

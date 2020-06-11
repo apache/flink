@@ -91,7 +91,7 @@ public class ExceptionUtilsTest extends TestLogger {
 
 	@Test
 	public void testTryEnrichTaskExecutorErrorCanHandleNullValue() {
-		assertThat(ExceptionUtils.tryEnrichTaskManagerError(null), is(nullValue()));
+		assertThat(ExceptionUtils.tryEnrichOutOfMemoryError(null, "", ""), is(nullValue()));
 	}
 
 	@Test
