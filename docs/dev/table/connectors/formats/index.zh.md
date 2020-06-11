@@ -37,7 +37,7 @@ Flink supports the following formats:
     </thead>
     <tbody>
         <tr>
-          <td>CSV</td>
+          <td><a href="{{ site.baseurl }}/dev/table/connectors/formats/csv.html">CSV</a></td>
           <td>Apache Kafka,
           <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a></td>
         </tr>
