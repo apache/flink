@@ -18,14 +18,8 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.streaming.api.datastream.DataStream;
 
 import org.junit.Test;
 
@@ -38,58 +32,11 @@ import static org.junit.Assert.assertThat;
 
 /**
  * Tests {@link PackagedProgramUtils}.
+ *
+ * <p>See also {@link PackagedProgramUtilsPipelineTest} for tests that need to test behaviour of
+ * {@link DataStream} and {@link DataSet} programs.
  */
 public class PackagedProgramUtilsTest {
-
-	/**
-	 * This tests whether configuration forwarding from a {@link Configuration} to the environment
-	 * works.
-	 */
-	@Test
-	public void testDataSetConfigurationForwarding() throws Exception {
-		assertPrecondition(ExecutionEnvironment.getExecutionEnvironment().getConfig());
-
-		PackagedProgram packagedProgram = PackagedProgram.newBuilder()
-				.setEntryPointClassName(DataSetTestProgram.class.getName())
-				.build();
-
-		Configuration config = createConfigurationWithOption();
-
-		Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(
-				packagedProgram,
-				config,
-				1 /* parallelism */,
-				false /* suppress output */);
-
-		ExecutionConfig executionConfig = ((Plan) pipeline).getExecutionConfig();
-
-		assertExpectedOption(executionConfig);
-	}
-
-	/**
-	 * This tests whether configuration forwarding from a {@link Configuration} to the environment
-	 * works.
-	 */
-	@Test
-	public void testDataStreamConfigurationForwarding() throws Exception {
-		assertPrecondition(ExecutionEnvironment.getExecutionEnvironment().getConfig());
-
-		PackagedProgram packagedProgram = PackagedProgram.newBuilder()
-				.setEntryPointClassName(DataStreamTestProgram.class.getName())
-				.build();
-
-		Configuration config = createConfigurationWithOption();
-
-		Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(
-				packagedProgram,
-				config,
-				1 /* parallelism */,
-				false /* suppress output */);
-
-		ExecutionConfig executionConfig = ((StreamGraph) pipeline).getExecutionConfig();
-
-		assertExpectedOption(executionConfig);
-	}
 
 	@Test
 	public void testResolveURI() throws URISyntaxException {
@@ -110,39 +57,5 @@ public class PackagedProgramUtilsTest {
 		final String localSchemaFile = "local:///path/of/user.jar";
 		assertThat(resolveURI(localSchemaFile).getScheme(), is("local"));
 		assertThat(resolveURI(localSchemaFile).toString(), is(localSchemaFile));
-	}
-
-	private static void assertPrecondition(ExecutionConfig executionConfig) {
-		// we want to test forwarding with this config, ensure that the default is what we expect.
-		assertThat(executionConfig.isAutoTypeRegistrationDisabled(), is(false));
-	}
-
-	private static void assertExpectedOption(ExecutionConfig executionConfig) {
-		// we want to test forwarding with this config, ensure that the default is what we expect.
-		assertThat(executionConfig.isAutoTypeRegistrationDisabled(), is(true));
-	}
-
-	private static Configuration createConfigurationWithOption() {
-		Configuration config = new Configuration();
-		config.set(PipelineOptions.AUTO_TYPE_REGISTRATION, false);
-		return config;
-	}
-
-	/** Test Program for the DataSet API. */
-	public static class DataSetTestProgram {
-		public static void main(String[] args) throws Exception {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements("hello").print();
-			env.execute();
-		}
-	}
-
-	/** Test Program for the DataStream API. */
-	public static class DataStreamTestProgram {
-		public static void main(String[] args) throws Exception {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements("hello").print();
-			env.execute();
-		}
 	}
 }
