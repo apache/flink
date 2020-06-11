@@ -38,7 +38,7 @@ In order to setup the JSON format, the following table provides dependency infor
 
 | Maven dependency   | SQL Client JAR         |
 | :----------------- | :----------------------|
-| `flink-json`        | The `flink-json-{{site.version}}.jar` is a built-in jar of SQL-CLI. |
+| `flink-json`       | Built-in               |
 
 How to create a table with JSON format
 ----------------
@@ -59,7 +59,9 @@ CREATE TABLE user_behavior (
  'topic' = 'user_behavior',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
- 'format' = 'json'
+ 'format' = 'json',
+ 'json.fail-on-missing-field' = 'false',
+ 'json.ignore-parse-errors' = 'true'
 )
 {% endhighlight %}
 </div>
@@ -87,14 +89,14 @@ Format Options
       <td>Specify what format to use, here should be 'json'.</td>
     </tr>
     <tr>
-      <td><h5>fail-on-missing-field</h5></td>
+      <td><h5>json.fail-on-missing-field</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Flag to specify whether to fail if a field is missing or not, false by default.</td>
     </tr>
     <tr>
-      <td><h5>ignore-parse-errors</h5></td>
+      <td><h5>json.ignore-parse-errors</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
@@ -109,7 +111,7 @@ Data Type Mapping
 
 Currently, the JSON schema is always derived from table schema. Explicitly defining an JSON schema is not supported yet.
 
-Flink JSON format uses utility class `com.fasterxml.jackson.databind.node.JsonNodeFactory` (for serialization) and `com.fasterxml.jackson.databind.JsonNode` (for deserialization) provided by `jackson` to convert Flink Data Types to and from JSON data types.
+Flink JSON format uses [jackson databind API](https://github.com/FasterXML/jackson-databind) to parse and generate JSON string.
 
 The following table lists the type mapping from Flink type to JSON type.
 
@@ -122,10 +124,6 @@ The following table lists the type mapping from Flink type to JSON type.
     </thead>
     <tbody>
     <tr>
-      <td>NULL</td>
-      <td>null/empty</td>
-    </tr>
-    <tr>
       <td>CHAR / VARCHAR / STRING</td>
       <td>string</td>
     </tr>
@@ -135,7 +133,7 @@ The following table lists the type mapping from Flink type to JSON type.
     </tr>
     <tr>
       <td>BINARY / VARBINARY</td>
-      <td>string</td>
+      <td>string with encoding: base64</td>
     </tr>
     <tr>
       <td>DECIMAL</td>
@@ -150,11 +148,11 @@ The following table lists the type mapping from Flink type to JSON type.
       <td>number</td>
     </tr>
     <tr>
-      <td>INT/INTERVAL_YEAR_MONTH</td>
+      <td>INT</td>
       <td>number</td>
     </tr>
     <tr>
-      <td>BIGINT/INTERVAL_DAY_TIME</td>
+      <td>BIGINT</td>
       <td>number</td>
     </tr>
     <tr>
@@ -167,16 +165,19 @@ The following table lists the type mapping from Flink type to JSON type.
     </tr>
     <tr>
       <td>DATE</td>
-      <td>string</td>
+      <td>string with format: date</td>
     </tr>
     <tr>
       <td>TIME</td>
-      <td>string
-      </td>
+      <td>string with format: time</td>
     </tr>
     <tr>
       <td>TIMESTAMP</td>
-      <td>string</td>
+      <td>string with format: date-time</td>
+    </tr>
+    <tr>
+      <td>INTERVAL</td>
+      <td>number</td>
     </tr>
     <tr>
       <td>ARRAY</td>
@@ -184,9 +185,7 @@ The following table lists the type mapping from Flink type to JSON type.
     </tr>
     <tr>
       <td>MAP/MULTISET</td>
-      <td>object
-      <span class="label label-danger">Note</span> Only serialization is supported.
-      </td>
+      <td>object</td>
     </tr>
     <tr>
       <td>ROW</td>
