@@ -75,6 +75,15 @@ under the License.
 			<artifactId>orc-core</artifactId>
 			<version>${orc.version}</version>
 			<exclusions>
+				<!-- Exclude ORC's Hadoop dependency and pull in provided vanilla hadoop. -->
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>javax.activation</groupId>
 					<artifactId>javax.activation-api</artifactId>
@@ -89,6 +98,18 @@ under the License.
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
