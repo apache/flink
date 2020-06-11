@@ -18,7 +18,9 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.data.TimestampData;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -26,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.Partition;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,18 +44,39 @@ public class DirectoryMonitorDiscovery implements PartitionDiscovery {
 			Context context, long previousTimestamp) throws Exception {
 		FileStatus[] statuses = getFileStatusRecurse(
 				context.tableLocation(), context.partitionKeys().size(), context.fileSystem());
+		List<Tuple2<List<String>, Long>> partValueList = suitablePartitions(context, previousTimestamp, statuses);
+
 		List<Tuple2<Partition, Long>> partitions = new ArrayList<>();
+		for (Tuple2<List<String>, Long> tuple2 : partValueList) {
+			context.getPartition(tuple2.f0).ifPresent(
+					partition -> partitions.add(new Tuple2<>(partition, tuple2.f1)));
+		}
+		return partitions;
+	}
+
+	/**
+	 * Find suitable partitions, extract timestamp and compare it with previousTimestamp.
+	 */
+	@VisibleForTesting
+	static List<Tuple2<List<String>, Long>> suitablePartitions(
+			Context context,
+			long previousTimestamp,
+			FileStatus[] statuses) {
+		List<Tuple2<List<String>, Long>> partValueList = new ArrayList<>();
 		for (FileStatus status : statuses) {
 			List<String> partValues = extractPartitionValues(
 					new org.apache.flink.core.fs.Path(status.getPath().toString()));
 			long timestamp = context.extractTimestamp(
-					context.partitionKeys(), partValues, status::getModificationTime);
+					context.partitionKeys(),
+					partValues,
+					// to UTC millisecond.
+					() -> TimestampData.fromTimestamp(
+							new Timestamp(status.getModificationTime())).getMillisecond());
 			if (timestamp >= previousTimestamp) {
-				context.getPartition(partValues).ifPresent(
-						partition -> partitions.add(new Tuple2<>(partition, timestamp)));
+				partValueList.add(new Tuple2<>(partValues, timestamp));
 			}
 		}
-		return partitions;
+		return partValueList;
 	}
 
 	private static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {

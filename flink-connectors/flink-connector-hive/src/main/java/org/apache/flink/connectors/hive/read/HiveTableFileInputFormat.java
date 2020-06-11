@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -52,14 +53,24 @@ public class HiveTableFileInputFormat extends FileInputFormat<RowData> {
 
 	@Override
 	public void open(FileInputSplit fileSplit) throws IOException {
-		URI uri = fileSplit.getPath().toUri();
 		HiveTableInputSplit split = new HiveTableInputSplit(
 				fileSplit.getSplitNumber(),
-				new FileSplit(new Path(uri), fileSplit.getStart(), fileSplit.getLength(), (String[]) null),
+				toHadoopFileSplit(fileSplit),
 				inputFormat.getJobConf(),
-				hiveTablePartition
-		);
+				hiveTablePartition);
 		inputFormat.open(split);
+	}
+
+	@VisibleForTesting
+	static FileSplit toHadoopFileSplit(FileInputSplit fileSplit) throws IOException {
+		URI uri = fileSplit.getPath().toUri();
+		long length = fileSplit.getLength();
+		// Hadoop FileSplit should not have -1 length.
+		if (length == -1) {
+			length = fileSplit.getPath().getFileSystem().getFileStatus(fileSplit.getPath()).getLen() -
+					fileSplit.getStart();
+		}
+		return new FileSplit(new Path(uri), fileSplit.getStart(), length, (String[]) null);
 	}
 
 	@Override
