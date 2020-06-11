@@ -42,7 +42,18 @@ public class SqlCreateHiveView extends SqlCreateView {
 
 	public SqlCreateHiveView(SqlParserPos pos, SqlIdentifier viewName, SqlNodeList fieldList, SqlNode query,
 			boolean ifNotExists, SqlCharStringLiteral comment, SqlNodeList properties) {
-		super(pos, viewName, fieldList, query, false, false, ifNotExists, comment, properties);
+		super(
+				pos,
+				viewName,
+				fieldList,
+				query,
+				false,
+				false,
+				ifNotExists,
+				HiveDDLUtils.unescapeStringLiteral(comment),
+				properties
+		);
+		HiveDDLUtils.unescapeProperties(properties);
 		originPropList = new SqlNodeList(properties.getList(), properties.getParserPosition());
 		// mark it as a hive view
 		properties.add(HiveDDLUtils.toTableOption(CatalogConfig.IS_GENERIC, "false", pos));

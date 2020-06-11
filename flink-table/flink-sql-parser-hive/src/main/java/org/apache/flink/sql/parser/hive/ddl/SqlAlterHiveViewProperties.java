@@ -35,6 +35,7 @@ public class SqlAlterHiveViewProperties extends SqlAlterViewProperties {
 
 	public SqlAlterHiveViewProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
 		super(pos, tableName, propertyList);
+		HiveDDLUtils.unescapeProperties(propertyList);
 	}
 
 	@Override

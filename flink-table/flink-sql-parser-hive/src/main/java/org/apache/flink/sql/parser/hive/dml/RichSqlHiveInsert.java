@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.hive.dml;
 
 import org.apache.flink.sql.parser.SqlProperty;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -48,6 +49,7 @@ public class RichSqlHiveInsert extends RichSqlInsert {
 			SqlNodeList staticPartitions,
 			SqlNodeList allPartKeys) {
 		super(pos, keywords, extendedKeywords, targetTable, source, columnList, staticPartitions);
+		HiveDDLUtils.unescapePartitionSpec(staticPartitions);
 		this.allPartKeys = allPartKeys;
 		partKeyToSpec = getPartKeyToSpec(staticPartitions);
 	}
