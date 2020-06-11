@@ -861,9 +861,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public void setOptions(OptionsFactory optionsFactory) {
-		this.rocksDbOptionsFactory = optionsFactory instanceof RocksDBOptionsFactory
-				? (RocksDBOptionsFactory) optionsFactory
-				: new RocksDBOptionsFactoryAdapter(optionsFactory);
+		this.rocksDbOptionsFactory = new RocksDBOptionsFactoryAdapter(optionsFactory);
 	}
 
 	/**
@@ -874,7 +872,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public OptionsFactory getOptions() {
-		return RocksDBOptionsFactoryAdapter.unwrapIfAdapter(rocksDbOptionsFactory);
+		if (rocksDbOptionsFactory == null) {
+			return null;
+		} else {
+			return RocksDBOptionsFactoryAdapter.unwrapIfAdapter(rocksDbOptionsFactory);
+		}
 	}
 
 	/**
