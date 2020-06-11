@@ -115,6 +115,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			case EAGER:
 				return new EagerSchedulingStrategy.Factory();
 			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
+				return new PipelinedRegionSchedulingStrategy.Factory();
 			case LAZY_FROM_SOURCES:
 				return new LazyFromSourcesSchedulingStrategy.Factory();
 			default:

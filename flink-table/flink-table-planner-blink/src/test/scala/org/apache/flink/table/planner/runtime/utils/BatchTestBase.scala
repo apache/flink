@@ -508,6 +508,6 @@ object BatchTestBase {
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
     conf.getConfiguration.setString(
       TABLE_EXEC_SHUFFLE_MODE,
-      GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
+      GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString)
   }
 }
