@@ -102,7 +102,7 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>For <a href="{{ site.baseurl }}/dev/table/connectors/filesystem.html">Filesystem</a> only, the compression codec for avro. Default no compression. Support deflate, snappy, bzip2, xz.</td>
+      <td>For <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a> only, the compression codec for avro. No compression as default. The valid enumerations are: deflate, snappy, bzip2, xz.</td>
     </tr>
     </tbody>
 </table>
@@ -215,7 +215,3 @@ So the following table lists the type mapping from Flink type to Avro type.
 In addition to the types listed above, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
 
 You can refer to [Avro Specification](https://avro.apache.org/docs/current/spec.html) for more information about Avro types.
-
-
-
-
