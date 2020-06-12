@@ -165,13 +165,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			}).build();
 
 		final DefaultJobTable jobTable = DefaultJobTable.create();
-		TaskSubmissionTestEnvironment.registerJobMasterConnection(
-			jobTable,
-			jobId,
-			rpc,
-			jobMasterGateway,
-			new NoOpTaskManagerActions(),
-			timeout);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setJobTable(jobTable)
@@ -195,6 +188,15 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		try {
 			taskExecutor.start();
 			taskExecutor.waitUntilStarted();
+
+			TaskSubmissionTestEnvironment.registerJobMasterConnection(
+				jobTable,
+				jobId,
+				rpc,
+				jobMasterGateway,
+				new NoOpTaskManagerActions(),
+				timeout,
+				taskExecutor.getMainThreadExecutableForTesting());
 
 			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
