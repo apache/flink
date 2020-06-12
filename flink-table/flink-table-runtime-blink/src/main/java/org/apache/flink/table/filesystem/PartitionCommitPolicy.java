@@ -25,6 +25,7 @@ import org.apache.flink.table.api.ValidationException;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -90,6 +91,17 @@ public interface PartitionCommitPolicy {
 		 * Path of this partition.
 		 */
 		Path partitionPath();
+
+		/**
+		 * Partition spec in the form of a map from partition keys to values.
+		 */
+		default LinkedHashMap<String, String> partitionSpec() {
+			LinkedHashMap<String, String> res = new LinkedHashMap<>();
+			for (int i = 0; i < partitionKeys().size(); i++) {
+				res.put(partitionKeys().get(i), partitionValues().get(i));
+			}
+			return res;
+		}
 	}
 
 	/**
