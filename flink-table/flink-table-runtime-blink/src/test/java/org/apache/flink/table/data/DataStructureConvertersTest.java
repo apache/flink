@@ -87,8 +87,6 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 
 /**
  * Tests for {@link DataStructureConverters}.
@@ -337,6 +335,12 @@ public class DataStructureConvertersTest {
 							null
 						)
 					})
+				.convertedToClassWithAnotherValue(
+					Row[].class,
+					new Row[] {
+						Row.of(null, null),
+						Row.of(new PojoWithImmutableFields(10, "Bob"), null)
+					})
 		);
 	}
 
@@ -361,6 +365,11 @@ public class DataStructureConvertersTest {
 
 			final Object internalValue = fromConverter.toInternalOrNull(from.getValue());
 
+			Object anotherValue = testSpec.conversionsWithAnotherValues.get(from.getKey());
+			if (anotherValue != null) {
+				fromConverter.toInternalOrNull(anotherValue);
+			}
+
 			for (Map.Entry<Class<?>, Object> to : testSpec.conversions.entrySet()) {
 				final DataType toDataType = testSpec.dataType.bridgedTo(to.getKey());
 
@@ -375,20 +384,6 @@ public class DataStructureConvertersTest {
 		}
 	}
 
-	@Test
-	public void TestObjectArrayConverter() {
-		Row[] rowArray1 = new Row[] {Row.of("a", 1), Row.of("b", 2), Row.of("c", 3)};
-		Row[] rowArray2 = new Row[] {Row.of("a", 3), Row.of("b", 0), Row.of("c", 2)};
-		DataType dataType = DataTypes.ARRAY(DataTypes.ROW(
-				DataTypes.FIELD("name", DataTypes.STRING()),
-				DataTypes.FIELD("count", DataTypes.INT())));
-		final DataStructureConverter<Object, Object> toConverter =
-			simulateSerialization(DataStructureConverters.getConverter(dataType));
-		toConverter.open(DataStructureConvertersTest.class.getClassLoader());
-		assertEquals(toConverter.toInternal(rowArray1), toConverter.toInternal(rowArray1));
-		assertNotEquals(toConverter.toInternal(rowArray1), toConverter.toInternal(rowArray2));
-	}
-
 	// --------------------------------------------------------------------------------------------
 	// Test utilities
 	// --------------------------------------------------------------------------------------------
@@ -401,12 +396,15 @@ public class DataStructureConvertersTest {
 
 		private final Map<Class<?>, Object> conversions;
 
+		private final Map<Class<?>, Object> conversionsWithAnotherValues;
+
 		private @Nullable String expectedErrorMessage;
 
 		private TestSpec(String description, DataType dataType) {
 			this.description = description;
 			this.dataType = dataType;
 			this.conversions = new LinkedHashMap<>();
+			this.conversionsWithAnotherValues = new LinkedHashMap<>();
 		}
 
 		static TestSpec forDataType(AbstractDataType<?> dataType) {
@@ -423,6 +421,11 @@ public class DataStructureConvertersTest {
 
 		<T> TestSpec convertedTo(Class<T> clazz, T value) {
 			conversions.put(clazz, value);
+			return this;
+		}
+
+		<T> TestSpec convertedToClassWithAnotherValue(Class<T> clazz, T value) {
+			conversionsWithAnotherValues.put(clazz, value);
 			return this;
 		}
 
