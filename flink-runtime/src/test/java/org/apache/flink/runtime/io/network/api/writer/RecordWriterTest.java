@@ -519,8 +519,9 @@ public class RecordWriterTest {
 			new NoOpResultPartitionConsumableNotifier());
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
 		BufferBuilder builder = recordWriter.requestNewBufferBuilder(0);
-		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);
-		builder.finish();
+		BufferBuilderTestUtils.fillBufferBuilder(builder, 1).finish();
+		ResultSubpartitionView readView = resultPartition.getSubpartition(0).createReadView(new NoOpBufferAvailablityListener());
+		Buffer buffer = readView.getNextBuffer().buffer();
 
 		// idle time is zero when there is buffer available.
 		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());

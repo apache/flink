@@ -25,7 +25,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.util.TestLogger;
@@ -148,13 +150,17 @@ public class RecordWriterDelegateTest extends TestLogger {
 		assertTrue(writerDelegate.getAvailableFuture().isDone());
 
 		// request one buffer from the local pool to make it unavailable
-		final BufferBuilder bufferBuilder = checkNotNull(writerDelegate.getRecordWriter(0).getBufferBuilder(0));
+		RecordWriter recordWriter = writerDelegate.getRecordWriter(0);
+		final BufferBuilder bufferBuilder = checkNotNull(recordWriter.getBufferBuilder(0));
 		assertFalse(writerDelegate.isAvailable());
 		CompletableFuture future = writerDelegate.getAvailableFuture();
 		assertFalse(future.isDone());
 
 		// recycle the buffer to make the local pool available again
-		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder);
+		BufferBuilderTestUtils.fillBufferBuilder(bufferBuilder, 1).finish();
+		ResultSubpartitionView readView = recordWriter.getTargetPartition().getSubpartition(0).createReadView(new NoOpBufferAvailablityListener());
+		Buffer buffer = readView.getNextBuffer().buffer();
+
 		buffer.recycleBuffer();
 		assertTrue(future.isDone());
 		assertTrue(writerDelegate.isAvailable());
