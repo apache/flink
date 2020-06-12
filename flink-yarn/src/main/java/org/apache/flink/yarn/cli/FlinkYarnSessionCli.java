@@ -45,6 +45,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
@@ -489,6 +490,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 		final Configuration configuration = applyCommandLineOptionsToConfiguration(cmd);
 		final ClusterClientFactory<ApplicationId> yarnClusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(configuration);
+		configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.SESSION.getName());
 
 		final YarnClusterDescriptor yarnClusterDescriptor = (YarnClusterDescriptor) yarnClusterClientFactory.createClusterDescriptor(configuration);
 
