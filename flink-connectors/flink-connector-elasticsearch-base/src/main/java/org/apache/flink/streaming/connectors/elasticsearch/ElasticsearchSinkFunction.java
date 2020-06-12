@@ -66,6 +66,11 @@ public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 	default void open() {}
 
 	/**
+	 * Tear-down method for the function. It is called when the sink closes.
+	 */
+	default void close () throws Exception {}
+
+	/**
 	 * Process the incoming element to produce multiple {@link ActionRequest ActionsRequests}.
 	 * The produced requests should be added to the provided {@link RequestIndexer}.
 	 *
