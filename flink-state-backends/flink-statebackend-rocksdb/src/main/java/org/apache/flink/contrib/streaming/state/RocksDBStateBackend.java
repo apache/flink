@@ -822,7 +822,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public OptionsFactory getOptions() {
-		return RocksDBOptionsFactoryAdapter.unwrapIfAdapter(rocksDbOptionsFactory);
+		if (rocksDbOptionsFactory == null) {
+			return null;
+		} else {
+			return RocksDBOptionsFactoryAdapter.unwrapIfAdapter(rocksDbOptionsFactory);
+		}
 	}
 
 	/**
