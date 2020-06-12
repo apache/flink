@@ -61,7 +61,7 @@ Flink supports the following formats:
          <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a></td>
         </tr>
         <tr>
-         <td>Apache Parquet</td>
+         <td><a href="{% link dev/table/connectors/formats/parquet.md %}">Apache Parquet</a></td>
          <td><a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
         </tr>
         <tr>
