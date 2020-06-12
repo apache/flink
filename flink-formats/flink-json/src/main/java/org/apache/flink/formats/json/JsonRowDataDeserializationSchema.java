@@ -60,8 +60,10 @@ import java.util.Objects;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -93,11 +95,19 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	/** Object mapper for parsing the JSON. */
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
+	/** Options for timestamp format. */
+	private TimeFormatOptions timestampFormatOption;
+
+	/** Options for time format. */
+	private TimeFormatOptions timeFormatOption;
+
 	public JsonRowDataDeserializationSchema(
 			RowType rowType,
 			TypeInformation<RowData> resultTypeInfo,
 			boolean failOnMissingField,
-			boolean ignoreParseErrors) {
+			boolean ignoreParseErrors,
+			TimeFormatOptions timeFormatOption,
+			TimeFormatOptions timestampFormatOption) {
 		if (ignoreParseErrors && failOnMissingField) {
 			throw new IllegalArgumentException(
 				"JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.");
@@ -106,6 +116,8 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		this.failOnMissingField = failOnMissingField;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.runtimeConverter = createRowConverter(checkNotNull(rowType));
+		this.timeFormatOption = timeFormatOption;
+		this.timestampFormatOption = timestampFormatOption;
 	}
 
 	@Override
@@ -290,19 +302,17 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	}
 
 	private TimestampData convertToTimestamp(JsonNode jsonNode) {
-		// according to RFC 3339 every date-time must have a timezone;
-		// until we have full timezone support, we only support UTC;
-		// users can parse their time as string as a workaround
-		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
-
-		ZoneOffset zoneOffset = parsedTimestamp.query(TemporalQueries.offset());
-
-		if (zoneOffset != null && zoneOffset.getTotalSeconds() != 0) {
-			throw new JsonParseException(
-				"Invalid timestamp format. Only a timestamp in UTC timezone is supported yet. " +
-					"Format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+		TemporalAccessor parsedTimestamp;
+		switch (timestampFormatOption){
+			case SQL:
+				parsedTimestamp = SQL_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+				break;
+			case ISO_8601:
+				parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+				break;
+			case RFC_3339:
+				parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 		}
-
 		LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
 		LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
 

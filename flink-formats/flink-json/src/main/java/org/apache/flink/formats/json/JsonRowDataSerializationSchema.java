@@ -41,12 +41,12 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.*;
 
 /**
  * Serialization schema that serializes an object of Flink internal data structure into a JSON bytes.
@@ -72,9 +72,13 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	/** Reusable object node. */
 	private transient ObjectNode node;
 
-	public JsonRowDataSerializationSchema(RowType rowType) {
+	/** Option for timestamp format. */
+	private final TimeFormatOptions timestampFormatOption;
+
+	public JsonRowDataSerializationSchema(RowType rowType, TimeFormatOptions timestampFormatOption) {
 		this.rowType = rowType;
 		this.runtimeConverter = createConverter(rowType);
+		this.timestampFormatOption = timestampFormatOption;
 	}
 
 	@Override
@@ -204,10 +208,24 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	}
 
 	private SerializationRuntimeConverter createTimestampConverter() {
+		DateTimeFormatter formatter;
+		switch (timestampFormatOption){
+			//case RFC_3339:
+			//	formatter = RFC3339_TIMESTAMP_FORMAT;
+			//	break;
+			case ISO_8601:
+				formatter = ISO8601_TIMESTAMP_FORMAT;
+				break;
+			case SQL:
+				formatter = SQL_TIMESTAMP_FORMAT;
+				break;
+			default:
+				formatter = RFC3339_TIMESTAMP_FORMAT;
+		}
 		return (mapper, reuse, value) -> {
 			TimestampData timestamp = (TimestampData) value;
 			return mapper.getNodeFactory()
-				.textNode(RFC3339_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
+				.textNode(formatter.format(timestamp.toLocalDateTime()));
 		};
 	}
 
