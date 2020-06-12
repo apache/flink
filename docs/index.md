@@ -23,16 +23,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This documentation is for Apache Flink version {{ site.version_title }}. These pages were built at: {% build_time %}.
+<p style="margin: 30px 60px 0 60px" markdown="1">
+Apache Flink is a framework and distributed processing engine for stateful computations over _unbounded and bounded_ data streams. Flink has been designed to run in _all common cluster environments_, perform computations at _in-memory speed_ and at _any scale_.
+</p>
 
 <div class="row">
 <div class="col-sm-6" markdown="1">
 
 ### Try Flink
 
-Apache Flink is an open source platform with expressive APIs for defining stream and batch data processing jobs, and a robust and scalable engine for executing those jobs.
-
-To quickly get a general understanding of how Flink works and what it offers for your use case, work your way through one of these tutorials:
+If you’re interested in playing around with Flink, try one of our tutorials:
 
 * [Fraud Detection with the DataStream API]({% link try-flink/datastream_api.md %})
 * [Real Time Reporting with the Table API]({% link try-flink/table_api.md %})
@@ -41,7 +41,7 @@ To quickly get a general understanding of how Flink works and what it offers for
 
 ### Learn Flink
 
-* Our [Self-paced Training Course]({% link learn-flink/index.md %}) includes a set of lessons and hands-on exercises that provide a step-by-step introduction to Flink.
+* To dive in deeper, the [Hands-on Training]({% link learn-flink/index.md %}) includes a set of lessons and exercises that provide a step-by-step introduction to Flink.
 
 * The [Concepts]({% link concepts/index.md %}) section explains what you need to know about Flink before exploring the reference documentation.
 
@@ -75,10 +75,15 @@ Before putting your Flink job into production, read the [Production Readiness Ch
 
 ### Upgrade Flink
 
-Release notes cover important changes between Flink versions. Please read them carefully if you plan to upgrade your Flink setup to a more recent version.
+Release notes cover important changes between Flink versions. Please read them carefully if you plan to upgrade your Flink setup.
 
 See the release notes for [Flink 1.10]({% link release-notes/flink-1.10.md %}), [Flink 1.9]({% link release-notes/flink-1.9.md %}), [Flink 1.8]({% link release-notes/flink-1.8.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.md %}).
 
 </div>
 </div>
 
+<div style="margin: 40px 0 0 0; position: relative; top: 20px;">
+<p>
+This documentation is for Apache Flink version {{ site.version_title }}. These pages were built at: {% build_time %}.
+</p>
+</div>
