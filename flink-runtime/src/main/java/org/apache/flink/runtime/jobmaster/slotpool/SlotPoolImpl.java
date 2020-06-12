@@ -328,14 +328,20 @@ public class SlotPoolImpl implements SlotPool {
 
 		final AllocationID allocationId = new AllocationID();
 
+		pendingRequest.setAllocationId(allocationId);
 		pendingRequests.put(pendingRequest.getSlotRequestId(), allocationId, pendingRequest);
 
 		pendingRequest.getAllocatedSlotFuture().whenComplete(
 			(AllocatedSlot allocatedSlot, Throwable throwable) -> {
-				if (throwable != null || !allocationId.equals(allocatedSlot.getAllocationId())) {
-					// cancel the slot request if there is a failure or if the pending request has
-					// been completed with another allocated slot
-					resourceManagerGateway.cancelSlotRequest(allocationId);
+				if (throwable != null) {
+					// the allocation id can be remapped so we need to get it from the pendingRequest
+					// where it will be updated timely
+					final Optional<AllocationID> updatedAllocationId = pendingRequest.getAllocationId();
+
+					if (updatedAllocationId.isPresent()) {
+						// cancel the slot request if there is a failure
+						resourceManagerGateway.cancelSlotRequest(updatedAllocationId.get());
+					}
 				}
 			});
 
@@ -544,29 +550,20 @@ public class SlotPoolImpl implements SlotPool {
 		final PendingRequest pendingRequest = findMatchingPendingRequest(allocatedSlot);
 
 		if (pendingRequest != null) {
-			log.debug("Fulfilling pending slot request [{}] early with returned slot [{}]",
+			log.debug("Fulfilling pending slot request [{}] with slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
 			// this allocation may become orphan once its corresponding request is removed
-			final AllocationID orphanedAllocationId = pendingRequests.getKeyB(pendingRequest.getSlotRequestId());
+			final AllocationID allocationIdOfRequest = pendingRequests.getKeyB(pendingRequest.getSlotRequestId());
 
 			removePendingRequest(pendingRequest.getSlotRequestId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
 
-			// if the request that initiated the allocation is still pending, it should take over the orphaned allocation
-			// of the fulfilled request so that it can fail fast if the adopted allocation fails
-			if (orphanedAllocationId != null) {
-				final SlotRequestId initiatedRequestId = pendingRequests.getKeyA(allocatedSlot.getAllocationId());
-				if (initiatedRequestId != null) {
-					final PendingRequest initiatedRequest = pendingRequests.getByKeyA(initiatedRequestId);
-					// this re-insertion of initiatedRequestId will not affect its original insertion order
-					pendingRequests.put(initiatedRequestId, orphanedAllocationId, initiatedRequest);
-				}
-			}
+			maybeRemapOrphanedAllocation(allocationIdOfRequest, allocatedSlot.getAllocationId());
 		} else {
-			log.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
+			log.debug("Adding slot [{}] to available slots", allocatedSlot.getAllocationId());
 			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
 		}
 	}
@@ -590,6 +587,31 @@ public class SlotPoolImpl implements SlotPool {
 
 		// no request pending, or no request matches
 		return null;
+	}
+
+	private void maybeRemapOrphanedAllocation(
+			final AllocationID allocationIdOfRequest,
+			final AllocationID allocationIdOfSlot) {
+
+		final AllocationID orphanedAllocationId = allocationIdOfRequest.equals(allocationIdOfSlot)
+			? null : allocationIdOfRequest;
+
+		// if the request that initiated the allocation is still pending, it should take over the orphaned allocation
+		// of the fulfilled request so that it can fail fast if the remapped allocation fails
+		if (orphanedAllocationId != null) {
+			final SlotRequestId requestIdOfAllocatedSlot = pendingRequests.getKeyA(allocationIdOfSlot);
+			if (requestIdOfAllocatedSlot != null) {
+				final PendingRequest requestOfAllocatedSlot = pendingRequests.getByKeyA(requestIdOfAllocatedSlot);
+				requestOfAllocatedSlot.setAllocationId(orphanedAllocationId);
+
+				// this re-insertion of initiatedRequestId will not affect its original insertion order
+				pendingRequests.put(requestIdOfAllocatedSlot, orphanedAllocationId, requestOfAllocatedSlot);
+			} else {
+				// cancel the slot request if the orphaned allocation is not remapped to a pending request.
+				// the request id can be null if the slot is returned by scheduler
+				resourceManagerGateway.cancelSlotRequest(orphanedAllocationId);
+			}
+		}
 	}
 
 	@Override
@@ -1362,6 +1384,9 @@ public class SlotPoolImpl implements SlotPool {
 
 		private final CompletableFuture<AllocatedSlot> allocatedSlotFuture;
 
+		@Nullable
+		private AllocationID allocationId;
+
 		private long unfillableSince;
 
 		private PendingRequest(
@@ -1432,6 +1457,14 @@ public class SlotPoolImpl implements SlotPool {
 
 		long getUnfulfillableSince() {
 			return unfillableSince;
+		}
+
+		void setAllocationId(final AllocationID allocationId) {
+			this.allocationId = allocationId;
+		}
+
+		Optional<AllocationID> getAllocationId() {
+			return Optional.ofNullable(allocationId);
 		}
 	}
 
