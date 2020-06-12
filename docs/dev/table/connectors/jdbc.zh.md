@@ -42,7 +42,7 @@ In order to setup the JDBC connector, the following table provides dependency in
 
 |  Maven dependency                                  |  SQL Client JAR                                           |
 | :------------------------------------------------- | :-------------------------------------------------------- |
-| `flink-connector-jdbc{{site.scala_version_suffix}}`| {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/jdbc.html) {% endif %}|
+| `flink-connector-jdbc{{site.scala_version_suffix}}`| {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/jdbc.html) {% endif %}|
 
 <br>
 A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
