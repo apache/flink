@@ -49,7 +49,7 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 | 0.10.x              | `flink-connector-kafka-010{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-010{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
 
 The Kafka connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({% link dev/project-configuration.md %}).
+See how to link with them for cluster execution [here]({% link dev/project-configuration.zh.md %}).
 
 How to create a Kafka table
 ----------------
@@ -126,7 +126,7 @@ Connector Options
       <td>String</td>
       <td>The format used to deserialize and serialize Kafka messages.
       The supported formats are <code>'csv'</code>, <code>'json'</code>, <code>'avro'</code>, <code>'debezium-json'</code> and <code>'canal-json'</code>.
-      Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">Formats</a> page for more details and more format options.
+      Please refer to <a href="{% link dev/table/connectors/formats/index.zh.md %}">Formats</a> page for more details and more format options.
       </td>
     </tr>
     <tr>
@@ -198,12 +198,12 @@ However, it will cause a lot of network connections between all the Flink instan
 
 ### Consistency guarantees
 
-By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
+By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.zh.md %}#enabling-and-configuring-checkpointing).
 
 Data Type Mapping
 ----------------
 
 Kafka stores message keys and values as bytes, so Kafka doesn't have schema or data types. The Kafka messages are deserialized and serialized by formats, e.g. csv, json, avro.
-Thus, the data type mapping is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.md %}) pages for more details.
+Thus, the data type mapping is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.zh.md %}) pages for more details.
 
 {% top %}
