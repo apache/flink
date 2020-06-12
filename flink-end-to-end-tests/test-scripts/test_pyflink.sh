@@ -20,7 +20,6 @@
 set -Eeuo pipefail
 CURRENT_DIR=`cd "$(dirname "$0")" && pwd -P`
 source "${CURRENT_DIR}"/common.sh
-source "${CURRENT_DIR}"/common_yarn_docker.sh
 
 cp -r "${FLINK_DIR}/conf" "${TEST_DATA_DIR}/conf"
 
@@ -164,6 +163,8 @@ stop_cluster
 
 # These tests are known to fail on JDK11. See FLINK-13719
 if [[ ${PROFILE} != *"jdk11"* ]]; then
+    cd "${CURRENT_DIR}/../"
+    source "${CURRENT_DIR}"/common_yarn_docker.sh
     # test submitting on yarn
     start_hadoop_cluster_and_prepare_flink
 
