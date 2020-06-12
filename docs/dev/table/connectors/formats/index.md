@@ -53,11 +53,11 @@ Flink supports the following formats:
            <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
         </tr>
         <tr>
-         <td>Debezium JSON</td>
+         <td><a href="{% link dev/table/connectors/formats/debezium.md %}">Debezium CDC</a></td>
          <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a></td>
         </tr>
         <tr>
-         <td>Canal JSON</td>
+         <td><a href="{% link dev/table/connectors/formats/canal.md %}">Canal CDC</a></td>
          <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a></td>
         </tr>
         <tr>
