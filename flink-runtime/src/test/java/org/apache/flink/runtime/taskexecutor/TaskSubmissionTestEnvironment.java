@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -170,7 +171,14 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			taskManagerActions = testTaskManagerActions;
 		}
 
-		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
+		registerJobMasterConnection(
+			jobTable,
+			jobId,
+			testingRpcService,
+			jobMasterGateway,
+			taskManagerActions,
+			timeout,
+			taskExecutor.getMainThreadExecutableForTesting());
 	}
 
 	static void registerJobMasterConnection(
@@ -179,18 +187,21 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			RpcService testingRpcService,
 			JobMasterGateway jobMasterGateway,
 			TaskManagerActions taskManagerActions,
-			Time timeout) {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> TestingJobServices.newBuilder().build());
-		job.connect(
-			ResourceID.generate(),
-			jobMasterGateway,
-			taskManagerActions,
-			new TestCheckpointResponder(),
-			new TestGlobalAggregateManager(),
-			new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
-			TestingPartitionProducerStateChecker.newBuilder()
-				.setPartitionProducerStateFunction((jobID, intermediateDataSetID, resultPartitionID) -> CompletableFuture.completedFuture(ExecutionState.RUNNING))
-				.build());
+			Time timeout,
+			MainThreadExecutable mainThreadExecutable) {
+		mainThreadExecutable.runAsync(() -> {
+			final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> TestingJobServices.newBuilder().build());
+			job.connect(
+				ResourceID.generate(),
+				jobMasterGateway,
+				taskManagerActions,
+				new TestCheckpointResponder(),
+				new TestGlobalAggregateManager(),
+				new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
+				TestingPartitionProducerStateChecker.newBuilder()
+					.setPartitionProducerStateFunction((jobID, intermediateDataSetID, resultPartitionID) -> CompletableFuture.completedFuture(ExecutionState.RUNNING))
+					.build());
+		});
 	}
 
 	public TestingTaskExecutor getTaskExecutor() {
