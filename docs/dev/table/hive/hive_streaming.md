@@ -163,9 +163,11 @@ SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'='true', 'streamin
 
 ## Hive Table As Temporal Tables
 
-Starting from Flink 1.11.0, you can use a Hive table as temporal table and join streaming data with it. Please follow
+You can use a Hive table as temporal table and join streaming data with it. Please follow
 the [example]({{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table) to find out how to join a
-temporal table. When performing the join, the Hive table will be cached in TM memory and each record from the stream
+temporal table.
+
+When performing the join, the Hive table will be cached in TM memory and each record from the stream
 is looked up in the Hive table to decide whether a match is found. You don't need any extra settings to use a Hive table
 as temporal table. But optionally, you can configure the TTL of the Hive table cache with the following
 property. After the cache expires, the Hive table will be scanned again to load the latest data.
@@ -190,6 +192,9 @@ property. After the cache expires, the Hive table will be scanned again to load 
 </table>
 
 **Note**:
-1. You need to make sure the Hive table can fit into TM memory since the whole table will be cached.
+1. Each joining subtask needs to keep its own cache of the Hive table. Please make sure the Hive table can fit into
+the memory of a TM task slot.
 2. You should set a relatively large value for `lookup.join.cache.ttl`. You'll probably have performance issue if
 your Hive table needs to be updated and reloaded too frequently.
+3. Currently we simply load the whole Hive table whenever the cache needs refreshing. There's no way to differentiate
+new data from the old.
