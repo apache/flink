@@ -62,7 +62,7 @@ CREATE TABLE hTable (
 ) WITH (
  'connector' = 'hbase-1.4',
  'table-name' = 'mytable',
- 'zookeeper.quorum' = 'localhost:2121'
+ 'zookeeper.quorum' = 'localhost:2181'
 )
 {% endhighlight %}
 </div>
