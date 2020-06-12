@@ -195,10 +195,7 @@ public class PartitionPathUtils {
 		if (statuses == null) {
 			return null;
 		}
-		return Arrays.stream(statuses).filter(fileStatus -> {
-			String name = fileStatus.getPath().getName();
-			return !name.startsWith("_") && !name.startsWith(".");
-		}).toArray(FileStatus[]::new);
+		return Arrays.stream(statuses).filter(fileStatus -> !isHiddenFile(fileStatus)).toArray(FileStatus[]::new);
 	}
 
 	/**
@@ -213,6 +210,10 @@ public class PartitionPathUtils {
 		FileStatus[] generatedParts = getFileStatusRecurse(path, partitionNumber, fs);
 		List<Tuple2<LinkedHashMap<String, String>, Path>> ret = new ArrayList<>();
 		for (FileStatus part : generatedParts) {
+			// ignore hidden file
+			if (isHiddenFile(part)) {
+				continue;
+			}
 			ret.add(new Tuple2<>(extractPartitionSpecFromPath(part.getPath()), part.getPath()));
 		}
 		return ret;
@@ -321,5 +322,10 @@ public class PartitionPathUtils {
 				listStatusRecursively(fs, stat, level + 1, expectLevel, results);
 			}
 		}
+	}
+
+	private static boolean isHiddenFile(FileStatus fileStatus) {
+		String name = fileStatus.getPath().getName();
+		return name.startsWith("_") || name.startsWith(".");
 	}
 }
