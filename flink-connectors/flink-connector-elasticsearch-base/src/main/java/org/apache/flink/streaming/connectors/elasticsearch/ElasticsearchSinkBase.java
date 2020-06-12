@@ -329,6 +329,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 	@Override
 	public void close() throws Exception {
+		elasticsearchSinkFunction.close();
 		if (bulkProcessor != null) {
 			bulkProcessor.close();
 			bulkProcessor = null;
