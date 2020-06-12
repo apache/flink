@@ -157,7 +157,7 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
 
 	@Override
 	public String asSummaryString() {
-		return "Elasticsearch7";
+		return "Elasticsearch6";
 	}
 
 	/**
