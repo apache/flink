@@ -51,7 +51,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -460,14 +459,7 @@ public final class Utils {
 			log.debug("Adding security tokens to TaskExecutor's container launch context.");
 
 			try (DataOutputBuffer dob = new DataOutputBuffer()) {
-				Method readTokenStorageFileMethod = Credentials.class.getMethod(
-					"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
-
-				Credentials cred =
-					(Credentials) readTokenStorageFileMethod.invoke(
-						null,
-						new File(fileLocation),
-						HadoopUtils.getHadoopConfiguration(flinkConfig));
+				Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), HadoopUtils.getHadoopConfiguration(flinkConfig));
 
 				// Filter out AMRMToken before setting the tokens to the TaskManager container context.
 				Credentials taskManagerCred = new Credentials();
