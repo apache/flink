@@ -53,6 +53,7 @@ All the column families in HBase table must be declared as ROW type, the field n
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
+-- register the HBase table 'mytable' in Flink SQL
 CREATE TABLE hTable (
  rowkey INT,
  family1 ROW<q1 INT>,
@@ -63,7 +64,19 @@ CREATE TABLE hTable (
  'connector' = 'hbase-1.4',
  'table-name' = 'mytable',
  'zookeeper.quorum' = 'localhost:2181'
-)
+);
+
+-- use ROW(...) construction function construct column families and write data into the HBase table
+INSERT INTO hTable
+SELECT rowkey, ROW(q1), ROW(q2, q3), ROW(q4, q5, q6) FROM T;
+
+-- scan data from the HBase table
+SELECT rowkey, family1, family3.q4, family3.q6 FROM hTable;
+
+-- temporal join the HBase table as a dimension table
+SELECT * FROM myTopic
+LEFT JOIN hTable FOR SYSTEM_TIME AS OF myTopic.proctime
+ON myTopic.key = hTable.rowkey;
 {% endhighlight %}
 </div>
 </div>
