@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -94,6 +95,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 			committer.commitUpToCheckpoint(CHECKPOINT_ID);
 		} catch (Exception e) {
 			throw new TableException("Exception in finalizeGlobal", e);
+		} finally {
+			new File(tmpPath.getPath()).delete();
 		}
 	}
 
