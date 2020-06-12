@@ -51,7 +51,7 @@ If you use Flink with [Yarn]({{site.baseurl}}/ops/deployment/yarn_setup.html), [
 
 The default memory sizes support simple streaming/batch applications, but are too low to yield good performance for more complex applications.
 
-  - `jobmanager.memory.process.size`: Total size of the *Flink Master* (JobManager / ResourceManager / Dispatcher) process.
+  - `master.memory.process.size`: Total size of the *Flink Master* (JobManager / ResourceManager / Dispatcher) process.
   - `taskmanager.memory.process.size`: Total size of the TaskManager process.
 
 The total sizes include everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (JVM Heap, Off-Heap, for Task Managers also network, managed memory etc.).
@@ -151,14 +151,14 @@ The JobManager ensures consistency during recovery across TaskManagers. For the 
 
 ### Memory Configuration
 
-These configuration values control the way that TaskManagers and JobManagers use memory.
+These configuration values control the way that TaskManagers and Masters use memory.
 
 Flink tries to shield users as much as possible from the complexity of configuring the JVM for data-intensive processing.
 In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performane tuning and fixing memory related errors.
 
 For a detailed explanation of how these options interact,
 see the documentation on [TaskManager]({{site.baseurl}}/ops/memory/mem_setup_tm.html) and
-[JobManager]({{site.baseurl}}/ops/memory/mem_setup_master.html) memory configurations.
+[Master]({{site.baseurl}}/ops/memory/mem_setup_master.html) memory configurations.
 
 {% include generated/common_memory_section.html %}
 

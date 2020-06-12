@@ -31,7 +31,7 @@ depending on the use case and which options are important for each case.
 ## Configure memory for standalone deployment
 
 It is recommended to configure [total Flink memory](mem_setup.html#configure-total-memory)
-([`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size) or [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size))
+([`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size) or [`master.memory.flink.size`](../config.html#master-memory-flink-size))
 or its components for [standalone deployment](../deployment/cluster_setup.html) where you want to declare how much memory
 is given to Flink itself. Additionally, you can adjust *JVM metaspace* if it causes [problems](mem_trouble.html#outofmemoryerror-metaspace).
 
@@ -41,7 +41,7 @@ only physical resources of the executing machine matter in this case.
 ## Configure memory for containers
 
 It is recommended to configure [total process memory](mem_setup.html#configure-total-memory)
-([`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) or [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size))
+([`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) or [`master.memory.process.size`](../config.html#master-memory-process-size))
 for the containerized deployments ([Kubernetes](../deployment/kubernetes.html), [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html)).
 It declares how much memory in total should be assigned to the Flink *JVM process* and corresponds to the size of the requested container.
 

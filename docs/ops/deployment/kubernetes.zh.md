@@ -176,7 +176,7 @@ data:
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
     queryable-state.server.ports: 6125
-    jobmanager.memory.process.size: 1600m
+    master.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
   log4j.properties: |+

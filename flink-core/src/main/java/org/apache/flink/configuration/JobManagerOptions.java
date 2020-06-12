@@ -124,64 +124,64 @@ public class JobManagerOptions {
 		.withDescription("JVM heap size (in megabytes) for the JobManager.");
 
 	/**
-	 * Total Process Memory size for the JobManager.
+	 * Total Process Memory size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
-		key("jobmanager.memory.process.size")
+		key("master.memory.process.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDescription("Total Process Memory size for the JobManager. This includes all the memory that a " +
-				"JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. " +
+			.withDescription("Total Process Memory size for the Flink Master. This includes all the memory that a " +
+				"Flink Master JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. " +
 				"In containerized setups, this should be set to the container memory. See also " +
-				"'jobmanager.memory.flink.size' for Total Flink Memory size configuration.");
+				"'master.memory.flink.size' for Total Flink Memory size configuration.");
 
 	/**
-	 * Total Flink Memory size for the JobManager.
+	 * Total Flink Memory size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_FLINK_MEMORY =
-		key("jobmanager.memory.flink.size")
+		key("master.memory.flink.size")
 			.memoryType()
 			.noDefaultValue()
 			.withDescription(String.format(
-				"Total Flink Memory size for the JobManager. This includes all the " +
-					"memory that a JobManager consumes, except for JVM Metaspace and JVM Overhead. It consists of " +
+				"Total Flink Memory size for the Flink Master. This includes all the " +
+					"memory that a Flink Master consumes, except for JVM Metaspace and JVM Overhead. It consists of " +
 					"JVM Heap Memory and Off-heap Memory. See also '%s' for total process memory size configuration.",
 				TOTAL_PROCESS_MEMORY.key()));
 
 	/**
-	 * JVM Heap Memory size for the JobManager.
+	 * JVM Heap Memory size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_HEAP_MEMORY =
-		key("jobmanager.memory.heap.size")
+		key("master.memory.heap.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDescription("JVM Heap Memory size for JobManager. The minimum recommended JVM Heap size is " +
+			.withDescription("JVM Heap Memory size for Flink Master. The minimum recommended JVM Heap size is " +
 				MIN_JVM_HEAP_SIZE.toHumanReadableString() + '.');
 
 	/**
-	 * Off-heap Memory size for the JobManager.
+	 * Off-heap Memory size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> OFF_HEAP_MEMORY =
-		key("jobmanager.memory.off-heap.size")
+		key("master.memory.off-heap.size")
 			.memoryType()
 			.defaultValue(MemorySize.ofMebiBytes(128))
-			.withDescription("Off-heap Memory size for JobManager. The JVM direct memory limit of the Job Manager " +
+			.withDescription("Off-heap Memory size for Flink Master. The JVM direct memory limit of the Flink Master " +
 				"process (-XX:MaxDirectMemorySize) will be set to this value. This option covers all off-heap memory " +
 				"usage including direct and native memory allocation.");
 
 	/**
-	 * JVM Metaspace Size for the JobManager.
+	 * JVM Metaspace Size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_METASPACE =
-		key("jobmanager.memory.jvm-metaspace.size")
+		key("master.memory.jvm-metaspace.size")
 			.memoryType()
 			.defaultValue(MemorySize.ofMebiBytes(256))
-			.withDescription("JVM Metaspace Size for the JobManager.");
+			.withDescription("JVM Metaspace Size for the Flink Master.");
 
 	private static final String JVM_OVERHEAD_DESCRIPTION = "This is off-heap memory reserved for JVM " +
 		"overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct " +
@@ -191,31 +191,31 @@ public class JobManagerOptions {
 		"exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.";
 
 	/**
-	 * Min JVM Overhead size for the JobManager.
+	 * Min JVM Overhead size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
-		key("jobmanager.memory.jvm-overhead.min")
+		key("master.memory.jvm-overhead.min")
 			.memoryType()
 			.defaultValue(MemorySize.ofMebiBytes(192))
-			.withDescription("Min JVM Overhead size for the JobManager. " + JVM_OVERHEAD_DESCRIPTION);
+			.withDescription("Min JVM Overhead size for the Flink Master. " + JVM_OVERHEAD_DESCRIPTION);
 
 	/**
-	 * Max JVM Overhead size for the TaskExecutors.
+	 * Max JVM Overhead size for the Flink Master.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MAX =
-		key("jobmanager.memory.jvm-overhead.max")
+		key("master.memory.jvm-overhead.max")
 			.memoryType()
 			.defaultValue(MemorySize.parse("1g"))
-			.withDescription("Max JVM Overhead size for the JobManager. " + JVM_OVERHEAD_DESCRIPTION);
+			.withDescription("Max JVM Overhead size for the Flink Master. " + JVM_OVERHEAD_DESCRIPTION);
 
 	/**
 	 * Fraction of Total Process Memory to be reserved for JVM Overhead.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<Float> JVM_OVERHEAD_FRACTION =
-		key("jobmanager.memory.jvm-overhead.fraction")
+		key("master.memory.jvm-overhead.fraction")
 			.floatType()
 			.defaultValue(0.1f)
 			.withDescription("Fraction of Total Process Memory to be reserved for JVM Overhead. " + JVM_OVERHEAD_DESCRIPTION);

@@ -57,7 +57,7 @@ if docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
    -t yarn-application \
    -Dtaskmanager.numberOfTaskSlots=1 \
    -Dtaskmanager.memory.process.size=1000m \
-   -Djobmanager.memory.process.size=1000m \
+   -Dmaster.memory.process.size=1000m \
    -Dparallelism.default=3 \
    -Dtaskmanager.memory.jvm-metaspace.size=128m \
    /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
@@ -90,7 +90,7 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -t yarn-application \
     -Dtaskmanager.numberOfTaskSlots=1 \
     -Dtaskmanager.memory.process.size=1000m \
-    -Djobmanager.memory.process.size=1000m \
+    -Dmaster.memory.process.size=1000m \
     -Dparallelism.default=3 \
     -Dtaskmanager.memory.jvm-metaspace.size=128m \
     /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH" > stderrAndstdoutFile 2>&1

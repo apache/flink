@@ -269,7 +269,7 @@ As an example, the command to specify the memory sizes of the JM and the TM, loo
 
 {% highlight bash %}
 ./bin/flink run-application -t yarn-application \
--Djobmanager.memory.process.size=2048m \
+-Dmaster.memory.process.size=2048m \
 -Dtaskmanager.memory.process.size=4096m \
 ./examples/batch/WordCount.jar
 

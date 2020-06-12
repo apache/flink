@@ -43,7 +43,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
 "$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
-    -Djobmanager.memory.process.size=1088m \
+    -Dmaster.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%" \

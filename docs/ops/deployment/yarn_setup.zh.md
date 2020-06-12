@@ -268,7 +268,7 @@ To launch an application in [Application Mode]({% link ops/deployment/index.zh.m
 As an example, the command to specify the memory sizes of the JM and the TM, looks like:
 
 {% highlight bash %}
-./bin/flink run-application -t yarn-application -Djobmanager.memory.process.size=2048m -Dtaskmanager.memory.process.size=4096m  ./examples/batch/WordCount.jar
+./bin/flink run-application -t yarn-application -Dmaster.memory.process.size=2048m -Dtaskmanager.memory.process.size=4096m  ./examples/batch/WordCount.jar
 {% endhighlight %}
 
 For a look at the available configuration options, you can have a look [here]({% link ops/config.zh.md %}). To unlock

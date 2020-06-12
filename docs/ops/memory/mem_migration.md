@@ -45,15 +45,15 @@ the following options is configured explicitly, otherwise the configuration will
 
 | &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for Master:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
-| [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
-| [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
-| [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)       |
+| [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)                                                                                                       | [`master.memory.flink.size`](../config.html#master-memory-flink-size)     |
+| [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)                                                                                                   | [`master.memory.process.size`](../config.html#master-memory-process-size) |
+| [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) | [`master.memory.heap.size`](../config.html#master-memory-heap-size)       |
 {:.table-bordered}
 <br/>
 
 The [default `flink-conf.yaml`](#default-configuration-in-flink-confyaml) shipped with Flink sets
 [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) (since *1.10*) and
-[`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) (since *1.11*)
+[`master.memory.process.size`](../config.html#master-memory-process-size) (since *1.11*)
 to make the default memory configuration consistent.
 
 This [spreadsheet](https://docs.google.com/spreadsheets/d/1mJaMkMPfDJJ-w6nMXALYmTc4XxiV30P5U7DzgwLkSoE) can also help
@@ -229,15 +229,15 @@ they are set the same way as it is done by the [standalone deployment](../deploy
 
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* JVM Heap ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)) for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments
-* Total process memory ([`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html))
+* JVM Heap ([`master.memory.heap.size`](../config.html#master-memory-heap-size)) for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments
+* Total process memory ([`master.memory.process.size`](../config.html#master-memory-process-size)) for containerized deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html))
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
 Now, if only the *total Flink memory* or *total process memory* is configured, then the [JVM Heap](mem_setup_master.html#configure-jvm-heap)
 is also derived as the rest of what is left after subtracting all other components from the total memory, see also
 [how to configure total memory](mem_setup.html#configure-total-memory). Additionally, you can now have more direct
 control over the [JVM Heap](mem_setup_master.html#configure-jvm-heap) by adjusting the
-[`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size) option.
+[`master.memory.heap.size`](../config.html#master-memory-heap-size) option.
 
 ## Container Cut-Off Memory
 
@@ -262,8 +262,8 @@ The other direct or native off-heap memory consumers can now be addressed by the
 ### for Masters
 
 The direct or native off-heap memory consumers can now be addressed by the following new configuration options:
-* Off-heap memory ([`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size))
-* JVM metaspace ([`jobmanager.memory.jvm-metaspace.size`](../config.html#jobmanager-memory-jvm-metaspace-size))
+* Off-heap memory ([`master.memory.off-heap.size`](../config.html#master-memory-off-heap-size))
+* JVM metaspace ([`master.memory.jvm-metaspace.size`](../config.html#master-memory-jvm-metaspace-size))
 * [JVM overhead](mem_setup_master.html#detailed-configuration)
 
 ## Default Configuration in flink-conf.yaml
@@ -273,7 +273,7 @@ This section describes the changes of the default `flink-conf.yaml` shipped with
 The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
 in the default `flink-conf.yaml`. The value increased from 1024Mb to 1728Mb.
 
-The total memory for Masters (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)
+The total memory for Masters (`jobmanager.heap.size`) is replaced by [`master.memory.process.size`](../config.html#master-memory-process-size)
 in the default `flink-conf.yaml`. The value increased from 1024Mb to 1600Mb.
 
 See also [how to configure total memory now](mem_setup.html#configure-total-memory).
