@@ -46,7 +46,7 @@ In order to setup the Elasticsearch connector, the following table provides depe
 | 7.x and later versions  | `flink-connector-elasticsearch7{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-elasticsearch7{{site.scala_version_suffix}}/{{site.version}}/flink-connector-elasticsearch7{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
 
 <br>
-<span class="label label-danger">Attention</span> Elasticsearch connector works with JSON format which defines how to encode documents for the external system, therefore, it must be added as a [dependency]({% link dev/table/connectors/formats/index.md %}).
+<span class="label label-danger">Attention</span> Elasticsearch connector works with JSON format which defines how to encode documents for the external system, therefore, it must be added as a [dependency]({% link dev/table/connectors/formats/index.zh.md %}).
 
 How to create an Elasticsearch table
 ----------------
@@ -225,7 +225,7 @@ Connector Options
       <td style="word-wrap: break-word;">json</td>
       <td>String</td>
       <td>Elasticsearch connector supports to specify a format. The format must produce a valid json document.
-       By default uses built-in <code>'json'</code> format. Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">JSON Format</a> page for more details.
+       By default uses built-in <code>'json'</code> format. Please refer to <a href="{% link dev/table/connectors/formats/index.zh.md %}">JSON Format</a> page for more details.
       </td>
     </tr>
     </tbody>
@@ -245,7 +245,7 @@ The Elasticsearch connector generates a document ID string for every row by conc
 Certain types are not allowed as primary key field as they do not have a good string representation, e.g. `BYTES`, `ROW`, `ARRAY`, `MAP`, etc.
 If no primary key is specified, Elasticsearch will generate a document id automatically.
 
-See [CREATE TABLE DDL]({% link dev/table/sql/create.md %}#create-table) for more details about PRIMARY KEY syntax.
+See [CREATE TABLE DDL]({% link dev/table/sql/create.zh.md %}#create-table) for more details about PRIMARY KEY syntax.
 
 ### Dynamic Index
 
@@ -263,6 +263,6 @@ Data Type Mapping
 ----------------
 
 Elasticsearch stores document in a JSON string. So the data type mapping is between Flink data type and JSON data type.
-Flink uses built-in `'json'` format for Elasticsearch connector. Please refer to [JSON Format]({% link dev/table/connectors/formats/json.md %}) page for more type mapping details.
+Flink uses built-in `'json'` format for Elasticsearch connector. Please refer to [JSON Format]({% link dev/table/connectors/formats/json.zh.md %}) page for more type mapping details.
 
 {% top %}
