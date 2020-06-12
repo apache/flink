@@ -39,7 +39,7 @@ projects using a build automation tool (such as Maven or SBT) and SQL Client wit
 
 | Maven dependency   | SQL Client JAR         |
 | :----------------- | :----------------------|
-| `flink-orc`        |{% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-orc{{site.scala_version_suffix}}/{{site.version}}/flink-orc{{site.scala_version_suffix}}-{{site.version}}-jar-with-dependencies.jar) {% else %} Only available for stable releases {% endif %}|
+| flink-orc_{{site.scala_version_suffix}}        |{% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc{{site.scala_version_suffix}}/{{site.version}}/flink-sql-orc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
 
 How to create a table with Orc format
 ----------------
