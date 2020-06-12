@@ -672,7 +672,7 @@ public class CheckpointCoordinator {
 			}
 		}
 
-		LOG.info("Triggering checkpoint {} @ {} for job {}.", checkpointID, timestamp, job);
+		LOG.info("Triggering checkpoint {} (type={}) @ {} for job {}.", checkpointID, checkpoint.getProps().getCheckpointType(), timestamp, job);
 		return checkpoint;
 	}
 
