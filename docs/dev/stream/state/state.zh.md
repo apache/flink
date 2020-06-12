@@ -696,19 +696,6 @@ checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
 另外，我们同样可以在 `initializeState()` 方法中使用 `FunctionInitializationContext` 初始化 keyed state。
 
-#### ListCheckpointed
-
-`ListCheckpointed` 接口是 `CheckpointedFunction` 的精简版，仅支持 even-split redistributuion 的 list state。同样需要实现两个方法：
-
-{% highlight java %}
-List<T> snapshotState(long checkpointId, long timestamp) throws Exception;
-
-void restoreState(List<T> state) throws Exception;
-{% endhighlight %}
-
-`snapshotState()` 需要返回一个将写入到 checkpoint 的对象列表，`restoreState` 则需要处理恢复回来的对象列表。如果状态不可切分，
-则可以在 `snapshotState()` 中返回 `Collections.singletonList(MY_STATE)`。
-
 ### 带状态的 Source Function
 
 带状态的数据源比其他的算子需要注意更多东西。为了保证更新状态以及输出的原子性（用于支持 exactly-once 语义），用户需要在发送数据前获取数据源的全局锁。
@@ -718,14 +705,17 @@ void restoreState(List<T> state) throws Exception;
 {% highlight java %}
 public static class CounterSource
         extends RichParallelSourceFunction<Long>
-        implements ListCheckpointed<Long> {
+        implements CheckpointedFunction {
 
     /**  current offset for exactly once semantics */
     private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
-
+    
+    /** 存储 state 的变量. */
+    private ListState<Long> state;
+     
     @Override
     public void run(SourceContext<Long> ctx) {
         final Object lock = ctx.getCheckpointLock();
@@ -745,14 +735,21 @@ public static class CounterSource
     }
 
     @Override
-    public List<Long> snapshotState(long checkpointId, long checkpointTimestamp) {
-        return Collections.singletonList(offset);
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
+            "state",
+            LongSerializer.INSTANCE));
+            
+        // 从我们已保存的状态中恢复 offset 到内存中，在进行任务恢复的时候也会调用此初始化状态的方法
+        for (Long l : state.get()) {
+            offset = l;
+        }
     }
 
     @Override
-    public void restoreState(List<Long> state) {
-        for (Long s : state)
-            offset = s;
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        state.clear();
+        state.add(offset);
     }
 }
 {% endhighlight %}
@@ -762,12 +759,13 @@ public static class CounterSource
 {% highlight scala %}
 class CounterSource
        extends RichParallelSourceFunction[Long]
-       with ListCheckpointed[Long] {
+       with CheckpointedFunction {
 
   @volatile
   private var isRunning = true
 
   private var offset = 0L
+  private var state: ListState[Long] = _
 
   override def run(ctx: SourceFunction.SourceContext[Long]): Unit = {
     val lock = ctx.getCheckpointLock
@@ -783,15 +781,20 @@ class CounterSource
   }
 
   override def cancel(): Unit = isRunning = false
-
-  override def restoreState(state: util.List[Long]): Unit =
-    for (s <- state) {
-      offset = s
+  
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    state = context.getOperatorStateStore.getListState(
+      new ListStateDescriptor[Long]("state", classOf[Long]))
+      
+    for (l <- state.get().asScala) {
+      offset = l
     }
+  }
 
-  override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] =
-    Collections.singletonList(offset)
-
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    state.clear()
+    state.add(offset)
+  }
 }
 {% endhighlight %}
 </div>
