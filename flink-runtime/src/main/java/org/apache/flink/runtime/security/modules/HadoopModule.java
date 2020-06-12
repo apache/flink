@@ -90,7 +90,7 @@ public class HadoopModule implements SecurityModule {
 					try {
 						Method readTokenStorageFileMethod = Credentials.class.getMethod("readTokenStorageFile",
 							File.class, org.apache.hadoop.conf.Configuration.class);
-						Credentials cred =
+						Credentials credentialsFromTokenStorageFile =
 							(Credentials) readTokenStorageFileMethod.invoke(
 								null,
 								new File(fileLocation),
@@ -100,20 +100,20 @@ public class HadoopModule implements SecurityModule {
 						// the UGI would prefer the delegation token instead, which eventually expires
 						// and does not fallback to using Kerberos tickets
 						Method getAllTokensMethod = Credentials.class.getMethod("getAllTokens");
-						Credentials credentials = new Credentials();
+						Credentials credentialsToBeAdded = new Credentials();
 						final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
-						Collection<Token<? extends TokenIdentifier>> usrTok = (Collection<Token<? extends TokenIdentifier>>) getAllTokensMethod.invoke(cred);
+						Collection<Token<? extends TokenIdentifier>> usrTok = (Collection<Token<? extends TokenIdentifier>>) getAllTokensMethod.invoke(credentialsFromTokenStorageFile);
 						//If UGI use keytab for login, do not load HDFS delegation token.
 						for (Token<? extends TokenIdentifier> token : usrTok) {
 							if (!token.getKind().equals(hdfsDelegationTokenKind)) {
 								final Text id = new Text(token.getIdentifier());
-								credentials.addToken(id, token);
+								credentialsToBeAdded.addToken(id, token);
 							}
 						}
 
 						Method addCredentialsMethod = UserGroupInformation.class.getMethod("addCredentials",
 							Credentials.class);
-						addCredentialsMethod.invoke(loginUser, credentials);
+						addCredentialsMethod.invoke(loginUser, credentialsToBeAdded);
 					} catch (NoSuchMethodException e) {
 						LOG.warn("Could not find method implementations in the shaded jar.", e);
 					} catch (InvocationTargetException e) {
