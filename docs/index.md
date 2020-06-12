@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<p style="margin: 30px 60px 0 60px" markdown="1">
+<p style="margin: 30px 60px 0 60px;text-align: center" markdown="1">
 Apache Flink is a framework and distributed processing engine for stateful computations over _unbounded and bounded_ data streams. Flink has been designed to run in _all common cluster environments_, perform computations at _in-memory speed_ and at _any scale_.
 </p>
 
@@ -44,6 +44,10 @@ If you’re interested in playing around with Flink, try one of our tutorials:
 * To dive in deeper, the [Hands-on Training]({% link learn-flink/index.md %}) includes a set of lessons and exercises that provide a step-by-step introduction to Flink.
 
 * The [Concepts]({% link concepts/index.md %}) section explains what you need to know about Flink before exploring the reference documentation.
+
+### Get Help with Flink
+
+If you get stuck, check out our [community support resources](https://flink.apache.org/community.html). In particular, Apache Flink’s user mailing list is consistently ranked as one of the most active of any Apache project, and is a great way to get help quickly.
 
 </div>
 <div class="col-sm-6" markdown="1">
