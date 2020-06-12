@@ -39,7 +39,7 @@ projects using a build automation tool (such as Maven or SBT) and SQL Client wit
 
 | Maven dependency   | SQL Client JAR         |
 | :----------------- | :----------------------|
-| `flink-parquet`    | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-parquet{{site.scala_version_suffix}}-{{site.version}}-jar-with-dependencies.jar) |
+| `flink-parquet`    |{% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-parquet{{site.scala_version_suffix}}-{{site.version}}-jar-with-dependencies.jar) {% else %} Only available for stable releases {% endif %}|
 
 How to create a table with Parquet format
 ----------------
@@ -186,4 +186,4 @@ The following table lists the type mapping from Flink type to Parquet type.
     </tbody>
 </table>
 
-<span class="label label-danger">Attention</span> Not support complex data type like: Array, Map, Row.
+<span class="label label-danger">Attention</span> Composite data type: Array, Map and Row are not supported.
