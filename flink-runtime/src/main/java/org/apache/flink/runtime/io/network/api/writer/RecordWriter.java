@@ -323,4 +323,9 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 			}
 		}
 	}
+
+	@VisibleForTesting
+	ResultPartitionWriter getTargetPartition() {
+		return targetPartition;
+	}
 }
