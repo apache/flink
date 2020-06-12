@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.table.filesystem.TableMetaStoreFactory.TableMetaStore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

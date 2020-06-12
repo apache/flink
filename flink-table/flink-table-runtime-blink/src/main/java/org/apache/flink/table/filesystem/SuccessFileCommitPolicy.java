@@ -20,6 +20,7 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
