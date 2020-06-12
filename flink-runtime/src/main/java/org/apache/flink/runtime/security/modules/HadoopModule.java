@@ -150,7 +150,7 @@ public class HadoopModule implements SecurityModule {
 	}
 
 	@Override
-	public void uninstall() throws SecurityInstallException {
+	public void uninstall() {
 		throw new UnsupportedOperationException();
 	}
 }
