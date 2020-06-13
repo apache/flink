@@ -286,7 +286,7 @@ public class LocalExecutor implements Executor {
 		Environment env = context.getEnvironment();
 		Environment newEnv;
 		try {
-			newEnv = Environment.enrich(env, Collections.singletonMap(key, value), Collections.emptyMap());
+			newEnv = Environment.enrich(env, Collections.singletonMap(key, value));
 		} catch (Throwable t) {
 			throw new SqlExecutionException("Could not set session property.", t);
 		}
