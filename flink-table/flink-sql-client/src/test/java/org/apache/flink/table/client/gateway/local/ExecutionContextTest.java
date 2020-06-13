@@ -90,6 +90,10 @@ public class ExecutionContextTest {
 		assertEquals(10, failureRateStrategy.getMaxFailureRate());
 		assertEquals(99_000, failureRateStrategy.getFailureInterval().toMilliseconds());
 		assertEquals(1_000, failureRateStrategy.getDelayBetweenAttemptsInterval().toMilliseconds());
+
+		final TableEnvironment tableEnv = context.getTableEnvironment();
+		assertEquals(1_000, tableEnv.getConfig().getMinIdleStateRetentionTime());
+		assertEquals(600_000, tableEnv.getConfig().getMaxIdleStateRetentionTime());
 	}
 
 	@Test
@@ -255,35 +259,23 @@ public class ExecutionContextTest {
 		final ExecutionContext<?> context = createConfigurationExecutionContext();
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 
-		assertEquals(
-			100,
-			tableEnv.getConfig().getConfiguration().getInteger(
-				ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT));
-		assertTrue(
-			tableEnv.getConfig().getConfiguration().getBoolean(
-				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED));
-		assertEquals(
-			"128kb",
-			tableEnv.getConfig().getConfiguration().getString(
-				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE));
+		Configuration conf = tableEnv.getConfig().getConfiguration();
+		assertEquals(100, conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT));
+		assertTrue(conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED));
+		assertEquals("128kb", conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE));
 
-		assertTrue(
-			tableEnv.getConfig().getConfiguration().getBoolean(
-				OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED));
+		assertTrue(conf.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED));
 
 		// these options are not modified and should be equal to their default value
 		assertEquals(
 			ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue(),
-			tableEnv.getConfig().getConfiguration().getBoolean(
-				ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
+			conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
 		assertEquals(
 			ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.defaultValue(),
-			tableEnv.getConfig().getConfiguration().getString(
-				ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE));
+			conf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE));
 		assertEquals(
 			OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD.defaultValue().longValue(),
-			tableEnv.getConfig().getConfiguration().getLong(
-				OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
+			conf.getLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
 	}
 
 	@Test
