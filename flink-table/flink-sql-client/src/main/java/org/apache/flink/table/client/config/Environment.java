@@ -26,7 +26,6 @@ import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
 import org.apache.flink.table.client.config.entries.ModuleEntry;
 import org.apache.flink.table.client.config.entries.TableEntry;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -267,28 +266,25 @@ public class Environment {
 	}
 
 	public Environment clone() {
-		return enrich(this, Collections.emptyMap(), Collections.emptyMap());
+		return enrich(this, Collections.emptyMap());
 	}
 
 	/**
-	 * Enriches an environment with new/modified properties or views and returns the new instance.
+	 * Enriches an environment with new/modified properties and returns the new instance.
 	 */
-	public static Environment enrich(
-			Environment env,
-			Map<String, String> properties,
-			Map<String, ViewEntry> views) {
+	public static Environment enrich(Environment env, Map<String, String> properties) {
 		final Environment enrichedEnv = new Environment();
 
+		// copy modules
 		enrichedEnv.modules = new LinkedHashMap<>(env.getModules());
 
-		// merge catalogs
+		// copy catalogs
 		enrichedEnv.catalogs = new LinkedHashMap<>(env.getCatalogs());
 
-		// merge tables
+		// copy tables
 		enrichedEnv.tables = new LinkedHashMap<>(env.getTables());
-		enrichedEnv.tables.putAll(views);
 
-		// merge functions
+		// copy functions
 		enrichedEnv.functions = new HashMap<>(env.getFunctions());
 
 		// enrich execution properties
