@@ -464,3 +464,7 @@ blocked. The `MailboxExecutor` can be accessed by using
 Interfaces `OptionsFactory` and `ConfigurableOptionsFactory` have been
 deprecated in favor of `RocksDBOptionsFactory` and
 `ConfigurableRocksDBOptionsFactory`, respectively.
+
+#### Incompatibility of serialized JobGraphs ([FLINK-14594](https://issues.apache.org/jira/browse/FLINK-14594))
+Serialized `JobGraphs` which set the `ResourceSpec` created by Flink versions < `1.10` are no longer compatible with Flink >= `1.10`. 
+If you want to migrate these jobs to Flink >= `1.10` you will have to stop the job with a savepoint and then resume it from this savepoint on the Flink >= `1.10` cluster.
