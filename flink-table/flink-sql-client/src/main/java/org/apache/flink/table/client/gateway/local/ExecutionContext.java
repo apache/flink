@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
@@ -52,6 +53,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.SinkTableEntry;
 import org.apache.flink.table.client.config.entries.SourceSinkTableEntry;
 import org.apache.flink.table.client.config.entries.SourceTableEntry;
@@ -452,10 +454,7 @@ public class ExecutionContext<ClusterID> {
 		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 		final boolean noInheritedState = sessionState == null;
 		// Step 0.0 Initialize the table configuration.
-		final TableConfig config = new TableConfig();
-		config.addConfiguration(flinkConfig);
-		environment.getConfiguration().asMap().forEach((k, v) ->
-				config.getConfiguration().setString(k, v));
+		final TableConfig config = createTableConfig();
 
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
@@ -520,6 +519,18 @@ public class ExecutionContext<ClusterID> {
 					sessionState.moduleManager,
 					sessionState.functionCatalog);
 		}
+	}
+
+	private TableConfig createTableConfig() {
+		final TableConfig config = new TableConfig();
+		config.addConfiguration(flinkConfig);
+		environment.getConfiguration().asMap().forEach((k, v) ->
+				config.getConfiguration().setString(k, v));
+		ExecutionEntry execution = environment.getExecution();
+		config.setIdleStateRetentionTime(
+				Time.milliseconds(execution.getMinStateRetention()),
+				Time.milliseconds(execution.getMaxStateRetention()));
+		return config;
 	}
 
 	private void createTableEnvironment(

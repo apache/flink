@@ -141,8 +141,8 @@ execution:
   periodic-watermarks-interval: 99
   parallelism: 1
   max-parallelism: 16
-  min-idle-state-retention: 0
-  max-idle-state-retention: 0
+  min-idle-state-retention: 1000
+  max-idle-state-retention: 600000
   result-mode: "$VAR_RESULT_MODE"
   max-table-result-rows: "$VAR_MAX_ROWS"
   restart-strategy:
