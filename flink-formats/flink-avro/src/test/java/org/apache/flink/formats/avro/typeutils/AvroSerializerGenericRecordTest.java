@@ -26,12 +26,13 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 
 /**
- * Test for {@link AvroSerializer} that test GenericRecord.
+ * Test for {@link AvroSerializer} that tests GenericRecord.
  */
 public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericRecord> {
 
-	static final Schema SCHEMA = new org.apache.avro.Schema.Parser()
-		.parse("{\"type\":\"record\",\"name\":\"Dummy\",\"namespace\":\"dummy\",\"fields\":[{\"name\":\"afield\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}}]}");
+	private static final Schema SCHEMA = new org.apache.avro.Schema.Parser()
+		.parse("{\"type\":\"record\",\"name\":\"Dummy\",\"namespace\":\"dummy\",\"fields\": "
+			+ "[{\"name\":\"afield\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}}]}");
 
 	@Override
 	protected TypeSerializer<GenericRecord> createSerializer() {
@@ -50,9 +51,9 @@ public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericR
 
 	@Override
 	protected GenericRecord[] getTestData() {
-		GenericRecord[] records = { new GenericRecordBuilder(SCHEMA)
-			.set("afield", "foo bar")
-			.build() };
-		return records;
+		return new GenericRecord[]{
+			new GenericRecordBuilder(SCHEMA)
+				.set("afield", "foo bar")
+				.build()};
 	}
 }
