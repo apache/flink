@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.util.ComponentClosingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -253,7 +254,10 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		eventValve.reset();
 		// Close the current coordinator asynchronously and fail the job if the current
 		// coordinator failed to close. This avoids resource leak.
-		coordinator.close();
+		ComponentClosingUtils.closeAsynchronously(
+				"SourceCoordinatorSubjectToReset",
+				() -> coordinator.close(),
+				context::failJob);
 		// Create a new instance of the coordinator.
 		coordinatorContext = new QuiesceableContext(context);
 		coordinator = provider.create(coordinatorContext);

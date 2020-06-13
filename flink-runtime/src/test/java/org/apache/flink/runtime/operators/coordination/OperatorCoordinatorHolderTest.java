@@ -37,7 +37,9 @@ import javax.annotation.concurrent.GuardedBy;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
@@ -378,6 +380,30 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		assertNotEquals(contextBeforeReset, getCoordinator(holder).getContext());
 	}
 
+	@Test (timeout = 30_000L)
+	public void testFailJobOnCoordinatorCloseFailure() throws Exception {
+		final ManuallyTriggeredScheduledExecutorService executor = new ManuallyTriggeredScheduledExecutorService();
+		final ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutorServiceAdapter(
+				(ScheduledExecutorService) executor, Thread.currentThread());
+
+		final TestEventSender sender = new TestEventSender();
+		final OperatorCoordinatorHolder holder = createCoordinatorHolder(
+				sender, FailOnClosingTestCoordinator::new, mainThreadExecutor);
+
+		holder.resetToCheckpoint(new byte[0]);
+		// Loop to trigger the main executor until receiving the failJob() invocation.
+		while (globalFailure == null) {
+			if (executor.numQueuedRunnables() > 0) {
+				executor.trigger();
+			} else {
+				Thread.sleep(1);
+			}
+		}
+		assertEquals("Fake exception to fail the job.", getRootCause(globalFailure).getMessage());
+		// Reset global failure so the after test check won't fail.
+		globalFailure = null;
+	}
+
 	// ------------------------------------------------------------------------
 	//   test actions
 	// ------------------------------------------------------------------------
@@ -450,9 +476,40 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		return holder;
 	}
 
+	private Throwable getRootCause(Throwable t) {
+		Throwable rootCause = t;
+		while (rootCause.getCause() != null) {
+			rootCause = rootCause.getCause();
+		}
+		return rootCause;
+	}
+
 	// ------------------------------------------------------------------------
 	//   test implementations
 	// ------------------------------------------------------------------------
+
+	private static final class FailOnClosingTestCoordinator extends CheckpointEventOrderTestBaseCoordinator {
+
+		FailOnClosingTestCoordinator(Context context) {
+			super(context);
+		}
+
+		@Override
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
+				result.complete(new byte[0]);
+		}
+
+		@Override
+		protected void step() throws Exception {
+			// do nothing.
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			throw new Exception("Fake exception to fail the job.");
+		}
+	}
 
 	private static final class FutureCompletedInstantlyTestCoordinator extends CheckpointEventOrderTestBaseCoordinator {
 

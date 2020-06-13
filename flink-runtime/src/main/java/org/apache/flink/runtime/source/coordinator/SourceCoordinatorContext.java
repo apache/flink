@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -47,7 +48,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readRegisteredReaders;
@@ -78,8 +78,7 @@ import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerde
  * @param <SplitT> the type of the splits.
  */
 @Internal
-public class SourceCoordinatorContext<SplitT extends SourceSplit>
-		implements SplitEnumeratorContext<SplitT>, AutoCloseable {
+public class SourceCoordinatorContext<SplitT extends SourceSplit> implements SplitEnumeratorContext<SplitT> {
 	private final ExecutorService coordinatorExecutor;
 	private final ExecutorNotifier notifier;
 	private final OperatorCoordinator.Context operatorCoordinatorContext;
@@ -118,7 +117,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 						return new Thread(r, coordinatorThreadName + "-worker-" + index++);
 					}
 				}),
-				coordinatorExecutor);
+				coordinatorExecutor,
+				FatalExitExceptionHandler.INSTANCE);
 	}
 
 	@Override
@@ -177,24 +177,22 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	}
 
 	@Override
-	public <T> void callAsync(
+	public <T> boolean callAsync(
 			Callable<T> callable,
 			BiConsumer<T, Throwable> handler,
 			long initialDelay,
 			long period) {
-		notifier.notifyReadyAsync(callable, handler, initialDelay, period);
+		return notifier.notifyReadyAsync(callable, handler, initialDelay, period);
 	}
 
 	@Override
-	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
-		notifier.notifyReadyAsync(callable, handler);
+	public <T> boolean callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
+		return notifier.notifyReadyAsync(callable, handler);
 	}
 
 	@Override
-	public void close() throws InterruptedException {
+	public void cancelAsyncCalls() throws InterruptedException{
 		notifier.close();
-		coordinatorExecutor.shutdown();
-		coordinatorExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
 	}
 
 	// --------- Package private additional methods for the SourceCoordinator ------------
