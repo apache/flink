@@ -730,6 +730,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val key = operands(1)
             generateMapGet(ctx, operands.head, key)
 
+          case t: LogicalType if TypeCheckUtils.isRow(t) =>
+            generateDot(ctx, operands)
+
           case _ => throw new CodeGenException("Expect an array or a map.")
         }
 
