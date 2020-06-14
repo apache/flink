@@ -404,8 +404,8 @@ public class LocalExecutorITCase extends TestLogger {
 			expectedProperties.put("execution.periodic-watermarks-interval", "99");
 			expectedProperties.put("execution.parallelism", "1");
 			expectedProperties.put("execution.max-parallelism", "16");
-			expectedProperties.put("execution.max-idle-state-retention", "0");
-			expectedProperties.put("execution.min-idle-state-retention", "0");
+			expectedProperties.put("execution.max-idle-state-retention", "600000");
+			expectedProperties.put("execution.min-idle-state-retention", "1000");
 			expectedProperties.put("execution.result-mode", "table");
 			expectedProperties.put("execution.max-table-result-rows", "100");
 			expectedProperties.put("execution.restart-strategy.type", "failure-rate");
