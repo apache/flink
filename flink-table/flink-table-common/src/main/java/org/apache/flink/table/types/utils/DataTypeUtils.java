@@ -127,11 +127,41 @@ public final class DataTypeUtils {
 		if (dataType instanceof FieldsDataType) {
 			return expandCompositeType((FieldsDataType) dataType);
 		} else if (dataType.getLogicalType() instanceof LegacyTypeInformationType &&
-			dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.STRUCTURED_TYPE) {
+				dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.STRUCTURED_TYPE) {
 			return expandLegacyCompositeType(dataType);
 		}
 
 		throw new IllegalArgumentException("Expected a composite type");
+	}
+
+	/**
+	 * Retrieves a nested field from a composite type at given position.
+	 *
+	 * <p>Throws an exception for a non composite type. You can use
+	 * {@link LogicalTypeChecks#isCompositeType(LogicalType)} to check that.
+	 *
+	 * @param compositeType Data type to expand. Must be a composite type.
+	 * @param index Index of the field to retrieve.
+	 * @return The field at the given position.
+	 */
+	public static Optional<DataType> getField(DataType compositeType, int index) {
+		TableSchema tableSchema = expandCompositeTypeToSchema(compositeType);
+		return tableSchema.getFieldDataType(index);
+	}
+
+	/**
+	 * Retrieves a nested field from a composite type with given name.
+	 *
+	 * <p>Throws an exception for a non composite type. You can use
+	 * {@link LogicalTypeChecks#isCompositeType(LogicalType)} to check that.
+	 *
+	 * @param compositeType Data type to expand. Must be a composite type.
+	 * @param name Name of the field to retrieve.
+	 * @return The field with the given name.
+	 */
+	public static Optional<DataType> getField(DataType compositeType, String name) {
+		TableSchema tableSchema = expandCompositeTypeToSchema(compositeType);
+		return tableSchema.getFieldDataType(name);
 	}
 
 	/**
