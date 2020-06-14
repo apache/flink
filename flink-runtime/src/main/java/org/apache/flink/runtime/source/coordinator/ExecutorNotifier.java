@@ -150,7 +150,7 @@ public class ExecutorNotifier implements AutoCloseable {
 			return;
 		}
 		// Shutdown the worker executor, so no more worker tasks can run.
-		workerExecutor.shutdown();
+		workerExecutor.shutdownNow();
 		workerExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
 	}
 }
