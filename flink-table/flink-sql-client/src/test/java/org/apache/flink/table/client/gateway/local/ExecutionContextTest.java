@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -49,6 +53,7 @@ import org.apache.commons.cli.Options;
 import org.junit.Test;
 
 import java.net.URL;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -79,21 +84,25 @@ public class ExecutionContextTest {
 	@Test
 	public void testExecutionConfig() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
-		final ExecutionConfig config = context.getExecutionConfig();
-
-		assertEquals(99, config.getAutoWatermarkInterval());
-
-		final RestartStrategies.RestartStrategyConfiguration restartConfig = config.getRestartStrategy();
-		assertTrue(restartConfig instanceof RestartStrategies.FailureRateRestartStrategyConfiguration);
-		final RestartStrategies.FailureRateRestartStrategyConfiguration failureRateStrategy =
-			(RestartStrategies.FailureRateRestartStrategyConfiguration) restartConfig;
-		assertEquals(10, failureRateStrategy.getMaxFailureRate());
-		assertEquals(99_000, failureRateStrategy.getFailureInterval().toMilliseconds());
-		assertEquals(1_000, failureRateStrategy.getDelayBetweenAttemptsInterval().toMilliseconds());
-
 		final TableEnvironment tableEnv = context.getTableEnvironment();
-		assertEquals(1_000, tableEnv.getConfig().getMinIdleStateRetentionTime());
-		assertEquals(600_000, tableEnv.getConfig().getMaxIdleStateRetentionTime());
+		final TableConfig tableConfig = tableEnv.getConfig();
+
+		assertEquals(1_000, tableConfig.getMinIdleStateRetentionTime());
+		assertEquals(600_000, tableConfig.getMaxIdleStateRetentionTime());
+		Configuration conf = tableConfig.getConfiguration();
+
+		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
+		assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
+
+		assertEquals(TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
+		assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
+
+		assertEquals("failure-rate", conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
+		assertEquals(10, conf.getInteger(
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL));
+		assertEquals(Duration.ofMillis(99_000), conf.get(
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL));
+		assertEquals(Duration.ofMillis(1_000), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
 	}
 
 	@Test
