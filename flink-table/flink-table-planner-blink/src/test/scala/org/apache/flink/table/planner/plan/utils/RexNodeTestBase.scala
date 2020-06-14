@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -45,7 +45,7 @@ abstract class RexNodeTestBase {
     .map(typeFactory.createFieldTypeFromLogicalType)
     .asJava
 
-  var rexBuilder: RexBuilder = new RexBuilder(typeFactory)
+  var rexBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
 
   val program: RexProgram = buildSimpleRexProgram()
 
