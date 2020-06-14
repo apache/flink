@@ -19,6 +19,11 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FailureRateRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FallbackRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FixedDelayRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.NoRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,8 +37,12 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -101,6 +110,7 @@ import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -524,12 +534,46 @@ public class ExecutionContext<ClusterID> {
 	private TableConfig createTableConfig() {
 		final TableConfig config = new TableConfig();
 		config.addConfiguration(flinkConfig);
-		environment.getConfiguration().asMap().forEach((k, v) ->
-				config.getConfiguration().setString(k, v));
+		Configuration conf = config.getConfiguration();
+		environment.getConfiguration().asMap().forEach(conf::setString);
 		ExecutionEntry execution = environment.getExecution();
 		config.setIdleStateRetentionTime(
 				Time.milliseconds(execution.getMinStateRetention()),
 				Time.milliseconds(execution.getMaxStateRetention()));
+
+		conf.setInteger(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism());
+		conf.setInteger(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
+		conf.set(StreamPipelineOptions.TIME_CHARACTERISTIC, execution.getTimeCharacteristic());
+		if (execution.getTimeCharacteristic() == TimeCharacteristic.EventTime) {
+			conf.set(PipelineOptions.AUTO_WATERMARK_INTERVAL,
+					Duration.ofMillis(execution.getPeriodicWatermarksInterval()));
+		}
+
+		RestartStrategyConfiguration restartStrategy = environment.getExecution().getRestartStrategy();
+		if (restartStrategy instanceof NoRestartStrategyConfiguration) {
+			conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "none");
+		} else if (restartStrategy instanceof FixedDelayRestartStrategyConfiguration) {
+			conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+			FixedDelayRestartStrategyConfiguration fixedDelay = ((FixedDelayRestartStrategyConfiguration) restartStrategy);
+			conf.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+					fixedDelay.getRestartAttempts());
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+					Duration.ofMillis(fixedDelay.getDelayBetweenAttemptsInterval().toMilliseconds()));
+		} else if (restartStrategy instanceof FailureRateRestartStrategyConfiguration) {
+			conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
+			FailureRateRestartStrategyConfiguration failureRate = (FailureRateRestartStrategyConfiguration) restartStrategy;
+			conf.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL,
+					failureRate.getMaxFailureRate());
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
+					Duration.ofMillis(failureRate.getFailureInterval().toMilliseconds()));
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY,
+					Duration.ofMillis(failureRate.getDelayBetweenAttemptsInterval().toMilliseconds()));
+		} else if (restartStrategy instanceof FallbackRestartStrategyConfiguration) {
+			// default is FallbackRestartStrategyConfiguration
+			// see ExecutionConfig.restartStrategyConfiguration
+			conf.removeConfig(RestartStrategyOptions.RESTART_STRATEGY);
+		}
+
 		return config;
 	}
 
@@ -540,7 +584,7 @@ public class ExecutionContext<ClusterID> {
 			ModuleManager moduleManager,
 			FunctionCatalog functionCatalog) {
 		if (environment.getExecution().isStreamingPlanner()) {
-			streamExecEnv = createStreamExecutionEnvironment();
+			streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 			execEnv = null;
 
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
@@ -555,7 +599,7 @@ public class ExecutionContext<ClusterID> {
 					functionCatalog);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
-			execEnv = createExecutionEnvironment();
+			execEnv = ExecutionEnvironment.getExecutionEnvironment();
 			executor = null;
 			tableEnv = new BatchTableEnvironmentImpl(
 					execEnv,
@@ -628,25 +672,6 @@ public class ExecutionContext<ClusterID> {
 		// Switch to the current database.
 		Optional<String> database = environment.getExecution().getCurrentDatabase();
 		database.ifPresent(tableEnv::useDatabase);
-	}
-
-	private ExecutionEnvironment createExecutionEnvironment() {
-		final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-		execEnv.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		execEnv.setParallelism(environment.getExecution().getParallelism());
-		return execEnv;
-	}
-
-	private StreamExecutionEnvironment createStreamExecutionEnvironment() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		env.setParallelism(environment.getExecution().getParallelism());
-		env.setMaxParallelism(environment.getExecution().getMaxParallelism());
-		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
-		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
-			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
-		}
-		return env;
 	}
 
 	private void registerFunctions() {
