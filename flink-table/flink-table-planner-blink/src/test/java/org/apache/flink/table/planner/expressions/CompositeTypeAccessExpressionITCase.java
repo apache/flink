@@ -50,6 +50,8 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -83,8 +85,8 @@ public class CompositeTypeAccessExpressionITCase {
 						ROW(FIELD("nested", BIGINT().notNull())).nullable(),
 						ROW(FIELD("nested", BIGINT().notNull())).notNull()
 					)
-					.testSqlResult("f0.nested", null, BIGINT().nullable())
-					.testSqlResult("f1.nested", 1L, BIGINT().notNull()),
+					.testResult($("f0").get("nested"), "f0.nested", null, BIGINT().nullable())
+					.testResult($("f1").get("nested"), "f1.nested", 1L, BIGINT().notNull()),
 
 				// In Calcite it maps to FlinkSqlOperatorTable.ITEM
 				TestSpec.forFunction(BuiltInFunctionDefinitions.AT)
@@ -163,6 +165,61 @@ public class CompositeTypeAccessExpressionITCase {
 			);
 			try (CloseableIterator<Row> it = result.collect()) {
 				assertThat(it.next(), equalTo(Row.of(new String[]{"A", "B"}, "A")));
+				assertFalse(it.hasNext());
+			}
+		}
+
+		@Test
+		public void testTableApiAccessingNullableRow() {
+			final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+
+			thrown.expect(ValidationException.class);
+			thrown.expectMessage("Invalid function call:\n" +
+				"CustomScalarFunction(INT NOT NULL, INT)");
+			env.fromValues(1)
+				.select(call(CustomScalarFunction.class, 1, call(CustomScalarFunction.class).get("nested")))
+				.execute();
+		}
+
+		@Test
+		public void testTableApiAccessingNotNullRow() throws Exception {
+			final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+
+			TableResult result = env.fromValues(1)
+				.select(call(CustomScalarFunction.class, 1, call(CustomScalarFunction.class, 1).get("nested")))
+				.execute();
+			try (CloseableIterator<Row> it = result.collect()) {
+				assertThat(it.next(), equalTo(Row.of(2L)));
+				assertFalse(it.hasNext());
+			}
+		}
+
+		@Test
+		public void testTableApiFlattenCompositeType() throws Exception {
+			final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+
+			TableResult result = env.fromValues(
+					ROW(
+						FIELD(
+							"f0",
+							ROW(
+								FIELD("nested0", BIGINT().notNull()),
+								FIELD("nested1", STRING())
+							).nullable()
+						)).notNull(),
+					Row.of(Row.of(1, "ABC"))
+				)
+				.select($("f0").flatten())
+				.execute();
+
+			assertThat(result.getTableSchema(),
+				equalTo(TableSchema.builder()
+					.field("f0$nested0", BIGINT().nullable())
+					.field("f0$nested1", STRING().nullable())
+					.build()));
+
+			try (CloseableIterator<Row> it = result.collect()) {
+				assertThat(it.next(), equalTo(Row.of(1L, "ABC")));
 				assertFalse(it.hasNext());
 			}
 		}
