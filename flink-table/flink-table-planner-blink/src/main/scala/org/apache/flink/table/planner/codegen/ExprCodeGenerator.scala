@@ -36,6 +36,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
@@ -43,6 +44,7 @@ import org.apache.calcite.util.TimestampString
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 
 import scala.collection.JavaConversions._
 
@@ -719,18 +721,18 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         generateMap(ctx, resultType, operands)
 
       case ITEM =>
-        operands.head.resultType match {
-          case t: LogicalType if TypeCheckUtils.isArray(t) =>
+        operands.head.resultType.getTypeRoot match {
+          case LogicalTypeRoot.ARRAY =>
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
             generateArrayElementAt(ctx, array, index)
 
-          case t: LogicalType if TypeCheckUtils.isMap(t) =>
+          case LogicalTypeRoot.MAP =>
             val key = operands(1)
             generateMapGet(ctx, operands.head, key)
 
-          case t: LogicalType if TypeCheckUtils.isRow(t) =>
+          case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
             generateDot(ctx, operands)
 
           case _ => throw new CodeGenException("Expect an array or a map.")
