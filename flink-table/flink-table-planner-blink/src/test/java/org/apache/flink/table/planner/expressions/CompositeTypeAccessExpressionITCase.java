@@ -88,7 +88,7 @@ public class CompositeTypeAccessExpressionITCase {
 
 				// In Calcite it maps to FlinkSqlOperatorTable.ITEM
 				TestSpec.forFunction(BuiltInFunctionDefinitions.AT)
-					.onFieldsWithData(null, new int[] {1}, null, Row.of(1), null, singletonMap("nested", 1))
+					.onFieldsWithData(null, new int[] {1}, null, singletonMap("nested", 1), null, Row.of(1))
 					.andDataTypes(
 						ARRAY(BIGINT().notNull()).nullable(),
 						ARRAY(BIGINT().notNull()).notNull(),
