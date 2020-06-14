@@ -318,7 +318,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		failGlobalAndRestart(scheduler, new TestException());
 
 		assertArrayEquals("coordinator should have a restored checkpoint",
-				coordinatorState, getCoordinator(scheduler).getLastRestoredCheckpointState());
+				coordinatorState, coordinator.getLastRestoredCheckpointState());
 	}
 
 	@Test

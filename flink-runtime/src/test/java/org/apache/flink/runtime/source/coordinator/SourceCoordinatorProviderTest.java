@@ -26,6 +26,7 @@ import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorCo
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+
 import org.junit.Before;
 import org.junit.Test;
 

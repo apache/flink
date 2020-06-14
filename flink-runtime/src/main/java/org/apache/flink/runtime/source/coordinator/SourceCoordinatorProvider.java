@@ -34,10 +34,9 @@ import java.util.function.BiConsumer;
 /**
  * The provider of {@link SourceCoordinator}.
  */
-public class SourceCoordinatorProvider<SplitT extends SourceSplit> implements OperatorCoordinator.Provider {
+public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends RecreateOnResetOperatorCoordinator.Provider {
 	private static final long serialVersionUID = -1921681440009738462L;
 	private final String operatorName;
-	private final OperatorID operatorID;
 	private final Source<?, SplitT, ?> source;
 	private final int numWorkerThreads;
 
@@ -57,19 +56,14 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> implements Op
 			OperatorID operatorID,
 			Source<?, SplitT, ?> source,
 			int numWorkerThreads) {
+		super(operatorID);
 		this.operatorName = operatorName;
-		this.operatorID = operatorID;
 		this.source = source;
 		this.numWorkerThreads = numWorkerThreads;
 	}
 
 	@Override
-	public OperatorID getOperatorId() {
-		return operatorID;
-	}
-
-	@Override
-	public OperatorCoordinator create(OperatorCoordinator.Context context) {
+	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
 		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
 		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
 				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
@@ -77,9 +71,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> implements Op
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
 				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
 						context);
-		OperatorCoordinator coordinator =
-				new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
-		return new RecreateOnResetOperatorCoordinator(context, this, coordinator);
+		return new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
 	}
 
 	/**
