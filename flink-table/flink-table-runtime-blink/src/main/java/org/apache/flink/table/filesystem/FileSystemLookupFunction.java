@@ -140,6 +140,8 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 		}
 		if (nextLoadTime > 0) {
 			LOG.info("Lookup join cache has expired after {} minute(s), reloading", getCacheTTL().toMinutes());
+		} else {
+			LOG.info("Populating lookup join cache");
 		}
 		cache.clear();
 		try {
