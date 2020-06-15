@@ -18,30 +18,30 @@
 
 package org.apache.flink.tests.util.flink;
 
-import org.apache.flink.util.Preconditions;
-
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Programmatic definition of a SQL job-submission.
  */
 public class SQLJobSubmission {
 
-	private final String sql;
+	private final List<String> sqlLines;
 	private final List<String> jars;
 	private final String defaultEnvFile;
 	private final String sessionEnvFile;
 
 	private SQLJobSubmission(
-			String sql,
+			List<String> sqlLines,
 			List<String> jars,
 			String defaultEnvFile,
 			String sessionEnvFile) {
-		this.sql = Preconditions.checkNotNull(sql);
-		this.jars = Preconditions.checkNotNull(jars);
+		this.sqlLines = checkNotNull(sqlLines);
+		this.jars = checkNotNull(jars);
 		this.defaultEnvFile = defaultEnvFile;
 		this.sessionEnvFile = sessionEnvFile;
 	}
@@ -58,21 +58,21 @@ public class SQLJobSubmission {
 		return this.jars;
 	}
 
-	public String getSQL(){
-		return this.sql;
+	public List<String> getSqlLines(){
+		return this.sqlLines;
 	}
 
 	/**
 	 * Builder for the {@link SQLJobSubmission}.
 	 */
 	public static class SQLJobSubmissionBuilder {
-		private final String sql;
+		private final List<String> sqlLines;
 		private final List<String> jars = new ArrayList<>();
 		private String defaultEnvFile = null;
 		private String sessionEnvFile = null;
 
-		public SQLJobSubmissionBuilder(String sql) {
-			this.sql = sql;
+		public SQLJobSubmissionBuilder(List<String> sqlLines) {
+			this.sqlLines = sqlLines;
 		}
 
 		public SQLJobSubmissionBuilder setDefaultEnvFile(String defaultEnvFile) {
@@ -96,7 +96,7 @@ public class SQLJobSubmission {
 		}
 
 		public SQLJobSubmission build() {
-			return new SQLJobSubmission(sql, jars, defaultEnvFile, sessionEnvFile);
+			return new SQLJobSubmission(sqlLines, jars, defaultEnvFile, sessionEnvFile);
 		}
 	}
 }
