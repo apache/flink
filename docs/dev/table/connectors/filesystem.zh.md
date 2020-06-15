@@ -129,10 +129,17 @@ a timeout that specifies the maximum duration for which a file can be open.
         <td>The maximum part file size before rolling.</td>
     </tr>
     <tr>
-        <td><h5>sink.rolling-policy.time-interval</h5></td>
+        <td><h5>sink.rolling-policy.rollover-interval</h5></td>
         <td style="word-wrap: break-word;">30 m</td>
         <td>Duration</td>
-        <td>The maximum time duration a part file can stay open before rolling (by default 30 min to avoid to many small files).</td>
+        <td>The maximum time duration a part file can stay open before rolling (by default 30 min to avoid to many small files).
+        The frequency at which this is checked is controlled by the 'sink.rolling-policy.check-interval' option.</td>
+    </tr>
+    <tr>
+        <td><h5>sink.rolling-policy.check-interval</h5></td>
+        <td style="word-wrap: break-word;">1 m</td>
+        <td>Duration</td>
+        <td>The interval for checking time based rolling policies. This controls the frequency to check whether a part file should rollover based on 'sink.rolling-policy.rollover-interval'.</td>
     </tr>
   </tbody>
 </table>
@@ -140,7 +147,7 @@ a timeout that specifies the maximum duration for which a file can be open.
 **NOTE:** For bulk formats (parquet, orc, avro), the rolling policy in combination with the checkpoint interval(pending files
 become finished on the next checkpoint) control the size and number of these parts.
 
-**NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.time-interval` in the connector properties and parameter `execution.checkpointing.interval` in flink-conf.yaml together
+**NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.rollover-interval` in the connector properties and parameter `execution.checkpointing.interval` in flink-conf.yaml together
 if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc), you can just set parameter `execution.checkpointing.interval` in flink-conf.yaml.
 
 ### Partition Commit
