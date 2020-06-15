@@ -263,7 +263,7 @@ To provide a dependency, there are the following options:
 ### Download Maven dependencies locally
 
 If you need to extend the Flink with a Maven dependency (and its transitive dependencies),
-you can use a [Apache Maven](https://maven.apache.org) *pom.xml* file such as to download all required files into a local folder:
+you can use an [Apache Maven](https://maven.apache.org) *pom.xml* file to download all required files into a local folder:
 
 *pom.xml*:
 
@@ -302,4 +302,3 @@ you can use a [Apache Maven](https://maven.apache.org) *pom.xml* file such as to
 
 Running `mvn package` in the same directory will create a `jars/` folder containing all the jar files, 
 which you can add to the desired folder, Docker image etc.
-
