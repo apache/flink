@@ -1,5 +1,5 @@
 ---
-title: "Event Time"
+title: "事件时间"
 nav-id: event_time
 nav-show_overview: true
 nav-parent_id: streaming
@@ -24,23 +24,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In this section you will learn about writing time-aware Flink programs. Please
-take a look at [Timely Stream Processing]({% link
-concepts/timely-stream-processing.md %}) to learn about the concepts behind
-timely stream processing.
+本节你将学到如何写可感知时间变化的 Flink 程序，可以先看看[实时流处理]({% link concepts/timely-stream-processing.zh.md %})了解相关概念。
 
-For information about how to use time in Flink programs refer to
-[windowing]({% link dev/stream/operators/windows.md %}) and
-[ProcessFunction]({% link
-dev/stream/operators/process_function.md %}).
+想了解如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和[处理函数]({% link dev/stream/operators/process_function.zh.md %})。
 
-A prerequisite for using *event time* processing is setting the right *time
-characteristic*. That setting defines how data stream sources behave (for
-example, whether they will assign timestamps), and what notion of time should
-be used by window operations like `KeyedStream.timeWindow(Time.seconds(30))`.
+使用*事件时间*进行流处理的先决条件是设置合适的*时间特性*，该设置定义了数据流的行为方式（例如，是否分配时间戳），以及窗口算子使用哪种时间概念，例如 `KeyedStream.timeWindow(Time.seconds(30))` 。
 
-You can set the time characteristic using
-`StreamExecutionEnvironment.setStreamTimeCharacteristic()`:
+你可以调用 `StreamExecutionEnvironment.setStreamTimeCharacteristic()` 设置时间特性：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -86,22 +76,12 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 </div>
 </div>
 
-Note that in order to run this example in *event time*, the program needs to
-either use sources that directly define event time for the data and emit
-watermarks themselves, or the program must inject a *Timestamp Assigner &
-Watermark Generator* after the sources. Those functions describe how to access
-the event timestamps, and what degree of out-of-orderness the event stream
-exhibits.
+值得注意的是，为了能够使用*事件时间*作为时间特征运行此示例，程序需要使用那些能给数据直接定义事件时间并自己发出水印的源，或者程序必须在收到源发出的事件流之后注入“时间戳分配器和水印生成器”，这些功能描述了访问事件时间戳的方法，以及事件流呈现的乱序程度。
 
-## Where to go next?
+## 接下来看什么?
 
-* [Generating Watermarks]({% link dev/event_timestamps_watermarks.md
-  %}): Shows how to write timestamp assigners and watermark generators, which
-  are needed for event-time aware Flink applications.
-* [Builtin Watermark Generators]({% link dev/event_timestamp_extractors.md %}):
-  Gives an overview of the builtin watermark generators.
-* [Debugging Windows & Event Time]({{ site.baseurl
-  }}/monitoring/debugging_event_time.html): Show how to debug problems around
-  watermarks and timestamps in event-time Flink applications.
+* [生成水印]({% link dev/event_timestamps_watermarks.zh.md %})：描述了在写可感知事件时间的 Flink 应用程序时，如何定义时间戳分配器和水印生成器。
+* [内置水印生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 自带的水印生成器。
+* [调试窗口&事件时间]({{ site.baseurl}}/zh/monitoring/debugging_event_time.html)：描述了在可感知事件时间的 Flink 应用程序里，如何调试水印和时间戳。
 
 {% top %}
