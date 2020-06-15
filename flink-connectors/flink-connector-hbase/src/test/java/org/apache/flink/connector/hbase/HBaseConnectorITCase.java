@@ -410,7 +410,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		tEnv.executeSql(table3DDL);
 
 		String family4 = testTimeAndDecimalTypes ? ", family4 " : "";
-		String query = "INSERT INTO " + TEST_TABLE_3 +
+		String insertStatement = "INSERT INTO " + TEST_TABLE_3 +
 			" SELECT rowkey," +
 			" family1," +
 			" family2," +
@@ -418,13 +418,12 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			family4 +
 			" from " + TEST_TABLE_1;
 		// wait to finish
-		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, query);
+		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insertStatement);
 
 		// start a batch scan job to verify contents in HBase table
 		TableEnvironment batchEnv = createBatchTableEnv();
 		batchEnv.executeSql(table3DDL);
-		Table table = batchEnv.sqlQuery(
-			"SELECT " +
+		String query = "SELECT " +
 				"  h.rowkey, " +
 				"  h.family1.col1, " +
 				"  h.family2.col1, " +
@@ -433,39 +432,42 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"  h.family3.col2, " +
 				"  h.family3.col3 " +
 				timeAndDecimalFields +
-				" FROM " + TEST_TABLE_3 + " AS h"
-		);
-		List<Row> results = collectBatchResult(table);
+				" FROM " + TEST_TABLE_3 + " AS h";
+		Iterator<Row> collected = tEnv.executeSql(query).collect();
+		List<String> result = Lists.newArrayList(collected).stream()
+			.map(Row::toString)
+			.sorted()
+			.collect(Collectors.toList());
+
+		// skip TIMESTAMP/DATE/TIME/DECIMAL fields if testTimeAndDecimalTypes is disabled
 		RecordExtractor extractor = record -> {
 			String[] elements = record.split(",");
 			List<String> res = new ArrayList<>();
-			for (int i = 0; i < elements.length; i++) {
-				// skip TIMESTAMP/DATE/TIME/DECIMAL fields
-				if (!testTimeAndDecimalTypes && i >= 7 && i <= 10) {
-					continue;
-				}
+			int timeAndDecimalTypesLen = 4;
+			int end = testTimeAndDecimalTypes ?  elements.length :  elements.length - timeAndDecimalTypesLen;
+			for (int i = 0; i < end; i++) {
 				res.add(elements[i]);
 			}
-			return res.stream().collect(Collectors.joining(",")) + "\n";
+			return res.stream().collect(Collectors.joining(","));
 		};
-		String expected =
-				extractor.extract("1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18 19:00:00.0,2019-08-18," +
-				"19:00:00,12345678.000100000000000000") +
-				extractor.extract("2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18 19:01:00.0,2019-08-18," +
-					"19:01:00,12345678.000200000000000000") +
-				extractor.extract("3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18 19:02:00.0,2019-08-18," +
-					"19:02:00,12345678.000300000000000000") +
-				extractor.extract("4,40,null,400,4.04,true,Welt-4,2019-08-18 19:03:00.0,2019-08-18," +
-					"19:03:00,12345678.000400000000000000") +
-				extractor.extract("5,50,Hello-5,500,5.05,false,Welt-5,2019-08-19 19:10:00.0,2019-08-19," +
-					"19:10:00,12345678.000500000000000000") +
-				extractor.extract("6,60,Hello-6,600,6.06,true,Welt-6,2019-08-19 19:20:00.0,2019-08-19," +
-					"19:20:00,12345678.000600000000000000") +
-				extractor.extract("7,70,Hello-7,700,7.07,false,Welt-7,2019-08-19 19:30:00.0,2019-08-19," +
-					"19:30:00,12345678.000700000000000000") +
-				extractor.extract("8,80,null,800,8.08,true,Welt-8,2019-08-19 19:40:00.0,2019-08-19," +
-					"19:40:00,12345678.000800000000000000");
-		TestBaseUtils.compareResultAsText(results, expected);
+		List<String> expected = new ArrayList<>();
+		expected.add(extractor.extract("1,10,Hello-1,100,1.01,false,Welt-1," +
+			"2019-08-18T19:00,2019-08-18,19:00,12345678.0001"));
+		expected.add(extractor.extract("2,20,Hello-2,200,2.02,true,Welt-2," +
+			"2019-08-18T19:01,2019-08-18,19:01,12345678.0002"));
+		expected.add(extractor.extract("3,30,Hello-3,300,3.03,false,Welt-3," +
+			"2019-08-18T19:02,2019-08-18,19:02,12345678.0003"));
+		expected.add(extractor.extract("4,40,null,400,4.04,true,Welt-4," +
+			"2019-08-18T19:03,2019-08-18,19:03,12345678.0004"));
+		expected.add(extractor.extract("5,50,Hello-5,500,5.05,false,Welt-5," +
+			"2019-08-19T19:10,2019-08-19,19:10,12345678.0005"));
+		expected.add(extractor.extract("6,60,Hello-6,600,6.06,true,Welt-6," +
+			"2019-08-19T19:20,2019-08-19,19:20,12345678.0006"));
+		expected.add(extractor.extract("7,70,Hello-7,700,7.07,false,Welt-7," +
+			"2019-08-19T19:30,2019-08-19,19:30,12345678.0007"));
+		expected.add(extractor.extract("8,80,null,800,8.08,true,Welt-8," +
+			"2019-08-19T19:40,2019-08-19,19:40,12345678.0008"));
+		assertEquals(expected, result);
 	}
 
 	@Test
@@ -534,26 +536,26 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			.collect(Collectors.toList());
 
 		List<String> expected = new ArrayList<>();
+
+		// skip TIMESTAMP/DATE/TIME/DECIMAL fields if testTimeAndDecimalTypes is disabled
 		RecordExtractor extractor = record -> {
 			String[] elements = record.split(",");
 			List<String> res = new ArrayList<>();
-			for (int i = 0; i < elements.length; i++) {
-				// skip TIMESTAMP/DATE/TIME/DECIMAL fields
-				if (!testTimeAndDecimalTypes && i >= 8 && i <= 11) {
-					continue;
-				}
+			int timeAndDecimalTypesLen = 4;
+			int end = testTimeAndDecimalTypes ?  elements.length :  elements.length - timeAndDecimalTypesLen;
+			for (int i = 0; i < end; i++) {
 				res.add(elements[i]);
 			}
 			return res.stream().collect(Collectors.joining(","));
 		};
-		expected.add(extractor.extract("1,1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18," +
-			"19:00,12345678.0001"));
-		expected.add(extractor.extract("2,2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18," +
-			"19:01,12345678.0002"));
-		expected.add(extractor.extract("3,2,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18," +
-			"19:02,12345678.0003"));
-		expected.add(extractor.extract("3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18," +
-			"19:02,12345678.0003"));
+		expected.add(extractor.extract("1,1,10,Hello-1,100,1.01,false,Welt-1," +
+			"2019-08-18T19:00,2019-08-18,19:00,12345678.0001"));
+		expected.add(extractor.extract("2,2,20,Hello-2,200,2.02,true,Welt-2," +
+			"2019-08-18T19:01,2019-08-18,19:01,12345678.0002"));
+		expected.add(extractor.extract("3,2,30,Hello-3,300,3.03,false,Welt-3," +
+			"2019-08-18T19:02,2019-08-18,19:02,12345678.0003"));
+		expected.add(extractor.extract("3,3,30,Hello-3,300,3.03,false,Welt-3," +
+			"2019-08-18T19:02,2019-08-18,19:02,12345678.0003"));
 
 		assertEquals(expected, result);
 	}
