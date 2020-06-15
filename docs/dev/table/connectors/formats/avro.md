@@ -38,7 +38,8 @@ In order to setup the Avro format, the following table provides dependency infor
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL Client JAR" markdown="1">
-Avro format is part of the binary distribution, but requires additional [Hadoop dependency]({% link ops/deployment/hadoop.md %}) for cluster execution.
+You can download flink-avro from [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar),
+and requires additional [Hadoop dependency]({% link ops/deployment/hadoop.md %}) for cluster execution.
 </div>
 <div data-lang="Maven dependency" markdown="1">
 {% highlight xml %}

@@ -142,7 +142,6 @@ start_taskmanagers 2
 
 echo "Testing SQL statements..."
 
-JSON_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "json" )
 KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
 ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH_VERSION" )
 
@@ -224,7 +223,6 @@ EOF
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
@@ -253,7 +251,6 @@ EOF
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
@@ -286,7 +283,6 @@ EOF
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
