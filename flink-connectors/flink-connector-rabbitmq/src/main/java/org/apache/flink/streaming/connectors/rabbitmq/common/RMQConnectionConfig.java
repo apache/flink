@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq.common;
 
+import org.apache.flink.streaming.connectors.rabbitmq.RMQSource;
 import org.apache.flink.util.Preconditions;
 
 import com.rabbitmq.client.ConnectionFactory;
@@ -27,14 +28,15 @@ import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 
 /**
  * Connection Configuration for RMQ.
  * If {@link Builder#setUri(String)} has been set then {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer,
- * Boolean, Boolean, Integer, Integer, Integer, Integer)}
+ * Boolean, Boolean, Integer, Integer, Integer, Integer, Integer)}
  * will be used for initialize the RMQ connection or
  * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, String, String, String, Integer, Boolean,
- * Boolean, Integer, Integer, Integer, Integer)}
+ * Boolean, Integer, Integer, Integer, Integer, Integer)}
  * will be used for initialize the RMQ connection
  */
 public class RMQConnectionConfig implements Serializable {
@@ -59,6 +61,8 @@ public class RMQConnectionConfig implements Serializable {
 	private Integer requestedFrameMax;
 	private Integer requestedHeartbeat;
 
+	private Integer prefetchCount;
+
 	/**
 	*
 	* @param host host name
@@ -78,7 +82,8 @@ public class RMQConnectionConfig implements Serializable {
 	private RMQConnectionConfig(String host, Integer port, String virtualHost, String username, String password,
 								Integer networkRecoveryInterval, Boolean automaticRecovery,
 								Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
-								Integer requestedFrameMax, Integer requestedHeartbeat){
+								Integer requestedFrameMax, Integer requestedHeartbeat,
+								Integer prefetchCount){
 		Preconditions.checkNotNull(host, "host can not be null");
 		Preconditions.checkNotNull(port, "port can not be null");
 		Preconditions.checkNotNull(virtualHost, "virtualHost can not be null");
@@ -97,6 +102,7 @@ public class RMQConnectionConfig implements Serializable {
 		this.requestedChannelMax = requestedChannelMax;
 		this.requestedFrameMax = requestedFrameMax;
 		this.requestedHeartbeat = requestedHeartbeat;
+		this.prefetchCount = prefetchCount;
 	}
 
 	/**
@@ -113,7 +119,7 @@ public class RMQConnectionConfig implements Serializable {
 	*/
 	private RMQConnectionConfig(String uri, Integer networkRecoveryInterval, Boolean automaticRecovery,
 								Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
-								Integer requestedFrameMax, Integer requestedHeartbeat){
+								Integer requestedFrameMax, Integer requestedHeartbeat, Integer prefetchCount){
 		Preconditions.checkNotNull(uri, "Uri can not be null");
 		this.uri = uri;
 
@@ -124,6 +130,7 @@ public class RMQConnectionConfig implements Serializable {
 		this.requestedChannelMax = requestedChannelMax;
 		this.requestedFrameMax = requestedFrameMax;
 		this.requestedHeartbeat = requestedHeartbeat;
+		this.prefetchCount = prefetchCount;
 	}
 
 	/** @return the host to use for connections */
@@ -225,6 +232,14 @@ public class RMQConnectionConfig implements Serializable {
 	}
 
 	/**
+	 * Retrieve the the channel prefetch count.
+	 * @return an Optional of the prefetch count, if set, for the consumer channel
+	 */
+	public Optional<Integer> getPrefetchCount() {
+		return Optional.ofNullable(prefetchCount);
+	}
+
+	/**
 	 *
 	 * @return Connection Factory for RMQ
 	 * @throws URISyntaxException if Malformed URI has been passed
@@ -301,6 +316,9 @@ public class RMQConnectionConfig implements Serializable {
 		private Integer requestedChannelMax;
 		private Integer requestedFrameMax;
 		private Integer requestedHeartbeat;
+
+		// basicQos options for consumers
+		private Integer prefetchCount;
 
 		private String uri;
 
@@ -435,25 +453,40 @@ public class RMQConnectionConfig implements Serializable {
 		}
 
 		/**
+		 * Enables setting basicQos for the consumer channel. Only applicable to the {@link RMQSource}. Set to 0
+		 * for unlimited, which is the default.
+		 *
+		 * @see <a href="https://www.rabbitmq.com/consumer-prefetch.html">Consumer Prefetch</a>
+		 * @see <a href="https://www.rabbitmq.com/confirms.html#channel-qos-prefetch">Channel Prefetch (QoS)</a>
+		 * @param prefetchCount the max number of messages to receive without acknowledgement.
+		 * @return the Builder
+		 */
+		public Builder setPrefetchCount(int prefetchCount) {
+			this.prefetchCount = prefetchCount;
+			return this;
+		}
+
+		/**
 		 * The Builder method.
 		 *
 		 * <p>If URI is NULL we use host, port, vHost, username, password combination
 		 * to initialize connection. using  {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, String, String, String,
-		 * Integer, Boolean, Boolean, Integer, Integer, Integer, Integer)}.
+		 * Integer, Boolean, Boolean, Integer, Integer, Integer, Integer, Integer)}.
 		 *
 		 * <p>Otherwise the URI will be used to initialize the client connection
-		 * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, Boolean, Boolean, Integer, Integer, Integer, Integer)}
+		 * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, Boolean, Boolean, Integer, Integer, Integer, Integer, Integer)}
 		 * @return RMQConnectionConfig
 		 */
 		public RMQConnectionConfig build(){
 			if (this.uri != null) {
 				return new RMQConnectionConfig(this.uri, this.networkRecoveryInterval,
 					this.automaticRecovery, this.topologyRecovery, this.connectionTimeout, this.requestedChannelMax,
-					this.requestedFrameMax, this.requestedHeartbeat);
+					this.requestedFrameMax, this.requestedHeartbeat, this.prefetchCount);
 			} else {
 				return new RMQConnectionConfig(this.host, this.port, this.virtualHost, this.username, this.password,
 					this.networkRecoveryInterval, this.automaticRecovery, this.topologyRecovery,
-					this.connectionTimeout, this.requestedChannelMax, this.requestedFrameMax, this.requestedHeartbeat);
+					this.connectionTimeout, this.requestedChannelMax, this.requestedFrameMax, this.requestedHeartbeat,
+					this.prefetchCount);
 			}
 		}
 	}
