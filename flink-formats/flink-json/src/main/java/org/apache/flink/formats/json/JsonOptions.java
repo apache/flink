@@ -47,10 +47,10 @@ public class JsonOptions {
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = ConfigOptions
 			.key("timestamp-format")
 			.stringType()
-			.defaultValue("ISO-8601")
-			.withDescription("Optional flag to specify timestamp format, ISO-8601 by default." +
-				" Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" and output timestamp in the same way" +
-				" Option SQL will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" and output timestamp in the same way");
+			.defaultValue("SQL")
+			.withDescription("Optional flag to specify timestamp format, SQL by default." +
+				" Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same way." +
+				" Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same way.");
 
 	public static final String SQL = "SQL";
 	public static final String ISO_8601 = "ISO-8601";

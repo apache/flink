@@ -98,9 +98,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	/** Options for timestamp format. */
 	private TimeFormatOptions timestampFormatOption;
 
-	/** Options for time format. */
-	private TimeFormatOptions timeFormatOption;
-
 	public JsonRowDataDeserializationSchema(
 			RowType rowType,
 			TypeInformation<RowData> resultTypeInfo,
@@ -115,7 +112,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		this.failOnMissingField = failOnMissingField;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.runtimeConverter = createRowConverter(checkNotNull(rowType));
-		this.timeFormatOption = timeFormatOption;
 		this.timestampFormatOption = timestampFormatOption;
 	}
 
@@ -204,7 +200,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 				return this::convertToDate;
 			case TIME_WITHOUT_TIME_ZONE:
 				return this::convertToTime;
-			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return this::convertToTimestamp;
 			case FLOAT:

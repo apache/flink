@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 
 /**
- * Time formats respecting the RFC3339 specification.
+ * Time formats and timestamp formats respecting the RFC3339 specification, ISO-8601 specification and SQL specification.
  */
 class TimeFormats {
 

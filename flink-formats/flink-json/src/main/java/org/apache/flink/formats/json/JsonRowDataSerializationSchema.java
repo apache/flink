@@ -169,7 +169,6 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 				return createDateConverter();
 			case TIME_WITHOUT_TIME_ZONE:
 				return createTimeConverter();
-			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return createTimestampConverter();
 			case DECIMAL:

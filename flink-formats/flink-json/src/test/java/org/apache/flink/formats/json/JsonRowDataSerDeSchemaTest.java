@@ -483,6 +483,18 @@ public class JsonRowDataSerDeSchemaTest {
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
 
 		TestSpec
+			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
+			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
+			.timestampFormat("SQL")
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
+			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
+			.timestampFormat("ISO-8601")
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
+
+		TestSpec
 			.json("{\"id\":\"abc\"}")
 			.rowType(ROW(FIELD("id", DECIMAL(10, 3))))
 			.timestampFormat("ISO-8601")
