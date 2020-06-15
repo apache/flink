@@ -84,7 +84,7 @@ public class CheckpointFailureManager {
 	private void handleException(CheckpointException exception, long checkpointId, BiConsumer<FailJobCallback, Exception> onFailure) {
 		if (isCheckpointFailure(exception) &&
 				countedCheckpointIds.add(checkpointId) &&
-				continuousFailureCounter.incrementAndGet() > tolerableCpFailureNumber) {
+				continuousFailureCounter.incrementAndGet() == tolerableCpFailureNumber + 1) {
 			clearCount();
 			onFailure.accept(failureCallback, new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
 		}
