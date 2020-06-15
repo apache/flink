@@ -235,9 +235,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			return;
 		}
 
-		// Step (0): Record the last triggered checkpointId.
+		// Step (0): Record the last triggered checkpointId and abort the sync phase of checkpoint if necessary.
 		lastCheckpointId = metadata.getCheckpointId();
 		if (checkAndClearAbortedStatus(metadata.getCheckpointId())) {
+			// broadcast cancel checkpoint marker to avoid downstream back-pressure due to checkpoint barrier align.
+			operatorChain.broadcastEvent(new CancelCheckpointMarker(metadata.getCheckpointId()));
 			LOG.info("Checkpoint {} has been notified as aborted, would not trigger any checkpoint.", metadata.getCheckpointId());
 			return;
 		}
@@ -275,7 +277,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	@Override
 	public void notifyCheckpointComplete(long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) throws Exception {
 		if (isRunning.get()) {
-			LOG.debug("Notification of complete checkpoint for task {}", taskName);
+			LOG.debug("Notification of complete checkpoint {} for task {}", checkpointId, taskName);
 
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
 				operatorWrapper.notifyCheckpointComplete(checkpointId);
@@ -291,7 +293,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 		Exception previousException = null;
 		if (isRunning.get()) {
-			LOG.debug("Notification of aborted checkpoint for task {}", taskName);
+			LOG.debug("Notification of aborted checkpoint {} for task {}", checkpointId, taskName);
 
 			boolean canceled = cancelAsyncCheckpointRunnable(checkpointId);
 
