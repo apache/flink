@@ -587,13 +587,17 @@ public class LocalExecutor implements Executor {
 		// create execution
 		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
 
-		// blocking deployment
-		try {
-			JobClient jobClient = deployer.deploy().get();
-			return ProgramTargetDescriptor.of(jobClient.getJobID());
-		} catch (Exception e) {
-			throw new RuntimeException("Error running SQL job.", e);
-		}
+		// wrap in classloader because CodeGenOperatorFactory#getStreamOperatorClass
+		// requires to access UDF in deployer.deploy().
+		return context.wrapClassLoader(() -> {
+			try {
+				// blocking deployment
+				JobClient jobClient = deployer.deploy().get();
+				return ProgramTargetDescriptor.of(jobClient.getJobID());
+			} catch (Exception e) {
+				throw new RuntimeException("Error running SQL job.", e);
+			}
+		});
 	}
 
 	private <C> ResultDescriptor executeQueryInternal(String sessionId, ExecutionContext<C> context, String query) {
@@ -641,12 +645,16 @@ public class LocalExecutor implements Executor {
 				configuration, jobName, pipeline);
 
 		JobClient jobClient;
-		// blocking deployment
-		try {
-			jobClient = deployer.deploy().get();
-		} catch (Exception e) {
-			throw new SqlExecutionException("Error while submitting job.", e);
-		}
+		// wrap in classloader because CodeGenOperatorFactory#getStreamOperatorClass
+		// requires to access UDF in deployer.deploy().
+		jobClient = context.wrapClassLoader(() -> {
+			try {
+				// blocking deployment
+				return deployer.deploy().get();
+			} catch (Exception e) {
+				throw new SqlExecutionException("Error while submitting job.", e);
+			}
+		});
 
 		String jobId = jobClient.getJobID().toString();
 		// store the result under the JobID
