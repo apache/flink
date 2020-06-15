@@ -1176,7 +1176,7 @@ using the `@DataTypeHint` [annotations](#data-type-annotations).
 - Fields that are declared `static` or `transient` are ignored.
 
 The reflective extraction supports arbitrary nesting of fields as long as a field type does not
-(transitively) uses itself.
+(transitively) refer to itself.
 
 The declared field class (e.g. `public int age;`) must be contained in the list of supported JVM
 bridging classes defined for every data type in this document (e.g. `java.lang.Integer` or `int` for `INT`).
@@ -1299,7 +1299,7 @@ The type can be declared using `RAW('class', 'snapshot')` where `class` is the o
 declared directly but is generated while persisting the type.
 
 In the API, the `RAW` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
-by passing `Class` and let the framework extract `Class` + `TypeSerializer` from there.
+by passing `Class` and letting the framework extract `Class` + `TypeSerializer` from there.
 
 **Bridging to JVM Types**
 
@@ -1349,9 +1349,10 @@ DataTypes.NULL()
 Data Type Annotations
 ---------------------
 
-Extracting a data type reflectively is not always successful because logical information might be missing. Therefore,
-it might be necessary to add additional information close to a class or field declaration for supporting the
-extraction logic.
+At many locations in the API, Flink tries to automatically extract data type from class information using
+reflection to avoid repetitive manual schema work. However, extracting a data type reflectively is not always
+successful because logical information might be missing. Therefore, it might be necessary to add additional
+information close to a class or field declaration for supporting the extraction logic.
 
 The following table lists classes that can be implicitly mapped to a data type without requiring further information:
 
@@ -1404,7 +1405,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
 
 class User {
 
-    // defines an INT data type with a default conversion class
+    // defines an INT data type with a default conversion class `java.lang.Integer`
     public @DataTypeHint("INT") Object o;
 
     // defines a TIMESTAMP data type of millisecond precision with an explicit conversion class
@@ -1430,7 +1431,7 @@ import org.apache.flink.table.annotation.DataTypeHint
 
 class User {
 
-    // defines an INT data type with a default conversion class
+    // defines an INT data type with a default conversion class `java.lang.Integer`
     @DataTypeHint("INT")
     var o: AnyRef
 
