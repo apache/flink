@@ -31,7 +31,8 @@ import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryOutputFormatTableSink
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -44,11 +45,15 @@ class TableSinkITCase(
     configMode: TableConfigMode)
   extends TableProgramsCollectionTestBase(configMode) {
 
+  val _tempFolder = new TemporaryFolder
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
+
   @Test
   def testBatchTableSink(): Unit = {
 
-    val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
-    tmpFile.deleteOnExit()
+    val tmpFile = tempFolder.newFolder("flink-table-sink-test")
     val path = tmpFile.toURI.toString
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -63,7 +68,7 @@ class TableSinkITCase(
     val input = CollectionDataSets.get3TupleDataSet(env)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    val results = input.toTable(tEnv, 'a, 'b, 'c)
+    input.toTable(tEnv, 'a, 'b, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
       .insertInto("testSink")

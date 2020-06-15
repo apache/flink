@@ -240,7 +240,7 @@ class TableEnvironmentITCase(
     assertEquals("", Source.fromFile(resultFile).mkString)
 
     env.execute("job")
-    val expected2 = "8,24.953750000000003\n"
+    val expected2 = "8,24.95375\n"
     val actual = Source.fromFile(resultFile).mkString
     assertEquals(expected2, actual)
     // does not trigger the table program execution again
