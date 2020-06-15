@@ -91,6 +91,16 @@ public class JsonFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(tableOptions);
 	}
 
+	@Test
+	public void testInvalidOptionForTimestampFormat() {
+		final Map<String, String> tableOptions = getModifyOptions(
+			options -> options.put("json.timestamp-format", "test"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value test for timestamp-format. Supported values are [SQL, ISO-8601].")));
+		testSchemaDeserializationSchema(tableOptions);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -101,7 +111,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 						ROW_TYPE,
 						new RowDataTypeInfo(ROW_TYPE),
 						false,
-						true);
+						true,
+						JsonOptions.getTimestampFormatOption("ISO-8601"));
 
 		final DynamicTableSource actualSource = createTableSource(options);
 		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
@@ -117,7 +128,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 	}
 
 	private void testSchemaSerializationSchema(Map<String, String> options) {
-		final JsonRowDataSerializationSchema expectedSer = new JsonRowDataSerializationSchema(ROW_TYPE);
+		final JsonRowDataSerializationSchema expectedSer = new JsonRowDataSerializationSchema(ROW_TYPE,
+			JsonOptions.getTimestampFormatOption("ISO-8601"));
 
 		final DynamicTableSink actualSink = createTableSink(options);
 		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
@@ -152,6 +164,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 		options.put("format", JsonFormatFactory.IDENTIFIER);
 		options.put("json.fail-on-missing-field", "false");
 		options.put("json.ignore-parse-errors", "true");
+		options.put("json.timestamp-format", "ISO-8601");
 		return options;
 	}
 

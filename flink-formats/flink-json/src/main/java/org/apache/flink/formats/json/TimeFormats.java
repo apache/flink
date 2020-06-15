@@ -31,7 +31,7 @@ class TimeFormats {
 	static final DateTimeFormatter RFC3339_TIME_FORMAT = new DateTimeFormatterBuilder()
 		.appendPattern("HH:mm:ss")
 		.appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-		.appendPattern("Z") // -0.00 means
+		.appendPattern("X")
 		.toFormatter();
 
 	/** Formatter for RFC 3339-compliant string representation of a timestamp value (with UTC timezone). */
@@ -42,10 +42,10 @@ class TimeFormats {
 		.toFormatter();
 
 	/** Formatter for ISO8601 string representation of a time value.*/
-	static final DateTimeFormatter ISO8601_TIME_FORMAT = DateTimeFormatter.ISO_TIME;
+	static final DateTimeFormatter ISO8601_TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_TIME;
 
-	/** Formatter for ISO8601 string representation of a timestamp value (with UTC timezone). */
-	static final DateTimeFormatter ISO8601_TIMESTAMP_FORMAT = DateTimeFormatter.ISO_INSTANT;
+	/** Formatter for ISO8601 string representation of a timestamp value (without UTC timezone). */
+	static final DateTimeFormatter ISO8601_TIMESTAMP_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
 	/** Formatter for SQL string representation of a time value. */
 	static final DateTimeFormatter SQL_TIME_FORMAT = new DateTimeFormatterBuilder()
@@ -53,7 +53,7 @@ class TimeFormats {
 		.appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
 		.toFormatter();
 
-	/** Formatter for SQL string representation of a timestamp value. */
+	/** Formatter for SQL string representation of a timestamp value (without UTC timezone). */
 	static final DateTimeFormatter SQL_TIMESTAMP_FORMAT = new DateTimeFormatterBuilder()
 		.append(DateTimeFormatter.ISO_LOCAL_DATE)
 		.appendLiteral(' ')

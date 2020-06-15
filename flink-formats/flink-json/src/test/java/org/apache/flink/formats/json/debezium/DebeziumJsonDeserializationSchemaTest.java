@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.debezium;
 
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -75,7 +76,8 @@ public class DebeziumJsonDeserializationSchemaTest {
 			SCHEMA,
 			new RowDataTypeInfo(SCHEMA),
 			schemaInclude,
-			false);
+			false,
+			JsonOptions.getTimestampFormatOption("ISO-8601"));
 
 		SimpleCollector collector = new SimpleCollector();
 		for (String line : lines) {

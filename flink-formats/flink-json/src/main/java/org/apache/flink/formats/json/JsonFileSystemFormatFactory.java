@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.formats.json.JsonFormatFactory.validateFormatOptions;
 import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.json.JsonOptions.TIMESTAMP_FORMAT;
 
 /**
  * Factory to build reader/writer to read/write json format file.
@@ -79,13 +80,15 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		validateFormatOptions(options);
 		boolean failOnMissingField = options.get(FAIL_ON_MISSING_FIELD);
 		boolean ignoreParseErrors = options.get(IGNORE_PARSE_ERRORS);
+		TimeFormatOptions timestampOption = JsonOptions.getTimestampFormatOption(options.get(TIMESTAMP_FORMAT));
 
 		RowType formatRowType = context.getFormatRowType();
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			formatRowType,
 			new GenericTypeInfo(GenericRowData.class),
 			failOnMissingField,
-			ignoreParseErrors);
+			ignoreParseErrors,
+			timestampOption);
 
 		String[] fieldNames = context.getSchema().getFieldNames();
 		List<String> projectFields = Arrays.stream(context.getProjectFields())
@@ -117,7 +120,8 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(context.getFormatRowType())));
+		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(context.getFormatRowType(),
+			JsonOptions.getTimestampFormatOption(context.getFormatOptions().get(TIMESTAMP_FORMAT)))));
 	}
 
 	@Override

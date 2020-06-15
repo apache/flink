@@ -20,6 +20,7 @@ package org.apache.flink.formats.json;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
@@ -46,7 +47,9 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.*;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
 
 /**
  * Serialization schema that serializes an object of Flink internal data structure into a JSON bytes.
@@ -73,12 +76,12 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	private transient ObjectNode node;
 
 	/** Option for timestamp format. */
-	private final TimeFormatOptions timestampFormatOption;
+	private TimeFormatOptions timestampFormatOption;
 
 	public JsonRowDataSerializationSchema(RowType rowType, TimeFormatOptions timestampFormatOption) {
 		this.rowType = rowType;
-		this.runtimeConverter = createConverter(rowType);
 		this.timestampFormatOption = timestampFormatOption;
+		this.runtimeConverter = createConverter(rowType);
 	}
 
 	@Override
@@ -203,16 +206,14 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 		return (mapper, reuse, value) -> {
 			int millisecond = (int) value;
 			LocalTime time = LocalTime.ofSecondOfDay(millisecond / 1000L);
-			return mapper.getNodeFactory().textNode(RFC3339_TIME_FORMAT.format(time));
+			//return mapper.getNodeFactory().textNode(RFC3339_TIME_FORMAT.format(time));
+			return mapper.getNodeFactory().textNode(ISO8601_TIME_FORMAT.format(time));
 		};
 	}
 
 	private SerializationRuntimeConverter createTimestampConverter() {
 		DateTimeFormatter formatter;
 		switch (timestampFormatOption){
-			//case RFC_3339:
-			//	formatter = RFC3339_TIMESTAMP_FORMAT;
-			//	break;
 			case ISO_8601:
 				formatter = ISO8601_TIMESTAMP_FORMAT;
 				break;
@@ -220,7 +221,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 				formatter = SQL_TIMESTAMP_FORMAT;
 				break;
 			default:
-				formatter = RFC3339_TIMESTAMP_FORMAT;
+				throw new TableException("Unsupported timestamp format. Validator should have checked that.");
 		}
 		return (mapper, reuse, value) -> {
 			TimestampData timestamp = (TimestampData) value;

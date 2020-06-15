@@ -20,6 +20,7 @@ package org.apache.flink.formats.json.canal;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -65,7 +66,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		final CanalJsonDeserializationSchema expectedDeser = new CanalJsonDeserializationSchema(
 			ROW_TYPE,
 			new RowDataTypeInfo(ROW_TYPE),
-			true);
+			true,
+			JsonOptions.getTimestampFormatOption("ISO-8601"));
 
 		final Map<String, String> options = getAllOptions();
 

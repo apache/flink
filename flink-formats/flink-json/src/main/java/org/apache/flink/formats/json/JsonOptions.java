@@ -20,8 +20,7 @@ package org.apache.flink.formats.json;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.TableException;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -49,13 +48,9 @@ public class JsonOptions {
 			.key("timestamp-format")
 			.stringType()
 			.defaultValue("ISO-8601")
-			.withDescription("Optional flag to specify timestamp format, RFC-3339 by default");
-
-//	public static final ConfigOption<String> TIME_FORMAT = ConfigOptions
-//			.key("time-format")
-//			.stringType()
-//			.defaultValue("RFC-3339")
-//			.withDescription("Optional flag to specify time format, RFC-3339 by default");
+			.withDescription("Optional flag to specify timestamp format, ISO-8601 by default." +
+				" Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" and output timestamp in the same way" +
+				" Option SQL will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" and output timestamp in the same way");
 
 	public static final String SQL = "SQL";
 	public static final String ISO_8601 = "ISO-8601";
@@ -63,19 +58,14 @@ public class JsonOptions {
 		SQL,
 		ISO_8601
 	));
-	private static void validateTimestampOptions(ReadableConfig tableOptions){
-		tableOptions.getOptional(TIMESTAMP_FORMAT)
-			.map(String::toLowerCase)
-			.isPresent(mode -> {
-				if (!TIMESTAMP_FORMAT_ENUM.contains(mode)) {
-					throw new ValidationException(
-						String.format("Invalid value for option '%s'. Supported values are %s, but was: %s",
-							TIMESTAMP_FORMAT.key(),
-							"[SQL, ISO-8601]",
-							mode
-						);
-				}
-			});
-	}
 
+	public static TimeFormatOptions getTimestampFormatOption(String timestampFormat){
+		switch (timestampFormat){
+			case SQL:
+				return TimeFormatOptions.SQL;
+			case ISO_8601:
+				return TimeFormatOptions.ISO_8601;
+		}
+		throw new TableException("Unsupported timestamp format. Validator should have checked that.");
+	}
 }
