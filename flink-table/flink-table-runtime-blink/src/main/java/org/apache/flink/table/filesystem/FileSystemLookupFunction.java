@@ -37,6 +37,9 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -53,6 +56,8 @@ import java.util.stream.IntStream;
 public class FileSystemLookupFunction<T extends InputSplit> extends TableFunction<RowData> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(FileSystemLookupFunction.class);
 
 	private final InputFormat<RowData, T> inputFormat;
 	// names and types of the records returned by the input format
@@ -133,14 +138,21 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 		if (nextLoadTime > System.currentTimeMillis()) {
 			return;
 		}
+		if (nextLoadTime > 0) {
+			LOG.info("Lookup join cache has expired after {} minute(s), reloading", getCacheTTL().toMinutes());
+		} else {
+			LOG.info("Populating lookup join cache");
+		}
 		cache.clear();
 		try {
 			T[] inputSplits = inputFormat.createInputSplits(1);
 			GenericRowData reuse = new GenericRowData(producedNames.length);
+			long count = 0;
 			for (T split : inputSplits) {
 				inputFormat.open(split);
 				while (!inputFormat.reachedEnd()) {
 					RowData row = inputFormat.nextRecord(reuse);
+					count++;
 					Row key = extractKey(row);
 					List<RowData> rows = cache.computeIfAbsent(key, k -> new ArrayList<>());
 					rows.add(serializer.copy(row));
@@ -148,6 +160,7 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 				inputFormat.close();
 			}
 			nextLoadTime = System.currentTimeMillis() + getCacheTTL().toMillis();
+			LOG.info("Loaded {} row(s) into lookup join cache", count);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to load table into cache", e);
 		}

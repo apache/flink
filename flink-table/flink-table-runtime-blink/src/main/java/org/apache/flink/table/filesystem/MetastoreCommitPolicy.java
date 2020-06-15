@@ -20,6 +20,9 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.table.filesystem.TableMetaStoreFactory.TableMetaStore;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.LinkedHashMap;
 
 /**
@@ -30,6 +33,8 @@ import java.util.LinkedHashMap;
  */
 public class MetastoreCommitPolicy implements PartitionCommitPolicy {
 
+	private static final Logger LOG = LoggerFactory.getLogger(MetastoreCommitPolicy.class);
+
 	private TableMetaStore metaStore;
 
 	public void setMetastore(TableMetaStore metaStore) {
@@ -38,10 +43,8 @@ public class MetastoreCommitPolicy implements PartitionCommitPolicy {
 
 	@Override
 	public void commit(Context context) throws Exception {
-		LinkedHashMap<String, String> partitionSpec = new LinkedHashMap<>();
-		for (int i = 0; i < context.partitionKeys().size(); i++) {
-			partitionSpec.put(context.partitionKeys().get(i), context.partitionValues().get(i));
-		}
+		LinkedHashMap<String, String> partitionSpec = context.partitionSpec();
 		metaStore.createOrAlterPartition(partitionSpec, context.partitionPath());
+		LOG.info("Committed partition {} to metastore", partitionSpec);
 	}
 }

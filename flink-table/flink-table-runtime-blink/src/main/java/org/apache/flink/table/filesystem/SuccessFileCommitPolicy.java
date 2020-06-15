@@ -21,11 +21,16 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Partition commit policy to add success file to directory. Success file is configurable and
  * empty file.
  */
 public class SuccessFileCommitPolicy implements PartitionCommitPolicy {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SuccessFileCommitPolicy.class);
 
 	private final String fileName;
 	private final FileSystem fileSystem;
@@ -40,5 +45,6 @@ public class SuccessFileCommitPolicy implements PartitionCommitPolicy {
 		fileSystem.create(
 				new Path(context.partitionPath(), fileName),
 				FileSystem.WriteMode.OVERWRITE).close();
+		LOG.info("Committed partition {} with success file", context.partitionSpec());
 	}
 }
