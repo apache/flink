@@ -768,8 +768,8 @@ metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
-metrics.reporter.dhhttp.dataCenter: US
-metrics.reporter.dhhttp.maxMetricsPerRequest: 2000
+metrics.reporter.dghttp.dataCenter: US
+metrics.reporter.dghttp.maxMetricsPerRequest: 2000
 
 {% endhighlight %}
 
