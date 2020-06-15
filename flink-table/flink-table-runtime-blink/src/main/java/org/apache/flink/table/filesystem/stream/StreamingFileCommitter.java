@@ -156,6 +156,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 		try (TableMetaStoreFactory.TableMetaStore metaStore = metaStoreFactory.createTableMetaStore()) {
 			for (String partition : partitions) {
 				LinkedHashMap<String, String> partSpec = extractPartitionSpecFromPath(new Path(partition));
+				LOG.info("Partition {} of table {} is ready to be committed", partSpec, tableIdentifier);
 				Path path = new Path(locationPath, generatePartitionPath(partSpec));
 				PartitionCommitPolicy.Context context = new PolicyContext(
 						new ArrayList<>(partSpec.values()), path);

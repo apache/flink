@@ -293,6 +293,8 @@ public class HiveContinuousMonitoringFunction
 				if (timestamp > maxTimestamp) {
 					maxTimestamp = timestamp;
 				}
+				LOG.info("Found new partition {} of table {}, forwarding splits to downstream readers",
+						partSpec, tablePath.getFullName());
 				HiveTableInputSplit[] splits = HiveTableInputFormat.createInputSplits(
 						this.readerParallelism,
 						Collections.singletonList(toHiveTablePartition(partition)),
