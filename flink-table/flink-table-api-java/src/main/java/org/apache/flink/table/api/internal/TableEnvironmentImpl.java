@@ -1009,15 +1009,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof ShowCatalogsOperation) {
-			return buildShowResult(listCatalogs());
+			return buildShowResult("catalog name", listCatalogs());
 		} else if (operation instanceof ShowDatabasesOperation) {
-			return buildShowResult(listDatabases());
+			return buildShowResult("database name", listDatabases());
 		} else if (operation instanceof ShowTablesOperation) {
-			return buildShowResult(listTables());
+			return buildShowResult("table name", listTables());
 		} else if (operation instanceof ShowFunctionsOperation) {
-			return buildShowResult(listFunctions());
+			return buildShowResult("function name", listFunctions());
 		} else if (operation instanceof ShowViewsOperation) {
-			return buildShowResult(listViews());
+			return buildShowResult("view name", listViews());
 		} else if (operation instanceof ExplainOperation) {
 			String explanation = planner.explain(Collections.singletonList(((ExplainOperation) operation).getChild()));
 			return TableResultImpl.builder()
@@ -1044,9 +1044,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		}
 	}
 
-	private TableResult buildShowResult(String[] objects) {
+	private TableResult buildShowResult(String columnName, String[] objects) {
 		return buildResult(
-			new String[]{"result"},
+			new String[]{columnName},
 			new DataType[]{DataTypes.STRING()},
 			Arrays.stream(objects).map((c) -> new String[]{c}).toArray(String[][]::new));
 	}

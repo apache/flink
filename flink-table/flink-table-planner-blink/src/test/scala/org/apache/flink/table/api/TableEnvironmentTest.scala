@@ -337,6 +337,9 @@ class TableEnvironmentTest {
     tableEnv.registerCatalog("my_catalog", new GenericInMemoryCatalog("my_catalog"))
     val tableResult = tableEnv.executeSql("SHOW CATALOGS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("catalog name", DataTypes.STRING()).build(),
+      tableResult.getTableSchema)
     checkData(
       util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
       tableResult.collect())
@@ -348,6 +351,9 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     val tableResult2 = tableEnv.executeSql("SHOW DATABASES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("database name", DataTypes.STRING()).build(),
+      tableResult2.getTableSchema)
     checkData(
       util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
       tableResult2.collect())
@@ -371,6 +377,9 @@ class TableEnvironmentTest {
 
     val tableResult2 = tableEnv.executeSql("SHOW TABLES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("table name", DataTypes.STRING()).build(),
+      tableResult2.getTableSchema)
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
@@ -380,6 +389,9 @@ class TableEnvironmentTest {
   def testExecuteSqlWithShowFunctions(): Unit = {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
+      tableResult.getTableSchema)
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
@@ -780,6 +792,9 @@ class TableEnvironmentTest {
 
     val tableResult3 = tableEnv.executeSql("SHOW VIEWS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("view name", DataTypes.STRING()).build(),
+      tableResult3.getTableSchema)
     checkData(
       util.Arrays.asList(Row.of("view1")).iterator(),
       tableResult3.collect())
