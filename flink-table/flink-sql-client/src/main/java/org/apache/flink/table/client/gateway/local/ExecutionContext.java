@@ -584,7 +584,7 @@ public class ExecutionContext<ClusterID> {
 			ModuleManager moduleManager,
 			FunctionCatalog functionCatalog) {
 		if (environment.getExecution().isStreamingPlanner()) {
-			streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+			streamExecEnv = createStreamExecutionEnvironment();
 			execEnv = null;
 
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
@@ -672,6 +672,16 @@ public class ExecutionContext<ClusterID> {
 		// Switch to the current database.
 		Optional<String> database = environment.getExecution().getCurrentDatabase();
 		database.ifPresent(tableEnv::useDatabase);
+	}
+
+	private StreamExecutionEnvironment createStreamExecutionEnvironment() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// for TimeCharacteristic validation in StreamTableEnvironmentImpl
+		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
+		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
+		}
+		return env;
 	}
 
 	private void registerFunctions() {
