@@ -83,9 +83,10 @@ public class CheckpointFailureManager {
 
 	private void handleException(CheckpointException exception, long checkpointId, BiConsumer<FailJobCallback, Exception> onFailure) {
 		if (isCheckpointFailure(exception) &&
+				!exceededTolerableFailures() && // prevent unnecessary storing checkpointId
 				countedCheckpointIds.add(checkpointId) &&
 				continuousFailureCounter.incrementAndGet() == tolerableCpFailureNumber + 1) {
-			clearCount();
+			countedCheckpointIds.clear();
 			onFailure.accept(failureCallback, new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
 		}
 	}
@@ -130,19 +131,19 @@ public class CheckpointFailureManager {
 		}
 	}
 
+	private boolean exceededTolerableFailures() {
+		return continuousFailureCounter.get() > tolerableCpFailureNumber;
+	}
+
 	/**
 	 * Handle checkpoint success.
 	 *
 	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
 	 *                     checkpoint id sequence.
 	 */
-	public void handleCheckpointSuccess(@SuppressWarnings("unused") long checkpointId) {
-		clearCount();
-	}
-
-	private void clearCount() {
+	public void handleCheckpointSuccess(long checkpointId) {
 		continuousFailureCounter.set(0);
-		countedCheckpointIds.clear();
+		countedCheckpointIds.remove(checkpointId);
 	}
 
 	/**

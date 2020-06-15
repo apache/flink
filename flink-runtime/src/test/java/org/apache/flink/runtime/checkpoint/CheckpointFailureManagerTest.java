@@ -22,12 +22,26 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for the checkpoint failure manager.
  */
 public class CheckpointFailureManagerTest extends TestLogger {
+
+	@Test
+	public void testOnlySucceededCheckpointIdRemoved(){
+		TestFailJobCallback callback = new TestFailJobCallback();
+		CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
+		failureManager.handleJobLevelCheckpointException(new CheckpointException(CHECKPOINT_EXPIRED), 1L); // remember
+		failureManager.handleJobLevelCheckpointException(new CheckpointException(CHECKPOINT_EXPIRED), 2L); // remember
+		failureManager.handleCheckpointSuccess(2L); // reset counter and forget 2L only
+		failureManager.handleJobLevelCheckpointException(new CheckpointException(CHECKPOINT_EXPIRED), 1L); // ignore (seen)
+		failureManager.handleJobLevelCheckpointException(new CheckpointException(CHECKPOINT_EXPIRED), 3L); // remember but don't fail (counter <= 2)
+		failureManager.handleJobLevelCheckpointException(new CheckpointException(CHECKPOINT_EXPIRED), 4L); // remember but don't fail (counter <= 2)
+		assertEquals(0, callback.getInvokeCounter());
+	}
 
 	@Test
 	public void testContinuousFailure() {
@@ -64,7 +78,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 		failureManager.handleCheckpointSuccess(4);
 
 		failureManager.handleJobLevelCheckpointException(
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED), 5);
+			new CheckpointException(CHECKPOINT_EXPIRED), 5);
 		assertEquals(0, callback.getInvokeCounter());
 	}
 
