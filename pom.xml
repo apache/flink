@@ -1476,7 +1476,7 @@ under the License.
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
 						<exclude>flink-runtime/src/test/java/org/apache/flink/runtime/io/network/buffer/AbstractByteBufTest.java</exclude>
 						<!-- Configuration Files. -->
-						<exclude>**/flink-bin/conf/slaves</exclude>
+						<exclude>**/flink-bin/conf/workers</exclude>
 						<exclude>**/flink-bin/conf/masters</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
