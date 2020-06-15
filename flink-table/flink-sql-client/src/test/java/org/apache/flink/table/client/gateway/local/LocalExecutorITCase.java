@@ -47,6 +47,7 @@ import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
+import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -127,9 +128,16 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static ClusterClient<?> clusterClient;
 
+	// a generated UDF jar used for testing classloading of dependencies
+	private static URL udfDependency;
+
 	@BeforeClass
-	public static void setup() {
+	public static void setup() throws IOException {
 		clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
+		File udfJar = TestUserClassLoaderJar.createJarFile(
+			tempFolder.newFolder("test-jar"),
+			"test-classloader-udf.jar");
+		udfDependency = udfJar.toURI().toURL();
 	}
 
 	private static Configuration getConfig() {
@@ -835,14 +843,16 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		try {
+			executor.executeSql(sessionId, "CREATE FUNCTION LowerUDF AS 'LowerUDF'");
 			// Case 1: Registered sink
 			// Case 1.1: Registered sink with uppercase insert into keyword.
+			// FLINK-18302: wrong classloader when INSERT INTO with UDF
 			final String statement1 = "INSERT INTO TableSourceSink SELECT IntegerField1 = 42," +
-					" StringField1, TimestampField1 FROM TableNumber1";
+					" LowerUDF(StringField1), TimestampField1 FROM TableNumber1";
 			executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
 			// Case 1.2: Registered sink with lowercase insert into keyword.
 			final String statement2 = "insert Into TableSourceSink \n "
-					+ "SELECT IntegerField1 = 42, StringField1, TimestampField1 "
+					+ "SELECT IntegerField1 = 42, LowerUDF(StringField1), TimestampField1 "
 					+ "FROM TableNumber1";
 			executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 			// Case 1.3: Execute the same statement again, the results should expect to be the same.
@@ -1375,12 +1385,12 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> actualResults = new ArrayList<>();
 		TestBaseUtils.readAllResultLines(actualResults, path);
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("true,Hello World,2020-01-01 00:00:01.0");
-		expectedResults.add("false,Hello World,2020-01-01 00:00:02.0");
-		expectedResults.add("false,Hello World,2020-01-01 00:00:03.0");
-		expectedResults.add("false,Hello World,2020-01-01 00:00:04.0");
-		expectedResults.add("true,Hello World,2020-01-01 00:00:05.0");
-		expectedResults.add("false,Hello World!!!!,2020-01-01 00:00:06.0");
+		expectedResults.add("true,hello world,2020-01-01 00:00:01.0");
+		expectedResults.add("false,hello world,2020-01-01 00:00:02.0");
+		expectedResults.add("false,hello world,2020-01-01 00:00:03.0");
+		expectedResults.add("false,hello world,2020-01-01 00:00:04.0");
+		expectedResults.add("true,hello world,2020-01-01 00:00:05.0");
+		expectedResults.add("false,hello world!!!!,2020-01-01 00:00:06.0");
 		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 	}
 
@@ -1431,7 +1441,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		return new LocalExecutor(
 				EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
-				Collections.emptyList(),
+				Collections.singletonList(udfDependency),
 				clusterClient.getFlinkConfiguration(),
 				new DefaultCLI(clusterClient.getFlinkConfiguration()),
 				new DefaultClusterClientServiceLoader());
