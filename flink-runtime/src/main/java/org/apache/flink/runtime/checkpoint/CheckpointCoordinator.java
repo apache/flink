@@ -77,6 +77,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import static java.util.Arrays.asList;
 import static java.util.Optional.of;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -540,7 +541,7 @@ public class CheckpointCoordinator {
 							timer);
 
 			FutureUtils.assertNoException(
-				CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
+				FutureUtils.waitForAll(asList(masterStatesComplete, coordinatorCheckpointsComplete))
 					.handleAsync(
 						(ignored, throwable) -> {
 							final PendingCheckpoint checkpoint =
