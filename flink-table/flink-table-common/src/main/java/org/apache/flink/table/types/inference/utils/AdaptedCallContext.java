@@ -23,12 +23,15 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 
 /**
  * Helper context that deals with adapted arguments.
@@ -104,6 +107,8 @@ public final class AdaptedCallContext implements CallContext {
 	}
 
 	private boolean isCasted(int pos) {
-		return !originalContext.getArgumentDataTypes().get(pos).equals(expectedArguments.get(pos));
+		final LogicalType originalType = originalContext.getArgumentDataTypes().get(pos).getLogicalType();
+		final LogicalType expectedType = expectedArguments.get(pos).getLogicalType();
+		return !supportsAvoidingCast(originalType, expectedType);
 	}
 }
