@@ -1,8 +1,8 @@
 ---
-title: "Parquet Format"
-nav-title: Parquet
+title: "Orc Format"
+nav-title: Orc
 nav-parent_id: sql-formats
-nav-pos: 5
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,22 +29,22 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The [Apache Parquet](https://parquet.apache.org/) format allows to read and write Parquet data.
+The [Apache Orc](https://orc.apache.org/) format allows to read and write Orc data.
 
 Dependencies
 ------------
 
-In order to setup the Parquet format, the following table provides dependency information for both
+In order to setup the Orc format, the following table provides dependency information for both
 projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
 | Maven dependency   | SQL Client JAR         |
 | :----------------- | :----------------------|
-| flink-parquet{{site.scala_version_suffix}}  |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-sql-parquet{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
+| flink-orc{{site.scala_version_suffix}}        |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc{{site.scala_version_suffix}}/{{site.version}}/flink-sql-orc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
 
-How to create a table with Parquet format
+How to create a table with Orc format
 ----------------
 
-Here is an example to create a table using Filesystem connector and Parquet format.
+Here is an example to create a table using Filesystem connector and Orc format.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -59,7 +59,7 @@ CREATE TABLE user_behavior (
 ) PARTITIONED BY (dt) WITH (
  'connector' = 'filesystem',
  'path' = '/tmp/user_behavior',
- 'format' = 'parquet'
+ 'format' = 'orc'
 )
 {% endhighlight %}
 </div>
@@ -84,104 +84,98 @@ Format Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be 'parquet'.</td>
-    </tr>
-    <tr>
-      <td><h5>parquet.utc-timezone</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;">false</td>
-      <td>Boolean</td>
-      <td>Use UTC timezone or local timezone to the conversion between epoch time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x use UTC timezone.</td>
+      <td>Specify what format to use, here should be 'orc'.</td>
     </tr>
     </tbody>
 </table>
 
-Parquet format also supports configuration from [ParquetOutputFormat](https://www.javadoc.io/doc/org.apache.parquet/parquet-hadoop/1.10.0/org/apache/parquet/hadoop/ParquetOutputFormat.html).
-For example, you can configure `parquet.compression=GZIP` to enable gzip compression.
+Orc format also supports table properties from [Table properties](https://orc.apache.org/docs/hive-config.html#table-properties).
+For example, you can configure `orc.compress=SNAPPY` to enable snappy compression.
 
 Data Type Mapping
 ----------------
 
-Currently, Parquet format type mapping is compatible with Apache Hive, but different with Apache Spark:
-
-- Timestamp: mapping timestamp type to int96 whatever the precision is.
-- Decimal: mapping decimal type to fixed length byte array according to the precision.
-
-The following table lists the type mapping from Flink type to Parquet type.
+Orc format type mapping is compatible with Apache Hive.
+The following table lists the type mapping from Flink type to Orc type.
 
 <table class="table table-bordered">
     <thead>
       <tr>
         <th class="text-left">Flink Data Type</th>
-        <th class="text-center">Parquet type</th>
-        <th class="text-center">Parquet logical type</th>
+        <th class="text-center">Orc physical type</th>
+        <th class="text-center">Orc logical type</th>
       </tr>
     </thead>
     <tbody>
     <tr>
-      <td>CHAR / VARCHAR / STRING</td>
-      <td>BINARY</td>
-      <td>UTF8</td>
+      <td>CHAR</td>
+      <td>bytes</td>
+      <td>CHAR</td>
+    </tr>
+    <tr>
+      <td>VARCHAR</td>
+      <td>bytes</td>
+      <td>VARCHAR</td>
+    </tr>
+    <tr>
+      <td>STRING</td>
+      <td>bytes</td>
+      <td>STRING</td>
     </tr>
     <tr>
       <td>BOOLEAN</td>
+      <td>long</td>
       <td>BOOLEAN</td>
-      <td></td>
     </tr>
     <tr>
-      <td>BINARY / VARBINARY</td>
+      <td>BYTES</td>
+      <td>bytes</td>
       <td>BINARY</td>
-      <td></td>
     </tr>
     <tr>
       <td>DECIMAL</td>
-      <td>FIXED_LEN_BYTE_ARRAY</td>
+      <td>decimal</td>
       <td>DECIMAL</td>
     </tr>
     <tr>
       <td>TINYINT</td>
-      <td>INT32</td>
-      <td>INT_8</td>
+      <td>long</td>
+      <td>BYTE</td>
     </tr>
     <tr>
       <td>SMALLINT</td>
-      <td>INT32</td>
-      <td>INT_16</td>
+      <td>long</td>
+      <td>SHORT</td>
     </tr>
     <tr>
       <td>INT</td>
-      <td>INT32</td>
-      <td></td>
+      <td>long</td>
+      <td>INT</td>
     </tr>
     <tr>
       <td>BIGINT</td>
-      <td>INT64</td>
-      <td></td>
+      <td>long</td>
+      <td>LONG</td>
     </tr>
     <tr>
       <td>FLOAT</td>
+      <td>double</td>
       <td>FLOAT</td>
-      <td></td>
     </tr>
     <tr>
       <td>DOUBLE</td>
+      <td>double</td>
       <td>DOUBLE</td>
-      <td></td>
     </tr>
     <tr>
       <td>DATE</td>
-      <td>INT32</td>
+      <td>long</td>
       <td>DATE</td>
-    </tr>
-    <tr>
-      <td>TIME</td>
-      <td>INT32</td>
-      <td>TIME_MILLIS</td>
     </tr>
     <tr>
       <td>TIMESTAMP</td>
-      <td>INT96</td>
-      <td></td>
+      <td>timestamp</td>
+      <td>TIMESTAMP</td>
     </tr>
     </tbody>
 </table>

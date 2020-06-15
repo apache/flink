@@ -65,7 +65,7 @@ Flink supports the following formats:
          <td><a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
-         <td>Apache ORC</td>
+         <td><a href="{% link dev/table/connectors/formats/orc.zh.md %}">Apache ORC</a></td>
          <td><a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
     </tbody>
