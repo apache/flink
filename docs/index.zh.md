@@ -1,5 +1,5 @@
 ---
-title: "Apache Flink Documentation"
+title: "Apache Flink 文档"
 nav-pos: 0
 nav-title: '<i class="fa fa-home title" aria-hidden="true"></i> Home'
 nav-parent_id: root
@@ -34,20 +34,20 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 
 如果您有兴趣使用 Flink, 可以试试我们的教程:
 
-* [DataStream API 进行欺诈检测]({% link try-flink/datastream_api.md %})
-* [Table API 构建实时报表]({% link try-flink/table_api.md %})
-* [Python API 教程]({% link try-flink/python_table_api.md %})
-* [Flink 游乐场]({% link try-flink/flink-operations-playground.md %})
+* [DataStream API 进行欺诈检测]({% link try-flink/datastream_api.zh.md %})
+* [Table API 构建实时报表]({% link try-flink/table_api.zh.md %})
+* [Python API 教程]({% link try-flink/python_table_api.zh.md %})
+* [Flink 游乐场]({% link try-flink/flink-operations-playground.zh.md %})
 
 ### 学习 Flink
 
-* [操作培训]({% link learn-flink/index.md %}) 包含了一系列的课程和练习，逐步介绍了，帮助你深入学习 Flink。
+* [操作培训]({% link learn-flink/index.zh.md %}) 包含了一系列的课程和练习，提供了对Flink的逐一介绍。
 
-* [概念透析]({% link concepts/index.md %}) 介绍了在浏览参考文档之前你需要了解的 Flink 知识。
+* [概念透析]({% link concepts/index.zh.md %}) 介绍了在浏览参考文档之前你需要了解的 Flink 知识。
 
 ### 获取 Flink 帮助
 
-如果你被困住了, 可以在 [社区](https://flink.apache.org/community.html)寻求帮助。 值得一提的是，Apache Flink 的用户邮件列表一直是最活跃的 Apache 项目之一，也是一个快速获得帮助的好途径。
+如果你遇到困难了, 可以在 [社区](https://flink.apache.org/zh/community.html)寻求帮助。值得一提的是，Apache Flink 的用户邮件列表一直是 Apache 最活跃的项目之一，也是一个快速获得帮助的好途径。
 
 </div>
 <div class="col-sm-6" markdown="1">
@@ -59,29 +59,29 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 <div class="row">
 <div class="col-sm-6" markdown="1">
 
-* [DataStream API]({% link dev/datastream_api.md %})
-* [Table API &amp; SQL]({% link dev/table/index.md %})
+* [DataStream API]({% link dev/datastream_api.zh.md %})
+* [Table API &amp; SQL]({% link dev/table/index.zh.md %})
 * [状态方法]({% if site.is_stable %} {{ site.statefundocs_stable_baseurl }} {% else %} {{ site.statefundocs_baseurl }} {% endif %})
 
 </div>
 <div class="col-sm-6" markdown="1">
 
-* [配置参数]({% link ops/config.md %})
-* [Rest API]({% link monitoring/rest_api.md %})
-* [CLI]({% link ops/cli.md %})
+* [配置参数]({% link ops/config.zh.md %})
+* [Rest API]({% link monitoring/rest_api.zh.md %})
+* [CLI]({% link ops/cli.zh.md %})
 
 </div>
 </div>
 
 ### 部署 Flink
 
-在线上环境运行你的 Flink 作业之前，请阅读 [生产环境注意事项检查清单]({% link ops/production_ready.md %}). 各种部署环境一览，详见 [集群与部署]({% link ops/deployment/index.md %}). 
+在线上环境运行你的 Flink 作业之前，请阅读 [生产环境注意事项检查清单]({% link ops/production_ready.zh.md %}). 各种部署环境一览，详见 [集群与部署]({% link ops/deployment/index.zh.md %}). 
 
 ### 升级 Flink
 
 release notes 包含了 Flink 版本之间的重大更新。请在你升级 Flink 之前仔细阅读相应的 release notes。
 
-请阅读 release notes [Flink 1.10]({% link release-notes/flink-1.10.md %}), [Flink 1.9]({% link release-notes/flink-1.9.md %}), [Flink 1.8]({% link release-notes/flink-1.8.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.md %}).
+请阅读 release notes [Flink 1.10]({% link release-notes/flink-1.10.zh.md %}), [Flink 1.9]({% link release-notes/flink-1.9.zh.md %}), [Flink 1.8]({% link release-notes/flink-1.8.zh.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.zh.md %}).
 
 </div>
 </div>
