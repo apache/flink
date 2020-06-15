@@ -29,7 +29,6 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -95,8 +94,8 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 	}
 
 	protected abstract void createInputProcessor(
-		Collection<IndexedInputGate> inputGates1,
-		Collection<IndexedInputGate> inputGates2,
+		List<IndexedInputGate> inputGates1,
+		List<IndexedInputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) throws Exception;
 }
