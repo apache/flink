@@ -21,12 +21,15 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CheckpointFailureManager {
 
 	public static final int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
+	private static final Set<CheckpointFailureReason> FAILURE_REASONS = EnumSet.of(CHECKPOINT_DECLINED, CHECKPOINT_EXPIRED);
 
 	private final int tolerableCpFailureNumber;
 	private final FailJobCallback failureCallback;
@@ -87,43 +91,7 @@ public class CheckpointFailureManager {
 	}
 
 	private boolean isCheckpointFailure(CheckpointException exception) {
-		if (tolerableCpFailureNumber == UNLIMITED_TOLERABLE_FAILURE_NUMBER) {
-			return false;
-		}
-
-		switch (exception.getCheckpointFailureReason()) {
-			case PERIODIC_SCHEDULER_SHUTDOWN:
-			case TOO_MANY_CONCURRENT_CHECKPOINTS:
-			case TOO_MANY_CHECKPOINT_REQUESTS:
-			case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
-			case NOT_ALL_REQUIRED_TASKS_RUNNING:
-			case CHECKPOINT_SUBSUMED:
-			case CHECKPOINT_COORDINATOR_SUSPEND:
-			case CHECKPOINT_COORDINATOR_SHUTDOWN:
-			case JOB_FAILURE:
-			case JOB_FAILOVER_REGION:
-			//for compatibility purposes with user job behavior
-			case CHECKPOINT_DECLINED_TASK_NOT_READY:
-			case CHECKPOINT_DECLINED_TASK_CLOSING:
-			case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-			case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
-			case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
-			case CHECKPOINT_DECLINED_SUBSUMED:
-			case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
-
-			case EXCEPTION:
-			case TASK_FAILURE:
-			case TASK_CHECKPOINT_FAILURE:
-			case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
-			case TRIGGER_CHECKPOINT_FAILURE:
-			case FINALIZE_CHECKPOINT_FAILURE:
-				return false;
-			case CHECKPOINT_DECLINED:
-			case CHECKPOINT_EXPIRED:
-				return true;
-			default:
-				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + exception.getCheckpointFailureReason().name());
-		}
+		return tolerableCpFailureNumber != UNLIMITED_TOLERABLE_FAILURE_NUMBER && FAILURE_REASONS.contains(exception.getCheckpointFailureReason());
 	}
 
 	private Boolean checkAndAdd(Optional<Long> checkpointId) {
