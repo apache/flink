@@ -539,7 +539,7 @@ docker-compose scale taskmanager=2
 you can add a second TaskManager with two TaskSlots to the Flink Cluster, which will automatically register with the 
 Flink Master. Shortly after adding the TaskManager the Job should start running again.
 
-Once the Job is "RUNNING" again, you will see in the *output* Topic that now data was lost during 
+Once the Job is "RUNNING" again, you will see in the *output* Topic that no data was lost during 
 rescaling: all windows are present with a count of exactly one thousand.
 
 ### Querying the Metrics of a Job
