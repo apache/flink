@@ -39,7 +39,6 @@ import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +88,7 @@ public class InputProcessorUtilTest {
 			streamConfig.setUnalignedCheckpointsEnabled(true);
 
 			// First input gate has index larger than the second
-			Collection<IndexedInputGate>[] inputGates = new Collection[] {
+			List<IndexedInputGate>[] inputGates = new List[] {
 				Collections.singletonList(new MockIndexedInputGate(1, 4)),
 				Collections.singletonList(new MockIndexedInputGate(0, 2)),
 			};

@@ -34,7 +34,6 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -84,7 +83,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 	}
 
 	protected void createInputProcessor(
-			Collection<IndexedInputGate>[] inputGates,
+			List<IndexedInputGate>[] inputGates,
 			TypeSerializer<?>[] inputDeserializers,
 			WatermarkGauge[] inputWatermarkGauges) {
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
-import java.util.Collection;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -45,8 +45,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 
 	@Override
 	protected void createInputProcessor(
-		Collection<IndexedInputGate> inputGates1,
-		Collection<IndexedInputGate> inputGates2,
+		List<IndexedInputGate> inputGates1,
+		List<IndexedInputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) {
 
