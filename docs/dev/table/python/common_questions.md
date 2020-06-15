@@ -34,9 +34,9 @@ You can specify the version parameter to generate a Python virtual environment r
 
 {% highlight bash %}
 {% if site.is_stable %}
-$ setup-pyflink-virtual-env.sh {{ site.version }}
+$ sh setup-pyflink-virtual-env.sh {{ site.version }}
 {% else %}
-$ setup-pyflink-virtual-env.sh
+$ sh setup-pyflink-virtual-env.sh
 {% endif %}
 {% endhighlight bash %}
 
