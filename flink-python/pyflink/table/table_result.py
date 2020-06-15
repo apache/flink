@@ -52,7 +52,7 @@ class TableResult(object):
         """
         Get the schema of result.
 
-        The schema of DDL, USE, SHOW, EXPLAIN:
+        The schema of DDL, USE, EXPLAIN:
         ::
 
             +-------------+-------------+----------+
@@ -60,6 +60,20 @@ class TableResult(object):
             +-------------+-------------+----------+
             | result      | STRING      |          |
             +-------------+-------------+----------+
+
+        The schema of SHOW:
+        ::
+
+            +---------------+-------------+----------+
+            |  column name  | column type | comments |
+            +---------------+-------------+----------+
+            | <object name> | STRING      |          |
+            +---------------+-------------+----------+
+            The column name of `SHOW CATALOGS` is "catalog name",
+            the column name of `SHOW DATABASES` is "database name",
+            the column name of `SHOW TABLES` is "table name",
+            the column name of `SHOW VIEWS` is "view name",
+            the column name of `SHOW FUNCTIONS` is "function name".
 
         The schema of DESCRIBE:
         ::
@@ -106,8 +120,8 @@ class TableResult(object):
         """
         Return the ResultKind which represents the result type.
 
-         For DDL operation and USE operation, the result kind is always SUCCESS.
-         For other operations, the result kind is always SUCCESS_WITH_CONTENT.
+        For DDL operation and USE operation, the result kind is always SUCCESS.
+        For other operations, the result kind is always SUCCESS_WITH_CONTENT.
 
         :return: The result kind.
         :rtype: pyflink.table.ResultKind

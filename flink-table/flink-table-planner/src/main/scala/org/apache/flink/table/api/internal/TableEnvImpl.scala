@@ -740,13 +740,13 @@ abstract class TableEnvImpl(
         catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowCatalogsOperation =>
-        buildShowResult(listCatalogs())
+        buildShowResult("catalog name", listCatalogs())
       case _: ShowDatabasesOperation =>
-        buildShowResult(listDatabases())
+        buildShowResult("database name", listDatabases())
       case _: ShowTablesOperation =>
-        buildShowResult(listTables())
+        buildShowResult("table name", listTables())
       case _: ShowFunctionsOperation =>
-        buildShowResult(listFunctions())
+        buildShowResult("function name", listFunctions())
       case createViewOperation: CreateViewOperation =>
         if (createViewOperation.isTemporary) {
           catalogManager.createTemporaryTable(
@@ -772,7 +772,7 @@ abstract class TableEnvImpl(
         }
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowViewsOperation =>
-        buildShowResult(listViews())
+        buildShowResult("view name", listViews())
       case explainOperation: ExplainOperation =>
         val explanation = explainInternal(JCollections.singletonList(explainOperation.getChild))
         TableResultImpl.builder.
@@ -798,12 +798,12 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def buildShowResult(objects: Array[String]): TableResult = {
+  private def buildShowResult(columnName: String, objects: Array[String]): TableResult = {
     val rows = Array.ofDim[Object](objects.length, 1)
     objects.zipWithIndex.foreach {
       case (obj, i) => rows(i)(0) = obj
     }
-    buildResult(Array("result"), Array(DataTypes.STRING), rows)
+    buildResult(Array(columnName), Array(DataTypes.STRING), rows)
   }
 
   private def buildDescribeResult(schema: TableSchema): TableResult = {

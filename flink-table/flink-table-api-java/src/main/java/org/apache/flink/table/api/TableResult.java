@@ -41,13 +41,27 @@ public interface TableResult {
 	/**
 	 * Get the schema of result.
 	 *
-	 * <p>The schema of DDL, USE, SHOW, EXPLAIN:
+	 * <p>The schema of DDL, USE, EXPLAIN:
 	 * <pre>
 	 * +-------------+-------------+----------+
 	 * | column name | column type | comments |
 	 * +-------------+-------------+----------+
 	 * | result      | STRING      |          |
 	 * +-------------+-------------+----------+
+	 * </pre>
+	 *
+	 * <p>The schema of SHOW:
+	 * <pre>
+	 * +---------------+-------------+----------+
+	 * |  column name  | column type | comments |
+	 * +---------------+-------------+----------+
+	 * | &lt;object name&gt; | STRING      |          |
+	 * +---------------+-------------+----------+
+	 * The column name of `SHOW CATALOGS` is "catalog name",
+	 * the column name of `SHOW DATABASES` is "database name",
+	 * the column name of `SHOW TABLES` is "table name",
+	 * the column name of `SHOW VIEWS` is "view name",
+	 * the column name of `SHOW FUNCTIONS` is "function name".
 	 * </pre>
 	 *
 	 * <p>The schema of DESCRIBE:
