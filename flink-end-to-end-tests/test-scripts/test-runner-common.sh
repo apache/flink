@@ -93,7 +93,9 @@ function post_test_validation {
 
     if [[ ${exit_code} == 0 ]]; then
         cleanup
+        log_environment_info
     else
+        log_environment_info
         # make logs available if ARTIFACTS_DIR is set
         if [[ ${ARTIFACTS_DIR} != "" ]]; then
             mkdir ${ARTIFACTS_DIR}/e2e-flink-logs 
@@ -103,6 +105,13 @@ function post_test_validation {
         fi
         exit "${exit_code}"
     fi
+}
+
+function log_environment_info {
+    echo "Jps"
+    jps
+    echo "Disk information"
+    df -hH
 }
 
 # Shuts down cluster and reverts changes to cluster configs
