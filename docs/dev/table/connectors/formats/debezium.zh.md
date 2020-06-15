@@ -31,9 +31,13 @@ under the License.
 
 [Debezium](https://debezium.io/) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL, PostgreSQL, Oracle, Microsoft SQL Server and many other databases into Kafka. Debezium provides an unified format schema for changelog and supports to serialize messages using JSON and [Apache Avro](https://avro.apache.org/).
 
-Flink supports to interpret Debezium JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as synchronizing incremental data from databases to other systems, auditing logs, materialized views on databases, temporal join changing history of a database table and so on.
+Flink supports to interpret Debezium JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
+ - synchronizing incremental data from databases to other systems
+ - auditing logs
+ - real-time materialized views on databases
+ - temporal join changing history of a database table and so on.
 
-Note: Support for interpreting Debezium Avro messages and emitting Debezium messages is on the roadmap.
+*Note: Support for interpreting Debezium Avro messages and emitting Debezium messages is on the roadmap.*
 
 Dependencies
 ------------

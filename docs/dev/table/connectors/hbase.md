@@ -66,9 +66,10 @@ CREATE TABLE hTable (
  'zookeeper.quorum' = 'localhost:2181'
 );
 
--- use ROW(...) construction function construct column families and write data into the HBase table
+-- use ROW(...) construction function construct column families and write data into the HBase table.
+-- assuming the schema of "T" is [rowkey, f1q1, f2q2, f2q3, f3q4, f3q5, f3q6]
 INSERT INTO hTable
-SELECT rowkey, ROW(q1), ROW(q2, q3), ROW(q4, q5, q6) FROM T;
+SELECT rowkey, ROW(f1q1), ROW(f2q2, f2q3), ROW(f3q4, f3q5, f3q6) FROM T;
 
 -- scan data from the HBase table
 SELECT rowkey, family1, family3.q4, family3.q6 FROM hTable;

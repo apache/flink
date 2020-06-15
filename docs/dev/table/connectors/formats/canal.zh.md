@@ -29,11 +29,15 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[Canal](https://github.com/alibaba/canal/wiki) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL into other systems. Canal provides an unified format schema for changelog and supports to serialize messages using JSON and [protobuf](https://developers.google.com/protocol-buffers).
+[Canal](https://github.com/alibaba/canal/wiki) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL into other systems. Canal provides an unified format schema for changelog and supports to serialize messages using JSON and [protobuf](https://developers.google.com/protocol-buffers) (protobuf is the default format for Canal).
 
-Flink supports to interpret Canal JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as synchronizing incremental data from databases to other systems, auditing logs, materialized views on databases, temporal join changing history of a database table and so on.
+Flink supports to interpret Canal JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
+ - synchronizing incremental data from databases to other systems
+ - auditing logs
+ - real-time materialized views on databases
+ - temporal join changing history of a database table and so on.
 
-Note: Support for interpreting Canal protobuf messages and emitting Canal messages is on the roadmap.
+*Note: Support for interpreting Canal protobuf messages and emitting Canal messages is on the roadmap.*
 
 Dependencies
 ------------
@@ -96,7 +100,7 @@ Canal provides an unified format for changelog, here is a simple example for an 
 *Note: please refer to [Canal documentation](https://github.com/alibaba/canal/wiki) about the meaning of each fields.*
 
 The MySQL `products` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON message is an update change event on the `products` table where the `weight` value of the row with `id = 111` is changed from `5.18` to `5.15`.
-Assuming this messages is synchronized to Kafka topic `products_binlog`, then we can use the following DDL to consume this topic and interpret the change events.
+Assuming the messages have been synchronized to Kafka topic `products_binlog`, then we can use the following DDL to consume this topic and interpret the change events.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -118,13 +122,13 @@ CREATE TABLE topic_products (
 </div>
 </div>
 
-After registering the topic as a Flink table, then you can consume the Canal messages as a changelog source.
+After registering the topic as a Flink table, you can consume the Canal messages as a changelog source.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 -- a real-time materialized view on the MySQL "products"
--- which calculate the latest average of weight for the same products
+-- which calculates the latest average of weight for the same products
 SELECT name, AVG(weight) FROM topic_products GROUP BY name;
 
 -- synchronize all the data and incremental changes of MySQL "products" table to
