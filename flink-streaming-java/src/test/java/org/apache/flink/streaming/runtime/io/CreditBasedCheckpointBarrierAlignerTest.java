@@ -28,6 +28,6 @@ public class CreditBasedCheckpointBarrierAlignerTest extends CheckpointBarrierAl
 
 	@Override
 	CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) {
-		return new CheckpointedInputGate(gate, "Testing", toNotify);
+		return new CheckpointedInputGate(gate, new CheckpointBarrierAligner("Testing", toNotify, gate));
 	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -41,7 +42,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -74,6 +80,8 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 	private final int inputIndex;
 
+	private final Map<InputChannelInfo, Integer> channelIndexes;
+
 	private int lastChannel = UNSPECIFIED;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
@@ -98,6 +106,18 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 		this.statusWatermarkValve = checkNotNull(statusWatermarkValve);
 		this.inputIndex = inputIndex;
+		this.channelIndexes = getChannelIndexes(checkpointedInputGate);
+	}
+
+	@Nonnull
+	private static Map<InputChannelInfo, Integer> getChannelIndexes(CheckpointedInputGate checkpointedInputGate) {
+		int index = 0;
+		List<InputChannelInfo> channelInfos = checkpointedInputGate.getChannelInfos();
+		Map<InputChannelInfo, Integer> channelIndexes = new HashMap<>(channelInfos.size());
+		for (InputChannelInfo channelInfo : channelInfos) {
+			channelIndexes.put(channelInfo, index++);
+		}
+		return channelIndexes;
 	}
 
 	@VisibleForTesting
@@ -114,6 +134,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		this.recordDeserializers = recordDeserializers;
 		this.statusWatermarkValve = statusWatermarkValve;
 		this.inputIndex = inputIndex;
+		this.channelIndexes = getChannelIndexes(checkpointedInputGate);
 	}
 
 	@Override
@@ -168,7 +189,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws IOException {
 		if (bufferOrEvent.isBuffer()) {
-			lastChannel = bufferOrEvent.getChannelIndex();
+			lastChannel = channelIndexes.get(bufferOrEvent.getChannelInfo());
 			checkState(lastChannel != StreamTaskInput.UNSPECIFIED);
 			currentRecordDeserializer = recordDeserializers[lastChannel];
 			checkState(currentRecordDeserializer != null,
@@ -186,7 +207,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 			// release the record deserializer immediately,
 			// which is very valuable in case of bounded stream
-			releaseDeserializer(bufferOrEvent.getChannelIndex());
+			releaseDeserializer(channelIndexes.get(bufferOrEvent.getChannelInfo()));
 		}
 	}
 

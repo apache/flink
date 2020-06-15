@@ -669,7 +669,7 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	private BufferOrEvent transformBuffer(Buffer buffer, boolean moreAvailable, InputChannel currentChannel) {
-		return new BufferOrEvent(decompressBufferIfNeeded(buffer), currentChannel.getChannelIndex(), moreAvailable);
+		return new BufferOrEvent(decompressBufferIfNeeded(buffer), currentChannel.getChannelInfo(), moreAvailable);
 	}
 
 	private BufferOrEvent transformEvent(
@@ -700,7 +700,7 @@ public class SingleInputGate extends IndexedInputGate {
 			currentChannel.releaseAllResources();
 		}
 
-		return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable, buffer.getSize());
+		return new BufferOrEvent(event, currentChannel.getChannelInfo(), moreAvailable, buffer.getSize());
 	}
 
 	private Buffer decompressBufferIfNeeded(Buffer buffer) {

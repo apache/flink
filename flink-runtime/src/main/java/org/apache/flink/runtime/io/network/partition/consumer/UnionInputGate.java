@@ -176,10 +176,11 @@ public class UnionInputGate extends InputGate {
 		InputWithData<IndexedInputGate, BufferOrEvent> inputWithData = next.get();
 
 		handleEndOfPartitionEvent(inputWithData.data, inputWithData.input);
-		return Optional.of(adjustForUnionInputGate(
-			inputWithData.data,
-			inputWithData.input,
-			inputWithData.moreAvailable));
+		if (!inputWithData.data.moreAvailable()) {
+			inputWithData.data.setMoreAvailable(inputWithData.moreAvailable);
+		}
+
+		return Optional.of(inputWithData.data);
 	}
 
 	private Optional<InputWithData<IndexedInputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
@@ -215,19 +216,6 @@ public class UnionInputGate extends InputGate {
 				}
 			}
 		}
-	}
-
-	private BufferOrEvent adjustForUnionInputGate(
-			BufferOrEvent bufferOrEvent,
-			IndexedInputGate inputGate,
-			boolean moreInputGatesAvailable) {
-		// Set the channel index to identify the input channel (across all unioned input gates)
-		final int channelIndexOffset = inputGateChannelIndexOffsets[inputGate.getGateIndex()];
-
-		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
-		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || moreInputGatesAvailable);
-
-		return bufferOrEvent;
 	}
 
 	private void handleEndOfPartitionEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {

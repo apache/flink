@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -835,12 +836,13 @@ public abstract class CheckpointBarrierAlignerTestBase {
 	// ------------------------------------------------------------------------
 
 	private static BufferOrEvent createBarrier(long checkpointId, int channel) {
-		return new BufferOrEvent(new CheckpointBarrier(
-			checkpointId, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()), channel);
+		return new BufferOrEvent(
+			new CheckpointBarrier(checkpointId, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()),
+			new InputChannelInfo(0, channel));
 	}
 
 	private static BufferOrEvent createCancellationBarrier(long checkpointId, int channel) {
-		return new BufferOrEvent(new CancelCheckpointMarker(checkpointId), channel);
+		return new BufferOrEvent(new CancelCheckpointMarker(checkpointId), new InputChannelInfo(0, channel));
 	}
 
 	private static BufferOrEvent createBuffer(int channel) {
@@ -857,11 +859,11 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		// retain an additional time so it does not get disposed after being read by the input gate
 		buf.retainBuffer();
 
-		return new BufferOrEvent(buf, channel);
+		return new BufferOrEvent(buf, new InputChannelInfo(0, channel));
 	}
 
 	private static BufferOrEvent createEndOfPartition(int channel) {
-		return new BufferOrEvent(EndOfPartitionEvent.INSTANCE, channel);
+		return new BufferOrEvent(EndOfPartitionEvent.INSTANCE, new InputChannelInfo(0, channel));
 	}
 
 	private static void check(BufferOrEvent expected, BufferOrEvent present, int pageSize) {

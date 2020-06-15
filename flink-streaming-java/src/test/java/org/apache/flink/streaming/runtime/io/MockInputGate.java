@@ -113,7 +113,7 @@ public class MockInputGate extends InputGate {
 			return Optional.empty();
 		}
 
-		int channelIdx = next.getChannelIndex();
+		int channelIdx = next.getChannelInfo().getInputChannelIdx();
 		if (closed[channelIdx]) {
 			throw new RuntimeException("Inconsistent: Channel " + channelIdx
 				+ " has data even though it is already closed.");

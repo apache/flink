@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -657,12 +658,12 @@ public class RecordWriterTest {
 	static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		Buffer buffer = buildSingleBuffer(bufferConsumer);
 		if (buffer.isBuffer()) {
-			return new BufferOrEvent(buffer, targetChannel);
+			return new BufferOrEvent(buffer, new InputChannelInfo(0, targetChannel));
 		} else {
 			// is event:
 			AbstractEvent event = EventSerializer.fromBuffer(buffer, RecordWriterTest.class.getClassLoader());
 			buffer.recycleBuffer(); // the buffer is not needed anymore
-			return new BufferOrEvent(event, targetChannel);
+			return new BufferOrEvent(event, new InputChannelInfo(0, targetChannel));
 		}
 	}
 

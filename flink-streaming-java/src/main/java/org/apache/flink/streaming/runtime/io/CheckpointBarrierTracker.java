@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -75,7 +76,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		this.pendingCheckpoints = new ArrayDeque<>();
 	}
 
-	public void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 
 		// fast path for single channel trackers
@@ -86,7 +87,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
 		// general path for multiple input channels
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Received barrier for checkpoint {} from channel {}", barrierId, channelIndex);
+			LOG.debug("Received barrier for checkpoint {} from channel {}", barrierId, channelInfo);
 		}
 
 		// find the checkpoint barrier in the queue of pending barriers
