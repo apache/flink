@@ -146,6 +146,10 @@ public final class CliStrings {
 
 	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
 
+	public static final String MESSAGE_ALTER_VIEW_SUCCEEDED = "Alter view succeeded!";
+
+	public static final String MESSAGE_ALTER_VIEW_FAILED = "Alter view failed!";
+
 	public static final String MESSAGE_FUNCTION_CREATED = "Function has been created.";
 
 	public static final String MESSAGE_FUNCTION_REMOVED = "Function has been removed.";
