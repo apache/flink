@@ -37,6 +37,7 @@ under the License.
 - [DESCRIBE](describe.html)
 - [EXPLAIN](explain.html)
 - [USE](use.html)
+- [SHOW](show.html)
 
 ## 数据类型
 
