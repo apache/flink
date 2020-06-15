@@ -69,12 +69,7 @@ public class InputProcessorUtil {
 			SubtaskCheckpointCoordinator checkpointCoordinator,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
-			Collection<IndexedInputGate> ...inputGates) {
-
-		InputGate[] unionedInputGates = new InputGate[inputGates.length];
-		for (int i = 0; i < inputGates.length; i++) {
-			unionedInputGates[i] = InputGateUtil.createInputGate(inputGates[i].toArray(new IndexedInputGate[0]));
-		}
+			List<IndexedInputGate>... inputGates) {
 
 		IntStream numberOfInputChannelsPerGate =
 			Arrays
