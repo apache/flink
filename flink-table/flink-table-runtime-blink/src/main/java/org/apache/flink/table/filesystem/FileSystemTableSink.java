@@ -67,8 +67,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_TIME_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
 
 /**
@@ -155,7 +156,7 @@ public class FileSystemTableSink implements
 			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 					!(writer instanceof Encoder),
 					conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-					conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
+					conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
 			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
 			if (writer instanceof Encoder) {
@@ -182,7 +183,8 @@ public class FileSystemTableSink implements
 					dataStream,
 					bucketsBuilder,
 					metaStoreFactory,
-					fsFactory);
+					fsFactory,
+					conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis());
 		}
 	}
 
@@ -195,13 +197,15 @@ public class FileSystemTableSink implements
 			DataStream<RowData> inputStream,
 			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
 			TableMetaStoreFactory msFactory,
-			FileSystemFactory fsFactory) {
+			FileSystemFactory fsFactory,
+			long rollingCheckInterval) {
 		if (overwrite) {
 			throw new IllegalStateException("Streaming mode not support overwrite.");
 		}
 
 		StreamingFileWriter fileWriter = new StreamingFileWriter(
-				BucketsBuilder.DEFAULT_BUCKET_CHECK_INTERVAL, bucketsBuilder);
+				rollingCheckInterval,
+				bucketsBuilder);
 		DataStream<CommitMessage> writerStream = inputStream.transform(
 				StreamingFileWriter.class.getSimpleName(),
 				TypeExtractor.createTypeInfo(CommitMessage.class),

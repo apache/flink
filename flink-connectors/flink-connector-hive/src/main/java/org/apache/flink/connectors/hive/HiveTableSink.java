@@ -79,8 +79,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_TIME_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 
 /**
  * Table sink to write to Hive tables.
@@ -186,7 +187,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 				TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 						true,
 						conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-						conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
+						conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
 				Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);
 				BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder;
@@ -215,7 +216,8 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						dataStream,
 						builder,
 						msFactory,
-						fsFactory);
+						fsFactory,
+						conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis());
 			}
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);

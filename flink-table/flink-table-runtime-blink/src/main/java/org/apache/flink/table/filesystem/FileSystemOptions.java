@@ -46,11 +46,18 @@ public class FileSystemOptions {
 			.defaultValue(MemorySize.ofMebiBytes(128))
 			.withDescription("The maximum part file size before rolling (by default 128MB).");
 
-	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time-interval")
+	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_ROLLOVER_INTERVAL = key("sink.rolling-policy.rollover-interval")
 			.durationType()
 			.defaultValue(Duration.ofMinutes(30))
 			.withDescription("The maximum time duration a part file can stay open before rolling" +
-					" (by default 30 min to avoid to many small files).");
+					" (by default 30 min to avoid to many small files). The frequency at which" +
+					" this is checked is controlled by the 'sink.rolling-policy.check-interval' option.");
+
+	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_CHECK_INTERVAL = key("sink.rolling-policy.check-interval")
+			.durationType()
+			.defaultValue(Duration.ofMinutes(1))
+			.withDescription("The interval for checking time based rolling policies. " +
+					"This controls the frequency to check whether a part file should rollover based on 'sink.rolling-policy.rollover-interval'.");
 
 	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
 			.booleanType()
