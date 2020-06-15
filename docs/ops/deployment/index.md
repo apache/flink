@@ -256,7 +256,7 @@ Flink provides several approaches for providing dependencies (such as `*.jar` fi
 applications. These approaches differ based on the deployment mode and target, but also have commonalities, which are described here.
 
 To provide a dependency, there are the following options:
-- files in the **`lib/` folder** are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins. Beware that classes added here can potentially interfere with Flink, for example if Flink you are adding a different version of a library already provided by Flink.
+- files in the **`lib/` folder** are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins. Beware that classes added here can potentially interfere with Flink, for example if you are adding a different version of a library already provided by Flink.
 
 - **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link ops/plugins.md %}) can be added here.
 
@@ -302,5 +302,4 @@ you can use a [Apache Maven](https://maven.apache.org) *pom.xml* file such as to
 
 Running `mvn package` in the same directory will create a `jars/` folder containing all the jar files, 
 which you can add to the desired folder, Docker image etc.
-
 
