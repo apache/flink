@@ -112,7 +112,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	private void backupLogs() {
 		if (logBackupDirectory != null) {
-			final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
+			final Path targetDirectory = logBackupDirectory.resolve("flink-" + UUID.randomUUID().toString());
 			try {
 				distribution.copyLogsTo(targetDirectory);
 				LOG.info("Backed up logs to {}.", targetDirectory);
