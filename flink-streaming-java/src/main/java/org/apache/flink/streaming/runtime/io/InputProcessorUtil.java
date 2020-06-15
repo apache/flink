@@ -26,6 +26,8 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -39,7 +41,7 @@ import java.util.stream.IntStream;
  */
 @Internal
 public class InputProcessorUtil {
-
+	@SuppressWarnings("unchecked")
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
@@ -47,20 +49,14 @@ public class InputProcessorUtil {
 			IndexedInputGate[] inputGates,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) {
-		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
-		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
+		CheckpointedInputGate[] checkpointedInputGates = createCheckpointedMultipleInputGate(
+			toNotifyOnCheckpoint,
 			config,
-			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels),
 			checkpointCoordinator,
+			taskIOMetricGroup,
 			taskName,
-			generateChannelIndexToInputGateMap(inputGate),
-			generateInputGateToChannelIndexOffsetMap(inputGate),
-			toNotifyOnCheckpoint);
-		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
-
-		barrierHandler.getBufferReceivedListener().ifPresent(inputGate::registerBufferReceivedListener);
-
-		return new CheckpointedInputGate(inputGate, barrierHandler);
+			Arrays.asList(inputGates));
+		return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
 	}
 
 	/**
