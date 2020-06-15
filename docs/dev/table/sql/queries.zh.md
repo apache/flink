@@ -380,45 +380,6 @@ Flink SQL 对于标识符（表、属性、函数名）有类似于 Java 的词�
 
 ## 操作符
 
-### Show
-
-<div markdown="1">
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">操作符</th>
-      <th class="text-center">描述</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>Show</strong><br>
-        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
-      </td>
-      <td>
-        <p>显示所有 catalog</p>
-{% highlight sql %}
-SHOW CATALOGS;
-{% endhighlight %}
-    <p>显示当前 catalog 中所有的数据库</p>
-{% highlight sql %}
-SHOW DATABASES;
-{% endhighlight %}
-    <p>显示当前数据库、Catalog中的所有表</p>
-{% highlight sql %}
-SHOW TABLES;
-{% endhighlight %}
-        <p>显示当前数据库、Catalog中的所有视图</p>
-{% highlight sql %}
-SHOW VIEWS;
-{% endhighlight %}
-      </td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
 ### Scan、Projection 与 Filter
 
 <div markdown="1">

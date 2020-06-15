@@ -382,45 +382,6 @@ String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`)
 
 ## Operations
 
-### Show
-
-<div markdown="1">
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Operation</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>Show</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
-      </td>
-      <td>
-        <p>Show all catalogs</p>
-{% highlight sql %}
-SHOW CATALOGS;
-{% endhighlight %}
-		<p>Show all databases in the current catalog</p>
-{% highlight sql %}
-SHOW DATABASES;
-{% endhighlight %}
-		<p>Show all tables in the current database in the current catalog</p>
-{% highlight sql %}
-SHOW TABLES;
-{% endhighlight %}
-        <p>Show all views in the current database in the current catalog</p>
-{% highlight sql %}
-SHOW VIEWS;
-{% endhighlight %}
-      </td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
 ### Scan, Projection, and Filter
 
 <div markdown="1">
