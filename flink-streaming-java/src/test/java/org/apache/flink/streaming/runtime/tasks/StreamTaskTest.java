@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -981,12 +983,12 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	private void testFailToConfirmCheckpointMessage(Consumer<StreamTask<?, ?>> consumer) throws Exception {
-		FailOnNotifyCheckpointOperator<Integer> operator = new FailOnNotifyCheckpointOperator<>();
+		StreamMap<Integer, Integer> streamMap = new StreamMap<>(new FailOnNotifyCheckpointMapper<>());
 		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
 			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
-			.setupOutputForSingletonOperatorChain(operator)
+			.setupOutputForSingletonOperatorChain(streamMap)
 			.build();
 
 		try {
@@ -2047,22 +2049,22 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	private static class FailOnNotifyCheckpointOperator<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
+	private static class FailOnNotifyCheckpointMapper<T> implements MapFunction<T, T>, CheckpointListener {
+		private static final long serialVersionUID = 1L;
+
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			super.notifyCheckpointComplete(checkpointId);
+		public T map(T value) throws Exception {
+			return value;
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 			throw new ExpectedTestException();
 		}
 
 		@Override
-		public void notifyCheckpointAborted(long checkpointId) throws Exception {
-			super.notifyCheckpointAborted(checkpointId);
+		public void notifyCheckpointComplete(long checkpointId) {
 			throw new ExpectedTestException();
-		}
-
-		@Override
-		public void processElement(StreamRecord<T> element) throws Exception {
-
 		}
 	}
 }
