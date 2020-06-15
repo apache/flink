@@ -32,10 +32,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
