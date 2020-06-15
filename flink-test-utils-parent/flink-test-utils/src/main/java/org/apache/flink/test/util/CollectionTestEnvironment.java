@@ -30,10 +30,6 @@ import org.apache.flink.api.java.ExecutionEnvironmentFactory;
  */
 public class CollectionTestEnvironment extends CollectionEnvironment {
 
-	public CollectionTestEnvironment() {
-		super();
-	}
-
 	private CollectionTestEnvironment lastEnv = null;
 
 	@Override
