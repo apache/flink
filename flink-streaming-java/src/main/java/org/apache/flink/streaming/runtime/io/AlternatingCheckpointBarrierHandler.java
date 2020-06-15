@@ -51,12 +51,12 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public boolean isBlocked(int channelIndex) {
-		return activeHandler.isBlocked(channelIndex);
+	public boolean isBlocked(InputChannelInfo channelInfo) {
+		return activeHandler.isBlocked(channelInfo);
 	}
 
 	@Override
-	public void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
 		if (receivedBarrier.getId() < lastSeenBarrierId) {
 			return;
 		}
@@ -70,7 +70,7 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 				new CheckpointException(format("checkpoint subsumed by %d", lastSeenBarrierId), CHECKPOINT_DECLINED_SUBSUMED));
 		}
 
-		activeHandler.processBarrier(receivedBarrier, channelIndex);
+		activeHandler.processBarrier(receivedBarrier, channelInfo);
 	}
 
 	@Override

@@ -25,9 +25,6 @@ import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -41,42 +38,14 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the behaviors of the {@link InputProcessorUtil}.
  */
 public class InputProcessorUtilTest {
-
-	@Test
-	public void testGenerateChannelIndexToInputGateMap() {
-		SingleInputGate ig1 = new SingleInputGateBuilder().setNumberOfChannels(2).build();
-		SingleInputGate ig2 = new SingleInputGateBuilder().setNumberOfChannels(3).build();
-
-		InputGate[] channelIndexToInputGateMap = InputProcessorUtil.generateChannelIndexToInputGateMap(ig1, ig2);
-		assertEquals(5, channelIndexToInputGateMap.length);
-		assertEquals(ig1, channelIndexToInputGateMap[0]);
-		assertEquals(ig1, channelIndexToInputGateMap[1]);
-		assertEquals(ig2, channelIndexToInputGateMap[2]);
-		assertEquals(ig2, channelIndexToInputGateMap[3]);
-		assertEquals(ig2, channelIndexToInputGateMap[4]);
-	}
-
-	@Test
-	public void testGenerateInputGateToChannelIndexOffsetMap() {
-		SingleInputGate ig1 = new SingleInputGateBuilder().setNumberOfChannels(3).build();
-		SingleInputGate ig2 = new SingleInputGateBuilder().setNumberOfChannels(2).build();
-
-		Map<InputGate, Integer> inputGateToChannelIndexOffsetMap =
-			InputProcessorUtil.generateInputGateToChannelIndexOffsetMap(ig1, ig2);
-		assertEquals(2, inputGateToChannelIndexOffsetMap.size());
-		assertEquals(0, inputGateToChannelIndexOffsetMap.get(ig1).intValue());
-		assertEquals(3, inputGateToChannelIndexOffsetMap.get(ig2).intValue());
-	}
 
 	@Test
 	public void testCreateCheckpointedMultipleInputGate() throws Exception {

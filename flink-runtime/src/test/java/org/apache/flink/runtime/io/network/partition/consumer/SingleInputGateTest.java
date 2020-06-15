@@ -821,14 +821,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 		// Setup
 		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
 
-		final int channelIndex1 = 0, channelIndex2 = 1;
 		final RemoteInputChannel remoteInputChannel1 = InputChannelBuilder.newBuilder()
-			.setChannelIndex(channelIndex1)
+			.setChannelIndex(0)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())
 			.buildRemoteChannel(inputGate);
 		final RemoteInputChannel remoteInputChannel2 = InputChannelBuilder.newBuilder()
-			.setChannelIndex(channelIndex2)
+			.setChannelIndex(1)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())
 			.buildRemoteChannel(inputGate);
@@ -838,12 +837,12 @@ public class SingleInputGateTest extends InputGateTestBase {
 		inputGate.registerBufferReceivedListener(new BufferReceivedListener() {
 			@Override
 			public void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
-				notifications.add(new BufferOrEvent(buffer, channelInfo.getInputChannelIdx()));
+				notifications.add(new BufferOrEvent(buffer, channelInfo));
 			}
 
 			@Override
 			public void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) {
-				notifications.add(new BufferOrEvent(barrier, channelInfo.getInputChannelIdx()));
+				notifications.add(new BufferOrEvent(barrier, channelInfo));
 			}
 		});
 		setupInputGate(inputGate, remoteInputChannel1, remoteInputChannel2);
@@ -873,10 +872,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 		}
 
 		assertEquals(getIds(asList(
-			new BufferOrEvent(new CheckpointBarrier(0, 0, options), channelIndex2),
-			new BufferOrEvent(createBuffer(11), channelIndex1),
-			new BufferOrEvent(new CheckpointBarrier(1, 0, options), channelIndex1),
-			new BufferOrEvent(createBuffer(22), channelIndex2)
+			new BufferOrEvent(new CheckpointBarrier(0, 0, options), remoteInputChannel2.getChannelInfo()),
+			new BufferOrEvent(createBuffer(11), remoteInputChannel1.getChannelInfo()),
+			new BufferOrEvent(new CheckpointBarrier(1, 0, options), remoteInputChannel1.getChannelInfo()),
+			new BufferOrEvent(createBuffer(22), remoteInputChannel2.getChannelInfo())
 		)), getIds(notifications));
 	}
 
@@ -1071,7 +1070,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
 		assertTrue(bufferOrEvent.isPresent());
 		assertEquals(expectedIsBuffer, bufferOrEvent.get().isBuffer());
-		assertEquals(expectedChannelIndex, bufferOrEvent.get().getChannelIndex());
+		assertEquals(inputGate.getChannel(expectedChannelIndex).getChannelInfo(), bufferOrEvent.get().getChannelInfo());
 		assertEquals(expectedMoreAvailable, bufferOrEvent.get().moreAvailable());
 		if (!expectedMoreAvailable) {
 			assertFalse(inputGate.pollNext().isPresent());
