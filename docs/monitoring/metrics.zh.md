@@ -646,6 +646,7 @@ metrics.reporter.grph.factory.class: org.apache.flink.metrics.graphite.GraphiteR
 metrics.reporter.grph.host: localhost
 metrics.reporter.grph.port: 2003
 metrics.reporter.grph.protocol: TCP
+metrics.reporter.grph.interval: 60 SECONDS
 
 {% endhighlight %}
 
@@ -672,6 +673,7 @@ metrics.reporter.influxdb.retentionPolicy: one_hour
 metrics.reporter.influxdb.consistency: ANY
 metrics.reporter.influxdb.connectTimeout: 60000
 metrics.reporter.influxdb.writeTimeout: 60000
+metrics.reporter.influxdb.interval: 60 SECONDS
 
 {% endhighlight %}
 
@@ -721,6 +723,7 @@ metrics.reporter.promgateway.jobName: myJob
 metrics.reporter.promgateway.randomJobNameSuffix: true
 metrics.reporter.promgateway.deleteOnShutdown: false
 metrics.reporter.promgateway.groupingKey: k1=v1;k2=v2
+metrics.reporter.promgateway.interval: 60 SECONDS
 
 {% endhighlight %}
 
@@ -742,6 +745,7 @@ Example configuration:
 metrics.reporter.stsd.factory.class: org.apache.flink.metrics.statsd.StatsDReporterFactory
 metrics.reporter.stsd.host: localhost
 metrics.reporter.stsd.port: 8125
+metrics.reporter.stsd.interval: 60 SECONDS
 
 {% endhighlight %}
 
@@ -770,6 +774,7 @@ metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dghttp.dataCenter: US
 metrics.reporter.dghttp.maxMetricsPerRequest: 2000
+metrics.reporter.dghttp.interval: 60 SECONDS
 
 {% endhighlight %}
 
