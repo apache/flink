@@ -50,4 +50,4 @@ fi
 shopt -u nocasematch
 
 # Start TaskManager instance(s)
-TMSlaves start
+TMWorkers start
