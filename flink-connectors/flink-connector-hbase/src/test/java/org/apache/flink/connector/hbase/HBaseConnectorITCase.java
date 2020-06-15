@@ -48,7 +48,6 @@ import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.sinks.CollectRowTableSink;
 import org.apache.flink.table.planner.sinks.CollectTableSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -62,9 +61,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -74,6 +70,7 @@ import java.util.stream.Collectors;
 
 import scala.Option;
 
+import static org.apache.flink.connector.hbase.util.PlannerType.BLINK_PLANNER;
 import static org.apache.flink.connector.hbase.util.PlannerType.OLD_PLANNER;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
@@ -120,7 +117,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
 			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
 			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
-			hbaseTable.setRowKey("rowkey", Integer.class);
+			hbaseTable.setRowKey(ROW_KEY, Integer.class);
 			((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
 			tEnv.executeSql(
@@ -172,7 +169,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
 			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
 			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
-			hbaseTable.setRowKey("rowkey", Integer.class);
+			hbaseTable.setRowKey(ROW_KEY, Integer.class);
 			((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
 			tEnv.executeSql(
@@ -217,7 +214,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		if (isLegacyConnector) {
 			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
 			// shuffle order of column registration
-			hbaseTable.setRowKey("rowkey", Integer.class);
+			hbaseTable.setRowKey(ROW_KEY, Integer.class);
 			hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
 			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
 			hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
@@ -264,7 +261,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
 			hbaseTable.addColumn(FAMILY2, F2COL1, byte[].class);
 			hbaseTable.addColumn(FAMILY2, F2COL2, byte[].class);
-			hbaseTable.setRowKey("rowkey", Integer.class);
+			hbaseTable.setRowKey(ROW_KEY, Integer.class);
 			((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
 			tEnv.executeSql(
@@ -315,47 +312,21 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		assertEquals(360, (int) resultSet.get(0).f0);
 	}
 
-	// -------------------------------------------------------------------------------------
-	// HBaseTableSink tests
-	// -------------------------------------------------------------------------------------
-
-	// prepare a source collection.
-	private static final List<Row> testData1 = new ArrayList<>();
-	private static final RowTypeInfo testTypeInfo1 = new RowTypeInfo(
-		new TypeInformation[]{Types.INT, Types.INT, Types.STRING, Types.LONG, Types.DOUBLE,
-			Types.BOOLEAN, Types.STRING, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME},
-		new String[]{"rowkey", "f1c1", "f2c1", "f2c2", "f3c1", "f3c2", "f3c3", "f4c1", "f4c2", "f4c3"});
-
-	static {
-		testData1.add(Row.of(1, 10, "Hello-1", 100L, 1.01, false, "Welt-1",
-			Timestamp.valueOf("2019-08-18 19:00:00"), Date.valueOf("2019-08-18"), Time.valueOf("19:00:00")));
-		testData1.add(Row.of(2, 20, "Hello-2", 200L, 2.02, true, "Welt-2",
-			Timestamp.valueOf("2019-08-18 19:01:00"), Date.valueOf("2019-08-18"), Time.valueOf("19:01:00")));
-		testData1.add(Row.of(3, 30, "Hello-3", 300L, 3.03, false, "Welt-3",
-			Timestamp.valueOf("2019-08-18 19:02:00"), Date.valueOf("2019-08-18"), Time.valueOf("19:02:00")));
-		testData1.add(Row.of(4, 40, null, 400L, 4.04, true, "Welt-4",
-			Timestamp.valueOf("2019-08-18 19:03:00"), Date.valueOf("2019-08-18"), Time.valueOf("19:03:00")));
-		testData1.add(Row.of(5, 50, "Hello-5", 500L, 5.05, false, "Welt-5",
-			Timestamp.valueOf("2019-08-19 19:10:00"), Date.valueOf("2019-08-19"), Time.valueOf("19:10:00")));
-		testData1.add(Row.of(6, 60, "Hello-6", 600L, 6.06, true, "Welt-6",
-			Timestamp.valueOf("2019-08-19 19:20:00"), Date.valueOf("2019-08-19"), Time.valueOf("19:20:00")));
-		testData1.add(Row.of(7, 70, "Hello-7", 700L, 7.07, false, "Welt-7",
-			Timestamp.valueOf("2019-08-19 19:30:00"), Date.valueOf("2019-08-19"), Time.valueOf("19:30:00")));
-		testData1.add(Row.of(8, 80, null, 800L, 8.08, true, "Welt-8",
-			Timestamp.valueOf("2019-08-19 19:40:00"), Date.valueOf("2019-08-19"), Time.valueOf("19:40:00")));
-	}
-
 	@Test
 	public void testTableSink() throws Exception {
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
+		// register HBase table testTable1 which contains test data
+		String table1DDL = createHBaseTableDDL(TEST_TABLE_1, false);
+		tEnv.executeSql(table1DDL);
+
 		if (isLegacyConnector) {
 			HBaseTableSchema schema = new HBaseTableSchema();
+			schema.setRowKey(ROW_KEY, Integer.class);
 			schema.addColumn(FAMILY1, F1COL1, Integer.class);
 			schema.addColumn(FAMILY2, F2COL1, String.class);
 			schema.addColumn(FAMILY2, F2COL2, Long.class);
-			schema.setRowKey("rk", Integer.class);
 			schema.addColumn(FAMILY3, F3COL1, Double.class);
 			schema.addColumn(FAMILY3, F3COL2, Boolean.class);
 			schema.addColumn(FAMILY3, F3COL3, String.class);
@@ -373,57 +344,28 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			TableSink tableSink = TableFactoryService
 				.find(HBaseTableFactory.class, descriptorProperties.asMap())
 				.createTableSink(descriptorProperties.asMap());
-			((TableEnvironmentInternal) tEnv).registerTableSinkInternal("hbase", tableSink);
+			((TableEnvironmentInternal) tEnv).registerTableSinkInternal(TEST_TABLE_2, tableSink);
 		} else {
-			tEnv.executeSql(
-					"CREATE TABLE hbase (" +
-					" family1 ROW<col1 INT>," +
-					" family2 ROW<col1 STRING, col2 BIGINT>," +
-					" rk INT," +
-					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
-					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
-					" 'table-name' = '" + TEST_TABLE_1 + "'," +
-					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'," +
-					" 'zookeeper.znode.parent' = '/hbase'" +
-					")");
+			String table2DDL = createHBaseTableDDL(TEST_TABLE_2, false);
+			tEnv.executeSql(table2DDL);
 		}
 
-		DataStream<Row> ds = execEnv.fromCollection(testData1).returns(testTypeInfo1);
-		tEnv.createTemporaryView("src", ds);
+		String query = "INSERT INTO " + TEST_TABLE_2 + " SELECT" +
+			" rowkey," +
+			" family1," +
+			" family2," +
+			" family3" +
+			" FROM " + TEST_TABLE_1;
 
-		String query = "INSERT INTO hbase SELECT ROW(f1c1), ROW(f2c1, f2c2), rowkey, ROW(f3c1, f3c2, f3c3) FROM src";
+		// wait to finish
 		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, query);
 
 		// start a batch scan job to verify contents in HBase table
-		// start a batch scan job to verify contents in HBase table
-		TableEnvironment batchTableEnv = createBatchTableEnv();
+		TableEnvironment batchEnv = createBatchTableEnv();
+		String table2DDL = createHBaseTableDDL(TEST_TABLE_2, false);
+		batchEnv.executeSql(table2DDL);
 
-		if (isLegacyConnector) {
-			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_2);
-			hbaseTable.setRowKey("rowkey", Integer.class);
-			hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
-			hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
-			hbaseTable.addColumn(FAMILY2, F2COL2, Long.class);
-			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
-			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
-			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
-			((TableEnvironmentInternal) batchTableEnv).registerTableSourceInternal("hTable", hbaseTable);
-		} else {
-			batchTableEnv.executeSql(
-					"CREATE TABLE hTable (" +
-					" rowkey INT," +
-					" family1 ROW<col1 INT>," +
-					" family2 ROW<col1 STRING, col2 BIGINT>," +
-					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
-					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
-					" 'table-name' = '" + TEST_TABLE_1 + "'," +
-					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
-					")");
-		}
-
-		Table table = batchTableEnv.sqlQuery(
+		Table table = batchEnv.sqlQuery(
 			"SELECT " +
 				"  h.rowkey, " +
 				"  h.family1.col1, " +
@@ -432,9 +374,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"  h.family3.col1, " +
 				"  h.family3.col2, " +
 				"  h.family3.col3 " +
-				"FROM hTable AS h"
+				"FROM " + TEST_TABLE_2 + " AS h"
 		);
-
 		List<Row> results = collectBatchResult(table);
 		String expected =
 				"1,10,Hello-1,100,1.01,false,Welt-1\n" +
@@ -449,60 +390,40 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
-	private String getDDLForTestTable3() {
-		String quorum = getZookeeperQuorum();
-		if (isLegacyConnector) {
-			return "CREATE TABLE hbase (\n" +
-				"    rowkey INT," +
-				"    family1 ROW<col1 INT>,\n" +
-				"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
-				"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
-				"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
-				") WITH (\n" +
-				"    'connector.type' = 'hbase',\n" +
-				"    'connector.version' = '1.4.3',\n" +
-				"    'connector.table-name' = '" + TEST_TABLE_3 + "',\n" +
-				"    'connector.zookeeper.quorum' = '" + quorum + "',\n" +
-				"    'connector.zookeeper.znode.parent' = '/hbase' " +
-				")";
-		} else {
-			return "CREATE TABLE hbase (\n" +
-				"    rowkey INT," +
-				"    family1 ROW<col1 INT>,\n" +
-				"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
-				"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
-				"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
-				") WITH (\n" +
-				"    'connector' = 'hbase-1.4',\n" +
-				"    'table-name' = '" + TEST_TABLE_3 + "',\n" +
-				"    'zookeeper.quorum' = '" + quorum + "',\n" +
-				"    'zookeeper.znode.parent' = '/hbase' " +
-				")";
-		}
-	}
-
 	@Test
 	public void testTableSourceSinkWithDDL() throws Exception {
+		// only test TIMESTAMP/DATE/TIME/DECIMAL for new connector(using blink-planner), because new connector encodes
+		// DATE/TIME to int, the old one encodes to long, and DECIMAL with precision works well in new connector.
+		final boolean testTimeAndDecimalTypes = BLINK_PLANNER.equals(planner) && !isLegacyConnector;
+		String timeAndDecimalFields = testTimeAndDecimalTypes ?
+			", h.family4.col1, h.family4.col2, h.family4.col3, h.family4.col4 " : "";
+
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
-		DataStream<Row> ds = execEnv.fromCollection(testData1).returns(testTypeInfo1);
-		tEnv.createTemporaryView("src", ds);
+		// regiter HBase table testTable1 which contains test data
+		String table1DDL = createHBaseTableDDL(TEST_TABLE_1, testTimeAndDecimalTypes);
+		tEnv.executeSql(table1DDL);
 
-		// register hbase table
-		String ddl = getDDLForTestTable3();
-		tEnv.executeSql(ddl);
+		// register HBase table which is empty
+		String table3DDL = createHBaseTableDDL(TEST_TABLE_3, testTimeAndDecimalTypes);
+		tEnv.executeSql(table3DDL);
 
-		String query = "INSERT INTO hbase " +
-			"SELECT rowkey, ROW(f1c1), ROW(f2c1, f2c2), ROW(f3c1, f3c2, f3c3), ROW(f4c1, f4c2, f4c3) " +
-			"FROM src";
+		String family4 = testTimeAndDecimalTypes ? ", family4 " : "";
+		String query = "INSERT INTO " + TEST_TABLE_3 +
+			" SELECT rowkey," +
+			" family1," +
+			" family2," +
+			" family3" +
+			family4 +
+			" from " + TEST_TABLE_1;
+		// wait to finish
 		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, query);
 
 		// start a batch scan job to verify contents in HBase table
-		TableEnvironment batchTableEnv = createBatchTableEnv();
-		batchTableEnv.executeSql(ddl);
-
-		Table table = batchTableEnv.sqlQuery(
+		TableEnvironment batchEnv = createBatchTableEnv();
+		batchEnv.executeSql(table3DDL);
+		Table table = batchEnv.sqlQuery(
 			"SELECT " +
 				"  h.rowkey, " +
 				"  h.family1.col1, " +
@@ -510,24 +431,40 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"  h.family2.col2, " +
 				"  h.family3.col1, " +
 				"  h.family3.col2, " +
-				"  h.family3.col3, " +
-				"  h.family4.col1, " +
-				"  h.family4.col2, " +
-				"  h.family4.col3 " +
-				"FROM hbase AS h"
+				"  h.family3.col3 " +
+				timeAndDecimalFields +
+				" FROM " + TEST_TABLE_3 + " AS h"
 		);
-
 		List<Row> results = collectBatchResult(table);
+		RecordExtractor extractor = record -> {
+			String[] elements = record.split(",");
+			List<String> res = new ArrayList<>();
+			for (int i = 0; i < elements.length; i++) {
+				// skip TIMESTAMP/DATE/TIME/DECIMAL fields
+				if (!testTimeAndDecimalTypes && i >= 7 && i <= 10) {
+					continue;
+				}
+				res.add(elements[i]);
+			}
+			return res.stream().collect(Collectors.joining(",")) + "\n";
+		};
 		String expected =
-				"1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18 19:00:00.0,2019-08-18,19:00:00\n" +
-				"2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18 19:01:00.0,2019-08-18,19:01:00\n" +
-				"3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18 19:02:00.0,2019-08-18,19:02:00\n" +
-				"4,40,null,400,4.04,true,Welt-4,2019-08-18 19:03:00.0,2019-08-18,19:03:00\n" +
-				"5,50,Hello-5,500,5.05,false,Welt-5,2019-08-19 19:10:00.0,2019-08-19,19:10:00\n" +
-				"6,60,Hello-6,600,6.06,true,Welt-6,2019-08-19 19:20:00.0,2019-08-19,19:20:00\n" +
-				"7,70,Hello-7,700,7.07,false,Welt-7,2019-08-19 19:30:00.0,2019-08-19,19:30:00\n" +
-				"8,80,null,800,8.08,true,Welt-8,2019-08-19 19:40:00.0,2019-08-19,19:40:00\n";
-
+				extractor.extract("1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18 19:00:00.0,2019-08-18," +
+				"19:00:00,12345678.000100000000000000") +
+				extractor.extract("2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18 19:01:00.0,2019-08-18," +
+					"19:01:00,12345678.000200000000000000") +
+				extractor.extract("3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18 19:02:00.0,2019-08-18," +
+					"19:02:00,12345678.000300000000000000") +
+				extractor.extract("4,40,null,400,4.04,true,Welt-4,2019-08-18 19:03:00.0,2019-08-18," +
+					"19:03:00,12345678.000400000000000000") +
+				extractor.extract("5,50,Hello-5,500,5.05,false,Welt-5,2019-08-19 19:10:00.0,2019-08-19," +
+					"19:10:00,12345678.000500000000000000") +
+				extractor.extract("6,60,Hello-6,600,6.06,true,Welt-6,2019-08-19 19:20:00.0,2019-08-19," +
+					"19:20:00,12345678.000600000000000000") +
+				extractor.extract("7,70,Hello-7,700,7.07,false,Welt-7,2019-08-19 19:30:00.0,2019-08-19," +
+					"19:30:00,12345678.000700000000000000") +
+				extractor.extract("8,80,null,800,8.08,true,Welt-8,2019-08-19 19:40:00.0,2019-08-19," +
+					"19:40:00,12345678.000800000000000000");
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
@@ -537,57 +474,89 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			// lookup table source is only supported in blink planner, skip for old planner
 			return;
 		}
-		StreamExecutionEnvironment streamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment streamTableEnv = StreamTableEnvironment.create(streamEnv, streamSettings);
+		// only test TIMESTAMP/DATE/TIME/DECIMAL for new connector(using blink-planner), because new connector encodes
+		// DATE/TIME to int, the old one encodes to long, and DECIMAL with precision works well in new connector.
+		final boolean testTimeAndDecimalTypes = !isLegacyConnector;
+		String timeAndDecimalFields = testTimeAndDecimalTypes ?
+			", h.family4.col1, h.family4.col2, h.family4.col3, h.family4.col4 " : "";
 
-		// prepare dimension table data.
-		DataStream<Row> ds = streamEnv.fromCollection(testData1).returns(testTypeInfo1);
-		streamTableEnv.createTemporaryView("testData", ds);
-		String ddl = getDDLForTestTable3();
-		streamTableEnv.executeSql(ddl);
+		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
-		String query = "INSERT INTO hbase " +
-			"SELECT rowkey, ROW(f1c1), ROW(f2c1, f2c2), ROW(f3c1, f3c2, f3c3), ROW(f4c1, f4c2, f4c3) " +
-			"FROM testData";
-		TableEnvUtil.execInsertSqlAndWaitResult(streamTableEnv, query);
-		StreamITCase.clear();
+		if (isLegacyConnector) {
+			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
+			hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
+			hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
+			hbaseTable.addColumn(FAMILY2, F2COL2, Long.class);
+			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
+			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
+			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
+			hbaseTable.setRowKey(ROW_KEY, Integer.class);
+			((TableEnvironmentInternal) tEnv).registerTableSourceInternal(TEST_TABLE_1, hbaseTable);
+		} else {
+			tEnv.executeSql(
+				"CREATE TABLE " + TEST_TABLE_1 + " (" +
+					" family1 ROW<col1 INT>," +
+					" family2 ROW<col1 STRING, col2 BIGINT>," +
+					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
+					" rowkey INT," +
+					" family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3), col4 DECIMAL(12, 4)>," +
+					" PRIMARY KEY (rowkey) NOT ENFORCED" +
+					") WITH (" +
+					" 'connector' = 'hbase-1.4'," +
+					" 'table-name' = '" + TEST_TABLE_1 + "'," +
+					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
+					")");
+		}
 
 		// prepare a source table
 		String srcTableName = "src";
-		DataStream<Row> srcDs = streamEnv.fromCollection(testData2).returns(testTypeInfo2);
-		Table in = streamTableEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
-		streamTableEnv.registerTable(srcTableName, in);
+		DataStream<Row> srcDs = execEnv.fromCollection(testData2).returns(testTypeInfo2);
+		Table in = tEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
+		tEnv.registerTable(srcTableName, in);
 
 		// perform a temporal table join query
 		String dimJoinQuery = "SELECT" +
 			" a," +
 			" b," +
-			" family1.col1," +
-			" family2.col1," +
-			" family2.col2," +
-			" family3.col1," +
-			" family3.col2," +
-			" family3.col3," +
-			" family4.col1," +
-			" family4.col2," +
-			" family4.col3" +
-			" FROM src JOIN hbase FOR SYSTEM_TIME AS OF src.proc as h ON src.a = h.rowkey";
-		Iterator<Row> collected = streamTableEnv.executeSql(dimJoinQuery).collect();
+			" h.family1.col1," +
+			" h.family2.col1," +
+			" h.family2.col2," +
+			" h.family3.col1," +
+			" h.family3.col2," +
+			" h.family3.col3" +
+			timeAndDecimalFields +
+			" FROM src JOIN " + TEST_TABLE_1 + " FOR SYSTEM_TIME AS OF src.proc as h ON src.a = h.rowkey";
+		Iterator<Row> collected = tEnv.executeSql(dimJoinQuery).collect();
 		List<String> result = Lists.newArrayList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
 
-		// check result, the time type in collected result is LOCAL_DATE_TIME, LOCAL_DATE, LOCAL_TIME
 		List<String> expected = new ArrayList<>();
-		expected.add("1,1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18,19:00");
-		expected.add("2,2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18,19:01");
-		expected.add("3,2,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02");
-		expected.add("3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02");
+		RecordExtractor extractor = record -> {
+			String[] elements = record.split(",");
+			List<String> res = new ArrayList<>();
+			for (int i = 0; i < elements.length; i++) {
+				// skip TIMESTAMP/DATE/TIME/DECIMAL fields
+				if (!testTimeAndDecimalTypes && i >= 8 && i <= 11) {
+					continue;
+				}
+				res.add(elements[i]);
+			}
+			return res.stream().collect(Collectors.joining(","));
+		};
+		expected.add(extractor.extract("1,1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18," +
+			"19:00,12345678.0001"));
+		expected.add(extractor.extract("2,2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18," +
+			"19:01,12345678.0002"));
+		expected.add(extractor.extract("3,2,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18," +
+			"19:02,12345678.0003"));
+		expected.add(extractor.extract("3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18," +
+			"19:02,12345678.0003"));
 
 		assertEquals(expected, result);
 	}
-
 
 	// -------------------------------------------------------------------------------------
 	// HBase lookup source tests
@@ -702,4 +671,50 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		}
 	}
 
+	private String createHBaseTableDDL(String tableName, boolean testTimeAndDecimalTypes) {
+		StringBuilder family4Statement = new StringBuilder();
+		if (testTimeAndDecimalTypes) {
+			family4Statement.append(", family4 ROW<col1 TIMESTAMP(3)");
+			family4Statement.append(", col2 DATE");
+			family4Statement.append(", col3 TIME(3)");
+			family4Statement.append(", col4 DECIMAL(12, 4)");
+			family4Statement.append("> \n");
+		}
+		if (isLegacyConnector) {
+			return "CREATE TABLE " + tableName + "(\n" +
+				"	rowkey INT,\n" +
+				"   family1 ROW<col1 INT>,\n" +
+				"   family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
+				"   family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>" +
+				family4Statement.toString() +
+				") WITH (\n" +
+				"   'connector.type' = 'hbase',\n" +
+				"   'connector.version' = '1.4.3',\n" +
+				"   'connector.table-name' = '" + tableName + "',\n" +
+				"   'connector.zookeeper.quorum' = '" + getZookeeperQuorum() + "',\n" +
+				"   'connector.zookeeper.znode.parent' = '/hbase' " +
+				")";
+		} else {
+			return "CREATE TABLE " + tableName + "(\n" +
+				"   rowkey INT," +
+				"   family1 ROW<col1 INT>,\n" +
+				"   family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
+				"   family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>" +
+				family4Statement.toString() +
+				") WITH (\n" +
+				"   'connector' = 'hbase-1.4',\n" +
+				"   'table-name' = '" + tableName + "',\n" +
+				"   'zookeeper.quorum' = '" + getZookeeperQuorum() + "',\n" +
+				"   'zookeeper.znode.parent' = '/hbase' " +
+				")";
+		}
+	}
+
+	/**
+	 * interface that extracts string from a record.
+	 */
+	@FunctionalInterface
+	private interface RecordExtractor {
+		String extract(String record);
+	}
 }

@@ -21,7 +21,6 @@ package org.apache.flink.connector.hbase.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
-import org.apache.flink.connector.hbase.util.HBaseReadWriteHelper;
 import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.data.RowData;
@@ -57,7 +56,6 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 	private final HBaseTableSchema hbaseTableSchema;
 	private final String nullStringLiteral;
 
-	private transient HBaseReadWriteHelper readHelper;
 	private transient Connection hConnection;
 	private transient HTable table;
 	private transient HBaseSerde serde;
@@ -79,7 +77,7 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 	 */
 	public void eval(Object rowKey) throws IOException {
 		// fetch result
-		Result result = table.get(readHelper.createGet(rowKey));
+		Result result = table.get(serde.createGet(rowKey));
 		if (!result.isEmpty()) {
 			// parse and collect
 			collect(serde.convertToRow(result));
@@ -117,7 +115,6 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 			LOG.error("Exception while creating connection to HBase.", ioe);
 			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
-		this.readHelper = new HBaseReadWriteHelper(hbaseTableSchema);
 		this.serde = new HBaseSerde(hbaseTableSchema, nullStringLiteral);
 		LOG.info("end open.");
 	}
