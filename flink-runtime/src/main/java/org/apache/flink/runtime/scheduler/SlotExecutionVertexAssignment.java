@@ -29,24 +29,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The slot assignment for a {@link ExecutionVertex}.
  */
-public class SlotExecutionVertexAssignment {
+class SlotExecutionVertexAssignment {
 
 	private final ExecutionVertexID executionVertexId;
 
 	private final CompletableFuture<LogicalSlot> logicalSlotFuture;
 
-	public SlotExecutionVertexAssignment(
+	SlotExecutionVertexAssignment(
 			ExecutionVertexID executionVertexId,
 			CompletableFuture<LogicalSlot> logicalSlotFuture) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
 	}
 
-	public ExecutionVertexID getExecutionVertexId() {
+	ExecutionVertexID getExecutionVertexId() {
 		return executionVertexId;
 	}
 
-	public CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
+	CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
 		return logicalSlotFuture;
 	}
 }
