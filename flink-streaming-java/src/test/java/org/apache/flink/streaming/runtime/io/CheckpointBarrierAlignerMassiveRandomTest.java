@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -34,10 +35,13 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * The test generates two random streams (input channels) which independently
@@ -65,8 +69,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			CheckpointedInputGate checkpointedInputGate =
 				new CheckpointedInputGate(
 					myIG,
-					"Testing: No task associated",
-					new DummyCheckpointInvokable());
+					new CheckpointBarrierAligner("Testing: No task associated", new DummyCheckpointInvokable(), myIG));
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
@@ -161,6 +164,13 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 
 		@Override
+		public List<InputChannelInfo> getChannelInfos() {
+			return IntStream.range(0, numberOfChannels)
+					.mapToObj(channelIndex -> new InputChannelInfo(0, channelIndex))
+					.collect(Collectors.toList());
+		}
+
+		@Override
 		public Optional<BufferOrEvent> getNext() throws IOException {
 			currentChannel = (currentChannel + 1) % numberOfChannels;
 			if (channelBlocked[currentChannel]) {
@@ -179,7 +189,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 							++currentBarriers[currentChannel],
 							System.currentTimeMillis(),
 							CheckpointOptions.forCheckpointWithDefaultLocation()),
-						currentChannel));
+						new InputChannelInfo(0, currentChannel)));
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();
 				if (buffer == null) {
@@ -188,7 +198,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					return getNext();
 				}
 				buffer.getMemorySegment().putLong(0, c++);
-				return Optional.of(new BufferOrEvent(buffer, currentChannel));
+				return Optional.of(new BufferOrEvent(buffer, new InputChannelInfo(0, currentChannel)));
 			}
 		}
 
