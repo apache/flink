@@ -21,6 +21,7 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
+import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.util.OperatingSystem;
@@ -28,6 +29,8 @@ import org.apache.flink.util.OperatingSystem;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -45,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -72,12 +76,15 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	private final DownloadCache downloadCache = DownloadCache.get();
 	private final String kafkaVersion;
 	private Path kafkaDir;
+	@Nullable
+	private Path logBackupDirectory;
 
-	LocalStandaloneKafkaResource(final String kafkaVersion) {
+	LocalStandaloneKafkaResource(final String kafkaVersion, @Nullable Path logBackupDirectory) {
 		OperatingSystemRestriction.forbid(
 			String.format("The %s relies on UNIX utils and shell scripts.", getClass().getSimpleName()),
 			OperatingSystem.WINDOWS);
 		this.kafkaVersion = kafkaVersion;
+		this.logBackupDirectory = logBackupDirectory;
 	}
 
 	private static String getKafkaDownloadUrl(final String kafkaVersion) {
@@ -162,6 +169,20 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void afterTestSuccess() {
+		shutdownResource();
+		downloadCache.afterTestSuccess();
+		tmp.delete();
+	}
+
+	@Override
+	public void afterTestFailure() {
+		shutdownResource();
+		backupLogs();
+		downloadCache.afterTestFailure();
+		tmp.delete();
+	}
+
+	private void shutdownResource() {
 		try {
 			AutoClosableProcess.runBlocking(
 				kafkaDir.resolve(Paths.get("bin", "kafka-server-stop.sh")).toString()
@@ -192,8 +213,19 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 		} catch (IOException ioe) {
 			LOG.warn("Error while shutting down zookeeper.", ioe);
 		}
-		downloadCache.afterTestSuccess();
-		tmp.delete();
+	}
+
+	private void backupLogs() {
+		if (logBackupDirectory != null) {
+			final Path targetDirectory = logBackupDirectory.resolve("kafka-" + UUID.randomUUID().toString());
+			try {
+				Files.createDirectories(targetDirectory);
+				TestUtils.copyDirectory(kafkaDir.resolve("logs"), targetDirectory);
+				LOG.info("Backed up logs to {}.", targetDirectory);
+			} catch (IOException e) {
+				LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
+			}
+		}
 	}
 
 	private static boolean isZookeeperRunning(final Path kafkaDir) {
