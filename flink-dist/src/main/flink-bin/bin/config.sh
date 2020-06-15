@@ -378,14 +378,14 @@ fi
 # also potentially includes topology information and the taskManager type
 extractHostName() {
     # handle comments: extract first part of string (before first # character)
-    SLAVE=`echo $1 | cut -d'#' -f 1`
+    WORKER=`echo $1 | cut -d'#' -f 1`
 
     # Extract the hostname from the network hierarchy
-    if [[ "$SLAVE" =~ ^.*/([0-9a-zA-Z.-]+)$ ]]; then
-            SLAVE=${BASH_REMATCH[1]}
+    if [[ "$WORKER" =~ ^.*/([0-9a-zA-Z.-]+)$ ]]; then
+            WORKER=${BASH_REMATCH[1]}
     fi
 
-    echo $SLAVE
+    echo $WORKER
 }
 
 # Auxilliary functions for log file rotation
@@ -446,52 +446,52 @@ readMasters() {
     done < "$MASTERS_FILE"
 }
 
-readSlaves() {
-    SLAVES_FILE="${FLINK_CONF_DIR}/slaves"
+readWorkers() {
+    WORKERS_FILE="${FLINK_CONF_DIR}/workers"
 
-    if [[ ! -f "$SLAVES_FILE" ]]; then
-        echo "No slaves file. Please specify slaves in 'conf/slaves'."
+    if [[ ! -f "$WORKERS_FILE" ]]; then
+        echo "No workers file. Please specify workers in 'conf/workers'."
         exit 1
     fi
 
-    SLAVES=()
+    WORKERS=()
 
-    SLAVES_ALL_LOCALHOST=true
+    WORKERS_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
         HOST=$( extractHostName $line)
         if [ -n "$HOST" ] ; then
-            SLAVES+=(${HOST})
+            WORKERS+=(${HOST})
             if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
-                SLAVES_ALL_LOCALHOST=false
+                WORKERS_ALL_LOCALHOST=false
             fi
         fi
-    done < "$SLAVES_FILE"
+    done < "$WORKERS_FILE"
 }
 
-# starts or stops TMs on all slaves
-# TMSlaves start|stop
-TMSlaves() {
+# starts or stops TMs on all workers
+# TMWorkers start|stop
+TMWorkers() {
     CMD=$1
 
-    readSlaves
+    readWorkers
 
-    if [ ${SLAVES_ALL_LOCALHOST} = true ] ; then
+    if [ ${WORKERS_ALL_LOCALHOST} = true ] ; then
         # all-local setup
-        for slave in ${SLAVES[@]}; do
+        for worker in ${WORKERS[@]}; do
             "${FLINK_BIN_DIR}"/taskmanager.sh "${CMD}"
         done
     else
         # non-local setup
-        # Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
+        # start/stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
         command -v pdsh >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
-            for slave in ${SLAVES[@]}; do
-                ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" &"
+            for worker in ${WORKERS[@]}; do
+                ssh -n $FLINK_SSH_OPTS $worker -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" &"
             done
         else
-            PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+            PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${WORKERS[*]}") \
                 "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\""
         fi
     fi

@@ -72,7 +72,7 @@ Set the `jobmanager.rpc.address` key to point to your master node. You should al
 
 These values are given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting setting `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` in *conf/flink-conf.yaml* on those specific nodes.
 
-Finally, you must provide a list of all nodes in your cluster which shall be used as worker nodes. Therefore, similar to the HDFS configuration, edit the file *conf/slaves* and enter the IP/host name of each worker node. Each worker node will later run a TaskManager.
+Finally, you must provide a list of all nodes in your cluster which shall be used as worker nodes. Therefore, similar to the HDFS configuration, edit the file *conf/workers* and enter the IP/host name of each worker node. Each worker node will later run a TaskManager.
 
 The following example illustrates the setup with three nodes (with IP addresses from _10.0.0.1_
 to _10.0.0.3_ and hostnames _master_, _worker1_, _worker2_) and shows the contents of the
@@ -91,7 +91,7 @@ configuration files (which need to be accessible at the same path on all machine
   </div>
 <div class="row" style="margin-top: 1em;">
   <p class="lead text-center">
-    /path/to/<strong>flink/<br>conf/slaves</strong>
+    /path/to/<strong>flink/<br>conf/workers</strong>
   <pre>
 10.0.0.2
 10.0.0.3</pre>
@@ -118,7 +118,7 @@ are very important configuration values.
 
 ### Starting Flink
 
-The following script starts a JobManager on the local node and connects via SSH to all worker nodes listed in the *slaves* file to start the TaskManager on each node. Now your Flink system is up and running. The JobManager running on the local node will now accept jobs at the configured RPC port.
+The following script starts a JobManager on the local node and connects via SSH to all worker nodes listed in the *workers* file to start the TaskManager on each node. Now your Flink system is up and running. The JobManager running on the local node will now accept jobs at the configured RPC port.
 
 Assuming that you are on the master node and inside the Flink directory:
 
