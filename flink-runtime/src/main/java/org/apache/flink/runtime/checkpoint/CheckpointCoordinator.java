@@ -77,6 +77,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import static java.util.Optional.of;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -1613,7 +1614,7 @@ public class CheckpointCoordinator {
 						exception, pendingCheckpoint.getCheckpointId(), executionAttemptID);
 				} else {
 					failureManager.handleJobLevelCheckpointException(
-						exception, pendingCheckpoint.getCheckpointId());
+						exception, of(pendingCheckpoint.getCheckpointId()));
 				}
 			} finally {
 				sendAbortedMessages(pendingCheckpoint.getCheckpointId(), pendingCheckpoint.getCheckpointTimestamp());

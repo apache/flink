@@ -21,6 +21,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,14 +54,8 @@ public class CheckpointFailureManager {
 
 	/**
 	 * Handle job level checkpoint exception with a handler callback.
-	 *
-	 * @param exception the checkpoint exception.
-	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
-	 *                     checkpoint id sequence. In trigger phase, we may not get the checkpoint id when the failure
-	 *                     happens before the checkpoint id generation. In this case, it will be specified a negative
-	 *                      latest generated checkpoint id as a special flag.
 	 */
-	public void handleJobLevelCheckpointException(CheckpointException exception, long checkpointId) {
+	public void handleJobLevelCheckpointException(CheckpointException exception, Optional<Long> checkpointId) {
 		handleException(exception, checkpointId, FailJobCallback::failJob);
 	}
 
@@ -78,13 +73,13 @@ public class CheckpointFailureManager {
 			CheckpointException exception,
 			long checkpointId,
 			ExecutionAttemptID executionAttemptID) {
-		handleException(exception, checkpointId, (failureCallback, e) -> failureCallback.failJobDueToTaskFailure(e, executionAttemptID));
+		handleException(exception, Optional.of(checkpointId), (failureCallback, e) -> failureCallback.failJobDueToTaskFailure(e, executionAttemptID));
 	}
 
-	private void handleException(CheckpointException exception, long checkpointId, BiConsumer<FailJobCallback, Exception> onFailure) {
+	private void handleException(CheckpointException exception, Optional<Long> checkpointId, BiConsumer<FailJobCallback, Exception> onFailure) {
 		if (isCheckpointFailure(exception) &&
 				!exceededTolerableFailures() && // prevent unnecessary storing checkpointId
-				countedCheckpointIds.add(checkpointId) &&
+				checkAndAdd(checkpointId) &&
 				continuousFailureCounter.incrementAndGet() == tolerableCpFailureNumber + 1) {
 			countedCheckpointIds.clear();
 			onFailure.accept(failureCallback, new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
@@ -129,6 +124,10 @@ public class CheckpointFailureManager {
 			default:
 				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + exception.getCheckpointFailureReason().name());
 		}
+	}
+
+	private Boolean checkAndAdd(Optional<Long> checkpointId) {
+		return checkpointId.map(countedCheckpointIds::add).orElse(true);
 	}
 
 	private boolean exceededTolerableFailures() {
