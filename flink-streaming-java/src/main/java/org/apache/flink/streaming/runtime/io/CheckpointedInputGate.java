@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -34,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -229,6 +231,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
 	public InputChannel getChannel(int channelIndex) {
 		return inputGate.getChannel(channelIndex);
+	}
+
+	public List<InputChannelInfo> getChannelInfos() {
+		return inputGate.getChannelInfos();
 	}
 
 	@VisibleForTesting
