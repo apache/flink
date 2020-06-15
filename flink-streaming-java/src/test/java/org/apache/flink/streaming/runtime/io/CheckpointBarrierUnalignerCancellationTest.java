@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.RuntimeEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -77,13 +78,13 @@ public class CheckpointBarrierUnalignerCancellationTest {
 	@Test
 	public void test() throws Exception {
 		TestInvokable invokable = new TestInvokable();
-		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(new int[]{numChannels}, TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable);
+		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, new MockIndexedInputGate(0, numChannels));
 
 		for (RuntimeEvent e : events) {
 			if (e instanceof CancelCheckpointMarker) {
 				unaligner.processCancellationBarrier((CancelCheckpointMarker) e);
 			} else if (e instanceof CheckpointBarrier) {
-				unaligner.processBarrier((CheckpointBarrier) e, channel);
+				unaligner.processBarrier((CheckpointBarrier) e, new InputChannelInfo(0, channel));
 			} else {
 				throw new IllegalArgumentException("unexpected event type: " + e);
 			}

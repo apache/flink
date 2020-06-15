@@ -629,11 +629,11 @@ public class LocalInputChannelTest {
 						boe.get().getBuffer().recycleBuffer();
 
 						// Check that we don't receive too many buffers
-						if (++numberOfBuffersPerChannel[boe.get().getChannelIndex()]
+						if (++numberOfBuffersPerChannel[boe.get().getChannelInfo().getInputChannelIdx()]
 								> numberOfExpectedBuffersPerChannel) {
 
 							throw new IllegalStateException("Received more buffers than expected " +
-									"on channel " + boe.get().getChannelIndex() + ".");
+									"on channel " + boe.get().getChannelInfo() + ".");
 						}
 					}
 				}
