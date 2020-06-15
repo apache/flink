@@ -24,6 +24,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -60,11 +61,7 @@ public class CheckpointFailureManager {
 	 *                      latest generated checkpoint id as a special flag.
 	 */
 	public void handleJobLevelCheckpointException(CheckpointException exception, long checkpointId) {
-		checkFailureCounter(exception, checkpointId);
-		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
-			clearCount();
-			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
-		}
+		handleException(exception, checkpointId, FailJobCallback::failJob);
 	}
 
 	/**
@@ -81,22 +78,24 @@ public class CheckpointFailureManager {
 			CheckpointException exception,
 			long checkpointId,
 			ExecutionAttemptID executionAttemptID) {
-		checkFailureCounter(exception, checkpointId);
-		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
+		handleException(exception, checkpointId, (failureCallback, e) -> failureCallback.failJobDueToTaskFailure(e, executionAttemptID));
+	}
+
+	private void handleException(CheckpointException exception, long checkpointId, BiConsumer<FailJobCallback, Exception> onFailure) {
+		if (isCheckpointFailure(exception) &&
+				countedCheckpointIds.add(checkpointId) &&
+				continuousFailureCounter.incrementAndGet() > tolerableCpFailureNumber) {
 			clearCount();
-			failureCallback.failJobDueToTaskFailure(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."), executionAttemptID);
+			onFailure.accept(failureCallback, new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
 		}
 	}
 
-	public void checkFailureCounter(
-			CheckpointException exception,
-			long checkpointId) {
+	private boolean isCheckpointFailure(CheckpointException exception) {
 		if (tolerableCpFailureNumber == UNLIMITED_TOLERABLE_FAILURE_NUMBER) {
-			return;
+			return false;
 		}
 
-		CheckpointFailureReason reason = exception.getCheckpointFailureReason();
-		switch (reason) {
+		switch (exception.getCheckpointFailureReason()) {
 			case PERIODIC_SCHEDULER_SHUTDOWN:
 			case TOO_MANY_CONCURRENT_CHECKPOINTS:
 			case TOO_MANY_CHECKPOINT_REQUESTS:
@@ -122,20 +121,12 @@ public class CheckpointFailureManager {
 			case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
 			case TRIGGER_CHECKPOINT_FAILURE:
 			case FINALIZE_CHECKPOINT_FAILURE:
-				//ignore
-				break;
-
+				return false;
 			case CHECKPOINT_DECLINED:
 			case CHECKPOINT_EXPIRED:
-				//we should make sure one checkpoint only be counted once
-				if (countedCheckpointIds.add(checkpointId)) {
-					continuousFailureCounter.incrementAndGet();
-				}
-
-				break;
-
+				return true;
 			default:
-				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + reason.name());
+				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + exception.getCheckpointFailureReason().name());
 		}
 	}
 
