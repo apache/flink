@@ -94,10 +94,10 @@ public class JsonFormatFactoryTest extends TestLogger {
 	@Test
 	public void testInvalidOptionForTimestampFormat() {
 		final Map<String, String> tableOptions = getModifyOptions(
-			options -> options.put("json.timestamp-format", "test"));
+			options -> options.put("json.timestamp-format.standard", "test"));
 
 		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException("Unsupported value test for timestamp-format. Supported values are [SQL, ISO-8601].")));
+		thrown.expect(containsCause(new ValidationException("Unsupported value test for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
 		testSchemaDeserializationSchema(tableOptions);
 	}
 
@@ -164,7 +164,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 		options.put("format", JsonFormatFactory.IDENTIFIER);
 		options.put("json.fail-on-missing-field", "false");
 		options.put("json.ignore-parse-errors", "true");
-		options.put("json.timestamp-format", "ISO-8601");
+		options.put("json.timestamp-format.standard", "ISO-8601");
 		return options;
 	}
 

@@ -45,7 +45,7 @@ public class JsonOptions {
 					+ "fields are set to null in case of errors, false by default");
 
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = ConfigOptions
-			.key("timestamp-format")
+			.key("timestamp-format.standard")
 			.stringType()
 			.defaultValue("SQL")
 			.withDescription("Optional flag to specify timestamp format, SQL by default." +
