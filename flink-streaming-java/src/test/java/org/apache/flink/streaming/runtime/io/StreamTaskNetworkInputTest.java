@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -109,7 +110,7 @@ public class StreamTaskNetworkInputTest {
 		CheckpointBarrier barrier = new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		List<BufferOrEvent> buffers = new ArrayList<>(2);
-		buffers.add(new BufferOrEvent(barrier, 0));
+		buffers.add(new BufferOrEvent(barrier, new InputChannelInfo(0, 0)));
 		buffers.add(createDataBuffer());
 
 		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
@@ -121,22 +122,24 @@ public class StreamTaskNetworkInputTest {
 
 	@Test
 	public void testSnapshotWithTwoInputGates() throws Exception {
-		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(
-				new int[]{ 1, 1 },
-				TestSubtaskCheckpointCoordinator.INSTANCE,
-				"test",
-				new DummyCheckpointInvokable());
-
 		SingleInputGate inputGate1 = new SingleInputGateBuilder().setSingleInputGateIndex(0).build();
 		RemoteInputChannel channel1 = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate1);
 		inputGate1.setInputChannels(channel1);
-		inputGate1.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
-		StreamTaskNetworkInput<Long> input1 = createInput(unaligner, inputGate1);
 
 		SingleInputGate inputGate2 = new SingleInputGateBuilder().setSingleInputGateIndex(1).build();
 		RemoteInputChannel channel2 = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate2);
 		inputGate2.setInputChannels(channel2);
+
+		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(
+			TestSubtaskCheckpointCoordinator.INSTANCE,
+			"test",
+			new DummyCheckpointInvokable(),
+			inputGate1,
+			inputGate2);
+		inputGate1.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
 		inputGate2.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
+
+		StreamTaskNetworkInput<Long> input1 = createInput(unaligner, inputGate1);
 		StreamTaskNetworkInput<Long> input2 = createInput(unaligner, inputGate2);
 
 		CheckpointBarrier barrier = new CheckpointBarrier(0, 0L, CheckpointOptions.forCheckpointWithDefaultLocation());
@@ -194,10 +197,10 @@ public class StreamTaskNetworkInputTest {
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
 				new CheckpointBarrierUnaligner(
-					new int[] { numInputChannels },
 					TestSubtaskCheckpointCoordinator.INSTANCE,
 					"test",
-					new DummyCheckpointInvokable())),
+					new DummyCheckpointInvokable(),
+					inputGate.getInputGate())),
 			inSerializer,
 			new StatusWatermarkValve(numInputChannels, output),
 			0,
@@ -261,7 +264,7 @@ public class StreamTaskNetworkInputTest {
 		serializeRecord(42L, bufferBuilder);
 		serializeRecord(44L, bufferBuilder);
 
-		return new BufferOrEvent(bufferConsumer.build(), 0, false);
+		return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0), false);
 	}
 
 	private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers, DataOutput output) {
