@@ -268,7 +268,7 @@ final class FlinkDistribution {
 	}
 
 	public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {
-		Files.write(conf.resolve("slaves"), taskExecutorHosts);
+		Files.write(conf.resolve("workers"), taskExecutorHosts);
 	}
 
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
