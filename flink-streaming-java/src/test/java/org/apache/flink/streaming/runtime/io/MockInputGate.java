@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
@@ -33,6 +34,8 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Mock {@link InputGate}.
@@ -86,6 +89,13 @@ public class MockInputGate extends InputGate {
 	@Override
 	public InputChannel getChannel(int channelIndex) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public List<InputChannelInfo> getChannelInfos() {
+		return IntStream.range(0, numberOfChannels)
+			.mapToObj(channelIndex -> new InputChannelInfo(0, channelIndex))
+			.collect(Collectors.toList());
 	}
 
 	@Override
