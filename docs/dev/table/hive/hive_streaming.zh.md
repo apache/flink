@@ -163,4 +163,38 @@ SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'='true', 'streamin
 
 ## Hive Table As Temporal Tables
 
-TODO
+You can use a Hive table as temporal table and join streaming data with it. Please follow
+the [example]({{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table) to find out how to join a
+temporal table.
+
+When performing the join, the Hive table will be cached in TM memory and each record from the stream
+is looked up in the Hive table to decide whether a match is found. You don't need any extra settings to use a Hive table
+as temporal table. But optionally, you can configure the TTL of the Hive table cache with the following
+property. After the cache expires, the Hive table will be scanned again to load the latest data.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>lookup.join.cache.ttl</h5></td>
+        <td style="word-wrap: break-word;">60 min</td>
+        <td>Duration</td>
+        <td>The cache TTL (e.g. 10min) for the build table in lookup join. By default the TTL is 60 minutes.</td>
+    </tr>
+  </tbody>
+</table>
+
+**Note**:
+1. Each joining subtask needs to keep its own cache of the Hive table. Please make sure the Hive table can fit into
+the memory of a TM task slot.
+2. You should set a relatively large value for `lookup.join.cache.ttl`. You'll probably have performance issue if
+your Hive table needs to be updated and reloaded too frequently.
+3. Currently we simply load the whole Hive table whenever the cache needs refreshing. There's no way to differentiate
+new data from the old.
