@@ -1,8 +1,8 @@
 ---
-title: "Blackhole SQL Connector"
-nav-title: Blackhole
+title: "BlackHole SQL Connector"
+nav-title: BlackHole
 nav-parent_id: sql-connectors
-nav-pos: 6
+nav-pos: 12
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,22 +23,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<span class="label label-primary">Sink: Bounded</span>
-<span class="label label-primary">Sink: UnBounded</span>
+<span class="label label-primary">Sink</span>
+<span class="label label-primary">Sink</span>
 
 * This will be replaced by the TOC
 {:toc}
 
-The Blackhole connector allows for swallowing all input records. It is designed for:
+The BlackHole connector allows for swallowing all input records. It is designed for:
 
 - high performance testing.
 - UDF to output, not substantive sink.
 
 Just like /dev/null device on Unix-like operating systems.
 
-The Blackhole connector is built-in.
+The BlackHole connector is built-in.
 
-How to create a Blackhole table
+How to create a BlackHole table
 ----------------
 
 <div class="codetabs" markdown="1">

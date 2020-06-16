@@ -2,7 +2,7 @@
 title: "Print SQL Connector"
 nav-title: Print
 nav-parent_id: sql-connectors
-nav-pos: 5
+nav-pos: 11
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,8 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<span class="label label-primary">Sink: Bounded</span>
-<span class="label label-primary">Sink: UnBounded</span>
+<span class="label label-primary">Sink</span>
 
 * This will be replaced by the TOC
 {:toc}
