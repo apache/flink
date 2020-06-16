@@ -33,7 +33,7 @@ import java.util.Set;
  * @param <B> Type of key B
  * @param <V> Type of the value
  */
-public class DualKeyLinkedMap<A, B, V> {
+class DualKeyLinkedMap<A, B, V> {
 
 	private final LinkedHashMap<A, Tuple2<B, V>> aMap;
 
@@ -41,16 +41,16 @@ public class DualKeyLinkedMap<A, B, V> {
 
 	private transient Collection<V> values;
 
-	public DualKeyLinkedMap(int initialCapacity) {
+	DualKeyLinkedMap(int initialCapacity) {
 		this.aMap = new LinkedHashMap<>(initialCapacity);
 		this.bMap = new LinkedHashMap<>(initialCapacity);
 	}
 
-	public int size() {
+	int size() {
 		return aMap.size();
 	}
 
-	public V getKeyA(A aKey) {
+	V getKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
 		if (value != null) {
@@ -60,7 +60,7 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V getKeyB(B bKey) {
+	V getKeyB(B bKey) {
 		final A aKey = bMap.get(bKey);
 
 		if (aKey != null) {
@@ -70,7 +70,7 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V put(A aKey, B bKey, V value) {
+	V put(A aKey, B bKey, V value) {
 		final V removedValue = removeKeyA(aKey);
 		removeKeyB(bKey);
 
@@ -84,15 +84,15 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public boolean containsKeyA(A aKey) {
+	boolean containsKeyA(A aKey) {
 		return aMap.containsKey(aKey);
 	}
 
-	public boolean containsKeyB(B bKey) {
+	boolean containsKeyB(B bKey) {
 		return bMap.containsKey(bKey);
 	}
 
-	public V removeKeyA(A aKey) {
+	V removeKeyA(A aKey) {
 		Tuple2<B, V> aValue = aMap.remove(aKey);
 
 		if (aValue != null) {
@@ -103,7 +103,7 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V removeKeyB(B bKey) {
+	V removeKeyB(B bKey) {
 		A aKey = bMap.remove(bKey);
 
 		if (aKey != null) {
@@ -118,7 +118,7 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public Collection<V> values() {
+	Collection<V> values() {
 		Collection<V> vs = values;
 
 		if (vs == null) {
@@ -129,15 +129,15 @@ public class DualKeyLinkedMap<A, B, V> {
 		return vs;
 	}
 
-	public Set<A> keySetA() {
+	Set<A> keySetA() {
 		return aMap.keySet();
 	}
 
-	public Set<B> keySetB() {
+	Set<B> keySetB() {
 		return bMap.keySet();
 	}
 
-	public void clear() {
+	void clear() {
 		aMap.clear();
 		bMap.clear();
 	}
