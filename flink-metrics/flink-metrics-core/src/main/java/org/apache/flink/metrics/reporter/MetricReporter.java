@@ -76,4 +76,15 @@ public interface MetricReporter {
 	 * @param group       the group that contains the metric
 	 */
 	void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group);
+
+	/**
+	 * Returns the delimiter used for assembly of the metric scope.
+	 *
+	 * <p>Note: This method is only called once.
+	 *
+	 * @return delimiter used for the metric scope
+	 */
+	default char getDefaultScopeDelimiter() {
+		return '.';
+	}
 }

@@ -146,7 +146,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 
-					String delimiterForReporter = reporterSetup.getDelimiter().orElse(String.valueOf(globalDelimiter));
+					String delimiterForReporter = reporterSetup.getDelimiter().orElse(String.valueOf(reporterInstance.getDefaultScopeDelimiter()));
 					if (delimiterForReporter.length() != 1) {
 						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
 						delimiterForReporter = String.valueOf(globalDelimiter);

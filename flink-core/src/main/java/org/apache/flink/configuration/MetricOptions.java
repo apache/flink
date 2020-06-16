@@ -53,15 +53,23 @@ public class MetricOptions {
 				" any of the names in the list will be started. Otherwise, all reporters that could be found in" +
 				" the configuration will be started.");
 
+	// this option only exists for documentation purposes
 	public static final ConfigOption<String> REPORTER_CLASS =
 		key("metrics.reporter.<name>.class")
 			.noDefaultValue()
 			.withDescription("The reporter class to use for the reporter named <name>.");
 
+	// this option only exists for documentation purposes
 	public static final ConfigOption<String> REPORTER_INTERVAL =
 		key("metrics.reporter.<name>.interval")
 			.noDefaultValue()
 			.withDescription("The reporter interval to use for the reporter named <name>.");
+
+	// this option only exists for documentation purposes
+	public static final ConfigOption<String> REPORTER_SCOPE_DELIMITER =
+		key("metrics.reporter.<name>." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER)
+			.noDefaultValue()
+			.withDescription("The delimiter used to assemble the metric identifier for the reporter named <name>.");
 
 	public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
 		key("metrics.reporter.<name>.<parameter>")
@@ -71,7 +79,7 @@ public class MetricOptions {
 
 	/** The delimiter used to assemble the metric identifier. */
 	public static final ConfigOption<String> SCOPE_DELIMITER =
-		key("metrics.scope.delimiter")
+		key("metrics." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER)
 			.defaultValue(".")
 			.withDescription("Delimiter used to assemble the metric identifier.");
 
