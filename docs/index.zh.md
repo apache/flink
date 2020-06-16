@@ -47,7 +47,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 
 ### 获取 Flink 帮助
 
-如果你遇到困难了, 可以在 [社区](https://flink.apache.org/zh/community.html)寻求帮助。值得一提的是，Apache Flink 的用户邮件列表一直是 Apache 最活跃的项目之一，也是一个快速获得帮助的好途径。
+如果你遇到困难了, 可以在 [社区](https://flink.apache.org/zh/community.html)寻求帮助。值得一提的是，Apache Flink 的用户邮件列表一直是 Apache 项目里面最活跃的之一，也是一个快速获得帮助的好途径。
 
 </div>
 <div class="col-sm-6" markdown="1">
