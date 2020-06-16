@@ -525,6 +525,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 		final Configuration configuration = applyCommandLineOptionsToConfiguration(cmd);
 		final ClusterClientFactory<ApplicationId> yarnClusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(configuration);
+		configuration.set(DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
 
 		final YarnClusterDescriptor yarnClusterDescriptor = (YarnClusterDescriptor) yarnClusterClientFactory.createClusterDescriptor(configuration);
 
