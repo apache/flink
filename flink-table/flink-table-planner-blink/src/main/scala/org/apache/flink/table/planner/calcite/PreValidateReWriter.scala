@@ -42,13 +42,13 @@ import scala.collection.JavaConversions._
 /** Implements [[org.apache.calcite.sql.util.SqlVisitor]]
   * interface to do some rewrite work before sql node validation. */
 class PreValidateReWriter(
-    val catalogReader: CalciteCatalogReader,
+    val validator: FlinkCalciteSqlValidator,
     val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
   override def visit(call: SqlCall): Unit = {
     call match {
       case r: RichSqlInsert if r.getStaticPartitions.nonEmpty => r.getSource match {
         case select: SqlSelect =>
-          appendPartitionProjects(r, catalogReader, typeFactory, select, r.getStaticPartitions)
+          appendPartitionProjects(r, validator, typeFactory, select, r.getStaticPartitions)
         case source =>
           throw new ValidationException(
             s"INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
@@ -79,16 +79,17 @@ object PreValidateReWriter {
     * Where the "tpe1" and "tpe2" are data types of column a and c of target table A.
     *
     * @param sqlInsert            RichSqlInsert instance
-    * @param calciteCatalogReader catalog reader
+    * @param validator            Validator
     * @param typeFactory          type factory
     * @param select               Source sql select
     * @param partitions           Static partition statements
     */
   def appendPartitionProjects(sqlInsert: RichSqlInsert,
-      calciteCatalogReader: CalciteCatalogReader,
+      validator: FlinkCalciteSqlValidator,
       typeFactory: RelDataTypeFactory,
       select: SqlSelect,
       partitions: SqlNodeList): Unit = {
+    val calciteCatalogReader = validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader])
     val names = sqlInsert.getTargetTable.asInstanceOf[SqlIdentifier].names
     val table = calciteCatalogReader.getTable(names)
     if (table == null) {
@@ -114,7 +115,11 @@ object PreValidateReWriter {
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))
     }
-    val currentNodes = new util.ArrayList[SqlNode](select.getSelectList.getList)
+    // Expands the select list first in case there is a star(*).
+    // Validates the select first to register the where scope.
+    validator.validate(select)
+    val selectList = validator.expandStar(select.getSelectList, select, false)
+    val currentNodes = new util.ArrayList[SqlNode](selectList.getList)
     val fixedNodes = new util.ArrayList[SqlNode]
     0 until targetRowType.getFieldList.length foreach {
       idx =>
