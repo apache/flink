@@ -177,13 +177,11 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
     testHarness.open()
 
-    // register cleanup timer with 3003
     testHarness.setProcessingTime(3)
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 1L: JLong, null)))
@@ -194,7 +192,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 2L: JLong, null)))
 
-    // trigger cleanup timer and register cleanup timer with 6003
     testHarness.setProcessingTime(3003)
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 3L: JLong, null)))
@@ -205,7 +202,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 4L: JLong, null)))
 
-    // register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
 
     testHarness.setProcessingTime(7002)
@@ -216,7 +212,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "bbb", 30L: JLong, null)))
 
-    // register cleanup timer with 14002
     testHarness.setProcessingTime(11002)
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 7L: JLong, null)))
@@ -258,7 +253,7 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     expectedOutput.add(new StreamRecord(
       row(0L: JLong, "bbb", 30L: JLong, null, 20L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      row(0L: JLong, "aaa", 7L: JLong, null, 7L: JLong, 7L: JLong)))
+      row(0L: JLong, "aaa", 7L: JLong, null, 5L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
       row(0L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
@@ -269,21 +264,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       row(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
-
-    // test for clean-up timer NPE
-    testHarness.setProcessingTime(20000)
-
-    // timer registered for 23000
-    testHarness.processElement(new StreamRecord(
-      binaryrow(0L: JLong, "ccc", 10L: JLong, null)))
-
-    // update clean-up timer to 25500. Previous timer should not clean up
-    testHarness.setProcessingTime(22500)
-    testHarness.processElement(new StreamRecord(
-      binaryrow(0L: JLong, "ccc", 10L: JLong, null)))
-
-    // 23000 clean-up timer should fire but not fail with an NPE
-    testHarness.setProcessingTime(23001)
 
     testHarness.close()
   }
@@ -409,7 +389,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
@@ -466,32 +445,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     testHarness.processWatermark(19000)
 
-    // test cleanup
-    testHarness.setProcessingTime(1000)
-    testHarness.processWatermark(20000)
-
-    // check that state is removed after max retention time
-    testHarness.processElement(new StreamRecord(
-      binaryrow(20001L: JLong, "ccc", 1L: JLong))) // clean-up 3000
-    testHarness.setProcessingTime(2500)
-    testHarness.processElement(new StreamRecord(
-      binaryrow(20002L: JLong, "ccc", 2L: JLong))) // clean-up 4500
-    testHarness.processWatermark(20010) // compute output
-
-    testHarness.setProcessingTime(4499)
-    testHarness.setProcessingTime(4500)
-
-    // check that state is only removed if all data was processed
-    testHarness.processElement(new StreamRecord(
-      binaryrow(20011L: JLong, "ccc", 3L: JLong))) // clean-up 6500
-
-    testHarness.setProcessingTime(6500) // clean-up attempt but rescheduled to 8500
-
-    testHarness.processWatermark(20020) // schedule emission
-
-    testHarness.setProcessingTime(8499) // clean-up
-    testHarness.setProcessingTime(8500) // clean-up
-
     val result = dropWatermarks(testHarness.getOutput.toArray)
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -525,13 +478,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       row(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
       row(12001L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
-
-    expectedOutput.add(new StreamRecord(
-      row(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
-    expectedOutput.add(new StreamRecord(
-      row(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
-    expectedOutput.add(new StreamRecord(
-      row(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()

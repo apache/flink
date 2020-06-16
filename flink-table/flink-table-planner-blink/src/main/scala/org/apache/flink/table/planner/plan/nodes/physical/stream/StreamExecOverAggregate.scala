@@ -422,8 +422,6 @@ class StreamExecOverAggregate(
           rowTimeIdx.get)
       } else {
         new RowTimeRangeBoundedPrecedingFunction(
-          tableConfig.getMinIdleStateRetentionTime,
-          tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
           flattenAccTypes,
           fieldTypes,
@@ -441,8 +439,6 @@ class StreamExecOverAggregate(
           precedingOffset)
       } else {
         new ProcTimeRangeBoundedPrecedingFunction(
-          tableConfig.getMinIdleStateRetentionTime,
-          tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
           flattenAccTypes,
           fieldTypes,
