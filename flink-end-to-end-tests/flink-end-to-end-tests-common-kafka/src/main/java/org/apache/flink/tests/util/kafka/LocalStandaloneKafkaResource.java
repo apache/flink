@@ -251,7 +251,11 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			"--broker-list",
 			KAFKA_ADDRESS,
 			"--topic",
-			topic)) {
+			topic,
+			"--property",
+			"parse.key=true",
+			"--property",
+			"key.separator=\t")) {
 
 			try (PrintStream printStream = new PrintStream(autoClosableProcess.getProcess().getOutputStream(), true, StandardCharsets.UTF_8.name())) {
 				for (final String message : messages) {
