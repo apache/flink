@@ -6,6 +6,6 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
+- io.airlift:aircompressor:0.8
 - org.apache.hive:hive-exec:2.2.0
 - org.apache.orc:orc-core:1.4.3
-- io.airlift:aircompressor:0.8
