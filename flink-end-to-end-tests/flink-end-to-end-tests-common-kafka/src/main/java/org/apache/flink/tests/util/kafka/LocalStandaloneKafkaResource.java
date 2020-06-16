@@ -41,6 +41,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -246,48 +247,53 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void sendMessages(String topic, String... messages) throws IOException {
-		try (AutoClosableProcess autoClosableProcess = AutoClosableProcess.runNonBlocking(
-			kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
-			"--broker-list",
-			KAFKA_ADDRESS,
-			"--topic",
-			topic)) {
-
-			sendMessagesAndWait(autoClosableProcess, messages);
-		}
+		List<String> args = createSendMessageArguments(topic);
+		sendMessagesAndWait(args, messages);
 	}
 
 	@Override
 	public void sendKeyedMessages(String topic, String keySeparator, String... messages) throws IOException {
-		try (AutoClosableProcess autoClosableProcess = AutoClosableProcess.runNonBlocking(
+		List<String> args = new ArrayList<>(createSendMessageArguments(topic));
+		args.add("--property");
+		args.add("parse.key=true");
+		args.add("--property");
+		args.add("key.separator=" + keySeparator);
+
+		sendMessagesAndWait(args, messages);
+	}
+
+	private List<String> createSendMessageArguments(String topic) {
+		return Arrays.asList(
 				kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
 				"--broker-list",
 				KAFKA_ADDRESS,
 				"--topic",
-				topic,
-				"--property",
-				"parse.key=true",
-				"--property",
-				"key.separator=" + keySeparator)) {
-
-			sendMessagesAndWait(autoClosableProcess, messages);
-		}
+				topic);
 	}
 
-	private void sendMessagesAndWait(AutoClosableProcess autoClosableProcess, String[] messages) throws IOException {
-		try (PrintStream printStream = new PrintStream(autoClosableProcess.getProcess().getOutputStream(), true, StandardCharsets.UTF_8.name())) {
-			for (final String message : messages) {
-				printStream.println(message);
-			}
-			printStream.flush();
-		}
+	private void sendMessagesAndWait(
+			List<String> kafkaArgs,
+			String... messages) throws IOException {
+		try (AutoClosableProcess autoClosableProcess =
+					AutoClosableProcess.runNonBlocking(kafkaArgs.toArray(new String[0]))) {
 
-		try {
-			// wait until the process shuts down on it's own
-			// this is the only reliable way to ensure the producer has actually processed our input
-			autoClosableProcess.getProcess().waitFor();
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
+			try (PrintStream printStream =
+						new PrintStream(autoClosableProcess
+								.getProcess()
+								.getOutputStream(), true, StandardCharsets.UTF_8.name())) {
+				for (final String message : messages) {
+					printStream.println(message);
+				}
+				printStream.flush();
+			}
+
+			try {
+				// wait until the process shuts down on it's own
+				// this is the only reliable way to ensure the producer has actually processed our input
+				autoClosableProcess.getProcess().waitFor();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
 		}
 	}
 
