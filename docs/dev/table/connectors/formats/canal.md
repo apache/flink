@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[Canal](https://github.com/alibaba/canal/wiki) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL into other systems. Canal provides an unified format schema for changelog and supports to serialize messages using JSON and [protobuf](https://developers.google.com/protocol-buffers) (protobuf is the default format for Canal).
+[Canal](https://github.com/alibaba/canal/wiki) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL into other systems. Canal provides a unified format schema for changelog and supports to serialize messages using JSON and [protobuf](https://developers.google.com/protocol-buffers) (protobuf is the default format for Canal).
 
 Flink supports to interpret Canal JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
  - synchronizing incremental data from databases to other systems
@@ -54,7 +54,7 @@ In order to setup the Canal format, the following table provides dependency info
 How to use Canal format
 ----------------
 
-Canal provides an unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table:
+Canal provides a unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table:
 
 ```json
 {

@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[Debezium](https://debezium.io/) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL, PostgreSQL, Oracle, Microsoft SQL Server and many other databases into Kafka. Debezium provides an unified format schema for changelog and supports to serialize messages using JSON and [Apache Avro](https://avro.apache.org/).
+[Debezium](https://debezium.io/) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL, PostgreSQL, Oracle, Microsoft SQL Server and many other databases into Kafka. Debezium provides a unified format schema for changelog and supports to serialize messages using JSON and [Apache Avro](https://avro.apache.org/).
 
 Flink supports to interpret Debezium JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
  - synchronizing incremental data from databases to other systems
@@ -54,7 +54,7 @@ In order to setup the Debezium format, the following table provides dependency i
 How to use Debezium format
 ----------------
 
-Debezium provides an unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table:
+Debezium provides a unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table:
 
 ```json
 {
