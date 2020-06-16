@@ -251,26 +251,43 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			"--broker-list",
 			KAFKA_ADDRESS,
 			"--topic",
-			topic,
-			"--property",
-			"parse.key=true",
-			"--property",
-			"key.separator=\t")) {
+			topic)) {
 
-			try (PrintStream printStream = new PrintStream(autoClosableProcess.getProcess().getOutputStream(), true, StandardCharsets.UTF_8.name())) {
-				for (final String message : messages) {
-					printStream.println(message);
-				}
-				printStream.flush();
-			}
+			sendMessagesAndWait(autoClosableProcess, messages);
+		}
+	}
 
-			try {
-				// wait until the process shuts down on it's own
-				// this is the only reliable way to ensure the producer has actually processed our input
-				autoClosableProcess.getProcess().waitFor();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
+	@Override
+	public void sendKeyedMessages(String topic, String keySeparator, String... messages) throws IOException {
+		try (AutoClosableProcess autoClosableProcess = AutoClosableProcess.runNonBlocking(
+				kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
+				"--broker-list",
+				KAFKA_ADDRESS,
+				"--topic",
+				topic,
+				"--property",
+				"parse.key=true",
+				"--property",
+				"key.separator=" + keySeparator)) {
+
+			sendMessagesAndWait(autoClosableProcess, messages);
+		}
+	}
+
+	private void sendMessagesAndWait(AutoClosableProcess autoClosableProcess, String[] messages) throws IOException {
+		try (PrintStream printStream = new PrintStream(autoClosableProcess.getProcess().getOutputStream(), true, StandardCharsets.UTF_8.name())) {
+			for (final String message : messages) {
+				printStream.println(message);
 			}
+			printStream.flush();
+		}
+
+		try {
+			// wait until the process shuts down on it's own
+			// this is the only reliable way to ensure the producer has actually processed our input
+			autoClosableProcess.getProcess().waitFor();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 		}
 	}
 
