@@ -261,7 +261,7 @@ Yen           1
 {% highlight java %}
 // 获取 stream 和 table 环境
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 // or TableEnvironment tEnv = TableEnvironment.create(settings);
 
@@ -282,7 +282,7 @@ tEnv.executeSql(
 {% highlight scala %}
 // 获取 stream 和 table 环境
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val settings = EnvironmentSettings.newInstance().build()
 val tEnv = StreamTableEnvironment.create(env, settings)
 // or val tEnv = TableEnvironment.create(settings)
 

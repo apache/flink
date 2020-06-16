@@ -260,7 +260,7 @@ See also the page about [joins for continuous queries](joins.html) for more info
 {% highlight java %}
 // Get the stream and table environments.
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 // or TableEnvironment tEnv = TableEnvironment.create(settings);
 
@@ -281,7 +281,7 @@ tEnv.executeSql(
 {% highlight scala %}
 // Get the stream and table environments.
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val settings = EnvironmentSettings.newInstance().build()
 val tEnv = StreamTableEnvironment.create(env, settings)
 // or val tEnv = TableEnvironment.create(settings)
 
