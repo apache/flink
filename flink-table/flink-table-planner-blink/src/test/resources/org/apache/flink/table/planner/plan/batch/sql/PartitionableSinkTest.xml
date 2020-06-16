@@ -94,6 +94,25 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testStaticWithValues">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink PARTITION (b=1, c=1) VALUES (5)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- LogicalProject(a=[5:BIGINT], b=[1:BIGINT], c=[1:BIGINT])
+   +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Calc(select=[5:BIGINT AS a, 1:BIGINT AS b, 1:BIGINT AS c])
+   +- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWrongFields">
     <Resource name="sql">
       <![CDATA[INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable]]>

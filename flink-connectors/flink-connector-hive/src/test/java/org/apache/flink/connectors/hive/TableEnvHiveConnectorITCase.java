@@ -688,6 +688,17 @@ public class TableEnvHiveConnectorITCase {
 		tableEnv.executeSql("drop table if exists dest");
 	}
 
+	@Test
+	public void testInsertPartitionWithValuesSource() {
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+		tableEnv.executeSql("create table dest (x int) partitioned by (p1 int,p2 string)");
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
+				"insert into dest partition (p1=1) values(1, 'a')");
+		List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select * from dest").execute().collect());
+		assertEquals("[1,1,a]", results.toString());
+		tableEnv.executeSql("drop table if exists dest");
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
