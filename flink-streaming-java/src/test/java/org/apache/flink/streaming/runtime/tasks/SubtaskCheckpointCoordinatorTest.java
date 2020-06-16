@@ -247,8 +247,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		TestTaskStateManager stateManager = new TestTaskStateManager();
-		MockEnvironment mockEnvironment = MockEnvironment.builder().setTaskStateManager(stateManager).build();
+		MockEnvironment mockEnvironment = MockEnvironment.builder().build();
 		SubtaskCheckpointCoordinator subtaskCheckpointCoordinator = new MockSubtaskCheckpointCoordinatorBuilder()
 			.setEnvironment(mockEnvironment)
 			.build();
@@ -256,15 +255,16 @@ public class SubtaskCheckpointCoordinatorTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(1, 4096);
 		ArrayList<Object> recordOrEvents = new ArrayList<>();
 		StreamElementSerializer<String> stringStreamElementSerializer = new StreamElementSerializer<>(StringSerializer.INSTANCE);
-		ResultPartitionWriter resultPartitionWriter = new RecordOrEventCollectingResultPartitionWriter<>(recordOrEvents, bufferProvider, stringStreamElementSerializer);
+		ResultPartitionWriter resultPartitionWriter = new RecordOrEventCollectingResultPartitionWriter<>(
+			recordOrEvents, bufferProvider, stringStreamElementSerializer);
 		mockEnvironment.addOutputs(Collections.singletonList(resultPartitionWriter));
 
 		OneInputStreamTask<String, String> task = testHarness.getTask();
-		OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain = new OperatorChain<>(task, StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+		OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain = new OperatorChain<>(
+			task, StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
 		long checkpointId = 42L;
 		// notify checkpoint aborted before execution.
 		subtaskCheckpointCoordinator.notifyCheckpointAborted(checkpointId, operatorChain, () -> true);
-		subtaskCheckpointCoordinator.getChannelStateWriter().start(checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation());
 		subtaskCheckpointCoordinator.checkpointState(
 			new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
