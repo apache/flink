@@ -42,7 +42,7 @@ In order to setup the HBase connector, the following table provide dependency in
 
 | HBase Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
+| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
 
 
 How to create an HBase table
@@ -53,6 +53,7 @@ All the column families in HBase table must be declared as ROW type, the field n
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
+-- register the HBase table 'mytable' in Flink SQL
 CREATE TABLE hTable (
  rowkey INT,
  family1 ROW<q1 INT>,
@@ -63,7 +64,20 @@ CREATE TABLE hTable (
  'connector' = 'hbase-1.4',
  'table-name' = 'mytable',
  'zookeeper.quorum' = 'localhost:2181'
-)
+);
+
+-- use ROW(...) construction function construct column families and write data into the HBase table.
+-- assuming the schema of "T" is [rowkey, f1q1, f2q2, f2q3, f3q4, f3q5, f3q6]
+INSERT INTO hTable
+SELECT rowkey, ROW(f1q1), ROW(f2q2, f2q3), ROW(f3q4, f3q5, f3q6) FROM T;
+
+-- scan data from the HBase table
+SELECT rowkey, family1, family3.q4, family3.q6 FROM hTable;
+
+-- temporal join the HBase table as a dimension table
+SELECT * FROM myTopic
+LEFT JOIN hTable FOR SYSTEM_TIME AS OF myTopic.proctime
+ON myTopic.key = hTable.rowkey;
 {% endhighlight %}
 </div>
 </div>

@@ -76,7 +76,19 @@ CREATE TABLE MyUserTable (
    'connector' = 'jdbc',
    'url' = 'jdbc:mysql://localhost:3306/mydatabase',
    'table-name' = 'users'
-)
+);
+
+-- write data into the JDBC table from the other table "T"
+INSERT INTO MyUserTable
+SELECT id, name, age, status FROM T;
+
+-- scan data from the JDBC table
+SELECT id, name, age, status FROM MyUserTable;
+
+-- temporal join the JDBC table as a dimension table
+SELECT * FROM myTopic
+LEFT JOIN MyUserTable FOR SYSTEM_TIME AS OF myTopic.proctime
+ON myTopic.key = MyUserTable.id;
 {% endhighlight %}
 </div>
 </div>
