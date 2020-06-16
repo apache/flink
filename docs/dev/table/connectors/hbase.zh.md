@@ -274,7 +274,7 @@ double toDouble(byte[] bytes)
       <td>Not supported</td>
     </tr>
     <tr>
-      <td><code>MAP / MULTISET<code></td>
+      <td><code>MAP / MULTISET</code></td>
       <td>Not supported</td>
     </tr>
     <tr>

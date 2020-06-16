@@ -265,7 +265,8 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 // or TableEnvironment tEnv = TableEnvironment.create(settings);
 
-// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用。
+// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用
+// 'currency' 列是 HBase 表中的 rowKey
 tEnv.executeSql(
     "CREATE TABLE LatestRates (" +
     "   currency STRING," +
@@ -285,7 +286,8 @@ val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMo
 val tEnv = StreamTableEnvironment.create(env, settings)
 // or val tEnv = TableEnvironment.create(settings)
 
-// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用。
+// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用
+// 'currency' 列是 HBase 表中的 rowKey
 tEnv.executeSql(
     s"""
        |CREATE TABLE LatestRates (

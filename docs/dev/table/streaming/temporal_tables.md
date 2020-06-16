@@ -265,6 +265,7 @@ StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 // or TableEnvironment tEnv = TableEnvironment.create(settings);
 
 // Define an HBase table with DDL, then we can use it as a temporal table in sql
+// Column 'currency' is the rowKey in HBase table
 tEnv.executeSql(
     "CREATE TABLE LatestRates (" +
     "   currency STRING," +
@@ -285,6 +286,7 @@ val tEnv = StreamTableEnvironment.create(env, settings)
 // or val tEnv = TableEnvironment.create(settings)
 
 // Define an HBase table with DDL, then we can use it as a temporal table in sql
+// Column 'currency' is the rowKey in HBase table
 tEnv.executeSql(
     s"""
        |CREATE TABLE LatestRates (
