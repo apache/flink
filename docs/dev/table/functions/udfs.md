@@ -40,7 +40,7 @@ Currently, Flink distinguishes between the following kinds of functions:
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
 - *Async table functions* are special functions for table sources that perform a lookup.
 
-<span class="label label-danger">Attention</span> Scalar and table functions have been updated to the new type system based on [data types](../types.html). Aggregating functions still use the old type system based on `TypeInformation`.
+<span class="label label-danger">Attention</span> Scalar and table functions have been updated to the new type system based on [data types]({% link dev/table/types.md %}). Aggregating functions still use the old type system based on `TypeInformation`.
 
 The following example shows how to create a simple scalar function and how to call the function in both Table API and SQL.
 
@@ -266,7 +266,7 @@ class SumFunction extends ScalarFunction {
 
 ### Type Inference
 
-The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both function parameters and return types must be mapped to a [data type](../types.html).
+The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both function parameters and return types must be mapped to a [data type]({% link dev/table/types.md %}).
 
 From a logical perspective, the planner needs information about expected types, precision, and scale. From a JVM perspective, the planner needs information about how internal data structures are represented as JVM objects when calling a user-defined function.
 
@@ -280,7 +280,7 @@ If more advanced type inference logic is required, an implementer can explicitly
 
 The automatic type inference inspects the function's class and evaluation methods to derive data types for the arguments and result of a function. `@DataTypeHint` and `@FunctionHint` annotations support the automatic extraction.
 
-For a full list of classes that can be implicitly mapped to a data type, see the [data type section](../types.html#data-type-annotations).
+For a full list of classes that can be implicitly mapped to a data type, see the [data type section]({% link dev/table/types.md %}#data-type-annotations).
 
 **`@DataTypeHint`**
 
@@ -545,12 +545,106 @@ public static class LiteralFunction extends ScalarFunction {
 
 </div>
 
+Runtime Integration
+-------------------
+
+Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataStream API.
+
+The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
+
+The `open()` method provides a `FunctionContext` that contains information about the context in which user-defined functions are executed, such as the metric group, the distributed cache files, or the global job parameters.
+
+The following information can be obtained by calling the corresponding methods of `FunctionContext`:
+
+| Method                                | Description                                            |
+| :------------------------------------ | :----------------------------------------------------- |
+| `getMetricGroup()`                    | Metric group for this parallel subtask.                |
+| `getCachedFile(name)`                 | Local temporary file copy of a distributed cache file. |
+| `getJobParameter(name, defaultValue)` | Global job parameter value associated with given key.  |
+
+The following example snippet shows how to use `FunctionContext` in a scalar function for accessing a global job parameter:
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class HashCodeFunction extends ScalarFunction {
+
+    private int factor = 0;
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        // access the global "hashcode_factor" parameter
+        // "12" would be the default value if the parameter does not exist
+        factor = Integer.parseInt(context.getJobParameter("hashcode_factor", "12"));
+    }
+
+    public int eval(String s) {
+        return s.hashCode() * factor;
+    }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// add job parameter
+env.getConfig().addJobParameter("hashcode_factor", "31");
+
+// register the function
+env.createTemporarySystemFunction("hashCode", HashCodeFunction.class);
+
+// use the function
+env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable");
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.FunctionContext
+import org.apache.flink.table.functions.ScalarFunction
+
+class HashCodeFunction extends ScalarFunction {
+
+  private var factor: Int = 0
+
+  override def open(context: FunctionContext): Unit = {
+    // access the global "hashcode_factor" parameter
+    // "12" would be the default value if the parameter does not exist
+    factor = context.getJobParameter("hashcode_factor", "12").toInt
+  }
+
+  def eval(s: String): Int = {
+    s.hashCode * factor
+  }
+}
+
+val env = TableEnvironment.create(...)
+
+// add job parameter
+env.getConfig.addJobParameter("hashcode_factor", "31")
+
+// register the function
+env.createTemporarySystemFunction("hashCode", classOf[HashCodeFunction])
+
+// use the function
+env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable")
+
+{% endhighlight %}
+</div>
+
+</div>
+
 {% top %}
 
 Scalar Functions
 ----------------
 
-A user-defined scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section](../types.html) can be used as a parameter or return type of an evaluation method.
+A user-defined scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section]({% link dev/table/types.md %}) can be used as a parameter or return type of an evaluation method.
 
 In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.
 
@@ -623,7 +717,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 </div>
 
-If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions](../python/python_udfs.html#scalar-functions) documentation for more details.
+If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions]({% link dev/table/python/python_udfs.md %}#scalar-functions) documentation for more details.
 
 {% top %}
 
@@ -781,7 +875,7 @@ env.sqlQuery(
 
 If you intend to implement functions in Scala, do not implement a table function as a Scala `object`. Scala `object`s are singletons and will cause concurrency issues.
 
-If you intend to implement or call functions in Python, please refer to the [Python Table Functions](../python/python_udfs.html#table-functions) documentation for more details.
+If you intend to implement or call functions in Python, please refer to the [Python Table Functions]({% link dev/table/python/python_udfs.md %}#table-functions) documentation for more details.
 
 {% top %}
 
@@ -1261,7 +1355,6 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 {% endhighlight %}
 </div>
 </div>
-
 
 {% top %}
 
@@ -1861,95 +1954,4 @@ tab
 </div>
 </div>
 
-
 {% top %}
-
-Integrating UDFs with the Runtime
----------------------------------
-
-Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
-
-The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
-
-The `open()` method provides a `FunctionContext` that contains information about the context in which user-defined functions are executed, such as the metric group, the distributed cache files, or the global job parameters.
-
-The following information can be obtained by calling the corresponding methods of `FunctionContext`:
-
-| Method                                | Description                                            |
-| :------------------------------------ | :----------------------------------------------------- |
-| `getMetricGroup()`                    | Metric group for this parallel subtask.                |
-| `getCachedFile(name)`                 | Local temporary file copy of a distributed cache file. |
-| `getJobParameter(name, defaultValue)` | Global job parameter value associated with given key.  |
-
-The following example snippet shows how to use `FunctionContext` in a scalar function for accessing a global job parameter:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-public class HashCode extends ScalarFunction {
-
-    private int factor = 0;
-
-    @Override
-    public void open(FunctionContext context) throws Exception {
-        // access "hashcode_factor" parameter
-        // "12" would be the default value if parameter does not exist
-        factor = Integer.valueOf(context.getJobParameter("hashcode_factor", "12")); 
-    }
-
-    public int eval(String s) {
-        return s.hashCode() * factor;
-    }
-}
-
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
-
-// set job parameter
-Configuration conf = new Configuration();
-conf.setString("hashcode_factor", "31");
-env.getConfig().setGlobalJobParameters(conf);
-
-// register the function
-tableEnv.registerFunction("hashCode", new HashCode());
-
-// use the function in Java Table API
-myTable.select("string, string.hashCode(), hashCode(string)");
-
-// use the function in SQL
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-object hashCode extends ScalarFunction {
-
-  var hashcode_factor = 12
-
-  override def open(context: FunctionContext): Unit = {
-    // access "hashcode_factor" parameter
-    // "12" would be the default value if parameter does not exist
-    hashcode_factor = context.getJobParameter("hashcode_factor", "12").toInt
-  }
-
-  def eval(s: String): Int = {
-    s.hashCode() * hashcode_factor
-  }
-}
-
-val tableEnv = BatchTableEnvironment.create(env)
-
-// use the function in Scala Table API
-myTable.select('string, hashCode('string))
-
-// register and use the function in SQL
-tableEnv.registerFunction("hashCode", hashCode)
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
-{% endhighlight %}
-
-</div>
-</div>
-
-{% top %}
-
