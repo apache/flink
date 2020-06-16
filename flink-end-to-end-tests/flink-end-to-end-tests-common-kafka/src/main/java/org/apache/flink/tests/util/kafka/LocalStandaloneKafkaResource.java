@@ -41,6 +41,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -246,14 +247,40 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void sendMessages(String topic, String... messages) throws IOException {
-		try (AutoClosableProcess autoClosableProcess = AutoClosableProcess.runNonBlocking(
-			kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
-			"--broker-list",
-			KAFKA_ADDRESS,
-			"--topic",
-			topic)) {
+		List<String> args = createSendMessageArguments(topic);
+		sendMessagesAndWait(args, messages);
+	}
 
-			try (PrintStream printStream = new PrintStream(autoClosableProcess.getProcess().getOutputStream(), true, StandardCharsets.UTF_8.name())) {
+	@Override
+	public void sendKeyedMessages(String topic, String keySeparator, String... messages) throws IOException {
+		List<String> args = new ArrayList<>(createSendMessageArguments(topic));
+		args.add("--property");
+		args.add("parse.key=true");
+		args.add("--property");
+		args.add("key.separator=" + keySeparator);
+
+		sendMessagesAndWait(args, messages);
+	}
+
+	private List<String> createSendMessageArguments(String topic) {
+		return Arrays.asList(
+				kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
+				"--broker-list",
+				KAFKA_ADDRESS,
+				"--topic",
+				topic);
+	}
+
+	private void sendMessagesAndWait(
+			List<String> kafkaArgs,
+			String... messages) throws IOException {
+		try (AutoClosableProcess autoClosableProcess =
+					AutoClosableProcess.runNonBlocking(kafkaArgs.toArray(new String[0]))) {
+
+			try (PrintStream printStream =
+						new PrintStream(autoClosableProcess
+								.getProcess()
+								.getOutputStream(), true, StandardCharsets.UTF_8.name())) {
 				for (final String message : messages) {
 					printStream.println(message);
 				}

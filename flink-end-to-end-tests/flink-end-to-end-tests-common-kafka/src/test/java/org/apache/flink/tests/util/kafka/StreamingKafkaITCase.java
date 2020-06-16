@@ -113,13 +113,13 @@ public class StreamingKafkaITCase extends TestLogger {
 
 			LOG.info("Sending messages to Kafka topic [{}] ...", inputTopic);
 			// send some data to Kafka
-			kafka.sendMessages(inputTopic,
-				"elephant,5,45218",
-				"squirrel,12,46213",
-				"bee,3,51348",
-				"squirrel,22,52444",
-				"bee,10,53412",
-				"elephant,9,54867");
+			kafka.sendKeyedMessages(inputTopic, "\t",
+				"key\telephant,5,45218",
+				"key\tsquirrel,12,46213",
+				"key\tbee,3,51348",
+				"key\tsquirrel,22,52444",
+				"key\tbee,10,53412",
+				"key\telephant,9,54867");
 
 			LOG.info("Verifying messages from Kafka topic [{}] ...", outputTopic);
 			{
@@ -142,11 +142,11 @@ public class StreamingKafkaITCase extends TestLogger {
 
 			// send some more messages to Kafka
 			LOG.info("Sending more messages to Kafka topic [{}] ...", inputTopic);
-			kafka.sendMessages(inputTopic,
-				"elephant,13,64213",
-				"giraffe,9,65555",
-				"bee,5,65647",
-				"squirrel,18,66413");
+			kafka.sendKeyedMessages(inputTopic, "\t",
+				"key\telephant,13,64213",
+				"key\tgiraffe,9,65555",
+				"key\tbee,5,65647",
+				"key\tsquirrel,18,66413");
 
 			// verify that our assumption that the new partition actually has written messages is correct
 			Assert.assertNotEquals(
