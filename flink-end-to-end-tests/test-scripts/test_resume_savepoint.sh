@@ -79,7 +79,7 @@ run_resume_savepoint_test() {
     --state_backend $STATE_BACKEND_TYPE \
     --state_backend.checkpoint_directory $CHECKPOINT_DIR \
     --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
-    --sequence_generator_source.sleep_time 15 \
+    --sequence_generator_source.sleep_time 30 \
     --sequence_generator_source.sleep_after_elements 1 \
     | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
