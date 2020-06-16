@@ -40,15 +40,20 @@ public class ExecutorNotifierTest {
 	private ExecutorService executorToNotify;
 	private ExecutorNotifier notifier;
 	private Throwable exceptionInHandler;
+	private CountDownLatch exceptionInHandlerLatch;
 
 	@Before
 	public void setup() {
 		this.exceptionInHandler = null;
+		this.exceptionInHandlerLatch = new CountDownLatch(1);
 		this.workerExecutor = Executors.newSingleThreadScheduledExecutor(r ->
 				new Thread(r, "worker-thread"));
 		this.executorToNotify = Executors.newSingleThreadExecutor(r -> {
 			Thread t = new Thread(r, "main-thread");
-			t.setUncaughtExceptionHandler((thread, e) -> exceptionInHandler = e);
+			t.setUncaughtExceptionHandler((thread, e) -> {
+				exceptionInHandler = e;
+				exceptionInHandlerLatch.countDown();
+			});
 			return t;
 		});
 		this.notifier = new ExecutorNotifier(
@@ -98,6 +103,9 @@ public class ExecutorNotifierTest {
 		});
 		latch.await();
 		closeExecutorToNotify();
+		// The uncaught exception handler may fire after the executor has shutdown.
+		// We need to wait on the countdown latch here.
+		exceptionInHandlerLatch.await(10000L, TimeUnit.MILLISECONDS);
 		assertEquals(exception, exceptionInHandler);
 	}
 
