@@ -26,7 +26,9 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.TableFormatConfig;
+import org.rocksdb.WriteOptions;
 
 import javax.annotation.Nullable;
 
@@ -133,6 +135,38 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 			blockBasedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
 			blockBasedTableConfig.setPinL0FilterAndIndexBlocksInCache(true);
 			opt.setTableFormatConfig(blockBasedTableConfig);
+		}
+
+		return opt;
+	}
+
+	/**
+	 * Gets the RocksDB {@link WriteOptions} to be used for write operations.
+	 */
+	public WriteOptions getWriteOptions() {
+		// Disable WAL by default
+		WriteOptions opt = new WriteOptions().setDisableWAL(true);
+		handlesToClose.add(opt);
+
+		// add user-defined options factory, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createWriteOptions(opt, handlesToClose);
+		}
+
+		return opt;
+	}
+
+	/**
+	 * Gets the RocksDB {@link ReadOptions} to be used for read operations.
+	 */
+	public ReadOptions getReadOptions() {
+		// We ensure total order seek by default to prevent user misuse, see FLINK-17800 for more details
+		ReadOptions opt = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+		handlesToClose.add(opt);
+
+		// add user-defined options factory, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createReadOptions(opt, handlesToClose);
 		}
 
 		return opt;
