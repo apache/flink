@@ -45,8 +45,8 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 | Kafka Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
 | universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
-| 0.11.x              | `flink-connector-kafka-011{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-011{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
-| 0.10.x              | `flink-connector-kafka-010{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-010{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
+| 0.11.x              | `flink-connector-kafka-0.11{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
+| 0.10.x              | `flink-connector-kafka-0.10{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
 
 The Kafka connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({% link dev/project-configuration.zh.md %}).
@@ -68,7 +68,7 @@ CREATE TABLE kafkaTable (
 ) WITH (
  'connector' = 'kafka',
  'topic' = 'user_behavior',
- 'properties.bootstrap.server' = 'localhost:9092',
+ 'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
  'format' = 'csv',
  'scan.startup.mode' = 'earliest-offset'
