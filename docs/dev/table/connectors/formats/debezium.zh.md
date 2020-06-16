@@ -191,5 +191,5 @@ Format Options
 Data Type Mapping
 ----------------
 
-Currently, the Debezium format uses JSON format for deserialization. Please refer to [JSON format documentation]({% link dev/table/connectors/formats/json.md %}#data-type-mapping) for more details about the data type mapping.
+Currently, the Debezium format uses JSON format for deserialization. Please refer to [JSON format documentation]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping) for more details about the data type mapping.
 
