@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -70,6 +71,9 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 	private transient ValueState<RowData> accState;
 	private transient MapState<Long, List<RowData>> inputState;
 
+	// the state which keeps the safe timestamp to retract all records
+	private transient ValueState<Long> retractTsState;
+
 	private transient AggsHandleFunction function;
 	private transient JoinedRowData output;
 
@@ -107,6 +111,12 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 			new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(stateDescriptor);
 
+		ValueStateDescriptor<Long> retractTsStateDescriptor = new ValueStateDescriptor<Long>(
+			"retractTsState",
+			Types.LONG
+		);
+		this.retractTsState = getRuntimeContext().getState(retractTsStateDescriptor);
+
 		initCleanupTimeState("ProcTimeBoundedRangeOverCleanupTime");
 	}
 
@@ -128,9 +138,22 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 			rowList = new ArrayList<RowData>();
 			// register timer to process event once the current millisecond passed
 			ctx.timerService().registerProcessingTimeTimer(currentTime + 1);
+			registerRetractTimer(ctx, currentTime);
 		}
 		rowList.add(input);
 		inputState.put(currentTime, rowList);
+	}
+
+	private void registerRetractTimer(KeyedProcessFunction<K, RowData, RowData>.Context ctx, long timestamp) throws Exception {
+		// calculate safe timestamp to retract all records
+		long retractTimestamp = timestamp + precedingTimeBoundary + 1;
+		// update timestamp and register timer if needed
+		Long curRetractTimestamp = retractTsState.value();
+		if (curRetractTimestamp == null || curRetractTimestamp < retractTimestamp) {
+			// we don't delete existing timer since it may delete timer for data processing
+			ctx.timerService().registerProcessingTimeTimer(retractTimestamp);
+			retractTsState.update(retractTimestamp);
+		}
 	}
 
 	@Override
@@ -140,7 +163,17 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 			Collector<RowData> out) throws Exception {
 		if (needToCleanupState(timestamp)) {
 			// clean up and return
-			cleanupState(inputState, accState);
+			cleanupState(inputState, accState, retractTsState);
+			function.cleanup();
+			return;
+		}
+
+		Long retractTimestamp = retractTsState.value();
+		// if retractTsState has not been updated then it is safe to retract all records
+		if (retractTimestamp != null && retractTimestamp <= timestamp) {
+			inputState.clear();
+			accState.clear();
+			retractTsState.clear();
 			function.cleanup();
 			return;
 		}

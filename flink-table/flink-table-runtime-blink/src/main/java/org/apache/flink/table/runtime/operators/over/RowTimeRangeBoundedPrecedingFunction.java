@@ -76,6 +76,9 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 	// the state which used to materialize the accumulator for incremental calculation
 	private transient ValueState<RowData> accState;
 
+	// the state which keeps the safe timestamp to retract all records
+	private transient ValueState<Long> retractTsState;
+
 	// the state which keeps all the data that are not expired.
 	// The first element (as the mapState key) of the tuple is the time stamp. Per each time stamp,
 	// the second element of tuple is a list that contains the entire data of all the rows belonging
@@ -126,6 +129,12 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 			rowListTypeInfo);
 		inputState = getRuntimeContext().getMapState(inputStateDesc);
 
+		ValueStateDescriptor<Long> retractTsStateDescriptor = new ValueStateDescriptor<Long>(
+			"retractTsState",
+			Types.LONG
+		);
+		this.retractTsState = getRuntimeContext().getState(retractTsStateDescriptor);
+
 		initCleanupTimeState("RowTimeBoundedRangeOverCleanupTime");
 	}
 
@@ -158,6 +167,19 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 				// register event time timer
 				ctx.timerService().registerEventTimeTimer(triggeringTs);
 			}
+			registerRetractTimer(ctx, triggeringTs);
+		}
+	}
+
+	private void registerRetractTimer(KeyedProcessFunction<K, RowData, RowData>.Context ctx, long timestamp) throws Exception {
+		// calculate safe timestamp to retract all records
+		long retractTimestamp = timestamp + precedingOffset + 1;
+		// update timestamp and register timer if needed
+		Long curRetractTimestamp = retractTsState.value();
+		if (curRetractTimestamp == null || curRetractTimestamp < retractTimestamp) {
+			// we don't delete existing timer since it may delete timer for data processing
+			ctx.timerService().registerEventTimeTimer(retractTimestamp);
+			retractTsState.update(retractTimestamp);
 		}
 	}
 
@@ -188,7 +210,7 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 				if (noRecordsToProcess) {
 					// we clean the state
-					cleanupState(inputState, accState, lastTriggeringTsState);
+					cleanupState(inputState, accState, lastTriggeringTsState, retractTsState);
 					function.cleanup();
 				} else {
 					// There are records left to process because a watermark has not been received yet.
@@ -197,6 +219,17 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 					registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 				}
 			}
+			return;
+		}
+
+		Long retractTimestamp = retractTsState.value();
+		// if retractTsState has not been updated then it is safe to retract all records
+		if (retractTimestamp != null && retractTimestamp <= timestamp) {
+			inputState.clear();
+			accState.clear();
+			lastTriggeringTsState.clear();
+			retractTsState.clear();
+			function.cleanup();
 			return;
 		}
 
