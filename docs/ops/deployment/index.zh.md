@@ -119,7 +119,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Run Flink locally for basic testing and experimentation
-        <br><a href="{% link ops/deployment/local.md %}">Learn more</a>
+        <br><a href="{% link ops/deployment/local.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -130,7 +130,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A simple solution for running Flink on bare metal or VM's 
-        <br><a href="{% link ops/deployment/cluster_setup.md %}">Learn more</a>
+        <br><a href="{% link ops/deployment/cluster_setup.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -141,7 +141,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Deploy Flink on-top of Apache Hadoop's resource manager 
-        <br><a href="{% link ops/deployment/yarn_setup.md %}">Learn more</a>
+        <br><a href="{% link ops/deployment/yarn_setup.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -154,7 +154,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A generic resource manager for running distriubted systems
-        <br><a href="{% link ops/deployment/mesos.md %}">Learn more</a>
+        <br><a href="{% link ops/deployment/mesos.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -165,7 +165,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A popular solution for running Flink within a containerized environment
-        <br><a href="{% link ops/deployment/docker.md %}">Learn more</a>
+        <br><a href="{% link ops/deployment/docker.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -176,7 +176,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         An automated system for deploying containerized applications
-        <br><a href="{% link ops/deployment/kubernetes.md %}">Learn more</a>
+        <br><a href="{% link ops/deployment/kubernetes.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -258,7 +258,7 @@ applications. These approaches differ based on the deployment mode and target, b
 To provide a dependency, there are the following options:
 - files in the **`lib/` folder** are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins. Beware that classes added here can potentially interfere with Flink, for example if you are adding a different version of a library already provided by Flink.
 
-- **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link ops/plugins.md %}) can be added here.
+- **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link ops/plugins.zh.md %}) can be added here.
 
 ### Download Maven dependencies locally
 
