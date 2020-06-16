@@ -261,6 +261,64 @@ public class HBaseDynamicTableFactoryTest {
 		}
 	}
 
+	@Test
+	public void testTypeWithUnsupportedPrecision() {
+		Map<String, String> options = getAllOptions();
+		// test unsupported timestamp precision
+		TableSchema schema = TableSchema.builder()
+			.field(ROWKEY, STRING())
+			.field(FAMILY1, ROW(
+				FIELD(COL1, TIMESTAMP(6)),
+				FIELD(COL2, INT())))
+			.build();
+		try {
+			createTableSource(schema, options);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "The precision 6 of TIMESTAMP type is out of the range [0, 3]" +
+					" supported by HBase connector")
+				.isPresent());
+		}
+
+		try {
+			createTableSink(schema, options);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "The precision 6 of TIMESTAMP type is out of the range [0, 3]" +
+					" supported by HBase connector")
+				.isPresent());
+		}
+		// test unsupported time precision
+		schema = TableSchema.builder()
+			.field(ROWKEY, STRING())
+			.field(FAMILY1, ROW(
+				FIELD(COL1, TIME(6)),
+				FIELD(COL2, INT())))
+			.build();
+
+		try {
+			createTableSource(schema, options);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "The precision 6 of TIME type is out of the range [0, 3]" +
+					" supported by HBase connector")
+				.isPresent());
+		}
+
+		try {
+			createTableSink(schema, options);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "The precision 6 of TIME type is out of the range [0, 3]" +
+					" supported by HBase connector")
+				.isPresent());
+		}
+	}
+
 	private Map<String, String> getAllOptions() {
 		Map<String, String> options = new HashMap<>();
 		options.put("connector", "hbase-1.4");

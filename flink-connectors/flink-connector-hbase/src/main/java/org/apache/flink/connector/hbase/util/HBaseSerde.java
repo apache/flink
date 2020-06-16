@@ -52,6 +52,11 @@ public class HBaseSerde {
 
 	private static final byte[] EMPTY_BYTES = new byte[]{};
 
+	private static final int MIN_TIMESTAMP_PRECISION = 0;
+	private static final int MAX_TIMESTAMP_PRECISION = 3;
+	private static final int MIN_TIME_PRECISION = 0;
+	private static final int MAX_TIME_PRECISION = 3;
+
 	private final byte[] nullStringBytes;
 
 	// row key index in output row
@@ -276,8 +281,15 @@ public class HBaseSerde {
 				return (row, pos) -> Bytes.toBytes(row.getShort(pos));
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
+				return (row, pos) -> Bytes.toBytes(row.getInt(pos));
+			case TIME_WITHOUT_TIME_ZONE:
+				final int timePrecision = getPrecision(fieldType);
+				if (timePrecision < MIN_TIME_PRECISION || timePrecision > MAX_TIME_PRECISION) {
+					throw new UnsupportedOperationException(
+						String.format("The precision %s of TIME type is out of the range [%s, %s] supported by " +
+							"HBase connector", timePrecision, MIN_TIME_PRECISION, MAX_TIME_PRECISION));
+				}
 				return (row, pos) -> Bytes.toBytes(row.getInt(pos));
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
@@ -288,7 +300,13 @@ public class HBaseSerde {
 				return (row, pos) -> Bytes.toBytes(row.getDouble(pos));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				return createTimestampEncoder(getPrecision(fieldType));
+				final int timestampPrecision = getPrecision(fieldType);
+				if (timestampPrecision < MIN_TIMESTAMP_PRECISION || timestampPrecision > MAX_TIMESTAMP_PRECISION) {
+					throw new UnsupportedOperationException(
+						String.format("The precision %s of TIMESTAMP type is out of the range [%s, %s] supported by " +
+							"HBase connector", timestampPrecision, MIN_TIMESTAMP_PRECISION, MAX_TIMESTAMP_PRECISION));
+				}
+				return createTimestampEncoder(timestampPrecision);
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + fieldType);
 		}
@@ -367,8 +385,15 @@ public class HBaseSerde {
 				return Bytes::toShort;
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
+				return Bytes::toInt;
+			case TIME_WITHOUT_TIME_ZONE:
+				final int timePrecision = getPrecision(fieldType);
+				if (timePrecision < MIN_TIME_PRECISION || timePrecision > MAX_TIME_PRECISION) {
+					throw new UnsupportedOperationException(
+						String.format("The precision %s of TIME type is out of the range [%s, %s] supported by " +
+							"HBase connector", timePrecision, MIN_TIME_PRECISION, MAX_TIME_PRECISION));
+				}
 				return Bytes::toInt;
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
@@ -379,6 +404,12 @@ public class HBaseSerde {
 				return Bytes::toDouble;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				final int timestampPrecision = getPrecision(fieldType);
+				if (timestampPrecision < MIN_TIMESTAMP_PRECISION || timestampPrecision > MAX_TIMESTAMP_PRECISION) {
+					throw new UnsupportedOperationException(
+						String.format("The precision %s of TIMESTAMP type is out of the range [%s, %s] supported by " +
+							"HBase connector", timestampPrecision, MIN_TIMESTAMP_PRECISION, MAX_TIMESTAMP_PRECISION));
+				}
 				return createTimestampDecoder();
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + fieldType);

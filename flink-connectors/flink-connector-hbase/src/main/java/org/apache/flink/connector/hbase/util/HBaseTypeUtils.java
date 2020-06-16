@@ -42,6 +42,11 @@ public class HBaseTypeUtils {
 
 	private static final byte[] EMPTY_BYTES = new byte[]{};
 
+	private static final int MIN_TIMESTAMP_PRECISION = 0;
+	private static final int MAX_TIMESTAMP_PRECISION = 3;
+	private static final int MIN_TIME_PRECISION = 0;
+	private static final int MAX_TIME_PRECISION = 3;
+
 	/**
 	 * Deserialize byte array to Java Object with the given type.
 	 */
@@ -184,16 +189,29 @@ public class HBaseTypeUtils {
 			case SMALLINT:
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
 			case FLOAT:
 			case DOUBLE:
 				return true;
+			case TIME_WITHOUT_TIME_ZONE:
+				final int timePrecision = getPrecision(type);
+				if (timePrecision < MIN_TIME_PRECISION || timePrecision > MAX_TIME_PRECISION) {
+					throw new UnsupportedOperationException(
+						String.format("The precision %s of TIME type is out of the range [%s, %s] supported by " +
+							"HBase connector", timePrecision, MIN_TIME_PRECISION, MAX_TIME_PRECISION));
+				}
+				return true;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				return getPrecision(type) <= 3;
+				final int timestampPrecision = getPrecision(type);
+				if (timestampPrecision < MIN_TIMESTAMP_PRECISION || timestampPrecision > MAX_TIMESTAMP_PRECISION) {
+					throw new UnsupportedOperationException(
+						String.format("The precision %s of TIMESTAMP type is out of the range [%s, %s] supported by " +
+							"HBase connector", timestampPrecision, MIN_TIMESTAMP_PRECISION, MAX_TIMESTAMP_PRECISION));
+				}
+				return true;
 			case TIMESTAMP_WITH_TIME_ZONE:
 			case ARRAY:
 			case MULTISET:
