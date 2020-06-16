@@ -51,6 +51,18 @@ public interface KafkaResource extends ExternalResource {
 	void sendMessages(String topic, String ... messages) throws IOException;
 
 	/**
+	 * Sends the given keyed messages to the given topic. The messages themselves should contain
+	 * the specified {@code keySeparator}.
+	 *
+	 * @param topic topic name
+	 * @param keySeparator the separator used to parse key from value in the messages
+	 * @param messages messages to send
+	 * @throws IOException
+	 */
+	void sendKeyedMessages(
+			String topic, String keySeparator, String ... messages) throws IOException;
+
+	/**
 	 * Returns the kafka bootstrap server addresses.
 	 * @return kafka bootstrap server addresses
 	 */
