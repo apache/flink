@@ -182,6 +182,16 @@ class PartitionableSinkITCase extends BatchTestBase {
   }
 
   @Test
+  def testInsertWithStaticPartitionAndValuesSource(): Unit = {
+    registerTableSink(partitionColumns = Array("b", "c"))
+    execInsertSqlAndWaitResult("insert into sinkTable partition(b=1)\n"
+      + "(values (1, 'Hello world, how are you?'), (4, '你好，陌生人，我是'), (2, 'Hello'))")
+    assertEquals(List("1,1,Hello world, how are you?"), RESULT1.toList)
+    assertEquals(List("4,1,你好，陌生人，我是"), RESULT2.toList)
+    assertEquals(List("2,1,Hello"), RESULT3.toList)
+  }
+
+  @Test
   def testStaticPartitionNotInPartitionFields(): Unit = {
     expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4,

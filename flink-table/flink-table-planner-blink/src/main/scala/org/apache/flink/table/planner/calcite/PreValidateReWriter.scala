@@ -32,10 +32,11 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
 import org.apache.calcite.sql.validate.{SqlValidatorException, SqlValidatorTable, SqlValidatorUtil}
-import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlLiteral, SqlNode, SqlNodeList, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlSelect, SqlUtil}
 import org.apache.calcite.util.Static.RESOURCE
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -49,10 +50,14 @@ class PreValidateReWriter(
       case r: RichSqlInsert if r.getStaticPartitions.nonEmpty => r.getSource match {
         case select: SqlSelect =>
           appendPartitionProjects(r, validator, typeFactory, select, r.getStaticPartitions)
+        case values: SqlCall if values.getKind == SqlKind.VALUES =>
+          val newSource = appendPartitionProjects(r, validator, typeFactory, values,
+            r.getStaticPartitions)
+          r.setOperand(2, newSource)
         case source =>
           throw new ValidationException(
-            s"INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
-                s" '$source' is not supported yet.")
+            s"INSERT INTO <table> PARTITION statement only support "
+              + s"SELECT and VALUES clause for now, '$source' is not supported yet.")
       }
       case _ =>
     }
@@ -81,21 +86,22 @@ object PreValidateReWriter {
     * @param sqlInsert            RichSqlInsert instance
     * @param validator            Validator
     * @param typeFactory          type factory
-    * @param select               Source sql select
+    * @param source               Source to rewrite
     * @param partitions           Static partition statements
     */
   def appendPartitionProjects(sqlInsert: RichSqlInsert,
       validator: FlinkCalciteSqlValidator,
       typeFactory: RelDataTypeFactory,
-      select: SqlSelect,
-      partitions: SqlNodeList): Unit = {
+      source: SqlCall,
+      partitions: SqlNodeList): SqlCall = {
+    assert(source.getKind == SqlKind.SELECT || source.getKind == SqlKind.VALUES)
     val calciteCatalogReader = validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader])
     val names = sqlInsert.getTargetTable.asInstanceOf[SqlIdentifier].names
     val table = calciteCatalogReader.getTable(names)
     if (table == null) {
       // There is no table exists in current catalog,
       // just skip to let other validation error throw.
-      return
+      return source
     }
     val targetRowType = createTargetRowType(typeFactory,
       calciteCatalogReader, table, sqlInsert.getTargetColumnList)
@@ -115,12 +121,26 @@ object PreValidateReWriter {
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))
     }
+    source match {
+      case select: SqlSelect =>
+        rewriteSelect(validator, select, targetRowType, assignedFields)
+      case values: SqlCall if values.getKind == SqlKind.VALUES =>
+        rewriteValues(values, targetRowType, assignedFields)
+    }
+  }
+
+  private def rewriteSelect(
+      validator: FlinkCalciteSqlValidator,
+      select: SqlSelect,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode]): SqlCall = {
     // Expands the select list first in case there is a star(*).
     // Validates the select first to register the where scope.
     validator.validate(select)
-    val selectList = validator.expandStar(select.getSelectList, select, false)
-    val currentNodes = new util.ArrayList[SqlNode](selectList.getList)
+    val sourceList = validator.expandStar(select.getSelectList, select, false).getList
+
     val fixedNodes = new util.ArrayList[SqlNode]
+    val currentNodes = new util.ArrayList[SqlNode](sourceList)
     0 until targetRowType.getFieldList.length foreach {
       idx =>
         if (assignedFields.containsKey(idx)) {
@@ -135,6 +155,40 @@ object PreValidateReWriter {
       fixedNodes.addAll(currentNodes)
     }
     select.setSelectList(new SqlNodeList(fixedNodes, select.getSelectList.getParserPosition))
+    select
+  }
+
+  private def rewriteValues(
+      values: SqlCall,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode]): SqlCall = {
+    val fixedNodes = new util.ArrayList[SqlNode]
+    0 until values.getOperandList.size() foreach {
+      valueIdx =>
+        val value = values.getOperandList.get(valueIdx)
+        val valueAsList = if (value.getKind == SqlKind.ROW) {
+          value.asInstanceOf[SqlCall].getOperandList
+        } else {
+          Collections.singletonList(value)
+        }
+        val currentNodes = new util.ArrayList[SqlNode](valueAsList)
+        val fieldNodes = new util.ArrayList[SqlNode]
+        0 until targetRowType.getFieldList.length foreach {
+          fieldIdx =>
+            if (assignedFields.containsKey(fieldIdx)) {
+              fieldNodes.add(assignedFields.get(fieldIdx))
+            } else if (currentNodes.size() > 0) {
+              fieldNodes.add(currentNodes.remove(0))
+            }
+        }
+        // Although it is error case, we still append the old remaining
+        // value items to new item list.
+        if (currentNodes.size > 0) {
+          fieldNodes.addAll(currentNodes)
+        }
+        fixedNodes.add(SqlStdOperatorTable.ROW.createCall(value.getParserPosition, fieldNodes))
+    }
+    SqlStdOperatorTable.VALUES.createCall(values.getParserPosition, fixedNodes)
   }
 
   /**
