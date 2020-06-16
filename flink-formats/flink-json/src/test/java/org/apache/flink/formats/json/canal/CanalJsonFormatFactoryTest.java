@@ -67,7 +67,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 			ROW_TYPE,
 			new RowDataTypeInfo(ROW_TYPE),
 			true,
-			JsonOptions.getTimestampFormatOption("ISO-8601"));
+			TimestampFormat.ISO_8601);
 
 		final Map<String, String> options = getAllOptions();
 

@@ -22,10 +22,9 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
-import org.apache.flink.formats.json.TimeFormatOptions;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -50,18 +49,9 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 
 	public static final String IDENTIFIER = "canal-json";
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = ConfigOptions
-		.key("ignore-parse-errors")
-		.booleanType()
-		.defaultValue(false)
-		.withDescription("Optional flag to skip fields and rows with parse errors instead of failing, " +
-			"fields are set to null in case of errors. Default is false.");
+	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
 
-	public static final ConfigOption<String> TIMESTAMP_FORMAT = ConfigOptions
-		.key("timestamp-format")
-		.stringType()
-		.defaultValue("ISO-8601")
-		.withDescription("Optional flag to specify timestamp format, RFC-3339 by default");
+	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -70,7 +60,7 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-		TimeFormatOptions timestampFormatOption = JsonOptions.getTimestampFormatOption(formatOptions.get(TIMESTAMP_FORMAT));
+		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
 
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override

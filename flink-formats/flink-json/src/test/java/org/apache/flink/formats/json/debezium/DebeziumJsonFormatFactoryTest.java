@@ -68,7 +68,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 			new RowDataTypeInfo(ROW_TYPE),
 			true,
 			true,
-			JsonOptions.getTimestampFormatOption("ISO-8601"));
+			TimestampFormat.ISO_8601);
 
 		final Map<String, String> options = getAllOptions();
 

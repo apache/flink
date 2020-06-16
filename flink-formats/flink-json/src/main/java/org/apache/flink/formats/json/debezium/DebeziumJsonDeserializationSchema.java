@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
-import org.apache.flink.formats.json.TimeFormatOptions;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -80,7 +80,7 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 		TypeInformation<RowData> resultTypeInfo,
 		boolean schemaInclude,
 		boolean ignoreParseErrors,
-		TimeFormatOptions timestampFormatOption) {
+		TimestampFormat timestampFormatOption) {
 		this.resultTypeInfo = resultTypeInfo;
 		this.schemaInclude = schemaInclude;
 		this.ignoreParseErrors = ignoreParseErrors;

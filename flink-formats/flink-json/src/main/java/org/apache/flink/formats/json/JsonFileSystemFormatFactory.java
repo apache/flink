@@ -80,7 +80,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		validateFormatOptions(options);
 		boolean failOnMissingField = options.get(FAIL_ON_MISSING_FIELD);
 		boolean ignoreParseErrors = options.get(IGNORE_PARSE_ERRORS);
-		TimeFormatOptions timestampOption = JsonOptions.getTimestampFormatOption(options.get(TIMESTAMP_FORMAT));
+		TimestampFormat timestampOption = JsonOptions.getTimestampFormat(options);
 
 		RowType formatRowType = context.getFormatRowType();
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
@@ -121,7 +121,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 	@Override
 	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
 		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(context.getFormatRowType(),
-			JsonOptions.getTimestampFormatOption(context.getFormatOptions().get(TIMESTAMP_FORMAT)))));
+			JsonOptions.getTimestampFormat(context.getFormatOptions()))));
 	}
 
 	@Override

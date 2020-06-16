@@ -67,7 +67,7 @@ public class CanalJsonDeserializationSchemaTest {
 			SCHEMA,
 			new RowDataTypeInfo(SCHEMA),
 			false,
-			JsonOptions.getTimestampFormatOption("ISO-8601"));
+			TimestampFormat.ISO_8601);
 
 		SimpleCollector collector = new SimpleCollector();
 		for (String line : lines) {

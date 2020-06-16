@@ -77,7 +77,7 @@ public class DebeziumJsonDeserializationSchemaTest {
 			new RowDataTypeInfo(SCHEMA),
 			schemaInclude,
 			false,
-			JsonOptions.getTimestampFormatOption("ISO-8601"));
+			TimestampFormat.ISO_8601);
 
 		SimpleCollector collector = new SimpleCollector();
 		for (String line : lines) {

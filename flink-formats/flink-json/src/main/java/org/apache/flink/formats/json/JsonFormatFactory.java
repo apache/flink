@@ -66,7 +66,7 @@ public class JsonFormatFactory implements
 
 		final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-		TimeFormatOptions timestampOption = JsonOptions.getTimestampFormatOption(formatOptions.get(TIMESTAMP_FORMAT));
+		TimestampFormat timestampOption = JsonOptions.getTimestampFormat(formatOptions);
 
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
@@ -98,7 +98,7 @@ public class JsonFormatFactory implements
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		TimeFormatOptions timestampOption = JsonOptions.getTimestampFormatOption(formatOptions.get(TIMESTAMP_FORMAT));
+		TimestampFormat timestampOption = JsonOptions.getTimestampFormat(formatOptions);
 
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
@@ -150,7 +150,7 @@ public class JsonFormatFactory implements
 					+ " shouldn't both be true.");
 		}
 		if (!TIMESTAMP_FORMAT_ENUM.contains(timestampFormat)){
-			throw new ValidationException(String.format("Unsupported value %s for %s. Supported values are [SQL, ISO-8601].",
+			throw new ValidationException(String.format("Unsupported value '%s' for %s. Supported values are [SQL, ISO-8601].",
 				timestampFormat, TIMESTAMP_FORMAT.key()));
 		}
 	}

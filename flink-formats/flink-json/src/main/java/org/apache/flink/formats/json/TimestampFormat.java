@@ -21,20 +21,15 @@ package org.apache.flink.formats.json;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Timestamp format Options.
+ * Timestamp format Enums.
  */
 @Internal
-public enum TimeFormatOptions {
+public enum TimestampFormat {
 	/** Options to specify timestamp format. It will parse timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format
 	 * and output timestamp in the same way*/
-	SQL(JsonOptions.SQL),
+	SQL,
 
 	/** Options to specify timestamp format. It will parse timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format
 	 * and output timestamp in the same way*/
-	ISO_8601(JsonOptions.ISO_8601);
-
-	private String format;
-	private TimeFormatOptions(String format){
-		this.format = format;
-	}
+	ISO_8601
 }

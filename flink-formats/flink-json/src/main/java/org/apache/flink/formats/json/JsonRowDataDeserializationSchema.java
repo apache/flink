@@ -64,6 +64,7 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIME_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -96,14 +97,14 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/** Options for timestamp format. */
-	private TimeFormatOptions timestampFormatOption;
+	private final TimestampFormat timestampFormat;
 
 	public JsonRowDataDeserializationSchema(
 			RowType rowType,
 			TypeInformation<RowData> resultTypeInfo,
 			boolean failOnMissingField,
 			boolean ignoreParseErrors,
-			TimeFormatOptions timestampFormatOption) {
+			TimestampFormat timestampFormat) {
 		if (ignoreParseErrors && failOnMissingField) {
 			throw new IllegalArgumentException(
 				"JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.");
@@ -112,7 +113,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		this.failOnMissingField = failOnMissingField;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.runtimeConverter = createRowConverter(checkNotNull(rowType));
-		this.timestampFormatOption = timestampFormatOption;
+		this.timestampFormat = timestampFormat;
 	}
 
 	@Override
@@ -278,11 +279,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	}
 
 	private int convertToTime(JsonNode jsonNode) {
-		// according to RFC 3339 every full-time must have a timezone;
-		// until we have full timezone support, we only support UTC;
-		// users can parse their time as string as a workaround
-		//TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
-		TemporalAccessor parsedTime = ISO8601_TIME_FORMAT.parse(jsonNode.asText());
+		TemporalAccessor parsedTime = SQL_TIME_FORMAT.parse(jsonNode.asText());
 		ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
 		LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
 
@@ -297,7 +294,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 
 	private TimestampData convertToTimestamp(JsonNode jsonNode) {
 		TemporalAccessor parsedTimestamp;
-		switch (timestampFormatOption){
+		switch (timestampFormat){
 			case SQL:
 				parsedTimestamp = SQL_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 				break;

@@ -112,7 +112,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 						new RowDataTypeInfo(ROW_TYPE),
 						false,
 						true,
-						JsonOptions.getTimestampFormatOption("ISO-8601"));
+						TimestampFormat.SQL);
 
 		final DynamicTableSource actualSource = createTableSource(options);
 		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
@@ -129,7 +129,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 
 	private void testSchemaSerializationSchema(Map<String, String> options) {
 		final JsonRowDataSerializationSchema expectedSer = new JsonRowDataSerializationSchema(ROW_TYPE,
-			JsonOptions.getTimestampFormatOption("ISO-8601"));
+			TimestampFormat.ISO_8601);
 
 		final DynamicTableSink actualSink = createTableSink(options);
 		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
