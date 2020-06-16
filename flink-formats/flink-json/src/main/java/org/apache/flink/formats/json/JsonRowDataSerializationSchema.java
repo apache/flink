@@ -204,7 +204,6 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 		return (mapper, reuse, value) -> {
 			int millisecond = (int) value;
 			LocalTime time = LocalTime.ofSecondOfDay(millisecond / 1000L);
-			//return mapper.getNodeFactory().textNode(RFC3339_TIME_FORMAT.format(time));
 			return mapper.getNodeFactory().textNode(SQL_TIME_FORMAT.format(time));
 		};
 	}

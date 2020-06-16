@@ -51,7 +51,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.HashMap;
@@ -279,13 +278,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 
 	private int convertToTime(JsonNode jsonNode) {
 		TemporalAccessor parsedTime = SQL_TIME_FORMAT.parse(jsonNode.asText());
-		ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
 		LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
-
-		if (zoneOffset != null && zoneOffset.getTotalSeconds() != 0 || localTime.getNano() != 0) {
-			throw new JsonParseException(
-				"Invalid time format. Only a time in UTC timezone without milliseconds is supported yet.");
-		}
 
 		// get number of milliseconds of the day
 		return localTime.toSecondOfDay() * 1000;
@@ -301,7 +294,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 				parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 				break;
 			default:
-				throw new TableException("Unsupported timestamp format. Validator should have checked that.");
+				throw new TableException(String.format("Unsupported timestamp format '%s'. Validator should have checked that.", timestampFormat));
 		}
 		LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
 		LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());

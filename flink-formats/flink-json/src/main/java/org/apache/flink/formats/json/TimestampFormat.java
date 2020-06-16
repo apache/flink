@@ -26,10 +26,10 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public enum TimestampFormat {
 	/** Options to specify timestamp format. It will parse timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format
-	 * and output timestamp in the same way*/
+	 * and output timestamp in the same format*/
 	SQL,
 
 	/** Options to specify timestamp format. It will parse timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format
-	 * and output timestamp in the same way*/
+	 * and output timestamp in the same format*/
 	ISO_8601
 }

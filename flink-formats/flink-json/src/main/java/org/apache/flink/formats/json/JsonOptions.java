@@ -50,8 +50,8 @@ public class JsonOptions {
 			.stringType()
 			.defaultValue("SQL")
 			.withDescription("Optional flag to specify timestamp format, SQL by default." +
-				" Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same way." +
-				" Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same way.");
+				" Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same format." +
+				" Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same format.");
 
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations
