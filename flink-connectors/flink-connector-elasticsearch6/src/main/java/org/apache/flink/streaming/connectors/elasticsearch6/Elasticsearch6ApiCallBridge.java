@@ -78,7 +78,7 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 
 	private final ObjectMapper jsonParser = new ObjectMapper();
 
-	Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
+	public Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
 		Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
 		this.httpHosts = httpHosts;
 		this.restClientFactory = Preconditions.checkNotNull(restClientFactory);

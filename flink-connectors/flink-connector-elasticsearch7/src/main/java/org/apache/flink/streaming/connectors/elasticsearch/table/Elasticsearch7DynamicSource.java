@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.elasticsearch7.ElasticSearch7InputFormat;
 import org.apache.flink.streaming.connectors.elasticsearch7.RestClientFactory;
 import org.apache.flink.table.api.TableSchema;
@@ -75,8 +74,8 @@ public class Elasticsearch7DynamicSource implements ScanTableSource, SupportsPro
 		elasticsearchInputformatBuilder.setRestClientFactory(restClientFactory);
 		elasticsearchInputformatBuilder.setDeserializationSchema(this.format.createRuntimeDecoder(runtimeProviderContext, physicalSchema.toRowDataType()));
 		elasticsearchInputformatBuilder.setFieldNames(physicalSchema.getFieldNames());
-		elasticsearchInputformatBuilder.setRowDataTypeInfo((TypeInformation<RowData>) runtimeProviderContext
-			.createTypeInformation(physicalSchema.toRowDataType()));
+//		elasticsearchInputformatBuilder.setRowDataTypeInfo((TypeInformation<RowData>) runtimeProviderContext
+//			.createTypeInformation(physicalSchema.toRowDataType()));
 		elasticsearchInputformatBuilder.setIndex(config.getIndex());
 		config.getScrollMaxSize().ifPresent(elasticsearchInputformatBuilder::setScrollMaxSize);
 		config.getScrollTimeout().ifPresent(elasticsearchInputformatBuilder::setScrollTimeout);

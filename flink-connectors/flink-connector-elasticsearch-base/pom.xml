@@ -155,8 +155,13 @@ under the License.
 			<artifactId>log4j-core</artifactId>
 			<scope>test</scope>
 		</dependency>
-
-	</dependencies>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-runtime-blink_2.11</artifactId>
+            <version>1.12-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
 	<build>
 		<plugins>

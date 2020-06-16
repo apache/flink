@@ -105,7 +105,8 @@ public class Elasticsearch6DynamicSourceSinkFactory implements DynamicTableSourc
 		return new Elasticsearch6DynamicSource(
 			format,
 			config,
-			TableSchemaUtils.getPhysicalSchema(tableSchema)
+			TableSchemaUtils.getPhysicalSchema(tableSchema),
+			null
 		);
 	}
 

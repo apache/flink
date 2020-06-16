@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.elasticsearch5;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticSearchInputFormatBase;
 import org.apache.flink.util.Preconditions;
 
@@ -48,7 +47,6 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		List<InetSocketAddress> transportAddresses,
 		DeserializationSchema<T> serializationSchema,
 		String[] fieldNames,
-		TypeInformation<T> rowDataTypeInfo,
 		String index,
 		String type,
 		long scrollTimeout,
@@ -56,7 +54,7 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		QueryBuilder predicate,
 		int limit) {
 
-		super(new Elasticsearch5ApiCallBridge(transportAddresses), userConfig, serializationSchema, fieldNames, rowDataTypeInfo, index, type, scrollTimeout, scrollSize, predicate, limit);
+		super(new Elasticsearch5ApiCallBridge(transportAddresses), userConfig, serializationSchema, fieldNames, index, type, scrollTimeout, scrollSize, predicate, limit);
 	}
 
 	/**
@@ -70,7 +68,6 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		private List<InetSocketAddress> transportAddresses;
 		private DeserializationSchema<T> deserializationSchema;
 		private String[] fieldNames;
-		private TypeInformation<T> rowDataTypeInfo;
 		private String index;
 		private String type;
 		private long scrollTimeout;
@@ -81,28 +78,34 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		public Builder() {
 		}
 
-		public void setTransportAddresses(List<InetSocketAddress> transportAddresses) {
+		public Builder setUserConfig(Map<String, String> userConfig) {
+			this.userConfig = userConfig;
+			return this;
+		}
+
+		public Builder setTransportAddresses(List<InetSocketAddress> transportAddresses) {
 			this.transportAddresses = transportAddresses;
+			return this;
 		}
 
-		public void setDeserializationSchema(DeserializationSchema<T> deserializationSchema) {
+		public Builder setDeserializationSchema(DeserializationSchema<T> deserializationSchema) {
 			this.deserializationSchema = deserializationSchema;
+			return this;
 		}
 
-		public void setFieldNames(String[] fieldNames) {
+		public Builder setFieldNames(String[] fieldNames) {
 			this.fieldNames = fieldNames;
+			return this;
 		}
 
-		public void setRowDataTypeInfo(TypeInformation<T> rowDataTypeInfo) {
-			this.rowDataTypeInfo = rowDataTypeInfo;
-		}
-
-		public void setIndex(String index) {
+		public Builder setIndex(String index) {
 			this.index = index;
+			return this;
 		}
 
-		public void setType(String type) {
+		public Builder setType(String type) {
 			this.type = type;
+			return this;
 		}
 
 		/**
@@ -110,12 +113,13 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 *
 		 * @param scrollMaxSize the maxinum number of each Elasticsearch scroll request.
 		 */
-		public void setScrollMaxSize(int scrollMaxSize) {
+		public Builder setScrollMaxSize(int scrollMaxSize) {
 			Preconditions.checkArgument(
 				scrollMaxSize > 0,
 				"Maximum number each Elasticsearch scroll request must be larger than 0.");
 
 			this.scrollMaxSize = scrollMaxSize;
+			return this;
 		}
 
 		/**
@@ -123,20 +127,23 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 *
 		 * @param scrollTimeout the search context alive for scroll requests, in milliseconds.
 		 */
-		public void setScrollTimeout(long scrollTimeout) {
+		public Builder setScrollTimeout(long scrollTimeout) {
 			Preconditions.checkArgument(
 				scrollTimeout >= 0,
 				"Yhe search context alive for scroll requests must be larger than or equal to 0.");
 
 			this.scrollTimeout = scrollTimeout;
+			return this;
 		}
 
-		public void setPredicate(QueryBuilder predicate) {
+		public Builder setPredicate(QueryBuilder predicate) {
 			this.predicate = predicate;
+			return this;
 		}
 
-		public void setLimit(int limit) {
+		public Builder setLimit(int limit) {
 			this.limit = limit;
+			return this;
 		}
 
 		/**
@@ -145,7 +152,7 @@ public class ElasticSearch5InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 * @return the created ElasticSearch6RowDataInputFormat.
 		 */
 		public ElasticSearch5InputFormat<T> build() {
-			return new ElasticSearch5InputFormat<T>(userConfig, transportAddresses, deserializationSchema, fieldNames, rowDataTypeInfo, index, type, scrollTimeout, scrollMaxSize, predicate, limit);
+			return new ElasticSearch5InputFormat<T>(userConfig, transportAddresses, deserializationSchema, fieldNames, index, type, scrollTimeout, scrollMaxSize, predicate, limit);
 		}
 	}
 }

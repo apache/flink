@@ -49,14 +49,13 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 		RestClientFactory restClientFactory,
 		DeserializationSchema<T> serializationSchema,
 		String[] fieldNames,
-		TypeInformation<T> rowDataTypeInfo,
 		String index,
 		long scrollTimeout,
 		int scrollSize,
 		QueryBuilder predicate,
 		int limit) {
 
-		super(new Elasticsearch7ApiCallBridge(httpHosts, restClientFactory), userConfig, serializationSchema, fieldNames, rowDataTypeInfo, index, null, scrollTimeout, scrollSize, predicate, limit);
+		super(new Elasticsearch7ApiCallBridge(httpHosts, restClientFactory), userConfig, serializationSchema, fieldNames, index, null, scrollTimeout, scrollSize, predicate, limit);
 	}
 
 	/**
@@ -87,8 +86,9 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 *
 		 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
 		 */
-		public void setHttpHosts(List<HttpHost> httpHosts) {
+		public Builder setHttpHosts(List<HttpHost> httpHosts) {
 			this.httpHosts = httpHosts;
+			return this;
 		}
 
 		/**
@@ -96,24 +96,24 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 *
 		 * @param restClientFactory the factory that configures the rest client.
 		 */
-		public void setRestClientFactory(RestClientFactory restClientFactory) {
+		public Builder setRestClientFactory(RestClientFactory restClientFactory) {
 			this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
+			return this;
 		}
 
-		public void setDeserializationSchema(DeserializationSchema<T> deserializationSchema) {
+		public Builder setDeserializationSchema(DeserializationSchema<T> deserializationSchema) {
 			this.deserializationSchema = deserializationSchema;
+			return this;
 		}
 
-		public void setFieldNames(String[] fieldNames) {
+		public Builder setFieldNames(String[] fieldNames) {
 			this.fieldNames = fieldNames;
+			return this;
 		}
 
-		public void setRowDataTypeInfo(TypeInformation<T> rowDataTypeInfo) {
-			this.rowDataTypeInfo = rowDataTypeInfo;
-		}
-
-		public void setIndex(String index) {
+		public Builder setIndex(String index) {
 			this.index = index;
+			return this;
 		}
 
 		/**
@@ -121,12 +121,13 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 *
 		 * @param scrollMaxSize the maxinum number of each Elasticsearch scroll request.
 		 */
-		public void setScrollMaxSize(int scrollMaxSize) {
+		public Builder setScrollMaxSize(int scrollMaxSize) {
 			Preconditions.checkArgument(
 				scrollMaxSize > 0,
 				"Maximum number each Elasticsearch scroll request must be larger than 0.");
 
 			this.scrollMaxSize = scrollMaxSize;
+			return this;
 		}
 
 		/**
@@ -134,20 +135,23 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 *
 		 * @param scrollTimeout the search context alive for scroll requests, in milliseconds.
 		 */
-		public void setScrollTimeout(long scrollTimeout) {
+		public Builder setScrollTimeout(long scrollTimeout) {
 			Preconditions.checkArgument(
 				scrollTimeout >= 0,
 				"Yhe search context alive for scroll requests must be larger than or equal to 0.");
 
 			this.scrollTimeout = scrollTimeout;
+			return this;
 		}
 
-		public void setPredicate(QueryBuilder predicate) {
+		public Builder setPredicate(QueryBuilder predicate) {
 			this.predicate = predicate;
+			return this;
 		}
 
-		public void setLimit(int limit) {
+		public Builder setLimit(int limit) {
 			this.limit = limit;
+			return this;
 		}
 
 		/**
@@ -156,7 +160,7 @@ public class ElasticSearch7InputFormat<T> extends ElasticSearchInputFormatBase<T
 		 * @return the created ElasticSearch7RowDataInputFormat.
 		 */
 		public ElasticSearch7InputFormat<T> build() {
-			return new ElasticSearch7InputFormat<T>(userConfig, httpHosts, restClientFactory, deserializationSchema, fieldNames, rowDataTypeInfo, index, scrollTimeout, scrollMaxSize, predicate, limit);
+			return new ElasticSearch7InputFormat<T>(userConfig, httpHosts, restClientFactory, deserializationSchema, fieldNames, index, scrollTimeout, scrollMaxSize, predicate, limit);
 		}
 	}
 }

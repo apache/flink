@@ -83,8 +83,6 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 	private final long scrollTimeout;
 	private final int scrollSize;
 	private String[] fieldNames;
-	private TypeInformation<T> rowDataTypeInfo;
-
 
 	// ------------------------------------------------------------------------
 	//  User-facing API and configuration
@@ -104,10 +102,14 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 	//  Internals for the Flink Elasticsearch Inpuformat
 	// ------------------------------------------------------------------------
 
-	/** Call bridge for different version-specific. */
+	/**
+	 * Call bridge for different version-specific.
+	 */
 	private final ElasticsearchApiCallBridge<C> callBridge;
 
-	/** Elasticsearch client created using the call bridge. */
+	/**
+	 * Elasticsearch client created using the call bridge.
+	 */
 	private transient C client;
 
 	// ------------------------------------------------------------------------
@@ -118,7 +120,6 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 		Map<String, String> userConfig,
 		DeserializationSchema<T> deserializationSchema,
 		String[] fieldNames,
-		TypeInformation<T> rowDataTypeInfo,
 		String index,
 		String type,
 		long scrollTimeout,
@@ -135,7 +136,6 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 		this.deserializationSchema = checkNotNull(deserializationSchema);
 
 		this.fieldNames = fieldNames;
-		this.rowDataTypeInfo = rowDataTypeInfo;
 
 		this.index = index;
 		this.type = type;
@@ -148,17 +148,29 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 
 	@Override
 	public void configure(Configuration parameters) {
-
-	}
-
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
-		return null;
+		//because of createInputSplits(it needs use client) running before openInputFormat, so we cannot create client in openInputFormat
+		try {
+			client = callBridge.createClient(userConfig);
+			callBridge.verifyClientConnection(client);
+		} catch (IOException ioe) {
+			LOG.error("Exception while creating connection to Elasticsearch 5.x.", ioe);
+			throw new RuntimeException("Cannot create connection to Elasticsearcg 5.x.", ioe);
+		}
 	}
 
 	@Override
 	public ElasticsearchInputSplit[] createInputSplits(int minNumSplits) throws IOException {
 		return callBridge.createInputSplitsInternal(index, type, client, minNumSplits);
+	}
+
+	@Override
+	public void openInputFormat() throws IOException {
+		//do nothing here
+	}
+
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
+		return null;
 	}
 
 	@Override
@@ -168,8 +180,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 
 	@Override
 	public void open(ElasticsearchInputSplit split) throws IOException {
-		client = callBridge.createClient(userConfig);
-		callBridge.verifyClientConnection(client);
+
 		SearchRequest searchRequest = new SearchRequest(index);
 		if (type == null) {
 			searchRequest.types(Strings.EMPTY_ARRAY);
@@ -210,16 +221,17 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 	}
 
 	@Override
-	public boolean reachedEnd() throws IOException {
+	public boolean reachedEnd() {
 		if (limit > 0 && currentReadCount >= limit) {
 			return true;
 		}
 
-		if (currentScrollWindowHits != null && nextRecordIndex > currentScrollWindowHits.length - 1) {
+		// SearchResponse can be InternalSearchHits.empty(), where the InternalSearchHit[] EMPTY = new InternalSearchHit[0]
+		if (currentScrollWindowHits.length != 0 && nextRecordIndex > currentScrollWindowHits.length - 1) {
 			fetchNextScrollWindow();
 		}
 
-		return currentScrollWindowHits == null;
+		return currentScrollWindowHits.length == 0;
 	}
 
 	@Override
@@ -267,11 +279,16 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 
 	@Override
 	public void close() throws IOException {
+		//clear split client data
+	}
+
+	@Override
+	public void closeInputFormat() throws IOException {
 		callBridge.close(client);
 	}
 
 	@Override
 	public TypeInformation<T> getProducedType() {
-		return rowDataTypeInfo;
+		return deserializationSchema.getProducedType();
 	}
 }
