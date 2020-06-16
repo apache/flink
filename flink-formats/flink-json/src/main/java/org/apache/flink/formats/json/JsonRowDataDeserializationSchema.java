@@ -62,7 +62,6 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIME_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkNotNull;

@@ -97,7 +97,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 			options -> options.put("json.timestamp-format.standard", "test"));
 
 		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException("Unsupported value test for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
 		testSchemaDeserializationSchema(tableOptions);
 	}
 

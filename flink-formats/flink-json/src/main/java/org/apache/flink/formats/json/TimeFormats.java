@@ -41,9 +41,6 @@ class TimeFormats {
 		.append(RFC3339_TIME_FORMAT)
 		.toFormatter();
 
-	/** Formatter for ISO8601 string representation of a time value.*/
-	static final DateTimeFormatter ISO8601_TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_TIME;
-
 	/** Formatter for ISO8601 string representation of a timestamp value (without UTC timezone). */
 	static final DateTimeFormatter ISO8601_TIMESTAMP_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 

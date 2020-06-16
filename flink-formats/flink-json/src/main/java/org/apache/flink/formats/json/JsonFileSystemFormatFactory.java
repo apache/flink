@@ -47,7 +47,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.formats.json.JsonFormatFactory.validateFormatOptions;
 import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.json.JsonOptions.TIMESTAMP_FORMAT;
 
 /**
  * Factory to build reader/writer to read/write json format file.

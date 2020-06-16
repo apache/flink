@@ -422,99 +422,85 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":112.013}")
 			.rowType(ROW(FIELD("id", BIGINT())))
-			.timestampFormat("ISO-8601")
 			.expect(Row.of(112L)),
 
 		TestSpec
 			.json("{\"id\":\"long\"}")
 			.rowType(ROW(FIELD("id", BIGINT())))
-			.timestampFormat("ISO-8601")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"112.013.123\"}")
 			.rowType(ROW(FIELD("id", FLOAT())))
-			.timestampFormat("ISO-8601")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"112.013.123\"}")
 			.rowType(ROW(FIELD("id", DOUBLE())))
-			.timestampFormat("ISO-8601")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"18:00:243\"}")
 			.rowType(ROW(FIELD("id", TIME())))
-			.timestampFormat("ISO-8601")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"18:00:243\"}")
 			.rowType(ROW(FIELD("id", TIME())))
-			.timestampFormat("SQL")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"20191112\"}")
 			.rowType(ROW(FIELD("id", DATE())))
-			.timestampFormat("ISO-8601")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"20191112\"}")
 			.rowType(ROW(FIELD("id", DATE())))
-			.timestampFormat("SQL")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12 18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.timestampFormat("ISO-8601")
+			.timestampFormat(TimestampFormat.ISO_8601)
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.timestampFormat("SQL")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.timestampFormat("SQL")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.timestampFormat("ISO-8601")
+			.timestampFormat(TimestampFormat.ISO_8601)
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
 
 		TestSpec
 			.json("{\"id\":\"abc\"}")
 			.rowType(ROW(FIELD("id", DECIMAL(10, 3))))
-			.timestampFormat("ISO-8601")
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
 
 		TestSpec
 			.json("{\"row\":{\"id\":\"abc\"}}")
 			.rowType(ROW(FIELD("row", ROW(FIELD("id", BOOLEAN())))))
-			.timestampFormat("ISO-8601")
 			.expect(Row.of(new Row(1)))
 			.expectErrorMessage("Failed to deserialize JSON '{\"row\":{\"id\":\"abc\"}}'"),
 
 		TestSpec
 			.json("{\"array\":[123, \"abc\"]}")
 			.rowType(ROW(FIELD("array", ARRAY(INT()))))
-			.timestampFormat("ISO-8601")
 			.expect(Row.of((Object) new Integer[]{123, null}))
 			.expectErrorMessage("Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'"),
 
 		TestSpec
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.rowType(ROW(FIELD("map", MAP(STRING(), INT()))))
-			.timestampFormat("ISO-8601")
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
 			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'")
 
