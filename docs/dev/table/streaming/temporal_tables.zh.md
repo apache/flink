@@ -261,32 +261,44 @@ Yen           1
 {% highlight java %}
 // 获取 stream 和 table 环境
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+// or TableEnvironment tEnv = TableEnvironment.create(settings);
 
-// 创建一个实现 LookableTableSource 的 HBaseTableSource 作为时态表
-// 在实际设置中，应使用自己的表替换它
-HBaseTableSource rates = new HBaseTableSource(conf, "Rates");
-rates.setRowKey("currency", String.class);   // currency 作为主键
-rates.addColumn("fam1", "rate", Double.class);
-
-// 注册这个临时表到环境中，然后我们可以用 sql 查询它
-tEnv.registerTableSource("Rates", rates);
+// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用
+// 'currency' 列是 HBase 表中的 rowKey
+tEnv.executeSql(
+    "CREATE TABLE LatestRates (" +
+    "   currency STRING," +
+    "   fam1 ROW<rate DOUBLE>" +
+    ") WITH (" +
+    "   'connector' = 'hbase-1.4'," +
+    "   'table-name' = 'Rates'," +
+    "   'zookeeper.quorum' = 'localhost:2181'" +
+    ")");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // 获取 stream 和 table 环境
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val settings = EnvironmentSettings.newInstance().build()
+val tEnv = StreamTableEnvironment.create(env, settings)
+// or val tEnv = TableEnvironment.create(settings)
 
-// 创建一个实现 LookableTableSource 的 HBaseTableSource 作为时态表
-// 在实际设置中，应使用自己的表替换它
-val rates = new HBaseTableSource(conf, "Rates")
-rates.setRowKey("currency", String.class)   // currency 作为主键
-rates.addColumn("fam1", "rate", Double.class)
-
-// 注册这个临时表到环境中，然后我们可以用 sql 查询它
-tEnv.registerTableSource("Rates", rates)
+// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用
+// 'currency' 列是 HBase 表中的 rowKey
+tEnv.executeSql(
+    s"""
+       |CREATE TABLE LatestRates (
+       |    currency STRING,
+       |    fam1 ROW<rate DOUBLE>
+       |) WITH (
+       |    'connector' = 'hbase-1.4',
+       |    'table-name' = 'Rates',
+       |    'zookeeper.quorum' = 'localhost:2181'
+       |)
+       |""".stripMargin)
 {% endhighlight %}
 </div>
 </div>
