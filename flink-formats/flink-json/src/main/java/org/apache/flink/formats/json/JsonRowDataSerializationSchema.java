@@ -42,7 +42,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -211,22 +210,22 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	}
 
 	private SerializationRuntimeConverter createTimestampConverter() {
-		DateTimeFormatter formatter;
 		switch (timestampFormatOption){
 			case ISO_8601:
-				formatter = ISO8601_TIMESTAMP_FORMAT;
-				break;
+				return (mapper, reuse, value) -> {
+					TimestampData timestamp = (TimestampData) value;
+					return mapper.getNodeFactory()
+						.textNode(ISO8601_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
+				};
 			case SQL:
-				formatter = SQL_TIMESTAMP_FORMAT;
-				break;
+				return (mapper, reuse, value) -> {
+					TimestampData timestamp = (TimestampData) value;
+					return mapper.getNodeFactory()
+						.textNode(SQL_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
+				};
 			default:
 				throw new TableException("Unsupported timestamp format. Validator should have checked that.");
 		}
-		return (mapper, reuse, value) -> {
-			TimestampData timestamp = (TimestampData) value;
-			return mapper.getNodeFactory()
-				.textNode(formatter.format(timestamp.toLocalDateTime()));
-		};
 	}
 
 	private SerializationRuntimeConverter createArrayConverter(ArrayType type) {
