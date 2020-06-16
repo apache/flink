@@ -277,7 +277,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	@Override
 	public void notifyCheckpointComplete(long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) throws Exception {
 		if (isRunning.get()) {
-			LOG.debug("Notification of complete checkpoint {} for task {}", checkpointId, taskName);
+			LOG.debug("Notification of complete checkpoint for task {}", taskName);
 
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
 				operatorWrapper.notifyCheckpointComplete(checkpointId);
@@ -293,7 +293,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 		Exception previousException = null;
 		if (isRunning.get()) {
-			LOG.debug("Notification of aborted checkpoint {} for task {}", checkpointId, taskName);
+			LOG.debug("Notification of aborted checkpoint for task {}", taskName);
 
 			boolean canceled = cancelAsyncCheckpointRunnable(checkpointId);
 

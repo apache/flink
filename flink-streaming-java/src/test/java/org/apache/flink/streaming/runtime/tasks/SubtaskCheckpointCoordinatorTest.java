@@ -34,6 +34,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -53,7 +54,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
@@ -231,11 +231,12 @@ public class SubtaskCheckpointCoordinatorTest {
 	}
 
 	@Test
-	public void testDownstreamReceiveCancelCheckpointMarkerOnUpstreamAbortedInSyncPhase() throws Exception {
-		final OneInputStreamTaskTestHarness<String, String> testHarness =
+	public void testBroadcastCancelCheckpointMarkerOnAbortingFromCoordinator() throws Exception {
+		OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<>(
 				OneInputStreamTask::new,
-				1, 1,
+				1,
+				1,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -248,19 +249,18 @@ public class SubtaskCheckpointCoordinatorTest {
 
 		TestTaskStateManager stateManager = new TestTaskStateManager();
 		MockEnvironment mockEnvironment = MockEnvironment.builder().setTaskStateManager(stateManager).build();
-		SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator = (SubtaskCheckpointCoordinatorImpl) new MockSubtaskCheckpointCoordinatorBuilder()
+		SubtaskCheckpointCoordinator subtaskCheckpointCoordinator = new MockSubtaskCheckpointCoordinatorBuilder()
 			.setEnvironment(mockEnvironment)
-			.setUnalignedCheckpointEnabled(true)
 			.build();
 
-		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, 4096);
+		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(1, 4096);
 		ArrayList<Object> recordOrEvents = new ArrayList<>();
 		StreamElementSerializer<String> stringStreamElementSerializer = new StreamElementSerializer<>(StringSerializer.INSTANCE);
-		RecordOrEventCollectingResultPartitionWriter<StreamElement> resultPartitionWriter = new RecordOrEventCollectingResultPartitionWriter<>(recordOrEvents, bufferProvider, stringStreamElementSerializer);
+		ResultPartitionWriter resultPartitionWriter = new RecordOrEventCollectingResultPartitionWriter<>(recordOrEvents, bufferProvider, stringStreamElementSerializer);
 		mockEnvironment.addOutputs(Collections.singletonList(resultPartitionWriter));
 
 		OneInputStreamTask<String, String> task = testHarness.getTask();
-		final OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain = new OperatorChain<>(task, StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+		OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain = new OperatorChain<>(task, StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
 		long checkpointId = 42L;
 		// notify checkpoint aborted before execution.
 		subtaskCheckpointCoordinator.notifyCheckpointAborted(checkpointId, operatorChain, () -> true);
@@ -277,6 +277,8 @@ public class SubtaskCheckpointCoordinatorTest {
 		// ensure CancelCheckpointMarker is broadcast downstream.
 		assertTrue(recordOrEvent instanceof CancelCheckpointMarker);
 		assertEquals(checkpointId, ((CancelCheckpointMarker) recordOrEvent).getCheckpointId());
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 	}
 
 	private static class MapOperator extends StreamMap<String, String> {
