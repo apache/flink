@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -70,7 +71,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class UnionInputGate extends InputGate {
 
 	/** The input gates to union. */
-	private final InputGate[] inputGates;
+	private final Map<Integer, InputGate> inputGatesByGateIndex;
 
 	private final Set<IndexedInputGate> inputGatesWithRemainingData;
 
@@ -89,7 +90,7 @@ public class UnionInputGate extends InputGate {
 	private final int[] inputGateChannelIndexOffsets;
 
 	public UnionInputGate(IndexedInputGate... inputGates) {
-		this.inputGates = checkNotNull(inputGates);
+		inputGatesByGateIndex = Arrays.stream(inputGates).collect(Collectors.toMap(IndexedInputGate::getGateIndex, ig -> ig));
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
 
 		if (Arrays.stream(inputGates).map(IndexedInputGate::getGateIndex).distinct().count() != inputGates.length) {
@@ -100,8 +101,9 @@ public class UnionInputGate extends InputGate {
 		this.inputGatesWithRemainingData = Sets.newHashSetWithExpectedSize(inputGates.length);
 
 		final int maxGateIndex = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getGateIndex).max().orElse(0);
-		inputGateChannelIndexOffsets = new int[maxGateIndex + 1];
 		int totalNumberOfInputChannels = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getNumberOfInputChannels).sum();
+
+		inputGateChannelIndexOffsets = new int[maxGateIndex + 1];
 		inputChannelToInputGateIndex = new int[totalNumberOfInputChannels];
 
 		int currentNumberOfInputChannels = 0;
@@ -141,8 +143,9 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public InputChannel getChannel(int channelIndex) {
-		int gateIndex = this.inputChannelToInputGateIndex[channelIndex];
-		return inputGates[gateIndex].getChannel(channelIndex - inputGateChannelIndexOffsets[gateIndex]);
+		int gateIndex = inputChannelToInputGateIndex[channelIndex];
+		return inputGatesByGateIndex.get(gateIndex)
+			.getChannel(channelIndex - inputGateChannelIndexOffsets[gateIndex]);
 	}
 
 	@Override
@@ -253,7 +256,7 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public void sendTaskEvent(TaskEvent event) throws IOException {
-		for (InputGate inputGate : inputGates) {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
 			inputGate.sendTaskEvent(event);
 		}
 	}
@@ -277,7 +280,7 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public void requestPartitions() throws IOException {
-		for (InputGate inputGate : inputGates) {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
 			inputGate.requestPartitions();
 		}
 	}
@@ -332,7 +335,7 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public void registerBufferReceivedListener(BufferReceivedListener listener) {
-		for (InputGate inputGate : inputGates) {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
 			inputGate.registerBufferReceivedListener(listener);
 		}
 	}

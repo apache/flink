@@ -164,4 +164,22 @@ public class UnionInputGateTest extends InputGateTestBase {
 		// Check that updated input channel is visible via UnionInputGate
 		assertThat(unionInputGate.getChannel(1), Matchers.is(inputGate2.getChannel(0)));
 	}
+
+	@Test
+	public void testGetChannelWithShiftedGateIndexes() {
+		gateIndex = 2;
+		final SingleInputGate inputGate1 = createInputGate(1);
+		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
+		inputGate1.setInputChannels(inputChannel1);
+
+		final SingleInputGate inputGate2 = createInputGate(1);
+		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
+		inputGate2.setInputChannels(inputChannel2);
+
+		UnionInputGate unionInputGate = new UnionInputGate(inputGate1, inputGate2);
+
+		assertThat(unionInputGate.getChannel(0), Matchers.is(inputChannel1));
+		// Check that updated input channel is visible via UnionInputGate
+		assertThat(unionInputGate.getChannel(1), Matchers.is(inputChannel2));
+	}
 }
