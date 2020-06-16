@@ -65,7 +65,7 @@ function start_hadoop_cluster() {
     done
 
     # perform health checks
-    containers_health_check "master" "slave1" "slave2" "kdc"
+    containers_health_check "master" "worker1" "worker2" "kdc"
 
     # try and see if NodeManagers are up, otherwise the Flink job will not have enough resources
     # to run
