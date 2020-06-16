@@ -271,7 +271,7 @@ There are several ways in which you can further customize the Flink image:
 * add other libraries to `/opt/flink/lib` (e.g. Hadoop)
 * add other plugins to `/opt/flink/plugins`
 
-See also: [How to provide dependencies in the classpath]({% link index.md %}#how-to-provide-dependencies-in-the-classpath).
+See also: [How to provide dependencies in the classpath]({% link index.zh.md %}#how-to-provide-dependencies-in-the-classpath).
 
 You can customize the Flink image in several ways:
 
