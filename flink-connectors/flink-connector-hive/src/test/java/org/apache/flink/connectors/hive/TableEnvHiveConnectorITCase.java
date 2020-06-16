@@ -669,6 +669,25 @@ public class TableEnvHiveConnectorITCase {
 		}
 	}
 
+	@Test
+	public void testInsertPartitionWithStarSource() throws Exception {
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+		tableEnv.executeSql("create table src (x int,y string)");
+		HiveTestUtils.createTextTableInserter(
+				hiveShell,
+				"default",
+				"src")
+				.addRow(new Object[]{1, "a"})
+				.commit();
+		tableEnv.executeSql("create table dest (x int) partitioned by (p1 int,p2 string)");
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
+				"insert into dest partition (p1=1) select * from src");
+		List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select * from dest").execute().collect());
+		assertEquals("[1,1,a]", results.toString());
+		tableEnv.executeSql("drop table if exists src");
+		tableEnv.executeSql("drop table if exists dest");
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);

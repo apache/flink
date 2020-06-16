@@ -111,7 +111,7 @@ class FlinkPlannerImpl(
   private def validate(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
     try {
       sqlNode.accept(new PreValidateReWriter(
-        validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]), typeFactory))
+        validator, typeFactory))
       // do extended validation.
       sqlNode match {
         case node: ExtendedSqlNode =>
