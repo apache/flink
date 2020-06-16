@@ -35,7 +35,7 @@ import static org.junit.Assert.assertTrue;
  */
 public abstract class InputGateTestBase {
 
-	private int gateIndex;
+	int gateIndex;
 
 	@Before
 	public void resetGateIndex() {
