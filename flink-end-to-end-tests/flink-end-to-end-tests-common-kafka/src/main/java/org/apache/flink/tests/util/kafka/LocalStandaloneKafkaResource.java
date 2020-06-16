@@ -139,9 +139,18 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			kafkaDir.resolve(Paths.get("config", "server.properties")).toString()
 		);
 
-		while (!isZookeeperRunning(kafkaDir) || !isKafkaRunning(kafkaDir)) {
+		while (!isZookeeperRunning(kafkaDir)) {
 			try {
-				LOG.info("Waiting for kafka & zookeeper to start.");
+				LOG.info("Waiting for ZooKeeper to start.");
+				Thread.sleep(500L);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+		}
+		while (!isKafkaRunning(kafkaDir)) {
+			try {
+				LOG.info("Waiting for Kafka to start.");
 				Thread.sleep(500L);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
@@ -199,7 +208,9 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	private static boolean isKafkaRunning(final Path kafkaDir) throws IOException {
 		try {
 			final AtomicBoolean atomicBrokerStarted = new AtomicBoolean(false);
-			queryBrokerStatus(kafkaDir, line -> atomicBrokerStarted.compareAndSet(false, line.contains("dataLength =")));
+			queryBrokerStatus(kafkaDir, line -> {
+				atomicBrokerStarted.compareAndSet(false, line.contains("\"port\":"));
+			});
 			return atomicBrokerStarted.get();
 		} catch (final IOException ioe) {
 			// we get an exception if zookeeper isn't running
@@ -214,7 +225,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 				ZOOKEEPER_ADDRESS,
 				"get",
 				"/brokers/ids/0")
-			.setStderrProcessor(stderrProcessor)
+			.setStdoutProcessor(stderrProcessor)
 			.runBlocking();
 	}
 
@@ -312,7 +323,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public int getNumPartitions(String topic) throws IOException {
-		final Pattern partitionCountPattern = Pattern.compile(".*PartitionCount:([0-9]+).*");
+		final Pattern partitionCountPattern = Pattern.compile(".*PartitionCount:\\s*([0-9]+).*");
 		final AtomicReference<Integer> partitionCountFound = new AtomicReference<>(-1);
 		AutoClosableProcess
 			.create(kafkaDir.resolve(Paths.get("bin", "kafka-topics.sh")).toString(),
