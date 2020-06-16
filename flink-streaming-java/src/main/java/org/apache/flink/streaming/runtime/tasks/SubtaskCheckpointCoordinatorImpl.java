@@ -235,9 +235,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			return;
 		}
 
-		// Step (0): Record the last triggered checkpointId.
+		// Step (0): Record the last triggered checkpointId and abort the sync phase of checkpoint if necessary.
 		lastCheckpointId = metadata.getCheckpointId();
 		if (checkAndClearAbortedStatus(metadata.getCheckpointId())) {
+			// broadcast cancel checkpoint marker to avoid downstream back-pressure due to checkpoint barrier align.
+			operatorChain.broadcastEvent(new CancelCheckpointMarker(metadata.getCheckpointId()));
 			LOG.info("Checkpoint {} has been notified as aborted, would not trigger any checkpoint.", metadata.getCheckpointId());
 			return;
 		}
