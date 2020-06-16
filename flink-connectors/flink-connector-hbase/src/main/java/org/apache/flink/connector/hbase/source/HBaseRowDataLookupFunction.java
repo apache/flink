@@ -34,6 +34,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.slf4j.Logger;
@@ -77,10 +78,13 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 	 */
 	public void eval(Object rowKey) throws IOException {
 		// fetch result
-		Result result = table.get(serde.createGet(rowKey));
-		if (!result.isEmpty()) {
-			// parse and collect
-			collect(serde.convertToRow(result));
+		Get get = serde.createGet(rowKey);
+		if (get != null) {
+			Result result = table.get(get);
+			if (!result.isEmpty()) {
+				// parse and collect
+				collect(serde.convertToRow(result));
+			}
 		}
 	}
 

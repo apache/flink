@@ -72,6 +72,7 @@ public class HBaseSerde {
 	private final @Nullable FieldDecoder keyDecoder;
 	private final FieldEncoder[][] qualifierEncoders;
 	private final FieldDecoder[][] qualifierDecoders;
+	private final transient GenericRowData rowWithRowKey;
 
 	public HBaseSerde(HBaseTableSchema hbaseSchema, final String nullStringLiteral) {
 		this.families = hbaseSchema.getFamilyKeys();
@@ -111,6 +112,7 @@ public class HBaseSerde {
 				.toArray(FieldDecoder[]::new);
 			this.reusedFamilyRows[f] = new GenericRowData(dataTypes.length);
 		}
+		this.rowWithRowKey = new GenericRowData(1);
 	}
 
 	/**
@@ -198,9 +200,8 @@ public class HBaseSerde {
 	 */
 	public Get createGet(Object rowKey) {
 		checkArgument(keyEncoder != null, "row key is not set.");
-		GenericRowData rowData = new GenericRowData(1);
-		rowData.setField(0, rowKey);
-		byte[] rowkey = keyEncoder.encode(rowData, 0);
+		rowWithRowKey.setField(0, rowKey);
+		byte[] rowkey = keyEncoder.encode(rowWithRowKey, 0);
 		if (rowkey.length == 0) {
 			// drop dirty records, rowkey shouldn't be zero length
 			return null;

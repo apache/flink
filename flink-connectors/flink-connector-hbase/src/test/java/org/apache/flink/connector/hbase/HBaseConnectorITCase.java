@@ -27,7 +27,6 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.hbase.source.HBaseInputFormat;
 import org.apache.flink.connector.hbase.source.HBaseTableSource;
-import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase.util.HBaseTestBase;
 import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -40,15 +39,12 @@ import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableImpl;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.sinks.CollectRowTableSink;
 import org.apache.flink.table.planner.sinks.CollectTableSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 
@@ -62,18 +58,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import scala.Option;
 
-import static org.apache.flink.connector.hbase.util.PlannerType.BLINK_PLANNER;
 import static org.apache.flink.connector.hbase.util.PlannerType.OLD_PLANNER;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -321,34 +313,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		String table1DDL = createHBaseTableDDL(TEST_TABLE_1, false);
 		tEnv.executeSql(table1DDL);
 
-		if (isLegacyConnector) {
-			HBaseTableSchema schema = new HBaseTableSchema();
-			schema.setRowKey(ROW_KEY, Integer.class);
-			schema.addColumn(FAMILY1, F1COL1, Integer.class);
-			schema.addColumn(FAMILY2, F2COL1, String.class);
-			schema.addColumn(FAMILY2, F2COL2, Long.class);
-			schema.addColumn(FAMILY3, F3COL1, Double.class);
-			schema.addColumn(FAMILY3, F3COL2, Boolean.class);
-			schema.addColumn(FAMILY3, F3COL3, String.class);
-
-			Map<String, String> tableProperties = new HashMap<>();
-			tableProperties.put("connector.type", "hbase");
-			tableProperties.put("connector.version", "1.4.3");
-			tableProperties.put("connector.property-version", "1");
-			tableProperties.put("connector.table-name", TEST_TABLE_2);
-			tableProperties.put("connector.zookeeper.quorum", getZookeeperQuorum());
-			tableProperties.put("connector.zookeeper.znode.parent", "/hbase");
-			DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-			descriptorProperties.putTableSchema(SCHEMA, schema.convertsToTableSchema());
-			descriptorProperties.putProperties(tableProperties);
-			TableSink tableSink = TableFactoryService
-				.find(HBaseTableFactory.class, descriptorProperties.asMap())
-				.createTableSink(descriptorProperties.asMap());
-			((TableEnvironmentInternal) tEnv).registerTableSinkInternal(TEST_TABLE_2, tableSink);
-		} else {
-			String table2DDL = createHBaseTableDDL(TEST_TABLE_2, false);
-			tEnv.executeSql(table2DDL);
-		}
+		String table2DDL = createHBaseTableDDL(TEST_TABLE_2, false);
+		tEnv.executeSql(table2DDL);
 
 		String query = "INSERT INTO " + TEST_TABLE_2 + " SELECT" +
 			" rowkey," +
@@ -362,7 +328,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 		// start a batch scan job to verify contents in HBase table
 		TableEnvironment batchEnv = createBatchTableEnv();
-		String table2DDL = createHBaseTableDDL(TEST_TABLE_2, false);
 		batchEnv.executeSql(table2DDL);
 
 		Table table = batchEnv.sqlQuery(
@@ -392,30 +357,29 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 	@Test
 	public void testTableSourceSinkWithDDL() throws Exception {
-		// only test TIMESTAMP/DATE/TIME/DECIMAL for new connector(using blink-planner), because new connector encodes
-		// DATE/TIME to int, the old one encodes to long, and DECIMAL with precision works well in new connector.
-		final boolean testTimeAndDecimalTypes = BLINK_PLANNER.equals(planner) && !isLegacyConnector;
-		String timeAndDecimalFields = testTimeAndDecimalTypes ?
-			", h.family4.col1, h.family4.col2, h.family4.col3, h.family4.col4 " : "";
+		if (OLD_PLANNER.equals(planner) || isLegacyConnector) {
+			// only test for blink planner and new connector, because types TIMESTAMP/DATE/TIME/DECIMAL works well in new
+			// connector(using blink-planner), but has some precision problem in old planner or legacy connector.
+			return;
+		}
 
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
 		// regiter HBase table testTable1 which contains test data
-		String table1DDL = createHBaseTableDDL(TEST_TABLE_1, testTimeAndDecimalTypes);
+		String table1DDL = createHBaseTableDDL(TEST_TABLE_1, true);
 		tEnv.executeSql(table1DDL);
 
 		// register HBase table which is empty
-		String table3DDL = createHBaseTableDDL(TEST_TABLE_3, testTimeAndDecimalTypes);
+		String table3DDL = createHBaseTableDDL(TEST_TABLE_3, true);
 		tEnv.executeSql(table3DDL);
 
-		String family4 = testTimeAndDecimalTypes ? ", family4 " : "";
 		String insertStatement = "INSERT INTO " + TEST_TABLE_3 +
 			" SELECT rowkey," +
 			" family1," +
 			" family2," +
-			" family3" +
-			family4 +
+			" family3," +
+			" family4" +
 			" from " + TEST_TABLE_1;
 		// wait to finish
 		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insertStatement);
@@ -430,8 +394,11 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"  h.family2.col2, " +
 				"  h.family3.col1, " +
 				"  h.family3.col2, " +
-				"  h.family3.col3 " +
-				timeAndDecimalFields +
+				"  h.family3.col3, " +
+				"  h.family4.col1, " +
+				"  h.family4.col2, " +
+				"  h.family4.col3, " +
+				"  h.family4.col4 " +
 				" FROM " + TEST_TABLE_3 + " AS h";
 		Iterator<Row> collected = tEnv.executeSql(query).collect();
 		List<String> result = Lists.newArrayList(collected).stream()
@@ -439,48 +406,25 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			.sorted()
 			.collect(Collectors.toList());
 
-		// skip TIMESTAMP/DATE/TIME/DECIMAL fields if testTimeAndDecimalTypes is disabled
-		RecordExtractor extractor = record -> {
-			String[] elements = record.split(",");
-			List<String> res = new ArrayList<>();
-			int timeAndDecimalTypesLen = 4;
-			int end = testTimeAndDecimalTypes ?  elements.length :  elements.length - timeAndDecimalTypesLen;
-			for (int i = 0; i < end; i++) {
-				res.add(elements[i]);
-			}
-			return res.stream().collect(Collectors.joining(","));
-		};
 		List<String> expected = new ArrayList<>();
-		expected.add(extractor.extract("1,10,Hello-1,100,1.01,false,Welt-1," +
-			"2019-08-18T19:00,2019-08-18,19:00,12345678.0001"));
-		expected.add(extractor.extract("2,20,Hello-2,200,2.02,true,Welt-2," +
-			"2019-08-18T19:01,2019-08-18,19:01,12345678.0002"));
-		expected.add(extractor.extract("3,30,Hello-3,300,3.03,false,Welt-3," +
-			"2019-08-18T19:02,2019-08-18,19:02,12345678.0003"));
-		expected.add(extractor.extract("4,40,null,400,4.04,true,Welt-4," +
-			"2019-08-18T19:03,2019-08-18,19:03,12345678.0004"));
-		expected.add(extractor.extract("5,50,Hello-5,500,5.05,false,Welt-5," +
-			"2019-08-19T19:10,2019-08-19,19:10,12345678.0005"));
-		expected.add(extractor.extract("6,60,Hello-6,600,6.06,true,Welt-6," +
-			"2019-08-19T19:20,2019-08-19,19:20,12345678.0006"));
-		expected.add(extractor.extract("7,70,Hello-7,700,7.07,false,Welt-7," +
-			"2019-08-19T19:30,2019-08-19,19:30,12345678.0007"));
-		expected.add(extractor.extract("8,80,null,800,8.08,true,Welt-8," +
-			"2019-08-19T19:40,2019-08-19,19:40,12345678.0008"));
+		expected.add("1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18,19:00,12345678.0001");
+		expected.add("2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18,19:01,12345678.0002");
+		expected.add("3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
+		expected.add("4,40,null,400,4.04,true,Welt-4,2019-08-18T19:03,2019-08-18,19:03,12345678.0004");
+		expected.add("5,50,Hello-5,500,5.05,false,Welt-5,2019-08-19T19:10,2019-08-19,19:10,12345678.0005");
+		expected.add("6,60,Hello-6,600,6.06,true,Welt-6,2019-08-19T19:20,2019-08-19,19:20,12345678.0006");
+		expected.add("7,70,Hello-7,700,7.07,false,Welt-7,2019-08-19T19:30,2019-08-19,19:30,12345678.0007");
+		expected.add("8,80,null,800,8.08,true,Welt-8,2019-08-19T19:40,2019-08-19,19:40,12345678.0008");
 		assertEquals(expected, result);
 	}
 
 	@Test
 	public void testHBaseLookupTableSource() throws Exception {
-		if (OLD_PLANNER.equals(planner)) {
+		if (OLD_PLANNER.equals(planner) || isLegacyConnector) {
 			// lookup table source is only supported in blink planner, skip for old planner
+			// skip legacy connector for test TIMESTAMP/DATE/TIME/DECIMAL
 			return;
 		}
-		// only test TIMESTAMP/DATE/TIME/DECIMAL for new connector(using blink-planner), because new connector encodes
-		// DATE/TIME to int, the old one encodes to long, and DECIMAL with precision works well in new connector.
-		final boolean testTimeAndDecimalTypes = !isLegacyConnector;
-		String timeAndDecimalFields = testTimeAndDecimalTypes ?
-			", h.family4.col1, h.family4.col2, h.family4.col3, h.family4.col4 " : "";
 
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
@@ -526,8 +470,11 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			" h.family2.col2," +
 			" h.family3.col1," +
 			" h.family3.col2," +
-			" h.family3.col3" +
-			timeAndDecimalFields +
+			" h.family3.col3," +
+			" h.family4.col1," +
+			" h.family4.col2," +
+			" h.family4.col3," +
+			" h.family4.col4 " +
 			" FROM src JOIN " + TEST_TABLE_1 + " FOR SYSTEM_TIME AS OF src.proc as h ON src.a = h.rowkey";
 		Iterator<Row> collected = tEnv.executeSql(dimJoinQuery).collect();
 		List<String> result = Lists.newArrayList(collected).stream()
@@ -536,26 +483,10 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			.collect(Collectors.toList());
 
 		List<String> expected = new ArrayList<>();
-
-		// skip TIMESTAMP/DATE/TIME/DECIMAL fields if testTimeAndDecimalTypes is disabled
-		RecordExtractor extractor = record -> {
-			String[] elements = record.split(",");
-			List<String> res = new ArrayList<>();
-			int timeAndDecimalTypesLen = 4;
-			int end = testTimeAndDecimalTypes ?  elements.length :  elements.length - timeAndDecimalTypesLen;
-			for (int i = 0; i < end; i++) {
-				res.add(elements[i]);
-			}
-			return res.stream().collect(Collectors.joining(","));
-		};
-		expected.add(extractor.extract("1,1,10,Hello-1,100,1.01,false,Welt-1," +
-			"2019-08-18T19:00,2019-08-18,19:00,12345678.0001"));
-		expected.add(extractor.extract("2,2,20,Hello-2,200,2.02,true,Welt-2," +
-			"2019-08-18T19:01,2019-08-18,19:01,12345678.0002"));
-		expected.add(extractor.extract("3,2,30,Hello-3,300,3.03,false,Welt-3," +
-			"2019-08-18T19:02,2019-08-18,19:02,12345678.0003"));
-		expected.add(extractor.extract("3,3,30,Hello-3,300,3.03,false,Welt-3," +
-			"2019-08-18T19:02,2019-08-18,19:02,12345678.0003"));
+		expected.add("1,1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18,19:00,12345678.0001");
+		expected.add("2,2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18,19:01,12345678.0002");
+		expected.add("3,2,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
+		expected.add("3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
 
 		assertEquals(expected, result);
 	}
@@ -710,13 +641,5 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"   'zookeeper.znode.parent' = '/hbase' " +
 				")";
 		}
-	}
-
-	/**
-	 * interface that extracts string from a record.
-	 */
-	@FunctionalInterface
-	private interface RecordExtractor {
-		String extract(String record);
 	}
 }
