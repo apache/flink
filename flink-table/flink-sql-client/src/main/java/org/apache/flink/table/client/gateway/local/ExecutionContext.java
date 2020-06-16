@@ -541,28 +541,33 @@ public class ExecutionContext<ClusterID> {
 				Time.milliseconds(execution.getMinStateRetention()),
 				Time.milliseconds(execution.getMaxStateRetention()));
 
-		conf.setInteger(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism());
-		conf.setInteger(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
+		conf.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism());
+		conf.set(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
 		conf.set(StreamPipelineOptions.TIME_CHARACTERISTIC, execution.getTimeCharacteristic());
 		if (execution.getTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			conf.set(PipelineOptions.AUTO_WATERMARK_INTERVAL,
 					Duration.ofMillis(execution.getPeriodicWatermarksInterval()));
 		}
 
+		setRestartStrategy(conf);
+		return config;
+	}
+
+	private void setRestartStrategy(Configuration conf) {
 		RestartStrategyConfiguration restartStrategy = environment.getExecution().getRestartStrategy();
 		if (restartStrategy instanceof NoRestartStrategyConfiguration) {
-			conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "none");
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
 		} else if (restartStrategy instanceof FixedDelayRestartStrategyConfiguration) {
-			conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 			FixedDelayRestartStrategyConfiguration fixedDelay = ((FixedDelayRestartStrategyConfiguration) restartStrategy);
-			conf.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
 					fixedDelay.getRestartAttempts());
 			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
 					Duration.ofMillis(fixedDelay.getDelayBetweenAttemptsInterval().toMilliseconds()));
 		} else if (restartStrategy instanceof FailureRateRestartStrategyConfiguration) {
-			conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 			FailureRateRestartStrategyConfiguration failureRate = (FailureRateRestartStrategyConfiguration) restartStrategy;
-			conf.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL,
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL,
 					failureRate.getMaxFailureRate());
 			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
 					Duration.ofMillis(failureRate.getFailureInterval().toMilliseconds()));
@@ -573,8 +578,6 @@ public class ExecutionContext<ClusterID> {
 			// see ExecutionConfig.restartStrategyConfiguration
 			conf.removeConfig(RestartStrategyOptions.RESTART_STRATEGY);
 		}
-
-		return config;
 	}
 
 	private void createTableEnvironment(
