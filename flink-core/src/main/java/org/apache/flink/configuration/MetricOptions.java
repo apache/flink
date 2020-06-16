@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -58,9 +60,10 @@ public class MetricOptions {
 			.noDefaultValue()
 			.withDescription("The reporter class to use for the reporter named <name>.");
 
-	public static final ConfigOption<String> REPORTER_INTERVAL =
+	public static final ConfigOption<Duration> REPORTER_INTERVAL =
 		key("metrics.reporter.<name>.interval")
-			.noDefaultValue()
+			.durationType()
+			.defaultValue(Duration.ofSeconds(10))
 			.withDescription("The reporter interval to use for the reporter named <name>.");
 
 	public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =

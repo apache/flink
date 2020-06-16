@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
@@ -119,7 +120,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 				try {
 					Optional<String> configuredPeriod = reporterSetup.getIntervalSettings();
 					TimeUnit timeunit = TimeUnit.SECONDS;
-					long period = 10;
+					long period = MetricOptions.REPORTER_INTERVAL.defaultValue().getSeconds();
 
 					if (configuredPeriod.isPresent()) {
 						try {
