@@ -260,32 +260,45 @@ See also the page about [joins for continuous queries](joins.html) for more info
 {% highlight java %}
 // Get the stream and table environments.
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+// or TableEnvironment tEnv = TableEnvironment.create(settings);
 
-// Create an HBaseTableSource as a temporal table which implements LookableTableSource
-// In the real setup, you should replace this with your own table.
-HBaseTableSource rates = new HBaseTableSource(conf, "Rates");
-rates.setRowKey("currency", String.class);   // currency as the primary key
-rates.addColumn("fam1", "rate", Double.class);
-
-// register the temporal table into environment, then we can query it in sql
-tEnv.registerTableSource("Rates", rates);
+// Define an HBase table with DDL, then we can use it as a temporal table in sql
+// Column 'currency' is the rowKey in HBase table
+tEnv.executeSql(
+    "CREATE TABLE LatestRates (" +
+    "   currency STRING," +
+    "   fam1 ROW<rate DOUBLE>" +
+    ") WITH (" +
+    "   'connector' = 'hbase-1.4'," +
+    "   'table-name' = 'Rates'," +
+    "   'zookeeper.quorum' = 'localhost:2181'" +
+    ")");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // Get the stream and table environments.
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val settings = EnvironmentSettings.newInstance().build()
+val tEnv = StreamTableEnvironment.create(env, settings)
+// or val tEnv = TableEnvironment.create(settings)
 
-// Create an HBaseTableSource as a temporal table which implements LookableTableSource
-// In the real setup, you should replace this with your own table.
-val rates = new HBaseTableSource(conf, "Rates")
-rates.setRowKey("currency", String.class)   // currency as the primary key
-rates.addColumn("fam1", "rate", Double.class)
+// Define an HBase table with DDL, then we can use it as a temporal table in sql
+// Column 'currency' is the rowKey in HBase table
+tEnv.executeSql(
+    s"""
+       |CREATE TABLE LatestRates (
+       |    currency STRING,
+       |    fam1 ROW<rate DOUBLE>
+       |) WITH (
+       |    'connector' = 'hbase-1.4',
+       |    'table-name' = 'Rates',
+       |    'zookeeper.quorum' = 'localhost:2181'
+       |)
+       |""".stripMargin)
 
-// register the temporal table into environment, then we can query it in sql
-tEnv.registerTableSource("Rates", rates)
 {% endhighlight %}
 </div>
 </div>
