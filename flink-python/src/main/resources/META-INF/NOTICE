@@ -9,9 +9,41 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
+- com.google.flatbuffers:flatbuffers-java:1.9.0
+- io.netty:netty-buffer:4.1.44.Final
+- io.netty:netty-common:4.1.44.Final
+- joda-time:joda-time:2.5
+- org.apache.arrow:arrow-format:0.16.0
+- org.apache.arrow:arrow-memory:0.16.0
+- org.apache.arrow:arrow-vector:0.16.0
+- org.apache.beam:beam-model-fn-execution:2.19.0
+- org.apache.beam:beam-model-job-management:2.19.0
+- org.apache.beam:beam-model-pipeline:2.19.0
+- org.apache.beam:beam-runners-core-construction-java:2.19.0
+- org.apache.beam:beam-runners-core-java:2.19.0
+- org.apache.beam:beam-runners-java-fn-execution:2.19.0
+- org.apache.beam:beam-sdks-java-core:2.19.0
+- org.apache.beam:beam-sdks-java-fn-execution:2.19.0
+- org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1
+- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.19.0
+- org.apache.beam:beam-vendor-guava-26_0-jre:0.1
+- org.apache.beam:beam-vendor-grpc-1_21_0:0.1
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details
+
+- net.sf.py4j:py4j:0.10.8.1
+- com.google.protobuf:protobuf-java:3.7.1
+
+This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
+See bundled license files for details.
+
+- net.razorvine:pyrolite:4.13
+
+The bundled Apache Beam dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
 - com.google.api.grpc:proto-google-common-protos:1.12.0
 - com.google.code.gson:gson:2.7
-- com.google.flatbuffers:flatbuffers-java:1.9.0
 - com.google.guava:guava:26.0-jre
 - io.grpc:grpc-auth:1.21.0
 - io.grpc:grpc-core:1.21.0
@@ -20,13 +52,11 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.grpc:grpc-protobuf:1.21.0
 - io.grpc:grpc-stub:1.21.0
 - io.grpc:grpc-testing:1.21.0
-- io.netty:netty-buffer:4.1.44.Final
 - io.netty:netty-buffer:4.1.34.Final
 - io.netty:netty-codec:4.1.34.Final
 - io.netty:netty-codec-http:4.1.34.Final
 - io.netty:netty-codec-http2:4.1.34.Final
 - io.netty:netty-codec-socks:4.1.34.Final
-- io.netty:netty-common:4.1.44.Final
 - io.netty:netty-common:4.1.34.Final
 - io.netty:netty-handler:4.1.34.Final
 - io.netty:netty-handler-proxy:4.1.34.Final
@@ -37,30 +67,11 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.netty:netty-tcnative-boringssl-static:2.0.22.Final
 - io.opencensus:opencensus-api:0.21.0
 - io.opencensus:opencensus-contrib-grpc-metrics:0.21.0
-- joda-time:joda-time:2.5
-- org.apache.arrow:arrow-format:0.16.0
-- org.apache.arrow:arrow-memory:0.16.0
-- org.apache.arrow:arrow-vector:0.16.0
-- org.apache.beam:beam-model-fn-execution:2.19.0
-- org.apache.beam:beam-model-job-management:2.19.0
-- org.apache.beam:beam-model-pipeline:2.19.0
-- org.apache.beam:beam-runners-core-construction-java:2.19.0
-- org.apache.beam:beam-runners-java-fn-execution:2.19.0
-- org.apache.beam:beam-sdks-java-core:2.19.0
-- org.apache.beam:beam-sdks-java-fn-execution:2.19.0
-- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.19.0
-- org.apache.beam:beam-vendor-guava-26_0-jre:0.1
-- org.apache.beam:beam-vendor-grpc-1_21_0:0.1
+- net.bytebuddy:1.9.3
 
-This project bundles the following dependencies under the BSD license.
+The bundled Apache Beam dependencies bundle the following dependencies under the BSD license.
 See bundled license files for details
 
-- net.sf.py4j:py4j:0.10.8.1
+- com.google.auth:google-auth-library-credentials:0.13.0
 - com.google.protobuf:protobuf-java:3.7.1
 - com.google.protobuf:protobuf-java-util:3.7.1
-- com.google.auth:google-auth-library-credentials:0.13.0
-
-This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
-See bundled license files for details.
-
-- net.razorvine:pyrolite:4.13
