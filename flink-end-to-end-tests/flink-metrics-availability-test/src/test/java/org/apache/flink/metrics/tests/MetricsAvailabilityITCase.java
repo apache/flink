@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.pache.flink.metrics.tests;
+package org.apache.flink.metrics.tests;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
