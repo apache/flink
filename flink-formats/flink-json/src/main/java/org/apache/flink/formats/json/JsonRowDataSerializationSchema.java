@@ -75,7 +75,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	private transient ObjectNode node;
 
 	/** Option for timestamp format. */
-	private TimestampFormat timestampFormat;
+	private final TimestampFormat timestampFormat;
 
 	public JsonRowDataSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
 		this.rowType = rowType;
