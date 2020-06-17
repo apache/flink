@@ -46,10 +46,10 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.clock.ManualClock;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
@@ -80,8 +80,10 @@ import java.util.stream.IntStream;
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -738,6 +740,79 @@ public class SlotPoolImplTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testOrphanedAllocationCanBeRemapped() throws Exception {
+		final List<AllocationID> allocationIds = new ArrayList<>();
+		resourceManagerGateway.setRequestSlotConsumer(
+			slotRequest -> allocationIds.add(slotRequest.getAllocationId()));
+
+		final List<AllocationID> canceledAllocations = new ArrayList<>();
+		resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::add);
+
+		try (SlotPoolImpl slotPool = createAndSetUpSlotPool()) {
+			final SlotRequestId slotRequestId1 = new SlotRequestId();
+			final SlotRequestId slotRequestId2 = new SlotRequestId();
+			requestNewAllocatedSlots(slotPool, slotRequestId1, slotRequestId2);
+
+			final AllocationID allocationId1 = allocationIds.get(0);
+			final AllocationID allocationId2 = allocationIds.get(1);
+
+			offerSlot(slotPool, allocationId2);
+
+			// verify that orphaned allocationId2 is remapped to slotRequestId2
+			assertThat(slotPool.getPendingRequests().values(), hasSize(1));
+			assertThat(slotPool.getPendingRequests().containsKeyA(slotRequestId2), is(true));
+			assertThat(slotPool.getPendingRequests().containsKeyB(allocationId1), is(true));
+			assertThat(canceledAllocations, hasSize(0));
+		}
+	}
+
+	@Test
+	public void testOrphanedAllocationIsCanceledIfNotRemapped() throws Exception {
+		final List<AllocationID> allocationIds = new ArrayList<>();
+		resourceManagerGateway.setRequestSlotConsumer(
+			slotRequest -> allocationIds.add(slotRequest.getAllocationId()));
+
+		final List<AllocationID> canceledAllocations = new ArrayList<>();
+		resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::add);
+
+		try (SlotPoolImpl slotPool = createAndSetUpSlotPool()) {
+			final SlotRequestId slotRequestId1 = new SlotRequestId();
+			final SlotRequestId slotRequestId2 = new SlotRequestId();
+			requestNewAllocatedSlots(slotPool, slotRequestId1, slotRequestId2);
+
+			final AllocationID allocationId1 = allocationIds.get(0);
+			final AllocationID allocationId2 = allocationIds.get(1);
+
+			// create a random non-existing allocation id
+			AllocationID randomAllocationId;
+			do {
+				randomAllocationId = new AllocationID();
+			} while (randomAllocationId.equals(allocationId1) || randomAllocationId.equals(allocationId2));
+
+			offerSlot(slotPool, randomAllocationId);
+
+			assertThat(slotPool.getPendingRequests().values(), hasSize(1));
+			assertThat(canceledAllocations, contains(allocationId1));
+		}
+	}
+
+	private void requestNewAllocatedSlots(final SlotPool slotPool, final SlotRequestId... slotRequestIds) {
+		for (SlotRequestId slotRequestId : slotRequestIds) {
+			requestNewAllocatedSlot(slotPool, slotRequestId);
+		}
+	}
+
+	private void requestNewAllocatedSlot(final SlotPool slotPool, final SlotRequestId slotRequestId) {
+		slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
+	}
+
+	private void offerSlot(final SlotPoolImpl slotPool, final AllocationID allocationId) {
+		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
+		slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+		slotPool.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer);
+	}
+
 	private List<AllocationID> registerAndOfferSlots(TaskManagerLocation taskManagerLocation, SlotPoolImpl slotPool, int numberOfSlotsToRegister) {
 		slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 		final List<AllocationID> allocationIds = IntStream.range(0, numberOfSlotsToRegister)
@@ -798,6 +873,12 @@ public class SlotPoolImplTest extends TestLogger {
 			new DummyScheduledUnit(),
 			SlotProfile.noRequirements(),
 			timeout);
+	}
+
+	private SlotPoolImpl createAndSetUpSlotPool() throws Exception {
+		final SlotPoolImpl slotPool = createSlotPoolImpl();
+		setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+		return slotPool;
 	}
 
 	private static void setupSlotPool(
