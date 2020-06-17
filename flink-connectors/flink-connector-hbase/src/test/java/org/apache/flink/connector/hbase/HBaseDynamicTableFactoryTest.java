@@ -24,7 +24,7 @@ import org.apache.flink.connector.hbase.options.HBaseOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.sink.HBaseDynamicTableSink;
 import org.apache.flink.connector.hbase.source.HBaseDynamicTableSource;
-import org.apache.flink.connector.hbase.source.HBaseLookupFunction;
+import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -111,8 +111,8 @@ public class HBaseDynamicTableFactoryTest {
 		assertTrue(lookupProvider instanceof TableFunctionProvider);
 
 		TableFunction tableFunction = ((TableFunctionProvider) lookupProvider).createTableFunction();
-		assertTrue(tableFunction instanceof HBaseLookupFunction);
-		assertEquals("testHBastTable", ((HBaseLookupFunction) tableFunction).getHTableName());
+		assertTrue(tableFunction instanceof HBaseRowDataLookupFunction);
+		assertEquals("testHBastTable", ((HBaseRowDataLookupFunction) tableFunction).getHTableName());
 
 		HBaseTableSchema hbaseSchema = hbaseSource.getHBaseTableSchema();
 		assertEquals(2, hbaseSchema.getRowKeyIndex());
