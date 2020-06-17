@@ -640,7 +640,7 @@ class RocksDBStateBackend(StateBackend):
         JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.RocksDBOptionsFactory
         j_options_factory_clz = load_java_class(options_factory_class_name)
         if not get_java_class(JOptionsFactory).isAssignableFrom(j_options_factory_clz):
-            raise ValueError("The input class not implements RocksDBOptionsFactory.")
+            raise ValueError("The input class does not implement RocksDBOptionsFactory.")
         self._j_rocks_db_state_backend.setRocksDBOptions(j_options_factory_clz.newInstance())
 
     def get_options(self):
