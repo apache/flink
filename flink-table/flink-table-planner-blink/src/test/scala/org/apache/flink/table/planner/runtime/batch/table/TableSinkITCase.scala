@@ -51,7 +51,7 @@ class TableSinkITCase extends BatchTestBase {
     val table = tEnv.from("MyTable")
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "sink")
+    table.executeInsert("sink").await()
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
@@ -77,7 +77,7 @@ class TableSinkITCase extends BatchTestBase {
     val table = tEnv.from("MyTable")
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "sink")
+    table.executeInsert("sink").await()
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
@@ -103,7 +103,7 @@ class TableSinkITCase extends BatchTestBase {
     val table = tEnv.from("MyTable")
       .groupBy('a)
       .select('a, 'b.sum())
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val result = TestValuesTableFactory.getResults("testSink")
     val expected = List(
@@ -133,7 +133,7 @@ class TableSinkITCase extends BatchTestBase {
     val table = tEnv.from("MyTable")
       .groupBy('a)
       .select('a, 'b.sum())
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val result = TestValuesTableFactory.getResults("testSink")
     val expected = List(
@@ -174,7 +174,7 @@ class TableSinkITCase extends BatchTestBase {
 
     // default should fail, because there are null values in the source
     try {
-      execInsertSqlAndWaitResult("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+      tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
       fail("Execution should fail.")
     } catch {
       case t: Throwable =>
@@ -188,7 +188,7 @@ class TableSinkITCase extends BatchTestBase {
 
     // enable drop enforcer to make the query can run
     tEnv.getConfig.getConfiguration.setString("table.exec.sink.not-null-enforcer", "drop")
-    execInsertSqlAndWaitResult("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+    tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
 
     val result = TestValuesTableFactory.getResults("not_null_sink")
     val expected = List("book,1,12", "book,4,11", "fruit,3,44")

@@ -30,7 +30,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -164,9 +163,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				"  'table-name'='" + OUTPUT_TABLE4 + "'" +
 				")");
 
-		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)").await();
 		check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[]{"real_data"});
 	}
 
@@ -205,16 +202,14 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				"  'sink.buffer-flush.interval' = '0'" +
 				")");
 
-		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink \n" +
+		tEnv.executeSql("INSERT INTO upsertSink \n" +
 			"SELECT cnt, COUNT(len) AS lencnt, cTag, MAX(ts) AS ts\n" +
 			"FROM (\n" +
 			"  SELECT len, COUNT(id) as cnt, cTag, MAX(ts) AS ts\n" +
 			"  FROM (SELECT id, CHAR_LENGTH(text) AS len, (CASE WHEN id > 0 THEN 1 ELSE 0 END) cTag, ts FROM T)\n" +
 			"  GROUP BY len, cTag\n" +
 			")\n" +
-			"GROUP BY cnt, cTag");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+			"GROUP BY cnt, cTag").await();
 		check(new Row[] {
 			Row.of(1, 5, 1, Timestamp.valueOf("1970-01-01 00:00:00.006")),
 			Row.of(7, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.021")),
@@ -244,10 +239,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				"  'table-name'='" + OUTPUT_TABLE2 + "'" +
 				")");
 
-		TableResult tableResult = tEnv.executeSql(
-			"INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		tEnv.executeSql("INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)").await();
 		check(new Row[] {
 			Row.of(2, 2, Timestamp.valueOf("1970-01-01 00:00:00.002")),
 			Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
@@ -279,8 +271,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			"FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), " +
 			"(42, 'Kim'), (1, 'Bob')) " +
 			"AS UserCountTable(score, user_name)");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		tableResult.await();
 
 		check(new Row[] {
 			Row.of("Bob", 1),
@@ -292,7 +283,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 	}
 
 	@Test
-	public void testReadingFromChangelogSource() throws SQLException {
+	public void testReadingFromChangelogSource() throws Exception {
 		TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
 		String dataId = TestValuesTableFactory.registerData(TestData.userChangelog());
 		tEnv.executeSql("CREATE TABLE user_logs (\n" +
@@ -319,9 +310,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			"  'sink.buffer-flush.max-rows' = '2'," +
 			"  'sink.buffer-flush.interval' = '0'" + // disable async flush
 			")");
-		TableEnvUtil.execInsertSqlAndWaitResult(
-			tEnv,
-			"INSERT INTO user_sink SELECT * FROM user_logs");
+			tEnv.executeSql("INSERT INTO user_sink SELECT * FROM user_logs").await();
 
 		check(new Row[] {
 			Row.of("user1", "Tom", "tom123@gmail.com", new BigDecimal("8.10"), new BigDecimal("16.20")),

@@ -33,11 +33,9 @@ import static org.apache.flink.table.api.Expressions.row;
 public class BlackHoleConnectorITCase extends StreamingTestBase {
 
 	@Test
-	public void testTypes() {
+	public void testTypes() throws Exception {
 		tEnv().executeSql(
 				"create table blackhole_t (f0 int, f1 double) with ('connector' = 'blackhole')");
-		execInsertTableAndWaitResult(
-				tEnv().fromValues(Arrays.asList(row(1, 1.1), row(2, 2.2))),
-				"blackhole_t");
+		tEnv().fromValues(Arrays.asList(row(1, 1.1), row(2, 2.2))).executeInsert("blackhole_t").await();
 	}
 }

@@ -94,6 +94,9 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
       Row.of(Integer.valueOf(4), "Peter Smith"),
       Row.of(Integer.valueOf(6), "Sally Miller"),
       Row.of(Integer.valueOf(8), "Kelly Williams"))
+    // wait for data ready
+    // this is just for testing, because iterator will also wait for data ready
+    tableResult.await()
     val it = tableResult.collect()
     val actual = Lists.newArrayList(it)
     // actively close the job even it is finished

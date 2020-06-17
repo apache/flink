@@ -150,11 +150,7 @@ public class Elasticsearch7DynamicSinkITCase {
 				(byte) 2,
 				LocalDate.ofEpochDay(12345),
 				LocalDateTime.parse("2012-12-12T12:12:12"))
-		).executeInsert("esTable")
-			.getJobClient()
-			.get()
-			.getJobExecutionResult(this.getClass().getClassLoader())
-			.get();
+		).executeInsert("esTable").await();
 
 		Client client = elasticsearchResource.getClient();
 		Map<String, Object> response = client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
@@ -210,11 +206,7 @@ public class Elasticsearch7DynamicSinkITCase {
 				(byte) 4,
 				LocalDate.ofEpochDay(12345),
 				LocalDateTime.parse("2013-12-12T13:13:13"))
-		).executeInsert("esTable")
-			.getJobClient()
-			.get()
-			.getJobExecutionResult(this.getClass().getClassLoader())
-			.get();
+		).executeInsert("esTable").await();
 
 		Client client = elasticsearchResource.getClient();
 
@@ -282,11 +274,7 @@ public class Elasticsearch7DynamicSinkITCase {
 			")");
 
 		tableEnvironment.fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
-			.executeInsert("esTable")
-			.getJobClient()
-			.get()
-			.getJobExecutionResult(this.getClass().getClassLoader())
-			.get();
+			.executeInsert("esTable").await();
 
 		Client client = elasticsearchResource.getClient();
 		Map<String, Object> response = client.get(new GetRequest("dynamic-index-2012-12-12", "1"))

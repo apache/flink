@@ -76,7 +76,7 @@ abstract class BatchTableEnvImpl(
     config: TableConfig,
     catalogManager: CatalogManager,
     moduleManager: ModuleManager)
-  extends TableEnvImpl(config, catalogManager, moduleManager) {
+  extends TableEnvImpl(config, catalogManager, moduleManager, execEnv.getUserCodeClassLoader) {
 
   private val bufferedModifyOperations = new JArrayList[ModifyOperation]()
 

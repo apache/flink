@@ -30,7 +30,6 @@ import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -86,8 +85,9 @@ public class HiveLookupJoinITCase {
 		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
 
 		try {
-			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
-					"insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)");
+			tableEnv.executeSql(
+					"insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)")
+					.await();
 
 			TestCollectionTableFactory.initData(
 					Arrays.asList(Row.of(1, "a"), Row.of(1, "c"), Row.of(2, "b"), Row.of(2, "c"), Row.of(3, "c"), Row.of(4, "d")));

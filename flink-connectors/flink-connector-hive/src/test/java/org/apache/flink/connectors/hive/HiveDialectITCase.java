@@ -23,7 +23,6 @@ import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -208,26 +207,26 @@ public class HiveDialectITCase {
 	public void testInsert() throws Exception {
 		// src table
 		tableEnv.executeSql("create table src (x int,y string)");
-		waitForJobFinish(tableEnv.executeSql("insert into src values (1,'a'),(2,'b'),(3,'c')"));
+		tableEnv.executeSql("insert into src values (1,'a'),(2,'b'),(3,'c')").await();
 
 		// non-partitioned dest table
 		tableEnv.executeSql("create table dest (x int)");
-		waitForJobFinish(tableEnv.executeSql("insert into dest select x from src"));
+		tableEnv.executeSql("insert into dest select x from src").await();
 		List<Row> results = queryResult(tableEnv.sqlQuery("select * from dest"));
 		assertEquals("[1, 2, 3]", results.toString());
-		waitForJobFinish(tableEnv.executeSql("insert overwrite dest values (3),(4),(5)"));
+		tableEnv.executeSql("insert overwrite dest values (3),(4),(5)").await();
 		results = queryResult(tableEnv.sqlQuery("select * from dest"));
 		assertEquals("[3, 4, 5]", results.toString());
 
 		// partitioned dest table
 		tableEnv.executeSql("create table dest2 (x int) partitioned by (p1 int,p2 string)");
-		waitForJobFinish(tableEnv.executeSql("insert into dest2 partition (p1=0,p2='static') select x from src"));
+		tableEnv.executeSql("insert into dest2 partition (p1=0,p2='static') select x from src").await();
 		results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
 		assertEquals("[1,0,static, 2,0,static, 3,0,static]", results.toString());
-		waitForJobFinish(tableEnv.executeSql("insert into dest2 partition (p1=1,p2) select x,y from src"));
+		tableEnv.executeSql("insert into dest2 partition (p1=1,p2) select x,y from src").await();
 		results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
 		assertEquals("[1,0,static, 1,1,a, 2,0,static, 2,1,b, 3,0,static, 3,1,c]", results.toString());
-		waitForJobFinish(tableEnv.executeSql("insert overwrite dest2 partition (p1,p2) select 1,x,y from src"));
+		tableEnv.executeSql("insert overwrite dest2 partition (p1,p2) select 1,x,y from src").await();
 		results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
 		assertEquals("[1,0,static, 1,1,a, 1,2,b, 1,3,c, 2,0,static, 2,1,b, 3,0,static, 3,1,c]", results.toString());
 	}
@@ -421,7 +420,7 @@ public class HiveDialectITCase {
 		assertTrue(functions.toString().contains("my_abs"));
 		// call the function
 		tableEnv.executeSql("create table src(x int)");
-		waitForJobFinish(tableEnv.executeSql("insert into src values (1),(-1)"));
+		tableEnv.executeSql("insert into src values (1),(-1)").await();
 		assertEquals("[1, 1]", queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString());
 		// drop the function
 		tableEnv.executeSql("drop function my_abs");
@@ -524,9 +523,5 @@ public class HiveDialectITCase {
 
 	private static List<Row> queryResult(org.apache.flink.table.api.Table table) {
 		return Lists.newArrayList(table.execute().collect());
-	}
-
-	private static void waitForJobFinish(TableResult tableResult) throws Exception {
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 }

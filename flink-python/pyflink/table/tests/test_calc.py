@@ -24,7 +24,7 @@ from pyflink.table import DataTypes, Row, BatchTableEnvironment, EnvironmentSett
 from pyflink.table.tests.test_types import ExamplePoint, PythonOnlyPoint, ExamplePointUDT, \
     PythonOnlyUDT
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, exec_insert_table
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableCalcTests(PyFlinkStreamTableTestCase):
@@ -96,7 +96,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
               {"key": 1.0}, bytearray(b'ABCD'), ExamplePoint(1.0, 2.0),
               PythonOnlyPoint(3.0, 4.0))],
             schema)
-        exec_insert_table(t, "Results")
+        t.execute_insert("Results").wait()
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'
@@ -140,7 +140,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
               {"key": 1.0}, bytearray(b'ABCD'),
               PythonOnlyPoint(3.0, 4.0))],
             schema)
-        exec_insert_table(t, "Results")
+        t.execute_insert("Results").wait()
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'

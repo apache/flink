@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -84,7 +83,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 	@Test
 	public void testUnsignedType() throws Exception {
 		// write data to db
-		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into jdbc_sink select" +
+		tEnv.executeSql("insert into jdbc_sink select" +
 			" tiny_c," +
 			" tiny_un_c," +
 			" small_c," +
@@ -92,7 +91,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 			" int_c," +
 			" int_un_c," +
 			" big_c ," +
-			" big_un_c from data");
+			" big_un_c from data").await();
 
 		// read data from db using jdbc connection and compare
 		PreparedStatement query = connection.prepareStatement(String.format("select tiny_c, tiny_un_c, small_c, small_un_c," +

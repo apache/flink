@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -301,14 +300,6 @@ class BatchTestBase extends BatchAbstractTestBase {
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)
     executeQuery(table)
-  }
-
-  def execInsertSqlAndWaitResult(insert: String): JobExecutionResult = {
-    TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insert)
-  }
-
-  def execInsertTableAndWaitResult(table: Table, targetPath: String): JobExecutionResult = {
-    TableEnvUtil.execInsertTableAndWaitResult(table, targetPath)
   }
 
   private def prepareResult(seq: Seq[Row], isSorted: Boolean): Seq[String] = {

@@ -25,7 +25,7 @@ from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBatchTableTestCase, exec_insert_table
+    PyFlinkBatchTableTestCase
 
 
 class UserDefinedFunctionTests(object):
@@ -57,11 +57,10 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        exec_insert_table(
-            t.where(add_one(t.b) <= 3).select(
-                add_one(t.a), subtract_one(t.b), add(t.a, t.c), add_one_callable(t.a),
-                add_one_partial(t.a), t.a),
-            "Results")
+        t.where(add_one(t.b) <= 3).select(
+            add_one(t.a), subtract_one(t.b), add(t.a, t.c), add_one_callable(t.a),
+            add_one_partial(t.a), t.a) \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,1,4,2,2,1", "4,0,12,4,4,3"])
 
@@ -75,8 +74,8 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])
-        exec_insert_table(t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1)),
-                          "Results")
+        t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1)) \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1,1", "7,2,1", "4,3,1"])
 
@@ -91,7 +90,7 @@ class UserDefinedFunctionTests(object):
             [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        exec_insert_table(t1.join(t2).where(f(t1.a) == t2.c), "Results")
+        t1.join(t2).where(f(t1.a) == t2.c).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,Hi,2,Flink"])
 
@@ -106,7 +105,7 @@ class UserDefinedFunctionTests(object):
             [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        exec_insert_table(t1.join(t2).where(f(t1.a) == f(t2.c)), "Results")
+        t1.join(t2).where(f(t1.a) == f(t2.c)).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,Hi,2,Flink"])
 
@@ -207,7 +206,7 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        exec_insert_table(t.select("plus(a, b)"), "Results")
+        t.select("plus(a, b)").execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2", "6", "3"])
 
@@ -219,7 +218,7 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 4)], ['a', 'b'])
-        exec_insert_table(t.select(t.a, subtract(t.b)), "Results")
+        t.select(t.a, subtract(t.b)).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,1", "2,4", "3,3"])
 
@@ -232,7 +231,7 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        exec_insert_table(t.select(one(), two()), "Results")
+        t.select(one(), two()).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
 
@@ -385,24 +384,25 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
 
-        exec_insert_table(t.select(bigint_func(t.a),
-                                   bigint_func_none(t.b),
-                                   tinyint_func(t.c),
-                                   boolean_func(t.d),
-                                   smallint_func(t.e),
-                                   int_func(t.f),
-                                   float_func(t.g),
-                                   double_func(t.h),
-                                   bytes_func(t.i),
-                                   str_func(t.j),
-                                   date_func(t.k),
-                                   time_func(t.l),
-                                   timestamp_func(t.m),
-                                   array_func(t.n),
-                                   map_func(t.o),
-                                   decimal_func(t.p),
-                                   decimal_cut_func(t.q)),
-                          "Results")
+        t.select(
+            bigint_func(t.a),
+            bigint_func_none(t.b),
+            tinyint_func(t.c),
+            boolean_func(t.d),
+            smallint_func(t.e),
+            int_func(t.f),
+            float_func(t.g),
+            double_func(t.h),
+            bytes_func(t.i),
+            str_func(t.j),
+            date_func(t.k),
+            time_func(t.l),
+            timestamp_func(t.m),
+            array_func(t.n),
+            map_func(t.o),
+            decimal_func(t.p),
+            decimal_cut_func(t.q)) \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
@@ -596,15 +596,16 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
 
-        exec_insert_table(t.select("bigint_func(a), bigint_func_none(b),"
-                                   "tinyint_func(c), boolean_func(d),"
-                                   "smallint_func(e),int_func(f),"
-                                   "float_func(g),double_func(h),"
-                                   "bytes_func(i),str_func(j),"
-                                   "date_func(k),time_func(l),"
-                                   "timestamp_func(m),array_func(n),"
-                                   "map_func(o),decimal_func(p),"
-                                   "decimal_cut_func(q)"), "Results")
+        t.select("bigint_func(a), bigint_func_none(b),"
+                 "tinyint_func(c), boolean_func(d),"
+                 "smallint_func(e),int_func(f),"
+                 "float_func(g),double_func(h),"
+                 "bytes_func(i),str_func(j),"
+                 "date_func(k),time_func(l),"
+                 "timestamp_func(m),array_func(n),"
+                 "map_func(o),decimal_func(p),"
+                 "decimal_cut_func(q)") \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
@@ -737,8 +738,9 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             [(local_datetime,)],
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
-        exec_insert_table(t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))),
-                          "Results")
+        t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
+            .execute_insert("Results") \
+            .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
 
