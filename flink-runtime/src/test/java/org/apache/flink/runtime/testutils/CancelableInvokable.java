@@ -21,6 +21,8 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import java.util.Optional;
+
 /**
  * An {@link AbstractInvokable} that blocks at some point until cancelled.
  *
@@ -36,7 +38,7 @@ public abstract class CancelableInvokable extends AbstractInvokable {
 	}
 
 	@Override
-	public void cancel() {
+	public void cancel(Optional<Long> timeoutMs) {
 		canceled = true;
 	}
 

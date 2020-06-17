@@ -31,6 +31,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -99,7 +100,7 @@ public class SynchronousCheckpointTest {
 		launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
 		assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
 
-		streamTaskUnderTest.cancel();
+		streamTaskUnderTest.cancel(Optional.empty());
 
 		waitUntilMainExecutionThreadIsFinished();
 

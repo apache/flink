@@ -31,6 +31,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -105,7 +106,7 @@ public abstract class AbstractInvokable {
 	 * @throws Exception
 	 *         thrown if any exception occurs during the execution of the user code
 	 */
-	public void cancel() throws Exception {
+	public void cancel(Optional<Long> timeoutMs) throws Exception {
 		// The default implementation does nothing.
 	}
 

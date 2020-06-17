@@ -34,6 +34,7 @@ import org.junit.After;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
@@ -201,7 +202,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {
+		public void cancel(Optional<Long> timeoutMs) {
 			synchronized (lock) {
 				running = false;
 				lock.notifyAll();

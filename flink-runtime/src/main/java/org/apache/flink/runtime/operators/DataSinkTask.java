@@ -53,6 +53,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
  * 
@@ -289,7 +291,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public void cancel(Optional<Long> timeoutMs) throws Exception {
 		this.taskCanceled = true;
 		OutputFormat<IT> format = this.format;
 		if (format != null) {

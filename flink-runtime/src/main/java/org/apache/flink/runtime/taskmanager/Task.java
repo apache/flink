@@ -75,7 +75,6 @@ import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
-import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.types.Either;
@@ -84,6 +83,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;
@@ -100,6 +100,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
@@ -1285,7 +1286,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		// in case of an exception during execution, we still call "cancel()" on the task
 		if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
 			try {
-				invokable.cancel();
+				// pass taskCancellationTimeout to have time for cleanup // todo: reduce timeout?
+				invokable.cancel(Optional.of(taskCancellationTimeout).filter(t -> t > 0));
 			}
 			catch (Throwable t) {
 				LOG.error("Error while canceling task {}.", taskNameWithSubtask, t);
@@ -1424,7 +1426,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				// the user-defined cancel method may throw errors.
 				// we need do continue despite that
 				try {
-					invokable.cancel();
+					invokable.cancel(Optional.empty());
 				} catch (Throwable t) {
 					ExceptionUtils.rethrowIfFatalError(t);
 					logger.error("Error while canceling the task {}.", taskName, t);

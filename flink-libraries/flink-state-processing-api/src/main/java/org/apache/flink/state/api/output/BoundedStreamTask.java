@@ -99,7 +99,7 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	}
 
 	@Override
-	protected void cancelTask() {}
+	protected void cancelTask(Optional<Long> timeoutMs) {}
 
 	@Override
 	protected void cleanup() throws Exception {

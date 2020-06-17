@@ -61,6 +61,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -987,7 +988,7 @@ public class TaskTest extends TestLogger {
 		public void invoke() {}
 
 		@Override
-		public void cancel() {
+		public void cancel(Optional<Long> timeoutMs) {
 			fail("This should not be called");
 		}
 	}
@@ -1020,7 +1021,7 @@ public class TaskTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {}
+		public void cancel(Optional<Long> timeoutMs) {}
 	}
 
 	private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
@@ -1128,7 +1129,7 @@ public class TaskTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() throws Exception {
+		public void cancel(Optional<Long> timeoutMs) throws Exception {
 			synchronized (this) {
 				triggerLatch.trigger();
 				wait();
@@ -1155,7 +1156,7 @@ public class TaskTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {
+		public void cancel(Optional<Long> timeoutMs) {
 			synchronized (lock) {
 				// do nothing but a placeholder
 				triggerLatch.trigger();
@@ -1185,7 +1186,7 @@ public class TaskTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {
+		public void cancel(Optional<Long> timeoutMs) {
 		}
 	}
 

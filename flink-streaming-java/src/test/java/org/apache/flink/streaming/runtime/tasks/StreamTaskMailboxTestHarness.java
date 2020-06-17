@@ -24,6 +24,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 
+import java.util.Optional;
 import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -145,7 +146,7 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
 	@Override
 	public void close() throws Exception {
-		streamTask.cancel();
+		streamTask.cancel(Optional.empty());
 
 		streamTask.afterInvoke();
 		streamTask.cleanUpInvoke();

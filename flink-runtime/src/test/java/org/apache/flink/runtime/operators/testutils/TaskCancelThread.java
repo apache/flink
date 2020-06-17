@@ -22,6 +22,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 
+import java.util.Optional;
+
 public class TaskCancelThread extends Thread {
 	
 	private final DriverTestBase<?> cancelDriver;
@@ -60,7 +62,7 @@ public class TaskCancelThread extends Thread {
 				this.cancelDriver.cancel();
 			}
 			if (this.cancelTask != null) {
-				this.cancelTask.cancel();
+				this.cancelTask.cancel(Optional.empty());
 			}
 			
 			this.interruptedThread.interrupt();

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -389,7 +390,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 	 * A {@link StreamTask} that simply calls {@link CountDownLatch#countDown()} when
 	 * invoking {@link #triggerCheckpointAsync}.
 	 */
-	public static class CheckpointCountingTask extends NoOpStreamTask {
+	public static class CheckpointCountingTask extends NoOpStreamTask<Object, StreamOperator<Object>> {
 
 		private final transient OneShotLatch finishLatch;
 
@@ -406,8 +407,8 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void cancelTask() throws Exception {
-			super.cancelTask();
+		protected void cancelTask(Optional<Long> timeoutMs) throws Exception {
+			super.cancelTask(timeoutMs);
 			finishLatch.trigger();
 		}
 

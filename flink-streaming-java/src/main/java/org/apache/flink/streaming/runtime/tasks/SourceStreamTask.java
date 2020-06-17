@@ -32,6 +32,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -143,7 +144,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void cancelTask() {
+	protected void cancelTask(Optional<Long> timeoutMs) {
 		try {
 			if (headOperator != null) {
 				headOperator.cancel();
@@ -155,7 +156,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			while (sourceThread.isAlive()) {
 				sourceThread.interrupt();
 				try {
-					sourceThread.join(); // todo: use Task.taskCancellationTimeout?
+					if (timeoutMs.isPresent()) {
+						sourceThread.join(timeoutMs.get());
+					} else {
+						sourceThread.join();
+					}
 				} catch (InterruptedException e) {
 					if (!sourceThread.isAlive()) { // if we set interrupt status and then join again it will exit immediately
 						Thread.currentThread().interrupt();
@@ -168,7 +173,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	@Override
 	protected void finishTask() throws Exception {
 		isFinished = true;
-		cancelTask();
+		cancelTask(Optional.empty()); // todo: verify no timeout is fine
 	}
 
 	// ------------------------------------------------------------------------

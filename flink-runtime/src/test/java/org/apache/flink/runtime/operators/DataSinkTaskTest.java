@@ -44,6 +44,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -378,7 +379,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		
 		// cancel the task
 		Thread.sleep(500);
-		testTask.cancel();
+		testTask.cancel(Optional.empty());
 		taskRunner.interrupt();
 		
 		// wait for the canceling to complete

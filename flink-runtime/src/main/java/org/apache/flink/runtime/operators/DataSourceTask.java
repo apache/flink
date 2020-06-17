@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * DataSourceTask which is executed by a task manager. The task reads data and uses an 
@@ -252,7 +253,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public void cancel(Optional<Long> timeoutMs) throws Exception {
 		this.taskCanceled = true;
 		LOG.debug(getLogString("Cancelling data source operator"));
 	}

@@ -53,6 +53,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
@@ -122,7 +123,7 @@ public class StreamSourceOperatorWatermarksTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 		Thread.sleep(200);
-		testHarness.getTask().cancel();
+		testHarness.getTask().cancel(Optional.empty());
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
@@ -226,7 +227,7 @@ public class StreamSourceOperatorWatermarksTest {
 				SourceStreamTask<T, ?, ?> sourceTask = new SourceStreamTask<>(env);
 				if (cancelImmediatelyAfterCreation) {
 					try {
-						sourceTask.cancel();
+						sourceTask.cancel(Optional.empty());
 					} catch (Exception e) {
 						throw new RuntimeException(e);
 					}

@@ -382,7 +382,7 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * A task that locks for ever, fail in {@link #cancelTask()}. It can be only shut down cleanly
+	 * A task that locks for ever, fail in {@link StreamTask#cancelTask(Optional)}. It can be only shut down cleanly
 	 * if {@link StreamTask#getCancelables()} are closed properly.
 	 */
 	public static class CancelFailingTask extends StreamTask<String, AbstractStreamOperator<String>> {
@@ -428,7 +428,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void cleanup() {}
 
 		@Override
-		protected void cancelTask() throws Exception {
+		protected void cancelTask(Optional<Long> timeoutMs) throws Exception {
 			throw new Exception("test exception");
 		}
 
@@ -755,7 +755,7 @@ public class StreamTaskTest extends TestLogger {
 			verify(managedOperatorStateHandle, never()).discardState();
 			verify(rawOperatorStateHandle, never()).discardState();
 
-			streamTask.cancel();
+			streamTask.cancel(Optional.empty());
 
 			completeAcknowledge.trigger();
 
@@ -813,7 +813,7 @@ public class StreamTaskTest extends TestLogger {
 
 		rawKeyedStateHandleFuture.awaitRun();
 
-		task.streamTask.cancel();
+		task.streamTask.cancel(Optional.empty());
 
 		final FutureUtils.ConjunctFuture<Void> discardFuture = FutureUtils.waitForAll(
 			Arrays.asList(
@@ -894,7 +894,7 @@ public class StreamTaskTest extends TestLogger {
 			// ensure that 'null' was acknowledged as subtask state
 			Assert.assertNull(checkpointResult.get(0));
 
-			task.streamTask.cancel();
+			task.streamTask.cancel(Optional.empty());
 			task.waitForTaskCompletion(true);
 		}
 	}

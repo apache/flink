@@ -60,6 +60,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 
 /**
@@ -294,9 +295,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public void cancel(Optional<Long> timeoutMs) throws Exception {
 		requestTermination();
-		super.cancel();
+		super.cancel(timeoutMs);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

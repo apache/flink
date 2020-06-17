@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.types.IntValue;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -107,7 +108,7 @@ public class TestingAbstractInvokables {
 		}
 
 		@Override
-		public void cancel() {
+		public void cancel(Optional<Long> timeoutMs) {
 			gotCanceledFuture.complete(true);
 		}
 

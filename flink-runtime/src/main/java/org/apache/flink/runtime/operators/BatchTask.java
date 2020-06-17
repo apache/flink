@@ -72,6 +72,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The base class for all batch tasks. Encapsulated common behavior and implements the main life-cycle
@@ -389,7 +390,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public void cancel(Optional<Long> timeoutMs) throws Exception {
 		this.running = false;
 
 		if (LOG.isDebugEnabled()) {

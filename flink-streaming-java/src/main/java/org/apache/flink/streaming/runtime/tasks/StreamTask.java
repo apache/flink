@@ -88,6 +88,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -325,7 +326,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected abstract void init() throws Exception;
 
-	protected void cancelTask() throws Exception {
+	protected void cancelTask(Optional<Long> timeoutMs) throws Exception {
 	}
 
 	protected void cleanup() throws Exception {
@@ -654,14 +655,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public final void cancel() throws Exception {
+	public final void cancel(Optional<Long> timeoutMs) throws Exception {
 		isRunning = false;
 		canceled = true;
 
 		// the "cancel task" call must come first, but the cancelables must be
 		// closed no matter what
 		try {
-			cancelTask();
+			cancelTask(timeoutMs);
 		}
 		finally {
 			mailboxProcessor.allActionsCompleted();

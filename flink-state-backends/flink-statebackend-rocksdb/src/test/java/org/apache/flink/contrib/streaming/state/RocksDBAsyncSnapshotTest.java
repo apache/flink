@@ -85,6 +85,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -329,7 +330,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		blockerCheckpointStreamFactory.getWaiterLatch().await();
-		task.cancel();
+		task.cancel(Optional.empty());
 		blockerCheckpointStreamFactory.getBlockerLatch().trigger();
 		testHarness.endInput();
 

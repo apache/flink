@@ -55,6 +55,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -231,7 +232,7 @@ public class SourceStreamTaskTest {
 
 		testHarness.invoke();
 		CancelTestSource.getDataProcessing().await();
-		testHarness.getTask().cancel();
+		testHarness.getTask().cancel(Optional.empty());
 
 		try {
 			testHarness.waitForTaskCompletion();
@@ -305,7 +306,7 @@ public class SourceStreamTaskTest {
 		}
 
 		try {
-			testHarness.getTask().cancel();
+			testHarness.getTask().cancel(Optional.empty());
 		}
 		catch (ExpectedTestException e) {
 			checkState(throwInCancel);
