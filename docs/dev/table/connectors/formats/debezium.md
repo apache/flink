@@ -178,12 +178,24 @@ Format Options
           This option indicates whether the Debezium JSON message includes the schema or not. </td>
     </tr>
     <tr>
-      <td><h5>json.ignore-parse-errors</h5></td>
+      <td><h5>debezium-json.ignore-parse-errors</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Skip fields and rows with parse errors instead of failing.
       Fields are set to null in case of errors.</td>
+    </tr>
+    <tr>
+       <td><h5>debezium-json.timestamp-format.standard</h5></td>
+       <td>optional</td>
+       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
+       <td>String</td>
+       <td>Specify the input and output timestamp format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
+       <ul>
+         <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g '2020-12-30 12:13:14.123' and output timestamp in the same format.</li>
+         <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
+       </ul>
+       </td>
     </tr>
     </tbody>
 </table>

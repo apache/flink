@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -78,7 +79,8 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 			RowType rowType,
 			TypeInformation<RowData> resultTypeInfo,
 			boolean schemaInclude,
-			boolean ignoreParseErrors) {
+			boolean ignoreParseErrors,
+			TimestampFormat timestampFormatOption) {
 		this.resultTypeInfo = resultTypeInfo;
 		this.schemaInclude = schemaInclude;
 		this.ignoreParseErrors = ignoreParseErrors;
@@ -87,7 +89,8 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 			// the result type is never used, so it's fine to pass in Debezium's result type
 			resultTypeInfo,
 			false, // ignoreParseErrors already contains the functionality of failOnMissingField
-			ignoreParseErrors);
+			ignoreParseErrors,
+			timestampFormatOption);
 	}
 
 	@Override
