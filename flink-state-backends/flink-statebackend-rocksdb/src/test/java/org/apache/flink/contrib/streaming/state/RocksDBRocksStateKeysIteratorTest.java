@@ -126,7 +126,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 			ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 
 			try (
-				RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(keyedStateBackend.db, handle, keyedStateBackend.getReadOptions());
+				RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(keyedStateBackend.db, handle);
 				RocksStateKeysIterator<K> iteratorWrapper =
 					new RocksStateKeysIterator<>(
 						iterator,

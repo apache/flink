@@ -17,7 +17,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -37,7 +36,6 @@ import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 
 import javax.annotation.Nonnull;
@@ -54,8 +52,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 	/**
 	 * Default cache size per key-group.
 	 */
-	@VisibleForTesting
-	static final int DEFAULT_CACHES_SIZE = 128; //TODO make this configurable
+	private static final int DEFAULT_CACHES_SIZE = 128; //TODO make this configurable
 
 	/**
 	 * A shared buffer to serialize elements for the priority queue.
@@ -74,7 +71,6 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 	private final int numberOfKeyGroups;
 	private final Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation;
 	private final RocksDB db;
-	private final ReadOptions readOptions;
 	private final RocksDBWriteBatchWrapper writeBatchWrapper;
 	private final RocksDBNativeMetricMonitor nativeMetricMonitor;
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
@@ -85,7 +81,6 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		int numberOfKeyGroups,
 		Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
 		RocksDB db,
-		ReadOptions readOptions,
 		RocksDBWriteBatchWrapper writeBatchWrapper,
 		RocksDBNativeMetricMonitor nativeMetricMonitor,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
@@ -94,7 +89,6 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		this.numberOfKeyGroups = numberOfKeyGroups;
 		this.kvStateInformation = kvStateInformation;
 		this.db = db;
-		this.readOptions = readOptions;
 		this.writeBatchWrapper = writeBatchWrapper;
 		this.nativeMetricMonitor = nativeMetricMonitor;
 		this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
@@ -128,7 +122,6 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 						keyGroupId,
 						keyGroupPrefixBytes,
 						db,
-						readOptions,
 						columnFamilyHandle,
 						byteOrderedElementSerializer,
 						sharedElementOutView,
