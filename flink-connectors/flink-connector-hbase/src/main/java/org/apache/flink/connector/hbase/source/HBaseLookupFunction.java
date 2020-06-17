@@ -45,7 +45,7 @@ import java.io.IOException;
 
 /**
  * The HBaseLookupFunction is a standard user-defined table function, it can be used in tableAPI
- * and also useful for temporal table join plan in SQL. It looks up the result as {@link Row}.
+ * and also useful for temporal table join plan in SQL.
  */
 @Internal
 public class HBaseLookupFunction extends TableFunction<Row> {
