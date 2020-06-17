@@ -20,13 +20,12 @@ package org.apache.flink.connector.hbase.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
-import org.apache.flink.connector.hbase.util.HBaseReadWriteHelper;
+import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -35,6 +34,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.slf4j.Logger;
@@ -43,29 +43,33 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * The HBaseLookupFunction is a standard user-defined table function, it can be used in tableAPI
- * and also useful for temporal table join plan in SQL. It looks up the result as {@link Row}.
+ * The HBaseRowDataLookupFunction is a standard user-defined table function, it can be used in tableAPI
+ * and also useful for temporal table join plan in SQL. It looks up the result as {@link RowData}.
  */
 @Internal
-public class HBaseLookupFunction extends TableFunction<Row> {
-	private static final Logger LOG = LoggerFactory.getLogger(HBaseLookupFunction.class);
+public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataLookupFunction.class);
 	private static final long serialVersionUID = 1L;
 
 	private final String hTableName;
 	private final byte[] serializedConfig;
 	private final HBaseTableSchema hbaseTableSchema;
+	private final String nullStringLiteral;
 
-	private transient HBaseReadWriteHelper readHelper;
 	private transient Connection hConnection;
 	private transient HTable table;
+	private transient HBaseSerde serde;
 
-	public HBaseLookupFunction(
+	public HBaseRowDataLookupFunction(
 			Configuration configuration,
 			String hTableName,
-			HBaseTableSchema hbaseTableSchema) {
+			HBaseTableSchema hbaseTableSchema,
+			String nullStringLiteral) {
 		this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(configuration);
 		this.hTableName = hTableName;
 		this.hbaseTableSchema = hbaseTableSchema;
+		this.nullStringLiteral = nullStringLiteral;
 	}
 
 	/**
@@ -74,23 +78,21 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 	 */
 	public void eval(Object rowKey) throws IOException {
 		// fetch result
-		Result result = table.get(readHelper.createGet(rowKey));
-		if (!result.isEmpty()) {
-			// parse and collect
-			collect(readHelper.parseToRow(result, rowKey));
+		Get get = serde.createGet(rowKey);
+		if (get != null) {
+			Result result = table.get(get);
+			if (!result.isEmpty()) {
+				// parse and collect
+				collect(serde.convertToRow(result));
+			}
 		}
 	}
 
-	@Override
-	public TypeInformation<Row> getResultType() {
-		return hbaseTableSchema.convertsToTableSchema().toRowType();
-	}
-
-	private org.apache.hadoop.conf.Configuration prepareRuntimeConfiguration() {
+	private Configuration prepareRuntimeConfiguration() {
 		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
 		// and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 		// user params from client-side have the highest priority
-		org.apache.hadoop.conf.Configuration runtimeConfig = HBaseConfigurationUtil.deserializeConfiguration(
+		Configuration runtimeConfig = HBaseConfigurationUtil.deserializeConfiguration(
 			serializedConfig,
 			HBaseConfigurationUtil.getHBaseConfiguration());
 
@@ -106,7 +108,7 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 	@Override
 	public void open(FunctionContext context) {
 		LOG.info("start open ...");
-		org.apache.hadoop.conf.Configuration config = prepareRuntimeConfiguration();
+		Configuration config = prepareRuntimeConfiguration();
 		try {
 			hConnection = ConnectionFactory.createConnection(config);
 			table = (HTable) hConnection.getTable(TableName.valueOf(hTableName));
@@ -117,7 +119,7 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 			LOG.error("Exception while creating connection to HBase.", ioe);
 			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
-		this.readHelper = new HBaseReadWriteHelper(hbaseTableSchema);
+		this.serde = new HBaseSerde(hbaseTableSchema, nullStringLiteral);
 		LOG.info("end open.");
 	}
 
