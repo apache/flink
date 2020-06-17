@@ -118,10 +118,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
        """.stripMargin
     tEnv.executeSql(ddl)
 
-    val tableResult = tEnv.sqlQuery("select * from my_table").executeInsert("sink_table")
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
+    tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await()
 
     check(
       ddl,

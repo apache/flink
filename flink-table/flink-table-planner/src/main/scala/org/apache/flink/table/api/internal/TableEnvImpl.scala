@@ -32,7 +32,7 @@ import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, ImperativeAggregateFunction, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
@@ -44,6 +44,7 @@ import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.CloseableIterator
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
@@ -52,7 +53,7 @@ import org.apache.commons.lang3.StringUtils
 
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
-import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
+import _root_.java.util.{NoSuchElementException, Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -578,7 +579,7 @@ abstract class TableEnvImpl(
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(builder.build())
-        .data(JCollections.singletonList(Row.of(affectedRowCounts: _*)))
+        .data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts: _*)))
         .build()
     } catch {
       case e: Exception =>
@@ -1282,5 +1283,38 @@ abstract class TableEnvImpl(
     val currentDatabase = catalogManager.getCurrentDatabase
 
     planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
+  }
+
+  /**
+   * Iterator for insert operation result.
+   */
+  private final class InsertResultIterator(
+      jobClient: JobClient,
+      affectedRowCountsRow: Row) extends CloseableIterator[Row] {
+    private var hasNextRow: Option[Boolean] = Option.empty[Boolean]
+
+    override def close(): Unit = jobClient.cancel()
+
+    override def hasNext(): Boolean = {
+      if (hasNextRow.isEmpty) {
+        try {
+          jobClient.getJobExecutionResult(Thread.currentThread.getContextClassLoader).get
+        } catch {
+          case e: Exception => throw new TableException("Failed to wait job finish", e)
+        }
+        hasNextRow = Some(true)
+      }
+      hasNextRow.get
+    }
+
+    override def next(): Row = {
+      if (hasNext()) {
+        hasNextRow = Some(false)
+        affectedRowCountsRow
+      }
+      else {
+        throw new NoSuchElementException
+      }
+    }
   }
 }

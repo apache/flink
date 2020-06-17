@@ -27,7 +27,6 @@ import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.test.util.SuccessException;
 
 import org.junit.Before;
@@ -43,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Basic Tests for Kafka connector for Table API & SQL.
@@ -174,7 +174,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 			"  (5.33,'US Dollar','2019-12-12', '00:00:05', '2019-12-12 00:00:05.006001'), \n" +
 			"  (0,'DUMMY','2019-12-12', '00:00:10', '2019-12-12 00:00:10'))\n" +
 			"  AS orders (price, currency, d, t, ts)";
-		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, initialValues);
+		tEnv.executeSql(initialValues).await();
 
 		// ---------- Consume stream from Kafka -------------------
 
@@ -267,9 +267,13 @@ public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 			" FROM (VALUES ('%s'))\n" +
 			" AS orders (currency)";
 		currencies.forEach(
-			currency -> TableEnvUtil.execInsertSqlAndWaitResult(
-				tEnv,
-				String.format(insertTemp, currency.toLowerCase(), currency)));
+			currency -> {
+				try {
+					tEnv.executeSql(String.format(insertTemp, currency.toLowerCase(), currency)).await();
+				} catch (Exception e) {
+					fail(e.getMessage());
+				}
+			});
 
 		// ------------- test the topic-list kafka source -------------------
 		DataStream<RowData> result = tEnv.toAppendStream(tEnv.sqlQuery("SELECT currency FROM currencies_topic_list"), RowData.class);

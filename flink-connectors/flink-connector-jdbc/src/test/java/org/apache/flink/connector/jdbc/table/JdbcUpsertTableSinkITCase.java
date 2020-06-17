@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -144,9 +143,7 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 						"  'connector.table'='REAL_TABLE'" +
 						")");
 
-		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)").await();
 		check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[]{"real_data"});
 	}
 
@@ -178,16 +175,14 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"  'connector.table'='" + OUTPUT_TABLE1 + "'" +
 				")");
 
-		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink \n" +
+		tEnv.executeSql("INSERT INTO upsertSink \n" +
 			"SELECT cnt, COUNT(len) AS lencnt, cTag, MAX(ts) AS ts\n" +
 			"FROM (\n" +
 			"  SELECT len, COUNT(id) as cnt, cTag, MAX(ts) AS ts\n" +
 			"  FROM (SELECT id, CHAR_LENGTH(text) AS len, (CASE WHEN id > 0 THEN 1 ELSE 0 END) cTag, ts FROM T)\n" +
 			"  GROUP BY len, cTag\n" +
 			")\n" +
-			"GROUP BY cnt, cTag");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+			"GROUP BY cnt, cTag").await();
 		check(new Row[] {
 				Row.of(1, 5, 1, Timestamp.valueOf("1970-01-01 00:00:00.006")),
 				Row.of(7, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.021")),
@@ -217,10 +212,7 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"  'connector.table'='" + OUTPUT_TABLE2 + "'" +
 				")");
 
-		TableResult tableResult = tEnv.executeSql(
-				"INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		tEnv.executeSql("INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)").await();
 		check(new Row[] {
 				Row.of(2, 2, Timestamp.valueOf("1970-01-01 00:00:00.002")),
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
@@ -244,13 +236,11 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
 				")");
 
-		TableResult tableResult  = tEnv.executeSql("INSERT INTO USER_RESULT\n" +
+		tEnv.executeSql("INSERT INTO USER_RESULT\n" +
 				"SELECT user_name, score " +
 				"FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), " +
 				"(42, 'Kim'), (1, 'Bob')) " +
-				"AS UserCountTable(score, user_name)");
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+				"AS UserCountTable(score, user_name)").await();
 
 		check(new Row[] {
 				Row.of("Bob", 1),

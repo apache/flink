@@ -240,7 +240,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("1,2,,null", "1,3,,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
@@ -261,7 +261,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("3018-06-10", "2018-06-03", "2018-06-01", "2018-06-02")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
@@ -282,7 +282,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("1,3018-06-10", "1,2018-06-03", "1,2018-06-01", "1,2018-06-02")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
@@ -302,7 +302,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("a")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
@@ -322,7 +322,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     // output two null
     val expected = List("null", "null")
@@ -343,7 +343,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("1,a")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
@@ -363,7 +363,7 @@ class CorrelateITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("2,null", "3,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)

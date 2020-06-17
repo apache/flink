@@ -58,7 +58,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
-    execInsertTableAndWaitResult(table, "appendSink")
+    table.executeInsert("appendSink").await()
 
     val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List(
@@ -86,7 +86,7 @@ class TableSinkITCase extends StreamingTestBase {
          |  'sink-insert-only' = 'true'
          |)
          |""".stripMargin)
-    execInsertSqlAndWaitResult("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
+    tEnv.executeSql("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src").await()
 
     val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List(
@@ -114,7 +114,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val table = ds1.join(ds2).where('b === 'e)
       .select('c, 'g)
-    execInsertTableAndWaitResult(table, "appendSink")
+   table.executeInsert("appendSink").await()
 
     val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
@@ -142,7 +142,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.select('id, 'num, 'text.charLength() as 'len)
       .groupBy('len)
       .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
-    execInsertTableAndWaitResult(table, "retractSink")
+    table.executeInsert("retractSink").await()
 
     val result = TestValuesTableFactory.getResults("retractSink")
     val expected = List(
@@ -173,7 +173,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
-    execInsertTableAndWaitResult(table, "retractSink")
+    table.executeInsert("retractSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("retractSink")
     assertFalse(
@@ -215,7 +215,7 @@ class TableSinkITCase extends StreamingTestBase {
       .select('len, 'id.count as 'count, 'cTrue)
       .groupBy('count, 'cTrue)
       .select('count, 'len.count as 'lencnt, 'cTrue)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertTrue(
@@ -250,7 +250,7 @@ class TableSinkITCase extends StreamingTestBase {
       .groupBy('w, 'num)
       // test query field name is different with registered sink field name
       .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
@@ -293,7 +293,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('w.end as 'wend, 'id.count as 'cnt)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
@@ -335,7 +335,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('num, 'id.count as 'cnt)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
@@ -385,7 +385,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.groupBy('num)
       .select('num, 'id.count as 'cnt)
       .where('cnt <= 3)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val result = TestValuesTableFactory.getResults("upsertSink")
     val expected = List("1,1", "2,2", "3,3")
@@ -438,7 +438,7 @@ class TableSinkITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "sink")
+    table.executeInsert("sink").await()
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
@@ -464,7 +464,7 @@ class TableSinkITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "sink")
+    table.executeInsert("sink").await()
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
@@ -508,13 +508,13 @@ class TableSinkITCase extends StreamingTestBase {
         |  'sink-insert-only' = 'false'
         |)
         |""".stripMargin)
-    execInsertSqlAndWaitResult(
+    tEnv.executeSql(
       """
         |INSERT INTO changelog_sink
         |SELECT product_id, user_name, SUM(order_price)
         |FROM orders
         |GROUP BY product_id, user_name
-        |""".stripMargin)
+        |""".stripMargin).await()
 
     val rawResult = TestValuesTableFactory.getRawResults("changelog_sink")
     val expected = List(
@@ -559,13 +559,13 @@ class TableSinkITCase extends StreamingTestBase {
         |  'sink-insert-only' = 'false'
         |)
         |""".stripMargin)
-    execInsertSqlAndWaitResult(
+    tEnv.executeSql(
       """
         |INSERT INTO final_sink
         |SELECT user_name, SUM(price) as total_pay
         |FROM changelog_source
         |GROUP BY user_name
-        |""".stripMargin)
+        |""".stripMargin).await()
     val finalResult = TestValuesTableFactory.getResults("final_sink")
     val finalExpected = List(
       "user1,28.12", "user2,71.20", "user3,32.33", "user4,9.99")
@@ -600,7 +600,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     // default should fail, because there are null values in the source
     try {
-      execInsertSqlAndWaitResult("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+      tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
       fail("Execution should fail.")
     } catch {
       case t: Throwable =>
@@ -614,7 +614,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     // enable drop enforcer to make the query can run
     tEnv.getConfig.getConfiguration.setString("table.exec.sink.not-null-enforcer", "drop")
-    execInsertSqlAndWaitResult("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+    tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
 
     val result = TestValuesTableFactory.getResults("not_null_sink")
     val expected = List("book,1,12", "book,4,11", "fruit,3,44")

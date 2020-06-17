@@ -135,6 +135,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -144,6 +145,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -691,7 +693,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.jobClient(jobClient)
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(builder.build())
-					.data(Collections.singletonList(Row.of(affectedRowCounts)))
+					.data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts)))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -1456,5 +1458,47 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			tableOperation,
 			operationTreeBuilder,
 			functionCatalog.asLookup(parser::parseIdentifier));
+	}
+
+	/**
+	 * Iterator for insert operation result.
+	 */
+	private static final class InsertResultIterator implements CloseableIterator<Row> {
+		private final JobClient jobClient;
+		private final Row affectedRowCountsRow;
+		private Optional<Boolean> hasNext = Optional.empty();
+
+		private InsertResultIterator(JobClient jobClient, Row affectedRowCountsRow) {
+			this.jobClient = jobClient;
+			this.affectedRowCountsRow = affectedRowCountsRow;
+		}
+
+		@Override
+		public void close() throws Exception {
+			jobClient.cancel();
+		}
+
+		@Override
+		public boolean hasNext() {
+			if (!hasNext.isPresent()) {
+				try {
+					jobClient.getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+				} catch (Exception e) {
+					throw new TableException("Failed to wait job finish", e);
+				}
+				hasNext = Optional.of(true);
+			}
+			return hasNext.get();
+		}
+
+		@Override
+		public Row next() {
+			if (hasNext()) {
+				hasNext = Optional.of(false);
+				return affectedRowCountsRow;
+			} else {
+				throw new NoSuchElementException();
+			}
+		}
 	}
 }

@@ -84,7 +84,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.catalog.hive.HiveTestUtils.createTableEnvWithHiveCatalog;
-import static org.apache.flink.table.catalog.hive.HiveTestUtils.waitForJobFinish;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -658,7 +657,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 						"'connector'='filesystem','format'='%s','path'='%s')",
 				format,
 				folderURI));
-		waitForJobFinish(tEnv.executeSql("insert into parquet_t select 1, 2"));
+		tEnv.executeSql("insert into parquet_t select 1, 2").await();
 		tEnv.executeSql("drop table parquet_t");
 
 		// Hive to read parquet file
