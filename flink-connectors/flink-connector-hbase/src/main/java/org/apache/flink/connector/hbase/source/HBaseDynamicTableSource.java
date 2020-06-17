@@ -77,7 +77,7 @@ public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSour
 				.isPresent(),
 			"Currently, HBase table only supports lookup by rowkey field.");
 
-		return TableFunctionProvider.of(new HBaseLookupFunction(conf, tableName, hbaseSchema));
+		return TableFunctionProvider.of(new HBaseRowDataLookupFunction(conf, tableName, hbaseSchema, nullStringLiteral));
 	}
 
 	@Override
