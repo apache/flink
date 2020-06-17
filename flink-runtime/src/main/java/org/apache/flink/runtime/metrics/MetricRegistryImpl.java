@@ -125,24 +125,12 @@ public class MetricRegistryImpl implements MetricRegistry {
 				final String namedReporter = reporterSetup.getName();
 
 				try {
-					Optional<String> configuredPeriod = reporterSetup.getIntervalSettings();
-					Duration period = MetricOptions.REPORTER_INTERVAL.defaultValue();
-
-					if (configuredPeriod.isPresent()) {
-						try {
-							period = TimeUtils.parseDuration(configuredPeriod.get());
-						}
-						catch (Exception e) {
-							LOG.error("Cannot parse report interval from config: " + configuredPeriod +
-									" - please use values like '10 SECONDS' or '500 MILLISECONDS'. " +
-									"Using default reporting interval.");
-						}
-					}
-
 					final MetricReporter reporterInstance = reporterSetup.getReporter();
 					final String className = reporterInstance.getClass().getName();
 
 					if (reporterInstance instanceof Scheduled) {
+						final Duration period = getConfiguredIntervalOrDefault(reporterSetup);
+
 						LOG.info("Periodically reporting metrics in intervals of {} for reporter {} of type {}.", TimeUtils.formatWithHighestUnit(period), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
@@ -169,6 +157,23 @@ public class MetricRegistryImpl implements MetricRegistry {
 				}
 			}
 		}
+	}
+
+	private static Duration getConfiguredIntervalOrDefault(ReporterSetup reporterSetup) {
+		final Optional<String> configuredPeriod = reporterSetup.getIntervalSettings();
+		Duration period = MetricOptions.REPORTER_INTERVAL.defaultValue();
+
+		if (configuredPeriod.isPresent()) {
+			try {
+				period = TimeUtils.parseDuration(configuredPeriod.get());
+			}
+			catch (Exception e) {
+				LOG.error("Cannot parse report interval from config: " + configuredPeriod +
+					" - please use values like '10 SECONDS' or '500 MILLISECONDS'. " +
+					"Using default reporting interval.");
+			}
+		}
+		return period;
 	}
 
 	/**
