@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -57,12 +59,9 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 			"This option indicates the Debezium JSON data include the schema in the message or not. " +
 			"Default is false.");
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = ConfigOptions
-		.key("ignore-parse-errors")
-		.booleanType()
-		.defaultValue(false)
-		.withDescription("Optional flag to skip fields and rows with parse errors instead of failing, " +
-			"fields are set to null in case of errors. Default is false.");
+	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+
+	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -72,6 +71,7 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 		final boolean schemaInclude = formatOptions.get(SCHEMA_INCLUDE);
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
 
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
@@ -84,7 +84,8 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 					rowType,
 					rowDataTypeInfo,
 					schemaInclude,
-					ignoreParseErrors);
+					ignoreParseErrors,
+					timestampFormatOption);
 			}
 
 			@Override
@@ -121,6 +122,7 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(SCHEMA_INCLUDE);
 		options.add(IGNORE_PARSE_ERRORS);
+		options.add(TIMESTAMP_FORMAT);
 		return options;
 	}
 
