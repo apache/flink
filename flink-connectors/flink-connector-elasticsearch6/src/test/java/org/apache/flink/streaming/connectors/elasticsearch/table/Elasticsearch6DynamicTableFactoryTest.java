@@ -30,15 +30,15 @@ import org.junit.rules.ExpectedException;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
 
 /**
- * Tests for validation in {@link Elasticsearch6DynamicSourceSinkFactory}.
+ * Tests for validation in {@link Elasticsearch6DynamicTableFactory}.
  */
-public class Elasticsearch6DynamicSourceSinkFactoryTest {
+public class Elasticsearch6DynamicTableFactoryTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void validateEmptyConfiguration() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -60,7 +60,7 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 
 	@Test
 	public void validateWrongIndex() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -79,7 +79,7 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 
 	@Test
 	public void validateWrongHosts() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -97,8 +97,48 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 	}
 
 	@Test
+	public void validateWrongScrollMaxSize() {
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage(
+			"'scan.scroll.max-size' must be at least 1. Got: 0");
+		sinkFactory.createDynamicTableSource(
+			context()
+				.withSchema(TableSchema.builder()
+					.field("a", DataTypes.TIME())
+					.build())
+				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+				.withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+				.withOption(ElasticsearchOptions.SCROLL_MAX_SIZE_OPTION.key(), "0")
+				.build()
+		);
+	}
+
+	@Test
+	public void validateWrongScrollTimeout() {
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage(
+			"'scan.scroll.timeout' must be at least 1. Got: 0");
+		sinkFactory.createDynamicTableSource(
+			context()
+				.withSchema(TableSchema.builder()
+					.field("a", DataTypes.TIME())
+					.build())
+				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+				.withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+				.withOption(ElasticsearchOptions.SCROLL_TIMEOUT_OPTION.key(), "0")
+				.build()
+		);
+	}
+
+	@Test
 	public void validateWrongFlushSize() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -118,7 +158,7 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 
 	@Test
 	public void validateWrongRetries() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -138,7 +178,7 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 
 	@Test
 	public void validateWrongMaxActions() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -158,7 +198,7 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 
 	@Test
 	public void validateWrongBackoffDelay() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
@@ -178,7 +218,7 @@ public class Elasticsearch6DynamicSourceSinkFactoryTest {
 
 	@Test
 	public void validatePrimaryKeyOnIllegalColumn() {
-		Elasticsearch6DynamicSourceSinkFactory sinkFactory = new Elasticsearch6DynamicSourceSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(

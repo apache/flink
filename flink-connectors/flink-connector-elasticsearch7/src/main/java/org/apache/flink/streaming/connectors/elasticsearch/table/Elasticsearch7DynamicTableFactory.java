@@ -64,7 +64,7 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
  * and {@link Elasticsearch7DynamicSink}.
  */
 @Internal
-public class Elasticsearch7DynamicSourceSinkFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public class Elasticsearch7DynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 	private static final Set<ConfigOption<?>> requiredOptions = Stream.of(
 		HOSTS_OPTION,
 		INDEX_OPTION
@@ -100,6 +100,9 @@ public class Elasticsearch7DynamicSourceSinkFactory implements DynamicTableSourc
 			.getOptions()
 			.forEach(configuration::setString);
 		Elasticsearch7Configuration config = new Elasticsearch7Configuration(configuration, context.getClassLoader());
+
+		validateSource(config, configuration);
+
 		return new Elasticsearch7DynamicSource(
 			format,
 			config,
@@ -125,7 +128,7 @@ public class Elasticsearch7DynamicSourceSinkFactory implements DynamicTableSourc
 			.forEach(configuration::setString);
 		Elasticsearch7Configuration config = new Elasticsearch7Configuration(configuration, context.getClassLoader());
 
-		validate(config, configuration);
+		validateSink(config, configuration);
 
 		return new Elasticsearch7DynamicSink(
 			format,
@@ -133,7 +136,27 @@ public class Elasticsearch7DynamicSourceSinkFactory implements DynamicTableSourc
 			TableSchemaUtils.getPhysicalSchema(tableSchema));
 	}
 
-	private void validate(Elasticsearch7Configuration config, Configuration originalConfiguration) {
+	private void validateSource(Elasticsearch7Configuration config, Configuration originalConfiguration) {
+		config.getHosts(); // validate hosts
+		validate(
+			config.getIndex().length() >= 1,
+			() -> String.format("'%s' must not be empty", INDEX_OPTION.key()));
+		validate(
+			config.getScrollMaxSize().map(scrollMaxSize -> scrollMaxSize >= 1).orElse(true),
+			() -> String.format(
+				"'%s' must be at least 1. Got: %s",
+				SCROLL_MAX_SIZE_OPTION.key(),
+				config.getScrollMaxSize().get())
+		);
+		validate(config.getScrollTimeout().map(scrollTimeout -> scrollTimeout >= 1).orElse(true),
+			() -> String.format(
+				"'%s' must be at least 1. Got: %s",
+				SCROLL_TIMEOUT_OPTION.key(),
+				config.getScrollTimeout().get())
+		);
+	}
+
+	private void validateSink(Elasticsearch7Configuration config, Configuration originalConfiguration) {
 		config.getFailureHandler(); // checks if we can instantiate the custom failure handler
 		config.getHosts(); // validate hosts
 		validate(
