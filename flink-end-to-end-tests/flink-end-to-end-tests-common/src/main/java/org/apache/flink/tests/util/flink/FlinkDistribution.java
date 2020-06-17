@@ -24,6 +24,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.tests.util.util.FileUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +35,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -66,6 +68,8 @@ final class FlinkDistribution {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+	private static final Pattern ROOT_LOGGER_PATTERN = Pattern.compile("(rootLogger.level =).*");
+
 	private final Path opt;
 	private final Path lib;
 	private final Path conf;
@@ -94,6 +98,13 @@ final class FlinkDistribution {
 	public void startTaskManager() throws IOException {
 		LOG.info("Starting Flink TaskManager.");
 		AutoClosableProcess.runBlocking(bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
+	}
+
+	public void setRootLogLevel(Level logLevel) throws IOException {
+		FileUtils.replace(
+			conf.resolve("log4j.properties"),
+			ROOT_LOGGER_PATTERN,
+			matcher -> matcher.group(1) + " " + logLevel.name());
 	}
 
 	public void startFlinkCluster() throws IOException {
