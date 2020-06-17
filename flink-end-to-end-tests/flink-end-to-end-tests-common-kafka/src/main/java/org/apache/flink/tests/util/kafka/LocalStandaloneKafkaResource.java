@@ -24,6 +24,7 @@ import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.tests.util.cache.DownloadCache;
+import org.apache.flink.tests.util.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.rules.TemporaryFolder;
@@ -33,15 +34,12 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -115,22 +113,18 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			.build());
 
 		LOG.info("Updating ZooKeeper properties");
-		final Path zookeeperPropertiesFile = kafkaDir.resolve(Paths.get("config", "zookeeper.properties"));
-		final List<String> zookeeperPropertiesFileLines = Files.readAllLines(zookeeperPropertiesFile);
-		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(zookeeperPropertiesFile, StandardOpenOption.TRUNCATE_EXISTING), StandardCharsets.UTF_8.name()))) {
-			zookeeperPropertiesFileLines.stream()
-				.map(line -> ZK_DATA_DIR_PATTERN.matcher(line).replaceAll("$1" + kafkaDir.resolve("zookeeper").toAbsolutePath()))
-				.forEachOrdered(pw::println);
-		}
+		FileUtils.replace(
+			kafkaDir.resolve(Paths.get("config", "zookeeper.properties")),
+			ZK_DATA_DIR_PATTERN,
+			matcher -> matcher.replaceAll("$1" + kafkaDir.resolve("zookeeper").toAbsolutePath())
+		);
 
 		LOG.info("Updating Kafka properties");
-		final Path kafkaPropertiesFile = kafkaDir.resolve(Paths.get("config", "server.properties"));
-		final List<String> kafkaPropertiesFileLines = Files.readAllLines(kafkaPropertiesFile);
-		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(kafkaPropertiesFile, StandardOpenOption.TRUNCATE_EXISTING), StandardCharsets.UTF_8.name()))) {
-			kafkaPropertiesFileLines.stream()
-				.map(line -> KAFKA_LOG_DIR_PATTERN.matcher(line).replaceAll("$1" + kafkaDir.resolve("kafka").toAbsolutePath()))
-				.forEachOrdered(pw::println);
-		}
+		FileUtils.replace(
+			kafkaDir.resolve(Paths.get("config", "server.properties")),
+			KAFKA_LOG_DIR_PATTERN,
+			matcher -> matcher.replaceAll("$1" + kafkaDir.resolve("kafka").toAbsolutePath())
+		);
 	}
 
 	private void setupKafkaCluster() throws IOException {
