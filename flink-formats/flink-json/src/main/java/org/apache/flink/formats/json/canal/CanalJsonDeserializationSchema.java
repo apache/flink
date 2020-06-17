@@ -21,6 +21,7 @@ package org.apache.flink.formats.json.canal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericRowData;
@@ -70,7 +71,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 	public CanalJsonDeserializationSchema(
 			RowType rowType,
 			TypeInformation<RowData> resultTypeInfo,
-			boolean ignoreParseErrors) {
+			boolean ignoreParseErrors,
+			TimestampFormat timestampFormatOption) {
 		this.resultTypeInfo = resultTypeInfo;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.fieldCount = rowType.getFieldCount();
@@ -79,7 +81,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 			// the result type is never used, so it's fine to pass in Canal's result type
 			resultTypeInfo,
 			false, // ignoreParseErrors already contains the functionality of failOnMissingField
-			ignoreParseErrors);
+			ignoreParseErrors,
+			timestampFormatOption);
 
 	}
 

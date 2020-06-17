@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.canal;
 
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -65,7 +66,8 @@ public class CanalJsonDeserializationSchemaTest {
 		CanalJsonDeserializationSchema deserializationSchema = new CanalJsonDeserializationSchema(
 			SCHEMA,
 			new RowDataTypeInfo(SCHEMA),
-			false);
+			false,
+			TimestampFormat.ISO_8601);
 
 		SimpleCollector collector = new SimpleCollector();
 		for (String line : lines) {

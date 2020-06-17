@@ -105,12 +105,12 @@ public class Elasticsearch7DynamicSinkITCase {
 		Map<String, Object> response = client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
 		Map<Object, Object> expectedMap = new HashMap<>();
 		expectedMap.put("a", 1);
-		expectedMap.put("b", "00:00:12Z");
+		expectedMap.put("b", "00:00:12");
 		expectedMap.put("c", "ABCDE");
 		expectedMap.put("d", 12.12d);
 		expectedMap.put("e", 2);
 		expectedMap.put("f", "2003-10-20");
-		expectedMap.put("g", "2012-12-12T12:12:12Z");
+		expectedMap.put("g", "2012-12-12 12:12:12");
 		assertThat(response, equalTo(expectedMap));
 	}
 
@@ -159,12 +159,12 @@ public class Elasticsearch7DynamicSinkITCase {
 		Map<String, Object> response = client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
 		Map<Object, Object> expectedMap = new HashMap<>();
 		expectedMap.put("a", 1);
-		expectedMap.put("b", "00:00:12Z");
+		expectedMap.put("b", "00:00:12");
 		expectedMap.put("c", "ABCDE");
 		expectedMap.put("d", 12.12d);
 		expectedMap.put("e", 2);
 		expectedMap.put("f", "2003-10-20");
-		expectedMap.put("g", "2012-12-12T12:12:12Z");
+		expectedMap.put("g", "2012-12-12 12:12:12");
 		assertThat(response, equalTo(expectedMap));
 	}
 
@@ -230,12 +230,12 @@ public class Elasticsearch7DynamicSinkITCase {
 		Map<String, Object> result = hits.getAt(0).getSourceAsMap();
 		Map<Object, Object> expectedMap = new HashMap<>();
 		expectedMap.put("a", 1);
-		expectedMap.put("b", "00:00:12Z");
+		expectedMap.put("b", "00:00:12");
 		expectedMap.put("c", "ABCDE");
 		expectedMap.put("d", 12.12d);
 		expectedMap.put("e", 2);
 		expectedMap.put("f", "2003-10-20");
-		expectedMap.put("g", "2012-12-12T12:12:12Z");
+		expectedMap.put("g", "2012-12-12 12:12:12");
 		assertThat(result, equalTo(expectedMap));
 	}
 
