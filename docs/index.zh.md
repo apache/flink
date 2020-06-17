@@ -81,7 +81,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 
 release notes 包含了 Flink 版本之间的重大更新。请在你升级 Flink 之前仔细阅读相应的 release notes。
 
-请阅读 release notes [Flink 1.10]({% link release-notes/flink-1.10.zh.md %}), [Flink 1.9]({% link release-notes/flink-1.9.zh.md %}), [Flink 1.8]({% link release-notes/flink-1.8.zh.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.zh.md %}).
+请阅读 release notes [Flink 1.11]({% link release-notes/flink-1.11.zh.md %}), [Flink 1.10]({% link release-notes/flink-1.10.zh.md %}), [Flink 1.9]({% link release-notes/flink-1.9.zh.md %}), [Flink 1.8]({% link release-notes/flink-1.8.zh.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.zh.md %}).
 
 </div>
 </div>
