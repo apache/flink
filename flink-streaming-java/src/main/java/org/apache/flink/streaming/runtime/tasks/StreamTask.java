@@ -541,8 +541,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			try {
 				cleanUpInvoke();
 			}
+			// TODO: investigate why Throwable instead of Exception is used here.
 			catch (Throwable cleanUpException) {
-				throw (Exception) ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
+				Throwable throwable = ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
+				throw (throwable instanceof Exception ? (Exception) throwable : new Exception(throwable));
 			}
 			throw invokeException;
 		}
@@ -593,8 +595,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		// make an attempt to dispose the operators such that failures in the dispose call
 		// still let the computation fail
-		disposeAllOperators(false);
-		disposedOperators = true;
+		disposeAllOperators();
 	}
 
 	protected void cleanUpInvoke() throws Exception {
@@ -612,45 +613,28 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		Thread.interrupted();
 
 		// stop all timers and threads
-		tryShutdownTimerService();
+		Exception suppressedException = runAndSuppressThrowable(this::tryShutdownTimerService, null);
 
 		// stop all asynchronous checkpoint threads
-		try {
-			cancelables.close();
-			shutdownAsyncThreads();
-		} catch (Throwable t) {
-			// catch and log the exception to not replace the original exception
-			LOG.error("Could not shut down async checkpoint threads", t);
-		}
+		suppressedException = runAndSuppressThrowable(cancelables::close, suppressedException);
+		suppressedException = runAndSuppressThrowable(this::shutdownAsyncThreads, suppressedException);
 
 		// we must! perform this cleanup
-		try {
-			cleanup();
-		} catch (Throwable t) {
-			// catch and log the exception to not replace the original exception
-			LOG.error("Error during cleanup of stream task", t);
-		}
+		suppressedException = runAndSuppressThrowable(this::cleanup, suppressedException);
 
 		// if the operators were not disposed before, do a hard dispose
-		disposeAllOperators(true);
+		suppressedException = runAndSuppressThrowable(this::disposeAllOperators, suppressedException);
 
 		// release the output resources. this method should never fail.
-		if (operatorChain != null) {
-			// beware: without synchronization, #performCheckpoint() may run in
-			//         parallel and this call is not thread-safe
-			actionExecutor.run(() -> operatorChain.releaseOutputs());
-		} else {
-			// failed to allocate operatorChain, clean up record writers
-			recordWriter.close();
-		}
+		suppressedException = runAndSuppressThrowable(this::releaseOutputResources, suppressedException);
 
-		try {
-			channelIOExecutor.shutdown();
-		} catch (Throwable t) {
-			LOG.error("Error during shutdown the channel state unspill executor", t);
-		}
+		suppressedException = runAndSuppressThrowable(channelIOExecutor::shutdown, suppressedException);
 
-		mailboxProcessor.close();
+		suppressedException = runAndSuppressThrowable(mailboxProcessor::close, suppressedException);
+
+		if (suppressedException != null) {
+			throw suppressedException;
+		}
 	}
 
 	@Override
@@ -687,27 +671,49 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
+	private void releaseOutputResources() throws Exception {
+		if (operatorChain != null) {
+			// beware: without synchronization, #performCheckpoint() may run in
+			//         parallel and this call is not thread-safe
+			actionExecutor.run(() -> operatorChain.releaseOutputs());
+		} else {
+			// failed to allocate operatorChain, clean up record writers
+			recordWriter.close();
+		}
+	}
+
+	private Exception runAndSuppressThrowable(ThrowingRunnable<?> runnable, @Nullable Exception originalException) {
+		try {
+			runnable.run();
+		} catch (Throwable t) {
+			// TODO: investigate why Throwable instead of Exception is used here.
+			Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
+			return ExceptionUtils.firstOrSuppressed(e, originalException);
+		}
+
+		return originalException;
+	}
+
 	/**
 	 * Execute @link StreamOperator#dispose()} of each operator in the chain of this
 	 * {@link StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
 	 */
-	private void disposeAllOperators(boolean logOnlyErrors) throws Exception {
+	private void disposeAllOperators() throws Exception {
 		if (operatorChain != null && !disposedOperators) {
+			Exception disposalException = null;
 			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
 				StreamOperator<?> operator = operatorWrapper.getStreamOperator();
-				if (!logOnlyErrors) {
+				try {
 					operator.dispose();
 				}
-				else {
-					try {
-						operator.dispose();
-					}
-					catch (Exception e) {
-						LOG.error("Error during disposal of stream operator.", e);
-					}
+				catch (Exception e) {
+					disposalException = ExceptionUtils.firstOrSuppressed(e, disposalException);
 				}
 			}
 			disposedOperators = true;
+			if (disposalException != null) {
+				throw disposalException;
+			}
 		}
 	}
 
@@ -964,20 +970,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void tryShutdownTimerService() {
-
 		if (!timerService.isTerminated()) {
-
-			try {
-				final long timeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
-					getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
-
-				if (!timerService.shutdownServiceUninterruptible(timeoutMs)) {
-					LOG.warn("Timer service shutdown exceeded time limit of {} ms while waiting for pending " +
-						"timers. Will continue with shutdown procedure.", timeoutMs);
-				}
-			} catch (Throwable t) {
-				// catch and log the exception to not replace the original exception
-				LOG.error("Could not shut down timer service", t);
+			final long timeoutMs = getEnvironment()
+				.getTaskManagerInfo()
+				.getConfiguration()
+				.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+			if (!timerService.shutdownServiceUninterruptible(timeoutMs)) {
+				LOG.warn("Timer service shutdown exceeded time limit of {} ms while waiting for pending " +
+					"timers. Will continue with shutdown procedure.", timeoutMs);
 			}
 		}
 	}

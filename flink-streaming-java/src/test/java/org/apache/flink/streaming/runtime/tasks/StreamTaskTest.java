@@ -135,7 +135,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.StreamCorruptedException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -152,6 +151,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -209,7 +209,15 @@ public class StreamTaskTest extends TestLogger {
 			testHarness.waitForTaskCompletion();
 		}
 		catch (Exception ex) {
-			if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+			// make sure the original exception is the cause and not wrapped
+			if (!(ex.getCause() instanceof ExpectedTestException)) {
+				throw ex;
+			}
+			// make sure DisposeException is the only suppressed exception
+			if (ex.getCause().getSuppressed().length != 1) {
+				throw ex;
+			}
+			if (!(ex.getCause().getSuppressed()[0] instanceof FailingTwiceOperator.DisposeException)) {
 				throw ex;
 			}
 		}
@@ -225,7 +233,13 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		public void dispose() throws Exception {
-			fail("This exception should be suppressed");
+			throw new DisposeException();
+		}
+
+		class DisposeException extends Exception {
+			public DisposeException() {
+				super("Dispose Exception. This exception should be suppressed");
+			}
 		}
 	}
 
@@ -818,7 +832,7 @@ public class StreamTaskTest extends TestLogger {
 		task.streamTask.cancel();
 
 		final FutureUtils.ConjunctFuture<Void> discardFuture = FutureUtils.waitForAll(
-			Arrays.asList(
+			asList(
 				managedKeyedStateHandle.getDiscardFuture(),
 				rawKeyedStateHandle.getDiscardFuture(),
 				managedOperatorStateHandle.getDiscardFuture(),
@@ -1059,8 +1073,8 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
-		mockEnvironment.addOutputs(Arrays.asList(partitions));
-		mockEnvironment.addInputs(Arrays.asList(gates));
+		mockEnvironment.addOutputs(asList(partitions));
+		mockEnvironment.addInputs(asList(gates));
 		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
 		try {
 			verifyResults(gates, partitions, false, false);
@@ -1095,8 +1109,8 @@ public class StreamTaskTest extends TestLogger {
 			NoOpCheckpointResponder.INSTANCE,
 			reader);
 		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().setTaskStateManager(taskStateManager).build();
-		mockEnvironment.addOutputs(Arrays.asList(partitions));
-		mockEnvironment.addInputs(Arrays.asList(gates));
+		mockEnvironment.addOutputs(asList(partitions));
+		mockEnvironment.addInputs(asList(gates));
 		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
 		try {
 			verifyResults(gates, partitions, false, false);
