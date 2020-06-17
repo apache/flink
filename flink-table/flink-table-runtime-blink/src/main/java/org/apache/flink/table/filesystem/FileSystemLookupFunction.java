@@ -62,7 +62,7 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 	// the max number of retries before throwing exception, in case of failure to load the table into cache
 	private static final int MAX_RETRIES = 3;
 	// interval between retries
-	private static final Duration RETRY_INTERVAL = Duration.ofSeconds(1);
+	private static final Duration RETRY_INTERVAL = Duration.ofSeconds(10);
 
 	private final InputFormat<RowData, T> inputFormat;
 	// names and types of the records returned by the input format
@@ -174,7 +174,8 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 					throw new FlinkRuntimeException(
 							String.format("Failed to load table into cache after %d retries", numRetry), e);
 				}
-				long toSleep = ++numRetry * RETRY_INTERVAL.toMillis();
+				numRetry++;
+				long toSleep = numRetry * RETRY_INTERVAL.toMillis();
 				LOG.warn(String.format("Failed to load table into cache, will retry in %d seconds", toSleep / 1000), e);
 				try {
 					Thread.sleep(toSleep);
