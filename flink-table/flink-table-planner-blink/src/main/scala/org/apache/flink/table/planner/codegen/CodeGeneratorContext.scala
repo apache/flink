@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
@@ -211,7 +210,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   def reuseMemberCode(): String = {
     val result = reusableMemberStatements.mkString("\n")
-    if (isCodeSplitMap.values.exists(identity)) {
+    if (isCodeSplitMap.nonEmpty) {
       val localVariableAsMember = reusableLocalVariableStatements.map(
         statements => if (isCodeSplitMap.getOrElse(statements._1, false)) {
           statements._2.map("private " + _).mkString("\n")
