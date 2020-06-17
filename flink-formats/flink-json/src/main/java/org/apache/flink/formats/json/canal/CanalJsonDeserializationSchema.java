@@ -69,10 +69,10 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 	private final int fieldCount;
 
 	public CanalJsonDeserializationSchema(
-		RowType rowType,
-		TypeInformation<RowData> resultTypeInfo,
-		boolean ignoreParseErrors,
-		TimestampFormat timestampFormatOption) {
+			RowType rowType,
+			TypeInformation<RowData> resultTypeInfo,
+			boolean ignoreParseErrors,
+			TimestampFormat timestampFormatOption) {
 		this.resultTypeInfo = resultTypeInfo;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.fieldCount = rowType.getFieldCount();

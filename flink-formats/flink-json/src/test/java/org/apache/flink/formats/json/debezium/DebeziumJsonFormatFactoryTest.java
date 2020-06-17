@@ -124,6 +124,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 		options.put("format", "debezium-json");
 		options.put("debezium-json.ignore-parse-errors", "true");
 		options.put("debezium-json.schema-include", "true");
+		options.put("debezium-json.timestamp-format.standard", "ISO-8601");
 		return options;
 	}
 

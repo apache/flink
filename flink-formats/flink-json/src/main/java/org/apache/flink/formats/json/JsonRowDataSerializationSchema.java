@@ -74,7 +74,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	/** Reusable object node. */
 	private transient ObjectNode node;
 
-	/** Option for timestamp format. */
+	/** Timestamp format specification which is used to parse timestamp. */
 	private final TimestampFormat timestampFormat;
 
 	public JsonRowDataSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
@@ -107,12 +107,12 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 			return false;
 		}
 		JsonRowDataSerializationSchema that = (JsonRowDataSerializationSchema) o;
-		return rowType.equals(that.rowType);
+		return rowType.equals(that.rowType) && timestampFormat.equals(timestampFormat);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(rowType);
+		return Objects.hash(rowType, timestampFormat);
 	}
 
 	// --------------------------------------------------------------------------------

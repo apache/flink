@@ -94,7 +94,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	/** Object mapper for parsing the JSON. */
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
-	/** Options for timestamp format. */
+	/** Timestamp format specification which is used to parse timestamp. */
 	private final TimestampFormat timestampFormat;
 
 	public JsonRowDataDeserializationSchema(
@@ -148,12 +148,13 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		JsonRowDataDeserializationSchema that = (JsonRowDataDeserializationSchema) o;
 		return failOnMissingField == that.failOnMissingField &&
 				ignoreParseErrors == that.ignoreParseErrors &&
-				resultTypeInfo.equals(that.resultTypeInfo);
+				resultTypeInfo.equals(that.resultTypeInfo) &&
+				timestampFormat.equals(that.timestampFormat);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo);
+		return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo, timestampFormat);
 	}
 
 	// -------------------------------------------------------------------------------------

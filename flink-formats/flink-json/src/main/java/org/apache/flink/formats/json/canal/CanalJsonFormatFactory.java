@@ -109,6 +109,7 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(IGNORE_PARSE_ERRORS);
+		options.add(TIMESTAMP_FORMAT);
 		return options;
 	}
 

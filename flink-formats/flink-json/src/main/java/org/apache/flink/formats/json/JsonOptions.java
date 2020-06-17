@@ -76,8 +76,9 @@ public class JsonOptions {
 				return TimestampFormat.SQL;
 			case ISO_8601:
 				return TimestampFormat.ISO_8601;
+			default:
+				throw new TableException(
+					String.format("Unsupported timestamp format '%s'. Validator should have checked that.", timestampFormat));
 		}
-		throw new TableException(
-			String.format("Unsupported timestamp format '%s'. Validator should have checked that.", timestampFormat));
 	}
 }

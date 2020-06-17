@@ -122,6 +122,7 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(SCHEMA_INCLUDE);
 		options.add(IGNORE_PARSE_ERRORS);
+		options.add(TIMESTAMP_FORMAT);
 		return options;
 	}
 

@@ -76,11 +76,11 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 	private final boolean ignoreParseErrors;
 
 	public DebeziumJsonDeserializationSchema(
-		RowType rowType,
-		TypeInformation<RowData> resultTypeInfo,
-		boolean schemaInclude,
-		boolean ignoreParseErrors,
-		TimestampFormat timestampFormatOption) {
+			RowType rowType,
+			TypeInformation<RowData> resultTypeInfo,
+			boolean schemaInclude,
+			boolean ignoreParseErrors,
+			TimestampFormat timestampFormatOption) {
 		this.resultTypeInfo = resultTypeInfo;
 		this.schemaInclude = schemaInclude;
 		this.ignoreParseErrors = ignoreParseErrors;

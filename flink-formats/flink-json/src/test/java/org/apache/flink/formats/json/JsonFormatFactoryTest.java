@@ -101,6 +101,15 @@ public class JsonFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(tableOptions);
 	}
 
+	@Test
+	public void testLowerCaseOptionForTimestampFormat() {
+		final Map<String, String> tableOptions = getModifyOptions(
+			options -> options.put("json.timestamp-format.standard", "iso-8601"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'iso-8601' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
+		testSchemaDeserializationSchema(tableOptions);
+	}
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -112,7 +121,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 						new RowDataTypeInfo(ROW_TYPE),
 						false,
 						true,
-						TimestampFormat.SQL);
+						TimestampFormat.ISO_8601);
 
 		final DynamicTableSource actualSource = createTableSource(options);
 		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;

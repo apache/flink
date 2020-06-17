@@ -122,6 +122,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
 		options.put("format", "canal-json");
 		options.put("canal-json.ignore-parse-errors", "true");
+		options.put("canal-json.timestamp-format.standard", "ISO-8601");
 		return options;
 	}
 
