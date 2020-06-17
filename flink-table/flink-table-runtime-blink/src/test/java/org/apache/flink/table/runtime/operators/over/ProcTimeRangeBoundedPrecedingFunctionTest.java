@@ -19,7 +19,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test for {@link RowTimeRangeBoundedPrecedingFunction}.
+ * Test for {@link ProcTimeRangeBoundedPrecedingFunction}.
  */
 public class ProcTimeRangeBoundedPrecedingFunctionTest {
 
