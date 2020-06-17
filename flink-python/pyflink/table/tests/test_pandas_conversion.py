@@ -23,7 +23,7 @@ from pandas.util.testing import assert_frame_equal
 from pyflink.table.types import DataTypes, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase, exec_insert_table
+    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -123,7 +123,7 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.data_type.field_names(),
             self.data_type.field_types())
         self.t_env.register_table_sink("Results", table_sink)
-        exec_insert_table(table, "Results")
+        table.execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,1,1,1,true,1.1,1.2,hello,[97, 97, 97],"

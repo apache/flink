@@ -68,16 +68,16 @@ public class PrintConnectorITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testTypes() {
+	public void testTypes() throws Exception {
 		test(false);
 	}
 
 	@Test
-	public void testStandardError() {
+	public void testStandardError() throws Exception {
 		test(true);
 	}
 
-	private void test(boolean standardError) {
+	private void test(boolean standardError) throws Exception {
 		tEnv().executeSql(String.format("create table print_t (" +
 						"f0 int," +
 						"f1 double," +
@@ -114,7 +114,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
 				/* 10 */  mapData,
 				/* 11 */  Row.of(1, "1")
 		);
-		execInsertTableAndWaitResult(tEnv().fromValues(type, Arrays.asList(row, row)), "print_t");
+		tEnv().fromValues(type, Arrays.asList(row, row)).executeInsert("print_t").await();
 
 		String expectedLine = "test_print> +I(" +
 				/* 0 */ "1," +

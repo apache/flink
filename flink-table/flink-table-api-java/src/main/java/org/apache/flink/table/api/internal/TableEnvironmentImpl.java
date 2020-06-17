@@ -691,7 +691,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.jobClient(jobClient)
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(builder.build())
-					.data(Collections.singletonList(Row.of(affectedRowCounts)))
+					.data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts), userClassLoader))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);

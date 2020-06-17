@@ -35,7 +35,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
@@ -219,10 +218,11 @@ public class HiveCatalogITCase {
 			result
 		);
 
-		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
-			String.format("insert into myhive.`default`.%s select * from myhive.`default`.%s",
-				sinkTableName,
-				sourceTableName));
+		tableEnv.executeSql(
+				String.format("insert into myhive.`default`.%s select * from myhive.`default`.%s",
+						sinkTableName,
+						sourceTableName))
+				.await();
 
 		// assert written result
 		File resultFile = new File(p.toAbsolutePath().toString());
@@ -262,9 +262,10 @@ public class HiveCatalogITCase {
 				"window_end TIMESTAMP(3),max_ts TIMESTAMP(6),counter BIGINT,total_price DECIMAL(10, 2)) " +
 				String.format("WITH ('connector.type' = 'filesystem','connector.path' = '%s','format.type' = 'csv')", sinkPath));
 
-		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "INSERT INTO sink " +
+		tableEnv.executeSql("INSERT INTO sink " +
 				"SELECT TUMBLE_END(ts, INTERVAL '5' SECOND),MAX(ts6),COUNT(*),MAX(price) FROM src " +
-				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)");
+				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)")
+				.await();
 
 		String expected = "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
 				"2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n";
@@ -380,7 +381,7 @@ public class HiveCatalogITCase {
 	}
 
 	@Test
-	public void testNewTableFactory() {
+	public void testNewTableFactory() throws Exception {
 		TableEnvironment tEnv = TableEnvironment.create(
 				EnvironmentSettings.newInstance().inBatchMode().build());
 		tEnv.registerCatalog("myhive", hiveCatalog);
@@ -400,7 +401,7 @@ public class HiveCatalogITCase {
 					"'format.type' = 'csv')");
 			tEnv.executeSql("create table print_table (name String, age Int) with ('connector' = 'print')");
 
-			TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into print_table select * from csv_table");
+			tEnv.executeSql("insert into print_table select * from csv_table").await();
 
 			// assert query result
 			assertEquals("+I(1,1)\n+I(2,2)\n+I(3,3)\n", arrayOutputStream.toString());

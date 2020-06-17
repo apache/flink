@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -84,10 +83,8 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	}
 
 	@Test
-	public void testInsert() {
-		TableEnvUtil.execInsertSqlAndWaitResult(
-			tEnv,
-			String.format("insert into %s select * from `%s`", TABLE4, TABLE1));
+	public void testInsert() throws Exception {
+		tEnv.executeSql(String.format("insert into %s select * from `%s`", TABLE4, TABLE1)).await();
 
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE4)).execute().collect());
@@ -95,9 +92,8 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	}
 
 	@Test
-	public void testGroupByInsert() {
-		TableEnvUtil.execInsertSqlAndWaitResult(
-			tEnv,
+	public void testGroupByInsert() throws Exception {
+		tEnv.executeSql(
 			String.format(
 				"insert into `%s` " +
 					"select `int`, cast('A' as bytes), `short`, max(`long`), max(`real`), " +
@@ -106,7 +102,8 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 					"max(`date`), max(`time`), max(`default_numeric`) " +
 					"from `%s` group by `int`, `short`",
 				TABLE_PRIMITIVE_TYPE2,
-				TABLE_PRIMITIVE_TYPE));
+				TABLE_PRIMITIVE_TYPE))
+			.await();
 
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from `%s`", TABLE_PRIMITIVE_TYPE2)).execute().collect());

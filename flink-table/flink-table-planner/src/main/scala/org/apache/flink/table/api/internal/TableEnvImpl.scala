@@ -32,7 +32,7 @@ import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, ImperativeAggregateFunction, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
@@ -66,7 +66,8 @@ import _root_.scala.util.Try
 abstract class TableEnvImpl(
     val config: TableConfig,
     private val catalogManager: CatalogManager,
-    private val moduleManager: ModuleManager)
+    private val moduleManager: ModuleManager,
+    private val userClassLoader: ClassLoader)
   extends TableEnvironmentInternal {
 
   // Table API/SQL function catalog
@@ -578,7 +579,7 @@ abstract class TableEnvImpl(
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(builder.build())
-        .data(JCollections.singletonList(Row.of(affectedRowCounts: _*)))
+        .data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts: _*), userClassLoader))
         .build()
     } catch {
       case e: Exception =>

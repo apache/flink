@@ -24,6 +24,9 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A TableResult is the representation of the statement execution result.
@@ -37,6 +40,33 @@ public interface TableResult {
 	 * For other statements (e.g.  DDL, DCL) return empty.
 	 */
 	Optional<JobClient> getJobClient();
+
+	/**
+	 * Wait if necessary until the data is ready.
+	 *
+	 * <p>For a select operation, this method will wait until the first row can be accessed locally.
+	 * For an insert operation, this method will wait for the job to finish, because the result contains only one row.
+	 * For other operations, this method will return immediately, because the result is already available locally.
+	 *
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the operation was interrupted while waiting
+	 */
+	void await() throws InterruptedException, ExecutionException;
+
+	/**
+	 * Wait if necessary for at most the given time for the data to be ready.
+	 *
+	 * <p>For a select operation, this method will wait until the first row can be accessed locally.
+	 * For an insert operation, this method will wait for the job to finish, because the result contains only one row.
+	 * For other operations, this method will return immediately, because the result is already available locally.
+	 *
+	 * @param timeout the maximum time to wait
+	 * @param unit the time unit of the timeout argument
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the operation was interrupted while waiting
+	 * @throws TimeoutException if the wait timed out
+	 */
+	void await(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
 
 	/**
 	 * Get the schema of result.
@@ -112,10 +142,8 @@ public interface TableResult {
 	 *     <li>
 	 *         For DML operation, Flink does not support getting the real affected row count now.
 	 *         So the affected row count is always -1 (unknown) for every sink, and them will be
-	 *         returned after the job is submitted.
-	 *         Calling CloseableIterator#close method does not bind to the job.
-	 *         Therefore the `CloseableIterator#close` will not cancel the job as in the case of SELECT.
-	 *         If you need to cancel the job, you can use the {@link #getJobClient()}.
+	 *         returned until the job is finished.
+	 *         Calling CloseableIterator#close method will cancel the job.
 	 *     </li>
 	 *     <li>
 	 *         For other operations, no flink job will be submitted ({@link #getJobClient()} is always empty),

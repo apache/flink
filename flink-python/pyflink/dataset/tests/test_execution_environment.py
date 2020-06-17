@@ -112,7 +112,7 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.register_table_sink(
             "Results",
             CsvTableSink(field_names, field_types, tmp_csv))
-        exec_insert_table(t_env.from_path("Orders"), "Results")
+        t_env.from_path("Orders").execute_insert("Results").wait()
 
         plan = self.env.get_execution_plan()
 

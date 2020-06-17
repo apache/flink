@@ -266,7 +266,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       Array("a", "b", "v"),
       Array(Types.INT, Types.LONG, Types.STRING))
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

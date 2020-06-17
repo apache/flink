@@ -22,11 +22,9 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 
@@ -115,8 +113,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"c TIMESTAMP(4) NOT NULL," +
 				"`row` ROW<a DECIMAL(10, 3) NOT NULL, b BINARY(2), c CHAR(5) NOT NULL, d ARRAY<DECIMAL(10, 2)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
-		TableResult tableResult = t.executeInsert("SinkTable");
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		t.executeInsert("SinkTable").await();
 
 		List<Row> expected = Arrays.asList(
 			Row.of(
@@ -247,7 +244,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"   `f16` ARRAY<DECIMAL(2, 1)>, " +
 				"   `f17` MAP<CHAR(1), DECIMAL(2, 1)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
-		execInsertTableAndWaitResult(t, "SinkTable");
+		t.executeInsert("SinkTable").await();
 
 		List<Row> actual = TestCollectionTableFactory.getResult();
 		assertThat(
@@ -303,7 +300,7 @@ public class ValuesITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		tEnv().executeSql(
 			"CREATE TABLE SinkTable(str STRING) WITH ('connector' = 'COLLECTION')");
-		TableEnvUtil.execInsertTableAndWaitResult(t, "SinkTable");
+		t.executeInsert("SinkTable").await();
 
 		List<Row> actual = TestCollectionTableFactory.getResult();
 		List<Row> expected = Arrays.asList(

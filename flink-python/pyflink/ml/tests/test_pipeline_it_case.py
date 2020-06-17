@@ -25,7 +25,7 @@ from pyflink.ml.lib.param.colname import HasSelectedCols, \
     HasPredictionCol, HasOutputCol
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import MLTestCase, exec_insert_table
+from pyflink.testing.test_case_utils import MLTestCase
 
 
 class HasVectorCol(WithParams):
@@ -102,7 +102,7 @@ class PythonModel(Model):
         """
         table_sink = source_sink_utils.TestRetractSink(["max_sum"], [DataTypes.BIGINT()])
         table_env.register_table_sink("Model_Results", table_sink)
-        exec_insert_table(self._model_data_table, "Model_Results")
+        self._model_data_table.execute_insert("Model_Results").wait()
         actual = source_sink_utils.results()
         self.max_sum = actual.apply(0)
 
@@ -126,7 +126,7 @@ class PythonPipelineTest(MLTestCase):
 
         source_table = t_env.from_elements([(1, 2, 3, 4), (4, 3, 2, 1)], ['a', 'b', 'c', 'd'])
         transformer = WrapperTransformer(selected_cols=["a", "b"])
-        exec_insert_table(transformer.transform(t_env, source_table), "TransformerResults")
+        transformer.transform(t_env, source_table).execute_insert("TransformerResults").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "4,3"])
 
@@ -151,8 +151,8 @@ class PythonPipelineTest(MLTestCase):
 
         # pipeline
         pipeline = Pipeline().append_stage(transformer).append_stage(estimator)
-        exec_insert_table(pipeline.fit(t_env, train_table).transform(t_env, serving_table),
-                          'PredictResults')
+        pipeline.fit(t_env, train_table).transform(t_env, serving_table) \
+            .execute_insert('PredictResults').wait()
 
         actual = source_sink_utils.results()
         # the first input is false since 0 + 0 is smaller than the max_sum 14.
@@ -179,7 +179,7 @@ class PythonPipelineTest(MLTestCase):
 
         source_table = t_env.from_elements([(1, 2, 3, 4), (4, 3, 2, 1)], ['a', 'b', 'c', 'd'])
         transformer = p.get_stages()[0]
-        exec_insert_table(transformer.transform(t_env, source_table), "TestJsonResults")
+        transformer.transform(t_env, source_table).execute_insert("TestJsonResults").wait()
 
         actual = source_sink_utils.results()
 
