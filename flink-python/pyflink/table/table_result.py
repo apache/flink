@@ -51,19 +51,7 @@ class TableResult(object):
         else:
             return None
 
-    def wait(self):
-        """
-        Wait if necessary until the data is ready.
-
-        For select operation, this method will wait unit the first row can be accessed in local.
-        For insert operation, this method will wait for the job to finish,
-        because the result contains only one row.
-        For other operations, this method will return immediately,
-        because the result is ready in local.
-        """
-        get_method(self._j_table_result, "await")()
-
-    def wait(self, timeout_ms):
+    def wait(self, timeout_ms=None):
         """
         Wait if necessary for at most the given time (milliseconds) for the data to be ready.
 
@@ -73,8 +61,11 @@ class TableResult(object):
         For other operations, this method will return immediately,
         because the result is ready in local.
         """
-        TimeUnit = get_gateway().jvm.java.util.concurrent.TimeUnit
-        get_method(self._j_table_result, "await")(timeout_ms, TimeUnit.MILLISECONDS)
+        if timeout_ms:
+            TimeUnit = get_gateway().jvm.java.util.concurrent.TimeUnit
+            get_method(self._j_table_result, "await")(timeout_ms, TimeUnit.MILLISECONDS)
+        else:
+            get_method(self._j_table_result, "await")()
 
     def get_table_schema(self):
         """

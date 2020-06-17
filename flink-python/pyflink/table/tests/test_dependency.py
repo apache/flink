@@ -28,7 +28,7 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
                                              PyFlinkBlinkBatchTableTestCase,
                                              PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase, exec_insert_table)
+                                             PyFlinkBatchTableTestCase)
 
 
 class DependencyTests(object):
@@ -51,7 +51,7 @@ class DependencyTests(object):
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        exec_insert_table(t.select("add_two(a), a"), "Results")
+        t.select("add_two(a), a").execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
@@ -112,7 +112,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        exec_insert_table(t.select("check_requirements(a), a"), "Results")
+        t.select("check_requirements(a), a").execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,1", "2,2", "3,3"])
@@ -158,7 +158,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        exec_insert_table(t.select("add_one(a), a"), "Results")
+        t.select("add_one(a), a").execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,1", "3,2", "4,3"])
@@ -184,7 +184,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        exec_insert_table(t.select("add_from_file(a), a"), "Results")
+        t.select("add_from_file(a), a").execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
@@ -226,8 +226,8 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        exec_insert_table(t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)"),
-                          "Results")
+        t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)") \
+            .execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,1", "2,2", "3,3"])

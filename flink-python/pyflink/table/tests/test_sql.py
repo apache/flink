@@ -24,7 +24,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    exec_insert_table, PyFlinkTestCase
+    PyFlinkTestCase
 
 
 class SqlTests(object):
@@ -49,7 +49,7 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
             source_sink_utils.TestAppendSink(field_names, field_types))
 
         result = t_env.sql_query("select a + 1, b, c from %s" % source)
-        exec_insert_table(result, "sinks")
+        result.execute_insert("sinks").wait()
         actual = source_sink_utils.results()
 
         expected = ['2,Hi,Hello', '3,Hello,Hello']

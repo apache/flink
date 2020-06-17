@@ -26,7 +26,7 @@ from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    exec_insert_table, PyFlinkTestCase
+    PyFlinkTestCase
 
 
 class PandasUDFTests(PyFlinkTestCase):
@@ -57,10 +57,9 @@ class PandasUDFITTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        exec_insert_table(
-            t.where("add_one(b) <= 3").select("a, b + 1, add(a + 1, subtract_one(c)) + 2, "
-                                              "add(add_one(a), 1L)"),
-            "Results")
+        t.where("add_one(b) <= 3").select("a, b + 1, add(a + 1, subtract_one(c)) + 2, "
+                                          "add(add_one(a), 1L)") \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,3,6,3", "3,2,14,5"])
 
@@ -291,27 +290,28 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("t", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD("u", row_type)]))
 
-        exec_insert_table(t.select("tinyint_func(a),"
-                                   "smallint_func(b),"
-                                   "int_func(c),"
-                                   "bigint_func(d),"
-                                   "boolean_func(e),"
-                                   "boolean_func(f),"
-                                   "float_func(g),"
-                                   "double_func(h),"
-                                   "varchar_func(i),"
-                                   "varchar_func(j),"
-                                   "varbinary_func(k),"
-                                   "decimal_func(l),"
-                                   "decimal_func(m),"
-                                   "date_func(n),"
-                                   "time_func(o),"
-                                   "timestamp_func(p),"
-                                   "array_str_func(q),"
-                                   "array_timestamp_func(r),"
-                                   "array_int_func(s),"
-                                   "nested_array_func(t),"
-                                   "row_func(u)"), "Results")
+        t.select("tinyint_func(a),"
+                 "smallint_func(b),"
+                 "int_func(c),"
+                 "bigint_func(d),"
+                 "boolean_func(e),"
+                 "boolean_func(f),"
+                 "float_func(g),"
+                 "double_func(h),"
+                 "varchar_func(i),"
+                 "varchar_func(j),"
+                 "varbinary_func(k),"
+                 "decimal_func(l),"
+                 "decimal_func(m),"
+                 "date_func(n),"
+                 "time_func(o),"
+                 "timestamp_func(p),"
+                 "array_str_func(q),"
+                 "array_timestamp_func(r),"
+                 "array_int_func(s),"
+                 "nested_array_func(t),"
+                 "row_func(u)") \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
@@ -354,8 +354,8 @@ class BlinkPandasUDFITTests(object):
             [(local_datetime,)],
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
-        exec_insert_table(t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))"),
-                          "Results")
+        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1970-01-02T00:00:00.123Z"])
 
