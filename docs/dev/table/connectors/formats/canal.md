@@ -162,7 +162,7 @@ Format Options
       <td>Specify what format to use, here should be <code>'canal-json'</code>.</td>
     </tr>
     <tr>
-      <td><h5>json.ignore-parse-errors</h5></td>
+      <td><h5>canal-json.ignore-parse-errors</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
@@ -170,7 +170,7 @@ Format Options
       Fields are set to null in case of errors.</td>
     </tr>
     <tr>
-      <td><h5>json.timestamp-format.standard</h5></td>
+      <td><h5>canal-json.timestamp-format.standard</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
