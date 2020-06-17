@@ -71,6 +71,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -582,7 +583,17 @@ public class CheckpointCoordinator {
 
 							return null;
 						},
-						timer));
+						timer)
+					.exceptionally(error -> {
+						if (!isShutdown()) {
+							throw new CompletionException(error);
+						} else if (error instanceof RejectedExecutionException) {
+							LOG.debug("Execution rejected during shutdown");
+						} else {
+							LOG.warn("Error encountered during shutdown", error);
+						}
+						return null;
+					}));
 		} catch (Throwable throwable) {
 			onTriggerFailure(request, throwable);
 		}
