@@ -150,7 +150,18 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			}
 		}
 		finally {
-			sourceThread.interrupt();
+			// wait for sourceThread to complete to prevent premature freeing of resources
+			// wait in a loop because task thread can be interrupted by TaskInterrupter multiple times
+			while (sourceThread.isAlive()) {
+				sourceThread.interrupt();
+				try {
+					sourceThread.join(); // todo: use Task.taskCancellationTimeout?
+				} catch (InterruptedException e) {
+					if (!sourceThread.isAlive()) { // if we set interrupt status and then join again it will exit immediately
+						Thread.currentThread().interrupt();
+					}
+				}
+			}
 		}
 	}
 
