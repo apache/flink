@@ -358,8 +358,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	@Test
 	public void testTableSourceSinkWithDDL() throws Exception {
 		if (OLD_PLANNER.equals(planner) || isLegacyConnector) {
-			// only test for blink planner and new connector, because types TIMESTAMP/DATE/TIME/DECIMAL works well in new
-			// connector(using blink-planner), but has some precision problem in old planner or legacy connector.
+			// only test for blink planner and new connector, because types TIMESTAMP/DATE/TIME/DECIMAL works well in
+			// new connector(using blink-planner), but exits some precision problem in old planner or legacy connector.
 			return;
 		}
 
@@ -422,42 +422,30 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	public void testHBaseLookupTableSource() throws Exception {
 		if (OLD_PLANNER.equals(planner) || isLegacyConnector) {
 			// lookup table source is only supported in blink planner, skip for old planner
-			// skip legacy connector for test TIMESTAMP/DATE/TIME/DECIMAL
+			// types TIMESTAMP/DATE/TIME/DECIMAL works well in new connector, skip legacy connector
 			return;
 		}
 
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
-		if (isLegacyConnector) {
-			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
-			hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
-			hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
-			hbaseTable.addColumn(FAMILY2, F2COL2, Long.class);
-			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
-			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
-			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
-			hbaseTable.setRowKey(ROW_KEY, Integer.class);
-			((TableEnvironmentInternal) tEnv).registerTableSourceInternal(TEST_TABLE_1, hbaseTable);
-		} else {
-			tEnv.executeSql(
-				"CREATE TABLE " + TEST_TABLE_1 + " (" +
-					" family1 ROW<col1 INT>," +
-					" family2 ROW<col1 STRING, col2 BIGINT>," +
-					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
-					" rowkey INT," +
-					" family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3), col4 DECIMAL(12, 4)>," +
-					" PRIMARY KEY (rowkey) NOT ENFORCED" +
-					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
-					" 'table-name' = '" + TEST_TABLE_1 + "'," +
-					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
-					")");
-		}
+		tEnv.executeSql(
+			"CREATE TABLE " + TEST_TABLE_1 + " (" +
+				" family1 ROW<col1 INT>," +
+				" family2 ROW<col1 STRING, col2 BIGINT>," +
+				" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
+				" rowkey INT," +
+				" family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3), col4 DECIMAL(12, 4)>," +
+				" PRIMARY KEY (rowkey) NOT ENFORCED" +
+				") WITH (" +
+				" 'connector' = 'hbase-1.4'," +
+				" 'table-name' = '" + TEST_TABLE_1 + "'," +
+				" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
+				")");
 
 		// prepare a source table
 		String srcTableName = "src";
-		DataStream<Row> srcDs = execEnv.fromCollection(testData2).returns(testTypeInfo2);
+		DataStream<Row> srcDs = execEnv.fromCollection(testData).returns(testTypeInfo);
 		Table in = tEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
 		tEnv.registerTable(srcTableName, in);
 
@@ -496,16 +484,16 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	// -------------------------------------------------------------------------------------
 
 	// prepare a source collection.
-	private static final List<Row> testData2 = new ArrayList<>();
-	private static final RowTypeInfo testTypeInfo2 = new RowTypeInfo(
+	private static final List<Row> testData = new ArrayList<>();
+	private static final RowTypeInfo testTypeInfo = new RowTypeInfo(
 		new TypeInformation[]{Types.INT, Types.LONG, Types.STRING},
 		new String[]{"a", "b", "c"});
 
 	static {
-		testData2.add(Row.of(1, 1L, "Hi"));
-		testData2.add(Row.of(2, 2L, "Hello"));
-		testData2.add(Row.of(3, 2L, "Hello world"));
-		testData2.add(Row.of(3, 3L, "Hello world!"));
+		testData.add(Row.of(1, 1L, "Hi"));
+		testData.add(Row.of(2, 2L, "Hello"));
+		testData.add(Row.of(3, 2L, "Hello world"));
+		testData.add(Row.of(3, 3L, "Hello world!"));
 	}
 
 	// ------------------------------- Utilities -------------------------------------------------

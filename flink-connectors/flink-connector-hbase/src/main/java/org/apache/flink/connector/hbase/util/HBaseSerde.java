@@ -72,7 +72,7 @@ public class HBaseSerde {
 	private final @Nullable FieldDecoder keyDecoder;
 	private final FieldEncoder[][] qualifierEncoders;
 	private final FieldDecoder[][] qualifierDecoders;
-	private final transient GenericRowData rowWithRowKey;
+	private final GenericRowData rowWithRowKey;
 
 	public HBaseSerde(HBaseTableSchema hbaseSchema, final String nullStringLiteral) {
 		this.families = hbaseSchema.getFamilyKeys();
