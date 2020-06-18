@@ -90,6 +90,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -325,7 +326,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected abstract void init() throws Exception;
 
-	protected void cancelTask() throws Exception {
+	protected CompletableFuture<Void> cancelTask() {
+		return FutureUtils.completedVoidFuture();
 	}
 
 	protected void cleanup() throws Exception {
@@ -422,9 +424,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * <p>This is used by the source task to get out of the run-loop when the job is stopped with a savepoint.
 	 *
 	 * <p>For tasks other than the source task, this method does nothing.
+	 * @return completion future
 	 */
-	protected void finishTask() throws Exception {
-
+	protected CompletableFuture<Void> finishTask() throws Exception {
+		return FutureUtils.completedVoidFuture();
 	}
 
 	// ------------------------------------------------------------------------
@@ -963,7 +966,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private void notifyCheckpointComplete(long checkpointId) throws Exception {
 		subtaskCheckpointCoordinator.notifyCheckpointComplete(checkpointId, operatorChain, this::isRunning);
 		if (isRunning && isSynchronousSavepointId(checkpointId)) {
-			finishTask();
+			finishTask(); // don't block on the returned future to prevent deadlock on checkpointLock
 			// Reset to "notify" the internal synchronous savepoint mailbox loop.
 			resetSynchronousSavepointId();
 		}

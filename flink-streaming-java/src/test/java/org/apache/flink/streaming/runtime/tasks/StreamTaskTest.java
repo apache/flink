@@ -444,8 +444,8 @@ public class StreamTaskTest extends TestLogger {
 		protected void cleanup() {}
 
 		@Override
-		protected void cancelTask() throws Exception {
-			throw new Exception("test exception");
+		protected CompletableFuture<Void> cancelTask() {
+			throw new ExpectedTestException();
 		}
 
 		/**

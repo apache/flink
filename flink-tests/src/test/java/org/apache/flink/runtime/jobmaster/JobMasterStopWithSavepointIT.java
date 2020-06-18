@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -379,9 +380,10 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public void finishTask() throws Exception {
+		public CompletableFuture<Void> finishTask() throws Exception {
 			finishingLatch.await();
 			finishLatch.trigger();
+			return FutureUtils.completedVoidFuture();
 		}
 	}
 
@@ -406,9 +408,10 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void cancelTask() throws Exception {
-			super.cancelTask();
+		protected CompletableFuture<Void> cancelTask() {
+			final CompletableFuture<Void> future = super.cancelTask();
 			finishLatch.trigger();
+			return future;
 		}
 
 		@Override

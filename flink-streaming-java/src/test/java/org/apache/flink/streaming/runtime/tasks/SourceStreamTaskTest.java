@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.SourceStreamTask.LegacySourceFunctionRunner;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -69,6 +71,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -99,7 +102,7 @@ public class SourceStreamTaskTest {
 		assertTrue("RichFunction methods where not called.", OpenCloseTestSource.closeCalled);
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-		Assert.assertEquals(10, resultElements.size());
+		assertEquals(10, resultElements.size());
 	}
 
 	/**
@@ -165,7 +168,7 @@ public class SourceStreamTaskTest {
 			}
 
 			List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-			Assert.assertEquals(numElements, resultElements.size());
+			assertEquals(numElements, resultElements.size());
 		}
 		finally {
 			executor.shutdown();
@@ -464,6 +467,31 @@ public class SourceStreamTaskTest {
 		testHarness.getTask().finishTask();
 
 		testHarness.waitForTaskCompletion();
+	}
+
+	@Test
+	public void testWatForCancelCompletion() throws Exception {
+		CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+		SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> task = new SourceStreamTask<>(
+			new DummyEnvironment(), new Object(), unused -> new LegacySourceFunctionRunner() {
+			@Override
+			public CompletableFuture<Void> getCompletionFuture() {
+				return completionFuture;
+			}
+
+			@Override
+			public void start() {
+			}
+
+			@Override
+			public void interrupt() {
+			}
+
+			@Override
+			public void setTaskDescription(String taskDescription) {
+			}
+		});
+		assertEquals(completionFuture, task.cancelTask());
 	}
 
 	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, ListCheckpointed<Serializable> {

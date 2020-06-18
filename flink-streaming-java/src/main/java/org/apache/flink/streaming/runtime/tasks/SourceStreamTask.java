@@ -148,7 +148,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void cancelTask() {
+	protected CompletableFuture<Void> cancelTask() {
 		try {
 			if (headOperator != null) {
 				headOperator.cancel();
@@ -157,12 +157,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		finally {
 			sourceFunctionRunner.interrupt();
 		}
+		return sourceFunctionRunner.getCompletionFuture();
 	}
 
 	@Override
-	protected void finishTask() throws Exception {
+	protected CompletableFuture<Void> finishTask() {
 		isFinished = true;
-		cancelTask();
+		return cancelTask();
 	}
 
 	// ------------------------------------------------------------------------
