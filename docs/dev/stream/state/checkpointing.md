@@ -78,6 +78,8 @@ Other parameters for checkpointing include:
 
   - *prefer checkpoint for recovery*: This determines if a job will fallback to latest checkpoint even when there are more recent savepoints available to potentially reduce recovery time.
 
+  - *unaligned checkpoints*: You can enable [unaligned checkpoints]({% link ops/state/checkpoints.md %}#unaligned-checkpoints) to greatly reduce checkpointing times under backpressure. Only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -105,6 +107,9 @@ env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCl
 
 // allow job recovery fallback to checkpoint when there is a more recent savepoint
 env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
+
+// enables the experimental unaligned checkpoints
+env.getCheckpointConfig.enableUnalignedCheckpoints();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -130,6 +135,9 @@ env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+
+// enables the experimental unaligned checkpoints
+env.getCheckpointConfig.enableUnalignedCheckpoints()
 {% endhighlight %}
 </div>
 <div data-lang="python" markdown="1">
@@ -158,6 +166,9 @@ env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpoi
 
 # allow job recovery fallback to checkpoint when there is a more recent savepoint
 env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
+
+// enables the experimental unaligned checkpoints
+env.get_checkpoint_config().enable_unaligned_checkpoints()
 {% endhighlight %}
 </div>
 </div>
