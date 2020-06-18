@@ -19,8 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
@@ -46,14 +44,12 @@ import static org.junit.Assert.fail;
 public class SqlCommandParserTest {
 
 	private Parser parser;
-	private TableEnvironment tableEnv;
 
 	@Before
 	public void setup() {
 		SqlParserHelper helper = new SqlParserHelper();
 		helper.registerTables();
 		parser = helper.getSqlParser();
-		tableEnv = helper.getTableEnv();
 	}
 
 	@Test
@@ -130,11 +126,6 @@ public class SqlCommandParserTest {
 				TestItem.invalidSql("DROP VIEW ", // missing name
 						SqlExecutionException.class,
 						"Encountered \"<EOF>\""),
-				// alter view
-				TestItem.validSql(SqlDialect.HIVE,
-						"ALTER VIEW MyView RENAME TO MyView1",
-						SqlCommand.ALTER_VIEW,
-						"ALTER VIEW MyView RENAME TO MyView1"),
 				// set
 				TestItem.validSql("SET", SqlCommand.SET).cannotParseComment(),
 				TestItem.validSql("SET x=y", SqlCommand.SET, "x", "y").cannotParseComment(),
@@ -288,7 +279,6 @@ public class SqlCommandParserTest {
 						"Alter temporary system function is not supported")
 		);
 		for (TestItem item : testItems) {
-			tableEnv.getConfig().setSqlDialect(item.sqlDialect);
 			runTestItem(item);
 		}
 	}
@@ -358,7 +348,6 @@ public class SqlCommandParserTest {
 		private String[] expectedOperands = new String[0];
 		private Class<? extends Throwable> expectedException = null;
 		private String expectedExceptionMsg = null;
-		private SqlDialect sqlDialect = SqlDialect.DEFAULT;
 
 		private TestItem(String sql) {
 			this.sql = sql;
@@ -380,16 +369,6 @@ public class SqlCommandParserTest {
 			testItem.expectedCmd = expectedCmd;
 			testItem.expectedOperands = expectedOperands;
 			testItem.cannotParseComment = false; // default is false
-			return testItem;
-		}
-
-		public static TestItem validSql(
-				SqlDialect sqlDialect, String sql, SqlCommand expectedCmd, String... expectedOperands) {
-			TestItem testItem = new TestItem(sql);
-			testItem.expectedCmd = expectedCmd;
-			testItem.expectedOperands = expectedOperands;
-			testItem.cannotParseComment = false; // default is false
-			testItem.sqlDialect = sqlDialect;
 			return testItem;
 		}
 

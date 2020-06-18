@@ -34,7 +34,6 @@ import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
-import org.apache.flink.table.operations.ddl.AlterViewOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -119,8 +118,6 @@ public final class SqlCommandParser {
 			cmd = SqlCommand.CREATE_VIEW;
 		} else if (operation instanceof DropViewOperation) {
 			cmd = SqlCommand.DROP_VIEW;
-		} else if (operation instanceof AlterViewOperation) {
-			cmd = SqlCommand.ALTER_VIEW;
 		} else if (operation instanceof CreateDatabaseOperation) {
 			cmd = SqlCommand.CREATE_DATABASE;
 		} else if (operation instanceof DropDatabaseOperation) {
@@ -275,8 +272,6 @@ public final class SqlCommandParser {
 		CREATE_VIEW,
 
 		DROP_VIEW,
-
-		ALTER_VIEW,
 
 		CREATE_FUNCTION,
 
