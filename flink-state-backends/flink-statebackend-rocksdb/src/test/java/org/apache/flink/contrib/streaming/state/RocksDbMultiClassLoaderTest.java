@@ -28,6 +28,7 @@ import org.rocksdb.RocksDB;
 import java.lang.reflect.Method;
 import java.net.URL;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.junit.Assert.assertNotEquals;
 
 /**
@@ -47,8 +48,8 @@ public class RocksDbMultiClassLoaderTest {
 		final URL codePath2 = RocksDB.class.getProtectionDomain().getCodeSource().getLocation();
 
 		final ClassLoader parent = getClass().getClassLoader();
-		final ClassLoader loader1 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent, new String[0]);
-		final ClassLoader loader2 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent, new String[0]);
+		final ClassLoader loader1 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent, new String[0], NOOP_EXCEPTION_HANDLER);
+		final ClassLoader loader2 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent, new String[0], NOOP_EXCEPTION_HANDLER);
 
 		final String className = RocksDBStateBackend.class.getName();
 

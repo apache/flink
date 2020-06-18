@@ -25,6 +25,8 @@ import org.junit.Test;
 
 import java.net.URL;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
+
 /**
  * Test for {@link TemporaryClassLoaderContext}.
  */
@@ -35,7 +37,7 @@ public class TemporaryClassLoaderContextTest {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 
 		final ChildFirstClassLoader temporaryClassLoader =
-			new ChildFirstClassLoader(new URL[0], contextClassLoader, new String[0]);
+			new ChildFirstClassLoader(new URL[0], contextClassLoader, new String[0], NOOP_EXCEPTION_HANDLER);
 
 		try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(temporaryClassLoader)) {
 			Assert.assertEquals(temporaryClassLoader, Thread.currentThread().getContextClassLoader());

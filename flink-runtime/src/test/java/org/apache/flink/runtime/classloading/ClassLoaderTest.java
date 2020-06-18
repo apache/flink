@@ -33,6 +33,7 @@ import org.junit.rules.TemporaryFolder;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.isA;
@@ -99,10 +100,10 @@ public class ClassLoaderTest extends TestLogger {
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
 		final URLClassLoader childClassLoader1 = FlinkUserCodeClassLoaders.parentFirst(
-				new URL[] { childCodePath }, parentClassLoader);
+				new URL[] { childCodePath }, parentClassLoader, NOOP_EXCEPTION_HANDLER);
 
 		final URLClassLoader childClassLoader2 = FlinkUserCodeClassLoaders.parentFirst(
-				new URL[] { childCodePath }, parentClassLoader);
+				new URL[] { childCodePath }, parentClassLoader, NOOP_EXCEPTION_HANDLER);
 
 		final String className = ClassLoaderTest.class.getName();
 
@@ -125,10 +126,10 @@ public class ClassLoaderTest extends TestLogger {
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
 		final URLClassLoader childClassLoader1 = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[0]);
+				new URL[] { childCodePath }, parentClassLoader, new String[0], NOOP_EXCEPTION_HANDLER);
 
 		final URLClassLoader childClassLoader2 = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[0]);
+				new URL[] { childCodePath }, parentClassLoader, new String[0], NOOP_EXCEPTION_HANDLER);
 
 		final String className = ClassLoaderTest.class.getName();
 
@@ -152,7 +153,7 @@ public class ClassLoaderTest extends TestLogger {
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
 		final URLClassLoader childClassLoader = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[0]);
+				new URL[] { childCodePath }, parentClassLoader, new String[0], NOOP_EXCEPTION_HANDLER);
 
 		final String className = ClassLoaderTest.class.getName();
 
@@ -180,7 +181,7 @@ public class ClassLoaderTest extends TestLogger {
 		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
 		final URLClassLoader childClassLoader = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { childCodePath }, parentClassLoader, new String[] { parentFirstPattern });
+				new URL[] { childCodePath }, parentClassLoader, new String[] { parentFirstPattern }, NOOP_EXCEPTION_HANDLER);
 
 		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
 		final Class<?> clazz2 = Class.forName(className, false, childClassLoader);

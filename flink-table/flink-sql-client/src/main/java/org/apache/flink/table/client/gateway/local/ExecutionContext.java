@@ -105,6 +105,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -153,7 +154,8 @@ public class ExecutionContext<ClusterID> {
 		// create class loader
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 				dependencies.toArray(new URL[dependencies.size()]),
-				this.getClass().getClassLoader());
+				this.getClass().getClassLoader(),
+				NOOP_EXCEPTION_HANDLER);
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
