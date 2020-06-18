@@ -43,6 +43,7 @@ public class SqlParserHelper {
 		registerTable("create table MyOtherTable (a int, b bigint) " +
 				"with ('connector' = 'filesystem', 'path' = '/non')");
 		registerTable("create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
+		registerTable("create view MyView as select * from MyTable");
 	}
 
 	public void registerTable(String createTableStmt) {
@@ -51,5 +52,9 @@ public class SqlParserHelper {
 
 	public Parser getSqlParser() {
 		return ((TableEnvironmentInternal) tableEnv).getParser();
+	}
+
+	public TableEnvironment getTableEnv() {
+		return tableEnv;
 	}
 }

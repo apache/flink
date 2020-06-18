@@ -326,6 +326,9 @@ public class CliClient {
 			case DROP_VIEW:
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_VIEW_REMOVED);
 				break;
+			case ALTER_VIEW:
+				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_ALTER_VIEW_SUCCEEDED, CliStrings.MESSAGE_ALTER_VIEW_FAILED);
+				break;
 			case CREATE_FUNCTION:
 				callDdl(cmdCall.operands[0], CliStrings.MESSAGE_FUNCTION_CREATED);
 				break;
