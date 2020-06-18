@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
@@ -30,6 +31,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  *
  * <p>NOTE: All option keys in this class must start with "table".
  */
+@PublicEvolving
 public class TableConfigOptions {
 	private TableConfigOptions() {}
 

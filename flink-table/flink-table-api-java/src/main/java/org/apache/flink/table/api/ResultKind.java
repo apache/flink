@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * ResultKind defines the types of the result.
  */
+@PublicEvolving
 public enum ResultKind {
 	/**
 	 * The statement (e.g. DDL, USE) executes successfully,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
@@ -33,6 +34,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
+@PublicEvolving
 public class ExecutionConfigOptions {
 
 	// ------------------------------------------------------------------------
