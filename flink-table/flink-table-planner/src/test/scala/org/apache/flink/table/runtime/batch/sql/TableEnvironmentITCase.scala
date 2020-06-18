@@ -34,9 +34,7 @@ import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStag
 import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestingOverwritableTableSink}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.FileUtils
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+import org.apache.flink.util.{CollectionUtil, FileUtils}
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit._
@@ -545,7 +543,7 @@ class TableEnvironmentITCase(
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Hello"),
       Row.of(Integer.valueOf(3), "Hello world"))
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     actual.sort(new util.Comparator[Row]() {
       override def compare(o1: Row, o2: Row): Int = {
         o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])

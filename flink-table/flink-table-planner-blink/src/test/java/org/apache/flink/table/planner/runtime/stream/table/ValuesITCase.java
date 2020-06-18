@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
@@ -35,12 +36,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -325,10 +324,8 @@ public class ValuesITCase extends StreamingTestBase {
 		Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[]{1, 2});
 		Table values = tEnv().fromValues(Collections.singletonList(row));
 		tEnv().createTemporaryView("values_t", values);
-		Iterator<Row> iter = tEnv().executeSql("select * from values_t").collect();
+		List<Row> results = CollectionUtil.iteratorToList(tEnv().executeSql("select * from values_t").collect());
 
-		List<Row> results = new ArrayList<>();
-		iter.forEachRemaining(results::add);
 		assertThat(results, equalTo(Collections.singletonList(row)));
 	}
 
