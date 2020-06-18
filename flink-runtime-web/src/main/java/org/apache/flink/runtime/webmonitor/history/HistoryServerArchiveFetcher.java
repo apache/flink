@@ -309,9 +309,7 @@ class HistoryServerArchiveFetcher {
 				if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
 					events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
 				}
-				if (!events.isEmpty()) {
-					updateJobOverview(webOverviewDir, webDir);
-				}
+				updateJobOverview(webOverviewDir, webDir);
 				events.forEach(jobArchiveEventListener::accept);
 				LOG.debug("Finished archive fetching.");
 			} catch (Exception e) {
