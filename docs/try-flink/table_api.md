@@ -36,7 +36,7 @@ The pipeline will read data from Kafka and write the results to MySQL visualized
 
 ## Prerequisites
 
-This walk-through assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you come from a different programming language.
+This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you come from a different programming language.
 It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
 
 ## Help, I’m Stuck! 
@@ -109,7 +109,7 @@ report(transactions).executeInsert("spend_report");
 
 The first two lines set up your `TableEnvironment`.
 The table environment is how you can set properties for your Job, specify whether you are writing a batch or a streaming application, and create your sources.
-This walkthrough creates a standard table environment that uses the streaming runtime.
+This walkthrough creates a standard table environment that uses the streaming execution.
 
 {% highlight java %}
 EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
@@ -118,12 +118,12 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 
 #### Registering Tables
 
-Next, tables are registered in the environment that you can use to connect to external systems for reading and writing both batch and streaming data.
+Next, tables are registered in the current [catalog]({% link dev/table/catalogs.md %}) that you can use to connect to external systems for reading and writing both batch and streaming data.
 A table source provides access to data stored in external systems, such as a database, a key-value store, a message queue, or a file system.
 A table sink emits a table to an external storage system.
 Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
 
-{% highlight sql %}
+{% highlight java %}
 tEnv.executeSql("CREATE TABLE transactions (\n" +
      "    account_id  BIGINT,\n" +
      "    amount      BIGINT,\n" +
@@ -141,7 +141,7 @@ Two tables are registered; a transaction input table, and a spend report output 
 The transactions (`transactions`) table lets us read credit card transactions, which contain account ID's (`account_id`), timestamps (`transaction_time`), and US$ amounts (`amount`).
 The table is a logical view over a Kafka topic called `transactions` containing CSV data.
 
-{% highlight sql %}
+{% highlight java %}
 tEnv.executeSql("CREATE TABLE spend_report (\n" +
     "    account_id BIGINT,\n" +
     "    log_ts     TIMESTAMP(3),\n" +
@@ -183,7 +183,7 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 {% endhighlight %}
 
 One of Flink's unique properties is that it provides consistent semantics across batch and streaming.
-This means you can develop and test applications in batch mode on static datasets, and deploy to production as streaming applications!
+This means you can develop and test applications in batch mode on static datasets, and deploy to production as streaming applications.
 
 ## Attempt One
 
@@ -191,12 +191,14 @@ Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
 This means the timestamp column needs be be rounded down from millisecond to hour granularity. 
 
-Just like a SQL query, Flink can select the required fields and group by your keys.
+Flink supports developing relational applications in pure [SQL]({% link dev/table/sql/index.md %}) or using the [Table API]({% link dev/table/tableApi.md %}).
+The Table API is a fluent DSL inspired, that can be written in Python, Java, or Scala and supports strong IDE integration.
+Just like a SQL query, Table programs can select the required fields and group by your keys.
 These features, allong with [built-in functions]({% link dev/table/functions/systemFunctions.md %}) like `floor` and `sum`, you can write this report.
 
 {% highlight java %}
-public static Table report(Table rows) {
-    return rows.select(
+public static Table report(Table transactions) {
+    return transactions.select(
             $("account_id"),
             $("transaction_time").floor(TimeIntervalUnit.HOUR).as("log_ts"),
             $("amount"))
@@ -233,8 +235,8 @@ public class MyFloor extends ScalarFunction {
 And then quickly integrate it in your application.
 
 {% highlight java %}
-public static Table report(Table rows) {
-    return rows.select(
+public static Table report(Table transactions) {
+    return transactions.select(
             $("account_id"),
             call(MyFloor.class, $("transaction_time")).as("log_ts"),
             $("amount"))
@@ -256,8 +258,9 @@ A grouping based on time is called a [window]({% link dev/stream/operators/windo
 The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap.
 
 {% highlight java %}
-public static Table report(Table rows) {
-    return rows.window(Tumble.over(lit(1).hour()).on($("transaction_time")).as("log_ts"))
+public static Table report(Table transactions) {
+    return transactions
+        .window(Tumble.over(lit(1).hour()).on($("transaction_time")).as("log_ts"))
         .groupBy($("account_id"), $("log_ts"))
         .select(
             $("account_id"),
