@@ -180,8 +180,9 @@ public class HiveDDLUtils {
 		SqlTypeNameSpec nameSpec = typeSpec.getTypeNameSpec();
 		SqlTypeNameSpec convertedNameSpec = convertDataTypes(nameSpec);
 		if (nameSpec != convertedNameSpec) {
-			typeSpec = new SqlDataTypeSpec(convertedNameSpec, typeSpec.getTimeZone(), typeSpec.getNullable(),
-					typeSpec.getParserPosition());
+			boolean nullable = typeSpec.getNullable() == null ? true : typeSpec.getNullable();
+			typeSpec = new SqlDataTypeSpec(convertedNameSpec, typeSpec.getTimeZone(),
+				nullable, typeSpec.getParserPosition());
 		}
 		return typeSpec;
 	}

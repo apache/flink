@@ -167,8 +167,9 @@ public class OperationConverterUtils {
 	private static TableColumn toTableColumn(SqlTableColumn sqlTableColumn, SqlValidator sqlValidator) {
 		String name = sqlTableColumn.getName().getSimple();
 		SqlDataTypeSpec typeSpec = sqlTableColumn.getType();
+		boolean nullable = typeSpec.getNullable() == null ? true : typeSpec.getNullable();
 		LogicalType logicalType = FlinkTypeFactory.toLogicalType(
-				typeSpec.deriveType(sqlValidator, typeSpec.getNullable()));
+				typeSpec.deriveType(sqlValidator, nullable));
 		DataType dataType = TypeConversions.fromLogicalToDataType(logicalType);
 		return TableColumn.of(name, dataType);
 	}

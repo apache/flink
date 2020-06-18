@@ -615,10 +615,12 @@ public class SqlToOperationConverter {
 			.filter(n -> n instanceof SqlTableColumn).collect(Collectors.toList());
 		for (SqlNode node : physicalColumns) {
 			SqlTableColumn column = (SqlTableColumn) node;
+			boolean nullable =
+				column.getType().getNullable() == null ? true : column.getType().getNullable();
 			final RelDataType relType = column.getType()
 				.deriveType(
 					flinkPlanner.getOrCreateSqlValidator(),
-					column.getType().getNullable());
+					nullable);
 			builder.field(column.getName().getSimple(),
 				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
 			physicalSchema = builder.build();

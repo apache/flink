@@ -80,7 +80,7 @@ public class SqlTableColumn extends SqlCall {
 		this.name.unparse(writer, leftPrec, rightPrec);
 		writer.print(" ");
 		this.type.unparse(writer, leftPrec, rightPrec);
-		if (!this.type.getNullable()) {
+		if (this.type.getNullable() != null && !this.type.getNullable()) {
 			// Default is nullable.
 			writer.keyword("NOT NULL");
 		}
