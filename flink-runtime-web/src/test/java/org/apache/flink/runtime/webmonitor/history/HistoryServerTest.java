@@ -267,6 +267,11 @@ public class HistoryServerTest extends TestLogger {
 		runArchiveExpirationTest(true);
 	}
 
+	@Test
+	public void testRemainExpiredJob() throws Exception {
+		runArchiveExpirationTest(false);
+	}
+
 	private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
 		int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
 		int numJobs = 3;
