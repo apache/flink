@@ -231,6 +231,8 @@ class TableEnvironmentITCase(
 
     val resultFile = _tempFolder.newFile().getAbsolutePath
     result.toDataSet[(Long, Double)]
+      // format the double with 5 fractional digits for comparison
+      .map(ds => (ds._1.toString, "%.5f".format(ds._2)))
       .writeAsCsv(resultFile, writeMode=FileSystem.WriteMode.OVERWRITE)
 
     tEnv.execute("job name")
