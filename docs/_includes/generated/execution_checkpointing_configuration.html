@@ -60,7 +60,7 @@
             <td><h5>execution.checkpointing.unaligned</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.<br /><br />Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore.<br /><br />Unaligned checkpoints can only be enabled if <span markdown="span">`execution.checkpointing.mode`</span> is <span markdown="span">`EXACTLY_ONCE`</span></td>
+            <td>Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.<br /><br />Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore.<br /><br />Unaligned checkpoints can only be enabled if <span markdown="span">`execution.checkpointing.mode`</span> is <span markdown="span">`EXACTLY_ONCE`</span> and if <span markdown="span">`execution.checkpointing.max-concurrent-checkpoints`</span> is 1</td>
         </tr>
     </tbody>
 </table>
