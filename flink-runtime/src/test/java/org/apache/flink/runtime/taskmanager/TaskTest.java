@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -987,8 +988,9 @@ public class TaskTest extends TestLogger {
 		public void invoke() {}
 
 		@Override
-		public void cancel() {
+		public CompletableFuture<Void> cancel() {
 			fail("This should not be called");
+			return FutureUtils.completedVoidFuture();
 		}
 	}
 
@@ -1018,9 +1020,6 @@ public class TaskTest extends TestLogger {
 		public void invoke() {
 			throw new TestWrappedException(new IOException("test"));
 		}
-
-		@Override
-		public void cancel() {}
 	}
 
 	private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
@@ -1128,11 +1127,12 @@ public class TaskTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() throws Exception {
+		public CompletableFuture<Void> cancel() throws Exception {
 			synchronized (this) {
 				triggerLatch.trigger();
 				wait();
 			}
+			return FutureUtils.completedVoidFuture();
 		}
 	}
 
@@ -1155,11 +1155,12 @@ public class TaskTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {
+		public CompletableFuture<Void> cancel() {
 			synchronized (lock) {
 				// do nothing but a placeholder
 				triggerLatch.trigger();
 			}
+			return FutureUtils.completedVoidFuture();
 		}
 	}
 
@@ -1182,10 +1183,6 @@ public class TaskTest extends TestLogger {
 				} catch (InterruptedException ignored) {
 				}
 			}
-		}
-
-		@Override
-		public void cancel() {
 		}
 	}
 

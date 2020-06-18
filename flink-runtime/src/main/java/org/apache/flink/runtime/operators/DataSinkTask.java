@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
@@ -52,6 +53,8 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
@@ -289,7 +292,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public CompletableFuture<Void> cancel() throws Exception {
 		this.taskCanceled = true;
 		OutputFormat<IT> format = this.format;
 		if (format != null) {
@@ -310,6 +313,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		}
 		
 		LOG.debug(getLogString("Cancelling data sink operator"));
+		return FutureUtils.completedVoidFuture();
 	}
 
 	/**

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -31,6 +32,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -104,9 +106,11 @@ public abstract class AbstractInvokable {
 	 *
 	 * @throws Exception
 	 *         thrown if any exception occurs during the execution of the user code
+	 * @return completion future
 	 */
-	public void cancel() throws Exception {
+	public CompletableFuture<Void> cancel() throws Exception {
 		// The default implementation does nothing.
+		return FutureUtils.completedVoidFuture();
 	}
 
 	/**

@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -72,6 +73,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The base class for all batch tasks. Encapsulated common behavior and implements the main life-cycle
@@ -389,7 +391,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public CompletableFuture<Void> cancel() throws Exception {
 		this.running = false;
 
 		if (LOG.isDebugEnabled()) {
@@ -403,6 +405,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		} finally {
 			closeLocalStrategiesAndCaches();
 		}
+		return FutureUtils.completedVoidFuture();
 	}
 
 	// --------------------------------------------------------------------------------------------

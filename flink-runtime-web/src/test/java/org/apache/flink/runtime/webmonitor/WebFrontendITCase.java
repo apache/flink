@@ -27,6 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -59,6 +60,7 @@ import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
@@ -384,8 +386,9 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {
+		public CompletableFuture<Void> cancel() {
 			this.isRunning = false;
+			return FutureUtils.completedVoidFuture();
 		}
 
 		public static void reset() {

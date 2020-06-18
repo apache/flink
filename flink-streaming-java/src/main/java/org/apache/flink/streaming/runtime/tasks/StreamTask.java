@@ -641,20 +641,25 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public final void cancel() throws Exception {
+	public final CompletableFuture<Void> cancel() {
 		isRunning = false;
 		canceled = true;
 
 		// the "cancel task" call must come first, but the cancelables must be
 		// closed no matter what
-		try {
-			cancelTask();
+		return FutureUtils
+			.completedVoidFuture()
+			.thenRun(this::cancelTask)
+			.whenComplete((unused1, unused2) -> {
+				// WARN: the method is called from the task thread but the callback can be invoked from a different thread
+				mailboxProcessor.allActionsCompleted();
+				try {
+					cancelables.close();
+				} catch (IOException e) {
+					throw new CompletionException(e);
+				}
+			});
 		}
-		finally {
-			mailboxProcessor.allActionsCompleted();
-			cancelables.close();
-		}
-	}
 
 	public MailboxExecutorFactory getMailboxExecutorFactory() {
 		return this.mailboxProcessor::getMailboxExecutor;

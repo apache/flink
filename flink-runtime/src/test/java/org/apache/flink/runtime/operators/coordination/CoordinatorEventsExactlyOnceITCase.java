@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -400,8 +401,9 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 		}
 
 		@Override
-		public void cancel() throws Exception {
+		public CompletableFuture<Void> cancel() throws Exception {
 			running = false;
+			return FutureUtils.completedVoidFuture();
 		}
 
 		@Override

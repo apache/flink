@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -34,6 +35,7 @@ import org.junit.After;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
@@ -201,11 +203,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		}
 
 		@Override
-		public void cancel() {
+		public CompletableFuture<Void> cancel() {
 			synchronized (lock) {
 				running = false;
 				lock.notifyAll();
 			}
+			return FutureUtils.completedVoidFuture();
 		}
 	}
 }

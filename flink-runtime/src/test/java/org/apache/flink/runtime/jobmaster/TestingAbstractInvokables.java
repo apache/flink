@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -107,8 +108,9 @@ public class TestingAbstractInvokables {
 		}
 
 		@Override
-		public void cancel() {
+		public CompletableFuture<Void> cancel() {
 			gotCanceledFuture.complete(true);
+			return FutureUtils.completedVoidFuture();
 		}
 
 		public static void resetGotCanceledFuture() {

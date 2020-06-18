@@ -99,9 +99,6 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	}
 
 	@Override
-	protected void cancelTask() {}
-
-	@Override
 	protected void cleanup() throws Exception {
 		headOperator.close();
 		headOperator.dispose();

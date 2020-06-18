@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -53,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * DataSourceTask which is executed by a task manager. The task reads data and uses an 
@@ -252,9 +254,10 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	}
 
 	@Override
-	public void cancel() throws Exception {
+	public CompletableFuture<Void> cancel() throws Exception {
 		this.taskCanceled = true;
 		LOG.debug(getLogString("Cancelling data source operator"));
+		return FutureUtils.completedVoidFuture();
 	}
 
 	/**
