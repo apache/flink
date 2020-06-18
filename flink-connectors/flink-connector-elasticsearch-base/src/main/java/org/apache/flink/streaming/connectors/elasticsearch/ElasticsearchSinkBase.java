@@ -39,8 +39,6 @@ import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.rest.RestStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -70,8 +68,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends RichSinkFunction<T> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = -1007596293618451942L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkBase.class);
 
 	// ------------------------------------------------------------------------
 	//  Internal bulk processor configuration
@@ -408,8 +404,6 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 						itemResponse = response.getItems()[i];
 						failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
 						if (failure != null) {
-							LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
-
 							restStatus = itemResponse.getFailure().getStatus();
 							actionRequest = request.requests().get(i);
 							if (restStatus == null) {
@@ -441,8 +435,6 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 		@Override
 		public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-			LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure);
-
 			try {
 				for (DocWriteRequest writeRequest : request.requests()) {
 					if (writeRequest instanceof ActionRequest) {

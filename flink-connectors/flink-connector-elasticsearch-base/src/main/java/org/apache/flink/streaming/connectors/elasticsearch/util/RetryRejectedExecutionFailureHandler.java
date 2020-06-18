@@ -25,6 +25,8 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An {@link ActionRequestFailureHandler} that re-adds requests that failed due to temporary
@@ -36,8 +38,11 @@ public class RetryRejectedExecutionFailureHandler implements ActionRequestFailur
 
 	private static final long serialVersionUID = -7423562912824511906L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(RetryRejectedExecutionFailureHandler.class);
+
 	@Override
 	public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
+		LOG.error("Failed Elasticsearch item request: {}", failure.getMessage(), failure);
 		if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
 			indexer.add(action);
 		} else {
