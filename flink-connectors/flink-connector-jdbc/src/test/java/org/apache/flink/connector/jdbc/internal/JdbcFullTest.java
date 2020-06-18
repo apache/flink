@@ -28,6 +28,7 @@ import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
+import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
@@ -43,6 +44,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.function.Function;
@@ -59,6 +61,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 
 /**
  * Tests using both {@link JdbcInputFormat} and {@link JdbcBatchingOutputFormat}.
@@ -101,6 +104,52 @@ public class JdbcFullTest extends JdbcDataTestBase {
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
 			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+		}
+	}
+
+	@Test
+	public void testJdbcBatchingOutputFormatCloseDuringRuntime() throws Exception{
+		JdbcOptions options = JdbcOptions.builder()
+			.setDBUrl(getDbMetadata().getUrl())
+			.setTableName(OUTPUT_TABLE)
+			.build();
+
+		RuntimeContext context = Mockito.mock(RuntimeContext.class);
+		ExecutionConfig executionConfig = Mockito.mock(ExecutionConfig.class);
+		JdbcExecutionOptions jdbcExecutionOptions = Mockito.mock(JdbcExecutionOptions.class);
+		JdbcBatchStatementExecutor executor = Mockito.mock(JdbcBatchStatementExecutor.class);
+
+		doReturn(executionConfig).when(context).getExecutionConfig();
+		// use scheduledThreadPool
+		doReturn(500L).when(jdbcExecutionOptions).getBatchIntervalMs();
+		doReturn(2).when(jdbcExecutionOptions).getBatchSize();
+		doReturn(3).when(jdbcExecutionOptions).getMaxRetries();
+		// always throw Exception to trigger close() method
+		doThrow(SQLException.class).when(executor).executeBatch();
+
+		JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> format =
+			new JdbcBatchingOutputFormat<>(
+				new SimpleJdbcConnectionProvider(options),
+				jdbcExecutionOptions,
+				(ctx) -> executor,
+				(tuple2) -> tuple2.f1);
+
+		format.setRuntimeContext(context);
+		format.open(0, 1);
+
+		try {
+			for (JdbcTestFixture.TestEntry entry : TEST_DATA) {
+				format.writeRecord(Tuple2.of(true, toRow(entry)));
+			}
+		} catch (Exception e) {
+			try {
+				format.close();
+			} catch (Exception realException){
+				Connection connection = format.getConnection();
+				if (connection != null && !connection.isClosed()){
+					throw new RuntimeException("Resource leak!");
+				}
+			}
 		}
 	}
 
