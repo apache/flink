@@ -55,6 +55,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -126,6 +127,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
+	@Ignore
 	public void test() throws Exception {
 		final int numEvents1 = 200;
 		final int numEvents2 = 5;
