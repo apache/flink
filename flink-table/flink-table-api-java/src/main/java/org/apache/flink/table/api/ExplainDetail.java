@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * ExplainDetail defines the types of details for explain result.
  */
+@PublicEvolving
 public enum ExplainDetail {
 	/**
 	 * The cost information on physical rel node estimated by optimizer.
