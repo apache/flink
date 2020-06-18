@@ -1336,15 +1336,13 @@ class AggregateITCase(
   }
 
   @Test
-  def testSplitAggsHandler(): Unit = {
+  def testAggregationCodeSplit(): Unit = {
 
     val t = env.fromCollection(TestData.smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    tEnv.getConfig.setMaxGeneratedCodeLength(1)
-
-    val columnNumber = 100
+    val columnNumber = 500
 
     val selectList = Stream.range(3, columnNumber)
       .map(i => s"SUM(CASE WHEN a IS NOT NULL AND a > $i THEN 0 WHEN a < 0 THEN 0 ELSE $i END)")
