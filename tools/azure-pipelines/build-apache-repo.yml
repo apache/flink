@@ -76,6 +76,17 @@ stages:
     jobs:
       - template: jobs-template.yml
         parameters:
+          stage_name: cron_azure
+          test_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
+      - template: jobs-template.yml
+        parameters:
           stage_name: cron_hadoop241
           test_pool_definition:
             name: Default
