@@ -59,8 +59,9 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
 	private TypeInformation<RowData> keyType = keySelector.getProducedType();
 
 	@Test
-	public void testRecordRetraction() throws Exception {
-		ProcTimeRangeBoundedPrecedingFunction<RowData> function = new ProcTimeRangeBoundedPrecedingFunction<>(0, 0, aggsHandleFunction, accTypes, inputFieldTypes, 2000);
+	public void testStateCleanup() throws Exception {
+		ProcTimeRangeBoundedPrecedingFunction<RowData> function = new ProcTimeRangeBoundedPrecedingFunction<>(
+			aggsHandleFunction, accTypes, inputFieldTypes, 2000);
 		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
 
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
@@ -82,12 +83,13 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
 		// at this moment we expect the function to have some records in state
 
 		testHarness.setProcessingTime(3000);
-		// at this moment the function should have retracted all records
+		// at this moment the function should have cleaned up states
 
-		assertEquals("Records are not fully retracted", 0, stateBackend.numKeyValueStateEntries());
+		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
 	}
 
-	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+			KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
 	}
 
