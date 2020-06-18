@@ -101,6 +101,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -256,7 +257,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	//  proper happens-before semantics on parallel modification
 	// ------------------------------------------------------------------------
 
-	/** atomic flag that makes sure the invokable is canceled exactly once upon error. */
+	/** atomic flag that makes sure the invokable is canceled exactly once upon error.
+	 * NOTE: whenever this variable is set {@link #invokableCancelFuture} must be completed. */
 	private final AtomicBoolean invokableHasBeenCanceled;
 
 	/** The invokable of this task, if initialized. All accesses must copy the reference and
@@ -278,6 +280,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	/** This class loader should be set as the context class loader for threads that may dynamically load user code. */
 	private ClassLoader userCodeClassLoader;
+
+	private final CompletableFuture<Void> invokableCancelFuture = new CompletableFuture<>();
 
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
@@ -819,6 +823,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		}
 		finally {
 			try {
+				waitInvokableCancelCompletion();
+
 				LOG.info("Freeing task resources for {} ({}).", taskNameWithSubtask, executionId);
 
 				// clear the reference to the invokable. this helps guard against holding references
@@ -857,6 +863,21 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			}
 			catch (Throwable t) {
 				LOG.error("Error during metrics de-registration of task {} ({}).", taskNameWithSubtask, executionId, t);
+			}
+		}
+	}
+
+	private void waitInvokableCancelCompletion() throws ExecutionException {
+		if (!invokableHasBeenCanceled.get()) {
+			return;
+		}
+		LOG.debug("Waiting for invokable cancellation");
+
+		while (!invokableCancelFuture.isDone()) {
+			try {
+				invokableCancelFuture.get();
+			} catch (InterruptedException e) {
+				// expect interrupts from TaskCanceler and TaskInterrupter
 			}
 		}
 	}
@@ -1059,7 +1080,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 						// case the canceling could not continue
 
 						// The canceller calls cancel and interrupts the executing thread once
-						Runnable canceler = new TaskCanceler(LOG, this::closeNetworkResources, invokable, executingThread, taskNameWithSubtask);
+						Runnable canceler = new TaskCanceler(LOG, this::closeNetworkResources, invokable, executingThread, taskNameWithSubtask, invokableCancelFuture);
 
 						Thread cancelThread = new Thread(
 								executingThread.getThreadGroup(),
@@ -1285,7 +1306,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		// in case of an exception during execution, we still call "cancel()" on the task
 		if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
 			try {
-				invokable.cancel();
+				FutureUtils.forward(invokable.cancel(), invokableCancelFuture);
 			}
 			catch (Throwable t) {
 				LOG.error("Error while canceling task {}.", taskNameWithSubtask, t);
@@ -1409,13 +1430,15 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
+		private final CompletableFuture<Void> completionFuture;
 
-		TaskCanceler(Logger logger, Runnable networkResourcesCloser, AbstractInvokable invokable, Thread executer, String taskName) {
+		TaskCanceler(Logger logger, Runnable networkResourcesCloser, AbstractInvokable invokable, Thread executer, String taskName, CompletableFuture<Void> completionFuture) {
 			this.logger = logger;
 			this.networkResourcesCloser = networkResourcesCloser;
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
+			this.completionFuture = completionFuture;
 		}
 
 		@Override
@@ -1424,7 +1447,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				// the user-defined cancel method may throw errors.
 				// we need do continue despite that
 				try {
-					invokable.cancel();
+					FutureUtils.forward(invokable.cancel(), completionFuture);
 				} catch (Throwable t) {
 					ExceptionUtils.rethrowIfFatalError(t);
 					logger.error("Error while canceling the task {}.", taskName, t);

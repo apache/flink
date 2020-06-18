@@ -92,6 +92,7 @@ public class TaskTest extends TestLogger {
 
 	private static OneShotLatch awaitLatch;
 	private static OneShotLatch triggerLatch;
+	private static CompletableFuture<Void> cancelCompletionFuture;
 
 	private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
@@ -102,6 +103,7 @@ public class TaskTest extends TestLogger {
 	public void setup() {
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
+		cancelCompletionFuture = new CompletableFuture<>();
 
 		shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 	}
@@ -138,6 +140,33 @@ public class TaskTest extends TestLogger {
 
 		taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
 		taskManagerActions.validateListenerMessage(ExecutionState.FINISHED, task, null);
+	}
+
+	@Test
+	public void testTaskTerminatesOnlyAfterInvokable() throws Exception {
+		Task task = createTaskBuilder()
+			.setInvokable(InvokableBlockingInCancelFuture.class)
+			.setTaskManagerActions(new ProhibitFatalErrorTaskManagerActions())
+			.build();
+
+		task.startTaskThread();
+
+		awaitLatch.await();
+		task.cancelExecution();
+
+		triggerLatch.trigger();
+		while (!task.getExecutionState().isTerminal() && task.getExecutingThread().isAlive()) {
+			task.getExecutingThread().join(10);
+		}
+		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+		assertFalse(task.getTerminationFuture().isDone());
+
+		task.getExecutingThread().join(500); // allow some arbitrary delay for potential termination and re-check
+		assertFalse(task.getTerminationFuture().isDone());
+
+		cancelCompletionFuture.complete(null);
+		task.getExecutingThread().join();
+		assertTrue(task.getTerminationFuture().isDone());
 	}
 
 	@Test
@@ -1161,6 +1190,27 @@ public class TaskTest extends TestLogger {
 				triggerLatch.trigger();
 			}
 			return FutureUtils.completedVoidFuture();
+		}
+	}
+
+	/**
+	 * {@link AbstractInvokable} which blocks in future returned from cancel.
+	 */
+	public static final class InvokableBlockingInCancelFuture extends AbstractInvokable {
+
+		public InvokableBlockingInCancelFuture(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws InterruptedException {
+			awaitLatch.trigger();
+			triggerLatch.await();
+		}
+
+		@Override
+		public CompletableFuture<Void> cancel() {
+			return cancelCompletionFuture;
 		}
 	}
 

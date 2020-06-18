@@ -93,4 +93,9 @@ public class Deadline {
 	public static Deadline fromNow(Duration duration) {
 		return new Deadline(Math.addExact(System.nanoTime(), duration.toNanos()));
 	}
+
+	@Override
+	public String toString() {
+		return timeNanos + " ns";
+	}
 }
