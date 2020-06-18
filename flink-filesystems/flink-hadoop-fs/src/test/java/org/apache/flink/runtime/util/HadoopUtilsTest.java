@@ -25,6 +25,7 @@ import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifie
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -47,6 +48,11 @@ public class HadoopUtilsTest extends TestLogger {
 		System.setProperty("java.security.krb5.kdc", "");
 		System.setProperty("java.security.krb5.conf", "/dev/null");
 		sun.security.krb5.Config.refresh();
+	}
+
+	@AfterClass
+	public static void cleanupHadoopConfigs() throws KrbException {
+		UserGroupInformation.setConfiguration(new Configuration());
 	}
 
 	@Test
