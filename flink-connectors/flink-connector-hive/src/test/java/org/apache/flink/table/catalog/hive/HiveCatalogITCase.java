@@ -36,9 +36,8 @@ import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -59,7 +58,6 @@ import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -107,7 +105,7 @@ public class HiveCatalogITCase {
 	}
 
 	@Test
-	public void testCsvTableViaSQL() throws Exception {
+	public void testCsvTableViaSQL() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 
@@ -124,7 +122,7 @@ public class HiveCatalogITCase {
 
 		Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
 
-		List<Row> result = Lists.newArrayList(t.execute().collect());
+		List<Row> result = CollectionUtil.iteratorToList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -139,7 +137,7 @@ public class HiveCatalogITCase {
 
 		t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.newtable");
 
-		result = Lists.newArrayList(t.execute().collect());
+		result = CollectionUtil.iteratorToList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -206,7 +204,7 @@ public class HiveCatalogITCase {
 		Table t = tableEnv.sqlQuery(
 			String.format("select * from myhive.`default`.%s", sourceTableName));
 
-		List<Row> result = Lists.newArrayList(t.execute().collect());
+		List<Row> result = CollectionUtil.iteratorToList(t.execute().collect());
 		result.sort(Comparator.comparing(String::valueOf));
 
 		// assert query result
@@ -284,7 +282,7 @@ public class HiveCatalogITCase {
 
 	private void testReadWriteCsvWithProctime(boolean isStreaming) {
 		TableEnvironment tableEnv = prepareTable(isStreaming);
-		ArrayList<Row> rows = Lists.newArrayList(
+		List<Row> rows = CollectionUtil.iteratorToList(
 				tableEnv.executeSql("SELECT * FROM proctime_src").collect());
 		Assert.assertEquals(5, rows.size());
 		tableEnv.executeSql("DROP TABLE proctime_src");
@@ -302,7 +300,7 @@ public class HiveCatalogITCase {
 
 	private void testTableApiWithProctime(boolean isStreaming) {
 		TableEnvironment tableEnv = prepareTable(isStreaming);
-		ArrayList<Row> rows = Lists.newArrayList(
+		List<Row> rows = CollectionUtil.iteratorToList(
 				tableEnv.from("proctime_src").select($("price"), $("ts"), $("l_proctime")).execute().collect());
 		Assert.assertEquals(5, rows.size());
 		tableEnv.executeSql("DROP TABLE proctime_src");

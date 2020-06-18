@@ -21,8 +21,7 @@ package org.apache.flink.connector.jdbc.catalog;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -53,28 +52,28 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
 	@Test
 	public void testSelectField() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select id from %s", TABLE1)).execute().collect());
 		assertEquals("[1]", results.toString());
 	}
 
 	@Test
 	public void testWithoutSchema() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE1)).execute().collect());
 		assertEquals("[1]", results.toString());
 	}
 
 	@Test
 	public void testWithSchema() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from `%s`", PostgresTablePath.fromFlinkTableName(TABLE1))).execute().collect());
 		assertEquals("[1]", results.toString());
 	}
 
 	@Test
 	public void testFullPath() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from %s.%s.`%s`",
 				TEST_CATALOG_NAME,
 				DEFAULT_DATABASE,
@@ -86,7 +85,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	public void testInsert() throws Exception {
 		tEnv.executeSql(String.format("insert into %s select * from `%s`", TABLE4, TABLE1)).await();
 
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE4)).execute().collect());
 		assertEquals("[1]", results.toString());
 	}
@@ -105,14 +104,14 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 				TABLE_PRIMITIVE_TYPE))
 			.await();
 
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from `%s`", TABLE_PRIMITIVE_TYPE2)).execute().collect());
 		assertEquals("[1,[65],3,4,5.5,6.6,7.70000,8.8,true,a,B,C  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]", results.toString());
 	}
 
 	@Test
 	public void testPrimitiveTypes() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_PRIMITIVE_TYPE)).execute().collect());
 
 		assertEquals("[1,[50],3,4,5.5,6.6,7.70000,8.8,true,a,b,c  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]", results.toString());
@@ -120,7 +119,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
 	@Test
 	public void testArrayTypes() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_ARRAY_TYPE)).execute().collect());
 
 		assertEquals("[" +
@@ -146,7 +145,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
 	@Test
 	public void testSerialTypes() {
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_SERIAL_TYPE)).execute().collect());
 
 		assertEquals("[" +

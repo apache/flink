@@ -31,9 +31,8 @@ import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -416,7 +415,7 @@ public class HiveDialectITCase {
 	public void testFunction() throws Exception {
 		// create function
 		tableEnv.executeSql(String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
-		List<Row> functions = Lists.newArrayList(tableEnv.executeSql("show functions").collect());
+		List<Row> functions = CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
 		assertTrue(functions.toString().contains("my_abs"));
 		// call the function
 		tableEnv.executeSql("create table src(x int)");
@@ -430,10 +429,10 @@ public class HiveDialectITCase {
 
 	@Test
 	public void testCatalog() {
-		List<Row> catalogs = Lists.newArrayList(tableEnv.executeSql("show catalogs").collect());
+		List<Row> catalogs = CollectionUtil.iteratorToList(tableEnv.executeSql("show catalogs").collect());
 		assertEquals(2, catalogs.size());
 		tableEnv.executeSql("use catalog " + DEFAULT_BUILTIN_CATALOG);
-		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
+		List<Row> databases = CollectionUtil.iteratorToList(tableEnv.executeSql("show databases").collect());
 		assertEquals(1, databases.size());
 		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
 		String catalogName = tableEnv.executeSql("show current catalog").collect().next().toString();
@@ -473,24 +472,24 @@ public class HiveDialectITCase {
 		ObjectPath tablePath = new ObjectPath("default", "tbl");
 		assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
 
-		List<Row> partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		List<Row> partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl").collect());
 		assertEquals(2, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30')").collect());
 		assertEquals(2, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (country='china')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (country='china')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30',country='china')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30',country='china')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-05-01',country='japan')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (dt='2020-05-01',country='japan')").collect());
 		assertEquals(0, partitions.size());
 		try {
-			Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (de='2020-04-30',city='china')").collect());
+			CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (de='2020-04-30',city='china')").collect());
 		} catch (TableException e) {
 			assertEquals(String.format("Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)", hiveCatalog.getName(), tablePath), e.getMessage());
 		}
@@ -502,17 +501,17 @@ public class HiveDialectITCase {
 		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt timestamp, country string)");
 		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30 01:02:03',country='china') partition (dt='2020-04-30 04:05:06',country='us')");
 
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl").collect());
 		assertEquals(2, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
 		assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 04:05:06')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 04:05:06')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03',country='china')").collect());
+		partitions = CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03',country='china')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
 	}
@@ -522,6 +521,6 @@ public class HiveDialectITCase {
 	}
 
 	private static List<Row> queryResult(org.apache.flink.table.api.Table table) {
-		return Lists.newArrayList(table.execute().collect());
+		return CollectionUtil.iteratorToList(table.execute().collect());
 	}
 }

@@ -42,8 +42,6 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -391,7 +389,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"  h.family4.col4 " +
 				" FROM " + TEST_TABLE_3 + " AS h";
 		Iterator<Row> collected = tEnv.executeSql(query).collect();
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
@@ -455,7 +453,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			" h.family4.col4 " +
 			" FROM src JOIN " + TEST_TABLE_1 + " FOR SYSTEM_TIME AS OF src.proc as h ON src.a = h.rowkey";
 		Iterator<Row> collected = tEnv.executeSql(dimJoinQuery).collect();
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());

@@ -31,8 +31,7 @@ import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -96,7 +95,7 @@ public class HiveLookupJoinITCase {
 
 			TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select p.x,p.y from default_catalog.default_database.probe as p join " +
 					"build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
-			List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
+			List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
 			assertEquals("[1,a, 2,b, 3,c]", results.toString());
 		} finally {
 			tableEnv.executeSql("drop table build");

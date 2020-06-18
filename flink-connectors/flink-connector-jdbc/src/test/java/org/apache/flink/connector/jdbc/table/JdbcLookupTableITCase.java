@@ -28,8 +28,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -81,7 +80,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 		} else {
 			collected = useDynamicTableFactory(env, tEnv);
 		}
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
@@ -99,7 +98,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 		assertEquals(expected, result);
 	}
 
-	private Iterator<Row> useLegacyTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
+	private Iterator<Row> useLegacyTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) {
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
 			new Tuple2<>(1, "1"),
 			new Tuple2<>(1, "1"),
@@ -132,7 +131,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 		return tEnv.executeSql(sqlQuery).collect();
 	}
 
-	private Iterator<Row> useDynamicTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
+	private Iterator<Row> useDynamicTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) {
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
 			new Tuple2<>(1, "1"),
 			new Tuple2<>(1, "1"),

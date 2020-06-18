@@ -24,8 +24,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import ch.vorburger.mariadb4j.DBConfigurationBuilder;
 import ch.vorburger.mariadb4j.junit.MariaDB4jRule;
@@ -112,7 +111,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 		Iterator<Row> collected = tEnv.executeSql("select tiny_c, tiny_un_c, small_c, small_un_c," +
 			" int_c, int_un_c, big_c, big_un_c from jdbc_source")
 			.collect();
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());

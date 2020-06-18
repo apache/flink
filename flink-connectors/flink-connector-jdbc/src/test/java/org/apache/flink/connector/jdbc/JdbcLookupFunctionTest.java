@@ -27,8 +27,6 @@ import org.apache.flink.connector.jdbc.table.JdbcLookupTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -73,7 +71,7 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
 
 		lookupFunction.eval(2, "3");
 
-		List<String> result = Lists.newArrayList(collector.getOutputs()).stream()
+		List<String> result = new ArrayList<>(collector.getOutputs()).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
