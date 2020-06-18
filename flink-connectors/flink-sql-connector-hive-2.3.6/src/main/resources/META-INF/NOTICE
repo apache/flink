@@ -13,7 +13,7 @@ the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - com.google.guava:guava:14.0.1
 - com.googlecode.javaewah:JavaEWAH:0.3.2
-- com.tdunning:json:1.14
+- com.tdunning:json:1.8
 - commons-lang:commons-lang:2.6
 - io.airlift:aircompressor:0.8
 - javax.jdo:jdo-api:3.0.1
@@ -30,7 +30,7 @@ the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 - org.apache.hive:hive-metastore:2.3.6
 - org.apache.hive:hive-serde:2.3.6
 - org.apache.hive:hive-service-rpc:2.3.6
-- org.apache.hive:hive-storage-api:2.3.6
+- org.apache.hive:hive-storage-api:2.4.0
 - org.apache.hive:spark-client:2.3.6
 - org.apache.orc:orc-core:1.3.4
 - org.apache.orc:orc-tools:1.3.4
