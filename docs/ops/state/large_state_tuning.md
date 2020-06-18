@@ -278,6 +278,8 @@ that the task-local state is an in-memory consisting of heap objects, and not st
 Task-local recovery is *deactivated by default* and can be activated through Flink's configuration with the key `state.backend.local-recovery` as specified
 in `CheckpointingOptions.LOCAL_RECOVERY`. The value for this setting can either be *true* to enable or *false* (default) to disable local recovery.
 
+Note that [unaligned checkpoints]({% link ops/state/checkpoints.md %}#unaligned-checkpoints) currently do not support task-local recovery.
+
 ### Details on task-local recovery for different state backends
 
 ***Limitation**: Currently, task-local recovery only covers keyed state backends. Keyed state is typically by far the largest part of the state. In the near future, we will
