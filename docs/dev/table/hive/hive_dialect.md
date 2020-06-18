@@ -272,6 +272,8 @@ CREATE VIEW [IF NOT EXISTS] view_name [(column_name, ...) ]
 
 #### Alter
 
+**NOTE**: Altering view only works with table API, not supported via SQL client.
+
 ##### Rename
 
 {% highlight sql %}
