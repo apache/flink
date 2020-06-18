@@ -43,8 +43,7 @@ import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -241,7 +240,7 @@ public class HiveTableSinkITCase {
 			tEnv.executeSql("create table append_table (i int, j int)");
 			tEnv.executeSql("insert into append_table select 1, 1").await();
 			tEnv.executeSql("insert into append_table select 2, 2").await();
-			ArrayList<Row> rows = Lists.newArrayList(tEnv.executeSql("select * from append_table").collect());
+			List<Row> rows = CollectionUtil.iteratorToList(tEnv.executeSql("select * from append_table").collect());
 			rows.sort(Comparator.comparingInt(o -> (int) o.getField(0)));
 			Assert.assertEquals(Arrays.asList(Row.of(1, 1), Row.of(2, 2)), rows);
 		} finally {

@@ -34,9 +34,7 @@ import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.{Row, RowKind}
-import org.apache.flink.util.FileUtils
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+import org.apache.flink.util.{CollectionUtil, FileUtils}
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
@@ -463,7 +461,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
       Row.of(Integer.valueOf(4), "Peter Smith"),
       Row.of(Integer.valueOf(6), "Sally Miller"),
       Row.of(Integer.valueOf(8), "Kelly Williams"))
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     actual.sort(new util.Comparator[Row]() {
       override def compare(o1: Row, o2: Row): Int = {
         o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
@@ -497,7 +495,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
       Row.ofKind(RowKind.DELETE, JLong.valueOf(7)),
       Row.ofKind(RowKind.INSERT, JLong.valueOf(8))
     )
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     assertEquals(expected, actual)
   }
 

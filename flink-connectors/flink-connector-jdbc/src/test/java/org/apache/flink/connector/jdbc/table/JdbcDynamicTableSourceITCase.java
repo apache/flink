@@ -25,8 +25,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -114,7 +113,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 		);
 
 		Iterator<Row> collected = tEnv.executeSql("SELECT * FROM " + INPUT_TABLE).collect();
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
@@ -156,7 +155,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 		);
 
 		Iterator<Row> collected = tEnv.executeSql("SELECT id,timestamp6_col,decimal_col FROM " + INPUT_TABLE).collect();
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
