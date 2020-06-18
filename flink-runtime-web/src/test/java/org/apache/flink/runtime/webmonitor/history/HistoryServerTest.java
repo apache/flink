@@ -240,13 +240,31 @@ public class HistoryServerTest extends TestLogger {
 	}
 
 	@Test
-	public void testCleanExpiredJob() throws Exception {
-		runArchiveExpirationTest(true);
+	public void testHistoryServerNoArchivedJobs() throws Exception {
+
+		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(0);
+		Configuration historyServerConfig = createTestConfiguration(false);
+
+		HistoryServer hs = new HistoryServer(historyServerConfig, (event) -> {
+		});
+
+		try {
+			hs.start();
+			String baseUrl = "http://localhost:" + hs.getWebPort();
+			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
+			//check that /jobs/overview is correctly populated with zero items
+			Assert.assertEquals(0, getJobsOverview(baseUrl).getJobs().size());
+
+			// checks whether the dashboard configuration contains all expected fields
+			getDashboardConfiguration(baseUrl);
+		} finally {
+			hs.stop();
+		}
 	}
 
 	@Test
-	public void testRemainExpiredJob() throws Exception {
-		runArchiveExpirationTest(false);
+	public void testCleanExpiredJob() throws Exception {
+		runArchiveExpirationTest(true);
 	}
 
 	private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
