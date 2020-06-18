@@ -185,7 +185,7 @@ class TableEnvironmentITCase(
     } catch {
       case e: RuntimeException =>
         assertTrue(e.getMessage.contains("No data sinks have been created yet."))
-      case  _ =>
+      case _: Throwable =>
         fail("Should not happen")
     }
 

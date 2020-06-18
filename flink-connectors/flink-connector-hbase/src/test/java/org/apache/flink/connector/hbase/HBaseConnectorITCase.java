@@ -91,7 +91,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	// -------------------------------------------------------------------------------------
 
 	@Test
-	public void testTableSourceFullScan() throws Exception {
+	public void testTableSourceFullScan() {
 		TableEnvironment tEnv = createBatchTableEnv();
 		if (isLegacyConnector) {
 			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
@@ -142,7 +142,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	}
 
 	@Test
-	public void testTableSourceProjection() throws Exception {
+	public void testTableSourceProjection() {
 		TableEnvironment tEnv = createBatchTableEnv();
 
 		if (isLegacyConnector) {
@@ -192,7 +192,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	}
 
 	@Test
-	public void testTableSourceFieldOrder() throws Exception {
+	public void testTableSourceFieldOrder() {
 		TableEnvironment tEnv = createBatchTableEnv();
 
 		if (isLegacyConnector) {
@@ -237,7 +237,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	}
 
 	@Test
-	public void testTableSourceReadAsByteArray() throws Exception {
+	public void testTableSourceReadAsByteArray() {
 		TableEnvironment tEnv = createBatchTableEnv();
 
 		if (isLegacyConnector) {
@@ -409,7 +409,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	}
 
 	@Test
-	public void testHBaseLookupTableSource() throws Exception {
+	public void testHBaseLookupTableSource() {
 		if (OLD_PLANNER.equals(planner) || isLegacyConnector) {
 			// lookup table source is only supported in blink planner, skip for old planner
 			// types TIMESTAMP/DATE/TIME/DECIMAL works well in new connector, skip legacy connector

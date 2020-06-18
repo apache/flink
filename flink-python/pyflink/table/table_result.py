@@ -55,11 +55,11 @@ class TableResult(object):
         """
         Wait if necessary for at most the given time (milliseconds) for the data to be ready.
 
-        For select operation, this method will wait unit the first row can be accessed in local.
-        For insert operation, this method will wait for the job to finish,
+        For a select operation, this method will wait until the first row can be accessed locally.
+        For an insert operation, this method will wait for the job to finish,
         because the result contains only one row.
         For other operations, this method will return immediately,
-        because the result is ready in local.
+        because the result is already available locally.
         """
         if timeout_ms:
             TimeUnit = get_gateway().jvm.java.util.concurrent.TimeUnit

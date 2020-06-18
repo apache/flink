@@ -44,26 +44,26 @@ public interface TableResult {
 	/**
 	 * Wait if necessary until the data is ready.
 	 *
-	 * <p>For select operation, this method will wait unit the first row can be accessed in local.
-	 * For insert operation, this method will wait for the job to finish, because the result contains only one row.
-	 * For other operations, this method will return immediately, because the result is ready in local.
+	 * <p>For a select operation, this method will wait until the first row can be accessed locally.
+	 * For an insert operation, this method will wait for the job to finish, because the result contains only one row.
+	 * For other operations, this method will return immediately, because the result is already available locally.
 	 *
-	 * @throws ExecutionException if this future completed exceptionally
-	 * @throws InterruptedException if the current thread was interrupted while waiting
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the operation was interrupted while waiting
 	 */
 	void await() throws InterruptedException, ExecutionException;
 
 	/**
 	 * Wait if necessary for at most the given time for the data to be ready.
 	 *
-	 * <p>For select operation, this method will wait unit the first row can be accessed in local.
-	 * For insert operation, this method will wait for the job to finish, because the result contains only one row.
-	 * For other operations, this method will return immediately, because the result is ready in local.
+	 * <p>For a select operation, this method will wait until the first row can be accessed locally.
+	 * For an insert operation, this method will wait for the job to finish, because the result contains only one row.
+	 * For other operations, this method will return immediately, because the result is already available locally.
 	 *
 	 * @param timeout the maximum time to wait
 	 * @param unit the time unit of the timeout argument
-	 * @throws ExecutionException if this future completed exceptionally
-	 * @throws InterruptedException if the current thread was interrupted while waiting
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the operation was interrupted while waiting
 	 * @throws TimeoutException if the wait timed out
 	 */
 	void await(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;

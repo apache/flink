@@ -30,8 +30,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import javax.annotation.Nullable;
 
 import java.io.PrintWriter;
@@ -103,8 +101,7 @@ class TableResultImpl implements TableResult {
 			return;
 		}
 
-		ExecutorService executor = Executors.newFixedThreadPool(
-				1, new ThreadFactoryBuilder().setNameFormat("TableResult-await-thread").build());
+		ExecutorService executor = Executors.newFixedThreadPool(1, r -> new Thread(r, "TableResult-await-thread"));
 		try {
 			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 				while (!data.isFirstRowReady()) {

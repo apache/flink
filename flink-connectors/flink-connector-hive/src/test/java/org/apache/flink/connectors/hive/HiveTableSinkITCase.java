@@ -31,7 +31,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -305,7 +304,7 @@ public class HiveTableSinkITCase {
 						"insert into db1.sink_table select 6,'a','b','2020-05-03','12'")
 						.await();
 			} catch (Exception e) {
-				throw new TableException("Failed to execute sql", e);
+				Assert.fail("Failed to execute sql: " + e.getMessage());
 			}
 
 			assertBatch("db1.sink_table", Arrays.asList(
