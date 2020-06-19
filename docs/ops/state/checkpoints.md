@@ -32,7 +32,7 @@ Checkpoints make state in Flink fault tolerant by allowing state and the
 corresponding stream positions to be recovered, thereby giving the application
 the same semantics as a failure-free execution.
 
-See [Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) for how to enable and
+See [Checkpointing]({% link dev/stream/state/checkpointing.md %}) for how to enable and
 configure checkpoints for your program.
 
 ## Retained Checkpoints
