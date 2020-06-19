@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.examples.java;
+package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;

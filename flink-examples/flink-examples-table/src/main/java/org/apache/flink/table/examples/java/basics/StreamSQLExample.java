@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.examples.java;
+package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;

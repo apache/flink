@@ -110,12 +110,12 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.StreamSQLExample</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.StreamSQLExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/StreamSQLExample*</include>
+								<include>org/apache/flink/table/examples/java/basics/StreamSQLExample*</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -132,12 +132,12 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.StreamWindowSQLExample</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.StreamWindowSQLExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/StreamWindowSQLExample*</include>
+								<include>org/apache/flink/table/examples/java/basics/StreamWindowSQLExample*</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -154,12 +154,12 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.WordCountSQL</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.WordCountSQL</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/WordCountSQL*</include>
+								<include>org/apache/flink/table/examples/java/basics/WordCountSQL*</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -176,12 +176,35 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.WordCountTable</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.WordCountTable</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/WordCountTable*</include>
+								<include>org/apache/flink/table/examples/java/basics/WordCountTable*</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>ChangelogSocketExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>ChangelogSocketExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.connectors.ChangelogSocketExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/connectors/ChangelogSocketExample*</include>
+								<include>**/META-INF/services/*</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -247,6 +270,7 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountTable.jar" tofile="${project.basedir}/target/WordCountTable.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamTableExample.jar" tofile="${project.basedir}/target/StreamTableExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-TPCHQuery3Table.jar" tofile="${project.basedir}/target/TPCHQuery3Table.jar"/>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-ChangelogSocketExample.jar" tofile="${project.basedir}/target/ChangelogSocketExample.jar"/>
 							</target>
 						</configuration>
 					</execution>
