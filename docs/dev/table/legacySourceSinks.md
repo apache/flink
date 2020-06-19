@@ -1,7 +1,5 @@
 ---
-title: "User-defined Sources & Sinks"
-nav-parent_id: tableapi
-nav-pos: 130
+title: "Legacy Table Source & Sink Interfaces"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
