@@ -48,7 +48,7 @@ The exception usually indicates that the JVM *direct memory* limit is too small 
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
 You can try to increase its limit by adjusting direct off-heap memory.
 See also how to configure off-heap memory for [TaskManagers](mem_setup_tm.html#configure-off-heap-memory-direct-or-native),
-[Masters]({% link ops/memory/mem_setup_jobmanager.md %}#configure-off-heap-memory) and the [JVM arguments](mem_setup.html#jvm-parameters) which Flink sets.
+[JobManagers]({% link ops/memory/mem_setup_jobmanager.md %}#configure-off-heap-memory) and the [JVM arguments](mem_setup.html#jvm-parameters) which Flink sets.
 
 ## OutOfMemoryError: Metaspace
 
