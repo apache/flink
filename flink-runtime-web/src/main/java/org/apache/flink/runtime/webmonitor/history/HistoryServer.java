@@ -23,6 +23,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -200,7 +201,12 @@ public class HistoryServer {
 		}
 
 		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, jobArchiveEventListener, cleanupExpiredArchives);
+		int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+		if (maxHistorySize == 0 || maxHistorySize < -1){
+			throw new IllegalConfigurationException("Cannot set %s to 0 or less than -1", HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
+		}
+		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, jobArchiveEventListener,
+			cleanupExpiredArchives, maxHistorySize);
 
 		this.shutdownHook = ShutdownHookUtil.addShutdownHook(
 			HistoryServer.this::stop,

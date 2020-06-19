@@ -49,8 +49,10 @@ import java.io.StringWriter;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -117,10 +119,11 @@ class HistoryServerArchiveFetcher {
 		List<HistoryServer.RefreshLocation> refreshDirs,
 		File webDir,
 		Consumer<ArchiveEvent> jobArchiveEventListener,
-		boolean cleanupExpiredArchives
+		boolean cleanupExpiredArchives,
+		int maxHistorySize
 	) {
 		this.refreshIntervalMillis = refreshIntervalMillis;
-		this.fetcherTask = new JobArchiveFetcherTask(refreshDirs, webDir, jobArchiveEventListener, cleanupExpiredArchives);
+		this.fetcherTask = new JobArchiveFetcherTask(refreshDirs, webDir, jobArchiveEventListener, cleanupExpiredArchives, maxHistorySize);
 		if (LOG.isInfoEnabled()) {
 			for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
 				LOG.info("Monitoring directory {} for archived jobs.", refreshDir.getPath());
@@ -149,13 +152,16 @@ class HistoryServerArchiveFetcher {
 
 	/**
 	 * {@link TimerTask} that polls the directories configured as {@link HistoryServerOptions#HISTORY_SERVER_ARCHIVE_DIRS} for
-	 * new job archives.
+	 * new job archives. Removes existing archives from these directories and the cache if configured by
+	 * {@link HistoryServerOptions#HISTORY_SERVER_CLEANUP_EXPIRED_JOBS} or {@link HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS}
 	 */
 	static class JobArchiveFetcherTask extends TimerTask {
 
 		private final List<HistoryServer.RefreshLocation> refreshDirs;
 		private final Consumer<ArchiveEvent> jobArchiveEventListener;
-		private final boolean processArchiveDeletion;
+		private final boolean processExpiredArchiveDeletion;
+		private final boolean processBeyondLimitArchiveDeletion;
+		private final int maxHistorySize;
 
 		/** Cache of all available jobs identified by their id. */
 		private final Set<String> cachedArchives;
@@ -170,11 +176,14 @@ class HistoryServerArchiveFetcher {
 			List<HistoryServer.RefreshLocation> refreshDirs,
 			File webDir,
 			Consumer<ArchiveEvent> jobArchiveEventListener,
-			boolean processArchiveDeletion
+			boolean processExpiredArchiveDeletion,
+			int maxHistorySize
 		) {
 			this.refreshDirs = checkNotNull(refreshDirs);
 			this.jobArchiveEventListener = jobArchiveEventListener;
-			this.processArchiveDeletion = processArchiveDeletion;
+			this.processExpiredArchiveDeletion = processExpiredArchiveDeletion;
+			this.maxHistorySize = maxHistorySize;
+			this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
 			this.cachedArchives = new HashSet<>();
 			this.webDir = checkNotNull(webDir);
 			this.webJobDir = new File(webDir, "jobs");
@@ -189,6 +198,7 @@ class HistoryServerArchiveFetcher {
 				LOG.debug("Starting archive fetching.");
 				List<ArchiveEvent> events = new ArrayList<>();
 				Set<String> jobsToRemove = new HashSet<>(cachedArchives);
+				Set<Path> archivesBeyondSizeLimit = new HashSet<>();
 				for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
 					Path refreshDir = refreshLocation.getPath();
 					FileSystem refreshFS = refreshLocation.getFs();
@@ -205,6 +215,10 @@ class HistoryServerArchiveFetcher {
 					if (jobArchives == null) {
 						continue;
 					}
+
+					Arrays.sort(jobArchives, Comparator.comparingLong(FileStatus::getModificationTime).reversed());
+
+					int historySize = 0;
 					for (FileStatus jobArchive : jobArchives) {
 						Path jobArchivePath = jobArchive.getPath();
 						String jobID = jobArchivePath.getName();
@@ -215,7 +229,14 @@ class HistoryServerArchiveFetcher {
 								refreshDir, jobID, iae);
 							continue;
 						}
+
 						jobsToRemove.remove(jobID);
+
+						historySize++;
+						if (historySize > maxHistorySize && processBeyondLimitArchiveDeletion) {
+							archivesBeyondSizeLimit.add(jobArchivePath);
+							continue;
+						}
 
 						if (cachedArchives.contains(jobID)) {
 							LOG.trace("Ignoring archive {} because it was already fetched.", jobArchivePath);
@@ -282,8 +303,11 @@ class HistoryServerArchiveFetcher {
 					}
 				}
 
-				if (!jobsToRemove.isEmpty() && processArchiveDeletion) {
+				if (!jobsToRemove.isEmpty() && processExpiredArchiveDeletion) {
 					events.addAll(cleanupExpiredJobs(jobsToRemove));
+				}
+				if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
+					events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
 				}
 				if (!events.isEmpty()) {
 					updateJobOverview(webOverviewDir, webDir);
@@ -293,6 +317,19 @@ class HistoryServerArchiveFetcher {
 			} catch (Exception e) {
 				LOG.error("Critical failure while fetching/processing job archives.", e);
 			}
+		}
+
+		private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(Set<Path> jobArchivesToRemove) {
+			Set<String> jobIdsToRemoveFromOverview = new HashSet<>();
+			for (Path archive : jobArchivesToRemove) {
+				jobIdsToRemoveFromOverview.add(archive.getName());
+				try {
+					archive.getFileSystem().delete(archive, false);
+				} catch (IOException ioe) {
+					LOG.warn("Could not delete old archive " + archive, ioe);
+				}
+			}
+			return cleanupExpiredJobs(jobIdsToRemoveFromOverview);
 		}
 
 		private List<ArchiveEvent> cleanupExpiredJobs(Set<String> jobsToRemove) {

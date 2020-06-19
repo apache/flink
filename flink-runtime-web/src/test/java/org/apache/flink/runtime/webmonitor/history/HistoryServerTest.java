@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
@@ -62,8 +64,13 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertTrue;
 
@@ -151,6 +158,85 @@ public class HistoryServerTest extends TestLogger {
 		} finally {
 			hs.stop();
 		}
+	}
+
+	@Test
+	public void testRemoveOldestModifiedArchivesBeyondHistorySizeLimit() throws Exception {
+		final int numArchivesToKeepInHistory = 2;
+		final int numArchivesBeforeHsStarted = 4;
+		final int numArchivesAfterHsStarted = 2;
+		final int numArchivesToRemoveUponHsStart = numArchivesBeforeHsStarted - numArchivesToKeepInHistory;
+		final long oneMinuteSinceEpoch = 1000L * 60L;
+		List<String> expectedJobIdsToKeep = new LinkedList<>();
+
+		for (int j = 0; j < numArchivesBeforeHsStarted; j++) {
+			String jobId = createLegacyArchive(jmDirectory.toPath(), j * oneMinuteSinceEpoch);
+			if (j >= numArchivesToRemoveUponHsStart){
+				expectedJobIdsToKeep.add(jobId);
+			}
+		}
+
+		CountDownLatch numArchivesCreatedInitially = new CountDownLatch(numArchivesToKeepInHistory);
+		CountDownLatch numArchivesDeletedInitially = new CountDownLatch(numArchivesToRemoveUponHsStart);
+		CountDownLatch numArchivesCreatedTotal = new CountDownLatch(numArchivesBeforeHsStarted - numArchivesToRemoveUponHsStart + numArchivesAfterHsStarted);
+		CountDownLatch numArchivesDeletedTotal = new CountDownLatch(numArchivesToRemoveUponHsStart + numArchivesAfterHsStarted);
+
+		Configuration historyServerConfig = createTestConfiguration(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+		historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS, numArchivesToKeepInHistory);
+		HistoryServer hs = new HistoryServer(historyServerConfig,
+			(event) -> {
+			switch (event.getType()){
+				case CREATED:
+					numArchivesCreatedInitially.countDown();
+					numArchivesCreatedTotal.countDown();
+					break;
+				case DELETED:
+					numArchivesDeletedInitially.countDown();
+					numArchivesDeletedTotal.countDown();
+					break;
+			}
+		});
+
+		try {
+			hs.start();
+			String baseUrl = "http://localhost:" + hs.getWebPort();
+			assertTrue(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS));
+			assertTrue(numArchivesDeletedInitially.await(10L, TimeUnit.SECONDS));
+			Assert.assertEquals(new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
+
+			for (int j = numArchivesBeforeHsStarted; j < numArchivesBeforeHsStarted + numArchivesAfterHsStarted; j++) {
+				expectedJobIdsToKeep.remove(0);
+				expectedJobIdsToKeep.add(createLegacyArchive(jmDirectory.toPath(), j * oneMinuteSinceEpoch));
+			}
+			assertTrue(numArchivesCreatedTotal.await(10L, TimeUnit.SECONDS));
+			assertTrue(numArchivesDeletedTotal.await(10L, TimeUnit.SECONDS));
+			Assert.assertEquals(new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
+		} finally {
+			hs.stop();
+		}
+	}
+
+	private Set<String> getIdsFromJobOverview(String baseUrl) throws Exception {
+		return getJobsOverview(baseUrl).getJobs().stream()
+			.map(JobDetails::getJobId)
+			.map(JobID::toString)
+			.collect(Collectors.toSet());
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testFailIfHistorySizeLimitIsZero() throws Exception {
+		startHistoryServerWithSizeLimit(0);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testFailIfHistorySizeLimitIsLessThanMinusOne() throws Exception {
+		startHistoryServerWithSizeLimit(-2);
+	}
+
+	private void startHistoryServerWithSizeLimit(int maxHistorySize) throws IOException, FlinkException, InterruptedException {
+		Configuration historyServerConfig = createTestConfiguration(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+		historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS, maxHistorySize);
+		new HistoryServer(historyServerConfig).start();
 	}
 
 	@Test
@@ -277,6 +363,13 @@ public class HistoryServerTest extends TestLogger {
 		return Tuple2.of(connection.getResponseCode(), IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8"));
 	}
 
+	private static String createLegacyArchive(Path directory, long fileModifiedDate) throws IOException {
+		String jobId = createLegacyArchive(directory);
+		File jobArchive = directory.resolve(jobId).toFile();
+		jobArchive.setLastModified(fileModifiedDate);
+		return jobId;
+	}
+
 	private static String createLegacyArchive(Path directory) throws IOException {
 		JobID jobId = JobID.generate();
 
@@ -315,9 +408,7 @@ public class HistoryServerTest extends TestLogger {
 			}
 		}
 		String json = sw.toString();
-
 		ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
-
 		FsJobArchivist.archiveJob(new org.apache.flink.core.fs.Path(directory.toUri()), jobId, Collections.singleton(archivedJson));
 
 		return jobId.toString();
