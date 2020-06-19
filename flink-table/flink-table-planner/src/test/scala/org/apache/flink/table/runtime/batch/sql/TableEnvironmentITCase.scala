@@ -534,6 +534,7 @@ class TableEnvironmentITCase(
   }
 
   @Test
+  @Ignore
   def testStatementSetWithSameSinkTableNames(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
