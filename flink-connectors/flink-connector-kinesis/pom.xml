@@ -37,6 +37,7 @@ under the License.
 		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
+		<jackson.dataformat-cbor.version>2.6.7</jackson.dataformat-cbor.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -154,6 +155,11 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+			<version>${jackson.dataformat-cbor.version}</version>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
