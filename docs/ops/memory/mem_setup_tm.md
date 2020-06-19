@@ -32,7 +32,7 @@ The further described memory configuration is applicable starting with the relea
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.10* release.
 
 <span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for TaskManagers</strong>!
-The TaskManager memory components have a similar but more sophisticated structure compared to the [memory model of the Master process](mem_setup_master.html).
+The TaskManager memory components have a similar but more sophisticated structure compared to the [memory model of the JobManager process]({% link ops/memory/mem_setup_jobmanager.md %}).
 
 ## Configure Total Memory
 

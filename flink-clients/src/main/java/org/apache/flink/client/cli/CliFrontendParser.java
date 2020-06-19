@@ -83,7 +83,7 @@ public class CliFrontendParser {
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
 	public static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
-			"Address of the JobManager (master) to which to connect. " +
+			"Address of the JobManager to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	public static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,

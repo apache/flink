@@ -23,7 +23,7 @@ under the License.
 -->
 
 The memory setup has changed a lot with the *1.10* release for [TaskManagers](mem_setup_tm.html) and with the *1.11*
-release for [Masters](mem_setup_master.html). Many configuration options were removed or their semantics changed.
+release for [JobManagers]({% link ops/memory/mem_setup_jobmanager.md %}). Many configuration options were removed or their semantics changed.
 This guide will help you to migrate the TaskManager memory configuration from Flink
 [<= *1.9*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10* and
 the Master memory configuration from Flink <= *1.10* to >= *1.11*.
@@ -214,7 +214,7 @@ Additionally, the following changes have been made:
 
 ## Migrate Job Manager Memory Configuration
 
-Previously, there were options responsible for setting the *JVM Heap* size of the Flink Master:
+Previously, there were options responsible for setting the *JVM Heap* size of the JobManager:
 * `jobmanager.heap.size`
 * `jobmanager.heap.mb`
 
@@ -233,10 +233,10 @@ they will be directly translated into the following new options:
 * Total process memory ([`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html))
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
-Now, if only the *total Flink memory* or *total process memory* is configured, then the [JVM Heap](mem_setup_master.html#configure-jvm-heap)
+Now, if only the *total Flink memory* or *total process memory* is configured, then the [JVM Heap]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap)
 is also derived as the rest of what is left after subtracting all other components from the total memory, see also
 [how to configure total memory](mem_setup.html#configure-total-memory). Additionally, you can now have more direct
-control over the [JVM Heap](mem_setup_master.html#configure-jvm-heap) by adjusting the
+control over the [JVM Heap]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) by adjusting the
 [`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size) option.
 
 ## Container Cut-Off Memory
@@ -264,7 +264,7 @@ The other direct or native off-heap memory consumers can now be addressed by the
 The direct or native off-heap memory consumers can now be addressed by the following new configuration options:
 * Off-heap memory ([`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size))
 * JVM metaspace ([`jobmanager.memory.jvm-metaspace.size`](../config.html#jobmanager-memory-jvm-metaspace-size))
-* [JVM overhead](mem_setup_master.html#detailed-configuration)
+* [JVM overhead]({% link ops/memory/mem_setup_jobmanager.md %}#detailed-configuration)
 
 ## Default Configuration in flink-conf.yaml
 

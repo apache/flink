@@ -53,7 +53,7 @@ Java classpath. The classes from all jobs/applications that are submitted agains
 <!--
 **Docker Containers with Flink-as-a-Library**
 
-If you package a Flink job/application such that your application treats Flink like a library (Flink JobManager/TaskManager daemons as spawned as needed),
+If you package a Flink job/application such that your application treats Flink like a library (JobManager/TaskManager daemons as spawned as needed),
 then typically all classes are in the *application classpath*. This is the recommended way for container-based setups where the container is specifically
 created for an job/application and will contain the job/application's jar files.
 
@@ -115,7 +115,7 @@ To add new packages to be *parent-first* loaded, please set the `classloader.par
 All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
 They can be found as part of the environment information at the beginning of the log.
 
-When running a setup where the Flink JobManager and TaskManagers are exclusive to one particular job, one can put user code JAR files
+When running a setup where the JobManager and TaskManagers are exclusive to one particular job, one can put user code JAR files
 directly into the `/lib` folder to make sure they are part of the classpath and not loaded dynamically.
 
 It usually works to put the job's JAR file into the `/lib` directory. The JAR will be part of both the classpath

@@ -37,7 +37,7 @@ greater than 1, etc.) or configuration conflicts. Check the documentation chapte
 The exception usually indicates that the *JVM Heap* is too small. You can try to increase the JVM Heap size
 by increasing [total memory](mem_setup.html#configure-total-memory). You can also directly increase
 [task heap memory](mem_setup_tm.html#task-operator-heap-memory) for TaskManagers or
-[JVM Heap memory](mem_setup_master.html#configure-jvm-heap) for Masters.
+[JVM Heap memory]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) for Masters.
 
 <span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_setup_tm.html#framework-memory)
 for TaskManagers, but you should only change this option if you are sure the Flink framework itself needs more memory.
@@ -48,7 +48,7 @@ The exception usually indicates that the JVM *direct memory* limit is too small 
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
 You can try to increase its limit by adjusting direct off-heap memory.
 See also how to configure off-heap memory for [TaskManagers](mem_setup_tm.html#configure-off-heap-memory-direct-or-native),
-[Masters](mem_setup_master.html#configure-off-heap-memory) and the [JVM arguments](mem_setup.html#jvm-parameters) which Flink sets.
+[JobManagers]({% link ops/memory/mem_setup_jobmanager.md %}#configure-off-heap-memory) and the [JVM arguments](mem_setup.html#jvm-parameters) which Flink sets.
 
 ## OutOfMemoryError: Metaspace
 

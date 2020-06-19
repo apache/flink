@@ -55,9 +55,9 @@ that do not include a bundled Hadoop distribution.
 
 The Flink image contains a regular Flink distribution with its default configuration and a standard entry point script.
 You can run its entry point in the following modes:
-* [Flink Master]({{ site.baseurl }}/concepts/glossary.html#flink-master) for [a Session cluster](#start-a-session-cluster)
-* *Flink Master* for [a Job cluster](#start-a-job-cluster)
-* [TaskManager]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager) for any cluster
+* [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager) for [a Session cluster](#start-a-session-cluster)
+* [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager) for [a Job cluster](#start-a-job-cluster)
+* [TaskManager]({% link concepts/glossary.zh.md %}#flink-taskmanager) for any cluster
 
 This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
 * manually in a local Docker setup,
@@ -77,7 +77,7 @@ We recommend using [Docker Compose](docker.html#session-cluster-with-docker-comp
 ### Start a Session Cluster
 
 A *Flink Session cluster* can be used to run multiple jobs. Each job needs to be submitted to the cluster after it has been deployed.
-To deploy a *Flink Session cluster* with Docker, you need to start a *Flink Master* container. To enable communication between the containers, we first set a required Flink configuration property and create a network:
+To deploy a *Flink Session cluster* with Docker, you need to start a *JobManager* container. To enable communication between the containers, we first set a required Flink configuration property and create a network:
 ```sh
 FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
 docker network create flink-network
@@ -118,13 +118,13 @@ The *job artifacts* are included into the class path of Flink's JVM process with
 
 To deploy a cluster for a single job with Docker, you need to
 * make *job artifacts* available locally *in all containers* under `/opt/flink/usrlib`,
-* start a *Flink Master* container in the *Job Cluster* mode
+* start a *JobManager* container in the *Job Cluster* mode
 * start the required number of *TaskManager* containers.
 
 To make the **job artifacts available** locally in the container, you can
 
 * **either mount a volume** (or multiple volumes) with the artifacts to `/opt/flink/usrlib` when you start
-the *Flink Master* and *TaskManagers*:
+the *JobManager* and *TaskManagers*:
 
     ```sh
     FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
@@ -150,7 +150,7 @@ the *Flink Master* and *TaskManagers*:
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
     ```
 
-* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the *Flink Master* and *TaskManagers*:
+* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the *JobManager* and *TaskManagers*:
 
     *Dockerfile*:
 
@@ -172,9 +172,9 @@ the *Flink Master* and *TaskManagers*:
     docker run flink_with_job_artifacts taskmanager
     ```
 
-The `standalone-job` argument starts a *Flink Master* container in the *Job Cluster* mode.
+The `standalone-job` argument starts a *JobManager* container in the *Job Cluster* mode.
 
-#### Flink Master additional command line arguments
+#### JobManager additional command line arguments
 
 You can provide the following additional command line arguments to the cluster entrypoint:
 
@@ -370,7 +370,7 @@ The next chapters show examples of configuration files to run Flink.
     docker-compose scale taskmanager=<N>
     ```
 
-* Access the *Flink Master* container
+* Access the *JobManager* container
 
     ```sh
     docker exec -it $(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}) /bin/sh
@@ -395,13 +395,13 @@ The next chapters show examples of configuration files to run Flink.
     flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-  * or copy the JAR to the *Flink Master* container and submit the job using the [CLI](..//cli.html) from there, for example:
+  * or copy the JAR to the *JobManager* container and submit the job using the [CLI](..//cli.html) from there, for example:
 
     ```sh
     JOB_CLASS_NAME="com.job.ClassName"
-    MASTER_CONTAINER=$(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}))
-    docker cp path/to/jar "${MASTER_CONTAINER}":/job.jar
-    docker exec -t -i "${MASTER_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
+    JM_CONTAINER=$(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}))
+    docker cp path/to/jar "${JM_CONTAINER}":/job.jar
+    docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
 ### Session Cluster with Docker Compose
@@ -437,7 +437,7 @@ services:
 ### Job Cluster with Docker Compose
 
 The artifacts must be available in the Flink containers, check details [here](#start-a-job-cluster).
-See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments)
+See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments)
 in the `command` for the `jobmanager` service.
 
 **docker-compose.yml:**
@@ -481,7 +481,7 @@ services:
 The [Docker swarm](https://docs.docker.com/engine/swarm) is a container orchestration tool, that
 allows you to manage multiple containers deployed across multiple host machines.
 
-The following chapters contain examples of how to configure and start *Flink Master* and *TaskManager* containers.
+The following chapters contain examples of how to configure and start *JobManager* and *TaskManager* containers.
 You can adjust them accordingly to start a cluster.
 See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization) for usage in the provided scripts.
 
@@ -498,7 +498,7 @@ taskmanager.numberOfTaskSlots: 2
 # Create overlay network
 docker network create -d overlay flink-session
 
-# Create the Flink Master service
+# Create the JobManager service
 docker service create \
   --name flink-session-jobmanager \
   --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
@@ -520,16 +520,16 @@ docker service create \
 ### Job Cluster with Docker Swarm
 
 ```sh
-FLINK_PROPERTIES="jobmanager.rpc.address: flink-master
+FLINK_PROPERTIES="jobmanager.rpc.address: flink-jobmanager
 taskmanager.numberOfTaskSlots: 2
 "
 
 # Create overlay network
 docker network create -d overlay flink-job
 
-# Create the Flink Master service
+# Create the JobManager service
 docker service create \
-  --name flink-master \
+  --name flink-jobmanager \
   --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
   --mount type=bind,source=/host/path/to/job/artifacts,target=/opt/flink/usrlib \
   -p 8081:8081 \
@@ -552,9 +552,9 @@ docker service create \
     taskmanager
 ```
 
-The *job artifacts* must be available in the *Flink Master* container, as outlined [here](#start-a-job-cluster).
-See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to pass them
-to the `flink-master` container.
+The *job artifacts* must be available in the *JobManager* container, as outlined [here](#start-a-job-cluster).
+See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments) to pass them
+to the `flink-jobmanager` container.
 
 The example assumes that you run the swarm locally and expects the *job artifacts* to be in `/host/path/to/job/artifacts`.
 It also mounts the host path with the artifacts as a volume to the container's path `/opt/flink/usrlib`.

@@ -27,7 +27,7 @@ Flink provides a Command-Line Interface (CLI) to run programs that are packaged
 as JAR files, and control their execution.  The CLI is part
 of any Flink setup, available in local single node setups and in
 distributed setups. It is located under `<flink-home>/bin/flink`
-and connects by default to the running Flink master (JobManager) that was
+and connects by default to the running JobManager that was
 started from the same installation directory.
 
 The command line can be used to
@@ -420,7 +420,7 @@ Action "run" compiles and runs a program.
   Options for yarn-cluster mode:
      -d,--detached                        If present, runs the job in detached
                                           mode
-     -m,--jobmanager <arg>                Address of the JobManager (master) to
+     -m,--jobmanager <arg>                Address of the JobManager to
                                           which to connect. Use this flag to
                                           connect to a different JobManager than
                                           the one specified in the
@@ -466,7 +466,7 @@ Action "run" compiles and runs a program.
                              "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -497,7 +497,7 @@ Action "list" lists running and scheduled programs.
      -r,--running     Show only running programs and their JobIDs
      -s,--scheduled   Show only scheduled programs and their JobIDs
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -518,7 +518,7 @@ Action "list" lists running and scheduled programs.
                                "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -539,7 +539,7 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                                           default will be used
                                           ("state.savepoints.dir").
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -560,7 +560,7 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                                "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -582,7 +582,7 @@ Action "cancel" cancels a running program.
                                             configured default directory
                                             (state.savepoints.dir) is used.
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -603,7 +603,7 @@ Action "cancel" cancels a running program.
                                "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -619,7 +619,7 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -d,--dispose <arg>       Path of savepoint to dispose.
      -j,--jarfile <jarfile>   Flink program JAR file.
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -640,7 +640,7 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
                                "yarn-session", "yarn-application" and "kubernetes-application".
 
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.

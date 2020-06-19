@@ -138,7 +138,7 @@ public class Example {
 
 每个 Flink 应用都需要有执行环境，在该示例中为 `env`。流式应用需要用到 `StreamExecutionEnvironment`。
 
-DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamExecutionEnvironment` 。当调用 `env.execute()` 时此 graph 就被打包并发送到 Flink Master 上，后者对作业并行处理并将其子任务分发给 Task Manager 来执行。每个作业的并行子任务将在 *task slot* 中执行。
+DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamExecutionEnvironment` 。当调用 `env.execute()` 时此 graph 就被打包并发送到 JobManager 上，后者对作业并行处理并将其子任务分发给 Task Manager 来执行。每个作业的并行子任务将在 *task slot* 中执行。
 
 注意，如果没有调用 execute()，应用就不会运行。
 
@@ -190,7 +190,7 @@ and several pub-sub systems.
 
 ### 调试
 
-在生产中，应用程序将在远程集群或一组容器中运行。如果集群或容器挂了，这就属于远程失败。Flink Master 和 Task Manager 日志对于调试此类故障非常有用，但是更简单的是 Flink 支持在 IDE 内部进行本地调试。你可以设置断点，检查局部变量，并逐行执行代码。如果想了解 Flink 的工作原理和内部细节，查看 Flink 源码也是非常好的方法。
+在生产中，应用程序将在远程集群或一组容器中运行。如果集群或容器挂了，这就属于远程失败。JobManager 和 TaskManager 日志对于调试此类故障非常有用，但是更简单的是 Flink 支持在 IDE 内部进行本地调试。你可以设置断点，检查局部变量，并逐行执行代码。如果想了解 Flink 的工作原理和内部细节，查看 Flink 源码也是非常好的方法。
 
 {% top %}
 

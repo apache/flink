@@ -1,5 +1,5 @@
 ---
-title: "Set up Master Memory"
+title: "Set up JobManager Memory"
 nav-parent_id: ops_mem
 nav-pos: 3
 ---
@@ -22,9 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Master is the controlling element of the Flink Cluster. 
-It consists of three distinct components: Flink Resource Manager, Flink Dispatcher and one Flink JobManager per running Flink Job.
-This guide walks you through high level and fine-grained memory configurations for the Master.
+The JobManager is the controlling element of the Flink Cluster. 
+It consists of three distinct components: Resource Manager, Dispatcher and one JobMaster per running Flink Job.
+This guide walks you through high level and fine-grained memory configurations for the JobManager.
 
 * toc
 {:toc}
@@ -32,13 +32,13 @@ This guide walks you through high level and fine-grained memory configurations f
 The further described memory configuration is applicable starting with the release version *1.11*. If you upgrade Flink
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.11* release.
 
-<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for the Master</strong>!
-The Master memory components have a similar but simpler structure compared to the [TaskManagers' memory configuration](mem_setup_tm.html).
+<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for the JobManager</strong>!
+The JobManager memory components have a similar but simpler structure compared to the [TaskManagers' memory configuration](mem_setup_tm.html).
 
 ## Configure Total Memory
 
 The simplest way to set up the memory configuration is to configure the [total memory](mem_setup.html#configure-total-memory) for the process.
-If you run the Master process using local [execution mode](#local-execution) you do not need to configure memory options, they will have no effect.
+If you run the JobManager process using local [execution mode](#local-execution) you do not need to configure memory options, they will have no effect.
 
 ## Detailed configuration
 
@@ -59,7 +59,7 @@ affect the size of the respective components:
 ### Configure JVM Heap
 
 As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to set up the memory
-for the Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
+for the JobManager is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
 It gives more control over the available *JVM Heap* which is used by:
 
 * Flink framework
@@ -70,7 +70,7 @@ the mentioned user code.
 
 <span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
 neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
-The Flink scripts and CLI set the *JVM Heap* size via the JVM parameters *-Xms* and *-Xmx* when they start the Master process, see also [JVM parameters](mem_setup.html#jvm-parameters).
+The Flink scripts and CLI set the *JVM Heap* size via the JVM parameters *-Xms* and *-Xmx* when they start the JobManager process, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 ### Configure Off-heap Memory
 
@@ -78,7 +78,7 @@ The *Off-heap* memory component accounts for any type of *JVM direct memory* and
 is also set via the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
-option. This option can be tuned e.g. if the Master process throws ‘OutOfMemoryError: Direct buffer memory’, see
+option. This option can be tuned e.g. if the JobManager process throws ‘OutOfMemoryError: Direct buffer memory’, see
 [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory) for more information.
 
 There can be the following possible sources of *Off-heap* memory consumption:
@@ -90,6 +90,7 @@ There can be the following possible sources of *Off-heap* memory consumption:
 and the [JVM Heap](#configure-jvm-heap) explicitly but you have not configured the *Off-heap* memory, the size of the *Off-heap* memory
 will be derived as the [Total Flink Memory](mem_setup.html#configure-total-memory) minus the [JVM Heap](#configure-jvm-heap).
 The default value of the *Off-heap* memory option will be ignored.
+
 ## Local Execution
 
-If you run Flink locally (e.g. from your IDE) without creating a cluster, then the Master memory configuration options are ignored.
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then the JobManager memory configuration options are ignored.

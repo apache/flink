@@ -63,7 +63,7 @@ added to the container images, or attached to the YARN deployment.
     the recommendation is to still have a dedicated key pair / certificate for the Flink deployment, signed by that CA.
     However, the TrustStore must then also contain the CA's public certificate tho accept the deployment's certificate
     during the SSL handshake (requirement in JDK TrustStore implementation).
-
+    
     **NOTE:** Because of that, it is critical that you specify the fingerprint of the deployment certificate
     (`security.ssl.internal.cert.fingerprint`), when it is not self-signed, to pin that certificate as the only trusted
     certificate and prevent the TrustStore from trusting all certificates signed by that CA.
@@ -129,7 +129,7 @@ security.ssl.internal.truststore: /path/to/file.truststore
 security.ssl.internal.truststore-password: truststore_password
 {% endhighlight %}
 
-When using a certificate that is not self-signed, but signed by a CA, you need to use certificate pinning to allow only a
+When using a certificate that is not self-signed, but signed by a CA, you need to use certificate pinning to allow only a 
 a specific certificate to be trusted when establishing the connectivity.
 
 {% highlight yaml %}
@@ -216,7 +216,7 @@ However, as mentioned above, the REST endpoint does not authenticate clients and
 **REST Endpoint (simple self signed certificate)**
 
 This example shows how to create a simple keystore / truststore pair. The truststore does not contain the primary key and can
-be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the Flink master.
+be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the JobManager.
 
 {% highlight bash %}
 keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
@@ -248,7 +248,7 @@ keytool -importcert -keystore ca.truststore -alias ca -storepass ca_truststore_p
 {% endhighlight %}
 
 Now create a keystore for the REST endpoint with a certificate signed by the above CA.
-Let *flink.company.org / ip:10.0.2.15* be the hostname of the Flink master (JobManager).
+Let *flink.company.org / ip:10.0.2.15* be the hostname of the JobManager.
 
 {% highlight bash %}
 keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
@@ -300,7 +300,7 @@ For YARN and Mesos, you can use the tools of Yarn and Mesos to help:
   - Configuring security for internal communication is exactly the same as in the example above.
 
   - To secure the REST endpoint, you need to issue the REST endpoint's certificate such that it is valid for all hosts
-    that the Flink master may get deployed to. This can be done with a wild card DNS name, or by adding multiple DNS names.
+    that the JobManager may get deployed to. This can be done with a wild card DNS name, or by adding multiple DNS names.
 
   - The easiest way to deploy keystores and truststore is by YARN client's *ship files* option (`-yt`).
     Copy the keystore and truststore files into a local directory (say `deploy-keys/`) and start the YARN session as

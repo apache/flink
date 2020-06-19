@@ -224,7 +224,7 @@ For example:
 
 ### High Availability
 
-You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
+You will need to run a service like Marathon or Apache Aurora which takes care of restarting the JobManager process in case of node or process failures.
 In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html).
 
 #### Marathon

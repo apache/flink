@@ -190,7 +190,7 @@ Action "run" compiles and runs a program.
                                       method or "getPlan()" method. Only needed
                                       if the JAR file does not specify the class
                                       in its manifest.
-     -m,--jobmanager <host:port>      Address of the JobManager (master) to
+     -m,--jobmanager <host:port>      Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
