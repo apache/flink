@@ -586,7 +586,7 @@ metrics.reporter.my_other_reporter.port: 10000
 {% endhighlight %}
 
 **Important:** The jar containing the reporter must be accessible when Flink is started. Reporters that support the
- `factory.class` property can be loaded as [plugins]({{ site.baseurl }}/ops/plugins). Otherwise the jar must be placed
+ `factory.class` property can be loaded as [plugins]({% link ops/plugins.md %}). Otherwise the jar must be placed
  in the /lib folder. Reporters that are shipped with Flink (i.e., all reporters documented on this page) are available
  by default.
 
