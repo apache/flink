@@ -117,7 +117,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
 		// use scheduledThreadPool
 		JdbcExecutionOptions jdbcExecutionOptions = JdbcExecutionOptions.builder()
 			.withBatchIntervalMs(1000_000L)
-			.withBatchSize(1)
+			.withBatchSize(2)
 			.withMaxRetries(1)
 			.build();
 		ExecutionConfig executionConfig = new ExecutionConfig();
