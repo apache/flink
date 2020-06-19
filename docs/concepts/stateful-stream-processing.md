@@ -365,6 +365,6 @@ programs, with minor exceptions:
 
   - The DataSet API introduces special synchronized (superstep-based)
     iterations, which are only possible on bounded streams. For details, check
-    out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
+    out the [iteration docs]({% link dev/batch/iterations.md %}).
 
 {% top %}
