@@ -64,7 +64,7 @@ public interface SerializationSchema<T> extends Serializable {
 	interface InitializationContext {
 		/**
 		 * Returns the metric group for the parallel subtask of the source that runs
-		 * this {@link DeserializationSchema}.
+		 * this {@link SerializationSchema}.
 		 *
 		 * <p>Instances of this class can be used to register new metrics with Flink and to create a nested
 		 * hierarchy based on the group names. See {@link MetricGroup} for more information for the metrics
