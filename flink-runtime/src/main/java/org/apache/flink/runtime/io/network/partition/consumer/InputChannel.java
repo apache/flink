@@ -133,7 +133,7 @@ public abstract class InputChannel {
 	 * exactly-once mode, the upstream will be blocked and become unavailable. This method
 	 * tries to unblock the corresponding upstream and resume data consumption.
 	 */
-	public abstract void resumeConsumption();
+	public abstract void resumeConsumption() throws IOException;
 
 	/**
 	 * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
@@ -154,7 +154,7 @@ public abstract class InputChannel {
 	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
 	}
 
-	protected void notifyBufferAvailable(int numAvailableBuffers) {
+	protected void notifyBufferAvailable(int numAvailableBuffers) throws IOException {
 	}
 
 	// ------------------------------------------------------------------------

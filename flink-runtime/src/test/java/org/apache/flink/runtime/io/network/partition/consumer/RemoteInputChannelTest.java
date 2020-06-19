@@ -335,6 +335,18 @@ public class RemoteInputChannelTest {
 		ch.getNextBuffer();
 	}
 
+	@Test(expected = PartitionConnectionException.class)
+	public void testPartitionConnectionException() throws IOException {
+		final ConnectionManager connManager = new TestingExceptionConnectionManager();
+		final SingleInputGate gate = createSingleInputGate(1);
+		final RemoteInputChannel ch = InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
+		gate.setInputChannels(ch);
+
+		gate.requestPartitions();
+
+		ch.getNextBuffer();
+	}
+
 	/**
 	 * Tests to verify the behaviours of three different processes if the number of available
 	 * buffers is less than required buffers.

@@ -100,15 +100,15 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void releaseBlocksAndResetBarriers() {
+	public void releaseBlocksAndResetBarriers() throws IOException {
 		LOG.debug("{}: End of stream alignment, feeding buffered data back.", taskName);
 
-		blockedChannels.entrySet().forEach(blockedChannel -> {
+		for (Map.Entry<InputChannelInfo, Boolean> blockedChannel : blockedChannels.entrySet()) {
 			if (blockedChannel.getValue()) {
 				resumeConsumption(blockedChannel.getKey());
 			}
 			blockedChannel.setValue(false);
-		});
+		}
 
 		// the next barrier that comes must assume it is the first
 		numBarriersReceived = 0;
@@ -338,7 +338,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		return numBarriersReceived > 0;
 	}
 
-	private void resumeConsumption(InputChannelInfo channelInfo) {
+	private void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		InputGate inputGate = inputGates[channelInfo.getGateIdx()];
 		checkState(!inputGate.isFinished(), "InputGate already finished.");
 
