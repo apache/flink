@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -72,13 +73,15 @@ public class FlinkCalciteCatalogReaderTest {
 	@Test
 	public void testGetFlinkPreparingTableBase() {
 		// Mock CatalogSchemaTable.
+		TableSchema schema = TableSchema.builder().build();
 		CatalogSchemaTable mockTable = new CatalogSchemaTable(
 			ObjectIdentifier.of("a", "b", "c"),
-			ConnectorCatalogTable.source(new TestTableSource(true, TableSchema.builder().build()), true),
+			CatalogManager.TableLookupResult.permanent(ConnectorCatalogTable.source(
+				new TestTableSource(true, schema),
+				true), schema),
 			FlinkStatistic.UNKNOWN(),
 			null,
-			true,
-			false);
+			true);
 
 		rootSchemaPlus.add(tableMockName, mockTable);
 		Prepare.PreparingTable preparingTable = catalogReader
