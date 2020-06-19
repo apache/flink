@@ -86,6 +86,12 @@ A Flink Job is the runtime representation of a [logical graph](#logical-graph)
 
 see [Logical Graph](#logical-graph)
 
+#### Flink JobManager
+
+The JobManager is the orchestrator of a [Flink Cluster](#flink-cluster). It contains three distinct
+components: Flink Resource Manager, Flink Dispatcher and one [Flink JobMaster](#flink-jobmaster)
+per running [Flink Job](#flink-job).
+
 #### Flink JobMaster
 
 JobMasters are one of the components running in the [JobManager](#flink-jobmanager). A JobMaster is
@@ -104,12 +110,6 @@ Logical graphs are also often referred to as *dataflow graphs*.
 
 Managed State describes application state which has been registered with the framework. For
 Managed State, Apache Flink will take care about persistence and rescaling among other things.
-
-#### Flink JobManager
-
-The JobManager is the orchestrator of a [Flink Cluster](#flink-cluster). It contains three distinct
-components: Flink Resource Manager, Flink Dispatcher and one [Flink JobMaster](#flink-jobmaster)
-per running [Flink Job](#flink-job).
 
 #### Operator
 

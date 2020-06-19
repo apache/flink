@@ -77,6 +77,11 @@ A Flink Job is the runtime representation of a [logical graph](#logical-graph)
 
 见 [Logical Graph](#logical-graph)。
 
+#### Flink JobManager
+
+Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobMaster](#flink-jobmaster)。 
+
+
 #### Flink JobMaster
 
 JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
@@ -93,10 +98,6 @@ Logical graphs are also often referred to as *dataflow graphs*.
 #### Managed State
 
 Managed State 描述了已在框架中注册的应用程序的托管状态。对于托管状态，Apache Flink 会负责持久化和重伸缩等事宜。
-
-#### Flink JobManager
-
-Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobMaster](#flink-jobmaster)。 
 
 #### Operator
 
