@@ -27,9 +27,8 @@ import org.elasticsearch.action.update.UpdateRequest;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Implementation of a {@link RequestIndexer} that buffers {@link ActionRequest ActionRequests}
@@ -39,10 +38,10 @@ import java.util.List;
 @NotThreadSafe
 class BufferingNoOpRequestIndexer implements RequestIndexer {
 
-	private List<ActionRequest> bufferedRequests;
+	private ConcurrentLinkedQueue<ActionRequest> bufferedRequests;
 
 	BufferingNoOpRequestIndexer() {
-		this.bufferedRequests = new ArrayList<>(10);
+		this.bufferedRequests = new ConcurrentLinkedQueue<ActionRequest>();
 	}
 
 	@Override
