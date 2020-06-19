@@ -23,7 +23,7 @@ under the License.
 -->
 
 The memory setup has changed a lot with the *1.10* release for [TaskManagers](mem_setup_tm.html) and with the *1.11*
-release for [Masters]({% link ops/memory/mem_setup_jobmanager.md %}). Many configuration options were removed or their semantics changed.
+release for [JobManagers]({% link ops/memory/mem_setup_jobmanager.md %}). Many configuration options were removed or their semantics changed.
 This guide will help you to migrate the TaskManager memory configuration from Flink
 [<= *1.9*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10* and
 the Master memory configuration from Flink <= *1.10* to >= *1.11*.
