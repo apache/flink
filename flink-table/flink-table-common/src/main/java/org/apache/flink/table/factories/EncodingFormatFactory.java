@@ -25,7 +25,7 @@ import org.apache.flink.table.connector.format.Format;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
- * Base interface for configuring a {@link EncodingFormat} for a {@link DynamicTableSink}.
+ * Base interface for configuring an {@link EncodingFormat} for a {@link DynamicTableSink}.
  *
  * <p>Depending on the kind of external system, a connector might support different encodings for
  * reading and writing rows. This interface helps in making such formats pluggable.
