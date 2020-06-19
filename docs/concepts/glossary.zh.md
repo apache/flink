@@ -38,7 +38,7 @@ executes a single [Flink Job](#flink-job). The lifetime of the
 
 #### Flink Cluster
 
-一般情况下，Flink 集群是由一个 [Flink Master](#flink-master) 和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
+一般情况下，Flink 集群是由一个 [Flink JobManager](#flink-jobmanager) 和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
 
 #### Event
 
@@ -77,9 +77,9 @@ A Flink Job is the runtime representation of a [logical graph](#logical-graph)
 
 见 [Logical Graph](#logical-graph)。
 
-#### Flink JobManager
+#### Flink JobMaster
 
-JobManager 是在 [Flink Master](#flink-master) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager。
+JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
 
 #### Logical Graph
 
@@ -94,9 +94,9 @@ Logical graphs are also often referred to as *dataflow graphs*.
 
 Managed State 描述了已在框架中注册的应用程序的托管状态。对于托管状态，Apache Flink 会负责持久化和重伸缩等事宜。
 
-#### Flink Master
+#### Flink JobManager
 
-Flink Master 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobManager](#flink-jobmanager)。
+Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobMaster](#flink-jobmaster)。 
 
 #### Operator
 
@@ -124,7 +124,7 @@ Record 是数据集或数据流的组成元素。[Operator](#operator) 和 [Func
 
 #### State Backend
 
-对于流处理程序，[Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager 上的（ TaskManager 的 Java 堆栈或嵌入式 RocksDB），以及它在 checkpoint 时的写入位置（ [Flink Master](#flink-master) 的 Java 堆或者 Filesystem）。
+对于流处理程序，[Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager 上的（ TaskManager 的 Java 堆栈或嵌入式 RocksDB），以及它在 checkpoint 时的写入位置（ [Flink JobManager](#flink-jobmanager) 的 Java 堆或者 Filesystem）。
 
 #### Sub-Task
 

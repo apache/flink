@@ -220,7 +220,7 @@ $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterI
 ### 基于角色的访问控制
 
 基于角色的访问控制（[RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)）是一种在企业内部基于单个用户的角色来调节对计算或网络资源的访问的方法。
-用户可以配置 RBAC 角色和服务账户，Flink JobManager 使用这些角色和服务帐户访问 Kubernetes 集群中的 Kubernetes API server。
+用户可以配置 RBAC 角色和服务账户，JobManager 使用这些角色和服务帐户访问 Kubernetes 集群中的 Kubernetes API server。
 
 每个命名空间有默认的服务账户，但是`默认`服务账户可能没有权限在 Kubernetes 集群中创建或删除 pod。
 用户可能需要更新`默认`服务账户的权限或指定另一个绑定了正确角色的服务账户。
@@ -246,13 +246,13 @@ $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit 
 <img src="{{ site.baseurl }}/fig/FlinkOnK8s.svg" class="img-responsive">
 
 创建 Flink Kubernetes session 集群时，Flink 客户端首先将连接到 Kubernetes ApiServer 提交集群描述信息，包括 ConfigMap 描述信息、Job Manager Service 描述信息、Job Manager Deployment 描述信息和 Owner Reference。
-Kubernetes 将创建 Flink master 的 deployment，在此期间 Kubelet 将拉取镜像，准备并挂载卷，然后执行 start 命令。
-master pod 启动后，Dispatcher 和 KubernetesResourceManager 服务会相继启动，然后集群准备完成，并等待提交作业。
+Kubernetes 将创建 JobManager 的 deployment，在此期间 Kubelet 将拉取镜像，准备并挂载卷，然后执行 start 命令。
+JobManager pod 启动后，Dispatcher 和 KubernetesResourceManager 服务会相继启动，然后集群准备完成，并等待提交作业。
 
 当用户通过 Flink 客户端提交作业时，将通过客户端生成 jobGraph 并将其与用户 jar 一起上传到 Dispatcher。
 然后 Dispatcher 会为每个 job 启动一个单独的 JobMaster。
 
-JobMaster 向 KubernetesResourceManager 请求被称为 slots 的资源。
+JobManager 向 KubernetesResourceManager 请求被称为 slots 的资源。
 如果没有可用的 slots，KubernetesResourceManager 将拉起 TaskManager pod 并且把它们注册到集群中。
 
 {% top %}

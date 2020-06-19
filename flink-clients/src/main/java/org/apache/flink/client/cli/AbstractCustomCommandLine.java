@@ -49,7 +49,7 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 
 
 	protected final Option addressOption = new Option("m", "jobmanager", true,
-		"Address of the JobManager (master) to which to connect. " +
+		"Address of the JobManager to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	protected final Configuration configuration;

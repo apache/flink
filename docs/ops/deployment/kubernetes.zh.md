@@ -99,9 +99,9 @@ Each job needs to be submitted to the cluster after the cluster has been deploye
 
 A *Flink Session cluster* deployment in Kubernetes has at least three components:
 
-* a *Deployment* which runs a [Flink Master]({{ site.baseurl }}/concepts/glossary.html#flink-master)
+* a *Deployment* which runs a [JobManager]({{ site.baseurl }}/concepts/glossary.html#flink-jobmanager)
 * a *Deployment* for a pool of [TaskManagers]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager)
-* a *Service* exposing the *Flink Master's* REST and UI ports
+* a *Service* exposing the *JobManager's* REST and UI ports
 
 After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Session specific resource definitions](#session-cluster-resource-definitions)
 to launch the *Session cluster* with the `kubectl` command:
@@ -125,14 +125,14 @@ You can find more details [here](#start-a-job-cluster).
 
 A basic *Flink Job cluster* deployment in Kubernetes has three components:
 
-* a *Job* which runs a *Flink Master*
+* a *Job* which runs a *JobManager*
 * a *Deployment* for a pool of *TaskManagers*
-* a *Service* exposing the *Flink Master's* REST and UI ports
+* a *Service* exposing the *JobManager's* REST and UI ports
 
 Check [the Job cluster specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
 
 The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
-See also [how to specify the Flink Master arguments](docker.html#flink-master-additional-command-line-arguments) to understand
+See also [how to specify the JobManager arguments](docker.html#jobmanager-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
 The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
