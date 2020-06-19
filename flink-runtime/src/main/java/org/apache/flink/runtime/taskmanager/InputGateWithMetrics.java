@@ -56,7 +56,7 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) {
+	public void resumeConsumption(int channelIndex) throws IOException {
 		inputGate.resumeConsumption(channelIndex);
 	}
 
