@@ -104,14 +104,14 @@ LIKE source_table (EXCLUDING ALL)
 </div>
 </div>
 
-连接器选项
+连接器参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">选项名字</th>
-        <th class="text-center" style="width: 10%">是否可选</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
         <th class="text-center" style="width: 10%">默认参数</th>
         <th class="text-center" style="width: 10%">数据类型</th>
         <th class="text-center" style="width: 45%">描述</th>
