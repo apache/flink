@@ -78,11 +78,10 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				FlinkStatistic statistic = getStatistic(result.isTemporary(), table, identifier);
 				return new CatalogSchemaTable(
 					identifier,
-					table,
+					result,
 					statistic,
 					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
-					isStreamingMode,
-					result.isTemporary());
+					isStreamingMode);
 			})
 			.orElse(null);
 	}

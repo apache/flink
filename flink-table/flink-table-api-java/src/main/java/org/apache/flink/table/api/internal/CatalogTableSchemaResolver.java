@@ -27,8 +27,10 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 /**
@@ -76,17 +78,17 @@ public class CatalogTableSchemaResolver {
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
 			TableColumn tableColumn = tableSchema.getTableColumns().get(i);
 			DataType fieldType = fieldTypes[i];
-			if (tableColumn.isGenerated() && isProctimeType(tableColumn.getExpr().get(), tableSchema)) {
-				if (fieldNames[i].equals(rowtime)) {
-					throw new TableException("Watermark can not be defined for a processing time attribute column.");
+
+			if (tableColumn.isGenerated()) {
+				fieldType = resolveExpressionDataType(tableColumn.getExpr().get(), tableSchema);
+				if (isProctime(fieldType)) {
+					if (fieldNames[i].equals(rowtime)) {
+						throw new TableException("Watermark can not be defined for a processing time attribute column.");
+					}
 				}
-				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
-				LogicalType proctimeType = new TimestampType(
-						originalType.isNullable(),
-						TimestampKind.PROCTIME,
-						originalType.getPrecision());
-				fieldType = TypeConversions.fromLogicalToDataType(proctimeType);
-			} else if (isStreamingMode && fieldNames[i].equals(rowtime)) {
+			}
+
+			if (isStreamingMode && fieldNames[i].equals(rowtime)) {
 				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
 				LogicalType rowtimeType = new TimestampType(
 						originalType.isNullable(),
@@ -94,6 +96,7 @@ public class CatalogTableSchemaResolver {
 						originalType.getPrecision());
 				fieldType = TypeConversions.fromLogicalToDataType(rowtimeType);
 			}
+
 			if (tableColumn.isGenerated()) {
 				builder.field(fieldNames[i], fieldType, tableColumn.getExpr().get());
 			} else {
@@ -107,12 +110,16 @@ public class CatalogTableSchemaResolver {
 		return builder.build();
 	}
 
-	private boolean isProctimeType(String expr, TableSchema tableSchema) {
+	private boolean isProctime(DataType exprType) {
+		return LogicalTypeChecks.hasFamily(exprType.getLogicalType(), LogicalTypeFamily.TIMESTAMP) &&
+			LogicalTypeChecks.isProctimeAttribute(exprType.getLogicalType());
+	}
+
+	private DataType resolveExpressionDataType(String expr, TableSchema tableSchema) {
 		ResolvedExpression resolvedExpr = parser.parseSqlExpression(expr, tableSchema);
 		if (resolvedExpr == null) {
-			return false;
+			throw new ValidationException("Could not resolve field expression: " + expr);
 		}
-		LogicalType type = resolvedExpr.getOutputDataType().getLogicalType();
-		return type instanceof TimestampType && ((TimestampType) type).getKind() == TimestampKind.PROCTIME;
+		return resolvedExpr.getOutputDataType();
 	}
 }

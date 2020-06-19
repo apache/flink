@@ -519,9 +519,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
 
-		return catalogManager.getTable(tableIdentifier).map(t -> {
-			return new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema());
-		});
+		return catalogManager.getTable(tableIdentifier)
+			.map(t -> new CatalogQueryOperation(tableIdentifier, t.getResolvedSchema()));
 	}
 
 	@Override
@@ -1062,7 +1061,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			Optional<CatalogManager.TableLookupResult> result =
 					catalogManager.getTable(describeTableOperation.getSqlIdentifier());
 			if (result.isPresent()) {
-				return buildDescribeResult(result.get().getTable().getSchema());
+				return buildDescribeResult(result.get().getResolvedSchema());
 			} else {
 				throw new ValidationException(String.format(
 						"Tables or views with the identifier '%s' doesn't exist",
