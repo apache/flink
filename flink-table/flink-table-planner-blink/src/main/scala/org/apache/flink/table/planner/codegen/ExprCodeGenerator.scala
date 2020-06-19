@@ -227,10 +227,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
       outRowAlreadyExists: Boolean = false,
-      allowSplit: Boolean = false): GeneratedExpression = {
+      allowSplit: Boolean = false,
+      methodName: String = null): GeneratedExpression = {
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     generateResultExpression(fieldExprs, fieldExprIdxToOutputRowPosMap, returnType,
-      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists, allowSplit)
+      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists,
+      allowSplit, methodName)
   }
 
   /**
@@ -257,7 +259,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
     outRowAlreadyExists: Boolean,
-    allowSplit: Boolean)
+    allowSplit: Boolean,
+    methodName: String)
   : GeneratedExpression = {
     // initial type check
     if (returnType.getFieldCount != fieldExprs.length) {
@@ -298,7 +301,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
     val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
       // do the split.
-      ctx.setCodeSplit()
+      if (methodName != null) {
+        ctx.setCodeSplit(methodName)
+      } else {
+        ctx.setCodeSplit()
+      }
       setFieldsCodes.map(project => {
         val methodName = newName("split")
         val method =
@@ -315,9 +322,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     }
 
     val outRowInitCode = if (!outRowAlreadyExists) {
-      val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter)
+      val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter, ctx)
       if (reusedOutRow) {
-        ctx.addReusableMember(initCode)
         NO_CODE
       } else {
         initCode

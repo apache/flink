@@ -124,9 +124,8 @@ object ProjectionCodeGenerator {
 
     val outRowInitCode = {
       val initCode = generateRecordStatement(
-        outType, outClass, outRecordTerm, Some(outRecordWriterTerm))
+        outType, outClass, outRecordTerm, Some(outRecordWriterTerm), ctx)
       if (reusedOutRecord) {
-        ctx.addReusableMember(initCode)
         NO_CODE
       } else {
         initCode
