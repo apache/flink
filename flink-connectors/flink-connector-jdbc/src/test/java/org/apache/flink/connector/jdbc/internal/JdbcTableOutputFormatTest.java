@@ -66,6 +66,7 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
 	@Test
 	public void testUpsertFormatCloseBeforeOpen() throws Exception{
+		// FLINK-17544: There should be no NPE thrown from this method
 		JdbcOptions options = JdbcOptions.builder()
 			.setDBUrl(getDbMetadata().getUrl())
 			.setTableName(OUTPUT_TABLE)

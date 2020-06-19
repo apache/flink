@@ -59,6 +59,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -113,17 +114,18 @@ public class JdbcFullTest extends JdbcDataTestBase {
 			.setDBUrl(getDbMetadata().getUrl())
 			.setTableName(OUTPUT_TABLE)
 			.build();
+		// use scheduledThreadPool
+		JdbcExecutionOptions jdbcExecutionOptions = JdbcExecutionOptions.builder()
+			.withBatchIntervalMs(1000_000L)
+			.withBatchSize(1)
+			.withMaxRetries(1)
+			.build();
+		ExecutionConfig executionConfig = new ExecutionConfig();
 
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);
-		ExecutionConfig executionConfig = Mockito.mock(ExecutionConfig.class);
-		JdbcExecutionOptions jdbcExecutionOptions = Mockito.mock(JdbcExecutionOptions.class);
 		JdbcBatchStatementExecutor executor = Mockito.mock(JdbcBatchStatementExecutor.class);
 
 		doReturn(executionConfig).when(context).getExecutionConfig();
-		// use scheduledThreadPool
-		doReturn(500L).when(jdbcExecutionOptions).getBatchIntervalMs();
-		doReturn(2).when(jdbcExecutionOptions).getBatchSize();
-		doReturn(3).when(jdbcExecutionOptions).getMaxRetries();
 		// always throw Exception to trigger close() method
 		doThrow(SQLException.class).when(executor).executeBatch();
 
@@ -142,14 +144,10 @@ public class JdbcFullTest extends JdbcDataTestBase {
 				format.writeRecord(Tuple2.of(true, toRow(entry)));
 			}
 		} catch (Exception e) {
-			try {
-				format.close();
-			} catch (Exception realException){
-				Connection connection = format.getConnection();
-				if (connection != null && !connection.isClosed()){
-					throw new RuntimeException("Resource leak!");
-				}
-			}
+			// artifact failure
+			format.close();
+		} finally {
+			assertNull(format.getConnection());
 		}
 	}
 
