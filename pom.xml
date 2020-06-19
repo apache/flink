@@ -1617,7 +1617,7 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>com.fasterxml.jackson*:*:(,2.10.0]</exclude>
+										<exclude>com.fasterxml.jackson.databind*:*:(,2.10.0]</exclude>
 									</excludes>
 								</bannedDependencies>
 							</rules>
