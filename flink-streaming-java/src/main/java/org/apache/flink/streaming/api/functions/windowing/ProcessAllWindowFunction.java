@@ -50,7 +50,8 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> extend
 	public abstract void process(Context context, Iterable<IN> elements, Collector<OUT> out) throws Exception;
 
 	/**
-	 * Deletes any state in the {@code Context} when the Window is purged.
+	 * Deletes any state in the {@code Context} when the Window expires
+	 * (the watermark passes its {@code maxTimestamp} + {@code allowedLateness}).
 	 *
 	 * @param context The context to which the window is being evaluated
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
