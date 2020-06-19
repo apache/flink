@@ -198,7 +198,11 @@ public class BufferManager implements BufferListener, BufferRecycler {
 			}
 		}
 
-		inputChannel.notifyBufferAvailable(numAddedBuffers);
+		try {
+			inputChannel.notifyBufferAvailable(numAddedBuffers);
+		} catch (Throwable t) {
+			ExceptionUtils.rethrow(t);
+		}
 	}
 
 	void releaseFloatingBuffers() {

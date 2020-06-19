@@ -46,7 +46,7 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void releaseBlocksAndResetBarriers() {
+	public void releaseBlocksAndResetBarriers() throws IOException {
 		activeHandler.releaseBlocksAndResetBarriers();
 	}
 

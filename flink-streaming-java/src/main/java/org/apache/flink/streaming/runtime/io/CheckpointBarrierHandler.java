@@ -52,7 +52,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
 	}
 
-	public void releaseBlocksAndResetBarriers() {
+	public void releaseBlocksAndResetBarriers() throws IOException {
 	}
 
 	/**
