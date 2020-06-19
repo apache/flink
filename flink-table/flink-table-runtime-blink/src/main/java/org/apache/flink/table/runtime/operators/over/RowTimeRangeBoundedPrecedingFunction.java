@@ -166,13 +166,15 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
 			long timestamp) throws Exception {
 		// calculate safe timestamp to cleanup states
-		long cleanupTimestamp = timestamp + precedingOffset + 1;
+		long minCleanupTimestamp = timestamp + precedingOffset + 1;
+		long maxCleanupTimestamp = timestamp + (long) (precedingOffset * 1.5) + 1;
 		// update timestamp and register timer if needed
 		Long curCleanupTimestamp = cleanupTsState.value();
-		if (curCleanupTimestamp == null || curCleanupTimestamp < cleanupTimestamp) {
+		if (curCleanupTimestamp == null || curCleanupTimestamp < minCleanupTimestamp) {
 			// we don't delete existing timer since it may delete timer for data processing
-			ctx.timerService().registerEventTimeTimer(cleanupTimestamp);
-			cleanupTsState.update(cleanupTimestamp);
+			// TODO Use timer with namespace to distinguish timers
+			ctx.timerService().registerEventTimeTimer(maxCleanupTimestamp);
+			cleanupTsState.update(maxCleanupTimestamp);
 		}
 	}
 

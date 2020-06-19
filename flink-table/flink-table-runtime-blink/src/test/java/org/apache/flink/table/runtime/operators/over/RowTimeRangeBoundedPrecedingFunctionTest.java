@@ -82,7 +82,7 @@ public class RowTimeRangeBoundedPrecedingFunctionTest {
 		testHarness.processWatermark(new Watermark(1000L));
 		// at this moment we expect the function to have some records in state
 
-		testHarness.processWatermark(new Watermark(3000L));
+		testHarness.processWatermark(new Watermark(4000L));
 		// at this moment the function should have cleaned up states
 
 		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());

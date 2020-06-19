@@ -82,7 +82,7 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
 		testHarness.setProcessingTime(1000);
 		// at this moment we expect the function to have some records in state
 
-		testHarness.setProcessingTime(3000);
+		testHarness.setProcessingTime(4000);
 		// at this moment the function should have cleaned up states
 
 		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
