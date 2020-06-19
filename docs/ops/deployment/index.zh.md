@@ -49,7 +49,7 @@ a full cluster for every submitted job. But, if one of the jobs misbehaves or br
 then all jobs running on that Task Manager will be affected by the failure. This, apart from a negative
 impact on the job that caused the failure, implies a potential massive recovery process with all the 
 restarting jobs accessing the filesystem concurrently and making it unavailable to other services. 
-Additionally, having a single cluster running multiple jobs implies more load for the Flink Master, who 
+Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
 is responsible for the book-keeping of all the jobs in the cluster.
 
 #### Per-Job Mode
@@ -58,7 +58,7 @@ Aiming at providing better resource isolation guarantees, the *Per-Job* mode use
 framework (e.g. YARN, Kubernetes) to spin up a cluster for each submitted job. This cluster is available to 
 that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
 cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own 
-Task Managers. In addition, it spreads the load of book-keeping across multiple Flink Masters, as there is 
+Task Managers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is 
 one per job. For these reasons, the *Per-Job* resource allocation model is the preferred mode by many 
 production reasons.
 
@@ -72,18 +72,18 @@ network bandwidth to download dependencies and ship binaries to the cluster, and
 `main()`. This problem can be more pronounced when the Client is shared across users.
 
 Building on this observation, the *Application Mode* creates a cluster per submitted application, but this time,
-the `main()` method of the application is executed on the Flink Master. Creating a cluster per application can be 
+the `main()` method of the application is executed on the JobManager. Creating a cluster per application can be 
 seen as creating a session cluster shared only among the jobs of a particular application, and torn down when
 the application finishes. With this architecture, the *Application Mode* provides the same resource isolation
 and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application. Executing 
-the `main()` on the Flink Master allows for saving the CPU cycles required, but also save the bandwidth required
+the `main()` on the JobManager allows for saving the CPU cycles required, but also save the bandwidth required
 for downloading the dependencies locally. Furthermore, it allows for more even spread of the network load of
-downloading the dependencies of the applications in the cluster, as there is one Flink Master per application.
+downloading the dependencies of the applications in the cluster, as there is one JobManager per application.
 
 <div class="alert alert-info" markdown="span">
   <strong>Note:</strong> In the Application Mode, the `main()` is executed on the cluster and not on the client, 
   as in the other modes. This may have implications for your code as, for example, any paths you register in 
-  your environment using the `registerCachedFile()` must be accessible by the Flink Master of your application.
+  your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
 </div>
 
 Compared to the *Per-Job* mode, the *Application Mode* allows the submission of applications consisting of
