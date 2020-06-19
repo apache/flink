@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A service provider for {@link ClusterClientFactory cluster client factories}.
  */
+@Internal
 public class DefaultClusterClientServiceLoader implements ClusterClientServiceLoader {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultClusterClientServiceLoader.class);
