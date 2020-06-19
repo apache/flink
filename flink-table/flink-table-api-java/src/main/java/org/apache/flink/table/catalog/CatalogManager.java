@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
@@ -323,18 +324,25 @@ public final class CatalogManager {
 	public static class TableLookupResult {
 		private final boolean isTemporary;
 		private final CatalogBaseTable table;
+		private final TableSchema resolvedSchema;
 
-		private static TableLookupResult temporary(CatalogBaseTable table) {
-			return new TableLookupResult(true, table);
+		@VisibleForTesting
+		public static TableLookupResult temporary(CatalogBaseTable table, TableSchema resolvedSchema) {
+			return new TableLookupResult(true, table, resolvedSchema);
 		}
 
-		private static TableLookupResult permanent(CatalogBaseTable table) {
-			return new TableLookupResult(false, table);
+		@VisibleForTesting
+		public static TableLookupResult permanent(CatalogBaseTable table, TableSchema resolvedSchema) {
+			return new TableLookupResult(false, table, resolvedSchema);
 		}
 
-		private TableLookupResult(boolean isTemporary, CatalogBaseTable table) {
+		private TableLookupResult(
+				boolean isTemporary,
+				CatalogBaseTable table,
+				TableSchema resolvedSchema) {
 			this.isTemporary = isTemporary;
 			this.table = table;
+			this.resolvedSchema = resolvedSchema;
 		}
 
 		public boolean isTemporary() {
@@ -343,6 +351,10 @@ public final class CatalogManager {
 
 		public CatalogBaseTable getTable() {
 			return table;
+		}
+
+		public TableSchema getResolvedSchema() {
+			return resolvedSchema;
 		}
 	}
 
@@ -357,21 +369,15 @@ public final class CatalogManager {
 		Preconditions.checkNotNull(schemaResolver, "schemaResolver should not be null");
 		CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
 		if (temporaryTable != null) {
-			return Optional.of(TableLookupResult.temporary(resolveTableSchema(temporaryTable)));
+			TableSchema resolvedSchema = resolveTableSchema(temporaryTable);
+			return Optional.of(TableLookupResult.temporary(temporaryTable, resolvedSchema));
 		} else {
-			Optional<TableLookupResult> result = getPermanentTable(objectIdentifier);
-			return result.map(tableLookupResult ->
-					TableLookupResult.permanent(resolveTableSchema(tableLookupResult.getTable())));
+			return getPermanentTable(objectIdentifier);
 		}
 	}
 
-	private CatalogBaseTable resolveTableSchema(CatalogBaseTable table) {
-		if (!(table instanceof CatalogTableImpl)) {
-			return table;
-		}
-		CatalogTableImpl catalogTableImpl = (CatalogTableImpl) table;
-		TableSchema newTableSchema = schemaResolver.resolve(catalogTableImpl.getSchema());
-		return catalogTableImpl.copy(newTableSchema);
+	private TableSchema resolveTableSchema(CatalogBaseTable table) {
+		return schemaResolver.resolve(table.getSchema());
 	}
 
 	/**
@@ -398,7 +404,9 @@ public final class CatalogManager {
 		ObjectPath objectPath = objectIdentifier.toObjectPath();
 		if (currentCatalog != null) {
 			try {
-				return Optional.of(TableLookupResult.permanent(currentCatalog.getTable(objectPath)));
+				CatalogBaseTable catalogTable = currentCatalog.getTable(objectPath);
+				TableSchema resolvedSchema = resolveTableSchema(catalogTable);
+				return Optional.of(TableLookupResult.permanent(catalogTable, resolvedSchema));
 			} catch (TableNotExistException e) {
 				// Ignore.
 			}

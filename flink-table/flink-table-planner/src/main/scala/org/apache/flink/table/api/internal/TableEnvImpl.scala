@@ -444,7 +444,7 @@ abstract class TableEnvImpl(
     val objectIdentifier: ObjectIdentifier = catalogManager.qualifyIdentifier(identifier)
 
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
-      .map(t => new CatalogQueryOperation(objectIdentifier, t.getTable.getSchema))
+      .map(t => new CatalogQueryOperation(objectIdentifier, t.getResolvedSchema))
   }
 
   override def listModules(): Array[String] = {

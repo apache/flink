@@ -1335,7 +1335,7 @@ public abstract class CatalogTest {
 
 		@Override
 		public TableSchema getSchema() {
-			return null;
+			return TableSchema.builder().build();
 		}
 
 		@Override

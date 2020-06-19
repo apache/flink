@@ -51,12 +51,13 @@ public class QueryOperationCatalogViewTable extends AbstractTable implements Tra
 	private final QueryOperationCatalogView catalogView;
 	private final RelProtoDataType rowType;
 
-	public static QueryOperationCatalogViewTable createCalciteTable(QueryOperationCatalogView catalogView) {
+	public static QueryOperationCatalogViewTable createCalciteTable(
+			QueryOperationCatalogView catalogView,
+			TableSchema resolvedSchema) {
 		return new QueryOperationCatalogViewTable(catalogView, typeFactory -> {
-			TableSchema tableSchema = catalogView.getSchema();
 			final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-			final RelDataType relType = flinkTypeFactory.buildLogicalRowType(tableSchema);
-			Boolean[] nullables = tableSchema
+			final RelDataType relType = flinkTypeFactory.buildLogicalRowType(resolvedSchema);
+			Boolean[] nullables = resolvedSchema
 				.getTableColumns()
 				.stream()
 				.map(c -> c.getType().getLogicalType().isNullable())
