@@ -127,6 +127,7 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   (
     { <column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
+    [ <out_of_line_constraint> ][ , ...n]
   )
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
@@ -134,7 +135,13 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   [ LIKE source_table [( <like_options> )] ]
    
 <column_definition>:
-  column_name column_type [COMMENT column_comment]
+  column_name column_type [ <in_line_constraint> ] [COMMENT column_comment]
+  
+<in_line_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY [[NOT] ENFORCED]
+
+<out_of_line_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) [[NOT] ENFORCED]
 
 <computed_column_definition>:
   column_name AS computed_column_expression [COMMENT column_comment]
@@ -201,6 +208,39 @@ CREATE TABLE Orders (
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH ( . . . );
 {% endhighlight %}
+
+**PRIMARY KEY**
+
+Primary key constraint is a hint for Flink to leverage for optimizations. It tells that a column or a set of columns of a table or a view are unique and they **do not** contain null.
+Neither of columns in a primary can be nullable. Primary key therefore uniquely identify a row in a table.
+
+Primary key constraint can be either declared along with a column definition(a column constraint) or as a single line(a table constraint),
+for both cases, it should only be declared as a singleton, if you define multiple primary key constraints at the same time, an exception would be thrown.
+
+##### Validity Check
+
+SQL standard specifies that a constraint can either be `ENFORCED` or `NOT ENFORCED`. This controls if the constraint checks are performed on the incoming/outgoing data.
+Flink does not own the data therefore the only mode we want to support is the `NOT ENFORCED` mode.
+Its up to the user to ensure that the query enforces key integrity.
+
+Flink will assume correctness of the primary key by assuming that the columns nullability is aligned with the columns in primary key. Connectors should ensure those are aligned.
+
+**Notes:** In a CREATE TABLE statement, creating a primary key constraint will alter the columns nullability, that means, a column with primary key constraint is not nullable.
+
+##### Upsert Sink
+
+For an upsert table sink to receive update message by keys, the primary key constraint is a **must** for the updating keys.
+For example, for a table with definition:
+
+{% highlight sql %}
+CREATE TABLE Orders (
+    user BIGINT PRIMARY KEY NOT ENFORCED,
+    product STRING,
+    order_time TIMESTAMP(3)
+) WITH ( . . . );
+{% endhighlight %}
+
+you can send the updating records keyed by `user` from an aggregating query.
 
 **PARTITIONED BY**
 
