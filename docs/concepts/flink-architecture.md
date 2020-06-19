@@ -94,7 +94,7 @@ There is always at least one JobManager. A high-availability setup might have
 multiple JobManagers, one of which is always the *leader*, and the others are
 *standby* (see [High Availability (HA)]({% link ops/jobmanager_high_availability.md %})).
 
-### Flink Workers
+### TaskManagers
 
 The *TaskManagers* (also called *workers*) execute the tasks of a dataflow, and buffer and exchange the data
 streams.
