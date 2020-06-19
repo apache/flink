@@ -157,7 +157,7 @@ public class ExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public ExecutionEnvironment(final Configuration configuration, final ClassLoader userClassloader) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration, userClassloader);
+		this(new DefaultExecutorServiceLoader(), configuration, userClassloader);
 	}
 
 	/**

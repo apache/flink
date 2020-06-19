@@ -38,14 +38,15 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultClusterClientServiceLoader.class);
 
-	private static final ServiceLoader<ClusterClientFactory> defaultLoader = ServiceLoader.load(ClusterClientFactory.class);
-
 	@Override
 	public <ClusterID> ClusterClientFactory<ClusterID> getClusterClientFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
+		final ServiceLoader<ClusterClientFactory> loader =
+				ServiceLoader.load(ClusterClientFactory.class);
+
 		final List<ClusterClientFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<ClusterClientFactory> factories = defaultLoader.iterator();
+		final Iterator<ClusterClientFactory> factories = loader.iterator();
 		while (factories.hasNext()) {
 			try {
 				final ClusterClientFactory factory = factories.next();
