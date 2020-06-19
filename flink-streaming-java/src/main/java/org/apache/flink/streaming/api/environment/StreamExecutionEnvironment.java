@@ -203,7 +203,7 @@ public class StreamExecutionEnvironment {
 	public StreamExecutionEnvironment(
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration, userClassloader);
+		this(new DefaultExecutorServiceLoader(), configuration, userClassloader);
 	}
 
 	/**

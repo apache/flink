@@ -146,7 +146,7 @@ public class GenericCLI implements CustomCommandLine {
 	}
 
 	private static String getExecutorFactoryNames() {
-		return DefaultExecutorServiceLoader.INSTANCE.getExecutorNames()
+		return new DefaultExecutorServiceLoader().getExecutorNames()
 				.map(name -> String.format("\"%s\"", name))
 				.collect(Collectors.joining(", "));
 	}
