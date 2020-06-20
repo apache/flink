@@ -1,8 +1,8 @@
 ---
-title: Timely Stream Processing
+title: 及时流处理
 nav-id: timely-stream-processing
 nav-pos: 3
-nav-title: Timely Stream Processing
+nav-title: 及时流处理
 nav-parent_id: concepts
 ---
 <!--

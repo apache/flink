@@ -1,6 +1,6 @@
 ---
-title: "Real Time Reporting with the Table API"
-nav-title: 'Real Time Reporting with the Table API'
+title: "基于 Table API 实现实时报表"
+nav-title: '基于 Table API 实现实时报表'
 nav-parent_id: try-flink
 nav-pos: 2
 ---

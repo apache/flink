@@ -1,8 +1,8 @@
 ---
-title: Fault Tolerance via State Snapshots
+title: 通过状态快照实现容错处理
 nav-id: fault-tolerance
 nav-pos: 6
-nav-title: Fault Tolerance
+nav-title: 容错处理
 nav-parent_id: learn-flink
 ---
 <!--
