@@ -1,8 +1,8 @@
 ---
-title: Streaming Analytics
+title: 流式分析
 nav-id: analytics
 nav-pos: 4
-nav-title: Streaming Analytics
+nav-title: 流式分析
 nav-parent_id: learn-flink
 ---
 <!--

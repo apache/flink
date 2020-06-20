@@ -1,8 +1,8 @@
 ---
-title: Stateful Stream Processing
+title: 有状态流处理
 nav-id: stateful-stream-processing
 nav-pos: 2
-nav-title: Stateful Stream Processing
+nav-title: 有状态流处理
 nav-parent_id: concepts
 ---
 <!--
