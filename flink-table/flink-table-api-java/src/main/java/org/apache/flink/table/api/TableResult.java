@@ -131,14 +131,27 @@ public interface TableResult {
 	 *      it... // collect same data
 	 *  }
 	 * }</pre>
+	 *
+	 * <p>This method guarantees end-to-end exactly-once record delivery
+	 * which requires the checkpointing mechanism to be enabled.
+	 * By default, checkpointing is disabled. To enable checkpointing,
+	 * call `StreamExecutionEnvironment#enableCheckpointing()` method.
+	 *
+	 * <p>Only this method or {@link #print()} method can be called for a TableResult instance,
+	 * because the result can only be accessed once.
 	 */
 	CloseableIterator<Row> collect();
 
 	/**
 	 * Print the result contents as tableau form to client console.
 	 *
-	 * <p><strong>NOTE:</strong> please make sure the result data to print should be small.
-	 * Because all data will be collected to local first, and then print them to console.
+	 * <p>This method guarantees end-to-end exactly-once record delivery
+	 * which requires the checkpointing mechanism to be enabled.
+	 * By default, checkpointing is disabled. To enable checkpointing,
+	 * call `StreamExecutionEnvironment#enableCheckpointing()` method.
+	 *
+	 * <p>only this method or {@link #collect()} ()} method can be called for a TableResult instance,
+	 * because the result can only be accessed once.
 	 */
 	void print();
 }
