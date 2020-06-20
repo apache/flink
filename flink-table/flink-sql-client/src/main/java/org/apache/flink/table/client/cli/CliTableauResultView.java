@@ -25,15 +25,6 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.TimeType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 
@@ -54,7 +45,6 @@ import java.util.stream.Stream;
  */
 public class CliTableauResultView implements AutoCloseable {
 
-	private static final int NULL_COLUMN_WIDTH = CliStrings.NULL_COLUMN.length();
 	private static final int DEFAULT_COLUMN_WIDTH = 20;
 	private static final String CHANGEFLAG_COLUMN_NAME = "+/-";
 
@@ -183,11 +173,12 @@ public class CliTableauResultView implements AutoCloseable {
 		List<TableColumn> columns = resultDescriptor.getResultSchema().getTableColumns();
 		String[] fieldNames =
 				Stream.concat(
-						Stream.of("+/-"),
+						Stream.of(CHANGEFLAG_COLUMN_NAME),
 						columns.stream().map(TableColumn::getName)
 				).toArray(String[]::new);
 
-		int[] colWidths = columnWidthsByType(columns, true);
+		int[] colWidths = PrintUtils.columnWidthsByType(
+				columns, DEFAULT_COLUMN_WIDTH, CliStrings.NULL_COLUMN, CHANGEFLAG_COLUMN_NAME);
 		String borderline = PrintUtils.genBorderLine(colWidths);
 
 		// print filed names
@@ -227,98 +218,4 @@ public class CliTableauResultView implements AutoCloseable {
 			}
 		}
 	}
-
-	/**
-	 * Try to infer column width based on column types. In streaming case, we will have an
-	 * endless result set, thus couldn't determine column widths based on column values.
-	 */
-	private int[] columnWidthsByType(List<TableColumn> columns, boolean includeChangeflag) {
-		// fill width with field names first
-		int[] colWidths = columns.stream()
-				.mapToInt(col -> col.getName().length())
-				.toArray();
-
-		// determine proper column width based on types
-		for (int i = 0; i < columns.size(); ++i) {
-			LogicalType type = columns.get(i).getType().getLogicalType();
-			int len;
-			switch (type.getTypeRoot()) {
-				case TINYINT:
-					len = TinyIntType.PRECISION + 1; // extra for negative value
-					break;
-				case SMALLINT:
-					len = SmallIntType.PRECISION + 1; // extra for negative value
-					break;
-				case INTEGER:
-					len = IntType.PRECISION + 1; // extra for negative value
-					break;
-				case BIGINT:
-					len = BigIntType.PRECISION + 1; // extra for negative value
-					break;
-				case DECIMAL:
-					len = ((DecimalType) type).getPrecision() + 2; // extra for negative value and decimal point
-					break;
-				case BOOLEAN:
-					len = 5; // "true" or "false"
-					break;
-				case DATE:
-					len = 10; // e.g. 9999-12-31
-					break;
-				case TIME_WITHOUT_TIME_ZONE:
-					int precision = ((TimeType) type).getPrecision();
-					len = precision == 0 ? 8 : precision + 9; // 23:59:59[.999999999]
-					break;
-				case TIMESTAMP_WITHOUT_TIME_ZONE:
-					precision = ((TimestampType) type).getPrecision();
-					len = timestampTypeColumnWidth(precision);
-					break;
-				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-					precision = ((LocalZonedTimestampType) type).getPrecision();
-					len = timestampTypeColumnWidth(precision);
-					break;
-				default:
-					len = DEFAULT_COLUMN_WIDTH;
-			}
-
-			// adjust column width with potential null values
-			colWidths[i] = Math.max(colWidths[i], Math.max(len, NULL_COLUMN_WIDTH));
-		}
-
-		// add an extra column for change flag if necessary
-		if (includeChangeflag) {
-			int[] ret = new int[columns.size() + 1];
-			ret[0] = CHANGEFLAG_COLUMN_NAME.length();
-			System.arraycopy(colWidths, 0, ret, 1, columns.size());
-			return ret;
-		} else {
-			return colWidths;
-		}
-	}
-
-	/**
-	 * Here we consider two popular class for timestamp: LocalDateTime and java.sql.Timestamp.
-	 *
-	 * <p>According to LocalDateTime's comment, the string output will be one of the following
-	 * ISO-8601 formats:
-	 *  <li>{@code uuuu-MM-dd'T'HH:mm:ss}</li>
-	 *  <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSS}</li>
-	 *  <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSSSSS}</li>
-	 *  <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSSSSSSSS}</li>
-	 *
-	 * <p>And for java.sql.Timestamp, the number of digits after point will be precision except
-	 * when precision is 0. In that case, the format would be 'uuuu-MM-dd HH:mm:ss.0'
-	 */
-	int timestampTypeColumnWidth(int precision) {
-		int base = 19; // length of uuuu-MM-dd HH:mm:ss
-		if (precision == 0) {
-			return base + 2; // consider java.sql.Timestamp
-		} else if (precision <= 3) {
-			return base + 4;
-		} else if (precision <= 6) {
-			return base + 7;
-		} else {
-			return base + 10;
-		}
-	}
-
 }
