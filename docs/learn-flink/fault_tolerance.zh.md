@@ -29,56 +29,47 @@ under the License.
 
 ## State Backends
 
-The keyed state managed by Flink is a sort of sharded, key/value store, and the working copy of each
-item of keyed state is kept somewhere local to the taskmanager responsible for that key. Operator
-state is also local to the machine(s) that need(s) it. Flink periodically takes persistent snapshots
-of all the state and copies these snapshots somewhere more durable, such as a distributed file
-system.
+由 Flink 管理的 keyed state 是一种分片的键/值存储，每个 keyed state 的工作副本都保存在负责该键的 taskmanager 本地中。另外，Operator state 也保存在机器节点本地。Flink 定期获取所有状态的快照，并将这些快照复制到持久化的位置，例如分布式文件系统。
 
-In the event of the failure, Flink can restore the complete state of your application and resume
-processing as though nothing had gone wrong.
+如果发生故障，Flink 可以恢复应用程序的完整状态并继续处理，就如同没有出现过异常。
 
-This state that Flink manages is stored in a _state backend_. Two implementations of state backends
-are available -- one based on RocksDB, an embedded key/value store that keeps its working state on
-disk, and another heap-based state backend that keeps its working state in memory, on the Java heap.
-This heap-based state backend comes in two flavors: the FsStateBackend that persists its state
-snapshots to a distributed file system, and the MemoryStateBackend that uses the JobManager's heap.
+Flink 管理的状态存储在 _state backend_ 中。Flink 有两种 state backend 的实现 -- 一种基于 RocksDB 内嵌 key/value 存储将其工作状态保存在磁盘上的，另一种基于堆的 state backend，将其工作状态保存在 Java 的堆内存中。这种基于堆的 state backend 有两种类型：FsStateBackend，将其状态快照持久化到分布式文件系统；MemoryStateBackend，它使用 JobManager 的堆保存状态快照。
 
 <table class="table table-bordered">
   <thead>
     <tr class="alert alert-info">
-      <th class="text-left">Name</th>
+      <th class="text-left">名称</th>
       <th class="text-left">Working State</th>
-      <th class="text-left">State Backup</th>
-      <th class="text-left">Snapshotting</th>
+      <th class="text-left">状态备份</th>
+      <th class="text-left">快照</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th class="text-left">RocksDBStateBackend</th>
-      <td class="text-left">Local disk (tmp dir)</td>
-      <td class="text-left">Distributed file system</td>
-      <td class="text-left">Full / Incremental</td>
+      <td class="text-left">本地磁盘（tmp dir）</td>
+      <td class="text-left">分布式文件系统</td>
+      <td class="text-left">全量 / 增量</td>
     </tr>
     <tr>
       <td colspan="4" class="text-left">
         <ul>
-          <li>Supports state larger than available memory</li>
-          <li>Rule of thumb: 10x slower than heap-based backends</li>
+          <li>支持大于内存大小的状态</li>
+          <li>经验法则：比基于堆的后端慢10倍</li>
         </ul>
       </td>
     </tr>
     <tr>
       <th class="text-left">FsStateBackend</th>
       <td class="text-left">JVM Heap</td>
-      <td class="text-left">Distributed file system</td>
-      <td class="text-left">Full</td>
+      <td class="text-left">分布式文件系统</td>
+      <td class="text-left">全量</td>
     </tr>
     <tr>
       <td colspan="4" class="text-left">
         <ul>
-          <li>Fast, requires large heap</li>
-          <li>Subject to GC</li>
+          <li>快速，需要大的堆内存</li>
+          <li>受限制于 GC</li>
         </ul>
       </td>
     </tr>
@@ -86,123 +77,89 @@ snapshots to a distributed file system, and the MemoryStateBackend that uses the
       <th class="text-left">MemoryStateBackend</th>
       <td class="text-left">JVM Heap</td>
       <td class="text-left">JobManager JVM Heap</td>
-      <td class="text-left">Full</td>
+      <td class="text-left">全量</td>
     </tr>
     <tr>
       <td colspan="4" class="text-left">
         <ul>
-          <li>Good for testing and experimentation with small state (locally)</li>
+          <li>适用于小状态（本地）的测试和实验</li>
         </ul>
       </td>
     </tr>
   </tbody>
 </table>
 
-When working with state kept in a heap-based state backend, accesses and updates involve reading and
-writing objects on the heap. But for objects kept in the `RocksDBStateBackend`, accesses and updates
-involve serialization and deserialization, and so are much more expensive. But the amount of state
-you can have with RocksDB is limited only by the size of the local disk. Note also that only the
-`RocksDBStateBackend` is able to do incremental snapshotting, which is a significant benefit for
-applications with large amounts of slowly changing state.
+当使用基于堆的 state backend 保存状态时，访问和更新涉及在堆上读写对象。但是对于保存在 `RocksDBStateBackend` 中的对象，访问和更新涉及序列化和反序列化，所以会有更大的开销。但 RocksDB 的状态量仅受本地磁盘大小的限制。还要注意，只有 `RocksDBStateBackend` 能够进行增量快照，这对于具有大量变化缓慢状态的应用程序来说是大有裨益的。
 
-All of these state backends are able to do asynchronous snapshotting, meaning that they can take a
-snapshot without impeding the ongoing stream processing.
+所有这些 state backends 都能够异步执行快照，这意味着它们可以在不妨碍正在进行的流处理的情况下执行快照。
 
 {% top %}
 
-## State Snapshots
+## 状态快照
 
-### Definitions
+### 定义
 
-* _Snapshot_ -- a generic term referring to a global, consistent image of the state of a Flink job.
-  A snapshot includes a pointer into each of the data sources (e.g., an offset into a file or Kafka
-  partition), as well as a copy of the state from each of the job's stateful operators that resulted
-  from having processed all of the events up to those positions in the sources.
-* _Checkpoint_ -- a snapshot taken automatically by Flink for the purpose of being able to recover
-  from faults. Checkpoints can be incremental, and are optimized for being restored quickly.
-* _Externalized Checkpoint_ -- normally checkpoints are not intended to be manipulated by users.
-  Flink retains only the _n_-most-recent checkpoints (_n_ being configurable) while a job is
-  running, and deletes them when a job is cancelled. But you can configure them to be retained
-  instead, in which case you can manually resume from them.
-* _Savepoint_ -- a snapshot triggered manually by a user (or an API call) for some operational
-  purpose, such as a stateful redeploy/upgrade/rescaling operation. Savepoints are always complete,
-  and are optimized for operational flexibility.
+* _快照_ -- 是 Flink 作业状态全局一致镜像的通用术语。快照包括指向每个数据源的指针（例如，到文件或 Kafka 分区的偏移量）以及每个作业的有状态运算符的状态副本，该状态副本是处理了 sources 偏移位置之前所有的事件后而生成的状态。
 
-### How does State Snapshotting Work?
+* _Checkpoint_ -- 一种由 Flink 自动执行的快照，其目的是能够从故障中恢复。Checkpoints 可以是增量的，并为快速恢复进行了优化。
 
-Flink uses a variant of the [Chandy-Lamport
-algorithm](https://en.wikipedia.org/wiki/Chandy-Lamport_algorithm) known as _asynchronous barrier
-snapshotting_.
+* _外部化的 Checkpoint_ -- 通常 checkpoints 不会被用户操纵。Flink 只保留作业运行时的最近的 _n_ 个 checkpoints（_n_ 可配置），并在作业取消时删除它们。但你可以将它们配置为保留，在这种情况下，你可以手动从中恢复。
 
-When a task manager is instructed by the checkpoint coordinator (part of the job manager) to begin a
-checkpoint, it has all of the sources record their offsets and insert numbered _checkpoint barriers_
-into their streams. These barriers flow through the job graph, indicating the part of the stream
-before and after each checkpoint. 
+* _Savepoint_ -- 用户出于某种操作目的（例如有状态的重新部署/升级/缩放操作）手动（或 API 调用）触发的快照。Savepoints 始终是完整的，并且已针对操作灵活性进行了优化。
 
-<img src="{{ site.baseurl }}/fig/stream_barriers.svg" alt="Checkpoint barriers are inserted into the streams" class="center" width="80%" />
+### 状态快照如何工作？
 
-Checkpoint _n_ will contain the state of each operator that resulted from having consumed **every
-event before checkpoint barrier _n_, and none of the events after it**.
+Flink 使用 [Chandy-Lamport algorithm](https://en.wikipedia.org/wiki/Chandy-Lamport_algorithm) 算法的一种变体，称为异步 barrier 快照（_asynchronous barrier snapshotting_）。
 
-As each operator in the job graph receives one of these barriers, it records its state. Operators
-with two input streams (such as a `CoProcessFunction`) perform _barrier alignment_ so that the
-snapshot will reflect the state resulting from consuming events from both input streams up to (but
-not past) both barriers.
+当 checkpoint coordinator（job manager 的一部分）指示 task manager 开始 checkpoint 时，它会让所有 sources 记录它们的偏移量，并将编号的 _checkpoint barriers_ 插入到它们的流中。这些 barriers 流经 job graph，标注每个 checkpoint 前后的流部分。
 
-<img src="{{ site.baseurl }}/fig/stream_aligning.svg" alt="Barrier alignment" class="center" width="100%" />
+<img src="{% link fig/stream_barriers.svg %}" alt="Checkpoint barriers are inserted into the streams" class="center" width="80%" />
 
-Flink's state backends use a copy-on-write mechanism to allow stream processing to continue
-unimpeded while older versions of the state are being asynchronously snapshotted. Only when the
-snapshots have been durably persisted will these older versions of the state be garbage collected.
+Checkpoint _n_ 将包含每个 operator 的 state，这些 state 是对应的 operator 消费了**严格在 checkpoint barrier _n_ 之前的所有事件，并且不包含在此（checkpoint barrier _n_）后的任何事件**后而生成的状态。
 
-### Exactly Once Guarantees
+当 job graph 中的每个 operator 接收到 barriers 时，它就会记录下其状态。拥有两个输入流的 Operators（例如 `CoProcessFunction`）会执行 _barrier 对齐（barrier alignment）_ 以便当前快照能够包含消费两个输入流 barrier 之前（但不超过）的所有 events 而产生的状态。
 
-When things go wrong in a stream processing application, it is possible to have either lost, or
-duplicated results. With Flink, depending on the choices you make for your application and the
-cluster you run it on, any of these outcomes is possible:
+<img src="{% link fig/stream_aligning.svg %}" alt="Barrier alignment" class="center" width="100%" />
 
-- Flink makes no effort to recover from failures (_at most once_)
-- Nothing is lost, but you may experience duplicated results (_at least once_)
-- Nothing is lost or duplicated (_exactly once_)
+Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异步生成旧版本的状态快照时，能够不受影响地继续流处理。只有当快照被持久保存后，这些旧版本的状态才会被当做垃圾回收。
 
-Given that Flink recovers from faults by rewinding and replaying the source data streams, when the
-ideal situation is described as **exactly once** this does *not* mean that every event will be
-processed exactly once. Instead, it means that _every event will affect the state being managed by
-Flink exactly once_. 
+### 确保精确一次（exactly once）
 
-Barrier alignment is only needed for providing exactly once guarantees. If you don't need this, you
-can gain some performance by configuring Flink to use `CheckpointingMode.AT_LEAST_ONCE`, which has
-the effect of disabling barrier alignment.
+当流处理应用程序发生错误的时候，结果可能会产生丢失或者重复。Flink 根据你为应用程序和集群的配置，可以产生以下结果：
 
-### Exactly Once End-to-end
+- Flink 不会从快照中进行恢复（_at most once_）
+- 没有任何丢失，但是你可能会得到重复冗余的结果（_at least once_）
+- 没有丢失或冗余重复（_exactly once_）
 
-To achieve exactly once end-to-end, so that every event from the sources affects the sinks exactly
-once, the following must be true:
+Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为**精确一次**时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
 
-1. your sources must be replayable, and
-2. your sinks must be transactional (or idempotent)
+Barrier 只有在需要提供精确一次的语义保证时需要进行对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭 Barrier 对齐来提高性能。
+
+### 端到端精确一次
+
+为了实现端到端的精确一次，以便 sources 中的每个事件都仅精确一次对 sinks 生效，必须满足以下条件：
+
+1. 你的 sources 必须是可重放的，并且
+2. 你的 sinks 必须是事务性的（或幂等的）
 
 {% top %}
 
-## Hands-on
+## 实践练习
 
-The [Flink Operations Playground]({% link
-try-flink/flink-operations-playground.zh.md %}) includes a section on
-[Observing Failure & Recovery]({% link
-try-flink/flink-operations-playground.zh.md %}#observing-failure--recovery).
+[Flink Operations Playground]({% link try-flink/flink-operations-playground.zh.md %}) 包括有关 [Observing Failure & Recovery]({% link try-flink/flink-operations-playground.zh.md %}#observing-failure--recovery) 的部分。
 
 {% top %}
 
-## Further Reading
+## 延伸阅读
 
 - [Stateful Stream Processing]({% link concepts/stateful-stream-processing.zh.md %})
 - [State Backends]({% link ops/state/state_backends.zh.md %})
-- [Fault Tolerance Guarantees of Data Sources and Sinks]({% link dev/connectors/guarantees.zh.md %})
-- [Enabling and Configuring Checkpointing]({% link dev/stream/state/checkpointing.zh.md %})
+- [Data Sources 和 Sinks 的容错保证]({% link dev/connectors/guarantees.zh.md %})
+- [开启和配置 Checkpointing]({% link dev/stream/state/checkpointing.zh.md %})
 - [Checkpoints]({% link ops/state/checkpoints.zh.md %})
 - [Savepoints]({% link ops/state/savepoints.zh.md %})
-- [Tuning Checkpoints and Large State]({% link ops/state/large_state_tuning.zh.md %})
-- [Monitoring Checkpointing]({% link monitoring/checkpoint_monitoring.zh.md %})
-- [Task Failure Recovery]({% link dev/task_failure_recovery.zh.md %})
+- [大状态与 Checkpoint 调优]({% link ops/state/large_state_tuning.zh.md %})
+- [监控 Checkpoint]({% link monitoring/checkpoint_monitoring.zh.md %})
+- [Task 故障恢复]({% link dev/task_failure_recovery.zh.md %})
 
 {% top %}
