@@ -1,6 +1,6 @@
 ---
-title: "Fraud Detection with the DataStream API"
-nav-title: 'Fraud Detection with the DataStream API'
+title: "基于 DataStream API 实现欺诈检测"
+nav-title: '基于 DataStream API 实现欺诈检测'
 nav-parent_id: try-flink
 nav-pos: 1
 ---

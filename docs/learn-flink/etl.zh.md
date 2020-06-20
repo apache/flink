@@ -1,8 +1,8 @@
 ---
-title: Data Pipelines & ETL
+title: 数据管道 & ETL
 nav-id: etl
 nav-pos: 3
-nav-title: Data Pipelines & ETL
+nav-title: 数据管道 & ETL
 nav-parent_id: learn-flink
 ---
 <!--
