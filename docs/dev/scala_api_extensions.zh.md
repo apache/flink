@@ -1,7 +1,7 @@
 ---
 title: "Scala API Extensions"
-nav-parent_id: api-concepts
-nav-pos: 10
+nav-parent_id: streaming
+nav-pos: 200
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

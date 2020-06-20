@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.DECIMAL_TERM
+import org.apache.flink.table.planner.codegen.CodeGenUtils.DECIMAL_UTIL
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isNumeric
@@ -38,10 +38,10 @@ class DivCallGen extends CallGenerator {
 
     val (arg1, type1) = (operands.head.resultTerm, operands.head.resultType)
     val (arg2, type2) = (operands(1).resultTerm, operands(1).resultType)
-    def toDec(arg: String) = s"$DECIMAL_TERM.castFrom($arg, 19, 0)"
+    def toDec(arg: String) = s"$DECIMAL_UTIL.castFrom($arg, 19, 0)"
     def decDiv(arg1: String, arg2: String) = {
       val dt = returnType.asInstanceOf[DecimalType]
-      s"$DECIMAL_TERM.divideToIntegralValue($arg1, $arg2, ${dt.getPrecision}, ${dt.getScale})"
+      s"$DECIMAL_UTIL.divideToIntegralValue($arg1, $arg2, ${dt.getPrecision}, ${dt.getScale})"
     }
 
     val code = (type1, type2) match {

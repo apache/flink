@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.util.Collector;
 
@@ -38,5 +38,5 @@ public interface TableAggsHandleFunction extends AggsHandleFunctionBase {
 	 * @param currentKey the current group key.
 	 * @param isRetract  the retraction flag which indicates whether emit retract values.
 	 */
-	void emitValue(Collector<BaseRow> out, BaseRow currentKey, boolean isRetract) throws Exception;
+	void emitValue(Collector<RowData> out, RowData currentKey, boolean isRetract) throws Exception;
 }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -39,18 +39,18 @@ class DeduplicateFunctionHelper {
 	 * @param out underlying collector
 	 */
 	static void processLastRow(
-			BaseRow currentRow,
+			RowData currentRow,
 			boolean generateUpdateBefore,
 			boolean generateInsert,
-			ValueState<BaseRow> state,
-			Collector<BaseRow> out) throws Exception {
+			ValueState<RowData> state,
+			Collector<RowData> out) throws Exception {
 		// check message should be insert only.
 		Preconditions.checkArgument(currentRow.getRowKind() == RowKind.INSERT);
 
 		if (generateUpdateBefore || generateInsert) {
 			// use state to keep the previous row content if we need to generate UPDATE_BEFORE
 			// or use to distinguish the first row, if we need to generate INSERT
-			BaseRow preRow = state.value();
+			RowData preRow = state.value();
 			state.update(currentRow);
 			if (preRow == null) {
 				// the first row, send INSERT message
@@ -79,9 +79,9 @@ class DeduplicateFunctionHelper {
 	 * @param out underlying collector
 	 */
 	static void processFirstRow(
-			BaseRow currentRow,
+			RowData currentRow,
 			ValueState<Boolean> state,
-			Collector<BaseRow> out) throws Exception {
+			Collector<RowData> out) throws Exception {
 		// check message should be insert only.
 		Preconditions.checkArgument(currentRow.getRowKind() == RowKind.INSERT);
 		// ignore record if it is not first row

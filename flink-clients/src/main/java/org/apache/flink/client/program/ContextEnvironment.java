@@ -26,15 +26,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -64,7 +69,26 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		JobClient jobClient = executeAsync(jobName);
+		final JobClient jobClient = executeAsync(jobName);
+		final List<JobListener> jobListeners = getJobListeners();
+
+		try {
+			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(jobExecutionResult, null));
+			return jobExecutionResult;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t)));
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
+	}
+
+	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+		checkNotNull(jobClient);
 
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
@@ -81,7 +105,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 						ContextEnvironment.class.getSimpleName(),
 						LOG);
 				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+						ShutdownHookUtil.removeShutdownHook(
+							shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
 			}
 
 			jobExecutionResult = jobExecutionResultFuture.get();

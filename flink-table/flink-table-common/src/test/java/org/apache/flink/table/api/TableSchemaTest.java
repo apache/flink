@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,7 +67,7 @@ public class TableSchemaTest {
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
 			" |-- f3: BIGINT AS f0 + 1\n" +
-			" |-- WATERMARK FOR f1.q2 AS now()";
+			" |-- WATERMARK FOR f1.q2 AS now()\n";
 		assertEquals(expected, schema.toString());
 
 		// test getFieldNames and getFieldDataType
@@ -78,7 +77,7 @@ public class TableSchemaTest {
 			schema.getTableColumn(3));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f2"));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f1")
-			.map(r -> ((FieldsDataType) r).getFieldDataTypes().get("q1")));
+			.map(r -> r.getChildren().get(0)));
 		assertFalse(schema.getFieldName(4).isPresent());
 		assertFalse(schema.getFieldType(-1).isPresent());
 		assertFalse(schema.getFieldType("c").isPresent());
@@ -213,7 +212,7 @@ public class TableSchemaTest {
 				" |-- f0: BIGINT NOT NULL\n" +
 				" |-- f1: STRING NOT NULL\n" +
 				" |-- f2: DOUBLE NOT NULL\n" +
-				" |-- CONSTRAINT pk PRIMARY KEY (f0, f2)"
+				" |-- CONSTRAINT pk PRIMARY KEY (f0, f2)\n"
 		));
 	}
 

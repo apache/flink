@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.filesystem.FileSystemFormatFactory;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -34,42 +36,41 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 
 /**
  * Test csv {@link FileSystemFormatFactory}.
  */
 public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public static final String USE_BULK_WRITER = "format.use-bulk-writer";
+	public static final ConfigOption<Boolean> USE_BULK_WRITER = ConfigOptions.key("use-bulk-writer")
+			.booleanType()
+			.defaultValue(false);
 
 	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
+	public String factoryIdentifier() {
+		return "testcsv";
 	}
 
 	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(FORMAT, "testcsv");
-		return context;
+	public Set<ConfigOption<?>> requiredOptions() {
+		Set<ConfigOption<?>> options = new HashSet<>();
+		options.add(USE_BULK_WRITER);
+		return options;
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		return Collections.singletonList(USE_BULK_WRITER);
+	public Set<ConfigOption<?>> optionalOptions() {
+		return new HashSet<>();
 	}
 
 	@Override
-	public InputFormat<BaseRow, ?> createReader(ReaderContext context) {
+	public InputFormat<RowData, ?> createReader(ReaderContext context) {
 		return new TestRowDataCsvInputFormat(
 				context.getPaths(),
 				context.getSchema(),
@@ -80,24 +81,24 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	private boolean useBulkWriter(WriterContext context) {
-		return Boolean.parseBoolean(context.getFormatProperties().get(USE_BULK_WRITER));
+		return context.getFormatOptions().get(USE_BULK_WRITER);
 	}
 
 	@Override
-	public Optional<Encoder<BaseRow>> createEncoder(WriterContext context) {
+	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
 		if (useBulkWriter(context)) {
 			return Optional.empty();
 		}
 
-		DataType[] types = context.getFieldTypesWithoutPartKeys();
-		return Optional.of((baseRow, stream) -> {
-			writeCsvToStream(types, baseRow, stream);
+		DataType[] types = context.getFormatFieldTypes();
+		return Optional.of((rowData, stream) -> {
+			writeCsvToStream(types, rowData, stream);
 		});
 	}
 
 	private static void writeCsvToStream(
 			DataType[] types,
-			BaseRow baseRow,
+			RowData rowData,
 			OutputStream stream) throws IOException {
 		LogicalType[] fieldTypes = Arrays.stream(types)
 				.map(DataType::getLogicalType)
@@ -105,7 +106,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		DataFormatConverters.DataFormatConverter converter = DataFormatConverters.getConverterForDataType(
 				TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
 
-		Row row = (Row) converter.toExternal(baseRow);
+		Row row = (Row) converter.toExternal(rowData);
 		StringBuilder builder = new StringBuilder();
 		Object o;
 		for (int i = 0; i < row.getArity(); i++) {
@@ -122,16 +123,16 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public Optional<BulkWriter.Factory<BaseRow>> createBulkWriterFactory(WriterContext context) {
+	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
 		if (!useBulkWriter(context)) {
 			return Optional.empty();
 		}
 
-		DataType[] types = context.getFieldTypesWithoutPartKeys();
+		DataType[] types = context.getFormatFieldTypes();
 		return Optional.of(out -> new CsvBulkWriter(types, out));
 	}
 
-	private static class CsvBulkWriter implements BulkWriter<BaseRow> {
+	private static class CsvBulkWriter implements BulkWriter<RowData> {
 
 		private final DataType[] types;
 		private final OutputStream stream;
@@ -142,7 +143,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		}
 
 		@Override
-		public void addElement(BaseRow element) throws IOException {
+		public void addElement(RowData element) throws IOException {
 			writeCsvToStream(types, element, stream);
 		}
 

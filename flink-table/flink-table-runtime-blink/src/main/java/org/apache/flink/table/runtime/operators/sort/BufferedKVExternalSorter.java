@@ -28,11 +28,11 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.operators.sort.IndexedSorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
@@ -62,8 +62,8 @@ public class BufferedKVExternalSorter {
 
 	private final NormalizedKeyComputer nKeyComputer;
 	private final RecordComparator comparator;
-	private final BinaryRowSerializer keySerializer;
-	private final BinaryRowSerializer valueSerializer;
+	private final BinaryRowDataSerializer keySerializer;
+	private final BinaryRowDataSerializer valueSerializer;
 	private final IndexedSorter sorter;
 
 	private final BinaryKVExternalMerger merger;
@@ -87,8 +87,8 @@ public class BufferedKVExternalSorter {
 
 	public BufferedKVExternalSorter(
 			IOManager ioManager,
-			BinaryRowSerializer keySerializer,
-			BinaryRowSerializer valueSerializer,
+			BinaryRowDataSerializer keySerializer,
+			BinaryRowDataSerializer valueSerializer,
 			NormalizedKeyComputer nKeyComputer,
 			RecordComparator comparator,
 			int pageSize,
@@ -119,7 +119,7 @@ public class BufferedKVExternalSorter {
 				compressionBlockSize);
 	}
 
-	public MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> getKVIterator() throws IOException {
+	public MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> getKVIterator() throws IOException {
 		// 1. merge if more than maxNumFile
 		// merge channels until sufficient file handles are available
 		List<ChannelWithMeta> channelIDs = this.channelIDs;
@@ -129,7 +129,7 @@ public class BufferedKVExternalSorter {
 
 		// 2. final merge
 		List<FileIOChannel> openChannels = new ArrayList<>();
-		BinaryMergeIterator<Tuple2<BinaryRow, BinaryRow>> iterator =
+		BinaryMergeIterator<Tuple2<BinaryRowData, BinaryRowData>> iterator =
 				merger.getMergingIterator(channelIDs, openChannels);
 		channelManager.addOpenChannels(openChannels);
 

@@ -24,24 +24,24 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.isRowtimeAttribute
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
+import org.apache.flink.table.planner.{JBoolean, JLong}
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.operators.window.triggers._
 
-import java.lang.{Boolean, Long}
 import java.time.Duration
 
 class WindowEmitStrategy(
-    isEventTime: Boolean,
-    isSessionWindow: Boolean,
-    earlyFireDelay: Long,
-    earlyFireDelayEnabled: Boolean,
-    lateFireDelay: Long,
-    lateFireDelayEnabled: Boolean,
-    allowLateness: Long) {
+    isEventTime: JBoolean,
+    isSessionWindow: JBoolean,
+    earlyFireDelay: JLong,
+    earlyFireDelayEnabled: JBoolean,
+    lateFireDelay: JLong,
+    lateFireDelayEnabled: JBoolean,
+    allowLateness: JLong) {
 
   checkValidation()
 
-  def getAllowLateness: Long = allowLateness
+  def getAllowLateness: JLong = allowLateness
 
   private def checkValidation(): Unit = {
     if (isSessionWindow && (earlyFireDelayEnabled || lateFireDelayEnabled)) {
@@ -61,7 +61,7 @@ class WindowEmitStrategy(
     }
   }
 
-  def produceUpdates: Boolean = {
+  def produceUpdates: JBoolean = {
     if (isEventTime) {
       earlyFireDelayEnabled || lateFireDelayEnabled
     } else {
@@ -110,8 +110,8 @@ class WindowEmitStrategy(
   }
 
   private def createTriggerFromInterval(
-      enableDelayEmit: Boolean,
-      interval: Long): Option[Trigger[TimeWindow]] = {
+      enableDelayEmit: JBoolean,
+      interval: JLong): Option[Trigger[TimeWindow]] = {
     if (!enableDelayEmit) {
       None
     } else {
@@ -123,7 +123,7 @@ class WindowEmitStrategy(
     }
   }
 
-  private def intervalToString(enableDelayEmit: Boolean, interval: Long): String = {
+  private def intervalToString(enableDelayEmit: JBoolean, interval: JLong): String = {
     if (!enableDelayEmit) {
       null
     } else {
@@ -171,9 +171,9 @@ object WindowEmitStrategy {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[Boolean] =
+  val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.early-fire.enabled")
-      .defaultValue(Boolean.valueOf(false))
+      .defaultValue(Boolean.box(false))
       .withDescription("Specifies whether to enable early-fire emit." +
           "Early-fire is an emit strategy before watermark advanced to end of window.")
 
@@ -190,9 +190,9 @@ object WindowEmitStrategy {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[Boolean] =
+  val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.late-fire.enabled")
-      .defaultValue(Boolean.valueOf(false))
+      .defaultValue(Boolean.box(false))
       .withDescription("Specifies whether to enable late-fire emit. " +
           "Late-fire is an emit strategy after watermark advanced to end of window.")
 

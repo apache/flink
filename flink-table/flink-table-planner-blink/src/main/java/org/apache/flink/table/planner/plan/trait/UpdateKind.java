@@ -38,5 +38,5 @@ public enum UpdateKind {
 	 * This kind indicates that operators should emit update changes in the way that
 	 * a row of {@code RowKind#UPDATE_BEFORE} and a row of {@code RowKind#UPDATE_AFTER} together.
 	 */
-	BEFORE_AND_AFTER;
+	BEFORE_AND_AFTER
 }

@@ -388,6 +388,10 @@ public final class FunctionCatalog {
 		);
 	}
 
+	/**
+	 * @deprecated Use {@link #registerTemporarySystemFunction(String, FunctionDefinition, boolean)} instead.
+	 */
+	@Deprecated
 	public <T> void registerTempSystemTableFunction(
 			String name,
 			TableFunction<T> function,
@@ -639,9 +643,9 @@ public final class FunctionCatalog {
 			// directly.
 			return ((InlineCatalogFunction) function).getDefinition();
 		}
-		// Currently the uninstantiated functions are all from sql and catalog that use the old type inference,
-		// so using FunctionDefinitionUtil to instantiate them and wrap them with `ScalarFunctionDefinition`,
-		// `TableFunctionDefinition`, etc. If the new type inference is fully functional, this should be
+		// Until all functions support the new type inference, uninstantiated functions from sql and
+		// catalog use the FunctionDefinitionUtil to instantiate them and wrap them with `AggregateFunctionDefinition`,
+		// `TableAggregateFunctionDefinition`. If the new type inference is fully functional, this should be
 		// changed to use `UserDefinedFunctionHelper#instantiateFunction`.
 		return FunctionDefinitionUtil.createFunctionDefinition(
 			name, function.getClassName(), function.getFunctionLanguage(), config);

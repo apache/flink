@@ -39,6 +39,11 @@ class FunctionContext(object):
         self._base_metric_group = base_metric_group
 
     def get_metric_group(self) -> MetricGroup:
+        """
+        Returns the metric group for this parallel subtask.
+
+        .. versionadded:: 1.11.0
+        """
         if self._base_metric_group is None:
             raise RuntimeError("Metric has not been enabled. You can enable "
                                "metric with the 'python.metric.enabled' configuration.")
@@ -48,9 +53,11 @@ class FunctionContext(object):
 class UserDefinedFunction(abc.ABC):
     """
     Base interface for user-defined function.
+
+    .. versionadded:: 1.10.0
     """
 
-    def open(self, function_context):
+    def open(self, function_context: FunctionContext):
         """
         Initialization method for the function. It is called before the actual working methods
         and thus suitable for one time setup work.
@@ -85,6 +92,8 @@ class ScalarFunction(UserDefinedFunction):
     """
     Base interface for user-defined scalar function. A user-defined scalar functions maps zero, one,
     or multiple scalar values to a new scalar value.
+
+    .. versionadded:: 1.10.0
     """
 
     @abc.abstractmethod
@@ -99,6 +108,8 @@ class TableFunction(UserDefinedFunction):
     """
     Base interface for user-defined table function. A user-defined table function creates zero, one,
     or multiple rows to a new row value.
+
+    .. versionadded:: 1.11.0
     """
 
     @abc.abstractmethod
@@ -343,6 +354,8 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
     :type udf_type: str
     :return: UserDefinedScalarFunctionWrapper or function.
     :rtype: UserDefinedScalarFunctionWrapper or function
+
+    .. versionadded:: 1.10.0
     """
     if udf_type not in ('general', 'pandas'):
         raise ValueError("The udf_type must be one of 'general, pandas', got %s." % udf_type)
@@ -387,6 +400,8 @@ def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=N
     :type deterministic: bool
     :return: UserDefinedTableFunctionWrapper or function.
     :rtype: UserDefinedTableFunctionWrapper or function
+
+    .. versionadded:: 1.11.0
     """
     # decorator
     if f is None:

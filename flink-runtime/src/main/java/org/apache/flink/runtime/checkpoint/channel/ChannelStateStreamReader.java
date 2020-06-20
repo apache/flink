@@ -45,7 +45,7 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.Rea
 class ChannelStateStreamReader implements Closeable {
 
 	private final RefCountingFSDataInputStream stream;
-	private final ChannelStateDeserializer serializer;
+	private final ChannelStateSerializer serializer;
 	private final Queue<Long> offsets;
 	private int remainingBytes = -1;
 	private boolean closed = false;
@@ -54,7 +54,7 @@ class ChannelStateStreamReader implements Closeable {
 		this(streamFactory.getOrCreate(handle), handle.getOffsets(), streamFactory.getSerializer());
 	}
 
-	private ChannelStateStreamReader(RefCountingFSDataInputStream stream, List<Long> offsets, ChannelStateDeserializer serializer) {
+	private ChannelStateStreamReader(RefCountingFSDataInputStream stream, List<Long> offsets, ChannelStateSerializer serializer) {
 		this.stream = stream;
 		this.stream.incRef();
 		this.serializer = serializer;

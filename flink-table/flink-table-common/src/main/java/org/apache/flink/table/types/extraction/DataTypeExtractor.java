@@ -24,8 +24,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
-import org.apache.flink.table.types.extraction.utils.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
@@ -50,16 +48,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectStructuredFields;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectTypeHierarchy;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractAssigningConstructor;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isStructuredFieldMutable;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.resolveVariable;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.toClass;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.validateStructuredClass;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.validateStructuredFieldReadability;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectStructuredFields;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectTypeHierarchy;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.createRawType;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractAssigningConstructor;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.hasInvokableConstructor;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.isStructuredFieldMutable;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.resolveVariable;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredFieldReadability;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredSelfReference;
 
 /**
  * Reflection-based utility that analyzes a given {@link java.lang.reflect.Type}, method, or class to
@@ -454,6 +454,7 @@ public final class DataTypeExtractor {
 		}
 
 		validateStructuredClass(clazz);
+		validateStructuredSelfReference(type, typeHierarchy);
 
 		final List<Field> fields = collectStructuredFields(clazz);
 
@@ -477,6 +478,12 @@ public final class DataTypeExtractor {
 				clazz.getName(),
 				fields.stream().map(Field::getName).collect(Collectors.joining(", ")));
 		}
+		// check for a default constructor otherwise
+		else if (constructor == null && !hasInvokableConstructor(clazz)) {
+			throw extractionError(
+				"Class '%s' has neither a constructor that assigns all fields nor a default constructor.",
+				clazz.getName());
+		}
 
 		final Map<String, DataType> fieldDataTypes = extractStructuredTypeFields(
 			template,
@@ -484,11 +491,20 @@ public final class DataTypeExtractor {
 			type,
 			fields);
 
+		final List<StructuredAttribute> attributes = createStructuredTypeAttributes(
+			constructor,
+			fieldDataTypes);
+
 		final StructuredType.Builder builder = StructuredType.newBuilder(clazz);
-		builder.attributes(createStructuredTypeAttributes(constructor, fieldDataTypes));
+		builder.attributes(attributes);
 		builder.setFinal(true); // anonymous structured types should not allow inheritance
 		builder.setInstantiable(true);
-		return new FieldsDataType(builder.build(), clazz, fieldDataTypes);
+		return new FieldsDataType(
+			builder.build(),
+			clazz,
+			attributes.stream()
+				.map(a -> fieldDataTypes.get(a.getName()))
+				.collect(Collectors.toList()));
 	}
 
 	private Map<String, DataType> extractStructuredTypeFields(

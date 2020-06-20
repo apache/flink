@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -64,6 +63,7 @@ import org.apache.flink.yarn.entrypoint.YarnWorkerResourceSpecFactory;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -72,6 +72,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -108,7 +109,7 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
-import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
+import static org.apache.flink.yarn.YarnConfigKeys.FLINK_DIST_JAR;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.apache.flink.yarn.YarnResourceManager.ERROR_MASSAGE_ON_SHUTDOWN_REQUEST;
 import static org.hamcrest.Matchers.instanceOf;
@@ -140,7 +141,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		flinkConfig = new Configuration();
-		flinkConfig.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 100);
 		flinkConfig.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
 		File root = folder.getRoot();
@@ -154,7 +154,12 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_CLIENT_SHIP_FILES, "");
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
-		env.put(FLINK_JAR_PATH, root.toURI().toString());
+		env.put(FLINK_DIST_JAR, new YarnLocalResourceDescriptor(
+			"flink.jar",
+			new Path("/tmp/flink.jar"),
+			0,
+			System.currentTimeMillis(),
+			LocalResourceVisibility.APPLICATION).toString());
 		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 
 		BootstrapTools.writeConfiguration(flinkConfig, new File(home.getAbsolutePath(), FLINK_CONF_FILENAME));
@@ -364,9 +369,12 @@ public class YarnResourceManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testStopWorker() throws Exception {
+	public void testStopWorkerAfterRegistration() throws Exception {
 		new Context() {{
-			final CompletableFuture<Void> addContainerRequestFuture = new CompletableFuture<>();
+			final List<CompletableFuture<Void>> addContainerRequestFutures = new ArrayList<>();
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
 			final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> releaseAssignedContainerFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
@@ -374,7 +382,8 @@ public class YarnResourceManagerTest extends TestLogger {
 
 			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) -> addContainerRequestFuture.complete(null));
+			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
 			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
 			testingYarnAMRMClientAsync.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null));
 			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
@@ -388,7 +397,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				Container testingContainer = createTestingContainer();
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
-				verifyFutureCompleted(addContainerRequestFuture);
+				verifyFutureCompleted(addContainerRequestFutures.get(0));
 				verifyFutureCompleted(removeContainerRequestFuture);
 				verifyFutureCompleted(startContainerAsyncFuture);
 
@@ -445,11 +454,49 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				verifyFutureCompleted(stopContainerAsyncFuture);
 				verifyFutureCompleted(releaseAssignedContainerFuture);
+				assertFalse(addContainerRequestFutures.get(1).isDone());
 			});
 
 			// It's now safe to access the SlotManager state since the ResourceManager has been stopped.
 			assertThat(rmServices.slotManager.getNumberRegisteredSlots(), Matchers.equalTo(0));
 			assertThat(resourceManager.getNumberOfRegisteredTaskManagers().get(), Matchers.equalTo(0));
+		}};
+	}
+
+	@Test
+	public void testStopWorkerBeforeRegistration() throws Exception {
+		new Context() {{
+			final List<CompletableFuture<Void>> addContainerRequestFutures = new ArrayList<>();
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			addContainerRequestFutures.add(new CompletableFuture<>());
+			final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
+			final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
+			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
+
+			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
+			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
+			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
+			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
+
+			runTest(() -> {
+				// Request slot from SlotManager.
+				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
+
+				// Callback from YARN when container is allocated.
+				Container testingContainer = createTestingContainer();
+				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+
+				verifyFutureCompleted(addContainerRequestFutures.get(0));
+				verifyFutureCompleted(removeContainerRequestFuture);
+				verifyFutureCompleted(startContainerAsyncFuture);
+
+				ContainerStatus testingContainerStatus = createTestingContainerStatus(testingContainer.getId());
+				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
+
+				verifyFutureCompleted(addContainerRequestFutures.get(1));
+			});
 		}};
 	}
 

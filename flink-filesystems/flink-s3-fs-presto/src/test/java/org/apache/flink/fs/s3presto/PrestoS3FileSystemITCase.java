@@ -69,7 +69,7 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
 		basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
 		fs = basePath.getFileSystem();
-		deadline = System.nanoTime() + 30_000_000_000L;
+		consistencyToleranceNS = 30_000_000_000L; // 30 seconds
 
 		// check for uniqueness of the test directory
 		// directory must not yet exist

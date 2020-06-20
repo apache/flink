@@ -22,51 +22,75 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-本文档主要介绍如何在 Flink 作业中使用状态
+In this section you will learn about the APIs that Flink provides for writing
+stateful programs. Please take a look at [Stateful Stream
+Processing]({% link concepts/stateful-stream-processing.zh.md %})
+to learn about the concepts behind stateful stream processing.
+
 * 目录
 {:toc}
 
-## Keyed State 与 Operator State
+## Keyed DataStream
 
-Flink 中有两种基本的状态：`Keyed State` 和 `Operator State`。
+If you want to use keyed state, you first need to specify a key on a
+`DataStream` that should be used to partition the state (and also the records
+in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
+a `DataStream`. This will yield a `KeyedDataStream`, which then allows
+operations that use keyed state.
 
-### Keyed State
+A key selector function takes a single record as input and returns the key for
+that record. The key can be of any type and **must** be derived from
+deterministic computations.
 
-*Keyed State* 通常和 key 相关，仅可使用在 `KeyedStream` 的方法和算子中。
+The data model of Flink is not based on key-value pairs. Therefore, you do not
+need to physically pack the data set types into keys and values. Keys are
+"virtual": they are defined as functions over the actual data to guide the
+grouping operator.
 
-你可以把 Keyed State 看作分区或者共享的 Operator State, 而且每个 key 仅出现在一个分区内。
-逻辑上每个 keyed-state 和唯一元组 <算子并发实例, key> 绑定，由于每个 key 仅"属于"
-算子的一个并发，因此简化为 <算子, key>。
+The following example shows a key selector function that simply returns the
+field of an object:
 
-Keyed State 会按照 *Key Group* 进行管理。Key Group 是 Flink 分发 Keyed State 的最小单元；
-Key Group 的数目等于作业的最大并发数。在执行过程中，每个 keyed operator 会对应到一个或多个 Key Group
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// some ordinary POJO
+public class WC {
+  public String word;
+  public int count;
 
-### Operator State
+  public String getWord() { return word; }
+}
+DataStream<WC> words = // [...]
+KeyedStream<WC> keyed = words
+  .keyBy(WC::getWord);
+{% endhighlight %}
 
-对于 *Operator State* (或者 *non-keyed state*) 来说，每个 operator state 和一个并发实例进行绑定。
-[Kafka Connector]({{ site.baseurl }}/zh/dev/connectors/kafka.html) 是 Flink 中使用 operator state 的一个很好的示例。
-每个 Kafka 消费者的并发在 Operator State 中维护一个 topic partition 到 offset 的映射关系。
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// some ordinary case class
+case class WC(word: String, count: Int)
+val words: DataStream[WC] = // [...]
+val keyed = words.keyBy( _.word )
+{% endhighlight %}
+</div>
+</div>
 
-Operator State 在 Flink 作业的并发改变后，会重新分发状态，分发的策略和 Keyed State 不一样。
+### Tuple Keys and Expression Keys
+{:.no_toc}
 
-## Raw State 与 Managed State
+Flink also has two alternative ways of defining keys: tuple keys and expression
+keys. With this you can specify keys using tuple field indices or expressions
+for selecting fields of objects. We don't recommend using these today but you
+can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
+function is strictly superior: with Java lambdas they are easy to use and they
+have potentially less overhead at runtime.
 
-*Keyed State* 和 *Operator State* 分别有两种存在形式：*managed* and *raw*.
+{% top %}
 
-*Managed State* 由 Flink 运行时控制的数据结构表示，比如内部的 hash table 或者 RocksDB。
-比如 "ValueState", "ListState" 等。Flink runtime 会对这些状态进行编码并写入 checkpoint。
+## 使用 Keyed State
 
-*Raw State* 则保存在算子自己的数据结构中。checkpoint 的时候，Flink 并不知晓具体的内容，仅仅写入一串字节序列到 checkpoint。
-
-所有 datastream 的 function 都可以使用 managed state, 但是 raw state 则只能在实现算子的时候使用。
-由于 Flink 可以在修改并发时更好的分发状态数据，并且能够更好的管理内存，因此建议使用 managed state（而不是 raw state）。
-
-<span class="label label-danger">注意</span> 如果你的 managed state 需要定制化的序列化逻辑，
-为了后续的兼容性请参考 [相应指南](custom_serialization.html)，Flink 的默认序列化器不需要用户做特殊的处理。
-
-## 使用 Managed Keyed State
-
-managed keyed state 接口提供不同类型状态的访问接口，这些状态都作用于当前输入数据的 key 下。换句话说，这些状态仅可在 `KeyedStream`
+keyed state 接口提供不同类型状态的访问接口，这些状态都作用于当前输入数据的 key 下。换句话说，这些状态仅可在 `KeyedStream`
 上使用，可以通过 `stream.keyBy(...)` 得到 `KeyedStream`.
 
 接下来，我们会介绍不同类型的状态，然后介绍如何使用他们。所有支持的状态类型如下所示：
@@ -83,32 +107,25 @@ managed keyed state 接口提供不同类型状态的访问接口，这些状态
 * `AggregatingState<IN, OUT>`: 保留一个单值，表示添加到状态的所有值的聚合。和 `ReducingState` 相反的是, 聚合类型可能与 添加到状态的元素的类型不同。
 接口与 `ListState` 类似，但使用 `add(IN)` 添加的元素会用指定的 `AggregateFunction` 进行聚合。
 
-* `FoldingState<T, ACC>`: 保留一个单值，表示添加到状态的所有值的聚合。 与 `ReducingState` 相反，聚合类型可能与添加到状态的元素类型不同。 
-接口与 `ListState` 类似，但使用`add（T）`添加的元素会用指定的 `FoldFunction` 折叠成聚合值。
-
 * `MapState<UK, UV>`: 维护了一个映射列表。 你可以添加键值对到状态中，也可以获得反映当前所有映射的迭代器。使用 `put(UK，UV)` 或者 `putAll(Map<UK，UV>)` 添加映射。
  使用 `get(UK)` 检索特定 key。 使用 `entries()`，`keys()` 和 `values()` 分别检索映射、键和值的可迭代视图。你还可以通过 `isEmpty()` 来判断是否包含任何键值对。
 
 所有类型的状态还有一个`clear()` 方法，清除当前 key 下的状态数据，也就是当前输入元素的 key。
-
-<span class="label label-danger">注意</span> `FoldingState` 和 `FoldingStateDescriptor` 从 Flink 1.4 开始就已经被启用，将会在未来被删除。
-作为替代请使用 `AggregatingState` 和 `AggregatingStateDescriptor`。
 
 请牢记，这些状态对象仅用于与状态交互。状态本身不一定存储在内存中，还可能在磁盘或其他位置。
 另外需要牢记的是从状态中获取的值取决于输入元素所代表的 key。 因此，在不同 key 上调用同一个接口，可能得到不同的值。
 
 你必须创建一个 `StateDescriptor`，才能得到对应的状态句柄。 这保存了状态名称（正如我们稍后将看到的，你可以创建多个状态，并且它们必须具有唯一的名称以便可以引用它们），
 状态所持有值的类型，并且可能包含用户指定的函数，例如`ReduceFunction`。 根据不同的状态类型，可以创建`ValueStateDescriptor`，`ListStateDescriptor`，
-`ReducingStateDescriptor`，`FoldingStateDescriptor` 或 `MapStateDescriptor`。
+`ReducingStateDescriptor` 或 `MapStateDescriptor`。
 
-状态通过 `RuntimeContext` 进行访问，因此只能在 *rich functions* 中使用。请参阅[这里]({{site.baseurl}}/zh/dev/api_concepts.html#rich-functions)获取相关信息，
+状态通过 `RuntimeContext` 进行访问，因此只能在 *rich functions* 中使用。请参阅[这里]({% link dev/user_defined_functions.zh.md %}#rich-functions)获取相关信息，
 但是我们很快也会看到一个例子。`RichFunction` 中 `RuntimeContext` 提供如下方法：
 
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
 * `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
-* `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
 下面是一个 `FlatMapFunction` 的例子，展示了如何将这些部分组合起来：
@@ -219,7 +236,7 @@ object ExampleCountWindowAverage extends App {
     .print()
   // the printed output will be (1,4) and (1,5)
 
-  env.execute("ExampleManagedState")
+  env.execute("ExampleKeyedState")
 }
 {% endhighlight %}
 </div>
@@ -470,9 +487,44 @@ val counts: DataStream[(String, Int)] = stream
     })
 {% endhighlight %}
 
-## 使用 Managed Operator State
+## Operator State
 
-用户可以通过实现 `CheckpointedFunction` 或 `ListCheckpointed<T extends Serializable>` 接口来使用 managed operator state。
+*Operator State* (or *non-keyed state*) is state that is is bound to one
+parallel operator instance. The [Kafka Connector]({% link
+dev/connectors/kafka.zh.md %}) is a good motivating example for the use of
+Operator State in Flink. Each parallel instance of the Kafka consumer maintains
+a map of topic partitions and offsets as its Operator State.
+
+The Operator State interfaces support redistributing state among parallel
+operator instances when the parallelism is changed. There are different schemes
+for doing this redistribution.
+
+In a typical stateful Flink Application you don't need operators state. It is
+mostly a special type of state that is used in source/sink implementations and
+scenarios where you don't have a key by which state can be partitioned.
+
+## Broadcast State
+
+*Broadcast State* is a special type of *Operator State*.  It was introduced to
+support use cases where records of one stream need to be broadcasted to all
+downstream tasks, where they are used to maintain the same state among all
+subtasks. This state can then be accessed while processing records of a second
+stream. As an example where broadcast state can emerge as a natural fit, one
+can imagine a low-throughput stream containing a set of rules which we want to
+evaluate against all elements coming from another stream. Having the above type
+of use cases in mind, broadcast state differs from the rest of operator states
+in that:
+
+ 1. it has a map format,
+ 2. it is only available to specific operators that have as inputs a
+    *broadcasted* stream and a *non-broadcasted* one, and
+ 3. such an operator can have *multiple broadcast states* with different names.
+
+{% top %}
+
+## 使用 Operator State
+
+用户可以通过实现 `CheckpointedFunction` 接口来使用 operator state。
 
 #### CheckpointedFunction
 
@@ -487,13 +539,14 @@ void initializeState(FunctionInitializationContext context) throws Exception;
 进行 checkpoint 时会调用 `snapshotState()`。 用户自定义函数初始化时会调用 `initializeState()`，初始化包括第一次自定义函数初始化和从之前的 checkpoint 恢复。
 因此 `initializeState()` 不仅是定义不同状态类型初始化的地方，也需要包括状态恢复的逻辑。
 
-当前，managed operator state 以 list 的形式存在。这些状态是一个 *可序列化* 对象的集合 `List`，彼此独立，方便在改变并发后进行状态的重新分派。
+当前 operator state 以 list 的形式存在。这些状态是一个 *可序列化* 对象的集合 `List`，彼此独立，方便在改变并发后进行状态的重新分派。
 换句话说，这些对象是重新分配 non-keyed state 的最细粒度。根据状态的不同访问方式，有如下几种重新分配的模式：
 
   - **Even-split redistribution:** 每个算子都保存一个列表形式的状态集合，整个状态由所有的列表拼接而成。当作业恢复或重新分配的时候，整个状态会按照算子的并发度进行均匀分配。
     比如说，算子 A 的并发读为 1，包含两个元素 `element1` 和 `element2`，当并发读增加为 2 时，`element1` 会被分到并发 0 上，`element2` 则会被分到并发 1 上。
 
   - **Union redistribution:** 每个算子保存一个列表形式的状态集合。整个状态由所有的列表拼接而成。当作业恢复或重新分配时，每个算子都将获得所有的状态数据。
+    Do not use this feature if your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC framesize or out-of-memory errors.
 
 下面的例子中的 `SinkFunction` 在 `CheckpointedFunction` 中进行数据缓存，然后统一发送到下游，这个例子演示了列表状态数据的 event-split redistribution。 
 

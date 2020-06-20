@@ -142,7 +142,7 @@ class PandasUDFITTests(object):
                 'time_param of wrong type %s !' % type(time_param[0])
             return time_param
 
-        timestamp_value = datetime.datetime(1970, 1, 1, 0, 0, 0, 123000)
+        timestamp_value = datetime.datetime(1970, 1, 2, 0, 0, 0, 123000)
 
         def timestamp_func(timestamp_param):
             assert isinstance(timestamp_param, pd.Series)
@@ -324,8 +324,8 @@ class PandasUDFITTests(object):
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
                             "[102, 108, 105, 110, 107],1000000000000000000.050000000000000000,"
                             "1000000000000000000.059999999999999999,2014-09-13,01:00:01,"
-                            "1970-01-01 00:00:00.123,[hello, 中文, null],[1970-01-01 00:00:00.123],"
-                            "[1, 2],[hello, 中文, null],1,hello,1970-01-01 00:00:00.123,[1, 2]"])
+                            "1970-01-02 00:00:00.123,[hello, 中文, null],[1970-01-02 00:00:00.123],"
+                            "[1, 2],[hello, 中文, null],1,hello,1970-01-02 00:00:00.123,[1, 2]"])
 
 
 class BlinkPandasUDFITTests(object):
@@ -335,7 +335,7 @@ class BlinkPandasUDFITTests(object):
 
         timezone = self.t_env.get_config().get_local_timezone()
         local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+            datetime.datetime(1970, 1, 2, 0, 0, 0, 123000))
 
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
             assert isinstance(local_zoned_timestamp_param, pd.Series)
@@ -366,7 +366,7 @@ class BlinkPandasUDFITTests(object):
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
+        self.assert_equals(actual, ["1970-01-02T00:00:00.123Z"])
 
 
 class StreamPandasUDFITTests(PandasUDFITTests,

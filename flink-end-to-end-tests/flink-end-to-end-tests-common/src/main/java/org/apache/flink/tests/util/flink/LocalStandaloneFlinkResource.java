@@ -34,6 +34,7 @@ import org.apache.flink.util.ConfigurationException;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import javax.annotation.Nullable;
 
@@ -66,6 +67,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 	private FlinkDistribution distribution;
 
 	LocalStandaloneFlinkResource(Path distributionDirectory, @Nullable Path logBackupDirectory, FlinkResourceSetup setup) {
+		LOG.info("Using distribution {}.", distributionDirectory);
 		this.distributionDirectory = distributionDirectory;
 		this.logBackupDirectory = logBackupDirectory;
 		this.setup = setup;
@@ -79,6 +81,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 		TestUtils.copyDirectory(distributionDirectory, tmp);
 
 		distribution = new FlinkDistribution(tmp);
+		distribution.setRootLogLevel(Level.DEBUG);
 		for (JarOperation jarOperation : setup.getJarOperations()) {
 			distribution.performJarOperation(jarOperation);
 		}
@@ -112,7 +115,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	private void backupLogs() {
 		if (logBackupDirectory != null) {
-			final Path targetDirectory = logBackupDirectory.resolve(UUID.randomUUID().toString());
+			final Path targetDirectory = logBackupDirectory.resolve("flink-" + UUID.randomUUID().toString());
 			try {
 				distribution.copyLogsTo(targetDirectory);
 				LOG.info("Backed up logs to {}.", targetDirectory);

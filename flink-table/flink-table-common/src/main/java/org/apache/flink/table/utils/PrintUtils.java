@@ -19,18 +19,21 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.StringUtils;
 
 import com.ibm.icu.lang.UCharacter;
 import com.ibm.icu.lang.UProperty;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Utilities for print formatting.
@@ -39,8 +42,8 @@ import java.util.List;
 public class PrintUtils {
 
 	// constants for printing
-	private static final int MAX_COLUMN_WIDTH = 30;
-	private static final String NULL_COLUMN = "(NULL)";
+	public static final int MAX_COLUMN_WIDTH = 30;
+	public static final String NULL_COLUMN = "(NULL)";
 	private static final String COLUMN_TRUNCATED_FLAG = "...";
 
 	private PrintUtils() {
@@ -58,23 +61,54 @@ public class PrintUtils {
 	 * |      (NULL) |  (NULL) |      (NULL) |
 	 * +-------------+---------+-------------+
 	 * 3 rows in result
-	 *
-	 * <p>Changelog is not supported until FLINK-16998 is finished.
 	 */
 	public static void printAsTableauForm(
 			TableSchema tableSchema,
 			Iterator<Row> it,
 			PrintWriter printWriter) {
+		printAsTableauForm(tableSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN, false);
+	}
+
+	/**
+	 * Displays the result in a tableau form.
+	 *
+	 * <p>For example: (printRowKind is true)
+	 * +-------------+-------------+---------+-------------+
+	 * | row_kind | boolean_col | int_col | varchar_col |
+	 * +-------------+-------------+---------+-------------+
+	 * |       +I |        true |       1 |         abc |
+	 * |       -U |       false |       2 |         def |
+	 * |       +U |       false |       3 |         def |
+	 * |       -D |      (NULL) |  (NULL) |      (NULL) |
+	 * +-------------+-------------+---------+-------------+
+	 * 4 rows in result
+	 */
+	public static void printAsTableauForm(
+			TableSchema tableSchema,
+			Iterator<Row> it,
+			PrintWriter printWriter,
+			int maxColumnWidth,
+			String nullColumn,
+			boolean printRowKind) {
 		List<String[]> rows = new ArrayList<>();
 
 		// fill field names first
-		List<TableColumn> columns = tableSchema.getTableColumns();
-		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
-		while (it.hasNext()) {
-			rows.add(rowToString(it.next()));
+		final List<TableColumn> columns;
+		if (printRowKind) {
+			columns = Stream.concat(
+					Stream.of(TableColumn.of("row_kind", DataTypes.STRING())),
+					tableSchema.getTableColumns().stream()
+			).collect(Collectors.toList());
+		} else {
+			columns = tableSchema.getTableColumns();
 		}
 
-		int[] colWidths = columnWidthsByContent(columns, rows);
+		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
+		while (it.hasNext()) {
+			rows.add(rowToString(it.next(), nullColumn, printRowKind));
+		}
+
+		int[] colWidths = columnWidthsByContent(columns, rows, maxColumnWidth);
 		String borderline = genBorderLine(colWidths);
 
 		// print field names
@@ -100,19 +134,30 @@ public class PrintUtils {
 	}
 
 	public static String[] rowToString(Row row) {
-		final String[] fields = new String[row.getArity()];
+		return rowToString(row, NULL_COLUMN, false);
+	}
+
+	public static String[] rowToString(Row row, String nullColumn, boolean printRowKind) {
+		final int len = printRowKind ? row.getArity() + 1 : row.getArity();
+		final List<String> fields = new ArrayList<>(len);
+		if (printRowKind) {
+			fields.add(row.getKind().shortString());
+		}
 		for (int i = 0; i < row.getArity(); i++) {
 			final Object field = row.getField(i);
 			if (field == null) {
-				fields[i] = NULL_COLUMN;
+				fields.add(nullColumn);
 			} else {
-				fields[i] = EncodingUtils.objectToString(field);
+				fields.add(StringUtils.arrayAwareToString(field));
 			}
 		}
-		return fields;
+		return fields.toArray(new String[0]);
 	}
 
-	private static int[] columnWidthsByContent(List<TableColumn> columns, List<String[]> rows) {
+	private static int[] columnWidthsByContent(
+			List<TableColumn> columns,
+			List<String[]> rows,
+			int maxColumnWidth) {
 		// fill width with field names first
 		int[] colWidths = columns.stream().mapToInt(col -> col.getName().length()).toArray();
 
@@ -125,7 +170,7 @@ public class PrintUtils {
 
 		// adjust column width with maximum length
 		for (int i = 0; i < colWidths.length; ++i) {
-			colWidths[i] = Math.min(colWidths[i], MAX_COLUMN_WIDTH);
+			colWidths[i] = Math.min(colWidths[i], maxColumnWidth);
 		}
 
 		return colWidths;
@@ -135,7 +180,7 @@ public class PrintUtils {
 		StringBuilder sb = new StringBuilder();
 		sb.append("+");
 		for (int width : colWidths) {
-			sb.append(StringUtils.repeat('-', width + 1));
+			sb.append(EncodingUtils.repeat('-', width + 1));
 			sb.append("-+");
 		}
 		return sb.toString();
@@ -149,7 +194,7 @@ public class PrintUtils {
 			sb.append(" ");
 			int displayWidth = getStringDisplayWidth(col);
 			if (displayWidth <= colWidths[idx]) {
-				sb.append(StringUtils.repeat(' ', colWidths[idx] - displayWidth));
+				sb.append(EncodingUtils.repeat(' ', colWidths[idx] - displayWidth));
 				sb.append(col);
 			} else {
 				sb.append(truncateString(col, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
@@ -180,7 +225,7 @@ public class PrintUtils {
 		// pad with ' ' before the column
 		int lackedWidth = targetWidth - getStringDisplayWidth(substring);
 		if (lackedWidth > 0) {
-			substring = StringUtils.repeat(' ', lackedWidth) + substring;
+			substring = EncodingUtils.repeat(' ', lackedWidth) + substring;
 		}
 		return substring;
 	}

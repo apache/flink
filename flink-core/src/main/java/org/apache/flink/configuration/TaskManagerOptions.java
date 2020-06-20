@@ -532,22 +532,6 @@ public class TaskManagerOptions {
 			.withDescription("Time we wait for the timers in milliseconds to finish all pending timer threads" +
 				" when the stream task is cancelled.");
 
-	/**
-	 * The maximum number of bytes that a checkpoint alignment may buffer.
-	 * If the checkpoint alignment buffers more than the configured amount of
-	 * data, the checkpoint is aborted (skipped).
-	 *
-	 * <p>The default value of {@code -1} indicates that there is no limit.
-	 */
-	@Documentation.ExcludeFromDocumentation("With flow control, there is no alignment spilling any more")
-	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
-			key("task.checkpoint.alignment.max-size")
-			.longType()
-			.defaultValue(-1L)
-			.withDescription("The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint" +
-				" alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped)." +
-				" A value of -1 indicates that there is no limit.");
-
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated. */

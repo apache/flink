@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.window.grouping;
 
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.util.RowIterator;
 
@@ -283,7 +283,7 @@ public class HeapWindowsGroupingTest {
 		List<List<Long>> actual = new ArrayList<>();
 		List<TimeWindow> windows = new ArrayList<>();
 		HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 0L, 8L, 4L, 0, false);
-		RowIterator<BinaryRow> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
+		RowIterator<BinaryRowData> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
 		grouping.addInputToBuffer(iterator.getRow());
 		// watermark to trigger all the windows first
 		grouping.advanceWatermarkToTriggerAllWindows();
@@ -295,12 +295,12 @@ public class HeapWindowsGroupingTest {
 	@Test(expected = IllegalStateException.class)
 	public void testInvalidWindowTrigger() throws IOException {
 		Long[] ts = new Long[]{8L};
-		RowIterator<BinaryRow> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
+		RowIterator<BinaryRowData> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
 		HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 0L, 8L, 4L, 0, false);
 		grouping.addInputToBuffer(iterator.getRow());
 
 		System.out.println("valid window trigger");
-		RowIterator<BinaryRow> iter = grouping.buildTriggerWindowElementsIterator();
+		RowIterator<BinaryRowData> iter = grouping.buildTriggerWindowElementsIterator();
 		TimeWindow window = grouping.getTriggerWindow();
 		List<Long> buffer = new ArrayList<>();
 		while (iter.advanceNext()) {
@@ -320,9 +320,9 @@ public class HeapWindowsGroupingTest {
 		List<TimeWindow> windows = new ArrayList<>();
 		HeapWindowsGrouping grouping = new HeapWindowsGrouping(limit, 0L, windowSize, slideSize, 0, false);
 
-		RowIterator<BinaryRow> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
+		RowIterator<BinaryRowData> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
 		while (iterator.advanceNext()) {
-			BinaryRow input = iterator.getRow();
+			BinaryRowData input = iterator.getRow();
 			grouping.addInputToBuffer(input);
 			processTriggerWindow(actual, windows, grouping);
 		}
@@ -336,7 +336,7 @@ public class HeapWindowsGroupingTest {
 	private void processTriggerWindow(
 			List<List<Long>> actual, List<TimeWindow> windows, HeapWindowsGrouping grouping) {
 		while (grouping.hasTriggerWindow()) {
-			RowIterator<BinaryRow> iter = grouping.buildTriggerWindowElementsIterator();
+			RowIterator<BinaryRowData> iter = grouping.buildTriggerWindowElementsIterator();
 			TimeWindow window = grouping.getTriggerWindow();
 			List<Long> buffer = new ArrayList<>();
 			while (iter.advanceNext()) {
@@ -349,8 +349,8 @@ public class HeapWindowsGroupingTest {
 		}
 	}
 
-	private class TestInputIterator implements RowIterator<BinaryRow> {
-		private BinaryRow row = new BinaryRow(1);
+	private class TestInputIterator implements RowIterator<BinaryRowData> {
+		private BinaryRowData row = new BinaryRowData(1);
 		private BinaryRowWriter writer = new BinaryRowWriter(row);
 		private List<Long> assignedWindowStart;
 		private int count;
@@ -379,7 +379,7 @@ public class HeapWindowsGroupingTest {
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			writer.reset();
 			if (assignedWindowStart.get(count) == null) {
 				writer.setNullAt(0);

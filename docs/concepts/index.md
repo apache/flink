@@ -1,12 +1,11 @@
 ---
-title: Concepts in Depth
+title: Concepts
 nav-id: concepts
 nav-pos: 3
-nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts in Depth'
+nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts'
 nav-parent_id: root
 nav-show_overview: true
 permalink: /concepts/index.html
-always-expand: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,13 +26,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The [Hands-on Tutorials]({% link tutorials/index.md %}) explain the basic concepts
-of stateful and timely stream processing that underlie Flink's APIs, and provide examples of how
+The [Hands-on Training]({% link learn-flink/index.md %}) explains the basic concepts
+of stateful and timely stream processing that underlie Flink's APIs, and provides examples of how
 these mechanisms are used in applications. Stateful stream processing is introduced in the context
-of [Data Pipelines & ETL]({% link tutorials/etl.md %}#stateful-transformations)
-and is further developed in the section on [Fault Tolerance]({% link
-tutorials/fault_tolerance.md %}). Timely stream processing is introduced in the section on
-[Streaming Analytics]({% link tutorials/streaming_analytics.md %}).
+of [Data Pipelines & ETL]({% link learn-flink/etl.md %}#stateful-transformations)
+and is further developed in the section on [Fault Tolerance]({% link learn-flink/fault_tolerance.md %}). Timely stream processing is introduced in the section on
+[Streaming Analytics]({% link learn-flink/streaming_analytics.md %}).
 
 This _Concepts in Depth_ section provides a deeper understanding of how Flink's architecture and runtime 
 implement these concepts.

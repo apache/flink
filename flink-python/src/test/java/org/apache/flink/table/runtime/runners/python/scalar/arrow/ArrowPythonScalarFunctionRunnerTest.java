@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.runtime.runners.python.scalar.arrow;
 
-import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
@@ -44,6 +42,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.runtime.utils.PythonTestUtils.createTestEnvironmentManager;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -160,11 +159,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 		int maxArrowBatchSize,
 		JobBundleFactory jobBundleFactory) {
 
-		final PythonEnvironmentManager environmentManager =
-			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
-				new String[] {System.getProperty("java.io.tmpdir")},
-				new HashMap<>());
+		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
 		return new PassThroughArrowPythonScalarFunctionRunner<Row>(
 			"testPythonRunner",

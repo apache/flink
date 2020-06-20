@@ -22,9 +22,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +38,9 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link AvroSchemaConverter}.
  */
 public class AvroSchemaConverterTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testAvroClassConversion() {
@@ -43,6 +51,40 @@ public class AvroSchemaConverterTest {
 	public void testAvroSchemaConversion() {
 		final String schema = User.getClassSchema().toString(true);
 		validateUserSchema(AvroSchemaConverter.convertToTypeInfo(schema));
+	}
+
+	@Test
+	public void testInvalidRawTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("a", DataTypes.STRING())
+			.field("b", DataTypes.RAW(Types.GENERIC(AvroSchemaConverterTest.class)))
+			.build().toRowDataType().getLogicalType();
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("Unsupported to derive Schema for type: RAW");
+		AvroSchemaConverter.convertToSchema(rowType);
+	}
+
+	@Test
+	public void testInvalidTimestampTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("a", DataTypes.STRING())
+			.field("b", DataTypes.TIMESTAMP(9))
+			.build().toRowDataType().getLogicalType();
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Avro does not support TIMESTAMP type with precision: 9, " +
+			"it only supports precision less than 3.");
+		AvroSchemaConverter.convertToSchema(rowType);
+	}
+
+	@Test
+	public void testInvalidTimeTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("a", DataTypes.STRING())
+			.field("b", DataTypes.TIME(6))
+			.build().toRowDataType().getLogicalType();
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
+		AvroSchemaConverter.convertToSchema(rowType);
 	}
 
 	private void validateUserSchema(TypeInformation<?> actual) {

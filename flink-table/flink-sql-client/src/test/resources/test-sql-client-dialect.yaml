@@ -25,10 +25,6 @@ execution:
   planner: blink
   type: batch
   result-mode: table
-  dialect: "$VAR_DIALECT"
 
 configuration:
-  table.exec.sort.default-limit: 100
-  table.exec.spill-compression.enabled: true
-  table.exec.spill-compression.block-size: 128kb
-  table.optimizer.join-reorder-enabled: true
+  table.sql-dialect: "$VAR_DIALECT"

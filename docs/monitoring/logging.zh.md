@@ -35,7 +35,7 @@ Log4j2 is controlled using property files. In Flink's case, the file is usually 
 Flink ships with the following default properties files:
 
 - `log4j-cli.properties`: Used by the Flink command line client (e.g. `flink run`) (not code executed on the cluster)
-- `log4j-yarn-session.properties`: Used by the Flink command line client when starting a YARN session (`yarn-session.sh`)
+- `log4j-session.properties`: Used by the Flink command line client when starting a YARN or Kubernetes session (`yarn-session.sh`, `kubernetes-session.sh`)
 - `log4j.properties`: JobManager/Taskmanager logs (both standalone and YARN)
 
 ### Compatibility with Log4j1

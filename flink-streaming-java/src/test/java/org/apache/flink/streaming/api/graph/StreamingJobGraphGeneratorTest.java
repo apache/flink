@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -28,6 +29,9 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -56,18 +61,27 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -232,6 +246,28 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		assertFalse(printConfig.isChainStart());
 		assertTrue(printConfig.isChainEnd());
+	}
+
+	@Test
+	public void testOperatorCoordinatorAddedToJobVertex() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Integer> stream = env.continuousSource(
+				new MockSource(Boundedness.BOUNDED, 1),
+				WatermarkStrategy.noWatermarks(),
+				"TestingSource");
+
+		OneInputTransformation<Integer, Integer> resultTransform = new OneInputTransformation<Integer, Integer>(
+				stream.getTransformation(),
+				"AnyName",
+				new CoordinatedTransformOperatorFactory(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				env.getParallelism());
+
+		new TestingSingleOutputStreamOperator<>(env, resultTransform).print();
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		assertEquals(2, jobGraph.getVerticesAsArray()[0].getOperatorCoordinators().size());
 	}
 
 	/**
@@ -420,6 +456,32 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		OutputFormat<?> sinkFormat2 = outputFormats.get(nameToOperatorIds.get("Sink: sink2")).getUserCodeObject();
 		assertTrue(sinkFormat2 instanceof DiscardingOutputFormat);
+	}
+
+	@Test
+	public void testCoordinatedOperator() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Integer> source = env.continuousSource(
+				new MockSource(Boundedness.BOUNDED, 1),
+				WatermarkStrategy.noWatermarks(),
+				"TestSource");
+		source.addSink(new DiscardingSink<>());
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+		// There should be only one job vertex.
+		assertEquals(1, jobGraph.getNumberOfVertices());
+
+		JobVertex jobVertex = jobGraph.getVerticesAsArray()[0];
+		List<SerializedValue<OperatorCoordinator.Provider>> coordinatorProviders = jobVertex.getOperatorCoordinators();
+		// There should be only one coordinator provider.
+		assertEquals(1, coordinatorProviders.size());
+		// The invokable class should be SourceOperatorStreamTask.
+		final ClassLoader classLoader = getClass().getClassLoader();
+		assertEquals(SourceOperatorStreamTask.class, jobVertex.getInvokableClass(classLoader));
+		StreamOperatorFactory operatorFactory =
+				new StreamConfig(jobVertex.getConfiguration()).getStreamOperatorFactory(classLoader);
+		assertTrue(operatorFactory instanceof SourceOperatorFactory);
 	}
 
 	/**
@@ -890,4 +952,42 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		}
 	}
 
+	// ------------ private classes -------------
+	private static class CoordinatedTransformOperatorFactory
+			extends AbstractStreamOperatorFactory<Integer>
+			implements CoordinatedOperatorFactory<Integer>, OneInputStreamOperatorFactory<Integer, Integer> {
+
+		@Override
+		public OperatorCoordinator.Provider getCoordinatorProvider(String operatorName, OperatorID operatorID) {
+			return new OperatorCoordinator.Provider() {
+				@Override
+				public OperatorID getOperatorId() {
+					return null;
+				}
+
+				@Override
+				public OperatorCoordinator create(OperatorCoordinator.Context context) {
+					return null;
+				}
+			};
+		}
+
+		@Override
+		public <T extends StreamOperator<Integer>> T createStreamOperator(StreamOperatorParameters<Integer> parameters) {
+			return null;
+		}
+
+		@Override
+		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+			return null;
+		}
+	}
+
+	private static class TestingSingleOutputStreamOperator<OUT> extends SingleOutputStreamOperator<OUT> {
+
+		public TestingSingleOutputStreamOperator(StreamExecutionEnvironment environment,
+													Transformation<OUT> transformation) {
+			super(environment, transformation);
+		}
+	}
 }

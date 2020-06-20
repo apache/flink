@@ -173,7 +173,16 @@ public interface TaskMailbox {
 	 * This enum represents the states of the mailbox lifecycle.
 	 */
 	enum State {
-		OPEN, QUIESCED, CLOSED
+		OPEN(true), QUIESCED(false), CLOSED(false);
+		private final boolean acceptingMails;
+
+		State(boolean acceptingMails) {
+			this.acceptingMails = acceptingMails;
+		}
+
+		public boolean isAcceptingMails() {
+			return acceptingMails;
+		}
 	}
 
 	/**

@@ -152,10 +152,11 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
-	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
 		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.initializeState(stateReader);
+			subpartition.readRecoveredState(stateReader);
 		}
+		LOG.debug("{}: Finished reading recovered state.", this);
 	}
 
 	public String getOwningTaskName() {
@@ -206,15 +207,15 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkInProduceState();
 
-		return bufferPool.requestBufferBuilderBlocking();
+		return bufferPool.requestBufferBuilderBlocking(targetChannel);
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder() throws IOException {
-		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder();
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
 		return bufferBuilder;
 	}
 

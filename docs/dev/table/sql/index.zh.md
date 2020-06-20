@@ -29,10 +29,11 @@ under the License.
 本页面列出了目前 Flink SQL 所支持的所有语句：
 
 - [SELECT (查询)](queries.html)
-- [CREATE TABLE, DATABASE, FUNCTION](create.html)
-- [DROP TABLE, DATABASE, FUNCTION](drop.html)
+- [CREATE TABLE, DATABASE, VIEW, FUNCTION](create.html)
+- [DROP TABLE, DATABASE, VIEW, FUNCTION](drop.html)
 - [ALTER TABLE, DATABASE, FUNCTION](alter.html)
 - [INSERT](insert.html)
+- [SQL HINTS](hints.html)
 
 ## 数据类型
 

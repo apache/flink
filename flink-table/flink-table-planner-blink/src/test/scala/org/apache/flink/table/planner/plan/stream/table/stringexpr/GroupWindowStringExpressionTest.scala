@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{Session, Slide, Tumble}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{CountAggFunction, TableTestBase}

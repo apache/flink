@@ -24,6 +24,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* This will be replaced by the TOC
+{:toc}
+
+## What is State?
+
 While many operations in a dataflow simply look at one individual *event at a
 time* (for example an event parser), some operations remember information
 across multiple events (for example window operators). These operations are
@@ -53,19 +58,6 @@ that Flink takes care of redistributing state across parallel instances.
 When working with state, it might also be useful to read about [Flink's state
 backends]({% link ops/state/state_backends.md %}). Flink
 provides different state backends that specify how and where state is stored.
-
-* This will be replaced by the TOC
-{:toc}
-
-## What is State?
-
-`TODO: expand this section`
-
-{% top %}
-
-## State in Stream & Batch Processing
-
-`TODO: What is this section about? Do we even need it?`
 
 {% top %}
 
@@ -115,9 +107,9 @@ streams are reset to the point of the state snapshot. Any records that are
 processed as part of the restarted parallel dataflow are guaranteed to not have
 affected the previously checkpointed state.
 
-{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({{
-site.baseurl }}{% link dev/stream/state/checkpointing.md %}) for details on how
-to enable and configure checkpointing.
+{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({%
+link dev/stream/state/checkpointing.md %}) for details on how to enable and
+configure checkpointing.
 
 {% info Note %} For this mechanism to realize its full guarantees, the data
 stream source (such as message queue or broker) needs to be able to rewind the
@@ -252,8 +244,6 @@ See [Restart Strategies]({% link dev/task_failure_recovery.md
 
 ### State Backends
 
-`TODO: expand this section`
-
 The exact data structures in which the key/values indexes are stored depends on
 the chosen [state backend]({% link
 ops/state/state_backends.md %}). One state backend stores data in an in-memory
@@ -269,8 +259,6 @@ logic.
 {% top %}
 
 ### Savepoints
-
-`TODO: expand this section`
 
 All programs that use checkpointing can resume execution from a **savepoint**.
 Savepoints allow both updating your programs and your Flink cluster without
@@ -311,10 +299,6 @@ parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually
 give *exactly once* guarantees even in *at least once* mode.
 
 {% top %}
-
-## End-to-end Exactly-Once Programs
-
-`TODO: add`
 
 ## State and Fault Tolerance in Batch Programs
 

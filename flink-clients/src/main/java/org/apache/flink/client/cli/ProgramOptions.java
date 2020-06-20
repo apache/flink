@@ -67,7 +67,7 @@ public class ProgramOptions extends CommandLineOptions {
 
 	private final SavepointRestoreSettings savepointSettings;
 
-	ProgramOptions(CommandLine line) throws CliArgsException {
+	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
 
 		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?

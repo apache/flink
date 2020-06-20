@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>

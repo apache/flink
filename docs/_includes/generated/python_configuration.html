@@ -63,6 +63,12 @@
             <td>The amount of memory to be allocated by the Python framework. The sum of the value of this configuration and "python.fn-execution.buffer.memory.size" represents the total memory of a Python worker. The memory will be accounted as managed memory if the actual memory allocated to an operator is no less than the total memory of a Python worker. Otherwise, this configuration takes no effect.</td>
         </tr>
         <tr>
+            <td><h5>python.fn-execution.memory.managed</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If set, the Python worker will configure itself to use the managed memory budget of the task slot. Otherwise, it will use the Off-Heap Memory of the task slot. In this case, users should set the Task Off-Heap Memory using the configuration key taskmanager.memory.task.off-heap.size. For each Python worker, the required Task Off-Heap Memory is the sum of the value of python.fn-execution.framework.memory.size and python.fn-execution.buffer.memory.size.</td>
+        </tr>
+        <tr>
             <td><h5>python.metric.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

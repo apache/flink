@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -412,6 +413,19 @@ public class ElasticsearchSinkBaseTest {
 		testHarness.close();
 	}
 
+	@Test
+	public void testOpenAndCloseInSinkFunction() throws Exception {
+		SimpleClosableSinkFunction<String> sinkFunction = new SimpleClosableSinkFunction<>();
+		final DummyElasticsearchSink<String> sink = new DummyElasticsearchSink<>(
+				new HashMap<>(), sinkFunction, new DummyRetryFailureHandler());
+
+		sink.open(mock(Configuration.class));
+		sink.close();
+
+		Assert.assertTrue(sinkFunction.openCalled);
+		Assert.assertTrue(sinkFunction.closeCalled);
+	}
+
 	private static class DummyElasticsearchSink<T> extends ElasticsearchSinkBase<T, Client> {
 
 		private static final long serialVersionUID = 5051907841570096991L;
@@ -584,6 +598,27 @@ public class ElasticsearchSinkBaseTest {
 					.source(json)
 			);
 		}
+	}
+
+	private static class SimpleClosableSinkFunction<String> implements ElasticsearchSinkFunction<String> {
+
+		private static final long serialVersionUID = 1872065917794006848L;
+
+		private boolean openCalled;
+		private boolean closeCalled;
+
+		@Override
+		public void open() {
+			openCalled = true;
+		}
+
+		@Override
+		public void close() {
+			closeCalled = true;
+		}
+
+		@Override
+		public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {}
 	}
 
 	private static class DummyRetryFailureHandler implements ActionRequestFailureHandler {

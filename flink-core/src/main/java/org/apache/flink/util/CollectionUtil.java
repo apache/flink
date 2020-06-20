@@ -20,8 +20,11 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,5 +84,19 @@ public final class CollectionUtil {
 			.stream()
 			.map(projector)
 			.collect(toList());
+	}
+
+	/**
+	 * Collects the elements in the Iterable in a List. If the iterable argument is null,
+	 * this method returns an empty list.
+	 */
+	public static <E> List<E> iterableToList(@Nullable Iterable<E> iterable) {
+		if (iterable == null) {
+			return Collections.emptyList();
+		}
+
+		final ArrayList<E> list = new ArrayList<>();
+		iterable.iterator().forEachRemaining(list::add);
+		return list;
 	}
 }

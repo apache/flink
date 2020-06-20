@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.plan.`trait`
 
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
+import org.apache.flink.types.RowKind
+
 import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
 
 /**
@@ -94,5 +98,21 @@ object UpdateKindTrait {
       UpdateKind.NONE
     }
     new UpdateKindTrait(updateKind)
+  }
+
+  /**
+   * Creates an instance of [[UpdateKindTrait]] from the given [[ChangelogMode]].
+   */
+  def fromChangelogMode(changelogMode: ChangelogMode): UpdateKindTrait = {
+    val hasUpdateBefore = changelogMode.contains(RowKind.UPDATE_BEFORE)
+    val hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER)
+    (hasUpdateBefore, hasUpdateAfter) match {
+      case (true, true) => BEFORE_AND_AFTER
+      case (false, true) => ONLY_UPDATE_AFTER
+      case (true, false) =>
+        throw new IllegalArgumentException("Unsupported changelog mode: " +
+          ChangelogPlanUtils.stringifyChangelogMode(Some(changelogMode)))
+      case (false, false) => NONE
+    }
   }
 }

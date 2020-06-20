@@ -198,7 +198,7 @@ class StatefulJobSavepointMigrationITCase(
     }
 
     override def initializeState(context: FunctionInitializationContext): Unit = {
-      state = context.getOperatorStateStore.getOperatorState(
+      state = context.getOperatorStateStore.getListState(
         new ListStateDescriptor[CustomCaseClass](
           "sourceState", createTypeInformation[CustomCaseClass]))
     }

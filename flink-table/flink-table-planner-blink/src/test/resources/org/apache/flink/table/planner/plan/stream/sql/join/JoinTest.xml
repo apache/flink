@@ -33,10 +33,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :  +- Calc(select=[a1], changelogMode=[I])
-:     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -58,10 +58,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
    :- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :  +- Calc(select=[a1, a2], changelogMode=[I])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -90,12 +90,12 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -126,13 +126,13 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -158,10 +158,10 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -189,9 +189,9 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -222,13 +222,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -259,13 +259,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -286,10 +286,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a1]])
 :  +- Calc(select=[a1])
-:     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
 +- Exchange(distribution=[hash[b1]])
    +- Calc(select=[b1])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -318,12 +318,12 @@ Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[Jo
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -352,12 +352,12 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -388,13 +388,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -420,9 +420,9 @@ LogicalProject(i=[$0], j=[$1], t=[$2], i0=[$3], k=[$4])
       <![CDATA[
 Join(joinType=[FullOuterJoin], where=[AND(=(i, i0), =(i, k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[i, i]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, t)]]], fields=[i, j, t])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, t)]]], fields=[i, j, t])
 +- Exchange(distribution=[hash[i, k]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(i, k)]]], fields=[i, k])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(i, k)]]], fields=[i, k])
 ]]>
     </Resource>
   </TestCase>
@@ -443,10 +443,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :  +- Calc(select=[a1], changelogMode=[I])
-:     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -468,10 +468,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
    :- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :  +- Calc(select=[a1, a2], changelogMode=[I])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -502,13 +502,13 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -539,13 +539,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -576,13 +576,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -608,10 +608,10 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -639,9 +639,9 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -663,10 +663,10 @@ Calc(select=[b, y])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -688,9 +688,9 @@ Calc(select=[b, y])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -712,10 +712,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
    :- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :  +- Calc(select=[a1, a2], changelogMode=[I])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -737,10 +737,10 @@ Calc(select=[b, y])
 +- Join(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -762,10 +762,10 @@ Calc(select=[b, y])
 +- Join(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -786,10 +786,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :  +- Calc(select=[a1], changelogMode=[I])
-:     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -818,12 +818,12 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -854,13 +854,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -891,13 +891,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -923,10 +923,10 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -954,9 +954,9 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -987,13 +987,13 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1015,10 +1015,10 @@ Calc(select=[b, x])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[x, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1040,9 +1040,9 @@ Calc(select=[b, y])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1073,7 +1073,7 @@ LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
 Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[key]], changelogMode=[I])
 :  +- Calc(select=[CAST(0:BIGINT) AS key, v], where=[=(key, 0:BIGINT)], changelogMode=[I])
-:     +- TableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]], fields=[key, v], changelogMode=[I])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]], fields=[key, v], changelogMode=[I])
 +- Exchange(distribution=[hash[key]], changelogMode=[I])
    +- Values(tuples=[[]], changelogMode=[I])
 ]]>

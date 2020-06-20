@@ -16,6 +16,36 @@
 -->
 
 /**
+ * Parses a "IF EXISTS" option, default is false.
+ */
+boolean IfExistsOpt() :
+{
+}
+{
+    (
+        LOOKAHEAD(2)
+        <IF> <EXISTS> { return true; }
+    |
+        { return false; }
+    )
+}
+
+/**
+ * Parses a "IF NOT EXISTS" option, default is false.
+ */
+boolean IfNotExistsOpt() :
+{
+}
+{
+    (
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { return true; }
+    |
+        { return false; }
+    )
+}
+
+/**
 * Parse a "Show Catalogs" metadata query command.
 */
 SqlShowCatalogs SqlShowCatalogs() :
@@ -79,6 +109,23 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     }
 }
 
+SqlDrop SqlDropCatalog(Span s, boolean replace) :
+{
+    SqlIdentifier catalogName = null;
+    boolean ifExists = false;
+}
+{
+    <CATALOG>
+
+    ifExists = IfExistsOpt()
+
+    catalogName = CompoundIdentifier()
+
+    {
+        return new SqlDropCatalog(s.pos(), catalogName, ifExists);
+    }
+}
+
 /**
 * Parse a "Show DATABASES" metadata query command.
 */
@@ -121,10 +168,9 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 {
     <DATABASE> { startPos = getPos(); }
-    [
-        LOOKAHEAD(3)
-        <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
+
+    ifNotExists = IfNotExistsOpt()
+
     databaseName = CompoundIdentifier()
     [ <COMMENT> <QUOTED_STRING>
         {
@@ -172,17 +218,13 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 {
     <DATABASE>
 
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+    ifExists = IfExistsOpt()
 
     databaseName = CompoundIdentifier()
     [
-                <RESTRICT> { cascade = false; }
-        |
-                <CASCADE>  { cascade = true; }
+        <RESTRICT> { cascade = false; }
+    |
+        <CASCADE>  { cascade = true; }
     ]
 
     {
@@ -215,18 +257,16 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     boolean isSystemFunction = false;
 }
 {
-    [
-        <SYSTEM> {isSystemFunction = true;}
-    ]
-
-    <FUNCTION>
-
-    [
-        LOOKAHEAD(3)
-        <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
-
-    functionIdentifier = CompoundIdentifier()
+    (
+        <SYSTEM> <FUNCTION>
+        ifNotExists = IfNotExistsOpt()
+        functionIdentifier = SimpleIdentifier()
+        {  isSystemFunction = true; }
+    |
+        <FUNCTION>
+        ifNotExists = IfNotExistsOpt()
+        functionIdentifier = CompoundIdentifier()
+    )
 
     <AS> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
@@ -260,7 +300,7 @@ SqlDrop SqlDropFunction(Span s, boolean replace, boolean isTemporary) :
 
     <FUNCTION>
 
-    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
+    ifExists = IfExistsOpt()
 
     functionIdentifier = CompoundIdentifier()
 
@@ -288,7 +328,7 @@ SqlAlterFunction SqlAlterFunction() :
 
     <FUNCTION> { startPos = getPos(); }
 
-    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
+    ifExists = IfExistsOpt()
 
     functionIdentifier = CompoundIdentifier()
 
@@ -323,6 +363,20 @@ SqlShowFunctions SqlShowFunctions() :
     [database = CompoundIdentifier()]
     {
         return new SqlShowFunctions(pos, database);
+    }
+}
+
+/**
+ * Parse a "Show Views" metadata query command.
+ */
+SqlShowViews SqlShowViews() :
+{
+    SqlParserPos pos;
+}
+{
+    <SHOW> <VIEWS> { pos = getPos(); }
+    {
+        return new SqlShowViews(pos);
     }
 }
 
@@ -364,6 +418,8 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlIdentifier constraintName;
+    SqlTableConstraint constraint;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -386,19 +442,35 @@ SqlAlterTable SqlAlterTable() :
                         tableIdentifier,
                         propertyList);
         }
+    |
+        <ADD> constraint = TableConstraint() {
+            return new SqlAlterTableAddConstraint(
+                        tableIdentifier,
+                        constraint,
+                        startPos.plus(getPos()));
+        }
+    |
+        <DROP> <CONSTRAINT>
+        constraintName = SimpleIdentifier() {
+            return new SqlAlterTableDropConstraint(
+                tableIdentifier,
+                constraintName,
+                startPos.plus(getPos()));
+        }
     )
 }
 
 void TableColumn(TableCreationContext context) :
 {
+    SqlTableConstraint constraint;
 }
 {
     (LOOKAHEAD(2)
         TableColumn2(context.columnList)
     |
-        context.primaryKeyList = PrimaryKey()
-    |
-        UniqueKey(context.uniqueKeysList)
+        constraint = TableConstraint() {
+            context.constraints.add(constraint);
+        }
     |
         ComputedColumn(context)
     |
@@ -446,17 +518,22 @@ void TableColumn2(List<SqlNode> list) :
     SqlParserPos pos;
     SqlIdentifier name;
     SqlDataTypeSpec type;
+    SqlTableConstraint constraint = null;
     SqlCharStringLiteral comment = null;
 }
 {
     name = SimpleIdentifier()
     type = ExtendedDataType()
+    [
+        constraint = ColumnConstraint(name)
+    ]
     [ <COMMENT> <QUOTED_STRING> {
-        String p = SqlParserUtil.parseString(token.image);
-        comment = SqlLiteral.createCharString(p, getPos());
-    }]
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
     {
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
+        SqlTableColumn tableColumn = new SqlTableColumn(name, type, constraint, comment, getPos());
         list.add(tableColumn);
     }
 }
@@ -490,37 +567,99 @@ SqlDataTypeSpec ExtendedDataType() :
     }
 }
 
-SqlNodeList PrimaryKey() :
+/** Parses a column constraint for CREATE TABLE. */
+SqlTableConstraint ColumnConstraint(SqlIdentifier column) :
 {
-    List<SqlNode> pkList = new ArrayList<SqlNode>();
-
-    SqlParserPos pos;
-    SqlIdentifier columnName;
+    SqlIdentifier constraintName = null;
+    final SqlLiteral uniqueSpec;
+    SqlLiteral enforcement = null;
 }
 {
-    <PRIMARY> { pos = getPos(); } <KEY> <LPAREN>
-        columnName = SimpleIdentifier() { pkList.add(columnName); }
-        (<COMMA> columnName = SimpleIdentifier() { pkList.add(columnName); })*
-    <RPAREN>
+
+    [ constraintName = ConstraintName() ]
+    uniqueSpec = UniqueSpec()
+    [ enforcement = ConstraintEnforcement() ]
     {
-        return new SqlNodeList(pkList, pos.plus(getPos()));
+        return new SqlTableConstraint(
+                        constraintName,
+                        uniqueSpec,
+                        SqlNodeList.of(column),
+                        enforcement,
+                        false,
+                        getPos());
     }
 }
 
-void UniqueKey(List<SqlNodeList> list) :
+/** Parses a table constraint for CREATE TABLE. */
+SqlTableConstraint TableConstraint() :
 {
-    List<SqlNode> ukList = new ArrayList<SqlNode>();
-    SqlParserPos pos;
-    SqlIdentifier columnName;
+    SqlIdentifier constraintName = null;
+    final SqlLiteral uniqueSpec;
+    final SqlNodeList columns;
+    SqlLiteral enforcement = null;
 }
 {
-    <UNIQUE> { pos = getPos(); } <LPAREN>
-        columnName = SimpleIdentifier() { ukList.add(columnName); }
-        (<COMMA> columnName = SimpleIdentifier() { ukList.add(columnName); })*
-    <RPAREN>
+
+    [ constraintName = ConstraintName() ]
+    uniqueSpec = UniqueSpec()
+    columns = ParenthesizedSimpleIdentifierList()
+    [ enforcement = ConstraintEnforcement() ]
     {
-        SqlNodeList uk = new SqlNodeList(ukList, pos.plus(getPos()));
-        list.add(uk);
+        return new SqlTableConstraint(
+                        constraintName,
+                        uniqueSpec,
+                        columns,
+                        enforcement,
+                        true,
+                        getPos());
+    }
+}
+
+SqlIdentifier ConstraintName() :
+{
+    SqlIdentifier constraintName;
+}
+{
+    <CONSTRAINT> constraintName = SimpleIdentifier() {
+        return constraintName;
+    }
+}
+
+SqlLiteral UniqueSpec() :
+{
+    SqlLiteral uniqueSpec;
+}
+{
+    (
+    <PRIMARY> <KEY> {
+            uniqueSpec = SqlUniqueSpec.PRIMARY_KEY.symbol(getPos());
+        }
+    |
+    <UNIQUE> {
+            uniqueSpec = SqlUniqueSpec.UNIQUE.symbol(getPos());
+        }
+    )
+    {
+        return uniqueSpec;
+    }
+}
+
+SqlLiteral ConstraintEnforcement() :
+{
+    SqlLiteral enforcement;
+}
+{
+    (
+    <ENFORCED> {
+            enforcement = SqlConstraintEnforcement.ENFORCED.symbol(getPos());
+        }
+    |
+    <NOT> <ENFORCED> {
+            enforcement = SqlConstraintEnforcement.NOT_ENFORCED.symbol(getPos());
+        }
+    )
+    {
+        return enforcement;
     }
 }
 
@@ -564,12 +703,11 @@ SqlNodeList TableProperties():
     {  return new SqlNodeList(proList, span.end(this)); }
 }
 
-SqlCreate SqlCreateTable(Span s, boolean replace) :
+SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
-    SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
-    List<SqlNodeList> uniqueKeysList = new ArrayList<SqlNodeList>();
+    List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
@@ -592,8 +730,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
         {
             pos = pos.plus(getPos());
             columnList = new SqlNodeList(ctx.columnList, pos);
-            primaryKeyList = ctx.primaryKeyList;
-            uniqueKeysList = ctx.uniqueKeysList;
+            constraints = ctx.constraints;
             watermark = ctx.watermark;
         }
         <RPAREN>
@@ -618,13 +755,13 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
         return new SqlCreateTable(startPos.plus(getPos()),
                 tableName,
                 columnList,
-                primaryKeyList,
-                uniqueKeysList,
+                constraints,
                 propertyList,
                 partitionColumns,
                 watermark,
                 comment,
-                tableLike);
+                tableLike,
+                isTemporary);
     }
 }
 
@@ -678,6 +815,8 @@ SqlTableLikeOption SqlTableLikeOption():
         <OPTIONS> { featureOption = FeatureOption.OPTIONS;}
     |
         <PARTITIONS> { featureOption = FeatureOption.PARTITIONS;}
+    |
+        <WATERMARKS> { featureOption = FeatureOption.WATERMARKS;}
     )
 
     {
@@ -685,7 +824,7 @@ SqlTableLikeOption SqlTableLikeOption():
     }
 }
 
-SqlDrop SqlDropTable(Span s, boolean replace) :
+SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
 {
     SqlIdentifier tableName = null;
     boolean ifExists = false;
@@ -693,16 +832,12 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     <TABLE>
 
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+    ifExists = IfExistsOpt()
 
     tableName = CompoundIdentifier()
 
     {
-         return new SqlDropTable(s.pos(), tableName, ifExists);
+         return new SqlDropTable(s.pos(), tableName, ifExists, isTemporary);
     }
 }
 
@@ -816,10 +951,8 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
 {
     <VIEW>
 
-    [
-        LOOKAHEAD(3)
-        <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
+    ifNotExists = IfNotExistsOpt()
+
     viewName = CompoundIdentifier()
     [
         fieldList = ParenthesizedSimpleIdentifierList()
@@ -832,7 +965,7 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment);
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null);
     }
 }
 
@@ -844,11 +977,8 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
 {
     <VIEW>
 
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+    ifExists = IfExistsOpt()
+
     viewName = CompoundIdentifier()
     {
         return new SqlDropView(s.pos(), viewName, ifExists, isTemporary);
@@ -1180,7 +1310,7 @@ SqlCreate SqlCreateExtended(Span s, boolean replace) :
     (
         create = SqlCreateCatalog(s, replace)
         |
-        create = SqlCreateTable(s, replace)
+        create = SqlCreateTable(s, replace, isTemporary)
         |
         create = SqlCreateView(s, replace, isTemporary)
         |
@@ -1203,7 +1333,9 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
         <TEMPORARY> { isTemporary = true; }
     ]
     (
-        drop = SqlDropTable(s, replace)
+        drop = SqlDropCatalog(s, replace)
+        |
+        drop = SqlDropTable(s, replace, isTemporary)
         |
         drop = SqlDropView(s, replace, isTemporary)
         |

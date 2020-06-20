@@ -106,8 +106,12 @@ public final class PythonDriver {
 	 */
 	static List<String> constructPythonCommands(final PythonDriverOptions pythonDriverOptions) {
 		final List<String> commands = new ArrayList<>();
-		commands.add("-m");
-		commands.add(pythonDriverOptions.getEntryPointModule());
+		if (pythonDriverOptions.getEntryPointScript().isPresent()) {
+			commands.add(pythonDriverOptions.getEntryPointScript().get());
+		} else {
+			commands.add("-m");
+			commands.add(pythonDriverOptions.getEntryPointModule());
+		}
 		commands.addAll(pythonDriverOptions.getProgramArgs());
 		return commands;
 	}

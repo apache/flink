@@ -20,8 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.FunctionLanguage;
-
-import java.lang.reflect.InvocationTargetException;
+import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 
 /**
  * A util to instantiate {@link FunctionDefinition} in the default way.
@@ -38,7 +37,9 @@ public class FunctionDefinitionUtil {
 			FunctionLanguage functionLanguage,
 			ReadableConfig config) {
 		if (functionLanguage == FunctionLanguage.PYTHON) {
-			return createPythonFunctionDefinition(name, className, config);
+			return createFunctionDefinitionInternal(
+				name,
+				(UserDefinedFunction) PythonFunctionUtils.getPythonFunction(className, config));
 		} else {
 			return createJavaFunctionDefinition(name, className);
 		}
@@ -58,44 +59,12 @@ public class FunctionDefinitionUtil {
 		return createFunctionDefinitionInternal(name, (UserDefinedFunction) func);
 	}
 
-	private static FunctionDefinition createPythonFunctionDefinition(
-			String name,
-			String fullyQualifiedName,
-			ReadableConfig config) {
-		Object func;
-		try {
-			Class pythonFunctionFactory = Class.forName(
-				"org.apache.flink.client.python.PythonFunctionFactory",
-				true,
-				Thread.currentThread().getContextClassLoader());
-			func = pythonFunctionFactory.getMethod(
-				"getPythonFunction",
-				String.class,
-				ReadableConfig.class)
-				.invoke(null, fullyQualifiedName, config);
-		} catch (IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
-			throw new IllegalStateException(
-				String.format("Failed instantiating '%s', flink-python jar is required.", fullyQualifiedName), e);
-		}
-
-		UserDefinedFunction udf = (UserDefinedFunction) func;
-
-		return createFunctionDefinitionInternal(name, udf);
-	}
-
 	private static FunctionDefinition createFunctionDefinitionInternal(String name, UserDefinedFunction udf) {
-		if (udf instanceof ScalarFunction) {
-			return new ScalarFunctionDefinition(
-				name,
-				(ScalarFunction) udf
-			);
-		} else if (udf instanceof TableFunction) {
-			TableFunction t = (TableFunction) udf;
-			return new TableFunctionDefinition(
-				name,
-				t,
-				UserDefinedFunctionHelper.getReturnTypeOfTableFunction(t)
-			);
+		if (udf instanceof ScalarFunction || udf instanceof TableFunction) {
+			// table and scalar function use the new type inference
+			// once the other functions have been updated, this entire class will not be necessary
+			// anymore and can be replaced with UserDefinedFunctionHelper.instantiateFunction
+			return udf;
 		} else if (udf instanceof AggregateFunction) {
 			AggregateFunction a = (AggregateFunction) udf;
 

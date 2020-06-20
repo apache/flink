@@ -17,6 +17,7 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
@@ -51,6 +52,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
  * Utility class for Python dependency management. The dependencies will be registered at the distributed
  * cache.
  */
+@Internal
 public class PythonDependencyUtils {
 
 	public static final String FILE = "file";

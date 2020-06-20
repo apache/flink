@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.stream.sql.SplitAggregateITCase.PartialAggMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{AggMode, LocalGlobalOff, LocalGlobalOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchOn
@@ -357,7 +357,7 @@ class SplitAggregateITCase(
   def testCountDistinctWithBinaryRowSource(): Unit = {
     // this case is failed before, because of object reuse problem
     val data = (0 until 100).map {i => ("1", "1", s"${i%50}", "1")}.toList
-    // use BinaryRow source here for BinaryString reuse
+    // use BinaryRowData source here for StringData reuse
     val t = failingBinaryRowSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
     tEnv.registerTable("src", t)
 

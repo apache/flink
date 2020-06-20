@@ -93,6 +93,6 @@ public class TestBufferFactory {
 	 */
 	public static Buffer createBuffer(int bufferSize, int dataSize) {
 		return new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
-				RECYCLER, true, dataSize);
+				RECYCLER, Buffer.DataType.DATA_BUFFER, dataSize);
 	}
 }

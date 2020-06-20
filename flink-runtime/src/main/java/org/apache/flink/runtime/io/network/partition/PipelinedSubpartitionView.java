@@ -73,13 +73,13 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public boolean nextBufferIsEvent() {
-		return parent.nextBufferIsEvent();
+	public void resumeConsumption() {
+		parent.resumeConsumption();
 	}
 
 	@Override
-	public boolean isAvailable() {
-		return parent.isAvailable();
+	public boolean isAvailable(int numCreditsAvailable) {
+		return parent.isAvailable(numCreditsAvailable);
 	}
 
 	@Override

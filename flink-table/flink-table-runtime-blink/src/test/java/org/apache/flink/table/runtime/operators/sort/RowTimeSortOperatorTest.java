@@ -22,12 +22,12 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -46,7 +46,7 @@ public class RowTimeSortOperatorTest {
 
 	@Test
 	public void testSortOnTwoFields() throws Exception {
-		BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+		RowDataTypeInfo inputRowType = new RowDataTypeInfo(
 				new IntType(),
 				new BigIntType(),
 				new VarCharType(VarCharType.MAX_LENGTH),
@@ -65,10 +65,10 @@ public class RowTimeSortOperatorTest {
 			}
 		};
 
-		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
+		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
 
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, gComparator);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 		testHarness.open();
 		testHarness.processElement(insertRecord(3, 3L, "Hello world", 3));
 		testHarness.processElement(insertRecord(2, 2L, "Hello", 2));
@@ -129,15 +129,15 @@ public class RowTimeSortOperatorTest {
 
 	@Test
 	public void testOnlySortOnRowTime() throws Exception {
-		BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+		RowDataTypeInfo inputRowType = new RowDataTypeInfo(
 				new BigIntType(),
 				new BigIntType(),
 				new VarCharType(VarCharType.MAX_LENGTH),
 				new IntType());
 		int rowTimeIdx = 0;
-		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
+		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, null);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 		testHarness.open();
 		testHarness.processElement(insertRecord(3L, 2L, "Hello world", 3));
 		testHarness.processElement(insertRecord(2L, 2L, "Hello", 2));
@@ -194,15 +194,15 @@ public class RowTimeSortOperatorTest {
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
-	private RowTimeSortOperator createSortOperator(BaseRowTypeInfo inputRowType, int rowTimeIdx,
+	private RowTimeSortOperator createSortOperator(RowDataTypeInfo inputRowType, int rowTimeIdx,
 			GeneratedRecordComparator gComparator) {
 		return new RowTimeSortOperator(inputRowType, rowTimeIdx, gComparator);
 	}
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(BaseTemporalSortOperator operator)
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(BaseTemporalSortOperator operator)
 			throws Exception {
 		OneInputStreamOperatorTestHarness testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
-				operator, NullBinaryRowKeySelector.INSTANCE, NullBinaryRowKeySelector.INSTANCE.getProducedType());
+				operator, EmptyRowDataKeySelector.INSTANCE, EmptyRowDataKeySelector.INSTANCE.getProducedType());
 		return testHarness;
 	}
 

@@ -48,7 +48,9 @@ public final class SlideWithSize {
 	 *
 	 * @param slide the slide of the window either as time or row-count interval.
 	 * @return a sliding window
+	 * @deprecated use {@link #every(Expression)}
 	 */
+	@Deprecated
 	public SlideWithSizeAndSlide every(String slide) {
 		return every(ExpressionParser.parseExpression(slide));
 	}

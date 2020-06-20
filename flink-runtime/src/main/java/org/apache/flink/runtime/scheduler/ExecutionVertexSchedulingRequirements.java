@@ -24,12 +24,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
-
-import java.util.Collection;
-import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -54,23 +50,19 @@ public class ExecutionVertexSchedulingRequirements {
 	@Nullable
 	private final CoLocationConstraint coLocationConstraint;
 
-	private final Collection<TaskManagerLocation> preferredLocations;
-
 	private ExecutionVertexSchedulingRequirements(
 			ExecutionVertexID executionVertexId,
 			@Nullable AllocationID previousAllocationId,
 			ResourceProfile taskResourceProfile,
 			ResourceProfile physicalSlotResourceProfile,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
-			@Nullable CoLocationConstraint coLocationConstraint,
-			Collection<TaskManagerLocation> preferredLocations) {
+			@Nullable CoLocationConstraint coLocationConstraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.previousAllocationId = previousAllocationId;
 		this.taskResourceProfile = checkNotNull(taskResourceProfile);
 		this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
 		this.slotSharingGroupId = slotSharingGroupId;
 		this.coLocationConstraint = coLocationConstraint;
-		this.preferredLocations = checkNotNull(preferredLocations);
 	}
 
 	public ExecutionVertexID getExecutionVertexId() {
@@ -100,10 +92,6 @@ public class ExecutionVertexSchedulingRequirements {
 		return coLocationConstraint;
 	}
 
-	public Collection<TaskManagerLocation> getPreferredLocations() {
-		return preferredLocations;
-	}
-
 	/**
 	 * Builder for {@link ExecutionVertexSchedulingRequirements}.
 	 */
@@ -120,8 +108,6 @@ public class ExecutionVertexSchedulingRequirements {
 		private SlotSharingGroupId slotSharingGroupId;
 
 		private CoLocationConstraint coLocationConstraint;
-
-		private Collection<TaskManagerLocation> preferredLocations = Collections.emptyList();
 
 		public Builder withExecutionVertexId(final ExecutionVertexID executionVertexId) {
 			this.executionVertexId = executionVertexId;
@@ -153,11 +139,6 @@ public class ExecutionVertexSchedulingRequirements {
 			return this;
 		}
 
-		public Builder withPreferredLocations(final Collection<TaskManagerLocation> preferredLocations) {
-			this.preferredLocations = preferredLocations;
-			return this;
-		}
-
 		public ExecutionVertexSchedulingRequirements build() {
 			checkState(
 				physicalSlotResourceProfile.isMatching(taskResourceProfile),
@@ -169,8 +150,7 @@ public class ExecutionVertexSchedulingRequirements {
 				taskResourceProfile,
 				physicalSlotResourceProfile,
 				slotSharingGroupId,
-				coLocationConstraint,
-				preferredLocations);
+				coLocationConstraint);
 		}
 	}
 }

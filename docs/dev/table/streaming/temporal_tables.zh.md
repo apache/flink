@@ -1,5 +1,5 @@
 ---
-title: "Temporal Tables"
+title: "时态表（Temporal Tables）"
 nav-parent_id: streaming_tableapi
 nav-pos: 4
 ---
@@ -22,23 +22,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Temporal Tables represent a concept of a (parameterized) view on a changing table that returns the content of a table at a specific point in time.
+时态表（Temporal Table）代表基于表的（参数化）视图概念，该表记录变更历史，该视图返回表在某个特定时间点的内容。
 
-The changing table can either be a changing history table which tracks the changes (e.g. database changelogs) or a changing dimension table which materializes the changes (e.g. database tables).
+变更表可以是跟踪变化的历史记录表（例如数据库变更日志），也可以是有具体更改的维表（例如数据库表）。
 
-For the changing history table, Flink can keep track of the changes and allows for accessing the content of the table at a certain point in time within a query. In Flink, this kind of table is represented by a *Temporal Table Function*.
+对于记录变更历史的表，Flink 可以追踪这些变化，并且允许查询这张表在某个特定时间点的内容。在 Flink 中，这类表由*时态表函数（Temporal Table Function）*表示。
 
-For the changing dimension table, Flink allows for accessing the content of the table at processing time within a query. In Flink, this kind of table is represented by a *Temporal Table*.
+对于变化的维表，Flink 允许查询这张表在处理时的内容，在 Flink 中，此类表由*时态表（Temporal Table）*表示。
 
 * This will be replaced by the TOC
 {:toc}
 
-Motivation
+设计初衷
 ----------
 
-### Correlate with a changing history table
+### 与记录变更历史的表相关
 
-Let's assume that we have the following table `RatesHistory`.
+假设我们有表 `RatesHistory` 如下所示。
 
 {% highlight sql %}
 SELECT * FROM RatesHistory;
@@ -53,10 +53,9 @@ rowtime currency   rate
 11:49   Pounds      108
 {% endhighlight %}
 
-`RatesHistory` represents an ever growing append-only table of currency exchange rates with respect to `Yen` (which has a rate of `1`).
-For example, the exchange rate for the period from `09:00` to `10:45` of `Euro` to `Yen` was `114`. From `10:45` to `11:15` it was `116`.
+`RatesHistory` 代表一个兑换日元货币汇率表（日元汇率为1），该表是不断增长的 append-only 表。例如，`欧元`兑`日元`从 `09:00` 到 `10:45` 的汇率为 `114`。从 `10:45` 到 `11:15`，汇率为 `116`。
 
-Given that we would like to output all current rates at the time `10:58`, we would need the following SQL query to compute a result table:
+假设我们要输出 `10:58` 的所有当前汇率，则需要以下 SQL 查询来计算结果表：
 
 {% highlight sql %}
 SELECT *
@@ -68,9 +67,9 @@ WHERE r.rowtime = (
   AND r2.rowtime <= TIME '10:58');
 {% endhighlight %}
 
-The correlated subquery determines the maximum time for the corresponding currency that is lower or equal than the desired time. The outer query lists the rates that have a maximum timestamp.
-
-The following table shows the result of such a computation. In our example, the update to `Euro` at `10:45` is taken into account, however, the update to `Euro` at `11:15` and the new entry of `Pounds` are not considered in the table's version at time `10:58`.
+子查询确定对应货币的最大时间小于或等于所需时间。外部查询列出具有最大时间戳的汇率。 
+ 
+下表显示了这种计算的结果。我们的示例中，在 `10:58` 时表的内容，考虑了 `10:45` 时`欧元`的更新，但未考虑 `11:15` 时的`欧元`更新和`英镑`的新值。
 
 {% highlight text %}
 rowtime currency   rate
@@ -80,17 +79,17 @@ rowtime currency   rate
 10:45   Euro        116
 {% endhighlight %}
 
-The concept of *Temporal Tables* aims to simplify such queries, speed up their execution, and reduce Flink's state usage. A *Temporal Table* is a parameterized view on an append-only table that interprets the rows of the append-only table as the changelog of a table and provides the version of that table at a specific point in time. Interpreting the append-only table as a changelog requires the specification of a primary key attribute and a timestamp attribute. The primary key determines which rows are overwritten and the timestamp determines the time during which a row is valid.
+ *时态表*的概念旨在简化此类查询，加快其执行速度，并减少 Flink 的状态使用。*时态表*是 append-only 表上的参数化视图，该视图将 append-only 表的行解释为表的变更日志，并在特定时间点提供该表的版本。将 append-only 表解释为变更日志需要指定主键属性和时间戳属性。主键确定哪些行将被覆盖，时间戳确定行有效的时间。
 
-In the above example `currency` would be a primary key for `RatesHistory` table and `rowtime` would be the timestamp attribute.
+在上面的示例中，`currency` 是 `RatesHistory` 表的主键，而 `rowtime` 是时间戳属性。
 
-In Flink, this is represented by a [*Temporal Table Function*](#temporal-table-function).
+在 Flink 中，这由[*时态表函数*](#temporal-table-function)表示。
 
-### Correlate with a changing dimension table
+### 与维表变化相关
 
-On the other hand, some use cases require to join a changing dimension table which is an external database table.
+另一方面，某些用例需要连接变化的维表，该表是外部数据库表。
 
-Let's assume that `LatestRates` is a table (e.g. stored in) which is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
+假设 `LatestRates` 是一个被物化的最新汇率表。`LatestRates` 是物化的 `RatesHistory` 历史。那么 `LatestRates` 表在 `10:58` 的内容将是：
 
 {% highlight text %}
 10:58> SELECT * FROM LatestRates;
@@ -101,7 +100,7 @@ Yen           1
 Euro        116
 {% endhighlight %}
 
-The content of `LatestRates` table at time `12:00` will be:
+`12:00` 时 `LatestRates` 表的内容将是： 
 
 {% highlight text %}
 12:00> SELECT * FROM LatestRates;
@@ -113,18 +112,20 @@ Euro        119
 Pounds      108
 {% endhighlight %}
 
-In Flink, this is represented by a [*Temporal Table*](#temporal-table).
+在 Flink 中，这由[*时态表*](#temporal-table)表示。
 
-Temporal Table Function
+<a name="temporal-table-function"></a>
+
+时态表函数
 ------------------------
 
-In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
-Flink uses the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions) to provide a way to express it.
+为了访问时态表中的数据，必须传递一个[时间属性](time_attributes.html)，该属性确定将要返回的表的版本。
+Flink 使用[表函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html#table-functions)的 SQL 语法提供一种表达它的方法。
 
-Once defined, a *Temporal Table Function* takes a single time argument `timeAttribute` and returns a set of rows.
-This set contains the latest versions of the rows for all of the existing primary keys with respect to the given time attribute.
+定义后，*时态表函数*将使用单个时间参数 timeAttribute 并返回一个行集合。
+该集合包含相对于给定时间属性的所有现有主键的行的最新版本。
 
-Assuming that we defined a temporal table function `Rates(timeAttribute)` based on `RatesHistory` table, we could query such a function in the following way:
+假设我们基于 `RatesHistory` 表定义了一个时态表函数，我们可以通过以下方式查询该函数 `Rates(timeAttribute)`： 
 
 {% highlight sql %}
 SELECT * FROM Rates('10:15');
@@ -144,16 +145,15 @@ rowtime currency   rate
 09:00   Yen           1
 {% endhighlight %}
 
-Each query to `Rates(timeAttribute)` would return the state of the `Rates` for the given `timeAttribute`.
+对 `Rates(timeAttribute)` 的每个查询都将返回给定 `timeAttribute` 的 `Rates` 状态。
 
-**Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. At the moment, temporal table functions can only be used in joins.
-The example above was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
+**注意**：当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于为函数 `Rates(timeAttribute)` 返回内容提供直观信息。
 
-See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
+另请参阅有关[用于持续查询的 join ](joins.html)页面，以获取有关如何与时态表 join 的更多信息。
 
-### Defining Temporal Table Function
+### 定义时态表函数
 
-The following code snippet illustrates how to create a temporal table function from an append-only table.
+以下代码段说明了如何从 append-only 表中创建时态表函数。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -161,11 +161,11 @@ The following code snippet illustrates how to create a temporal table function f
 import org.apache.flink.table.functions.TemporalTableFunction;
 (...)
 
-// Get the stream and table environments.
+// 获取 stream 和 table 环境
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-// Provide a static data set of the rates history table.
+// 提供一个汇率历史记录表静态数据集
 List<Tuple2<String, Long>> ratesHistoryData = new ArrayList<>();
 ratesHistoryData.add(Tuple2.of("US Dollar", 102L));
 ratesHistoryData.add(Tuple2.of("Euro", 114L));
@@ -173,26 +173,26 @@ ratesHistoryData.add(Tuple2.of("Yen", 1L));
 ratesHistoryData.add(Tuple2.of("Euro", 116L));
 ratesHistoryData.add(Tuple2.of("Euro", 119L));
 
-// Create and register an example table using above data set.
-// In the real setup, you should replace this with your own table.
+// 用上面的数据集创建并注册一个示例表
+// 在实际设置中，应使用自己的表替换它
 DataStream<Tuple2<String, Long>> ratesHistoryStream = env.fromCollection(ratesHistoryData);
-Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, "r_currency, r_rate, r_proctime.proctime");
+Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, $("r_currency"), $("r_rate"), $("r_proctime").proctime());
 
 tEnv.createTemporaryView("RatesHistory", ratesHistory);
 
-// Create and register a temporal table function.
-// Define "r_proctime" as the time attribute and "r_currency" as the primary key.
+// 创建和注册时态表函数
+// 指定 "r_proctime" 为时间属性，指定 "r_currency" 为主键
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction("r_proctime", "r_currency"); // <==== (1)
 tEnv.registerFunction("Rates", rates);                                                              // <==== (2)
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// Get the stream and table environments.
+// 获取 stream 和 table 环境
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 val tEnv = StreamTableEnvironment.create(env)
 
-// Provide a static data set of the rates history table.
+// 提供一个汇率历史记录表静态数据集
 val ratesHistoryData = new mutable.MutableList[(String, Long)]
 ratesHistoryData.+=(("US Dollar", 102L))
 ratesHistoryData.+=(("Euro", 114L))
@@ -200,35 +200,36 @@ ratesHistoryData.+=(("Yen", 1L))
 ratesHistoryData.+=(("Euro", 116L))
 ratesHistoryData.+=(("Euro", 119L))
 
-// Create and register an example table using above data set.
-// In the real setup, you should replace this with your own table.
+// 用上面的数据集创建并注册一个示例表
+// 在实际设置中，应使用自己的表替换它
 val ratesHistory = env
   .fromCollection(ratesHistoryData)
   .toTable(tEnv, 'r_currency, 'r_rate, 'r_proctime.proctime)
 
 tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
-// Create and register TemporalTableFunction.
-// Define "r_proctime" as the time attribute and "r_currency" as the primary key.
-val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency) // <==== (1)
+// 创建和注册时态表函数
+// 指定 "r_proctime" 为时间属性，指定 "r_currency" 为主键
+val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency") // <==== (1)
 tEnv.registerFunction("Rates", rates)                                          // <==== (2)
 {% endhighlight %}
 </div>
 </div>
 
-Line `(1)` creates a `rates` [temporal table function](#temporal-table-functions),
-which allows us to use the function `rates` in the [Table API](../tableApi.html#joins).
+行`(1)`创建了一个 `rates` [时态表函数](#temporal-table-function)，
+这使我们可以在[ Table API ](../tableApi.html#joins)中使用 `rates` 函数。
 
-Line `(2)` registers this function under the name `Rates` in our table environment,
-which allows us to use the `Rates` function in [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
+行`(2)`在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{ site.baseurl }}/zh/dev/table/sql/queries.html#joins)中使用 `Rates` 函数。
 
-## Temporal Table
+<a name="temporal-table"></a>
 
-<span class="label label-danger">Attention</span> This is only supported in Blink planner.
+## 时态表
 
-In order to access data in temporal table, currently one must define a `TableSource` with `LookupableTableSource`. Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to query temporal table, which is proposed in SQL:2011.
+<span class="label label-danger">注意</span> 仅 Blink planner 支持此功能。
 
-Assuming that we defined a temporal table called `LatestRates`, we can query such a table in the following way:
+为了访问时态表中的数据，当前必须使用 `LookupableTableSource` 定义一个 `TableSource`。Flink 使用 SQL:2011 中提出的 `FOR SYSTEM_TIME AS OF` 的 SQL 语法查询时态表。
+
+假设我们定义了一个时态表 `LatestRates`，我们可以通过以下方式查询此表：
 
 {% highlight sql %}
 SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '10:15';
@@ -248,48 +249,60 @@ Euro        116
 Yen           1
 {% endhighlight %}
 
-**Note**: Currently, Flink doesn't support directly querying the temporal table with a constant time. At the moment, temporal table can only be used in joins. The example above is used to provide an intuition about what the temporal table `LatestRates` returns.
+**注意**：当前，Flink 不支持以固定时间直接查询时态表。目前，时态表只能在 join 中使用。上面的示例用于为时态表 `LatestRates` 返回内容提供直观信息。
 
-See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
+另请参阅有关[用于持续查询的 join ](joins.html)页面，以获取有关如何与时态表 join 的更多信息。
 
-### Defining Temporal Table
+### 定义时态表
 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// Get the stream and table environments.
+// 获取 stream 和 table 环境
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+// or TableEnvironment tEnv = TableEnvironment.create(settings);
 
-// Create an HBaseTableSource as a temporal table which implements LookableTableSource
-// In the real setup, you should replace this with your own table.
-HBaseTableSource rates = new HBaseTableSource(conf, "Rates");
-rates.setRowKey("currency", String.class);   // currency as the primary key
-rates.addColumn("fam1", "rate", Double.class);
-
-// register the temporal table into environment, then we can query it in sql
-tEnv.registerTableSource("Rates", rates);
+// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用
+// 'currency' 列是 HBase 表中的 rowKey
+tEnv.executeSql(
+    "CREATE TABLE LatestRates (" +
+    "   currency STRING," +
+    "   fam1 ROW<rate DOUBLE>" +
+    ") WITH (" +
+    "   'connector' = 'hbase-1.4'," +
+    "   'table-name' = 'Rates'," +
+    "   'zookeeper.quorum' = 'localhost:2181'" +
+    ")");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// Get the stream and table environments.
+// 获取 stream 和 table 环境
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val settings = EnvironmentSettings.newInstance().build()
+val tEnv = StreamTableEnvironment.create(env, settings)
+// or val tEnv = TableEnvironment.create(settings)
 
-// Create an HBaseTableSource as a temporal table which implements LookableTableSource
-// In the real setup, you should replace this with your own table.
-val rates = new HBaseTableSource(conf, "Rates")
-rates.setRowKey("currency", String.class)   // currency as the primary key
-rates.addColumn("fam1", "rate", Double.class)
-
-// register the temporal table into environment, then we can query it in sql
-tEnv.registerTableSource("Rates", rates)
+// 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用
+// 'currency' 列是 HBase 表中的 rowKey
+tEnv.executeSql(
+    s"""
+       |CREATE TABLE LatestRates (
+       |    currency STRING,
+       |    fam1 ROW<rate DOUBLE>
+       |) WITH (
+       |    'connector' = 'hbase-1.4',
+       |    'table-name' = 'Rates',
+       |    'zookeeper.quorum' = 'localhost:2181'
+       |)
+       |""".stripMargin)
 {% endhighlight %}
 </div>
 </div>
 
-See also the page about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-for-lookups).
+另请参阅有关[如何定义 LookupableTableSource ](../sourceSinks.html#defining-a-tablesource-for-lookups)的页面。
 
 {% top %}

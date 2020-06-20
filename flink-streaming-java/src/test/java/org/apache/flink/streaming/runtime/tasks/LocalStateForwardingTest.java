@@ -59,7 +59,6 @@ import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
@@ -115,10 +114,10 @@ public class LocalStateForwardingTest extends TestLogger {
 			snapshots,
 			checkpointMetaData,
 			checkpointMetrics,
-			CompletableFuture.completedFuture(null),
 			0L,
 			testStreamTask.getName(),
-			testStreamTask.getCancelables(),
+			asyncCheckpointRunnable -> {},
+			asyncCheckpointRunnable -> {},
 			testStreamTask.getEnvironment(),
 			testStreamTask);
 

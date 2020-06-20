@@ -21,7 +21,6 @@ package org.apache.flink.python.env;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.junit.AfterClass;
@@ -252,24 +251,6 @@ public class ProcessPythonEnvironmentManagerTest {
 			Map<String, String> expected = getBasicExpectedEnv(environmentManager);
 			expected.put("python", "/usr/local/bin/python");
 			assertEquals(expected, environmentVariable);
-		}
-	}
-
-	@Test
-	public void testCreateEnvironment() throws Exception {
-		PythonDependencyInfo dependencyInfo = new PythonDependencyInfo(
-			new HashMap<>(), null, null, new HashMap<>(), "python");
-
-		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
-			environmentManager.open();
-			RunnerApi.Environment environment = environmentManager.createEnvironment();
-			RunnerApi.ProcessPayload payload = RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
-
-			assertEquals(
-				String.join(File.separator, environmentManager.getBaseDirectory(), "pyflink-udf-runner.sh"),
-				payload.getCommand());
-			Map<String, String> expectedEnv = getBasicExpectedEnv(environmentManager);
-			assertEquals(expectedEnv, payload.getEnvMap());
 		}
 	}
 

@@ -47,6 +47,7 @@ public interface TableMetaStoreFactory extends Serializable {
 		/**
 		 * Get base location path of this table.
 		 */
+		@Deprecated
 		Path getLocationPath();
 
 		/**

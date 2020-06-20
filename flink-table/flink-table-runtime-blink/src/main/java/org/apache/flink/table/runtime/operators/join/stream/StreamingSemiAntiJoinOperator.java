@@ -19,15 +19,15 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.types.RowKind;
 
 /**
@@ -47,8 +47,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 
 	public StreamingSemiAntiJoinOperator(
 			boolean isAntiJoin,
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
+			RowDataTypeInfo leftType,
+			RowDataTypeInfo rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			JoinInputSideSpec leftInputSideSpec,
 			JoinInputSideSpec rightInputSideSpec,
@@ -93,8 +93,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 	 * </pre>
 	 */
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
 		AssociatedRecords associatedRecords = AssociatedRecords.of(input, true, rightRecordStateView, joinCondition);
 		if (associatedRecords.isEmpty()) {
 			if (isAntiJoin) {
@@ -105,7 +105,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 				collector.collect(input);
 			}
 		}
-		if (BaseRowUtil.isAccumulateMsg(input)) {
+		if (RowDataUtil.isAccumulateMsg(input)) {
 			// erase RowKind for state updating
 			input.setRowKind(RowKind.INSERT);
 			leftRecordStateView.addRecord(input, associatedRecords.size());
@@ -152,9 +152,9 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 	 * </pre>
 	 */
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
-		boolean isAccumulateMsg = BaseRowUtil.isAccumulateMsg(input);
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
+		boolean isAccumulateMsg = RowDataUtil.isAccumulateMsg(input);
 		RowKind inputRowKind = input.getRowKind();
 		input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
@@ -164,7 +164,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 			if (!associatedRecords.isEmpty()) {
 				// there are matched rows on the other side
 				for (OuterRecord outerRecord : associatedRecords.getOuterRecords()) {
-					BaseRow other = outerRecord.record;
+					RowData other = outerRecord.record;
 					if (outerRecord.numOfAssociations == 0) {
 						if (isAntiJoin) {
 							// send -D[other]
@@ -185,7 +185,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 			if (!associatedRecords.isEmpty()) {
 				// there are matched rows on the other side
 				for (OuterRecord outerRecord : associatedRecords.getOuterRecords()) {
-					BaseRow other = outerRecord.record;
+					RowData other = outerRecord.record;
 					if (outerRecord.numOfAssociations == 1) {
 						if (!isAntiJoin) {
 							// send -D/-U[other] (using input RowKind)

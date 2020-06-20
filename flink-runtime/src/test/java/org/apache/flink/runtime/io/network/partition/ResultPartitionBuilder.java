@@ -56,6 +56,8 @@ public class ResultPartitionBuilder {
 
 	private int floatingNetworkBuffersPerGate = 1;
 
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
+
 	private int networkBufferSize = 1;
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -167,7 +169,8 @@ public class ResultPartitionBuilder {
 			networkBufferSize,
 			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
-			compressionCodec);
+			compressionCodec,
+			maxBuffersPerChannel);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));

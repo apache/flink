@@ -112,4 +112,12 @@ public interface CompletedCheckpointStore {
 	 *         if the store stores the metadata itself.
 	 */
 	boolean requiresExternalizedCheckpoints();
+
+	static CompletedCheckpointStore storeFor(CompletedCheckpoint... checkpoints) throws Exception {
+		StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(checkpoints.length);
+		for (final CompletedCheckpoint checkpoint : checkpoints) {
+			store.addCheckpoint(checkpoint);
+		}
+		return store;
+	}
 }

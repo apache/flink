@@ -36,10 +36,10 @@ GroupAggregate(groupBy=[c], select=[c])
    +- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[c]])
       :  +- Calc(select=[c])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- Exchange(distribution=[hash[f]])
          +- Calc(select=[f])
-            +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -65,9 +65,9 @@ Calc(select=[c0 AS c])
          +- Exchange(distribution=[hash[c]])
             +- Union(all=[true], union=[c, vcol_left_marker, vcol_right_marker])
                :- Calc(select=[c, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
-               :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
                +- Calc(select=[f, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
-                  +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -133,10 +133,10 @@ Calc(select=[a])
       +- Join(joinType=[LeftSemiJoin], where=[AND(IS NOT DISTINCT FROM(a, d), IS NOT DISTINCT FROM(b, e))], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
          :- Exchange(distribution=[hash[a, b]])
          :  +- Calc(select=[a, b])
-         :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d, e]])
             +- Calc(select=[d, e])
-               +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -160,10 +160,10 @@ GroupAggregate(groupBy=[c], select=[c])
    +- Join(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[c]])
       :  +- Calc(select=[c])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- Exchange(distribution=[hash[f]])
          +- Calc(select=[f])
-            +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -189,9 +189,9 @@ Calc(select=[c0 AS c])
          +- Exchange(distribution=[hash[c]])
             +- Union(all=[true], union=[c, vcol_marker])
                :- Calc(select=[c, 1:BIGINT AS vcol_marker])
-               :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
                +- Calc(select=[f, -1:BIGINT AS vcol_marker])
-                  +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -234,7 +234,7 @@ LogicalMinus(all=[false])
 GroupAggregate(groupBy=[c], select=[c])
 +- Exchange(distribution=[hash[c]])
    +- Calc(select=[c])
-      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -257,7 +257,7 @@ GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
 +- Exchange(distribution=[hash[a, b, c]])
    +- Join(joinType=[LeftAntiJoin], where=[AND(IS NOT DISTINCT FROM(a, a0), IS NOT DISTINCT FROM(b, b0), IS NOT DISTINCT FROM(c, c0))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a, b, c]], reuse_id=[1])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -279,7 +279,7 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a])
 :- Calc(select=[a])
-:  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
 +- Calc(select=[CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
    +- Reused(reference_id=[1])
 ]]>
@@ -302,7 +302,7 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a])
 :- Calc(select=[a])
-:  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]], fields=[a, b], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]], fields=[a, b], reuse_id=[1])
 +- Calc(select=[b])
    +- Reused(reference_id=[1])
 ]]>

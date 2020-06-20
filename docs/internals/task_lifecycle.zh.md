@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A task in Flink is the basic unit of execution. It is the place where each parallel instance of an operator is executed
+A task in Flink is the basic unit of execution. It is the place where each parallel instance of an operator is executed.
 As an example, an operator with a parallelism of *5* will have each of its instances executed by a separate task. 
 
 The `StreamTask` is the base for all different task sub-types in Flink's streaming engine. This document goes through 
@@ -92,7 +92,7 @@ operator is opened and before it is closed. The responsibility of this method is
 to the specified [state backend]({{ site.baseurl }}/ops/state/state_backends.html) from where it will be retrieved when 
 the job resumes execution after a failure. Below we include a brief description of Flink's checkpointing mechanism, 
 and for a more detailed discussion on the principles around checkpointing in Flink please read the corresponding documentation: 
-[Data Streaming Fault Tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html).
+[Data Streaming Fault Tolerance]({{ site.baseurl }}/learn-flink/fault_tolerance.html).
 
 ## Task Lifecycle
 

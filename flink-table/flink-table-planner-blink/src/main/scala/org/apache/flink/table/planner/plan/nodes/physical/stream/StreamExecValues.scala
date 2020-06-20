@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -43,7 +43,7 @@ class StreamExecValues(
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -66,7 +66,7 @@ class StreamExecValues(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val inputFormat = ValuesCodeGenerator.generatorInputFormat(
       planner.getTableConfig,
       getRowType,

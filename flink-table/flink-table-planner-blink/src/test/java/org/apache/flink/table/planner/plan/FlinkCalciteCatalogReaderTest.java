@@ -74,9 +74,7 @@ public class FlinkCalciteCatalogReaderTest {
 		// Mock CatalogSchemaTable.
 		CatalogSchemaTable mockTable = new CatalogSchemaTable(
 			ObjectIdentifier.of("a", "b", "c"),
-			ConnectorCatalogTable.source(
-				new TestTableSource(true, TableSchema.builder().build()),
-				true),
+			ConnectorCatalogTable.source(new TestTableSource(true, TableSchema.builder().build()), true),
 			FlinkStatistic.UNKNOWN(),
 			null,
 			true,

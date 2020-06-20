@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.scala.{currentDate, currentTime, currentTimestamp, localTime, localTimestamp, nullOf, temporalOverlaps, _}
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -1465,145 +1465,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
-  @Test
-  def testAdd(): Unit = {
-
-    testAllApis(
-      1514356320000L + 6000,
-      "1514356320000L + 6000",
-      "1514356320000 + 6000",
-      "1514356326000")
-
-    testAllApis(
-      'f34 + 6,
-      "f34 + 6",
-      "f34 + 6",
-      "1514356320006")
-
-    testAllApis(
-      'f34 + 'f34,
-      "f34 + f34",
-      "f34 + f34",
-      "3028712640000")
-  }
-
-  @Test
-  def testSubtract(): Unit = {
-
-    testAllApis(
-      1514356320000L - 6000,
-      "1514356320000L - 6000",
-      "1514356320000 - 6000",
-      "1514356314000")
-
-    testAllApis(
-      'f34 - 6,
-      "f34 - 6",
-      "f34 - 6",
-      "1514356319994")
-
-    testAllApis(
-      'f34 - 'f34,
-      "f34 - f34",
-      "f34 - f34",
-      "0")
-  }
-
-  @Test
-  def testMultiply(): Unit = {
-
-    testAllApis(
-      1514356320000L * 60000,
-      "1514356320000L * 60000",
-      "1514356320000 * 60000",
-      "90861379200000000")
-
-    testAllApis(
-      'f34 * 6,
-      "f34 * 6",
-      "f34 * 6",
-      "9086137920000")
-
-
-    testAllApis(
-      'f34 * 'f34,
-      "f34 * f34",
-      "f34 * f34",
-      "2293275063923942400000000")
-
-  }
-
-  @Test
-  def testDivide(): Unit = {
-
-    testAllApis(
-      1514356320000L / 60000, // the `/` is Scala operator, not Flink TableApi operator
-      "1514356320000L / 60000",
-      "1514356320000 / 60000",
-      "25239272")
-
-    testAllApis(
-      'f7 / 2,
-      "f7 / 2",
-      "f7 / 2",
-      "1")
-
-    // f34 => Decimal(19,0)
-    // 6 => Integer => Decimal(10,0)
-    // Decimal(19,0) / Decimal(10,0) => Decimal(30,11)
-    testAllApis(
-      'f34 / 6,
-      "f34 / 6",
-      "f34 / 6",
-      "252392720000.00000000000")
-
-    // Decimal(19,0) / Decimal(19,0) => Decimal(39,20) => Decimal(38,19)
-    testAllApis(
-      'f34 / 'f34,
-      "f34 / f34",
-      "f34 / f34",
-      "1.0000000000000000000")
-  }
-
-  @Test
-  def testMod(): Unit = {
-
-    testAllApis(
-      1514356320000L % 60000,
-      "1514356320000L % 60000",
-      "mod(1514356320000,60000)",
-      "0")
-
-    testAllApis(
-      'f34.mod('f34),
-      "f34.mod(f34)",
-      "mod(f34,f34)",
-      "0")
-
-    testAllApis(
-      'f34.mod(6),
-      "f34.mod(6)",
-      "mod(f34,6)",
-      "0")
-
-    testAllApis(
-      'f4.mod('f7),
-      "f4.mod(f7)",
-      "MOD(f4, f7)",
-      "2")
-
-    testAllApis(
-      'f4.mod(3),
-      "mod(f4, 3)",
-      "MOD(f4, 3)",
-      "2")
-
-    testAllApis(
-      'f4 % 3,
-      "mod(44, 3)",
-      "MOD(44, 3)",
-      "2")
-  }
 
   @Test
   def testExp(): Unit = {

@@ -20,17 +20,19 @@ package org.apache.flink.table.catalog
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.bridge.scala.{BatchTableEnvironment, StreamTableEnvironment}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, fail}
+import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
-import java.util
+import org.junit.{Before, Ignore, Rule, Test}
 
-import org.apache.flink.test.util.AbstractTestBase
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -43,17 +45,12 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
   private val streamExec: StreamExecutionEnvironment = StreamExecutionEnvironment
     .getExecutionEnvironment
   private var streamEnv: StreamTableEnvironment = _
+  private val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
 
   private val SOURCE_DATA = List(
       toRow(1, "a"),
       toRow(2, "b"),
       toRow(3, "c")
-  )
-
-  private val DIM_DATA = List(
-    toRow(1, "aDim"),
-    toRow(2, "bDim"),
-    toRow(3, "cDim")
   )
 
   implicit def rowOrdering: Ordering[Row] = Ordering.by((r : Row) => {
@@ -62,12 +59,17 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     builder.toString()
   })
 
+  var _expectedEx: ExpectedException = ExpectedException.none
+
+  @Rule
+  def expectedEx: ExpectedException = _expectedEx
+
   @Before
   def before(): Unit = {
     batchExec.setParallelism(4)
     streamExec.setParallelism(4)
     batchEnv = BatchTableEnvironment.create(batchExec)
-    streamEnv = StreamTableEnvironment.create(streamExec)
+    streamEnv = StreamTableEnvironment.create(streamExec, settings)
     TestCollectionTableFactory.reset()
     TestCollectionTableFactory.isStreaming = isStreaming
   }
@@ -533,6 +535,75 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
+
+  @Test
+  def testDropTableSameNameWithTemporaryTable(): Unit = {
+    val createTable1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val createTable2 =
+      """
+        |create temporary table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTable1)
+    tableEnv.executeSql(createTable2)
+
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage("Temporary table with identifier "
+      + "'`default_catalog`.`default_database`.`t1`' exists. "
+      + "Drop it first before removing the permanent table.")
+    tableEnv.executeSql("drop table t1")
+  }
+
+  @Test
+  def testDropViewSameNameWithTable(): Unit = {
+    val createTable1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTable1)
+
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage("View with identifier "
+      + "'default_catalog.default_database.t1' does not exist.")
+    tableEnv.executeSql("drop view t1")
+  }
+
+  @Test
+  def testDropViewSameNameWithTableIfNotExists(): Unit = {
+    val createTable1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTable1)
+    tableEnv.executeSql("drop view if exists t1")
+    assert(tableEnv.listTables().sameElements(Array("t1")))
   }
 
   @Test

@@ -75,3 +75,12 @@ interface GarbageCollectorsItem {
   count: number;
   time: number;
 }
+
+export interface TaskManagerThreadDumpInterface {
+  threadInfos: TaskManagerThreadInfoInterface[];
+}
+
+interface TaskManagerThreadInfoInterface {
+    threadName: string;
+    stringifiedThreadInfo: string;
+}

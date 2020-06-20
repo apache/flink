@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -45,7 +45,6 @@ under the License.
 		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>
 		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>
 		<e2e.include.org.apache.flink.tests.util.categories.PreCommit>false</e2e.include.org.apache.flink.tests.util.categories.PreCommit>
-		<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>true</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
 		<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>false</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
 	</properties>
 
@@ -89,7 +88,24 @@ under the License.
 		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
+		<module>flink-python-test</module>
 	</modules>
+
+	<dependencies>
+		<dependency>
+			<!-- this module depends on the flink-yarn-tests's "target/yarn.classpath" file -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-yarn-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
 
 	<profiles>
 		<profile>
@@ -132,12 +148,6 @@ under the License.
 			<id>e2e-pre-commit</id>
 			<properties>
 				<e2e.include.org.apache.flink.tests.util.categories.PreCommit>true</e2e.include.org.apache.flink.tests.util.categories.PreCommit>
-			</properties>
-		</profile>
-		<profile>
-			<id>e2e-hadoop</id>
-			<properties>
-				<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>false</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
 			</properties>
 		</profile>
 		<profile>

@@ -65,7 +65,7 @@ public class ChannelStateReaderImpl implements ChannelStateReader {
 		this(snapshot, new ChannelStateSerializerImpl());
 	}
 
-	ChannelStateReaderImpl(TaskStateSnapshot snapshot, ChannelStateDeserializer serializer) {
+	ChannelStateReaderImpl(TaskStateSnapshot snapshot, ChannelStateSerializer serializer) {
 		RefCountingFSDataInputStreamFactory streamFactory = new RefCountingFSDataInputStreamFactory(serializer);
 		final HashMap<InputChannelInfo, ChannelStateStreamReader> inputChannelHandleReadersTmp = new HashMap<>();
 		final HashMap<ResultSubpartitionInfo, ChannelStateStreamReader> resultSubpartitionHandleReadersTmp = new HashMap<>();
@@ -85,6 +85,11 @@ public class ChannelStateReaderImpl implements ChannelStateReader {
 			checkState(!readerMap.containsKey(handle.getInfo()), "multiple states exist for channel: " + handle.getInfo());
 			readerMap.put(handle.getInfo(), new ChannelStateStreamReader(handle, streamFactory));
 		}
+	}
+
+	@Override
+	public boolean hasChannelStates() {
+		return !(inputChannelHandleReaders.isEmpty() && resultSubpartitionHandleReaders.isEmpty());
 	}
 
 	@Override

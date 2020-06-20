@@ -20,11 +20,11 @@ package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 

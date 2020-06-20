@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -24,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
@@ -32,6 +34,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
@@ -78,6 +81,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -101,6 +105,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -185,7 +190,20 @@ public class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(final Configuration configuration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+		this(configuration, null);
+	}
+
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link PipelineExecutor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment(
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, userClassloader);
 	}
 
 	/**
@@ -1507,7 +1525,8 @@ public class StreamExecutionEnvironment {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval);
 
-		ContinuousFileReaderOperatorFactory<OUT> factory = new ContinuousFileReaderOperatorFactory<>(inputFormat);
+		ContinuousFileReaderOperatorFactory<OUT, TimestampedFileInputSplit> factory =
+				new ContinuousFileReaderOperatorFactory<>(inputFormat);
 
 		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
 				.transform("Split Reader: " + sourceName, typeInfo, factory);
@@ -1586,28 +1605,65 @@ public class StreamExecutionEnvironment {
 	 * 		the user defined type information for the stream
 	 * @return the data stream constructed
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
 
-		if (function instanceof ResultTypeQueryable) {
-			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-		}
-		if (typeInfo == null) {
-			try {
-				typeInfo = TypeExtractor.createTypeInfo(
-						SourceFunction.class,
-						function.getClass(), 0, null, null);
-			} catch (final InvalidTypesException e) {
-				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
-			}
-		}
+		TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(function, sourceName, SourceFunction.class, typeInfo);
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
 
 		final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
-		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
+		return new DataStreamSource<>(this, resolvedTypeInfo, sourceOperator, isParallel, sourceName);
+	}
+
+	/**
+	 * Add a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * @param source
+	 * 		the user defined source
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @return the data stream constructed
+	 */
+	@Experimental
+	public <OUT> DataStreamSource<OUT> continuousSource(
+			Source<OUT, ?, ?> source,
+			WatermarkStrategy<OUT> timestampsAndWatermarks,
+			String sourceName) {
+		return continuousSource(source, timestampsAndWatermarks, sourceName, null);
+	}
+
+	/**
+	 * Add a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * @param source
+	 * 		the user defined source
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	@Experimental
+	public <OUT> DataStreamSource<OUT> continuousSource(
+			Source<OUT, ?, ?> source,
+			WatermarkStrategy<OUT> timestampsAndWatermarks,
+			String sourceName,
+			TypeInformation<OUT> typeInfo) {
+
+		final TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(source, sourceName, Source.class, typeInfo);
+
+		return new DataStreamSource<>(
+				this,
+				checkNotNull(source, "source"),
+				checkNotNull(timestampsAndWatermarks, "timestampsAndWatermarks"),
+				checkNotNull(resolvedTypeInfo),
+				checkNotNull(sourceName));
 	}
 
 	/**
@@ -1759,12 +1815,13 @@ public class StreamExecutionEnvironment {
 			JobClient jobClient = jobClientFuture.get();
 			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
 			return jobClient;
-		} catch (Throwable t) {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
-			ExceptionUtils.rethrow(t);
+		} catch (ExecutionException executionException) {
+			final Throwable strippedException = ExceptionUtils.stripExecutionException(executionException);
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, strippedException));
 
-			// make javac happy, this code path will not be reached
-			return null;
+			throw new FlinkException(
+				String.format("Failed to execute job '%s'.", streamGraph.getJobName()),
+				strippedException);
 		}
 	}
 
@@ -2103,5 +2160,28 @@ public class StreamExecutionEnvironment {
 	 */
 	public void registerCachedFile(String filePath, String name, boolean executable) {
 		this.cacheFile.add(new Tuple2<>(name, new DistributedCache.DistributedCacheEntry(filePath, executable)));
+	}
+
+	// Private helpers.
+	@SuppressWarnings("unchecked")
+	private <OUT, T extends TypeInformation<OUT>> T getTypeInfo(
+			Object source,
+			String sourceName,
+			Class<?> baseSourceClass,
+			TypeInformation<OUT> typeInfo) {
+		TypeInformation<OUT> resolvedTypeInfo = typeInfo;
+		if (source instanceof ResultTypeQueryable) {
+			resolvedTypeInfo = ((ResultTypeQueryable<OUT>) source).getProducedType();
+		}
+		if (resolvedTypeInfo == null) {
+			try {
+				resolvedTypeInfo = TypeExtractor.createTypeInfo(
+						baseSourceClass,
+						source.getClass(), 0, null, null);
+			} catch (final InvalidTypesException e) {
+				resolvedTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+			}
+		}
+		return (T) resolvedTypeInfo;
 	}
 }

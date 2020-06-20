@@ -650,8 +650,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				}
 			}
 
-			jobVertex.getOperatorCoordinators().forEach((c -> c.subtaskFailed(getParallelSubtaskIndex())));
-
 			CoLocationGroup grp = jobVertex.getCoLocationGroup();
 			if (grp != null) {
 				locationConstraint = grp.getLocationConstraint(subTaskIndex);

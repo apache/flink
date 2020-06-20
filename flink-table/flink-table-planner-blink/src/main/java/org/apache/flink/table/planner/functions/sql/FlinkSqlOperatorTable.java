@@ -325,7 +325,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction LPAD = new SqlFunction(
 		"LPAD",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -333,7 +335,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction RPAD = new SqlFunction(
 		"RPAD",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -341,7 +345,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction REPEAT = new SqlFunction(
 		"REPEAT",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
 		SqlFunctionCategory.STRING);
@@ -357,7 +363,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction REPLACE = new SqlFunction(
 		"REPLACE",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -376,7 +384,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction REGEXP_REPLACE = new SqlFunction(
 		"REGEXP_REPLACE",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -384,7 +394,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction REGEXP_EXTRACT = new SqlFunction(
 		"REGEXP_EXTRACT",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.or(
 			OperandTypes.STRING_STRING_INTEGER,
@@ -408,7 +420,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction MD5 = new SqlFunction(
 		"MD5",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.CHAR, 32),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -416,7 +430,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA1 = new SqlFunction(
 		"SHA1",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.CHAR, 40),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -424,7 +440,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA224 = new SqlFunction(
 		"SHA224",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.CHAR, 56),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -432,7 +450,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA256 = new SqlFunction(
 		"SHA256",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.CHAR, 64),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -440,7 +460,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA384 = new SqlFunction(
 		"SHA384",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.CHAR, 96),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -448,7 +470,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA512 = new SqlFunction(
 		"SHA512",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.CHAR, 128),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -456,7 +480,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA2 = new SqlFunction(
 		"SHA2",
 		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR, 128),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.sequence("'SHA2(DATA, HASH_LENGTH)'",
 			OperandTypes.STRING,  OperandTypes.NUMERIC_INTEGER),
@@ -575,7 +601,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction TO_BASE64 = new SqlFunction(
 		"TO_BASE64",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -583,7 +611,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction FROM_BASE64 = new SqlFunction(
 		"FROM_BASE64",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -591,7 +621,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction UUID = new SqlFunction(
 		"UUID",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.VARCHAR_2000,
+		ReturnTypes.explicit(SqlTypeName.CHAR, 36),
 		null,
 		OperandTypes.NILADIC,
 		SqlFunctionCategory.STRING) {

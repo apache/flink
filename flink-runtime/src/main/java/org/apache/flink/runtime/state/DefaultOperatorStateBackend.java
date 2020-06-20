@@ -220,31 +220,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	}
 
 	// -------------------------------------------------------------------------------------------
-	//  Deprecated state access methods
-	// -------------------------------------------------------------------------------------------
-
-	/**
-	 * @deprecated This was deprecated as part of a refinement to the function names.
-	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
-	 */
-	@Deprecated
-	@Override
-	public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-		return getListState(stateDescriptor);
-	}
-
-	/**
-	 * @deprecated Using Java serialization for persisting state is not encouraged.
-	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
-	 */
-	@SuppressWarnings("unchecked")
-	@Deprecated
-	@Override
-	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getListState(new ListStateDescriptor<>(stateName, deprecatedDefaultJavaSerializer));
-	}
-
-	// -------------------------------------------------------------------------------------------
 	//  Snapshot
 	// -------------------------------------------------------------------------------------------
 	@Nonnull

@@ -146,7 +146,18 @@ public class ExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public ExecutionEnvironment(final Configuration configuration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+		this(configuration, null);
+	}
+
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
+	 * configure the {@link PipelineExecutor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(final Configuration configuration, final ClassLoader userClassloader) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, userClassloader);
 	}
 
 	/**
@@ -210,6 +221,13 @@ public class ExecutionEnvironment {
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
+	}
+
+	/**
+	 * Gets the config JobListeners.
+	 */
+	protected List<JobListener> getJobListeners() {
+		return jobListeners;
 	}
 
 	/**

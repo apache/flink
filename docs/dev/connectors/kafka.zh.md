@@ -84,7 +84,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 {% endhighlight %}
 
 请注意：目前流连接器还不是二进制分发的一部分。
-[在此处]({{ site.baseurl }}/zh/dev/projectsetup/dependencies.html)可以了解到如何链接它们以实现在集群中执行。
+[在此处]({{ site.baseurl }}/zh/dev/project-configuration.html)可以了解到如何链接它们以实现在集群中执行。
 
 ## 安装 Apache Kafka
 

@@ -22,7 +22,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -156,20 +156,6 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-avro</artifactId>
-									<version>${project.version}</version>
-									<classifier>sql-jar</classifier>
-									<type>jar</type>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-json</artifactId>
-									<version>${project.version}</version>
-									<classifier>sql-jar</classifier>
-									<type>jar</type>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-csv</artifactId>
 									<version>${project.version}</version>
 									<classifier>sql-jar</classifier>
 									<type>jar</type>

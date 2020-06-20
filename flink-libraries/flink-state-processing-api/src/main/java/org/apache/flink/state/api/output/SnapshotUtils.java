@@ -43,12 +43,16 @@ public final class SnapshotUtils {
 		OP operator,
 		int index,
 		long timestamp,
+		boolean isExactlyOnceMode,
+		boolean isUnalignedCheckpoint,
 		CheckpointStorageWorkerView checkpointStorage,
 		Path savepointPath) throws Exception {
 
 		CheckpointOptions options = new CheckpointOptions(
 			CheckpointType.SAVEPOINT,
-			AbstractFsCheckpointStorage.encodePathAsReference(savepointPath));
+			AbstractFsCheckpointStorage.encodePathAsReference(savepointPath),
+			isExactlyOnceMode,
+			isUnalignedCheckpoint);
 
 		operator.prepareSnapshotPreBarrier(CHECKPOINT_ID);
 

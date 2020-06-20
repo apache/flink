@@ -28,7 +28,7 @@ LogicalProject(c=[$0], f0=[$1], f1=[$2])
       <![CDATA[
 GroupTableAggregate(groupBy=[c], select=[c, EmptyTableAggFunc(a) AS (f0, f1)])
 +- Exchange(distribution=[hash[c]])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -45,7 +45,7 @@ LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')])
 Calc(select=[f0 AS a, f1 AS b])
 +- GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
    +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -64,7 +64,7 @@ Calc(select=[bb, +(f0, 1) AS _c1, f1 AS y])
 +- GroupTableAggregate(groupBy=[bb], select=[bb, EmptyTableAggFunc(a, b) AS (f0, f1)])
    +- Exchange(distribution=[hash[bb]])
       +- Calc(select=[a, b, MOD(b, 5) AS bb])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -80,7 +80,7 @@ LogicalProject(f0=[$0], f0_0=[$1])
       <![CDATA[
 GroupTableAggregate(groupBy=[f0], select=[f0, EmptyTableAggFuncWithIntResultType(f1) AS (f0_0)])
 +- Exchange(distribution=[hash[f0]])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]], fields=[f0, f1, f2, d, e])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]], fields=[f0, f1, f2, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -97,7 +97,7 @@ LogicalProject(a=[org$apache$flink$table$planner$expressions$utils$Func0$$6ad060
 Calc(select=[Func0$(f0) AS a, f1 AS b])
 +- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
    +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -114,7 +114,7 @@ LogicalProject(a=[$0], b=[$1])
 GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- Calc(select=[a, b, c, CAST(d) AS d, PROCTIME_MATERIALIZE(e) AS e])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -130,7 +130,7 @@ LogicalProject(f0=[$0], f1=[$1])
       <![CDATA[
 GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>

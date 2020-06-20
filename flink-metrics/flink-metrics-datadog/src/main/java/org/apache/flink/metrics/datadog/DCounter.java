@@ -52,6 +52,7 @@ public class DCounter extends DMetric {
 		return difference;
 	}
 
+	@Override
 	public void ackReport() {
 		lastReportCount = currentReportCount;
 	}

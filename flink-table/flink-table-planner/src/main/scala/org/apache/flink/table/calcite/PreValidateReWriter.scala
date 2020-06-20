@@ -147,8 +147,8 @@ object PreValidateReWriter {
       catalogReader: CalciteCatalogReader,
       table: SqlValidatorTable,
       targetColumnList: SqlNodeList): RelDataType = {
-    val baseRowType = table.getRowType
-    if (targetColumnList == null) return baseRowType
+    val rowType = table.getRowType
+    if (targetColumnList == null) return rowType
     val fields = new util.ArrayList[util.Map.Entry[String, RelDataType]]
     val assignedFields = new util.HashSet[Integer]
     val relOptTable = table match {
@@ -157,7 +157,7 @@ object PreValidateReWriter {
     }
     for (node <- targetColumnList) {
       val id = node.asInstanceOf[SqlIdentifier]
-      val targetField = SqlValidatorUtil.getTargetField(baseRowType,
+      val targetField = SqlValidatorUtil.getTargetField(rowType,
         typeFactory, id, catalogReader, relOptTable)
       validateField(assignedFields.add, id, targetField)
       fields.add(targetField)

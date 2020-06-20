@@ -25,14 +25,22 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
 import org.junit.Test;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link WorkerSpecContainerResourceAdapter}.
@@ -51,7 +59,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(1.0)
@@ -111,7 +120,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				Integer.MAX_VALUE,
-				Integer.MAX_VALUE);
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -173,7 +183,8 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 				minMemMB,
 				minVcore,
 				maxMemMB,
-				maxVcore);
+				maxVcore,
+				Collections.emptyMap());
 
 		final WorkerResourceSpec workerSpec1 = new WorkerResourceSpec.Builder()
 			.setCpuCores(5.0)
@@ -194,6 +205,60 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 		assertFalse(adapter.tryComputeContainerResource(workerSpec2).isPresent());
 	}
 
+	@Test
+	public void testMatchResourceWithDifferentImplementation() {
+		final WorkerSpecContainerResourceAdapter.MatchingStrategy strategy =
+			WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
+		final int minMemMB = 1;
+		final int minVcore = 1;
+
+		final WorkerSpecContainerResourceAdapter adapter =
+			new WorkerSpecContainerResourceAdapter(
+				getConfigProcessSpecEqualsWorkerSpec(),
+				minMemMB,
+				minVcore,
+				Integer.MAX_VALUE,
+				Integer.MAX_VALUE,
+				Collections.emptyMap());
+
+		final WorkerResourceSpec workerSpec = new WorkerResourceSpec.Builder()
+			.setCpuCores(1.0)
+			.setTaskHeapMemoryMB(100)
+			.setTaskOffHeapMemoryMB(200)
+			.setNetworkMemoryMB(300)
+			.setManagedMemoryMB(400)
+			.build();
+
+		Optional<Resource> resourceOpt = adapter.tryComputeContainerResource(workerSpec);
+		assertTrue(resourceOpt.isPresent());
+		Resource resourceImpl1 = resourceOpt.get();
+
+		Resource resourceImpl2 = new TestingResourceImpl(
+			resourceImpl1.getMemory(),
+			resourceImpl1.getVirtualCores() + 1);
+
+		assertThat(adapter.getEquivalentContainerResource(resourceImpl2, strategy), contains(resourceImpl1));
+		assertThat(adapter.getWorkerSpecs(resourceImpl2, strategy), contains(workerSpec));
+	}
+
+	@Test
+	public void testMatchInternalContainerResourceIgnoresZeroValueExternalResources() {
+		final Map<String, Long> externalResources1 = new HashMap<>();
+		final Map<String, Long> externalResources2 = new HashMap<>();
+
+		externalResources1.put("foo", 0L);
+		externalResources1.put("bar", 1L);
+		externalResources2.put("zoo", 0L);
+		externalResources2.put("bar", 1L);
+
+		final WorkerSpecContainerResourceAdapter.InternalContainerResource internalContainerResource1 =
+			new WorkerSpecContainerResourceAdapter.InternalContainerResource(1024, 1, externalResources1);
+		final WorkerSpecContainerResourceAdapter.InternalContainerResource internalContainerResource2 =
+			new WorkerSpecContainerResourceAdapter.InternalContainerResource(1024, 1, externalResources2);
+
+		assertEquals(internalContainerResource1, internalContainerResource2);
+	}
+
 	private Configuration getConfigProcessSpecEqualsWorkerSpec() {
 		final Configuration config = new Configuration();
 		config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, MemorySize.ZERO);
@@ -202,5 +267,19 @@ public class WorkerSpecContainerResourceAdapterTest extends TestLogger {
 		config.set(TaskManagerOptions.JVM_OVERHEAD_MIN, MemorySize.ZERO);
 		config.set(TaskManagerOptions.JVM_OVERHEAD_MAX, MemorySize.ZERO);
 		return config;
+	}
+
+	private class TestingResourceImpl extends ResourcePBImpl {
+
+		private TestingResourceImpl(int memory, int vcore) {
+			super();
+			setMemory(memory);
+			setVirtualCores(vcore);
+		}
+
+		@Override
+		public int hashCode() {
+			return super.hashCode() + 678;
+		}
 	}
 }

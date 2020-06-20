@@ -18,9 +18,9 @@
 
 package org.apache.flink.formats.parquet.row;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -75,7 +75,7 @@ public class ParquetRowDataWriter {
 	 *
 	 * @param record Contains the record that is going to be written.
 	 */
-	public void write(final BaseRow record) {
+	public void write(final RowData record) {
 		recordConsumer.startMessage();
 		for (int i = 0; i < filedWriters.length; i++) {
 			if (!record.isNullAt(i)) {
@@ -134,13 +134,13 @@ public class ParquetRowDataWriter {
 
 	private interface FieldWriter {
 
-		void write(BaseRow row, int ordinal);
+		void write(RowData row, int ordinal);
 	}
 
 	private class BooleanWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addBoolean(row.getBoolean(ordinal));
 		}
 	}
@@ -148,7 +148,7 @@ public class ParquetRowDataWriter {
 	private class ByteWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addInteger(row.getByte(ordinal));
 		}
 	}
@@ -156,7 +156,7 @@ public class ParquetRowDataWriter {
 	private class ShortWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addInteger(row.getShort(ordinal));
 		}
 	}
@@ -164,7 +164,7 @@ public class ParquetRowDataWriter {
 	private class LongWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addLong(row.getLong(ordinal));
 		}
 	}
@@ -172,7 +172,7 @@ public class ParquetRowDataWriter {
 	private class FloatWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addFloat(row.getFloat(ordinal));
 		}
 	}
@@ -180,7 +180,7 @@ public class ParquetRowDataWriter {
 	private class DoubleWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addDouble(row.getDouble(ordinal));
 		}
 	}
@@ -188,16 +188,16 @@ public class ParquetRowDataWriter {
 	private class StringWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addBinary(
-				Binary.fromReusedByteArray(row.getString(ordinal).getBytes()));
+				Binary.fromReusedByteArray(row.getString(ordinal).toBytes()));
 		}
 	}
 
 	private class BinaryWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addBinary(
 					Binary.fromReusedByteArray(row.getBinary(ordinal)));
 		}
@@ -206,7 +206,7 @@ public class ParquetRowDataWriter {
 	private class IntWriter implements FieldWriter {
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addInteger(row.getInt(ordinal));
 		}
 	}
@@ -225,20 +225,20 @@ public class ParquetRowDataWriter {
 		}
 
 		@Override
-		public void write(BaseRow row, int ordinal) {
+		public void write(RowData row, int ordinal) {
 			recordConsumer.addBinary(timestampToInt96(row.getTimestamp(ordinal, precision)));
 		}
 	}
 
-	private Binary timestampToInt96(SqlTimestamp sqlTimestamp) {
+	private Binary timestampToInt96(TimestampData timestampData) {
 		int julianDay;
 		long nanosOfDay;
 		if (utcTimestamp) {
-			long mills = sqlTimestamp.getMillisecond();
+			long mills = timestampData.getMillisecond();
 			julianDay = (int) ((mills / MILLIS_IN_DAY) + JULIAN_EPOCH_OFFSET_DAYS);
-			nanosOfDay = (mills % MILLIS_IN_DAY) * NANOS_PER_MILLISECOND + sqlTimestamp.getNanoOfMillisecond();
+			nanosOfDay = (mills % MILLIS_IN_DAY) * NANOS_PER_MILLISECOND + timestampData.getNanoOfMillisecond();
 		} else {
-			Timestamp timestamp = sqlTimestamp.toTimestamp();
+			Timestamp timestamp = timestampData.toTimestamp();
 			long mills = timestamp.getTime();
 			julianDay = (int) ((mills / MILLIS_IN_DAY) + JULIAN_EPOCH_OFFSET_DAYS);
 			nanosOfDay = ((mills % MILLIS_IN_DAY) / 1000) * NANOS_PER_SECOND + timestamp.getNanos();
@@ -273,7 +273,7 @@ public class ParquetRowDataWriter {
 			}
 
 			@Override
-			public void write(BaseRow row, int ordinal) {
+			public void write(RowData row, int ordinal) {
 				long unscaledLong = row.getDecimal(ordinal, precision, scale).toUnscaledLong();
 				int i = 0;
 				int shift = initShift;
@@ -297,7 +297,7 @@ public class ParquetRowDataWriter {
 			}
 
 			@Override
-			public void write(BaseRow row, int ordinal) {
+			public void write(RowData row, int ordinal) {
 				byte[] bytes = row.getDecimal(ordinal, precision, scale).toUnscaledBytes();
 				byte[] writtenBytes;
 				if (bytes.length == numBytes) {
@@ -315,7 +315,7 @@ public class ParquetRowDataWriter {
 
 		// 1 <= precision <= 18, writes as FIXED_LEN_BYTE_ARRAY
 		// optimizer for UnscaledBytesWriter
-		if (Decimal.is32BitDecimal(precision) || Decimal.is64BitDecimal(precision)) {
+		if (DecimalDataUtils.is32BitDecimal(precision) || DecimalDataUtils.is64BitDecimal(precision)) {
 			return new LongUnscaledBytesWriter();
 		}
 

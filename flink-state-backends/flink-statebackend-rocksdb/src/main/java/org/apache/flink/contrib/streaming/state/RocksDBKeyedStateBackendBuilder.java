@@ -108,8 +108,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
 	/** True if incremental checkpointing is enabled. */
 	private boolean enableIncrementalCheckpointing;
-	/** True if ttl compaction filter is enabled. */
-	private boolean enableTtlCompactionFilter;
+
 	private RocksDBNativeMetricOptions nativeMetricOptions;
 	private int numberOfTransferingThreads;
 	private long writeBatchSize = RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
@@ -211,11 +210,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		return this;
 	}
 
-	RocksDBKeyedStateBackendBuilder<K> setEnableTtlCompactionFilter(boolean enableTtlCompactionFilter) {
-		this.enableTtlCompactionFilter = enableTtlCompactionFilter;
-		return this;
-	}
-
 	RocksDBKeyedStateBackendBuilder<K> setNativeMetricOptions(RocksDBNativeMetricOptions nativeMetricOptions) {
 		this.nativeMetricOptions = nativeMetricOptions;
 		return this;
@@ -254,7 +248,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		RocksDB db = null;
 		AbstractRocksDBRestoreOperation restoreOperation = null;
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager =
-			new RocksDbTtlCompactFiltersManager(enableTtlCompactionFilter, ttlTimeProvider);
+			new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
 
 		ResourceGuard rocksDBResourceGuard = new ResourceGuard();
 		SnapshotStrategy<K> snapshotStrategy;

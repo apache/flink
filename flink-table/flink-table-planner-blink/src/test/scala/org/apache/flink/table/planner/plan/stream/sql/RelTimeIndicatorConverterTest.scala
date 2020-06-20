@@ -19,14 +19,15 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.plan.stream.sql.RelTimeIndicatorConverterTest.TableFunc
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.junit.Test
-import java.sql.Timestamp
 
-import org.apache.flink.table.dataformat.SqlTimestamp
+import org.junit.Test
+
+import java.sql.Timestamp
 
 /**
   * Tests for [[org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter]].
@@ -170,7 +171,7 @@ object RelTimeIndicatorConverterTest {
   class TableFunc extends TableFunction[String] {
     val t = new Timestamp(0L)
 
-    def eval(time1: SqlTimestamp, time2: Timestamp, string: String): Unit = {
+    def eval(time1: TimestampData, time2: Timestamp, string: String): Unit = {
       collect(time1.toString + time2.after(t) + string)
     }
   }

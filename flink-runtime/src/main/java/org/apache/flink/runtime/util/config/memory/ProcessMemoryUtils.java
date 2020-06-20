@@ -143,9 +143,7 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
 		MemorySize totalFlinkAndJvmMetaspaceSize = totalFlinkMemorySize.add(jvmMetaspaceSize);
 		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead;
 		if (config.contains(options.getTotalProcessMemoryOption())) {
-			MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, options.getTotalProcessMemoryOption());
-			MemorySize jvmOverheadSize = totalProcessMemorySize.subtract(totalFlinkAndJvmMetaspaceSize);
-			sanityCheckJvmOverhead(config, jvmOverheadSize, totalProcessMemorySize);
+			MemorySize jvmOverheadSize = deriveJvmOverheadFromTotalFlinkMemoryAndOtherComponents(config, totalFlinkMemorySize);
 			jvmMetaspaceAndOverhead = new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
 		} else {
 			MemorySize jvmOverheadSize = deriveWithInverseFraction(
@@ -156,6 +154,25 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
 			sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
 		}
 		return jvmMetaspaceAndOverhead;
+	}
+
+	private MemorySize deriveJvmOverheadFromTotalFlinkMemoryAndOtherComponents(
+			Configuration config,
+			MemorySize totalFlinkMemorySize) {
+		MemorySize totalProcessMemorySize = getMemorySizeFromConfig(config, options.getTotalProcessMemoryOption());
+		MemorySize jvmMetaspaceSize = getMemorySizeFromConfig(config, options.getJvmOptions().getJvmMetaspaceOption());
+		MemorySize totalFlinkAndJvmMetaspaceSize = totalFlinkMemorySize.add(jvmMetaspaceSize);
+		if (totalProcessMemorySize.getBytes() < totalFlinkAndJvmMetaspaceSize.getBytes()) {
+			throw new IllegalConfigurationException(
+				"The configured Total Process Memory size (%s) is less than the sum of the derived " +
+					"Total Flink Memory size (%s) and the configured or default JVM Metaspace size  (%s).",
+				totalProcessMemorySize.toHumanReadableString(),
+				totalFlinkMemorySize.toHumanReadableString(),
+				jvmMetaspaceSize.toHumanReadableString());
+		}
+		MemorySize jvmOverheadSize = totalProcessMemorySize.subtract(totalFlinkAndJvmMetaspaceSize);
+		sanityCheckJvmOverhead(config, jvmOverheadSize, totalProcessMemorySize);
+		return jvmOverheadSize;
 	}
 
 	private void sanityCheckJvmOverhead(
@@ -174,7 +191,7 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
 			!derivedJvmOverheadSize.equals(totalProcessMemorySize.multiply(jvmOverheadRangeFraction.getFraction()))) {
 			LOG.info(
 				"The derived JVM Overhead size ({}) does not match " +
-					"the configured JVM Overhead fraction ({}) from the configured Total Process Memory size ({}). " +
+					"the configured or default JVM Overhead fraction ({}) from the configured Total Process Memory size ({}). " +
 					"The derived JVM OVerhead size will be used.",
 				derivedJvmOverheadSize.toHumanReadableString(),
 				jvmOverheadRangeFraction.getFraction(),

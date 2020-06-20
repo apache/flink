@@ -42,7 +42,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($2)], agg#1=[SUM($3)], agg#2=[SU
    +- FlinkLogicalCalc(select=[a, b, $f2, $f3, $f4, AND(=($e, 0), $f2) AS $g_0, AND(=($e, 1), $f3) AS $g_1, AND(=($e, 1), $f2) AS $g_10])
       +- FlinkLogicalExpand(projects=[a, b, $f2, $f3, $f4, $e])
          +- FlinkLogicalCalc(select=[a, b, IS TRUE(<>(b, 2)) AS $f2, IS TRUE(<>(b, 5)) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -89,8 +89,8 @@ FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
 :                       +- FlinkLogicalCalc(select=[a, b, $f2, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
 :                          +- FlinkLogicalExpand(projects=[a, b, $f2, $e])
 :                             +- FlinkLogicalCalc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2])
-:                                +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:                                +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -110,7 +110,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
 FlinkLogicalAggregate(group=[{}], agg#0=[$SUM0($1)])
 +- FlinkLogicalAggregate(group=[{1}], agg#0=[COUNT(DISTINCT $0)])
    +- FlinkLogicalCalc(select=[c, MOD(HASH_CODE(c), 100) AS $f1])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -132,7 +132,7 @@ FlinkLogicalAggregate(group=[{}], agg#0=[$SUM0($2)], agg#1=[SUM($3)])
    +- FlinkLogicalCalc(select=[a, b, $f2, $f3, =($e, 1) AS $g_1, =($e, 2) AS $g_2])
       +- FlinkLogicalExpand(projects=[a, b, $f2, $f3, $e])
          +- FlinkLogicalCalc(select=[a, b, MOD(HASH_CODE(a), 1024) AS $f2, MOD(HASH_CODE(b), 1024) AS $f3])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -165,7 +165,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[MIN($3)], agg#1=[MAX($4)], agg#2=[SUM(
       +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
          +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
             +- FlinkLogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -185,7 +185,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
 FlinkLogicalAggregate(group=[{}], agg#0=[$SUM0($1)])
 +- FlinkLogicalAggregate(group=[{1}], agg#0=[COUNT(DISTINCT $0)])
    +- FlinkLogicalCalc(select=[c, MOD(HASH_CODE(c), 1024) AS $f1])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -212,7 +212,7 @@ FlinkLogicalCalc(select=[a, EXPR$1, CASE(=($f3, 0), null:INTEGER, EXPR$2) AS EXP
       +- FlinkLogicalCalc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 3) AS $g_3, =($e, 1) AS $g_1])
          +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
             +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -235,7 +235,7 @@ FlinkLogicalCalc(select=[a, $f1, $f2, CAST(IF(=($f4, 0:BIGINT), null:INTEGER, /(
       +- FlinkLogicalCalc(select=[a, b, $f2, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
          +- FlinkLogicalExpand(projects=[a, b, $f2, $e])
             +- FlinkLogicalCalc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -255,7 +255,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
 FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($2)])
 +- FlinkLogicalAggregate(group=[{0, 2}], agg#0=[COUNT(DISTINCT $1)])
    +- FlinkLogicalCalc(select=[a, c, MOD(HASH_CODE(c), 1024) AS $f2])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -276,7 +276,7 @@ LogicalProject(EXPR$0=[$1])
 FlinkLogicalCalc(select=[EXPR$0])
 +- FlinkLogicalAggregate(group=[{0}], EXPR$0=[FIRST_VALUE($1)])
    +- FlinkLogicalCalc(select=[a, c])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -298,7 +298,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[FIRST_VALUE($3)], agg#1=[$SUM0($4)])
    +- FlinkLogicalCalc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 1) AS $g_1])
       +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
          +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -320,7 +320,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[LAST_VALUE($3)], agg#1=[$SUM0($4)])
    +- FlinkLogicalCalc(select=[a, b, c, $f3, $f4, =($e, 2) AS $g_2, =($e, 1) AS $g_1])
       +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
          +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -339,7 +339,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
       <![CDATA[
 FlinkLogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
 +- FlinkLogicalCalc(select=[c])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -361,7 +361,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[LISTAGG($2)], agg#1=[$SUM0($3)])
    +- FlinkLogicalCalc(select=[a, b, c, $f3, =($e, 1) AS $g_1, =($e, 0) AS $g_0])
       +- FlinkLogicalExpand(projects=[a, b, c, $f3, $e])
          +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -386,7 +386,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($3)], agg#1=[MAX($4)])
    +- FlinkLogicalCalc(select=[a, b, c, $f3, $f4, =($e, 1) AS $g_1, =($e, 2) AS $g_2])
       +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
          +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -406,7 +406,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
 FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($1)], agg#1=[$SUM0($2)])
 +- FlinkLogicalAggregate(group=[{0}], agg#0=[COUNT(DISTINCT $0)], agg#1=[COUNT($1)])
    +- FlinkLogicalCalc(select=[a, b])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

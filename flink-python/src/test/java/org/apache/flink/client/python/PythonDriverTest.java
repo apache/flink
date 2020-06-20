@@ -46,7 +46,7 @@ public class PythonDriverTest {
 	}
 
 	@Test
-	public void testConstructCommands() {
+	public void testConstructCommandsWithEntryPointModule() {
 		List<String> args = new ArrayList<>();
 		args.add("--input");
 		args.add("in.txt");
@@ -62,5 +62,22 @@ public class PythonDriverTest {
 		Assert.assertEquals(commands.get(1), "xxx");
 		Assert.assertEquals(commands.get(2), "--input");
 		Assert.assertEquals(commands.get(3), "in.txt");
+	}
+
+	@Test
+	public void testConstructCommandsWithEntryPointScript() {
+		List<String> args = new ArrayList<>();
+		args.add("--input");
+		args.add("in.txt");
+
+		PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(
+			null,
+			"xxx",
+			args);
+		List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
+		Assert.assertEquals(3, commands.size());
+		Assert.assertEquals(commands.get(0), "xxx");
+		Assert.assertEquals(commands.get(1), "--input");
+		Assert.assertEquals(commands.get(2), "in.txt");
 	}
 }

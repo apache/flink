@@ -19,8 +19,13 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,11 +44,23 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 	 * Start offsets in a {@link org.apache.flink.core.fs.FSDataInputStream stream} {@link StreamStateHandle#openInputStream obtained} from {@link #delegate}.
 	 */
 	private final List<Long> offsets;
+	private final long size;
 
-	AbstractChannelStateHandle(StreamStateHandle delegate, List<Long> offsets, Info info) {
+	AbstractChannelStateHandle(StreamStateHandle delegate, List<Long> offsets, Info info, long size) {
 		this.info = checkNotNull(info);
 		this.delegate = checkNotNull(delegate);
 		this.offsets = checkNotNull(offsets);
+		this.size = size;
+	}
+
+	public static Set<StreamStateHandle> collectUniqueDelegates(Collection<? extends AbstractChannelStateHandle<?>>... collections) {
+		Set<StreamStateHandle> result = new HashSet<>();
+		for (Collection<? extends AbstractChannelStateHandle<?>> collection : collections) {
+			for (AbstractChannelStateHandle<?> handle : collection) {
+				result.add(handle.getDelegate());
+			}
+		}
+		return result;
 	}
 
 	@Override
@@ -53,7 +70,7 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 
 	@Override
 	public long getStateSize() {
-		return delegate.getStateSize();
+		return size; // can not rely on delegate.getStateSize because it can be shared
 	}
 
 	public List<Long> getOffsets() {
@@ -84,4 +101,35 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 	public int hashCode() {
 		return Objects.hash(info, delegate, offsets);
 	}
+
+	/**
+	 * Describes the underlying content.
+	 */
+	public static class StateContentMetaInfo {
+		private final List<Long> offsets;
+		private long size = 0;
+
+		public StateContentMetaInfo() {
+			this(new ArrayList<>(), 0);
+		}
+
+		public StateContentMetaInfo(List<Long> offsets, long size) {
+			this.offsets = offsets;
+			this.size = size;
+		}
+
+		public void withDataAdded(long offset, long size) {
+			this.offsets.add(offset);
+			this.size += size;
+		}
+
+		public List<Long> getOffsets() {
+			return Collections.unmodifiableList(offsets);
+		}
+
+		public long getSize() {
+			return size;
+		}
+	}
+
 }

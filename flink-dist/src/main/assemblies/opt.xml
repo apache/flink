@@ -75,49 +75,6 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Metrics -->
-		<file>
-			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-graphite-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-influxdb/target/flink-metrics-influxdb_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-influxdb-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-prometheus-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-statsd/target/flink-metrics-statsd-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-statsd-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-datadog/target/flink-metrics-datadog-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-datadog-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-slf4j/target/flink-metrics-slf4j-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-slf4j-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<file>
 			<source>../flink-filesystems/flink-s3-fs-hadoop/target/flink-s3-fs-hadoop-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>

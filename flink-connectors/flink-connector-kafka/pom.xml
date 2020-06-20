@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kafka.version>2.2.2</kafka.version>
+		<kafka.version>2.4.1</kafka.version>
 	</properties>
 
 	<dependencies>
@@ -171,6 +171,15 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Kafka table factory testing -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -187,9 +196,22 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Kafka SQL IT test with formats -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

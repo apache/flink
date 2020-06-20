@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
 import org.junit.Test
@@ -59,7 +58,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Cannot resolve field [foobar]")
 
-    ratesHistory.createTemporalTableFunction("rowtime", "foobar")
+    ratesHistory.createTemporalTableFunction($"rowtime", $"foobar")
   }
 
   @Test
@@ -72,7 +71,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = orders
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyExplain(result)
   }
@@ -87,7 +86,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = ordersWithoutTimeAttribute
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyExplain(result)
   }
@@ -103,7 +102,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = ordersProctime
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyExplain(result)
   }

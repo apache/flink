@@ -125,3 +125,23 @@ def add_jars_to_context_class_loader(jar_urls):
     new_classloader = gateway.jvm.java.net.URLClassLoader(
         to_jarray(gateway.jvm.java.net.URL, j_urls), context_classloader)
     gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
+
+
+def to_j_explain_detail_arr(p_extra_details):
+    # sphinx will check "import loop" when generating doc,
+    # use local import to avoid above error
+    from pyflink.table.explain_detail import ExplainDetail
+    gateway = get_gateway()
+
+    def to_j_explain_detail(p_extra_detail):
+        if p_extra_detail == ExplainDetail.CHANGELOG_MODE:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.CHANGELOG_MODE
+        else:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.ESTIMATED_COST
+
+    _len = len(p_extra_details) if p_extra_details else 0
+    j_arr = gateway.new_array(gateway.jvm.org.apache.flink.table.api.ExplainDetail, _len)
+    for i in range(0, _len):
+        j_arr[i] = to_j_explain_detail(p_extra_details[i])
+
+    return j_arr

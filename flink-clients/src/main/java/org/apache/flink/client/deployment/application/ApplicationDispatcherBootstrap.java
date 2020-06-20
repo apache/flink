@@ -23,20 +23,26 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobCancellationException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.AbstractDispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.slf4j.Logger;
@@ -46,13 +52,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -70,6 +76,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ApplicationDispatcherBootstrap.class);
+
+	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
 	private final PackagedProgram application;
 
@@ -119,25 +127,59 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	/**
 	 * Runs the user program entrypoint using {@link #runApplicationAsync(DispatcherGateway,
 	 * ScheduledExecutor, boolean)} and shuts down the given dispatcher when the application
-	 * completes (either succesfully or in case of failure).
+	 * completes (either successfully or in case of failure).
 	 */
 	@VisibleForTesting
 	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor) {
 
-		applicationCompletionFuture = runApplicationAsync(dispatcher, scheduledExecutor, false);
+		applicationCompletionFuture = fixJobIdAndRunApplicationAsync(dispatcher, scheduledExecutor);
 
 		return applicationCompletionFuture
 				.handle((r, t) -> {
+					final ApplicationStatus applicationStatus;
 					if (t != null) {
-						LOG.warn("Application FAILED: ", t);
+
+						final Optional<JobCancellationException> cancellationException =
+								ExceptionUtils.findThrowable(t, JobCancellationException.class);
+
+						if (cancellationException.isPresent()) {
+							// this means the Flink Job was cancelled
+							applicationStatus = ApplicationStatus.CANCELED;
+						} else if (t instanceof CancellationException) {
+							// this means that the future was cancelled
+							applicationStatus = ApplicationStatus.UNKNOWN;
+						} else {
+							applicationStatus = ApplicationStatus.FAILED;
+						}
+
+						LOG.warn("Application {}: ", applicationStatus, t);
 					} else {
+						applicationStatus = ApplicationStatus.SUCCEEDED;
 						LOG.info("Application completed SUCCESSFULLY");
 					}
-					return dispatcher.shutDownCluster();
+					return dispatcher.shutDownCluster(applicationStatus);
 				})
 				.thenCompose(Function.identity());
+	}
+
+	@VisibleForTesting
+	CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
+			final DispatcherGateway dispatcher,
+			final ScheduledExecutor scheduledExecutor) {
+
+		final Optional<String> configuredJobId =
+				configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
+
+		if (!HighAvailabilityMode.isHighAvailabilityModeActivated(configuration) && !configuredJobId.isPresent()) {
+			return runApplicationAsync(dispatcher, scheduledExecutor, false);
+		}
+
+		if (!configuredJobId.isPresent()) {
+			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, ZERO_JOB_ID.toHexString());
+		}
+		return runApplicationAsync(dispatcher, scheduledExecutor, true);
 	}
 
 	/**
@@ -145,8 +187,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	 * The returned {@link CompletableFuture} completes when all jobs of the user application
 	 * succeeded. if any of them fails, or if job submission fails.
 	 */
-	@VisibleForTesting
-	CompletableFuture<Void> runApplicationAsync(
+	private CompletableFuture<Void> runApplicationAsync(
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor,
 			final boolean enforceSingleJobExecution) {
@@ -155,7 +196,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		// we need to hand in a future as return value because we need to get those JobIs out
 		// from the scheduled task that executes the user program
 		applicationExecutionTask = scheduledExecutor.schedule(
-				() -> runApplicationEntrypoint(
+				() -> runApplicationEntryPoint(
 						applicationExecutionFuture,
 						dispatcher,
 						scheduledExecutor,
@@ -173,7 +214,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	 *
 	 * <p>This should be executed in a separate thread (or task).
 	 */
-	private void runApplicationEntrypoint(
+	private void runApplicationEntryPoint(
 			final CompletableFuture<List<JobID>> jobIdsFuture,
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor,
@@ -210,19 +251,11 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			final DispatcherGateway dispatcherGateway,
 			final Collection<JobID> applicationJobIds,
 			final ScheduledExecutor executor) {
-		final CompletableFuture<?>[] jobResultFutures = applicationJobIds
+		final List<CompletableFuture<?>> jobResultFutures = applicationJobIds
 				.stream()
-				.map(jobId ->
-						unwrapJobResultException(getJobResult(dispatcherGateway, jobId, executor)))
-				.toArray(CompletableFuture<?>[]::new);
-
-		final CompletableFuture<Void> allStatusFutures = CompletableFuture.allOf(jobResultFutures);
-		Stream.of(jobResultFutures)
-				.forEach(f -> f.exceptionally(e -> {
-					allStatusFutures.completeExceptionally(e);
-					return null;
-				}));
-		return allStatusFutures;
+				.map(jobId -> unwrapJobResultException(getJobResult(dispatcherGateway, jobId, executor)))
+				.collect(Collectors.toList());
+		return FutureUtils.waitForAll(jobResultFutures);
 	}
 
 	private CompletableFuture<JobResult> getJobResult(
@@ -230,8 +263,8 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			final JobID jobId,
 			final ScheduledExecutor scheduledExecutor) {
 
-		final Time timeout = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_TIMEOUT).toMillis());
-		final Time retryPeriod = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_RETRY_PERIOD).toMillis());
+		final Time timeout = Time.milliseconds(configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
+		final Time retryPeriod = Time.milliseconds(configuration.get(ClientOptions.CLIENT_RETRY_PERIOD).toMillis());
 
 		return JobStatusPollingUtils.getJobResult(
 						dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod);
@@ -250,6 +283,15 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			}
 
 			Optional<SerializedThrowable> serializedThrowable = result.getSerializedThrowable();
+
+			if (result.getApplicationStatus() == ApplicationStatus.CANCELED) {
+				throw new CompletionException(
+						new JobCancellationException(
+								result.getJobId(),
+								"Job was cancelled.",
+								serializedThrowable.orElse(null)));
+			}
+
 			if (serializedThrowable.isPresent()) {
 				Throwable throwable =
 						serializedThrowable

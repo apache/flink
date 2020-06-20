@@ -47,11 +47,11 @@ LogicalProject(a=[$0], c=[$1])
 Union(all=[true], union=[a, c])
 :- Union(all=[true], union=[a, c])
 :  :- Calc(select=[a, c], where=[>(a, 2)])
-:  :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Calc(select=[a, c], where=[>(a, 2)])
-:     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[a, c], where=[>(a, 2)])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -78,9 +78,9 @@ LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)
       <![CDATA[
 Union(all=[true], union=[a, b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
 :- Calc(select=[a, CAST(b) AS b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
-:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 +- Calc(select=[a, CAST(0.0:DECIMAL(20, 1)) AS EXPR$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) EXPR$1)]
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
   </TestCase>

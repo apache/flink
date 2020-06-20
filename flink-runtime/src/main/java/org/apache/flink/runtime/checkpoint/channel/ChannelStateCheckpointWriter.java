@@ -20,11 +20,13 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMetaInfo;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -40,9 +42,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.UUID.randomUUID;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -57,8 +62,8 @@ class ChannelStateCheckpointWriter {
 	private final DataOutputStream dataStream;
 	private final CheckpointStateOutputStream checkpointStream;
 	private final ChannelStateWriteResult result;
-	private final Map<InputChannelInfo, List<Long>> inputChannelOffsets = new HashMap<>();
-	private final Map<ResultSubpartitionInfo, List<Long>> resultSubpartitionOffsets = new HashMap<>();
+	private final Map<InputChannelInfo, StateContentMetaInfo> inputChannelOffsets = new HashMap<>();
+	private final Map<ResultSubpartitionInfo, StateContentMetaInfo> resultSubpartitionOffsets = new HashMap<>();
 	private final ChannelStateSerializer serializer;
 	private final long checkpointId;
 	private boolean allInputsReceived = false;
@@ -103,30 +108,30 @@ class ChannelStateCheckpointWriter {
 		runWithChecks(() -> serializer.writeHeader(dataStream));
 	}
 
-	void writeInput(InputChannelInfo info, Buffer... flinkBuffers) throws Exception {
-		write(inputChannelOffsets, info, flinkBuffers, !allInputsReceived);
+	void writeInput(InputChannelInfo info, Buffer buffer) throws Exception {
+		write(inputChannelOffsets, info, buffer, !allInputsReceived);
 	}
 
-	void writeOutput(ResultSubpartitionInfo info, Buffer... flinkBuffers) throws Exception {
-		write(resultSubpartitionOffsets, info, flinkBuffers, !allOutputsReceived);
+	void writeOutput(ResultSubpartitionInfo info, Buffer buffer) throws Exception {
+		write(resultSubpartitionOffsets, info, buffer, !allOutputsReceived);
 	}
 
-	private <K> void write(Map<K, List<Long>> offsets, K key, Buffer[] flinkBuffers, boolean precondition) throws Exception {
+	private <K> void write(Map<K, StateContentMetaInfo> offsets, K key, Buffer buffer, boolean precondition) throws Exception {
 		try {
 			if (result.isDone()) {
 				return;
 			}
 			runWithChecks(() -> {
 				checkState(precondition);
+				long offset = checkpointStream.getPos();
+				serializer.writeData(dataStream, buffer);
+				long size = checkpointStream.getPos() - offset;
 				offsets
-					.computeIfAbsent(key, unused -> new ArrayList<>())
-					.add(checkpointStream.getPos());
-				serializer.writeData(dataStream, flinkBuffers);
+					.computeIfAbsent(key, unused -> new StateContentMetaInfo())
+					.withDataAdded(offset, size);
 			});
 		} finally {
-			for (Buffer flinkBuffer : flinkBuffers) {
-				flinkBuffer.recycleBuffer();
-			}
+			buffer.recycleBuffer();
 		}
 	}
 
@@ -150,16 +155,16 @@ class ChannelStateCheckpointWriter {
 	}
 
 	private void finishWriteAndResult() throws IOException {
+		if (inputChannelOffsets.isEmpty() && resultSubpartitionOffsets.isEmpty()) {
+			dataStream.close();
+			result.inputChannelStateHandles.complete(emptyList());
+			result.resultSubpartitionStateHandles.complete(emptyList());
+			return;
+		}
 		dataStream.flush();
 		StreamStateHandle underlying = checkpointStream.closeAndGetHandle();
-		complete(
-				result.inputChannelStateHandles,
-				inputChannelOffsets,
-				(chan, offsets) -> new InputChannelStateHandle(chan, underlying, offsets));
-		complete(
-				result.resultSubpartitionStateHandles,
-				resultSubpartitionOffsets,
-				(chan, offsets) -> new ResultSubpartitionStateHandle(chan, underlying, offsets));
+		complete(underlying, result.inputChannelStateHandles, inputChannelOffsets, HandleFactory.INPUT_CHANNEL);
+		complete(underlying, result.resultSubpartitionStateHandles, resultSubpartitionOffsets, HandleFactory.RESULT_SUBPARTITION);
 	}
 
 	private void doComplete(boolean precondition, RunnableWithException complete, RunnableWithException... callbacks) throws Exception {
@@ -173,15 +178,36 @@ class ChannelStateCheckpointWriter {
 	}
 
 	private <I, H extends AbstractChannelStateHandle<I>> void complete(
+			StreamStateHandle underlying,
 			CompletableFuture<Collection<H>> future,
-			Map<I, List<Long>> offsets,
-			BiFunction<I, List<Long>, H> buildHandle) {
+			Map<I, StateContentMetaInfo> offsets,
+			HandleFactory<I, H> handleFactory) throws IOException {
 		final Collection<H> handles = new ArrayList<>();
-		for (Map.Entry<I, List<Long>> e : offsets.entrySet()) {
-			handles.add(buildHandle.apply(e.getKey(), e.getValue()));
+		for (Map.Entry<I, StateContentMetaInfo> e : offsets.entrySet()) {
+			handles.add(createHandle(handleFactory, underlying, e.getKey(), e.getValue()));
 		}
 		future.complete(handles);
 		LOG.debug("channel state write completed, checkpointId: {}, handles: {}", checkpointId, handles);
+	}
+
+	private <I, H extends AbstractChannelStateHandle<I>> H createHandle(
+			HandleFactory<I, H> handleFactory,
+			StreamStateHandle underlying,
+			I channelInfo,
+			StateContentMetaInfo contentMetaInfo) throws IOException {
+		Optional<byte[]> bytes = underlying.asBytesIfInMemory(); // todo: consider restructuring channel state and removing this method: https://issues.apache.org/jira/browse/FLINK-17972
+		if (bytes.isPresent()) {
+			StreamStateHandle extracted = new ByteStreamStateHandle(
+				randomUUID().toString(),
+				serializer.extractAndMerge(bytes.get(), contentMetaInfo.getOffsets()));
+			return handleFactory.create(
+				channelInfo,
+				extracted,
+				singletonList(serializer.getHeaderLength()),
+				extracted.getStateSize());
+		} else {
+			return handleFactory.create(channelInfo, underlying, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+		}
 	}
 
 	private void runWithChecks(RunnableWithException r) throws Exception {
@@ -199,4 +225,11 @@ class ChannelStateCheckpointWriter {
 		checkpointStream.close();
 	}
 
+	private interface HandleFactory<I, H extends AbstractChannelStateHandle<I>> {
+		H create(I info, StreamStateHandle underlying, List<Long> offsets, long size);
+
+		HandleFactory<InputChannelInfo, InputChannelStateHandle> INPUT_CHANNEL = InputChannelStateHandle::new;
+
+		HandleFactory<ResultSubpartitionInfo, ResultSubpartitionStateHandle> RESULT_SUBPARTITION = ResultSubpartitionStateHandle::new;
+	}
 }

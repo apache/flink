@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -68,7 +68,7 @@ public class RangeSlidingOverFrame extends SlidingOverFrame {
 	}
 
 	@Override
-	public BaseRow process(int index, BaseRow current) throws Exception {
+	public RowData process(int index, RowData current) throws Exception {
 		boolean bufferUpdated = index == 0;
 
 		// Drop all rows from the buffer for which the input row value is smaller than

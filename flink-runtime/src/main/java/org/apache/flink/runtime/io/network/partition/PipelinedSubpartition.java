@@ -91,6 +91,10 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	/** The collection of buffers which are spanned over by checkpoint barrier and needs to be persisted for snapshot. */
 	private final List<Buffer> inflightBufferSnapshot = new ArrayList<>();
 
+	/** Whether this subpartition is blocked by exactly once checkpoint and is waiting for resumption. */
+	@GuardedBy("buffers")
+	private boolean isBlockedByCheckpoint = false;
+
 	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
@@ -98,18 +102,24 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		boolean recycleBuffer = true;
 		for (ReadResult readResult = ReadResult.HAS_MORE_DATA; readResult == ReadResult.HAS_MORE_DATA;) {
-			BufferBuilder bufferBuilder = parent.getBufferPool().requestBufferBuilderBlocking();
+			BufferBuilder bufferBuilder = parent.getBufferPool().requestBufferBuilderBlocking(subpartitionInfo.getSubPartitionIdx());
 			BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-			readResult = stateReader.readOutputData(subpartitionInfo, bufferBuilder);
+			try {
+				readResult = stateReader.readOutputData(subpartitionInfo, bufferBuilder);
 
-			// check whether there are some states data filled in this time
-			if (bufferConsumer.isDataAvailable()) {
-				add(bufferConsumer, false, false);
-				bufferBuilder.finish();
-			} else {
-				bufferConsumer.close();
+				// check whether there are some states data filled in this time
+				if (bufferConsumer.isDataAvailable()) {
+					add(bufferConsumer, false, false);
+					recycleBuffer = false;
+					bufferBuilder.finish();
+				}
+			} finally {
+				if (recycleBuffer) {
+					bufferConsumer.close();
+				}
 			}
 		}
 	}
@@ -117,10 +127,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	@Override
 	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException {
 		if (isPriorityEvent) {
-			if (readView != null && readView.notifyPriorityEvent(bufferConsumer)) {
-				bufferConsumer.close();
-				return true;
-			}
+			// TODO: use readView.notifyPriorityEvent for local channels
 			return add(bufferConsumer, false, true);
 		}
 		return add(bufferConsumer, false, false);
@@ -167,7 +174,9 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
 			for (BufferConsumer buffer : buffers) {
 				try (BufferConsumer bc = buffer.copy()) {
-					inflightBufferSnapshot.add(bc.build());
+					if (bc.isBuffer()) {
+						inflightBufferSnapshot.add(bc.build());
+					}
 				}
 			}
 
@@ -217,6 +226,10 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	@Nullable
 	BufferAndBacklog pollBuffer() {
 		synchronized (buffers) {
+			if (isBlockedByCheckpoint) {
+				return null;
+			}
+
 			Buffer buffer = null;
 
 			if (buffers.isEmpty()) {
@@ -255,28 +268,28 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				return null;
 			}
 
+			if (buffer.getDataType().isBlockingUpstream()) {
+				isBlockedByCheckpoint = true;
+			}
+
 			updateStatistics(buffer);
 			// Do not report last remaining buffer on buffers as available to read (assuming it's unfinished).
 			// It will be reported for reading either on flush or when the number of buffers in the queue
 			// will be 2 or more.
 			return new BufferAndBacklog(
 				buffer,
-				isAvailableUnsafe(),
+				isDataAvailableUnsafe(),
 				getBuffersInBacklog(),
-				nextBufferIsEventUnsafe());
+				isEventAvailableUnsafe());
 		}
 	}
 
-	boolean nextBufferIsEvent() {
+	void resumeConsumption() {
 		synchronized (buffers) {
-			return nextBufferIsEventUnsafe();
+			checkState(isBlockedByCheckpoint, "Should be blocked by checkpoint.");
+
+			isBlockedByCheckpoint = false;
 		}
-	}
-
-	private boolean nextBufferIsEventUnsafe() {
-		assert Thread.holdsLock(buffers);
-
-		return !buffers.isEmpty() && !buffers.peekFirst().isBuffer();
 	}
 
 	@Override
@@ -315,14 +328,26 @@ public class PipelinedSubpartition extends ResultSubpartition {
 		return readView;
 	}
 
-	public boolean isAvailable() {
+	public boolean isAvailable(int numCreditsAvailable) {
 		synchronized (buffers) {
-			return isAvailableUnsafe();
+			if (numCreditsAvailable > 0) {
+				return isDataAvailableUnsafe();
+			}
+
+			return isEventAvailableUnsafe();
 		}
 	}
 
-	private boolean isAvailableUnsafe() {
-		return flushRequested || getNumberOfFinishedBuffers() > 0;
+	private boolean isDataAvailableUnsafe() {
+		assert Thread.holdsLock(buffers);
+
+		return !isBlockedByCheckpoint && (flushRequested || getNumberOfFinishedBuffers() > 0);
+	}
+
+	private boolean isEventAvailableUnsafe() {
+		assert Thread.holdsLock(buffers);
+
+		return !isBlockedByCheckpoint && !buffers.isEmpty() && !buffers.peekFirst().isBuffer();
 	}
 
 	// ------------------------------------------------------------------------
@@ -362,13 +387,13 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	public void flush() {
 		final boolean notifyDataAvailable;
 		synchronized (buffers) {
-			if (buffers.isEmpty()) {
+			if (buffers.isEmpty() || flushRequested) {
 				return;
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !flushRequested && buffers.size() == 1 && buffers.peek().isDataAvailable();
-			flushRequested = flushRequested || buffers.size() > 1 || notifyDataAvailable;
+			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			flushRequested = buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
 			notifyDataAvailable();
@@ -436,7 +461,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 	private boolean shouldNotifyDataAvailable() {
 		// Notify only when we added first finished buffer.
-		return readView != null && !flushRequested && getNumberOfFinishedBuffers() == 1;
+		return readView != null && !flushRequested && !isBlockedByCheckpoint && getNumberOfFinishedBuffers() == 1;
 	}
 
 	private void notifyDataAvailable() {

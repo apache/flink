@@ -19,11 +19,12 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 /**

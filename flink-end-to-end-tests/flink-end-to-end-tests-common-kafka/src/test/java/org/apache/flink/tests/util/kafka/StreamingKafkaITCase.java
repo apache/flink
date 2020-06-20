@@ -43,6 +43,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -57,13 +58,15 @@ public class StreamingKafkaITCase extends TestLogger {
 	@Parameterized.Parameters(name = "{index}: kafka-version:{1}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-			{"flink-streaming-kafka010-test.*", "0.10.2.0"},
+			{"flink-streaming-kafka010-test.*", "0.10.2.2"},
 			{"flink-streaming-kafka011-test.*", "0.11.0.2"},
-			{"flink-streaming-kafka-test.*", "2.2.2"}
+			{"flink-streaming-kafka-test.*", "2.4.1"}
 		});
 	}
 
 	private final Path kafkaExampleJar;
+
+	private final String kafkaVersion;
 
 	@Rule
 	public final KafkaResource kafka;
@@ -81,14 +84,15 @@ public class StreamingKafkaITCase extends TestLogger {
 	public StreamingKafkaITCase(final String kafkaExampleJarPattern, final String kafkaVersion) {
 		this.kafkaExampleJar = TestUtils.getResourceJar(kafkaExampleJarPattern);
 		this.kafka = KafkaResource.get(kafkaVersion);
+		this.kafkaVersion = kafkaVersion;
 	}
 
 	@Test
 	public void testKafka() throws Exception {
 		try (final ClusterController clusterController = flink.startCluster(1)) {
 
-			final String inputTopic = "test-input";
-			final String outputTopic = "test-output";
+			final String inputTopic = "test-input-" + kafkaVersion + "-" + UUID.randomUUID().toString();
+			final String outputTopic = "test-output" + kafkaVersion + "-" + UUID.randomUUID().toString();
 
 			// create the required topics
 			kafka.createTopic(1, 1, inputTopic);
@@ -109,13 +113,13 @@ public class StreamingKafkaITCase extends TestLogger {
 
 			LOG.info("Sending messages to Kafka topic [{}] ...", inputTopic);
 			// send some data to Kafka
-			kafka.sendMessages(inputTopic,
-				"elephant,5,45218",
-				"squirrel,12,46213",
-				"bee,3,51348",
-				"squirrel,22,52444",
-				"bee,10,53412",
-				"elephant,9,54867");
+			kafka.sendKeyedMessages(inputTopic, "\t",
+				"key\telephant,5,45218",
+				"key\tsquirrel,12,46213",
+				"key\tbee,3,51348",
+				"key\tsquirrel,22,52444",
+				"key\tbee,10,53412",
+				"key\telephant,9,54867");
 
 			LOG.info("Verifying messages from Kafka topic [{}] ...", outputTopic);
 			{
@@ -138,11 +142,11 @@ public class StreamingKafkaITCase extends TestLogger {
 
 			// send some more messages to Kafka
 			LOG.info("Sending more messages to Kafka topic [{}] ...", inputTopic);
-			kafka.sendMessages(inputTopic,
-				"elephant,13,64213",
-				"giraffe,9,65555",
-				"bee,5,65647",
-				"squirrel,18,66413");
+			kafka.sendKeyedMessages(inputTopic, "\t",
+				"key\telephant,13,64213",
+				"key\tgiraffe,9,65555",
+				"key\tbee,5,65647",
+				"key\tsquirrel,18,66413");
 
 			// verify that our assumption that the new partition actually has written messages is correct
 			Assert.assertNotEquals(
@@ -159,10 +163,10 @@ public class StreamingKafkaITCase extends TestLogger {
 				final List<String> bees = filterMessages(messages, "bee");
 				final List<String> giraffes = filterMessages(messages, "giraffe");
 
-				Assert.assertEquals(Arrays.asList("elephant,27,64213"), elephants);
-				Assert.assertEquals(Arrays.asList("squirrel,52,66413"), squirrels);
-				Assert.assertEquals(Arrays.asList("bee,18,65647"), bees);
-				Assert.assertEquals(Arrays.asList("giraffe,9,65555"), giraffes);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("elephant,27,64213"), elephants);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("squirrel,52,66413"), squirrels);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("bee,18,65647"), bees);
+				Assert.assertEquals(String.format("Messages from Kafka %s: %s", kafkaVersion, messages), Arrays.asList("giraffe,9,65555"), giraffes);
 			}
 		}
 	}

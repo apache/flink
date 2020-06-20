@@ -18,12 +18,12 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.Func1
-import org.apache.flink.table.api.{Over, Table}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.junit.Test
 
 class OverWindowTest extends TableTestBase {
@@ -65,7 +65,7 @@ class OverWindowTest extends TableTestBase {
         ),
         term("select",
              s"Func1$$(w0$$o0) AS d",
-             "EXP(CAST(w0$o1)) AS _c1",
+             "EXP(w0$o1) AS _c1",
              "+(w0$o2, 1:BIGINT) AS _c2",
              "||('AVG:', CAST(w0$o2)) AS _c3",
              "ARRAY(w0$o2, w0$o1) AS _c4")

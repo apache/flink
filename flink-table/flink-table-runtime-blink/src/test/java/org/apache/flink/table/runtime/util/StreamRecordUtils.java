@@ -20,99 +20,99 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseArray;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 
-import static org.apache.flink.table.dataformat.BinaryString.fromString;
+import static org.apache.flink.table.data.StringData.fromString;
 
 /**
- * Utilities to generate StreamRecord which encapsulates BaseRow.
+ * Utilities to generate StreamRecord which encapsulates RowData.
  */
 public class StreamRecordUtils {
 
 	/**
-	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * Creates n new {@link StreamRecord} of {@link RowData} based on the given fields array
 	 * and the give RowKind.
 	 */
-	public static StreamRecord<BaseRow> record(RowKind rowKind, Object... fields) {
-		BaseRow row = baserow(fields);
+	public static StreamRecord<RowData> record(RowKind rowKind, Object... fields) {
+		RowData row = row(fields);
 		row.setRowKind(rowKind);
 		return new StreamRecord<>(row);
 	}
 
 	/**
-	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * Creates n new {@link StreamRecord} of {@link RowData} based on the given fields array
 	 * and a default INSERT RowKind.
 	 *
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public static StreamRecord<BaseRow> insertRecord(Object... fields) {
-		return new StreamRecord<>(baserow(fields));
+	public static StreamRecord<RowData> insertRecord(Object... fields) {
+		return new StreamRecord<>(row(fields));
 	}
 
 	/**
-	 * Creates n new {@link StreamRecord} of {@link BinaryRow} based on the given fields array
+	 * Creates n new {@link StreamRecord} of {@link BinaryRowData} based on the given fields array
 	 * and the given RowKind.
 	 */
-	public static StreamRecord<BaseRow> binaryRecord(RowKind rowKind, Object... fields) {
-		BinaryRow row = binaryrow(fields);
+	public static StreamRecord<RowData> binaryRecord(RowKind rowKind, Object... fields) {
+		BinaryRowData row = binaryrow(fields);
 		row.setRowKind(rowKind);
 		return new StreamRecord<>(row);
 	}
 
 	/**
-	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * Creates n new {@link StreamRecord} of {@link RowData} based on the given fields array
 	 * and a default UPDATE_BEFORE RowKind.
 	 *
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public static StreamRecord<BaseRow> updateBeforeRecord(Object... fields) {
-		BaseRow row = baserow(fields);
+	public static StreamRecord<RowData> updateBeforeRecord(Object... fields) {
+		RowData row = row(fields);
 		row.setRowKind(RowKind.UPDATE_BEFORE);
 		return new StreamRecord<>(row);
 	}
 
 	/**
-	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * Creates n new {@link StreamRecord} of {@link RowData} based on the given fields array
 	 * and a default UPDATE_AFTER RowKind.
 	 */
-	public static StreamRecord<BaseRow> updateAfterRecord(Object... fields) {
-		BaseRow row = baserow(fields);
+	public static StreamRecord<RowData> updateAfterRecord(Object... fields) {
+		RowData row = row(fields);
 		row.setRowKind(RowKind.UPDATE_AFTER);
 		return new StreamRecord<>(row);
 	}
 
 	/**
-	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * Creates n new {@link StreamRecord} of {@link RowData} based on the given fields array
 	 * and a default DELETE RowKind.
 	 *
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public static StreamRecord<BaseRow> deleteRecord(Object... fields) {
-		BaseRow row = baserow(fields);
+	public static StreamRecord<RowData> deleteRecord(Object... fields) {
+		RowData row = row(fields);
 		row.setRowKind(RowKind.DELETE);
 		return new StreamRecord<>(row);
 	}
 
 	/**
-	 * Receives a object array, generates a BaseRow based on the array.
+	 * Receives a object array, generates a RowData based on the array.
 	 *
 	 * @param fields input object array
-	 * @return generated BaseRow.
+	 * @return generated RowData.
 	 */
-	public static BaseRow baserow(Object... fields) {
+	public static RowData row(Object... fields) {
 		Object[] objects = new Object[fields.length];
 		for (int i = 0; i < fields.length; i++) {
 			Object field = fields[i];
@@ -122,17 +122,17 @@ public class StreamRecordUtils {
 				objects[i] = field;
 			}
 		}
-		return GenericRow.of(objects);
+		return GenericRowData.of(objects);
 	}
 
 	/**
-	 * Receives a object array, generates a BinaryRow based on the array.
+	 * Receives a object array, generates a BinaryRowData based on the array.
 	 *
 	 * @param fields input object array
-	 * @return generated BinaryRow.
+	 * @return generated BinaryRowData.
 	 */
-	public static BinaryRow binaryrow(Object... fields) {
-		BinaryRow row = new BinaryRow(fields.length);
+	public static BinaryRowData binaryrow(Object... fields) {
+		BinaryRowData row = new BinaryRowData(fields.length);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		for (int j = 0; j < fields.length; j++) {
 			Object value = fields[j];
@@ -145,7 +145,7 @@ public class StreamRecordUtils {
 			} else if (value instanceof Integer) {
 				writer.writeInt(j, (Integer) value);
 			} else if (value instanceof String) {
-				writer.writeString(j, BinaryString.fromString((String) value));
+				writer.writeString(j, StringData.fromString((String) value));
 			} else if (value instanceof Double) {
 				writer.writeDouble(j, (Double) value);
 			} else if (value instanceof Float) {
@@ -156,20 +156,20 @@ public class StreamRecordUtils {
 				writer.writeBoolean(j, (Boolean) value);
 			} else if (value instanceof byte[]) {
 				writer.writeBinary(j, (byte[]) value);
-			} else if (value instanceof Decimal) {
-				Decimal decimal = (Decimal) value;
-				writer.writeDecimal(j, decimal, decimal.getPrecision());
-			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof SqlTimestamp) {
-				SqlTimestamp timestamp = (SqlTimestamp) ((Tuple2) value).f0;
+			} else if (value instanceof DecimalData) {
+				DecimalData decimal = (DecimalData) value;
+				writer.writeDecimal(j, decimal, decimal.precision());
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof TimestampData) {
+				TimestampData timestamp = (TimestampData) ((Tuple2) value).f0;
 				writer.writeTimestamp(j, timestamp, (int) ((Tuple2) value).f1);
-			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof BaseArray) {
-				BaseArray array = (BaseArray) ((Tuple2) value).f0;
-				BaseArraySerializer serializer = (BaseArraySerializer) ((Tuple2) value).f1;
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof ArrayData) {
+				ArrayData array = (ArrayData) ((Tuple2) value).f0;
+				ArrayDataSerializer serializer = (ArrayDataSerializer) ((Tuple2) value).f1;
 				writer.writeArray(j, array, serializer);
-			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof BaseRow) {
-				BaseRow baseRow = (BaseRow) ((Tuple2) value).f0;
-				BaseRowSerializer baseRowSerializer = (BaseRowSerializer) ((Tuple2) value).f1;
-				writer.writeRow(j, baseRow, baseRowSerializer);
+			} else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof RowData) {
+				RowData rowData = ((RowData) ((Tuple2) value).f0);
+				RowDataSerializer serializer = (RowDataSerializer) ((Tuple2) value).f1;
+				writer.writeRow(j, rowData, serializer);
 			} else {
 				throw new RuntimeException("Not support yet!");
 			}

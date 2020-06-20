@@ -30,9 +30,6 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor;
-import org.apache.flink.table.types.extraction.utils.FunctionResultTemplate;
-import org.apache.flink.table.types.extraction.utils.FunctionSignatureTemplate;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -49,14 +46,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createGenericResultExtraction;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createParameterAndReturnTypeVerification;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createParameterSignatureExtraction;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createParameterVerification;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createParameterWithAccumulatorVerification;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createParameterWithArgumentVerification;
-import static org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor.createReturnTypeResultExtraction;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericResultExtraction;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterAndReturnTypeVerification;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterSignatureExtraction;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterVerification;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterWithAccumulatorVerification;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterWithArgumentVerification;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createReturnTypeResultExtraction;
 
 /**
  * Reflection-based utility for extracting a {@link TypeInference} from a supported subclass of

@@ -17,26 +17,28 @@
  */
 package org.apache.flink.table.runtime.stream.table
 
-import java.lang.{Boolean => JBoolean}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.{Before, Test}
+
+import java.lang.{Boolean => JBoolean}
 
 import scala.collection.mutable
 
 class CorrelateITCase extends AbstractTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
+  val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
   @Before
   def clear(): Unit = {
@@ -45,7 +47,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testCrossJoin(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
     val pojoFunc0 = new PojoTableFunc()
 
@@ -66,7 +68,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testLeftOuterJoinWithoutPredicates(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = t
@@ -88,7 +90,7 @@ class CorrelateITCase extends AbstractTestBase {
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = t
@@ -106,7 +108,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = t
@@ -174,7 +176,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val config = Map("key1" -> "value1", "key2" -> "value2")
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
@@ -241,7 +243,7 @@ class CorrelateITCase extends AbstractTestBase {
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as('a, 'b, 'c)
+    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
 
     val tableFunc5 = new TableFunc5()
     val result = in
@@ -259,7 +261,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testTableFunctionCollectorOpenClose(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
     val func20 = new Func20
 
@@ -286,7 +288,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testTableFunctionCollectorInit(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     // this case will generate 'timestamp' member field and 'DateFormatter'
@@ -307,10 +309,6 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testFlatMap(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val func2 = new TableFunc2
     val ds = testData(env).toTable(tEnv, 'a, 'b, 'c)
       // test non alias
@@ -318,7 +316,7 @@ class CorrelateITCase extends AbstractTestBase {
       .select('f0, 'f1)
       // test the output field name of flatMap is the same as the field name of the input table
       .flatMap(func2(concat('f0, "#")))
-      .as ('f0, 'f1)
+      .as ("f0", "f1")
       .select('f0, 'f1)
 
     val results = ds.toAppendStream[Row]

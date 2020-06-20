@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
@@ -183,7 +184,8 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
 			yarnConfig.getInt(
 				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES));
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
+			ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 		this.registerApplicationMasterResponseReflector = new RegisterApplicationMasterResponseReflector(log);
 
 		this.matchingStrategy = flinkConfig.getBoolean(YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES) ?
@@ -373,6 +375,8 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 					final ResourceID resourceId = new ResourceID(containerStatus.getContainerId().toString());
 					final YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
 
+					notifyAllocatedWorkerStopped(resourceId);
+
 					if (yarnWorkerNode != null) {
 						// Container completed unexpectedly ~> start a new one
 						requestYarnContainerIfRequired();
@@ -395,7 +399,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 			// if we are waiting for no further containers, we can go to the
 			// regular heartbeat interval
-			if (getNumPendingWorkers() <= 0) {
+			if (getNumRequestedNotAllocatedWorkers() <= 0) {
 				resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
 			}
 		});
@@ -408,7 +412,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	private void onContainersOfResourceAllocated(Resource resource, List<Container> containers) {
 		final List<WorkerResourceSpec> pendingWorkerResourceSpecs =
 			workerSpecContainerResourceAdapter.getWorkerSpecs(resource, matchingStrategy).stream()
-				.flatMap(spec -> Collections.nCopies(getNumPendingWorkersFor(spec), spec).stream())
+				.flatMap(spec -> Collections.nCopies(getNumRequestedNotAllocatedWorkersFor(spec), spec).stream())
 				.collect(Collectors.toList());
 
 		int numPending = pendingWorkerResourceSpecs.size();
@@ -427,9 +431,10 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 			final WorkerResourceSpec workerResourceSpec = pendingWorkerSpecIterator.next();
 			final Container container = containerIterator.next();
 			final AMRMClient.ContainerRequest pendingRequest = pendingRequestsIterator.next();
+			final ResourceID resourceId = getContainerResourceId(container);
 
-			notifyNewWorkerAllocated(workerResourceSpec);
-			startTaskExecutorInContainer(container, workerResourceSpec);
+			notifyNewWorkerAllocated(workerResourceSpec, resourceId);
+			startTaskExecutorInContainer(container, workerResourceSpec, resourceId);
 			removeContainerRequest(pendingRequest, workerResourceSpec);
 
 			numAccepted++;
@@ -446,16 +451,17 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 			numAccepted, numExcess, numPending, resource);
 	}
 
-	private void startTaskExecutorInContainer(Container container, WorkerResourceSpec workerResourceSpec) {
-		final String containerIdStr = container.getId().toString();
-		final ResourceID resourceId = new ResourceID(containerIdStr);
+	private static ResourceID getContainerResourceId(Container container) {
+		return new ResourceID(container.getId().toString());
+	}
 
+	private void startTaskExecutorInContainer(Container container, WorkerResourceSpec workerResourceSpec, ResourceID resourceId) {
 		workerNodeMap.put(resourceId, new YarnWorkerNode(container));
 
 		try {
 			// Context information used to start a TaskExecutor Java process
 			ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-				containerIdStr,
+				resourceId.toString(),
 				container.getNodeId().getHost(),
 				TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec));
 
@@ -472,8 +478,9 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 		final ResourceID resourceId = new ResourceID(containerId.toString());
 		// release the failed container
-		YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
+		workerNodeMap.remove(resourceId);
 		resourceManagerClient.releaseAssignedContainer(containerId);
+		notifyAllocatedWorkerStopped(resourceId);
 		// and ask for a new one
 		requestYarnContainerIfRequired();
 	}
@@ -606,7 +613,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	private void requestYarnContainerIfRequired() {
 		for (Map.Entry<WorkerResourceSpec, Integer> requiredWorkersPerResourceSpec : getRequiredResources().entrySet()) {
 			final WorkerResourceSpec workerResourceSpec = requiredWorkersPerResourceSpec.getKey();
-			while (requiredWorkersPerResourceSpec.getValue() > getNumPendingWorkersFor(workerResourceSpec)) {
+			while (requiredWorkersPerResourceSpec.getValue() > getNumRequestedNotRegisteredWorkersFor(workerResourceSpec)) {
 				final boolean requestContainerSuccess = requestYarnContainer(workerResourceSpec);
 				Preconditions.checkState(requestContainerSuccess,
 					"Cannot request container for worker resource spec {}.", workerResourceSpec);
@@ -622,7 +629,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 			// make sure we transmit the request fast and receive fast news of granted allocations
 			resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
-			int numPendingWorkers = notifyNewWorkerRequested(workerResourceSpec);
+			int numPendingWorkers = notifyNewWorkerRequested(workerResourceSpec).getNumNotAllocated();
 
 			log.info("Requesting new TaskExecutor container with resource {}. Number pending workers of this resource is {}.",
 				workerResourceSpec,

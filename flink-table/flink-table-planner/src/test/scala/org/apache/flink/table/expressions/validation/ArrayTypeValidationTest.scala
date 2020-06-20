@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions.validation
 
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
+
 import org.junit.Test
 
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
@@ -58,15 +58,6 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
   @Test(expected = classOf[ValidationException])
   def testDifferentTypesArrayTableApi(): Unit = {
     testTableApi("FAIL", "array(1, true)", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedComparison(): Unit = {
-    testAllApis(
-      'f2 <= 'f5.at(1),
-      "f2 <= f5.at(1)",
-      "f2 <= f5[1]",
-      "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])

@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.validation
 
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{SqlParserException, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimePointUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase

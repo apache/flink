@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.blob.FailingPermanentBlobService;
-import org.apache.flink.runtime.blob.VoidPermanentBlobService;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -43,7 +40,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -75,8 +71,6 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
 
-	private static LibraryCacheManager libraryCacheManager;
-
 	private static JobMasterServiceFactory defaultJobMasterServiceFactory;
 
 	private TestingHighAvailabilityServices haServices;
@@ -87,11 +81,6 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
 	@BeforeClass
 	public static void setupClass() {
-		libraryCacheManager = new BlobLibraryCacheManager(
-			FailingPermanentBlobService.INSTANCE,
-			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-			new String[]{});
-
 		defaultJobMasterServiceFactory = new TestingJobMasterServiceFactory();
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
@@ -118,13 +107,6 @@ public class JobManagerRunnerImplTest extends TestLogger {
 	@After
 	public void tearDown() throws Exception {
 		fatalErrorHandler.rethrowError();
-	}
-
-	@AfterClass
-	public static void tearDownClass() {
-		if (libraryCacheManager != null) {
-			libraryCacheManager.shutdown();
-		}
 	}
 
 	@Test
@@ -196,21 +178,25 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
 	@Test
 	public void testLibraryCacheManagerRegistration() throws Exception {
-		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
-			VoidPermanentBlobService.INSTANCE,
-			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-			new String[]{});
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner(libraryCacheManager);
+		final OneShotLatch registerClassLoaderLatch = new OneShotLatch();
+		final OneShotLatch closeClassLoaderLeaseLatch = new OneShotLatch();
+		final TestingClassLoaderLease classLoaderLease = TestingClassLoaderLease.newBuilder()
+			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> {
+				registerClassLoaderLatch.trigger();
+				return JobManagerRunnerImplTest.class.getClassLoader();
+			})
+			.setCloseRunnable(closeClassLoaderLeaseLatch::trigger)
+			.build();
+		final JobManagerRunner jobManagerRunner = createJobManagerRunner(classLoaderLease);
 
 		try {
 			jobManagerRunner.start();
 
-			final JobID jobID = jobGraph.getJobID();
-			assertThat(libraryCacheManager.hasClassLoader(jobID), is(true));
+			registerClassLoaderLatch.await();
 
 			jobManagerRunner.close();
 
-			assertThat(libraryCacheManager.hasClassLoader(jobID), is(false));
+			closeClassLoaderLeaseLatch.await();
 		} finally {
 			jobManagerRunner.close();
 		}
@@ -294,27 +280,27 @@ public class JobManagerRunnerImplTest extends TestLogger {
 	}
 
 	@Nonnull
-	private JobManagerRunner createJobManagerRunner(LibraryCacheManager libraryCacheManager) throws Exception {
-		return createJobManagerRunner(defaultJobMasterServiceFactory, libraryCacheManager);
+	private JobManagerRunner createJobManagerRunner(LibraryCacheManager.ClassLoaderLease classLoaderLease) throws Exception {
+		return createJobManagerRunner(defaultJobMasterServiceFactory, classLoaderLease);
 	}
 
 	@Nonnull
 	private JobManagerRunnerImpl createJobManagerRunner() throws Exception {
-		return createJobManagerRunner(defaultJobMasterServiceFactory, libraryCacheManager);
+		return createJobManagerRunner(defaultJobMasterServiceFactory, TestingClassLoaderLease.newBuilder().build());
 	}
 
 	@Nonnull
 	private JobManagerRunner createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory) throws Exception {
-		return createJobManagerRunner(jobMasterServiceFactory, libraryCacheManager);
+		return createJobManagerRunner(jobMasterServiceFactory, TestingClassLoaderLease.newBuilder().build());
 	}
 
 	@Nonnull
-	private JobManagerRunnerImpl createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory, LibraryCacheManager libraryCacheManager) throws Exception{
+	private JobManagerRunnerImpl createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory, LibraryCacheManager.ClassLoaderLease classLoaderLease) throws Exception{
 		return new JobManagerRunnerImpl(
 			jobGraph,
 			jobMasterServiceFactory,
 			haServices,
-			libraryCacheManager,
+			classLoaderLease,
 			TestingUtils.defaultExecutor(),
 			fatalErrorHandler);
 	}

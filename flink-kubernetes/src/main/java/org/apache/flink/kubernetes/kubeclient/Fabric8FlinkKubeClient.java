@@ -20,8 +20,11 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -35,8 +38,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 	private final KubernetesClient internalClient;
 	private final String clusterId;
-	private final String nameSpace;
+	private final String namespace;
 
 	private final ExecutorService kubeClientExecutorService;
 
@@ -73,7 +74,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		this.internalClient = checkNotNull(client);
 		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
-		this.nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+		this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
 
 		this.kubeClientExecutorService = asyncExecutorFactory.get();
 	}
@@ -88,7 +89,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final Deployment createdDeployment = this.internalClient
 			.apps()
 			.deployments()
-			.inNamespace(this.nameSpace)
+			.inNamespace(this.namespace)
 			.create(deployment);
 
 		// Note that we should use the uid of the created Deployment for the OwnerReference.
@@ -96,7 +97,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		this.internalClient
 			.resourceList(accompanyingResources)
-			.inNamespace(this.nameSpace)
+			.inNamespace(this.namespace)
 			.createOrReplace();
 	}
 
@@ -107,13 +108,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 				final Deployment masterDeployment = this.internalClient
 					.apps()
 					.deployments()
-					.inNamespace(this.nameSpace)
+					.inNamespace(this.namespace)
 					.withName(KubernetesUtils.getDeploymentName(clusterId))
 					.get();
 
 				if (masterDeployment == null) {
 					throw new RuntimeException(
-						"Failed to find Deployment named " + clusterId + " in namespace " + this.nameSpace);
+						"Failed to find Deployment named " + clusterId + " in namespace " + this.namespace);
 				}
 
 				// Note that we should use the uid of the master Deployment for the OwnerReference.
@@ -125,7 +126,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 				this.internalClient
 					.pods()
-					.inNamespace(this.nameSpace)
+					.inNamespace(this.namespace)
 					.create(kubernetesPod.getInternalResource());
 				},
 			kubeClientExecutorService);
@@ -150,10 +151,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
 			KubernetesConfigOptions.ServiceExposedType.valueOf(service.getSpec().getType());
 
-		// Return the service.namespace directly when use ClusterIP.
+		// Return the external service.namespace directly when using ClusterIP.
 		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return Optional.of(
-				new Endpoint(KubernetesUtils.getInternalServiceName(clusterId) + "." + nameSpace, restPort));
+				new Endpoint(ExternalServiceDecorator.getNamespacedExternalServiceName(clusterId, namespace), restPort));
 		}
 
 		return getRestEndPointFromService(service, restPort);
@@ -178,7 +179,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		this.internalClient
 			.apps()
 			.deployments()
-			.inNamespace(this.nameSpace)
+			.inNamespace(this.namespace)
 			.withName(KubernetesUtils.getDeploymentName(clusterId))
 			.cascading(true)
 			.delete();
@@ -191,11 +192,11 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 	@Override
 	public Optional<KubernetesService> getRestService(String clusterId) {
-		final String serviceName = KubernetesUtils.getRestServiceName(clusterId);
+		final String serviceName = ExternalServiceDecorator.getExternalServiceName(clusterId);
 
 		final Service service = this.internalClient
 			.services()
-			.inNamespace(nameSpace)
+			.inNamespace(namespace)
 			.withName(serviceName)
 			.fromServer()
 			.get();
@@ -209,36 +210,11 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	}
 
 	@Override
-	public void watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler callbackHandler) {
-		final Watcher<Pod> watcher = new Watcher<Pod>() {
-			@Override
-			public void eventReceived(Action action, Pod pod) {
-				LOG.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
-				switch (action) {
-					case ADDED:
-						callbackHandler.onAdded(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					case MODIFIED:
-						callbackHandler.onModified(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					case ERROR:
-						callbackHandler.onError(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					case DELETED:
-						callbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					default:
-						LOG.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
-						break;
-				}
-			}
-
-			@Override
-			public void onClose(KubernetesClientException e) {
-				LOG.error("The pods watcher is closing.", e);
-			}
-		};
-		this.internalClient.pods().withLabels(labels).watch(watcher);
+	public KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler podCallbackHandler) {
+		return new KubernetesWatch(
+			this.internalClient.pods()
+				.withLabels(labels)
+				.watch(new KubernetesPodsWatcher(podCallbackHandler)));
 	}
 
 	@Override
@@ -271,7 +247,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		if (servicePortCandidates.isEmpty()) {
 			throw new RuntimeException("Failed to find port \"" + Constants.REST_PORT_NAME + "\" in Service \"" +
-				KubernetesUtils.getRestServiceName(this.clusterId) + "\"");
+				ExternalServiceDecorator.getExternalServiceName(this.clusterId) + "\"");
 		}
 
 		final ServicePort externalServicePort = servicePortCandidates.get(0);

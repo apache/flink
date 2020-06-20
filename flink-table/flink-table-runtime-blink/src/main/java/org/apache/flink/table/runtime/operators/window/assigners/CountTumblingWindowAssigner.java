@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.operators.window.internal.InternalWindowProcessFunction;
 
@@ -56,7 +56,7 @@ public class CountTumblingWindowAssigner extends WindowAssigner<CountWindow> {
 	}
 
 	@Override
-	public Collection<CountWindow> assignWindows(BaseRow element, long timestamp) throws IOException {
+	public Collection<CountWindow> assignWindows(RowData element, long timestamp) throws IOException {
 		Long countValue = count.value();
 		long currentCount = countValue == null ? 0L : countValue;
 		long id = currentCount / size;

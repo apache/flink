@@ -120,8 +120,7 @@ public class Kafka010FetcherTest {
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic assigner */
-				null, /* punctuated assigner */
+				null, /* watermark strategy */
 				new TestProcessingTimeService(),
 				10,
 				getClass().getClassLoader(),
@@ -257,8 +256,7 @@ public class Kafka010FetcherTest {
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic assigner */
-				null, /* punctuated assigner */
+				null, /* watermark strategy */
 				new TestProcessingTimeService(),
 				10,
 				getClass().getClassLoader(),
@@ -372,8 +370,7 @@ public class Kafka010FetcherTest {
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic watermark extractor */
-				null, /* punctuated watermark extractor */
+				null, /* watermark strategy */
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),

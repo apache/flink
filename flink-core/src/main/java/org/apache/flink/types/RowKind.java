@@ -26,6 +26,9 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public enum RowKind {
 
+	// Note: Enums have no stable hash code across different JVMs, use toByteValue() for
+	// this purpose.
+
 	/**
 	 * Insertion operation.
 	 */

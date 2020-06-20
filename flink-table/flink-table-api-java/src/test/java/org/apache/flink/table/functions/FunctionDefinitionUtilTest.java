@@ -37,7 +37,7 @@ public class FunctionDefinitionUtilTest {
 				TestScalarFunction.class.getName()
 		);
 
-		assertTrue(((ScalarFunctionDefinition) fd).getScalarFunction() instanceof TestScalarFunction);
+		assertTrue(fd instanceof TestScalarFunction);
 	}
 
 	@Test
@@ -47,14 +47,14 @@ public class FunctionDefinitionUtilTest {
 			TestTableFunction.class.getName()
 		);
 
-		assertTrue(((TableFunctionDefinition) fd1).getTableFunction() instanceof TestTableFunction);
+		assertTrue(fd1 instanceof TestTableFunction);
 
 		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
 				"test",
 				TestTableFunctionWithoutResultType.class.getName()
 		);
 
-		assertTrue(((TableFunctionDefinition) fd2).getTableFunction() instanceof TestTableFunctionWithoutResultType);
+		assertTrue(fd2 instanceof TestTableFunctionWithoutResultType);
 	}
 
 	@Test
@@ -64,6 +64,7 @@ public class FunctionDefinitionUtilTest {
 			TestAggFunction.class.getName()
 		);
 
+		// TODO aggregate functions still use marker interface
 		assertTrue(((AggregateFunctionDefinition) fd1).getAggregateFunction() instanceof TestAggFunction);
 
 		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
@@ -85,6 +86,7 @@ public class FunctionDefinitionUtilTest {
 			TestTableAggFunction.class.getName()
 		);
 
+		// TODO table aggregate functions still use marker interface
 		assertTrue(((TableAggregateFunctionDefinition) fd1).getTableAggregateFunction() instanceof TestTableAggFunction);
 
 		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(

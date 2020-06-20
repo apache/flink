@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -47,16 +49,19 @@ public class SqlTableColumn extends SqlCall {
 	private SqlIdentifier name;
 	private SqlDataTypeSpec type;
 
-	@Nullable
+	private SqlTableConstraint constraint;
+
 	private SqlCharStringLiteral comment;
 
 	public SqlTableColumn(SqlIdentifier name,
 			SqlDataTypeSpec type,
-			SqlCharStringLiteral comment,
+			@Nullable SqlTableConstraint constraint,
+			@Nullable SqlCharStringLiteral comment,
 			SqlParserPos pos) {
 		super(pos);
 		this.name = requireNonNull(name, "Column name should not be null");
 		this.type = requireNonNull(type, "Column type should not be null");
+		this.constraint = constraint;
 		this.comment = comment;
 	}
 
@@ -79,6 +84,9 @@ public class SqlTableColumn extends SqlCall {
 			// Default is nullable.
 			writer.keyword("NOT NULL");
 		}
+		if (this.constraint != null) {
+			this.constraint.unparse(writer, leftPrec, rightPrec);
+		}
 		if (this.comment != null) {
 			writer.print(" COMMENT ");
 			this.comment.unparse(writer, leftPrec, rightPrec);
@@ -99,6 +107,10 @@ public class SqlTableColumn extends SqlCall {
 
 	public void setType(SqlDataTypeSpec type) {
 		this.type = type;
+	}
+
+	public Optional<SqlTableConstraint> getConstraint() {
+		return Optional.ofNullable(constraint);
 	}
 
 	public Optional<SqlCharStringLiteral> getComment() {

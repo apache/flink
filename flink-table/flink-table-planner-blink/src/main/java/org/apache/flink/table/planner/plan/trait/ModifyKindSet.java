@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.plan.trait;
 
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.types.RowKind;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -110,6 +113,24 @@ public class ModifyKindSet {
 	 */
 	public ModifyKindSet union(ModifyKindSet other) {
 		return union(this, other);
+	}
+
+	/**
+	 * Returns the default {@link ChangelogMode} from this {@link ModifyKindSet}.
+	 */
+	public ChangelogMode toChangelogMode() {
+		ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+		if (this.contains(ModifyKind.INSERT)) {
+			builder.addContainedKind(RowKind.INSERT);
+		}
+		if (this.contains(ModifyKind.UPDATE)) {
+			builder.addContainedKind(RowKind.UPDATE_BEFORE);
+			builder.addContainedKind(RowKind.UPDATE_AFTER);
+		}
+		if (this.contains(ModifyKind.DELETE)) {
+			builder.addContainedKind(RowKind.DELETE);
+		}
+		return builder.build();
 	}
 
 	@Override

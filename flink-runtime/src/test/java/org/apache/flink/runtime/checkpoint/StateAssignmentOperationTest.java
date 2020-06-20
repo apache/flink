@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -49,7 +50,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
@@ -173,7 +173,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 			StateAssignmentOperation.reDistributePartitionableStates(
 				Collections.singletonList(operatorState),
 				newParallelism,
-				Collections.singletonList(operatorID),
+				Collections.singletonList(OperatorIDPair.generatedIDOnly(operatorID)),
 				OperatorSubtaskState::getManagedOperatorState,
 				RoundRobinOperatorStateRepartitioner.INSTANCE
 			);
@@ -324,6 +324,21 @@ public class StateAssignmentOperationTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void assigningStatesShouldWorkWithUserDefinedOperatorIdsAsWell() throws JobException, JobExecutionException {
+		int numSubTasks = 1;
+		OperatorID operatorId = new OperatorID();
+		OperatorID userDefinedOperatorId = new OperatorID();
+		Set<OperatorID> operatorIds = Collections.singleton(userDefinedOperatorId);
+
+		ExecutionJobVertex executionJobVertex = buildExecutionJobVertex(operatorId, userDefinedOperatorId, 1);
+		Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, numSubTasks);
+
+		new StateAssignmentOperation(0, Collections.singleton(executionJobVertex), states, false).assignStates();
+
+		Assert.assertEquals(states.get(userDefinedOperatorId).getState(0), getAssignedState(executionJobVertex, operatorId, 0));
+	}
+
 	private Set<OperatorID> buildOperatorIds(int operators) {
 		Set<OperatorID> set = new HashSet<>();
 		for (int j = 0; j < operators; j++) {
@@ -349,21 +364,28 @@ public class StateAssignmentOperationTest extends TestLogger {
 		}));
 	}
 
-	private Map<OperatorID, ExecutionJobVertex> buildVertices(Set<OperatorID> operators, int parallelism) throws JobException, JobExecutionException {
+	private Map<OperatorID, ExecutionJobVertex> buildVertices(Set<OperatorID> operators, int parallelism) {
+		return operators.stream()
+			.collect(Collectors.toMap(Function.identity(), operatorID -> {
+				try {
+					return buildExecutionJobVertex(operatorID, parallelism);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			}));
+	}
+
+	private ExecutionJobVertex buildExecutionJobVertex(OperatorID operatorID, int parallelism) throws JobException, JobExecutionException {
+		return buildExecutionJobVertex(operatorID, operatorID, parallelism);
+	}
+
+	private ExecutionJobVertex buildExecutionJobVertex(OperatorID operatorID, OperatorID userDefinedOperatorId, int parallelism) throws JobException, JobExecutionException {
 		ExecutionGraph graph = TestingExecutionGraphBuilder.newBuilder().build();
-		return operators.stream().collect(Collectors.toMap(Function.identity(), operatorID -> {
-			JobVertex jobVertex = new JobVertex(
-				operatorID.toHexString(),
-				new JobVertexID(),
-				emptyList(),
-				singletonList(operatorID),
-				singletonList(operatorID));
-			try {
-				return new ExecutionJobVertex(graph, jobVertex, parallelism, 1, Time.seconds(1), 1L, 1L);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}));
+		JobVertex jobVertex = new JobVertex(
+			operatorID.toHexString(),
+			new JobVertexID(),
+			singletonList(OperatorIDPair.of(operatorID, userDefinedOperatorId)));
+		return new ExecutionJobVertex(graph, jobVertex, parallelism, 1, Time.seconds(1), 1L, 1L);
 	}
 
 	private OperatorSubtaskState getAssignedState(ExecutionJobVertex executionJobVertex, OperatorID operatorId, int subtaskIdx) {

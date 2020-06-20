@@ -20,9 +20,9 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.ColumnarRow;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.ColumnarRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.TypeDescription;
@@ -31,14 +31,14 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * {@link OrcSplitReader} to read ORC files into {@link BaseRow}.
+ * {@link OrcSplitReader} to read ORC files into {@link RowData}.
  */
-public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<BaseRow, BATCH> {
+public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<RowData, BATCH> {
 
 	// the vector of rows that is read in a batch
 	private final VectorizedColumnBatch columnarBatch;
 
-	private final ColumnarRow row;
+	private final ColumnarRowData row;
 
 	public OrcColumnarRowSplitReader(
 			OrcShim<BATCH> shim,
@@ -63,7 +63,7 @@ public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<BaseRow, BA
 				splitLength);
 
 		this.columnarBatch = batchGenerator.generate(rowBatchWrapper.getBatch());
-		this.row = new ColumnarRow(columnarBatch);
+		this.row = new ColumnarRowData(columnarBatch);
 	}
 
 	@Override
@@ -74,7 +74,7 @@ public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<BaseRow, BA
 	}
 
 	@Override
-	public BaseRow nextRecord(BaseRow reuse) {
+	public RowData nextRecord(RowData reuse) {
 		// return the next row
 		row.setRowId(this.nextRow++);
 		return row;

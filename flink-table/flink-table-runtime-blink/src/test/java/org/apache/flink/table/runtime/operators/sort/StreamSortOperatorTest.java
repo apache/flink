@@ -20,12 +20,12 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -41,7 +41,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
  */
 public class StreamSortOperatorTest {
 
-	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+	private RowDataTypeInfo inputRowType = new RowDataTypeInfo(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new IntType());
 
@@ -56,12 +56,12 @@ public class StreamSortOperatorTest {
 		}
 	};
 
-	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
+	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
 
 	@Test
 	public void test() throws Exception {
 		StreamSortOperator operator = createSortOperator();
-		OneInputStreamOperatorTestHarness<BaseRow, BinaryRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, BinaryRowData> testHarness = createTestHarness(operator);
 		testHarness.open();
 		testHarness.processElement(insertRecord("hi", 1));
 		testHarness.processElement(insertRecord("hello", 2));

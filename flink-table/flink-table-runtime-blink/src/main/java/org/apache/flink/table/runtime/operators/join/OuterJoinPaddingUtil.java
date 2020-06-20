@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -35,9 +35,9 @@ public class OuterJoinPaddingUtil implements Serializable {
 
 	private final int leftArity;
 	private final int rightArity;
-	private transient JoinedRow joinedRow = new JoinedRow();
-	private transient GenericRow leftNullPaddingRow;
-	private transient GenericRow rightNullPaddingRow;
+	private transient JoinedRowData joinedRow = new JoinedRowData();
+	private transient GenericRowData leftNullPaddingRow;
+	private transient GenericRowData rightNullPaddingRow;
 
 	public OuterJoinPaddingUtil(int leftArity, int rightArity) {
 		this.leftArity = leftArity;
@@ -48,16 +48,16 @@ public class OuterJoinPaddingUtil implements Serializable {
 
 	private void initLeftNullPaddingRow() {
 		//Initialize the two reusable padding results
-		leftNullPaddingRow = new GenericRow(leftArity);
+		leftNullPaddingRow = new GenericRowData(leftArity);
 		for (int idx = 0; idx < leftArity; idx++) {
-			leftNullPaddingRow.setNullAt(idx);
+			leftNullPaddingRow.setField(idx, null);
 		}
 	}
 
 	private void initRightNullPaddingRow() {
-		rightNullPaddingRow = new GenericRow(rightArity);
+		rightNullPaddingRow = new GenericRowData(rightArity);
 		for (int idx = 0; idx < rightArity; idx++) {
-			rightNullPaddingRow.setNullAt(idx);
+			rightNullPaddingRow.setField(idx, null);
 		}
 	}
 
@@ -67,7 +67,7 @@ public class OuterJoinPaddingUtil implements Serializable {
 	 * @param rightRow the right row to pad
 	 * @return the reusable null padding result
 	 */
-	public final BaseRow padRight(BaseRow rightRow) {
+	public final RowData padRight(RowData rightRow) {
 		return joinedRow.replace(leftNullPaddingRow, rightRow);
 	}
 
@@ -77,14 +77,14 @@ public class OuterJoinPaddingUtil implements Serializable {
 	 * @param leftRow the left row to pad
 	 * @return the reusable null padding result
 	 */
-	public final BaseRow padLeft(BaseRow leftRow) {
+	public final RowData padLeft(RowData leftRow) {
 		return joinedRow.replace(leftRow, rightNullPaddingRow);
 	}
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 
-		joinedRow = new JoinedRow();
+		joinedRow = new JoinedRowData();
 		initLeftNullPaddingRow();
 		initRightNullPaddingRow();
 	}

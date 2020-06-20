@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Slide, TableException, Tumble, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
+
 import org.junit.Test
 
 class GroupWindowTableAggregateValidationTest extends TableTestBase {

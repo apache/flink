@@ -18,16 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -41,8 +36,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -97,55 +90,27 @@ import java.io.Serializable;
 @PublicEvolving
 public class StreamingFileSink<IN>
 		extends RichSinkFunction<IN>
-		implements CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
+		implements CheckpointedFunction, CheckpointListener {
 
 	private static final long serialVersionUID = 1L;
-
-	// -------------------------- state descriptors ---------------------------
-
-	private static final ListStateDescriptor<byte[]> BUCKET_STATE_DESC =
-			new ListStateDescriptor<>("bucket-states", BytePrimitiveArraySerializer.INSTANCE);
-
-	private static final ListStateDescriptor<Long> MAX_PART_COUNTER_STATE_DESC =
-			new ListStateDescriptor<>("max-part-counter", LongSerializer.INSTANCE);
 
 	// ------------------------ configuration fields --------------------------
 
 	private final long bucketCheckInterval;
 
-	private final StreamingFileSink.BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
+	private final BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
 
 	// --------------------------- runtime fields -----------------------------
 
-	private transient Buckets<IN, ?> buckets;
-
-	private transient ProcessingTimeService processingTimeService;
-
-	// --------------------------- State Related Fields -----------------------------
-
-	private transient ListState<byte[]> bucketStates;
-
-	private transient ListState<Long> maxPartCountersState;
+	private transient StreamingFileSinkHelper<IN> helper;
 
 	/**
-	 * Creates a new {@code StreamingFileSink} that writes files in row-based format to the given base directory.
+	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory
+	 * with the give buckets properties.
 	 */
 	protected StreamingFileSink(
-		final RowFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		final long bucketCheckInterval) {
-
-		Preconditions.checkArgument(bucketCheckInterval > 0L);
-
-		this.bucketsBuilder = Preconditions.checkNotNull(bucketsBuilder);
-		this.bucketCheckInterval = bucketCheckInterval;
-	}
-
-	/**
-	 * Creates a new {@code StreamingFileSink} that writes files in bulk-encoded format to the given base directory.
-	 */
-	protected StreamingFileSink(
-		final BulkFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		final long bucketCheckInterval) {
+		BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
+		long bucketCheckInterval) {
 
 		Preconditions.checkArgument(bucketCheckInterval > 0L);
 
@@ -186,18 +151,20 @@ public class StreamingFileSink<IN>
 	/**
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
-	private abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
+	@Internal
+	public abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
-		protected static final long DEFAULT_BUCKET_CHECK_INTERVAL = 60L * 1000L;
+		public static final long DEFAULT_BUCKET_CHECK_INTERVAL = 60L * 1000L;
 
 		@SuppressWarnings("unchecked")
 		protected T self() {
 			return (T) this;
 		}
 
-		abstract Buckets<IN, BucketID> createBuckets(final int subtaskIndex) throws IOException;
+		@Internal
+		public abstract Buckets<IN, BucketID> createBuckets(final int subtaskIndex) throws IOException;
 	}
 
 	/**
@@ -283,13 +250,14 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
+		@Internal
 		@Override
-		Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
+		public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 			return new Buckets<>(
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new RowWisePartWriter.Factory<>(encoder),
+					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
@@ -393,13 +361,14 @@ public class StreamingFileSink<IN>
 			return new StreamingFileSink<>(this, bucketCheckInterval);
 		}
 
+		@Internal
 		@Override
-		Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
+		public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 			return new Buckets<>(
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new BulkPartWriter.Factory<>(writerFactory),
+					new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
@@ -423,57 +392,42 @@ public class StreamingFileSink<IN>
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-		this.buckets = bucketsBuilder.createBuckets(subtaskIndex);
-
-		final OperatorStateStore stateStore = context.getOperatorStateStore();
-		bucketStates = stateStore.getListState(BUCKET_STATE_DESC);
-		maxPartCountersState = stateStore.getUnionListState(MAX_PART_COUNTER_STATE_DESC);
-
-		if (context.isRestored()) {
-			buckets.initializeState(bucketStates, maxPartCountersState);
-		}
+		this.helper = new StreamingFileSinkHelper<>(
+				bucketsBuilder.createBuckets(getRuntimeContext().getIndexOfThisSubtask()),
+				context.isRestored(),
+				context.getOperatorStateStore(),
+				((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService(),
+				bucketCheckInterval);
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		buckets.commitUpToCheckpoint(checkpointId);
+		this.helper.commitUpToCheckpoint(checkpointId);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
 	}
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		Preconditions.checkState(bucketStates != null && maxPartCountersState != null, "sink has not been initialized");
-
-		buckets.snapshotState(
-				context.getCheckpointId(),
-				bucketStates,
-				maxPartCountersState);
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		this.processingTimeService = ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
-		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
-		processingTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
-	}
-
-	@Override
-	public void onProcessingTime(long timestamp) throws Exception {
-		final long currentTime = processingTimeService.getCurrentProcessingTime();
-		buckets.onProcessingTime(currentTime);
-		processingTimeService.registerTimer(currentTime + bucketCheckInterval, this);
+		Preconditions.checkState(helper != null, "sink has not been initialized");
+		this.helper.snapshotState(context.getCheckpointId());
 	}
 
 	@Override
 	public void invoke(IN value, SinkFunction.Context context) throws Exception {
-		buckets.onElement(value, context);
+		this.helper.onElement(
+				value,
+				context.currentProcessingTime(),
+				context.timestamp(),
+				context.currentWatermark());
 	}
 
 	@Override
 	public void close() throws Exception {
-		if (buckets != null) {
-			buckets.close();
+		if (this.helper != null) {
+			this.helper.close();
 		}
 	}
 }

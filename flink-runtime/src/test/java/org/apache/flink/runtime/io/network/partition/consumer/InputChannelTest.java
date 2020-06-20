@@ -128,6 +128,10 @@ public class InputChannelTest {
 		}
 
 		@Override
+		public void resumeConsumption() {
+		}
+
+		@Override
 		void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		}
 

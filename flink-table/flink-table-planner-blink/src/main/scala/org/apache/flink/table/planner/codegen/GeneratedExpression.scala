@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{boxedTypeTermForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.LogicalType
 

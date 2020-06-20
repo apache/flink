@@ -52,7 +52,6 @@ public class YarnPrioritySchedulingITCase extends YarnTestBase {
 			final Runner yarnSessionClusterRunner = startWithArgs(new String[]{
 					"-j", flinkUberjar.getAbsolutePath(),
 					"-t", flinkLibFolder.getAbsolutePath(),
-					"-t", flinkShadedHadoopDir.getAbsolutePath(),
 					"-jm", "768m",
 					"-tm", "1024m",
 					"-Dyarn.application.priority=" + priority},

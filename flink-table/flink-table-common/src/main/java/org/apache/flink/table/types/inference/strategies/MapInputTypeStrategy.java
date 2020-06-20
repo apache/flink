@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
@@ -26,7 +27,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.ArrayList;
@@ -37,13 +38,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * {@link InputTypeStrategy} specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#MAP}.
+ * {@link InputTypeStrategy} specific for {@link BuiltInFunctionDefinitions#MAP}.
  *
  * <p>It expects at least two arguments. There must be even number of arguments.
  * All the keys and values must have a common super type respectively.
  */
 @Internal
-public class MapInputTypeStrategy implements InputTypeStrategy {
+public final class MapInputTypeStrategy implements InputTypeStrategy {
 
 	private static final ArgumentCount AT_LEAST_TWO_EVEN = new ArgumentCount() {
 		@Override
@@ -85,8 +86,8 @@ public class MapInputTypeStrategy implements InputTypeStrategy {
 				valueTypes.add(logicalType);
 			}
 		}
-		Optional<LogicalType> commonKeyType = LogicalTypeGeneralization.findCommonType(keyTypes);
-		Optional<LogicalType> commonValueType = LogicalTypeGeneralization.findCommonType(valueTypes);
+		Optional<LogicalType> commonKeyType = LogicalTypeMerging.findCommonType(keyTypes);
+		Optional<LogicalType> commonValueType = LogicalTypeMerging.findCommonType(valueTypes);
 
 		if (!commonKeyType.isPresent() || !commonValueType.isPresent()) {
 			return Optional.empty();

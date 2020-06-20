@@ -31,6 +31,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/tab
 
 - CREATE TABLE
 - CREATE DATABASE
+- CREATE VIEW
 - CREATE FUNCTION
 
 ## 执行 CREATE 语句
@@ -126,19 +127,33 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   (
     { <column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
   )
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
+  [ LIKE source_table [( <like_options> )] ]
 
 <column_definition>:
-  column_name column_type [COMMENT column_comment]
+  column_name column_type [ <column_constraint> ] [COMMENT column_comment]
+
+<column_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY NOT ENFORCED
+
+<table_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
 
 <computed_column_definition>:
   column_name AS computed_column_expression [COMMENT column_comment]
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+
+<like_options>:
+{
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+ | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
+}[, ...]
 
 {% endhighlight %}
 
@@ -194,6 +209,22 @@ CREATE TABLE Orders (
 ) WITH ( . . . );
 {% endhighlight %}
 
+
+**PRIMARY KEY**
+
+主键用作 Flink 优化的一种提示信息。主键限制表明一张表或视图的某个（些）列是唯一的并且不包含 Null 值。
+主键声明的列都是非 nullable 的。因此主键可以被用作表行级别的唯一标识。
+
+主键可以和列的定义一起声明，也可以独立声明为表的限制属性，不管是哪种方式，主键都不可以重复定义，否则 Flink 会报错。
+
+##### 有效性检查
+
+SQL 标准主键限制可以有两种模式：`ENFORCED` 或者 `NOT ENFORCED`。 它申明了是否输入/出数据会做合法性检查（是否唯一）。Flink 不存储数据因此只支持 `NOT ENFORCED` 模式，即不做检查，用户需要自己保证唯一性。
+
+Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处理数据时需要自己保证语义正确。
+
+**Notes:** 在 CREATE TABLE 语句中，创建主键会修改列的 nullable 属性，主键声明的列默认都是非 Nullable 的。
+
 **PARTITIONED BY**
 
 根据指定的列对已经创建的表进行分区。若表使用 filesystem sink ，则将会为每个分区创建一个目录。
@@ -207,6 +238,103 @@ CREATE TABLE Orders (
 **注意：** 表名可以为以下三种格式 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`。使用`catalog_name.db_name.table_name` 的表将会与名为 "catalog_name" 的 catalog 和名为 "db_name" 的数据库一起注册到 metastore 中。使用 `db_name.table_name` 的表将会被注册到当前执行的 table environment 中的 catalog 且数据库会被命名为 "db_name"；对于 `table_name`, 数据表将会被注册到当前正在运行的catalog和数据库中。
 
 **注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
+
+**LIKE**
+
+`LIKE` 子句来源于两种 SQL 特性的变体/组合（Feature T171，“表定义中的 LIKE 语法” 和 Feature T173，“表定义中的 LIKE 语法扩展”）。LIKE 子句可以基于现有表的定义去创建新表，并且可以扩展或排除原始表中的某些部分。与 SQL 标准相反，LIKE 子句必须在 CREATE 语句中定义，并且是基于 CREATE 语句的更上层定义，这是因为 LIKE 子句可以用于定义表的多个部分，而不仅仅是 schema 部分。
+
+你可以使用该子句，重用（或改写）指定的连接器配置属性或者可以向外部表添加 watermark 定义，例如可以向 Apache Hive 中定义的表添加 watermark 定义。
+
+示例如下：
+
+{% highlight sql %}
+CREATE TABLE Orders (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3)
+) WITH ( 
+    'connector' = 'kafka',
+    'scan.startup.mode' = 'earliest-offset'
+);
+
+CREATE TABLE Orders_with_watermark (
+    -- 添加 watermark 定义
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    -- 改写 startup-mode 属性
+    'scan.startup.mode' = 'latest-offset'
+)
+LIKE Orders;
+{% endhighlight %}
+
+结果表 `Orders_with_watermark` 等效于使用以下语句创建的表：
+
+{% highlight sql %}
+CREATE TABLE Orders_with_watermark (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    'connector' = 'kafka',
+    'scan.startup.mode' = 'latest-offset'
+);
+{% endhighlight %}
+
+表属性的合并逻辑可以用 `like options` 来控制。
+
+可以控制合并的表属性如下：
+
+* CONSTRAINTS - 主键和唯一键约束
+* GENERATED - 计算列
+* OPTIONS - 连接器信息、格式化方式等配置项
+* PARTITIONS - 表分区信息
+* WATERMARKS - watermark 定义
+
+并且有三种不同的表属性合并策略：
+
+* INCLUDING - 新表包含源表（source table）所有的表属性，如果和源表的表属性重复则会直接失败，例如新表和源表存在相同 key 的属性。
+* EXCLUDING - 新表不包含源表指定的任何表属性。
+* OVERWRITING - 新表包含源表的表属性，但如果出现重复项，则会用新表的表属性覆盖源表中的重复表属性，例如，两个表中都存在相同 key 的属性，则会使用当前语句中定义的 key 的属性值。
+
+并且你可以使用 `INCLUDING/EXCLUDING ALL` 这种声明方式来指定使用怎样的合并策略，例如使用 `EXCLUDING ALL INCLUDING WATERMARKS`，那么代表只有源表的 WATERMARKS 属性才会被包含进新表。
+
+示例如下：
+{% highlight sql %}
+
+-- 存储在文件系统的源表
+CREATE TABLE Orders_in_file (
+    user BIGINT,
+    product STRING,
+    order_time_string STRING,
+    order_time AS to_timestamp(order_time)
+    
+)
+PARTITIONED BY user 
+WITH ( 
+    'connector' = 'filesystem'
+    'path' = '...'
+);
+
+-- 对应存储在 kafka 的源表
+CREATE TABLE Orders_in_kafka (
+    -- 添加 watermark 定义
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    'connector': 'kafka'
+    ...
+)
+LIKE Orders_in_file (
+    -- 排除需要生成 watermark 的计算列之外的所有内容。
+    -- 去除不适用于 kafka 的所有分区和文件系统的相关属性。
+    EXCLUDING ALL
+    INCLUDING GENERATED
+);
+{% endhighlight %}
+
+如果未提供 like 配置项（like options），默认将使用 `INCLUDING ALL OVERWRITING OPTIONS` 的合并策略。
+
+**注意：** 您无法选择物理列的合并策略，当物理列进行合并时就如使用了 `INCLUDING` 策略。
 
 {% top %}
 
@@ -249,14 +377,37 @@ CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
 
 {% top %}
 
+## CREATE VIEW
+{% highlight sql %}
+CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
+  [{columnName [, columnName ]* }] [COMMENT view_comment]
+  AS query_expression
+{% endhighlight %}
+
+根据给定的 query 语句创建一个视图。若数据库中已经存在同名视图会抛出异常.
+
+**TEMPORARY**
+
+创建一个有 catalog 和数据库命名空间的临时视图，并覆盖原有的视图。
+
+**IF NOT EXISTS**
+
+若该视图已经存在，则不会进行任何操作。
+
+{% top %}
+
 ## CREATE FUNCTION
 {% highlight sql%}
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
-  AS identifier [LANGUAGE JAVA|SCALA]
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 {% endhighlight %}
 
-创建一个有 catalog 和数据库命名空间的 catalog function ，其需要指定 JAVA / SCALA 或其他 language tag 完整的 classpath。 若 catalog 中，已经有同名的函数注册了，则无法注册。
+创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier ，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。
+
+如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)。
+
+如果 language tag 是 PYTHON ，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html)。
 
 **TEMPORARY**
 
@@ -270,7 +421,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 若该函数已经存在，则不会进行任何操作。
 
-**LANGUAGE JAVA\|SCALA**
+**LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA 和 SCALA，且函数的默认语言为 JAVA。
+Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA, SCALA 和 PYTHON，且函数的默认语言为 JAVA。
 

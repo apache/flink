@@ -26,7 +26,6 @@ import org.apache.flink.table.types.logical.{IntType, LogicalType}
 
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.util.BuiltInMethod
 
 class TimestampDiffCallGen extends CallGenerator {
 

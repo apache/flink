@@ -26,13 +26,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.operators.KeyContext;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
-import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -48,7 +48,7 @@ import java.util.function.Function;
 /**
  * Base class for TopN Function.
  */
-public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
+public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithCleanupState<RowData, RowData, RowData> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractTopNFunction.class);
 
@@ -63,23 +63,23 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 
 	// The util to compare two sortKey equals to each other.
 	private GeneratedRecordComparator generatedSortKeyComparator;
-	protected Comparator<BaseRow> sortKeyComparator;
+	protected Comparator<RowData> sortKeyComparator;
 
 	private final boolean generateUpdateBefore;
 	protected final boolean outputRankNumber;
-	protected final BaseRowTypeInfo inputRowType;
-	protected final KeySelector<BaseRow, BaseRow> sortKeySelector;
+	protected final RowDataTypeInfo inputRowType;
+	protected final KeySelector<RowData, RowData> sortKeySelector;
 
 	protected KeyContext keyContext;
 	private final boolean isConstantRankEnd;
 	private final long rankStart;
 	private final int rankEndIndex;
 	protected long rankEnd;
-	private transient Function<BaseRow, Long> rankEndFetcher;
+	private transient Function<RowData, Long> rankEndFetcher;
 
 	private ValueState<Long> rankEndState;
 	private Counter invalidCounter;
-	private JoinedRow outputRow;
+	private JoinedRowData outputRow;
 
 	// metrics
 	protected long hitCount = 0L;
@@ -88,9 +88,9 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	AbstractTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
-			BaseRowTypeInfo inputRowType,
+			RowDataTypeInfo inputRowType,
 			GeneratedRecordComparator generatedSortKeyComparator,
-			BaseRowKeySelector sortKeySelector,
+			RowDataKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
 			boolean generateUpdateBefore,
@@ -139,7 +139,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		initCleanupTimeState("RankFunctionCleanupTime");
-		outputRow = new JoinedRow();
+		outputRow = new JoinedRowData();
 
 		if (!isConstantRankEnd) {
 			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor<>("rankEnd", Types.LONG);
@@ -155,13 +155,13 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			LogicalType rankEndIdxType = inputRowType.getLogicalTypes()[rankEndIndex];
 			switch (rankEndIdxType.getTypeRoot()) {
 				case BIGINT:
-					rankEndFetcher = (BaseRow row) -> row.getLong(rankEndIndex);
+					rankEndFetcher = (RowData row) -> row.getLong(rankEndIndex);
 					break;
 				case INTEGER:
-					rankEndFetcher = (BaseRow row) -> (long) row.getInt(rankEndIndex);
+					rankEndFetcher = (RowData row) -> (long) row.getInt(rankEndIndex);
 					break;
 				case SMALLINT:
-					rankEndFetcher = (BaseRow row) -> (long) row.getShort(rankEndIndex);
+					rankEndFetcher = (RowData row) -> (long) row.getShort(rankEndIndex);
 					break;
 				default:
 					LOG.error("variable rank index column must be long, short or int type, while input type is {}",
@@ -189,7 +189,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	 * @return rank end
 	 * @throws Exception
 	 */
-	protected long initRankEnd(BaseRow row) throws Exception {
+	protected long initRankEnd(RowData row) throws Exception {
 		if (isConstantRankEnd) {
 			return rankEnd;
 		} else {
@@ -217,14 +217,14 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	 * @param buffer buffer to add
 	 * @return true if the record should be put into the buffer.
 	 */
-	protected boolean checkSortKeyInBufferRange(BaseRow sortKey, TopNBuffer buffer) {
-		Comparator<BaseRow> comparator = buffer.getSortKeyComparator();
-		Map.Entry<BaseRow, Collection<BaseRow>> worstEntry = buffer.lastEntry();
+	protected boolean checkSortKeyInBufferRange(RowData sortKey, TopNBuffer buffer) {
+		Comparator<RowData> comparator = buffer.getSortKeyComparator();
+		Map.Entry<RowData, Collection<RowData>> worstEntry = buffer.lastEntry();
 		if (worstEntry == null) {
 			// return true if the buffer is empty.
 			return true;
 		} else {
-			BaseRow worstKey = worstEntry.getKey();
+			RowData worstKey = worstEntry.getKey();
 			int compare = comparator.compare(sortKey, worstKey);
 			if (compare < 0) {
 				return true;
@@ -243,46 +243,46 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 				"topn.cache.size", () -> heapSize);
 	}
 
-	protected void collectInsert(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+	protected void collectInsert(Collector<RowData> out, RowData inputRow, long rank) {
 		if (isInRankRange(rank)) {
 			out.collect(createOutputRow(inputRow, rank, RowKind.INSERT));
 		}
 	}
 
-	protected void collectInsert(Collector<BaseRow> out, BaseRow inputRow) {
+	protected void collectInsert(Collector<RowData> out, RowData inputRow) {
 		inputRow.setRowKind(RowKind.INSERT);
 		out.collect(inputRow);
 	}
 
-	protected void collectDelete(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+	protected void collectDelete(Collector<RowData> out, RowData inputRow, long rank) {
 		if (isInRankRange(rank)) {
 			out.collect(createOutputRow(inputRow, rank, RowKind.DELETE));
 		}
 	}
 
-	protected void collectDelete(Collector<BaseRow> out, BaseRow inputRow) {
+	protected void collectDelete(Collector<RowData> out, RowData inputRow) {
 		inputRow.setRowKind(RowKind.DELETE);
 		out.collect(inputRow);
 	}
 
-	protected void collectUpdateAfter(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+	protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow, long rank) {
 		if (isInRankRange(rank)) {
 			out.collect(createOutputRow(inputRow, rank, RowKind.UPDATE_AFTER));
 		}
 	}
 
-	protected void collectUpdateAfter(Collector<BaseRow> out, BaseRow inputRow) {
+	protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow) {
 		inputRow.setRowKind(RowKind.UPDATE_AFTER);
 		out.collect(inputRow);
 	}
 
-	protected void collectUpdateBefore(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+	protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow, long rank) {
 		if (generateUpdateBefore && isInRankRange(rank)) {
 			out.collect(createOutputRow(inputRow, rank, RowKind.UPDATE_BEFORE));
 		}
 	}
 
-	protected void collectUpdateBefore(Collector<BaseRow> out, BaseRow inputRow) {
+	protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow) {
 		if (generateUpdateBefore) {
 			inputRow.setRowKind(RowKind.UPDATE_BEFORE);
 			out.collect(inputRow);
@@ -302,9 +302,9 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 		return rankStart > 1;
 	}
 
-	private BaseRow createOutputRow(BaseRow inputRow, long rank, RowKind rowKind) {
+	private RowData createOutputRow(RowData inputRow, long rank, RowKind rowKind) {
 		if (outputRankNumber) {
-			GenericRow rankRow = new GenericRow(1);
+			GenericRowData rankRow = new GenericRowData(1);
 			rankRow.setField(0, rank);
 
 			outputRow.replace(inputRow, rankRow);

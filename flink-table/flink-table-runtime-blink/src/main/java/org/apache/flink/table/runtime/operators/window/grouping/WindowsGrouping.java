@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.window.grouping;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.Preconditions;
@@ -100,7 +100,7 @@ public abstract class WindowsGrouping implements Closeable {
 		resetBuffer();
 	}
 
-	public void addInputToBuffer(BinaryRow input) throws IOException {
+	public void addInputToBuffer(BinaryRowData input) throws IOException {
 		if (!input.isNullAt(timeIndex)) {
 			addIntoBuffer(input.copy());
 			advanceWatermark(getTimeValue(input));
@@ -132,7 +132,7 @@ public abstract class WindowsGrouping implements Closeable {
 	/**
 	 * @return the iterator of the next triggerable window's elements.
 	 */
-	public RowIterator<BinaryRow> buildTriggerWindowElementsIterator() {
+	public RowIterator<BinaryRowData> buildTriggerWindowElementsIterator() {
 		currentWindow = nextWindow;
 		// It is illegal to call this method after [[hasTriggerWindow()]] has returned `false`.
 		Preconditions.checkState(watermark == Long.MIN_VALUE || nextWindow != null,
@@ -157,7 +157,7 @@ public abstract class WindowsGrouping implements Closeable {
 		return currentWindow;
 	}
 
-	private boolean belongsToCurrentWindow(BinaryRow element) {
+	private boolean belongsToCurrentWindow(BinaryRowData element) {
 		long currentTimestamp = getTimeValue(element);
 		if (currentTimestamp >= currentWindow.getStart() &&
 				currentTimestamp < currentWindow.getEnd()) {
@@ -168,7 +168,7 @@ public abstract class WindowsGrouping implements Closeable {
 		return false;
 	}
 
-	private boolean evictForWindow(BinaryRow element, TimeWindow window) {
+	private boolean evictForWindow(BinaryRowData element, TimeWindow window) {
 		if (getTimeValue(element) < window.getStart()) {
 			triggerWindowStartIndex++;
 			return true;
@@ -217,7 +217,7 @@ public abstract class WindowsGrouping implements Closeable {
 		}
 	}
 
-	private long getTimeValue(BaseRow row) {
+	private long getTimeValue(RowData row) {
 		if (isDate) {
 			return row.getInt(timeIndex) * DateTimeUtils.MILLIS_PER_DAY;
 		} else {
@@ -228,12 +228,12 @@ public abstract class WindowsGrouping implements Closeable {
 	/**
 	 * Iterator for a window.
 	 */
-	class WindowsElementsIterator implements RowIterator<BinaryRow> {
+	class WindowsElementsIterator implements RowIterator<BinaryRowData> {
 
-		private final RowIterator<BinaryRow> bufferIterator;
-		private BinaryRow next;
+		private final RowIterator<BinaryRowData> bufferIterator;
+		private BinaryRowData next;
 
-		WindowsElementsIterator(RowIterator<BinaryRow> iterator) {
+		WindowsElementsIterator(RowIterator<BinaryRowData> iterator) {
 			this.bufferIterator = iterator;
 		}
 
@@ -260,7 +260,7 @@ public abstract class WindowsGrouping implements Closeable {
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			return next;
 		}
 
@@ -268,10 +268,10 @@ public abstract class WindowsGrouping implements Closeable {
 
 	protected abstract void resetBuffer();
 
-	protected abstract void addIntoBuffer(BinaryRow input) throws IOException;
+	protected abstract void addIntoBuffer(BinaryRowData input) throws IOException;
 
 	protected abstract void onBufferEvict(int limitIndex);
 
-	protected abstract RowIterator<BinaryRow> newBufferIterator(int startIndex);
+	protected abstract RowIterator<BinaryRowData> newBufferIterator(int startIndex);
 
 }

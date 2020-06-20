@@ -25,12 +25,19 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -42,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * uses directly the {@link DispatcherGateway}.
  */
 @Internal
-public class EmbeddedJobClient implements JobClient {
+public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway {
 
 	private final JobID jobId;
 
@@ -118,5 +125,16 @@ public class EmbeddedJobClient implements JobClient {
 						throw new CompletionException(new Exception("Job " + jobId + " failed", t));
 					}
 				});
+	}
+
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
+		try {
+			SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
+			return dispatcherGateway.deliverCoordinationRequestToCoordinator(
+				jobId, operatorId, serializedRequest, timeout);
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(e);
+		}
 	}
 }

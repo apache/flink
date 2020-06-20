@@ -23,7 +23,8 @@ import org.apache.flink.table.api.ValidationException;
 
 import org.junit.Test;
 
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -119,10 +120,11 @@ public class DataTypeTest {
 	public void testFields() {
 		final DataType rowDataType = ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN()));
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("field1", CHAR(2));
-		fields.put("field2", BOOLEAN());
-		assertEquals(fields, ((FieldsDataType) rowDataType).getFieldDataTypes());
+		final List<DataType> fields = Arrays.asList(
+			CHAR(2),
+			BOOLEAN()
+		);
+		assertEquals(fields, rowDataType.getChildren());
 	}
 
 	@Test(expected = ValidationException.class)

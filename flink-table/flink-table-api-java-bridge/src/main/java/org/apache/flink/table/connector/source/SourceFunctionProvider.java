@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
  * Provider of a {@link SourceFunction} instance as a runtime implementation for {@link ScanTableSource}.
  */
 @PublicEvolving
-interface SourceFunctionProvider extends ScanTableSource.ScanRuntimeProvider {
+public interface SourceFunctionProvider extends ScanTableSource.ScanRuntimeProvider {
 
 	/**
 	 * Helper method for creating a static provider.

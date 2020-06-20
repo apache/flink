@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTrans
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
@@ -254,8 +255,10 @@ public class StreamGraphGenerator {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
 		} else if (transform instanceof AbstractMultipleInputTransformation<?>) {
 			transformedIds = transformMultipleInputTransform((AbstractMultipleInputTransformation<?>) transform);
-		} else if (transform instanceof SourceTransformation<?>) {
+		} else if (transform instanceof SourceTransformation) {
 			transformedIds = transformSource((SourceTransformation<?>) transform);
+		} else if (transform instanceof LegacySourceTransformation<?>) {
+			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
 		} else if (transform instanceof SinkTransformation<?>) {
 			transformedIds = transformSink((SinkTransformation<?>) transform);
 		} else if (transform instanceof UnionTransformation<?>) {
@@ -584,6 +587,26 @@ public class StreamGraphGenerator {
 				null,
 				source.getOutputType(),
 				"Source: " + source.getName());
+		int parallelism = source.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
+				source.getParallelism() : executionConfig.getParallelism();
+		streamGraph.setParallelism(source.getId(), parallelism);
+		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
+		return Collections.singleton(source.getId());
+	}
+
+	/**
+	 * Transforms a {@code LegacySourceTransformation}.
+	 */
+	private <T> Collection<Integer> transformLegacySource(LegacySourceTransformation<T> source) {
+		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), Collections.emptyList());
+
+		streamGraph.addLegacySource(source.getId(),
+				slotSharingGroup,
+				source.getCoLocationGroupKey(),
+				source.getOperatorFactory(),
+				null,
+				source.getOutputType(),
+				"Source: " + source.getName());
 		if (source.getOperatorFactory() instanceof InputFormatOperatorFactory) {
 			streamGraph.setInputFormat(source.getId(),
 					((InputFormatOperatorFactory<T>) source.getOperatorFactory()).getInputFormat());
@@ -596,7 +619,7 @@ public class StreamGraphGenerator {
 	}
 
 	/**
-	 * Transforms a {@code SourceTransformation}.
+	 * Transforms a {@code SinkTransformation}.
 	 */
 	private <T> Collection<Integer> transformSink(SinkTransformation<T> sink) {
 

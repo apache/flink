@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -125,8 +127,13 @@ public final class StreamingFunctionUtils {
 			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
 					snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
-			ListState<Serializable> listState = backend.
-					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+			// We are using JavaSerializer from the flink-runtime module here. This is very naughty and
+			// we shouldn't be doing it because ideally nothing in the API modules/connector depends
+			// directly on flink-runtime. We are doing it here because we need to maintain backwards
+			// compatibility with old state and because we will have to rework/remove this code soon.
+			ListStateDescriptor<Serializable> listStateDescriptor =
+				new ListStateDescriptor<>(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, new JavaSerializer<>());
+			ListState<Serializable> listState = backend.getListState(listStateDescriptor);
 
 			listState.clear();
 
@@ -184,8 +191,13 @@ public final class StreamingFunctionUtils {
 			@SuppressWarnings("unchecked")
 			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
 
-			ListState<Serializable> listState = context.getOperatorStateStore().
-					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+			// We are using JavaSerializer from the flink-runtime module here. This is very naughty and
+			// we shouldn't be doing it because ideally nothing in the API modules/connector depends
+			// directly on flink-runtime. We are doing it here because we need to maintain backwards
+			// compatibility with old state and because we will have to rework/remove this code soon.
+			ListStateDescriptor<Serializable> listStateDescriptor =
+				new ListStateDescriptor<>(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, new JavaSerializer<>());
+			ListState<Serializable> listState = context.getOperatorStateStore().getListState(listStateDescriptor);
 
 			List<Serializable> list = new ArrayList<>();
 

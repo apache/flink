@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.genSortAggCodes
@@ -44,7 +44,7 @@ object AggWithoutKeysCodeGenerator {
       outputType: RowType,
       isMerge: Boolean,
       isFinal: Boolean,
-      prefix: String): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      prefix: String): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
     val aggregates = aggCallToAggFunction.map(_._2)
     val udaggs = AggCodeGenHelper.getUdaggs(aggregates)
@@ -110,7 +110,7 @@ object AggWithoutKeysCodeGenerator {
     AggCodeGenHelper.generateOperator(
       ctx,
       className,
-      classOf[TableStreamOperator[BaseRow]].getCanonicalName,
+      classOf[TableStreamOperator[RowData]].getCanonicalName,
       processCode,
       endInputCode,
       inputType)

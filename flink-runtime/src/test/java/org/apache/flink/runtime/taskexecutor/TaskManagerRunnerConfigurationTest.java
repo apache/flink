@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -203,6 +204,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setString(AkkaOptions.LOOKUP_TIMEOUT, "10 ms");
 		return new UnmodifiableConfiguration(config);
 	}
 

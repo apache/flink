@@ -79,7 +79,8 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 				operatorFactory,
 				this,
 				configuration,
-				new CollectorWrapper<>(collector));
+				new CollectorWrapper<>(collector),
+				operatorChain.getOperatorEventDispatcher());
 		headOperator = headOperatorAndTimeService.f0;
 		headOperator.initializeState(createStreamTaskStateInitializer());
 		headOperator.open();

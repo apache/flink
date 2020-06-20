@@ -17,11 +17,11 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.vector.writable.WritableBytesVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableColumnVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableIntVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableLongVector;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.vector.writable.WritableBytesVector;
+import org.apache.flink.table.data.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.vector.writable.WritableLongVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;
@@ -50,7 +50,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector> exte
 	@Override
 	protected void readBatch(int rowId, int num, VECTOR column) {
 		int bytesLen = descriptor.getPrimitiveType().getTypeLength();
-		if (Decimal.is32BitDecimal(precision)) {
+		if (DecimalDataUtils.is32BitDecimal(precision)) {
 			WritableIntVector intVector = (WritableIntVector) column;
 			for (int i = 0; i < num; i++) {
 				if (runLenDecoder.readInteger() == maxDefLevel) {
@@ -59,7 +59,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector> exte
 					intVector.setNullAt(rowId + i);
 				}
 			}
-		} else if (Decimal.is64BitDecimal(precision)) {
+		} else if (DecimalDataUtils.is64BitDecimal(precision)) {
 			WritableLongVector longVector = (WritableLongVector) column;
 			for (int i = 0; i < num; i++) {
 				if (runLenDecoder.readInteger() == maxDefLevel) {
@@ -87,7 +87,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector> exte
 			int num,
 			VECTOR column,
 			WritableIntVector dictionaryIds) {
-		if (Decimal.is32BitDecimal(precision)) {
+		if (DecimalDataUtils.is32BitDecimal(precision)) {
 			WritableIntVector intVector = (WritableIntVector) column;
 			for (int i = rowId; i < rowId + num; ++i) {
 				if (!intVector.isNullAt(i)) {
@@ -95,7 +95,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector> exte
 					intVector.setInt(i, (int) heapBinaryToLong(v));
 				}
 			}
-		} else if (Decimal.is64BitDecimal(precision)) {
+		} else if (DecimalDataUtils.is64BitDecimal(precision)) {
 			WritableLongVector longVector = (WritableLongVector) column;
 			for (int i = rowId; i < rowId + num; ++i) {
 				if (!longVector.isNullAt(i)) {

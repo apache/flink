@@ -67,6 +67,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -520,7 +521,7 @@ public class LogicalTypesTest {
 			"`cat`.`db`.`User`",
 			new Class[]{Row.class, User.class},
 			new Class[]{Row.class, Human.class, User.class},
-			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE},
+			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE},
 			createUserType(true, false)
 		);
 
@@ -674,14 +675,16 @@ public class LogicalTypesTest {
 
 		testInvalidStringSerializability(structuredType);
 
-		testStringSummary(structuredType, User.class.getName());
+		testStringSummary(structuredType, "*" + User.class.getName() + "*");
 
 		testConversions(
 			structuredType,
 			new Class[]{Row.class, User.class},
 			new Class[]{Row.class, Human.class, User.class});
 
-		testChildren(structuredType, new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE});
+		testChildren(
+			structuredType,
+			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE});
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -793,6 +796,8 @@ public class LogicalTypesTest {
 
 	private static final LogicalType UDT_SETTING_TYPE = new IntType();
 
+	private static final LogicalType UDT_TIMESTAMP_TYPE = new TimestampType();
+
 	private StructuredType createHumanType(boolean useDifferentImplementation) {
 		return StructuredType.newBuilder(
 				ObjectIdentifier.of("cat", "db", "Human"),
@@ -819,8 +824,9 @@ public class LogicalTypesTest {
 		}
 		return builder
 			.attributes(
-				Collections.singletonList(
-					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
+				Arrays.asList(
+					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE),
+					new StructuredType.StructuredAttribute("timestamp", UDT_TIMESTAMP_TYPE)))
 			.description("User type desc.")
 			.setFinal(isFinal)
 			.setInstantiable(true)
@@ -838,5 +844,6 @@ public class LogicalTypesTest {
 
 	private static final class User extends Human {
 		public int setting;
+		public LocalDateTime timestamp;
 	}
 }

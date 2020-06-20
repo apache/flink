@@ -18,7 +18,7 @@
 
 package org.apache.flink.tests.util;
 
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.tests.util.parameters.ParameterProperty;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -43,6 +43,8 @@ import java.util.stream.Stream;
 public enum TestUtils {
 	;
 
+	private static final ParameterProperty<Path> MODULE_DIRECTORY = new ParameterProperty<>("moduleDir", Paths::get);
+
 	/**
 	 * Searches for a jar matching the given regex in the given directory. This method is primarily intended to be used
 	 * for the initialization of static {@link Path} fields for jars that reside in the modules {@code target} directory.
@@ -52,10 +54,11 @@ public enum TestUtils {
 	 * @throws RuntimeException if none or multiple jars could be found
 	 */
 	public static Path getResourceJar(final String jarNameRegex) {
-		String moduleDirProp = System.getProperty("moduleDir");
-		Preconditions.checkNotNull(moduleDirProp, "The moduleDir property was not set, You can set it when running maven via -DmoduleDir=<path>");
+		// if the property is not set then we are most likely running in the IDE, where the working directory is the
+		// module of the test that is currently running, which is exactly what we want
+		Path moduleDirectory = MODULE_DIRECTORY.get(Paths.get("").toAbsolutePath());
 
-		try (Stream<Path> dependencyJars = Files.walk(Paths.get(moduleDirProp))) {
+		try (Stream<Path> dependencyJars = Files.walk(moduleDirectory)) {
 			final List<Path> matchingJars = dependencyJars
 				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.toAbsolutePath().toString()).find())
 				.collect(Collectors.toList());
@@ -63,7 +66,7 @@ public enum TestUtils {
 				case 0:
 					throw new RuntimeException(
 						new FileNotFoundException(
-							String.format("No jar could be found that matches the pattern %s.", jarNameRegex)
+							String.format("No jar could be found that matches the pattern %s. This could mean that the test module must be rebuilt via maven.", jarNameRegex)
 						)
 					);
 				case 1:

@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.util.TestLogger;
 
@@ -47,7 +47,7 @@ public class BatchExecutorTest extends TestLogger {
 	public BatchExecutorTest() {
 		batchExecutor = new BatchExecutor(LocalStreamEnvironment.getExecutionEnvironment());
 
-		final Transformation testTransform = new SourceTransformation<>(
+		final Transformation testTransform = new LegacySourceTransformation<>(
 			"MockTransform",
 			new StreamSource<>(new SourceFunction<String>() {
 				@Override

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.batch.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -37,7 +37,7 @@ class SetOperatorsTest extends TableTestBase {
     val t = util.addTableSource[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
 
     val elements = t.where('b === "two").select('a).as("a1")
-    val in = t.select("*").where('c.in(elements))
+    val in = t.select($"*").where('c.in(elements))
 
     util.verifyPlan(in)
   }

@@ -34,7 +34,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
@@ -48,7 +47,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -73,7 +71,6 @@ import static org.junit.Assert.assertTrue;
  * Tests for the HistoryServer.
  */
 @RunWith(Parameterized.class)
-@Category(AlsoRunWithLegacyScheduler.class)
 public class HistoryServerTest extends TestLogger {
 
 	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()

@@ -22,9 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.OperatingSystem;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -65,6 +67,9 @@ public class PythonEnvUtilsTest {
 
 	@Test
 	public void testPreparePythonEnvironment() throws IOException {
+		// Skip this test on Windows as we can not control the Window Driver letters.
+		Assume.assumeFalse(OperatingSystem.isWindows());
+
 		// xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
 		File zipFile = new File(tmpDirPath + File.separator + "a.zip");
 		File dirFile = new File(tmpDirPath + File.separator + "module_dir");
@@ -161,7 +166,11 @@ public class PythonEnvUtilsTest {
 		Configuration config = new Configuration();
 
 		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
-		Assert.assertEquals("python", env.pythonExec);
+		if (OperatingSystem.isWindows()) {
+			Assert.assertEquals("python.exe", env.pythonExec);
+		} else {
+			Assert.assertEquals("python", env.pythonExec);
+		}
 
 		Map<String, String> systemEnv = new HashMap<>(System.getenv());
 		systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "python3");
@@ -190,7 +199,8 @@ public class PythonEnvUtilsTest {
 		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
 
 		Set<String> expectedPythonPaths = new HashSet<>();
-		expectedPythonPaths.add(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"));
+		expectedPythonPaths.add(
+			new Path(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}")).toString());
 
 		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
 			.map(PythonEnvUtilsTest::replaceUUID)

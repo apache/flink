@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourc
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import com.rabbitmq.client.Channel;
@@ -126,10 +127,18 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	/**
 	 * Initializes the connection to RMQ with a default connection factory. The user may override
-	 * this method to setup and configure their own ConnectionFactory.
+	 * this method to setup and configure their own {@link ConnectionFactory}.
 	 */
 	protected ConnectionFactory setupConnectionFactory() throws Exception {
 		return rmqConnectionConfig.getConnectionFactory();
+	}
+
+	/**
+	 * Initializes the connection to RMQ using the default connection factory from {@link #setupConnectionFactory()}.
+	 * The user may override this method to setup and configure their own {@link Connection}.
+	 */
+	protected Connection setupConnection() throws Exception {
+		return setupConnectionFactory().newConnection();
 	}
 
 	/**
@@ -138,15 +147,14 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * defining custom queue parameters)
 	 */
 	protected void setupQueue() throws IOException {
-		channel.queueDeclare(queueName, true, false, false, null);
+		Util.declareQueueDefaults(channel, queueName);
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		ConnectionFactory factory = setupConnectionFactory();
 		try {
-			connection = factory.newConnection();
+			connection = setupConnection();
 			channel = connection.createChannel();
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
@@ -171,6 +179,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
 					+ rmqConnectionConfig.getHost(), e);
 		}
+		this.schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		running = true;
 	}
 
@@ -208,17 +217,11 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
+		final RMQCollector collector = new RMQCollector(ctx);
 		while (running) {
 			QueueingConsumer.Delivery delivery = consumer.nextDelivery();
 
 			synchronized (ctx.getCheckpointLock()) {
-
-				OUT result = schema.deserialize(delivery.getBody());
-
-				if (schema.isEndOfStream(result)) {
-					break;
-				}
-
 				if (!autoAck) {
 					final long deliveryTag = delivery.getEnvelope().getDeliveryTag();
 					if (usesCorrelationId) {
@@ -234,8 +237,41 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 					sessionIds.add(deliveryTag);
 				}
 
-				ctx.collect(result);
+				schema.deserialize(delivery.getBody(), collector);
+				if (collector.isEndOfStreamSignalled()) {
+					this.running = false;
+					return;
+				}
 			}
+		}
+	}
+
+	private class RMQCollector implements Collector<OUT> {
+
+		private final SourceContext<OUT> ctx;
+		private boolean endOfStreamSignalled = false;
+
+		private RMQCollector(SourceContext<OUT> ctx) {
+			this.ctx = ctx;
+		}
+
+		@Override
+		public void collect(OUT record) {
+			if (endOfStreamSignalled || schema.isEndOfStream(record)) {
+				this.endOfStreamSignalled = true;
+				return;
+			}
+
+			ctx.collect(record);
+		}
+
+		public boolean isEndOfStreamSignalled() {
+			return endOfStreamSignalled;
+		}
+
+		@Override
+		public void close() {
+
 		}
 	}
 

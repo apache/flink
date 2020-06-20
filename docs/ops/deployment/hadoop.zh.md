@@ -26,34 +26,13 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## Referencing a Hadoop configuration
-
-You can reference a Hadoop configuration by setting the environment variable `HADOOP_CONF_DIR`.
-
-```sh
-HADOOP_CONF_DIR=/path/to/etc/hadoop
-```
-
-Referencing the HDFS configuration in the [Flink configuration]({{ site.baseurl }}/ops/config.html#hdfs) is deprecated.
-
-Another way to provide the Hadoop configuration is to have it on the class path of the Flink process, see more details below.
 
 ## Providing Hadoop classes
 
 In order to use Hadoop features (e.g., YARN, HDFS) it is necessary to provide Flink with the required Hadoop classes,
 as these are not bundled by default.
 
-This can be done by 
-1) Adding the Hadoop classpath to Flink
-2) Putting the required jar files into /lib directory of the Flink distribution
-Option 1) requires very little work, integrates nicely with existing Hadoop setups and should be the
-preferred approach.
-However, Hadoop has a large dependency footprint that increases the risk for dependency conflicts to occur.
-If this happens, please refer to option 2).
-
-The following subsections explains these approaches in detail.
-
-### Adding Hadoop Classpaths
+The recommended approach is adding the Hadoop classpath to Flink through the `HADOOP_CLASSPATH` environment variable.
 
 Flink will use the environment variable `HADOOP_CLASSPATH` to augment the
 classpath that is used when starting Flink components such as the Client,
@@ -65,20 +44,48 @@ that are running Flink components.
 When running on YARN, this is usually not a problem because the components
 running inside YARN will be started with the Hadoop classpaths, but it can
 happen that the Hadoop dependencies must be in the classpath when submitting a
-job to YARN. For this, it's usually enough to do a
+job to YARN. For this, it's usually enough to run
 
 {% highlight bash %}
 export HADOOP_CLASSPATH=`hadoop classpath`
 {% endhighlight %}
 
-in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath.
+in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath. The classpath returned by `hadoop classpath` also includes the Hadoop configuration directories.
 
-Putting the Hadoop configuration in the same class path as the Hadoop libraries makes Flink pick up that configuration.
+If you are manually assembling the `HADOOP_CLASSPATH` variable, we recommend
+adding the Hadoop configuration directories as well.
 
-### Adding Hadoop to /lib
+## Running a job locally
 
-The Flink project releases Hadoop distributions for specific versions, that relocate or exclude several dependencies
-to reduce the risk of dependency clashes.
+To run a job locally as one JVM process using the mini cluster, the required hadoop dependencies have to be explicitly
+added to the classpath of the started JVM process.
+
+To run an application using Maven (also from IDE as a Maven project), the required Hadoop dependencies can be added
+as provided to the pom.xml, e.g.:
+
+```xml
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-client</artifactId>
+    <version>2.8.3</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+This way it should work both in local and cluster mode where the provided dependencies are added elsewhere as described before.
+
+To run or debug an application in IntelliJ Idea the provided dependencies can be included to the class path
+in the "Run|Edit Configurations" window.
+
+
+## Using `flink-shaded-hadoop-2-uber` jar for resolving dependency conflicts (legacy)
+
+<div class="alert alert-info" markdown="span">
+  <strong>Warning:</strong> Starting from Flink 1.11, using `flink-shaded-hadoop-2-uber` releases is not officially supported
+  by the Flink project anymore. Users are advised to provide Hadoop dependencies through `HADOOP_CLASSPATH` (see above).
+</div>
+
+The Flink project used to (until Flink 1.10) release Hadoop distributions for specific versions, that relocate or exclude several dependencies to reduce the risk of dependency clashes.
 These can be found in the [Additional Components]({{ site.download_url }}#additional-components) section of the download page.
 For these versions it is sufficient to download the corresponding `Pre-bundled Hadoop` component and putting it into
 the `/lib` directory of the Flink distribution.
@@ -98,26 +105,5 @@ mvn clean install -Dhadoop.version=2.6.5-custom
 
 After this step is complete, put the `flink-shaded-hadoop-2-uber` jar into the `/lib` directory of the Flink distribution.
 
-## Running a job locally
-
-To run a job locally as one JVM process using the mini cluster, the required hadoop dependencies have to be explicitly
-added to the classpath of the started JVM process.
-
-To run an application using maven (also from IDE as a maven project), the required hadoop dependencies can be added
-as provided to the pom.xml, e.g.:
-
-```xml
-<dependency>
-    <groupId>org.apache.hadoop</groupId>
-    <artifactId>hadoop-client</artifactId>
-    <version>2.8.3</version>
-    <scope>provided</scope>
-</dependency>
-```
-
-This way it should work both in local and cluster run where the provided dependencies are added elsewhere as described before.
-
-To run or debug an application in IntelliJ Idea the provided dependencies can be included to the class path
-in the "Run|Edit Configurations" window.
 
 {% top %}

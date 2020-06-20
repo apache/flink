@@ -50,7 +50,7 @@ public final class SavepointLoader {
 			.resolveCheckpointPointer(savepointPath);
 
 		try (DataInputStream stream = new DataInputStream(location.getMetadataHandle().openInputStream())) {
-			return Checkpoints.loadCheckpointMetadata(stream, Thread.currentThread().getContextClassLoader());
+			return Checkpoints.loadCheckpointMetadata(stream, Thread.currentThread().getContextClassLoader(), savepointPath);
 		}
 	}
 }

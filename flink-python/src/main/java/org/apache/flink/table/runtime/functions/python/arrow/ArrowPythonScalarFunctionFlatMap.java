@@ -77,7 +77,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("reader", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
 		reader = new ArrowStreamReader(bais, allocator);
 	}
 

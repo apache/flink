@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 
@@ -57,4 +58,13 @@ public interface Executor {
 	 */
 	JobExecutionResult execute(Pipeline pipeline) throws Exception;
 
+	/**
+	 * Executes the given pipeline asynchronously.
+	 *
+	 * @param pipeline the pipeline to execute
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job,
+	 *         completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	JobClient executeAsync(Pipeline pipeline) throws Exception;
 }

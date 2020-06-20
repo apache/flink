@@ -30,7 +30,15 @@ public class InputChannelStateHandle extends AbstractChannelStateHandle<InputCha
 
 	private static final long serialVersionUID = 1L;
 
+	public InputChannelStateHandle(InputChannelInfo info, StreamStateHandle delegate, StateContentMetaInfo contentMetaInfo) {
+		this(info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+	}
+
 	public InputChannelStateHandle(InputChannelInfo info, StreamStateHandle delegate, List<Long> offset) {
-		super(delegate, offset, info);
+		this(info, delegate, offset, delegate.getStateSize());
+	}
+
+	public InputChannelStateHandle(InputChannelInfo info, StreamStateHandle delegate, List<Long> offset, long size) {
+		super(delegate, offset, info, size);
 	}
 }

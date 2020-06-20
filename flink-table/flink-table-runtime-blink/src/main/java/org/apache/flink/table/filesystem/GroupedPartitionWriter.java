@@ -21,7 +21,7 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
+import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
  * {@link PartitionWriter} for grouped dynamic partition inserting. It will create a new format

@@ -19,10 +19,15 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+
+import javax.annotation.Nullable;
+
+import java.util.function.Supplier;
 
 /**
  * Helper  class to construct {@link AbstractStreamOperatorV2}. Wraps couple of internal parameters
@@ -36,17 +41,24 @@ public class StreamOperatorParameters<OUT> {
 	private final StreamTask<?, ?> containingTask;
 	private final StreamConfig config;
 	private final Output<StreamRecord<OUT>> output;
-	private final ProcessingTimeService processingTimeService;
+	private final Supplier<ProcessingTimeService> processingTimeServiceFactory;
+	private final OperatorEventDispatcher operatorEventDispatcher;
+
+	/** The ProcessingTimeService, lazily created, but cached so that we don't create more than one. */
+	@Nullable
+	private ProcessingTimeService processingTimeService;
 
 	public StreamOperatorParameters(
 			StreamTask<?, ?> containingTask,
 			StreamConfig config,
 			Output<StreamRecord<OUT>> output,
-			ProcessingTimeService processingTimeService) {
+			Supplier<ProcessingTimeService> processingTimeServiceFactory,
+			OperatorEventDispatcher operatorEventDispatcher) {
 		this.containingTask = containingTask;
 		this.config = config;
 		this.output = output;
-		this.processingTimeService = processingTimeService;
+		this.processingTimeServiceFactory = processingTimeServiceFactory;
+		this.operatorEventDispatcher = operatorEventDispatcher;
 	}
 
 	public StreamTask<?, ?> getContainingTask() {
@@ -62,6 +74,13 @@ public class StreamOperatorParameters<OUT> {
 	}
 
 	public ProcessingTimeService getProcessingTimeService() {
+		if (processingTimeService == null) {
+			processingTimeService = processingTimeServiceFactory.get();
+		}
 		return processingTimeService;
+	}
+
+	public OperatorEventDispatcher getOperatorEventDispatcher() {
+		return operatorEventDispatcher;
 	}
 }

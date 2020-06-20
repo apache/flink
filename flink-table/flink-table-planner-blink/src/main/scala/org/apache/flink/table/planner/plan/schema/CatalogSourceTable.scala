@@ -22,19 +22,24 @@ import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory, TableSourceFactoryContextImpl}
+import org.apache.flink.table.connector.source.abilities._
+import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
+import org.apache.flink.table.factories.FactoryUtil
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
+import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
+import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
+import org.apache.flink.types.RowKind
 
-import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
+import org.apache.calcite.plan.{RelOptCluster, RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
 
+import java.util
 import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
@@ -58,14 +63,6 @@ class CatalogSourceTable[T](
     val catalogTable: CatalogTable)
   extends FlinkPreparingTableBase(relOptSchema, rowType, names, schemaTable.getStatistic) {
 
-  lazy val columnExprs: Map[String, String] = {
-    catalogTable.getSchema
-      .getTableColumns
-      .filter(column => column.isGenerated)
-      .map(column => (column.getName, column.getExpr.get()))
-      .toMap
-  }
-
   override def toRel(context: RelOptTable.ToRelContext): RelNode = {
     val cluster = context.getCluster
     val flinkContext = cluster
@@ -73,61 +70,21 @@ class CatalogSourceTable[T](
         .getContext
         .unwrap(classOf[FlinkContext])
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-
-    // erase time indicator types in the rowType
-    val erasedRowType = eraseTimeIndicator(rowType, typeFactory)
-
     val conf = flinkContext.getTableConfig.getConfiguration
-
-    val hintedOptions = FlinkHints.getHintedOptions(context.getTableHints)
-    if (hintedOptions.nonEmpty
-      && !conf.getBoolean(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
-      throw new ValidationException(s"${FlinkHints.HINT_NAME_OPTIONS} hint is allowed only when "
-        + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} "
-        + s"is set to true")
-    }
-
-    val tableSource = findAndCreateTableSource(
-      hintedOptions,
-      conf)
-    val tableSourceTable = new TableSourceTable[T](
-      relOptSchema,
-      schemaTable.getTableIdentifier,
-      erasedRowType,
-      statistic,
-      tableSource,
-      schemaTable.isStreamingMode,
-      catalogTable,
-      hintedOptions)
-
-    // 1. push table scan
-
-    // Get row type of physical fields.
-    val physicalFields = getRowType
-      .getFieldList
-      .filter(f => !columnExprs.contains(f.getName))
-      .map(f => f.getIndex)
-      .toArray
-    // Copy this table with physical scan row type.
-    val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
-    val scan = LogicalTableScan.create(cluster, newRelTable, context.getTableHints)
     val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema)
-    relBuilder.push(scan)
-
     val toRexFactory = flinkContext.getSqlExprToRexConverterFactory
 
+    // 1. push table scan
+    val scan = buildTableScan(cluster, context.getTableHints, conf, typeFactory)
+    relBuilder.push(scan)
+
     // 2. push computed column project
-    val fieldNames = erasedRowType.getFieldNames.asScala
-    if (columnExprs.nonEmpty) {
-      val fieldExprs = fieldNames
-          .map { name =>
-            if (columnExprs.contains(name)) {
-              columnExprs(name)
-            } else {
-              s"`$name`"
-            }
-          }.toArray
-      val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
+    if (containsGeneratedColumns(catalogTable)) {
+      val fieldExprs = catalogTable.getSchema.getTableColumns
+        .map(c => if (c.isGenerated) c.getExpr.get() else s"`${c.getName}`")
+        .toArray
+      val fieldNames = util.Arrays.asList(catalogTable.getSchema.getFieldNames: _*)
+      val rexNodes = toRexFactory.create(scan.getRowType).convertToRexNodes(fieldExprs)
       relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
     }
 
@@ -137,20 +94,15 @@ class CatalogSourceTable[T](
       // we only support single watermark currently
       .getWatermarkSpecs.asScala.headOption
     if (schemaTable.isStreamingMode && watermarkSpec.nonEmpty) {
-      if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
-        throw new TableException(
-          "If watermark is specified in DDL, the underlying TableSource of connector" +
-              " shouldn't return an non-empty list of RowtimeAttributeDescriptor" +
-              " via DefinedRowtimeAttributes interface.")
-      }
       val rowtime = watermarkSpec.get.getRowtimeAttribute
       if (rowtime.contains(".")) {
         throw new TableException(
           s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
       }
-      val rowtimeIndex = fieldNames.indexOf(rowtime)
+      val inputRowType = relBuilder.peek().getRowType
+      val rowtimeIndex = inputRowType.getFieldNames.indexOf(rowtime)
       val watermarkRexNode = toRexFactory
-          .create(erasedRowType)
+          .create(inputRowType)
           .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
       relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
@@ -159,48 +111,46 @@ class CatalogSourceTable[T](
     relBuilder.build()
   }
 
-  /** Create the table source. */
-  private def findAndCreateTableSource(
-      hintedOptions: JMap[String, String],
-      conf: ReadableConfig): TableSource[T] = {
-    val tableFactoryOpt = schemaTable.getTableFactory
-    val tableToFind = if (hintedOptions.nonEmpty) {
-      catalogTable.copy(
-        FlinkHints.mergeTableOptions(
-          hintedOptions,
-          catalogTable.getProperties))
-    } else {
-      catalogTable
+  private def buildTableScan(
+      cluster: RelOptCluster,
+      hints: JList[RelHint],
+      conf: ReadableConfig,
+      typeFactory: FlinkTypeFactory): LogicalTableScan = {
+    val hintedOptions = FlinkHints.getHintedOptions(hints)
+    if (hintedOptions.nonEmpty
+      && !conf.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+      throw new ValidationException(s"${FlinkHints.HINT_NAME_OPTIONS} hint is allowed only when "
+        + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} "
+        + s"is set to true")
     }
-    val context = new TableSourceFactoryContextImpl(
+    // Get row type of physical fields.
+    // erase time indicator types in the rowType
+    val erasedRowType = eraseTimeIndicator(rowType, typeFactory)
+    val physicalFieldIndexes = catalogTable.getSchema.getTableColumns.zipWithIndex.flatMap {
+      case (column, index) => if (column.isGenerated) None else Some(index)
+    }.toArray
+    val sourceRowType = typeFactory.projectStructType(erasedRowType, physicalFieldIndexes)
+
+    val newCatalogTable = getOrCreateCatalogTableWithHints(hintedOptions)
+    val tableSource = FactoryUtil.createTableSource(
+      schemaTable.getCatalog,
       schemaTable.getTableIdentifier,
-      tableToFind,
-      conf)
-    val tableSource = if (tableFactoryOpt.isPresent) {
-      tableFactoryOpt.get() match {
-        case tableSourceFactory: TableSourceFactory[_] =>
-          tableSourceFactory.createTableSource(context)
-        case _ => throw new ValidationException("Cannot query a sink-only table. "
-          + "TableFactory provided by catalog must implement TableSourceFactory")
-      }
-    } else {
-      TableFactoryUtil.findAndCreateTableSource(context)
-    }
+      newCatalogTable,
+      conf,
+      Thread.currentThread.getContextClassLoader)
 
-    // validation
-    val tableName = schemaTable.getTableIdentifier.asSummaryString
-    tableSource match {
-      case ts: StreamTableSource[_] =>
-        if (!schemaTable.isStreamingMode && !ts.isBounded) {
-          throw new ValidationException("Cannot query on an unbounded source in batch mode, " +
-            s"but '$tableName' is unbounded.")
-        }
-      case _ =>
-        throw new ValidationException("Catalog tables only support "
-          + "StreamTableSource and InputFormatTableSource")
-    }
+    validateTableSource(tableSource)
 
-    tableSource.asInstanceOf[TableSource[T]]
+    val tableSourceTable = new TableSourceTable(
+      relOptSchema,
+      schemaTable.getTableIdentifier,
+      sourceRowType,
+      statistic,
+      tableSource,
+      schemaTable.isStreamingMode,
+      catalogTable,
+      hintedOptions)
+    LogicalTableScan.create(cluster, tableSourceTable, hints)
   }
 
   /**
@@ -225,5 +175,92 @@ class CatalogSourceTable[T](
       }
     }
     factory.buildRelNodeRowType(fieldNames, fieldTypes)
+  }
+
+  /**
+   * Returns true if there is any generated columns defined on the catalog table.
+   */
+  private def containsGeneratedColumns(catalogTable: CatalogTable): Boolean = {
+    catalogTable.getSchema.getTableColumns.exists(_.isGenerated)
+  }
+
+  /**
+   * Creates a new catalog table with the given hint options,
+   * but return the original catalog table if the given hint options is empty.
+   */
+  private def getOrCreateCatalogTableWithHints(
+      hintedOptions: JMap[String, String]): CatalogTable = {
+    if (hintedOptions.nonEmpty) {
+      catalogTable.copy(FlinkHints.mergeTableOptions(hintedOptions, catalogTable.getOptions))
+    } else {
+      catalogTable
+    }
+  }
+
+  private def validateTableSource(tableSource: DynamicTableSource): Unit = {
+    // throw exception if unsupported ability interface is implemented
+    val unsupportedAbilities = List(
+      classOf[SupportsFilterPushDown],
+      classOf[SupportsLimitPushDown],
+      classOf[SupportsPartitionPushDown],
+      classOf[SupportsComputedColumnPushDown],
+      classOf[SupportsWatermarkPushDown])
+    unsupportedAbilities.foreach { ability =>
+      if (ability.isAssignableFrom(tableSource.getClass)) {
+        throw new UnsupportedOperationException("Currently, a DynamicTableSource with " +
+          s"${ability.getSimpleName} ability is not supported.")
+      }
+    }
+
+    // scan validation
+    val tableName = schemaTable.getTableIdentifier.asSummaryString
+    tableSource match {
+      case ts: ScanTableSource =>
+        val changelogMode = ts.getChangelogMode
+        if (!schemaTable.isStreamingMode) {
+          // batch only supports bounded source
+          val provider = ts.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE)
+          if (!provider.isBounded) {
+            throw new ValidationException("Cannot query on an unbounded source in batch mode, " +
+              s"but '$tableName' is unbounded.")
+          }
+          // batch only supports INSERT only source
+          if (!changelogMode.containsOnly(RowKind.INSERT)) {
+            throw new UnsupportedOperationException(
+              "Currently, batch mode only supports INSERT only source, but " +
+              s"'$tableName' source produces not INSERT only messages")
+          }
+        } else {
+          // sanity check for produced ChangelogMode
+          val hasUpdateBefore = changelogMode.contains(RowKind.UPDATE_BEFORE)
+          val hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER)
+          (hasUpdateBefore, hasUpdateAfter) match {
+            case (true, true) =>
+              // UPDATE_BEFORE and UPDATE_AFTER, pass
+            case (false, true) =>
+              // only UPDATE_AFTER
+              throw new UnsupportedOperationException(
+                "Currently, ScanTableSource doesn't support producing ChangelogMode " +
+                  "which contains UPDATE_AFTER but no UPDATE_BEFORE. Please adapt the " +
+                  s"implementation of '${ts.asSummaryString()}' source.")
+            case (true, false) =>
+               // only UPDATE_BEFORE
+              throw new ValidationException(
+                s"'$tableName' source produces ChangelogMode which " +
+                  s"contains UPDATE_BEFORE but doesn't contain UPDATE_AFTER, this is invalid.")
+            case _ =>
+              // no updates, pass
+          }
+
+          // watermark defined on a changelog source is not supported
+          if (!catalogTable.getSchema.getWatermarkSpecs.isEmpty &&
+              !changelogMode.containsOnly(RowKind.INSERT)) {
+            throw new UnsupportedOperationException(
+              "Currently, defining WATERMARK on a changelog source is not supported.")
+          }
+        }
+      case _ =>
+        // pass, lookup table source is validated in LookupJoin node
+    }
   }
 }

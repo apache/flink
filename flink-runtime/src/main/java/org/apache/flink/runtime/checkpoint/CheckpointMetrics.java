@@ -30,9 +30,6 @@ public class CheckpointMetrics implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The number of bytes that were buffered during the checkpoint alignment phase. */
-	private long bytesBufferedInAlignment;
-
 	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took. */
 	private long alignmentDurationNanos;
 
@@ -59,19 +56,9 @@ public class CheckpointMetrics implements Serializable {
 		checkArgument(bytesBufferedInAlignment >= -1);
 		checkArgument(alignmentDurationNanos >= -1);
 
-		this.bytesBufferedInAlignment = bytesBufferedInAlignment;
 		this.alignmentDurationNanos = alignmentDurationNanos;
 		this.syncDurationMillis = syncDurationMillis;
 		this.asyncDurationMillis = asyncDurationMillis;
-	}
-
-	public long getBytesBufferedInAlignment() {
-		return bytesBufferedInAlignment;
-	}
-
-	public CheckpointMetrics setBytesBufferedInAlignment(long bytesBufferedInAlignment) {
-		this.bytesBufferedInAlignment = bytesBufferedInAlignment;
-		return this;
 	}
 
 	public long getAlignmentDurationNanos() {
@@ -121,8 +108,7 @@ public class CheckpointMetrics implements Serializable {
 
 		CheckpointMetrics that = (CheckpointMetrics) o;
 
-		return bytesBufferedInAlignment == that.bytesBufferedInAlignment &&
-			alignmentDurationNanos == that.alignmentDurationNanos &&
+		return alignmentDurationNanos == that.alignmentDurationNanos &&
 			syncDurationMillis == that.syncDurationMillis &&
 			asyncDurationMillis == that.asyncDurationMillis &&
 			checkpointStartDelayNanos == that.checkpointStartDelayNanos;
@@ -132,7 +118,6 @@ public class CheckpointMetrics implements Serializable {
 	@Override
 	public int hashCode() {
 		return Objects.hash(
-			bytesBufferedInAlignment,
 			alignmentDurationNanos,
 			syncDurationMillis,
 			asyncDurationMillis,
@@ -142,7 +127,6 @@ public class CheckpointMetrics implements Serializable {
 	@Override
 	public String toString() {
 		return "CheckpointMetrics{" +
-			"bytesBufferedInAlignment=" + bytesBufferedInAlignment +
 			", alignmentDurationNanos=" + alignmentDurationNanos +
 			", syncDurationMillis=" + syncDurationMillis +
 			", asyncDurationMillis=" + asyncDurationMillis +

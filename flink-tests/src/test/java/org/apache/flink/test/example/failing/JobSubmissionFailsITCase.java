@@ -30,13 +30,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -53,7 +51,6 @@ import static org.junit.Assert.fail;
  * Tests for failing job submissions.
  */
 @RunWith(Parameterized.class)
-@Category(AlsoRunWithLegacyScheduler.class)
 public class JobSubmissionFailsITCase extends TestLogger {
 
 	private static final int NUM_TM = 2;

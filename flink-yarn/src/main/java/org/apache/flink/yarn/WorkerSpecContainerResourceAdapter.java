@@ -38,12 +38,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
  * Utility class for converting between Flink {@link WorkerResourceSpec} and Yarn {@link Resource}.
  */
-public class WorkerSpecContainerResourceAdapter {
+class WorkerSpecContainerResourceAdapter {
 	private static final Logger LOG = LoggerFactory.getLogger(WorkerSpecContainerResourceAdapter.class);
 
 	private final Configuration flinkConfig;
@@ -51,93 +52,188 @@ public class WorkerSpecContainerResourceAdapter {
 	private final int maxMemMB;
 	private final int minVcore;
 	private final int maxVcore;
-	private final Map<WorkerResourceSpec, Resource> workerSpecToContainerResource;
-	private final Map<Resource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
-	private final Map<Integer, Set<Resource>> containerMemoryToContainerResource;
+	private final Map<String, Long> externalResourceConfigs;
+	private final Map<WorkerResourceSpec, InternalContainerResource> workerSpecToContainerResource;
+	private final Map<InternalContainerResource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
+	private final Map<Integer, Set<InternalContainerResource>> containerMemoryToContainerResource;
 
 	WorkerSpecContainerResourceAdapter(
 		final Configuration flinkConfig,
 		final int minMemMB,
 		final int minVcore,
 		final int maxMemMB,
-		final int maxVcore) {
+		final int maxVcore,
+		final Map<String, Long> externalResourceConfigs) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.minMemMB = minMemMB;
 		this.minVcore = minVcore;
 		this.maxMemMB = maxMemMB;
 		this.maxVcore = maxVcore;
+		this.externalResourceConfigs = Preconditions.checkNotNull(externalResourceConfigs);
 		workerSpecToContainerResource = new HashMap<>();
 		containerResourceToWorkerSpecs = new HashMap<>();
 		containerMemoryToContainerResource = new HashMap<>();
 	}
 
-	@VisibleForTesting
 	Optional<Resource> tryComputeContainerResource(final WorkerResourceSpec workerResourceSpec) {
-		return Optional.ofNullable(workerSpecToContainerResource.computeIfAbsent(
+		final InternalContainerResource internalContainerResource = workerSpecToContainerResource.computeIfAbsent(
 			Preconditions.checkNotNull(workerResourceSpec),
-			this::createAndMapContainerResource));
+			this::createAndMapContainerResource);
+		if (internalContainerResource != null) {
+			return Optional.of(internalContainerResource.toResource());
+		} else {
+			return Optional.empty();
+		}
 	}
 
-	@VisibleForTesting
 	Set<WorkerResourceSpec> getWorkerSpecs(final Resource containerResource, final MatchingStrategy matchingStrategy) {
-		return getEquivalentContainerResource(containerResource, matchingStrategy).stream()
+		final InternalContainerResource internalContainerResource = new InternalContainerResource(containerResource);
+		return getEquivalentInternalContainerResource(internalContainerResource, matchingStrategy).stream()
 			.flatMap(resource -> containerResourceToWorkerSpecs.getOrDefault(resource, Collections.emptySet()).stream())
 			.collect(Collectors.toSet());
 	}
 
-	@VisibleForTesting
 	Set<Resource> getEquivalentContainerResource(final Resource containerResource, final MatchingStrategy matchingStrategy) {
+		final InternalContainerResource internalContainerResource = new InternalContainerResource(containerResource);
+		return getEquivalentInternalContainerResource(internalContainerResource, matchingStrategy).stream()
+			.map(InternalContainerResource::toResource)
+			.collect(Collectors.toSet());
+	}
+
+	private Set<InternalContainerResource> getEquivalentInternalContainerResource(final InternalContainerResource internalContainerResource, final MatchingStrategy matchingStrategy) {
 		// Yarn might ignore the requested vcores, depending on its configurations.
 		// In such cases, we should also not matching vcores.
-		final Set<Resource> equivalentContainerResources;
+		final Set<InternalContainerResource> equivalentInternalContainerResources;
 		switch (matchingStrategy) {
 			case MATCH_VCORE:
-				equivalentContainerResources = Collections.singleton(containerResource);
+				equivalentInternalContainerResources = Collections.singleton(internalContainerResource);
 				break;
 			case IGNORE_VCORE:
 			default:
-				equivalentContainerResources = containerMemoryToContainerResource
-					.getOrDefault(containerResource.getMemory(), Collections.emptySet());
+				equivalentInternalContainerResources = containerMemoryToContainerResource
+					.getOrDefault(internalContainerResource.memory, Collections.emptySet());
 				break;
 		}
-		return equivalentContainerResources;
+		return equivalentInternalContainerResources;
 	}
 
 	@Nullable
-	private Resource createAndMapContainerResource(final WorkerResourceSpec workerResourceSpec) {
+	private InternalContainerResource createAndMapContainerResource(final WorkerResourceSpec workerResourceSpec) {
 		final TaskExecutorProcessSpec taskExecutorProcessSpec =
 			TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec);
-		final Resource containerResource = Resource.newInstance(
+		final InternalContainerResource internalContainerResource = new InternalContainerResource(
 			normalize(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(), minMemMB),
-			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore));
+			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore),
+			externalResourceConfigs);
 
-		if (resourceWithinMaxAllocation(containerResource)) {
-			containerResourceToWorkerSpecs.computeIfAbsent(containerResource, ignored -> new HashSet<>())
+		if (resourceWithinMaxAllocation(internalContainerResource)) {
+			containerResourceToWorkerSpecs.computeIfAbsent(internalContainerResource, ignored -> new HashSet<>())
 				.add(workerResourceSpec);
-			containerMemoryToContainerResource.computeIfAbsent(containerResource.getMemory(), ignored -> new HashSet<>())
-				.add(containerResource);
-			return containerResource;
+			containerMemoryToContainerResource.computeIfAbsent(internalContainerResource.memory, ignored -> new HashSet<>())
+				.add(internalContainerResource);
+			return internalContainerResource;
 		} else {
 			LOG.warn("Requested container resource {} exceeds yarn max allocation {}. Will not allocate resource.",
-				containerResource,
-				Resource.newInstance(maxMemMB, maxVcore));
+				internalContainerResource,
+				new InternalContainerResource(maxMemMB, maxVcore, Collections.emptyMap()));
 			return null;
 		}
 	}
 
 	/**
-	 * Normalize to the minimum integer that is greater or equal to 'value' and is integer multiple of 'unitValue'.
+	 * Normalize to the minimum integer that is greater or equal to 'value' and is positive integer multiple of 'unitValue'.
 	 */
 	private int normalize(final int value, final int unitValue) {
-		return MathUtils.divideRoundUp(value, unitValue) * unitValue;
+		return Math.max(MathUtils.divideRoundUp(value, unitValue), 1) * unitValue;
 	}
 
-	boolean resourceWithinMaxAllocation(final Resource resource) {
-		return resource.getMemory() <= maxMemMB && resource.getVirtualCores() <= maxVcore;
+	private boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
+		return resource.memory <= maxMemMB && resource.vcores <= maxVcore;
+	}
+
+	private static void trySetExternalResources(Map<String, Long> externalResources, Resource resource) {
+		for (Map.Entry<String, Long> externalResource: externalResources.entrySet()) {
+			ResourceInformationReflector.INSTANCE.setResourceInformation(resource, externalResource.getKey(), externalResource.getValue());
+		}
 	}
 
 	enum MatchingStrategy {
 		MATCH_VCORE,
 		IGNORE_VCORE
+	}
+
+	/**
+	 * An {@link InternalContainerResource} corresponds to a {@link Resource}.
+	 * This class is for {@link WorkerSpecContainerResourceAdapter} internal usages only, to overcome the problem that
+	 * hash codes are calculated inconsistently across different {@link Resource} implementations.
+	 */
+	@VisibleForTesting
+	static final class InternalContainerResource {
+		private final int memory;
+		private final int vcores;
+		private final Map<String, Long> externalResources;
+
+		@VisibleForTesting
+		InternalContainerResource(final int memory, final int vcores, final Map<String, Long> externalResources) {
+			this.memory = memory;
+			this.vcores = vcores;
+			this.externalResources = externalResources.entrySet()
+						.stream()
+						.filter(entry -> !entry.getValue().equals(0L))
+						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		}
+
+		private InternalContainerResource(final Resource resource) {
+			this(
+				Preconditions.checkNotNull(resource).getMemory(),
+				Preconditions.checkNotNull(resource).getVirtualCores(),
+				ResourceInformationReflector.INSTANCE.getExternalResources(resource));
+		}
+
+		private Resource toResource() {
+			final Resource resource = Resource.newInstance(memory, vcores);
+			trySetExternalResources(externalResources, resource);
+			return resource;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			} else if (obj instanceof InternalContainerResource) {
+				final InternalContainerResource other = (InternalContainerResource) obj;
+				return this.memory == other.memory && this.vcores == other.vcores && this.externalResources.equals(other.externalResources);
+			}
+			return false;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = Integer.hashCode(memory);
+			result = prime * result + Integer.hashCode(vcores);
+			result = prime * result + externalResources.hashCode();
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			final StringBuilder sb = new StringBuilder();
+
+			sb.append("<memory:")
+				.append(memory)
+				.append(", vCores:")
+				.append(vcores);
+
+			final Set<String> externalResourceNames = new TreeSet<>(externalResources.keySet());
+			for (String externalResourceName : externalResourceNames) {
+				sb.append(", ")
+					.append(externalResourceName).append(": ")
+					.append(externalResources.get(externalResourceName));
+			}
+
+			sb.append(">");
+			return sb.toString();
+		}
 	}
 }

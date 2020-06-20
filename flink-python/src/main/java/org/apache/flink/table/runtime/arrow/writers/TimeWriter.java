@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -33,9 +34,19 @@ import org.apache.arrow.vector.ValueVector;
  * {@link ArrowFieldWriter} for Time.
  */
 @Internal
-public final class TimeWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class TimeWriter<T> extends ArrowFieldWriter<T> {
 
-	public TimeWriter(ValueVector valueVector) {
+	public static TimeWriter<RowData> forRow(ValueVector valueVector) {
+		return new TimeWriterForRow(valueVector);
+	}
+
+	public static TimeWriter<ArrayData> forArray(ValueVector valueVector) {
+		return new TimeWriterForArray(valueVector);
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	private TimeWriter(ValueVector valueVector) {
 		super(valueVector);
 		Preconditions.checkState(
 			valueVector instanceof TimeSecVector ||
@@ -44,19 +55,65 @@ public final class TimeWriter<T extends TypeGetterSetters> extends ArrowFieldWri
 				valueVector instanceof TimeNanoVector);
 	}
 
+	abstract boolean isNullAt(T in, int ordinal);
+
+	abstract int readTime(T in, int ordinal);
+
 	@Override
-	public void doWrite(T row, int ordinal) {
+	public void doWrite(T in, int ordinal) {
 		ValueVector valueVector = getValueVector();
-		if (row.isNullAt(ordinal)) {
+		if (isNullAt(in, ordinal)) {
 			((BaseFixedWidthVector) valueVector).setNull(getCount());
 		} else if (valueVector instanceof TimeSecVector) {
-			((TimeSecVector) valueVector).setSafe(getCount(), row.getInt(ordinal) / 1000);
+			((TimeSecVector) valueVector).setSafe(getCount(), readTime(in, ordinal) / 1000);
 		} else if (valueVector instanceof TimeMilliVector) {
-			((TimeMilliVector) valueVector).setSafe(getCount(), row.getInt(ordinal));
+			((TimeMilliVector) valueVector).setSafe(getCount(), readTime(in, ordinal));
 		} else if (valueVector instanceof TimeMicroVector) {
-			((TimeMicroVector) valueVector).setSafe(getCount(), row.getInt(ordinal) * 1000L);
+			((TimeMicroVector) valueVector).setSafe(getCount(), readTime(in, ordinal) * 1000L);
 		} else {
-			((TimeNanoVector) valueVector).setSafe(getCount(), row.getInt(ordinal) * 1000000L);
+			((TimeNanoVector) valueVector).setSafe(getCount(), readTime(in, ordinal) * 1000000L);
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * {@link TimeWriter} for {@link RowData} input.
+	 */
+	public static final class TimeWriterForRow extends TimeWriter<RowData> {
+
+		private TimeWriterForRow(ValueVector valueVector) {
+			super(valueVector);
+		}
+
+		@Override
+		boolean isNullAt(RowData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		int readTime(RowData in, int ordinal) {
+			return in.getInt(ordinal);
+		}
+	}
+
+	/**
+	 * {@link TimeWriter} for {@link ArrayData} input.
+	 */
+	public static final class TimeWriterForArray extends TimeWriter<ArrayData> {
+
+		private TimeWriterForArray(ValueVector valueVector) {
+			super(valueVector);
+		}
+
+		@Override
+		boolean isNullAt(ArrayData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		int readTime(ArrayData in, int ordinal) {
+			return in.getInt(ordinal);
 		}
 	}
 }

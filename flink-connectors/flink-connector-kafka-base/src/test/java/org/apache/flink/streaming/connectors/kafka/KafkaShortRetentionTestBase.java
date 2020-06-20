@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -170,7 +169,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		Properties props = new Properties();
 		props.putAll(standardProps);
 		props.putAll(secureProps);
-		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props, null);
+		kafkaServer.produceIntoKafka(stream, topic, new SimpleStringSchema(), props, null);
 
 		// ----------- add consumer dataflow ----------
 

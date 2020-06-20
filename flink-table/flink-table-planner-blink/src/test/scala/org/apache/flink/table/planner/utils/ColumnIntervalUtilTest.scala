@@ -189,30 +189,4 @@ class ColumnIntervalUtilTest {
     )
   }
 
-  @Test
-  def testConvertStringToNumber(): Unit = {
-    assertEqualsWithType(java.lang.Byte.valueOf("1"), "1")
-    assertEqualsWithType(java.lang.Short.valueOf("1"), "1")
-    assertEqualsWithType(java.lang.Integer.valueOf("1"), "1")
-    assertEqualsWithType(java.lang.Float.valueOf("1"), "1")
-    assertEqualsWithType(java.lang.Long.valueOf("1"), "1")
-    assertEqualsWithType(java.lang.Double.valueOf("1"), "1")
-    assertEqualsWithType(new java.math.BigDecimal("1"), "1")
-    assertEqualsWithType(new java.math.BigInteger("1"), "1")
-    assertEqualsWithType("1".toByte, "1")
-    assertEqualsWithType("1".toShort, "1")
-    assertEqualsWithType("1".toInt, "1")
-    assertEqualsWithType("1".toLong, "1")
-    assertEqualsWithType("1".toFloat, "1")
-    assertEqualsWithType("1".toDouble, "1")
-    assertEquals(None, convertStringToNumber("1", classOf[java.util.Date]))
-  }
-
-  private def assertEqualsWithType(number: Comparable[_], numberStr: String): Unit = {
-    val n = convertStringToNumber(numberStr, number.getClass)
-    assertTrue(n.isDefined)
-    assertTrue(number.getClass == n.get.getClass)
-    assertEquals(number, n.get)
-  }
-
 }

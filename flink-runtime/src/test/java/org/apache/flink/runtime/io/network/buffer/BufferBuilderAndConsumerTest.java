@@ -22,6 +22,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -117,21 +119,11 @@ public class BufferBuilderAndConsumerTest {
 		assertContent(bufferConsumer, 42);
 	}
 
-	@Test
+	@Test(expected = IllegalStateException.class)
 	public void creatingBufferConsumerTwice() {
 		BufferBuilder bufferBuilder = createBufferBuilder();
-		BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer();
-
-		assertEquals(0, bufferConsumer1.getCurrentReaderPosition());
-		assertContent(bufferConsumer1);
-
-		ByteBuffer bytesToWrite = toByteBuffer(0, 1);
-		bufferBuilder.appendAndCommit(bytesToWrite);
-		BufferConsumer bufferConsumer2 = bufferBuilder.createBufferConsumer();
-		bufferBuilder.appendAndCommit(toByteBuffer(2));
-
-		assertEquals(bytesToWrite.position(), bufferConsumer2.getCurrentReaderPosition());
-		assertContent(bufferConsumer2, 2);
+		bufferBuilder.createBufferConsumer();
+		bufferBuilder.createBufferConsumer();
 	}
 
 	@Test
@@ -274,13 +266,15 @@ public class BufferBuilderAndConsumerTest {
 		buffer.recycleBuffer();
 	}
 
-	public static void assertContent(Buffer actualBuffer, BufferRecycler recycler, int... expected) {
+	public static void assertContent(Buffer actualBuffer, @Nullable BufferRecycler recycler, int... expected) {
 		IntBuffer actualIntBuffer = actualBuffer.getNioBufferReadable().asIntBuffer();
 		int[] actual = new int[actualIntBuffer.limit()];
 		actualIntBuffer.get(actual);
 		assertArrayEquals(expected, actual);
 
-		assertEquals(recycler, actualBuffer.getRecycler());
+		if (recycler != null) {
+			assertEquals(recycler, actualBuffer.getRecycler());
+		}
 	}
 
 	private static BufferBuilder createBufferBuilder() {

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.util.TestLogger;
@@ -38,10 +37,8 @@ import static org.junit.Assert.assertThat;
  */
 public class SchedulerNGFactoryFactoryTest extends TestLogger {
 
-	private static final NoRestartStrategy.NoRestartStrategyFactory TEST_RESTART_STRATEGY_FACTORY = new NoRestartStrategy.NoRestartStrategyFactory();
-
 	@Test
-	public void createLegacySchedulerFactoryByDefault() {
+	public void createDefaultSchedulerFactoryByDefault() {
 		final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(new Configuration());
 		assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
 	}
@@ -69,8 +66,6 @@ public class SchedulerNGFactoryFactoryTest extends TestLogger {
 	}
 
 	private static SchedulerNGFactory createSchedulerNGFactory(final Configuration configuration) {
-		return SchedulerNGFactoryFactory.createSchedulerNGFactory(
-			configuration,
-			TEST_RESTART_STRATEGY_FACTORY);
+		return SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
 	}
 }

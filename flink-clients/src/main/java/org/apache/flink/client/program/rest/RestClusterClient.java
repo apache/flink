@@ -37,9 +37,12 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
@@ -67,6 +70,9 @@ import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationHeaders;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
@@ -88,6 +94,7 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -409,6 +416,36 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			final JobID jobId,
 			final @Nullable String savepointDirectory) {
 		return triggerSavepoint(jobId, savepointDirectory, false);
+	}
+
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+			JobID jobId,
+			OperatorID operatorId,
+			CoordinationRequest request) {
+		ClientCoordinationHeaders headers = ClientCoordinationHeaders.getInstance();
+		ClientCoordinationMessageParameters params = new ClientCoordinationMessageParameters();
+		params.jobPathParameter.resolve(jobId);
+		params.operatorPathParameter.resolve(operatorId);
+
+		SerializedValue<CoordinationRequest> serializedRequest;
+		try {
+			serializedRequest = new SerializedValue<>(request);
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(e);
+		}
+
+		ClientCoordinationRequestBody requestBody = new ClientCoordinationRequestBody(serializedRequest);
+		return sendRequest(headers, params, requestBody).thenApply(
+			responseBody -> {
+				try {
+					return responseBody
+						.getSerializedCoordinationResponse()
+						.deserializeValue(getClass().getClassLoader());
+				} catch (IOException | ClassNotFoundException e) {
+					throw new CompletionException("Failed to deserialize coordination response", e);
+				}
+			});
 	}
 
 	private CompletableFuture<String> triggerSavepoint(

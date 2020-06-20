@@ -42,6 +42,9 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 /**
  * Strategy for inferring and validating the input using a disjunction of multiple {@link InputTypeStrategy}s
  * into one like {@code f(NUMERIC) || f(STRING)}.
+ *
+ * <p>This strategy aims to infer a list of types that are equal to the input types (to prevent unnecessary
+ * casting) or (if this is not possible) the first more specific, casted types.
  */
 @Internal
 public final class OrInputTypeStrategy implements InputTypeStrategy {

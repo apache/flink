@@ -17,8 +17,13 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -83,11 +88,14 @@ public class ChannelStateWriteRequestDispatcherTest {
 	}
 
 	private static ChannelStateWriteRequest writeIn() {
-		return write(CHECKPOINT_ID, new InputChannelInfo(1, 1));
+		return write(CHECKPOINT_ID, new InputChannelInfo(1, 1), CloseableIterator.ofElement(
+			new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1), FreeingBufferRecycler.INSTANCE),
+			Buffer::recycleBuffer
+		));
 	}
 
 	private static ChannelStateWriteRequest writeOut() {
-		return write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1));
+		return write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1), new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1), FreeingBufferRecycler.INSTANCE));
 	}
 
 	private static CheckpointStartRequest start() {

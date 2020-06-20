@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
@@ -280,14 +281,18 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     tEnv.registerTable("T1", t1)
 
     val sqlQuery = "SELECT " +
-      "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+      "listagg(distinct c, '|') " +
+      "  OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW), " +
+      "count(a) " +
+      "  OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "from T1"
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1", "2", "3", "4", "5", "6", "7", "8", "9")
+    val expected = List("Hello,1", "Hello,2", "Hello,3", "Hello,4", "Hello,5", "Hello,6",
+      "Hello|Hello World,7", "Hello|Hello World,8", "Hello|Hello World,9")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

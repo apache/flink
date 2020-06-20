@@ -128,28 +128,19 @@ public class ChannelStateReaderImplTest {
 		return buf;
 	}
 
-	private ChannelStateDeserializer deserializer(byte[] data) {
-		return new ChannelStateDeserializer() {
-			@Override
-			public void readHeader(InputStream stream) {
-			}
-
-			@Override
-			public int readLength(InputStream stream) {
-				return data.length;
-			}
-
-			@Override
-			public int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) throws IOException {
-				return buffer.writeBytes(stream, bytes);
-			}
-		};
-	}
-
 	private ChannelStateReaderImpl getReader(InputChannelInfo channel, byte[] data) {
 		return new ChannelStateReaderImpl(
 			taskStateSnapshot(singletonList(new InputChannelStateHandle(channel, new ByteStreamStateHandle("", data), singletonList(0L)))),
-			deserializer(DATA));
+			new ChannelStateSerializerImpl() {
+				@Override
+				public void readHeader(InputStream stream) {
+				}
+
+				@Override
+				public int readLength(InputStream stream) {
+					return data.length;
+				}
+			});
 	}
 
 	private void readAndVerify(int bufferSize, InputChannelInfo channelInfo, byte[] data, ChannelStateReader reader) throws IOException {

@@ -82,7 +82,7 @@ env.execute("Word Count Example")
 
 ### Execution Environment Level
 
-As mentioned [here]({{ site.baseurl }}/dev/api_concepts.html#anatomy-of-a-flink-program) Flink
+As mentioned [here]({% link dev/datastream_api.md %}#anatomy-of-a-flink-program) Flink
 programs are executed in the context of an execution environment. An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the

@@ -23,17 +23,17 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.BaseRowRecordEqualiser;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RowDataRecordEqualiser;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -57,7 +57,7 @@ abstract class TopNFunctionTestBase {
 	Time maxTime = Time.milliseconds(20);
 	long cacheSize = 10000L;
 
-	BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+	RowDataTypeInfo inputRowType = new RowDataTypeInfo(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new IntType());
@@ -75,7 +75,7 @@ abstract class TopNFunctionTestBase {
 
 	private int sortKeyIdx = 2;
 
-	BinaryRowKeySelector sortKeySelector = new BinaryRowKeySelector(new int[] { sortKeyIdx },
+	BinaryRowDataKeySelector sortKeySelector = new BinaryRowDataKeySelector(new int[] { sortKeyIdx },
 			inputRowType.getLogicalTypes());
 
 	static GeneratedRecordEqualiser generatedEqualiser = new GeneratedRecordEqualiser("", "", new Object[0]) {
@@ -84,41 +84,41 @@ abstract class TopNFunctionTestBase {
 
 		@Override
 		public RecordEqualiser newInstance(ClassLoader classLoader) {
-			return new BaseRowRecordEqualiser();
+			return new RowDataRecordEqualiser();
 		}
 	};
 
 	private int partitionKeyIdx = 0;
 
-	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { partitionKeyIdx },
+	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { partitionKeyIdx },
 			inputRowType.getLogicalTypes());
 
-	private BaseRowTypeInfo outputTypeWithoutRowNumber = inputRowType;
+	private RowDataTypeInfo outputTypeWithoutRowNumber = inputRowType;
 
-	private BaseRowTypeInfo outputTypeWithRowNumber = new BaseRowTypeInfo(
+	private RowDataTypeInfo outputTypeWithRowNumber = new RowDataTypeInfo(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new IntType(),
 			new BigIntType());
 
-	BaseRowHarnessAssertor assertorWithoutRowNumber = new BaseRowHarnessAssertor(
+	RowDataHarnessAssertor assertorWithoutRowNumber = new RowDataHarnessAssertor(
 			outputTypeWithoutRowNumber.getFieldTypes(),
 			new GenericRowRecordSortComparator(sortKeyIdx, outputTypeWithoutRowNumber.getLogicalTypes()[sortKeyIdx]));
 
-	BaseRowHarnessAssertor assertorWithRowNumber = new BaseRowHarnessAssertor(
+	RowDataHarnessAssertor assertorWithRowNumber = new RowDataHarnessAssertor(
 			outputTypeWithRowNumber.getFieldTypes(),
 			new GenericRowRecordSortComparator(sortKeyIdx, outputTypeWithRowNumber.getLogicalTypes()[sortKeyIdx]));
 
 	// rowKey only used in UpdateRankFunction
 	private int rowKeyIdx = 1;
-	BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
+	BinaryRowDataKeySelector rowKeySelector = new BinaryRowDataKeySelector(new int[] { rowKeyIdx },
 			inputRowType.getLogicalTypes());
 
 	/** RankEnd column must be long, int or short type, but could not be string type yet. */
 	@Test(expected = UnsupportedOperationException.class)
 	public void testInvalidVariableRankRangeWithIntType() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(0), true, false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 	}
 
@@ -144,7 +144,7 @@ abstract class TopNFunctionTestBase {
 			new ConstantRankRange(1, 2),
 			false,
 			false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 19));
@@ -176,7 +176,7 @@ abstract class TopNFunctionTestBase {
 	public void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 19));
@@ -206,7 +206,7 @@ abstract class TopNFunctionTestBase {
 	public void testOutputRankNumberWithConstantRankRange() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 19));
@@ -240,7 +240,7 @@ abstract class TopNFunctionTestBase {
 	public void testConstantRankRangeWithOffset() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true,
 				false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 19));
@@ -264,7 +264,7 @@ abstract class TopNFunctionTestBase {
 	@Test
 	public void testOutputRankNumberWithVariableRankRange() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 19));
@@ -292,7 +292,7 @@ abstract class TopNFunctionTestBase {
 	public void testConstantRankRangeWithoutOffset() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 19));
@@ -332,10 +332,10 @@ abstract class TopNFunctionTestBase {
 				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
-	OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
 			AbstractTopNFunction rankFunction)
 			throws Exception {
-		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(rankFunction);
+		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(rankFunction);
 		rankFunction.setKeyContext(operator);
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
 	}

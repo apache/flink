@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
@@ -33,6 +34,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
+@PublicEvolving
 public class ExecutionConfigOptions {
 
 	// ------------------------------------------------------------------------
@@ -46,6 +48,22 @@ public class ExecutionConfigOptions {
 				"it will be marked as temporarily idle. This allows downstream " +
 				"tasks to advance their watermarks without the need to wait for " +
 				"watermarks from this source while it is idle.");
+
+	// ------------------------------------------------------------------------
+	//  Sink Options
+	// ------------------------------------------------------------------------
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<NotNullEnforcer> TABLE_EXEC_SINK_NOT_NULL_ENFORCER =
+		key("table.exec.sink.not-null-enforcer")
+			.enumType(NotNullEnforcer.class)
+			.defaultValue(NotNullEnforcer.ERROR)
+			.withDescription("The NOT NULL column constraint on a table enforces that " +
+				"null values can't be inserted into the table. Flink supports " +
+				"'error' (default) and 'drop' enforcement behavior. By default, " +
+				"Flink will check values and throw runtime exception when null values writing " +
+				"into NOT NULL columns. Users can change the behavior to 'drop' to " +
+				"silently drop such records without throwing exception.");
 
 	// ------------------------------------------------------------------------
 	//  Sort Options
@@ -250,4 +268,21 @@ public class ExecutionConfigOptions {
 						"Pipelined shuffle means data will be sent to consumer tasks once produced.")
 					.build());
 
+	// ------------------------------------------------------------------------------------------
+	// Enum option types
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * The enforcer to guarantee NOT NULL column constraint when writing data into sink.
+	 */
+	public enum NotNullEnforcer {
+		/**
+		 * Throws runtime exception when writing null values into NOT NULL column.
+		 */
+		ERROR,
+		/**
+		 * Drop records when writing null values into NOT NULL column.
+		 */
+		DROP
+	}
 }

@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.sinks.UpsertStreamTableSink
 
 import scala.collection.JavaConversions._
@@ -27,7 +27,7 @@ import scala.collection.JavaConversions._
 object UpdatingPlanChecker {
 
   def getUniqueKeyForUpsertSink(
-      sinkNode: Sink,
+      sinkNode: LegacySink,
       planner: PlannerBase,
       sink: UpsertStreamTableSink[_]): Option[Array[String]] = {
     // extract unique key fields
