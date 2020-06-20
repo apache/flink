@@ -243,7 +243,7 @@ class RocksDBMapState<K, N, UK, UV>
 	public boolean isEmpty() {
 		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
-		try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily, backend.getReadOptions())) {
+		try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily)) {
 
 			iterator.seek(prefixBytes);
 
@@ -254,7 +254,7 @@ class RocksDBMapState<K, N, UK, UV>
 	@Override
 	public void clear() {
 		try {
-			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily, backend.getReadOptions());
+			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily);
 				RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, backend.getWriteOptions(), backend.getWriteBatchSize())) {
 
 				final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
@@ -577,7 +577,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 			// use try-with-resources to ensure RocksIterator can be release even some runtime exception
 			// occurred in the below code block.
-			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, columnFamily, backend.getReadOptions())) {
+			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, columnFamily)) {
 
 				/*
 				 * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,
