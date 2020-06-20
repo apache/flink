@@ -202,7 +202,7 @@ public class PrintUtils {
 			} else {
 				passedWidth += 1;
 			}
-			if (passedWidth >= targetWidth) {
+			if (passedWidth > targetWidth) {
 				break;
 			}
 		}
