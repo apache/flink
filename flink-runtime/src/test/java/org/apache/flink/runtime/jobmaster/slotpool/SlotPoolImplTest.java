@@ -797,14 +797,40 @@ public class SlotPoolImplTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * In this case a slot is offered to the SlotPoolImpl before the ResourceManager is connected.
+	 * It can happen in production if a TaskExecutor is reconnected to a restarted JobMaster.
+	 */
+	@Test
+	public void testSlotsOfferedWithoutResourceManagerConnected() throws Exception {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
+			slotPool.start(JobMasterId.generate(), "mock-address", mainThreadExecutor);
+
+			final SlotRequestId slotRequestId = new SlotRequestId();
+			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedSlot(slotPool, slotRequestId);
+
+			assertThat(slotPool.getWaitingForResourceManager().values(), hasSize(1));
+
+			final AllocationID allocationId = new AllocationID();
+			offerSlot(slotPool, allocationId);
+
+			assertThat(slotPool.getWaitingForResourceManager().values(), hasSize(0));
+			assertThat(slotFuture.isDone(), is(true));
+			assertThat(slotFuture.isCompletedExceptionally(), is(false));
+			assertThat(slotFuture.getNow(null).getAllocationId(), is(allocationId));
+		}
+	}
+
 	private void requestNewAllocatedSlots(final SlotPool slotPool, final SlotRequestId... slotRequestIds) {
 		for (SlotRequestId slotRequestId : slotRequestIds) {
 			requestNewAllocatedSlot(slotPool, slotRequestId);
 		}
 	}
 
-	private void requestNewAllocatedSlot(final SlotPool slotPool, final SlotRequestId slotRequestId) {
-		slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
+	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+			final SlotPool slotPool,
+			final SlotRequestId slotRequestId) {
+		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
 	}
 
 	private void offerSlot(final SlotPoolImpl slotPool, final AllocationID allocationId) {
