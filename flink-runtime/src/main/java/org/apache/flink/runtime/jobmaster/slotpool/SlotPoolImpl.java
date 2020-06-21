@@ -553,15 +553,19 @@ public class SlotPoolImpl implements SlotPool {
 			log.debug("Fulfilling pending slot request [{}] with slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
-			// this allocation may become orphan once its corresponding request is removed
-			final AllocationID allocationIdOfRequest = pendingRequests.getKeyBByKeyA(pendingRequest.getSlotRequestId());
-
 			removePendingRequest(pendingRequest.getSlotRequestId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
 
-			maybeRemapOrphanedAllocation(allocationIdOfRequest, allocatedSlot.getAllocationId());
+			// this allocation may become orphan once its corresponding request is removed
+			final Optional<AllocationID> allocationIdOfRequest = pendingRequest.getAllocationId();
+
+			// the allocation id can be null if the request was fulfilled by a slot directly offered
+			// by a reconnected TaskExecutor before the ResourceManager is connected
+			if (allocationIdOfRequest.isPresent()) {
+				maybeRemapOrphanedAllocation(allocationIdOfRequest.get(), allocatedSlot.getAllocationId());
+			}
 		} else {
 			log.debug("Adding slot [{}] to available slots", allocatedSlot.getAllocationId());
 			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
