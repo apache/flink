@@ -85,6 +85,8 @@ class PartitionRequestClientFactory {
 				}
 			});
 
+			// Make sure to increment the reference count before handing a client
+			// out to ensure correct bookkeeping for channel closing.
 			if (!client.incrementReferenceCounter()) {
 				destroyPartitionRequestClient(connectionId, client);
 				client = null;
