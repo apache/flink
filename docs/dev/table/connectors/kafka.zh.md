@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Elasticsearch connector allows for reading data from and writing data into Kafka topics.
+The Kafka connector allows for reading data from and writing data into Kafka topics.
 
 Dependencies
 ------------
