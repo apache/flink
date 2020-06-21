@@ -29,21 +29,21 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The [JSON](https://www.json.org/json-en.html) format allows to read and write JSON data based on an JSON schema. Currently, the JSON schema is derived from table schema.
+[JSON](https://www.json.org/json-en.html) Format 能读写 JSON 格式的数据。当前，JSON scheme 是从 table schema 中自动推导而得的。
 
-Dependencies
+依赖
 ------------
 
-In order to setup the JSON format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+为了使用 JSON format，下表列出了利用自动化构建工具（例如，Maven 或者 SBT ）构建项目以及 SQL Client 所需要的依赖。
 
-| Maven dependency   | SQL Client JAR         |
+| Maven 依赖          | SQL Client JAR         |
 | :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+| `flink-json`       | 内置                    |
 
-How to create a table with JSON format
+如何创建一张基于 JSON Format 的表
 ----------------
 
-Here is an example to create a table using Kafka connector and JSON format.
+以下是一个利用 Kafka 以及 JSON Format 构建表的例子。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -67,71 +67,70 @@ CREATE TABLE user_behavior (
 </div>
 </div>
 
-Format Options
+Format 参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必须</th>
+        <th class="text-center" style="width: 10%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be <code>'json'</code>.</td>
+      <td>声明使用的格式，这里应为<code>'json'</code>。</td>
     </tr>
     <tr>
       <td><h5>json.fail-on-missing-field</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Whether to fail if a field is missing or not.</td>
+      <td>当解析字段缺失时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。</td>
     </tr>
     <tr>
       <td><h5>json.ignore-parse-errors</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Skip fields and rows with parse errors instead of failing.
-      Fields are set to null in case of errors.</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
     </tr>
     <tr>
       <td><h5>json.timestamp-format.standard</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>Specify the input and output timestamp format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
+      <td>声明输入和输出的时间戳格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
       <ul>
-        <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g '2020-12-30 12:13:14.123' and output timestamp in the same format.</li>
-        <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
+        <li>可选参数 <code>'SQL'</code> 将会以 "yyyy-MM-dd HH:mm:ss.s{precision}" 的格式解析时间戳, 例如 '2020-12-30 12:13:14.123'，且会以相同的格式输出。</li>
+        <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入时间戳, 例如 '2020-12-30T12:13:14.123' ，且会以相同的格式输出。</li>
       </ul>
       </td>
     </tr>
     </tbody>
 </table>
 
-Data Type Mapping
+数据类型映射关系
 ----------------
 
-Currently, the JSON schema is always derived from table schema. Explicitly defining an JSON schema is not supported yet.
+当前，JSON schema 将会自动从 table schema 之中自动推导得到。不支持显式地定义 JSON schema。
 
-Flink JSON format uses [jackson databind API](https://github.com/FasterXML/jackson-databind) to parse and generate JSON string.
+在 Flink 中，JSON Format 使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析和生成 JSON。
 
-The following table lists the type mapping from Flink type to JSON type.
+下表列出了 Flink 中的数据类型与 JSON 中的数据类型的映射关系。
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink SQL type</th>
-        <th class="text-left">JSON type</th>
+        <th class="text-left">Flink SQL 类型</th>
+        <th class="text-left">JSON 类型</th>
       </tr>
     </thead>
     <tbody>
