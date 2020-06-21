@@ -1,5 +1,5 @@
 ---
-title: "DataGen SQL Connector"
+title: "DataGen SQL 连接器"
 nav-title: DataGen
 nav-parent_id: sql-connectors
 nav-pos: 10
@@ -23,32 +23,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<span class="label label-primary">Scan Source: Bounded</span>
-<span class="label label-primary">Scan Source: UnBounded</span>
+<span class="label label-primary">Scan Source: 有界</span>
+<span class="label label-primary">Scan Source: 无界</span>
 
 * This will be replaced by the TOC
 {:toc}
 
-The Datagen connector allows for reading by data generation rules.
+DataGen 连接器允许按数据生成规则进行读取。
 
-The Datagen connector can work with [Computed Column syntax]({% link dev/table/sql/create.zh.md %}#create-table).
-This allows you to generate records flexibly.
+DataGen 连接器可以使用[计算列语法]({% link dev/table/sql/create.zh.md %}#create-table)。
+这使您可以灵活地生成记录。
 
-The Datagen connector is built-in.
+DataGen 连接器是内置的。
 
-<span class="label label-danger">Attention</span> Complex types are not supported: Array, Map, Row. Please construct these types by computed column.
+<span class="label label-danger">注意</span> 不支持复杂类型: Array，Map，Row。 请用计算列构造这些类型。
 
-How to create a Datagen table
+怎么创建一个 DataGen 的表
 ----------------
 
-The boundedness of table: when the generation of field data in the table is completed, the reading
-is finished. So the boundedness of the table depends on the boundedness of fields.
+表的有界性：当表中字段的数据全部生成完成后，source 就结束了。 因此，表的有界性取决于字段的有界性。
 
-For each field, there are two ways to generate data:
+每个列，都有两种生成数据的方法：
 
-- Random generator is the default generator, you can specify random max and min values. For char/varchar/string, the length can be specified. It is a unbounded generator.
-- Sequence generator, you can specify sequence start and end values. It is a bounded generator, when the sequence number reaches the end value, the reading ends.
+- 随机生成器是默认的生成器，您可以指定随机生成的最大和最小值。char、varchar、string （类型）可以指定长度。它是无界的生成器。
 
+- 序列生成器，您可以指定序列的起始和结束值。它是有界的生成器，当序列数字达到结束值，读取结束。
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
@@ -78,7 +77,8 @@ CREATE TABLE datagen (
 </div>
 </div>
 
-Connector Options
+
+连接器选项
 ----------------
 
 <table class="table table-bordered">
@@ -94,59 +94,59 @@ Connector Options
     <tbody>
     <tr>
       <td><h5>connector</h5></td>
-      <td>required</td>
+      <td>必须</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be 'datagen'.</td>
+      <td>指定要使用的连接器，这里是 'datagen'。</td>
     </tr>
     <tr>
       <td><h5>rows-per-second</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">10000</td>
       <td>Long</td>
-      <td>Rows per second to control the emit rate.</td>
+      <td>每秒生成的行数，用以控制数据发出速率。</td>
     </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">random</td>
       <td>String</td>
-      <td>Generator of this '#' field. Can be 'sequence' or 'random'.</td>
+      <td>指定 '#' 字段的生成器。可以是 'sequence' 或 'random'。</td>
     </tr>
     <tr>
       <td><h5>fields.#.min</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(Minimum value of type)</td>
       <td>(Type of field)</td>
-      <td>Minimum value of random generator, work for number types.</td>
+      <td>随机生成器的最小值，适用于数字类型。</td>
     </tr>
     <tr>
       <td><h5>fields.#.max</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(Maximum value of type)</td>
       <td>(Type of field)</td>
-      <td>Maximum value of random generator, work for number types.</td>
+      <td>随机生成器的最大值，适用于数字类型。</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>Length for string generating of random generator, work for char/varchar/string.</td>
+      <td>随机生成器生成字符的长度，适用于 char、varchar、string。</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>(Type of field)</td>
-      <td>Start value of sequence generator.</td>
+      <td>序列生成器的起始值。</td>
     </tr>
     <tr>
       <td><h5>fields.#.end</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>(Type of field)</td>
-      <td>End value of sequence generator.</td>
+      <td>序列生成器的结束值。</td>
     </tr>
     </tbody>
 </table>

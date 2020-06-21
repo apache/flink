@@ -29,16 +29,16 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Datagen connector allows for reading by data generation rules.
+The DataGen connector allows for reading by data generation rules.
 
-The Datagen connector can work with [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table).
+The DataGen connector can work with [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table).
 This allows you to generate records flexibly.
 
-The Datagen connector is built-in.
+The DataGen connector is built-in.
 
 <span class="label label-danger">Attention</span> Complex types are not supported: Array, Map, Row. Please construct these types by computed column.
 
-How to create a Datagen table
+How to create a DataGen table
 ----------------
 
 The boundedness of table: when the generation of field data in the table is completed, the reading
