@@ -82,6 +82,6 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 
 * [生成水印]({% link dev/event_timestamps_watermarks.zh.md %})：描述了在写可感知事件时间的 Flink 应用程序时，如何定义时间戳分配器和水印生成器。
 * [内置水印生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 自带的水印生成器。
-* [调试窗口&事件时间]({{ site.baseurl}}/zh/monitoring/debugging_event_time.html)：描述了在可感知事件时间的 Flink 应用程序里，如何调试水印和时间戳。
+* [调试窗口&事件时间]({% link monitoring/debugging_event_time.zh.md %})：描述了在可感知事件时间的 Flink 应用程序里，如何调试水印和时间戳。
 
 {% top %}
