@@ -29,32 +29,33 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[Debezium](https://debezium.io/) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL, PostgreSQL, Oracle, Microsoft SQL Server and many other databases into Kafka. Debezium provides a unified format schema for changelog and supports to serialize messages using JSON and [Apache Avro](https://avro.apache.org/).
+[Debezium](https://debezium.io/) Debezium 是一个 CDC（Changelog Data Capture，变更数据捕获）的工具，可以把来自 MySQL、PostgreSQL、Oracle、Microsoft SQL Server 和许多其他数据库的更改实时流式传输到 Kafka 中。 Debezium 为变更日志提供了统一的格式结构，并支持使用 JSON 和 Apache Avro 序列化消息。
 
-Flink supports to interpret Debezium JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
- - synchronizing incremental data from databases to other systems
- - auditing logs
- - real-time materialized views on databases
- - temporal join changing history of a database table and so on.
+Flink 支持将 Debezium JSON 消息解析为 INSERT / UPDATE / DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常的有用，例如
+ - 将增量数据从数据库同步到其他系统
+ - 日志审计
+ - 数据库的实时物化视图
+ - 关联维度数据库的变更历史，等等。
 
-*Note: Support for interpreting Debezium Avro messages and emitting Debezium messages is on the roadmap.*
+*注意: 支持解析 Debezium Avro 消息和输出 Debezium 消息已经规划在路线图上了。*
 
-Dependencies
+依赖
 ------------
 
-In order to setup the Debezium format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+为了设置 Debezium Format，下表提供了使用构建自动化工具（例如 Maven 或 SBT）和带有 SQL JAR 包的 SQL Client 的两个项目的依赖项信息。
 
-| Maven dependency   | SQL Client JAR         |
+| Maven 依赖   | SQL Client JAR         |
 | :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+| `flink-json`       | 内置               |
 
-*Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.1/index.html) about how to setup a Debezium Kafka Connect to synchronize changelog to Kafka topics.*
+*注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.1/index.html)，了解如何设置 Debezium Kafka Connect 用来将变更日志同步到 Kafka 主题。*
 
 
-How to use Debezium format
+如何使用 Debezium Format
 ----------------
 
-Debezium provides a unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table:
+
+Debezium 为变更日志提供了统一的格式，这是一个从 MySQL product 表捕获的更新操作的简单示例:
 
 ```json
 {
@@ -77,16 +78,15 @@ Debezium provides a unified format for changelog, here is a simple example for a
 }
 ```
 
-*Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.1/connectors/mysql.html#mysql-connector-events_debezium) about the meaning of each fields.*
+*注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.1/connectors/mysql.html#mysql-connector-events_debezium)，了解每个字段的含义。*
 
-The MySQL `products` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON message is an update change event on the `products` table where the `weight` value of the row with `id = 111` is changed from `5.18` to `5.15`.
-Assuming this messages is synchronized to Kafka topic `products_binlog`, then we can use the following DDL to consume this topic and interpret the change events.
+MySQL 产品表有4列（`id`、`name`、`description`、`weight`）。上面的 JSON 消息是 `products` 表上的一条更新事件，其中 `id = 111` 的行的 `weight` 值从 `5.18` 更改为 `5.15`。假设此消息已同步到 Kafka 主题 `products_binlog`，则可以使用以下 DDL 来使用此主题并解析更改事件。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE topic_products (
-  -- schema is totally the same to the MySQL "products" table
+  -- schema 与 MySQL 的 products 表完全相同
   id BIGINT,
   name STRING,
   description STRING,
@@ -96,13 +96,13 @@ CREATE TABLE topic_products (
  'topic' = 'products_binlog',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
- 'format' = 'debezium-json'  -- using debezium-json as the format
+ 'format' = 'debezium-json'  -- 使用 debezium-json 作为 format
 )
 {% endhighlight %}
 </div>
 </div>
 
-In some cases, users may setup the Debezium Kafka Connect with the Kafka configuration `'value.converter.schemas.enable'` enabled to include schema in the message. Then the Debezium JSON message may look like this:
+在某些情况下，用户在设置 Debezium Kafka Connect 时，可能会开启 Kafka 的配置 `'value.converter.schemas.enable'`，用来在消息体中包含 schema 信息。然后，Debezium JSON 消息可能如下所示:
 
 ```json
 {
@@ -128,19 +128,19 @@ In some cases, users may setup the Debezium Kafka Connect with the Kafka configu
 }
 ```
 
-In order to interpret such messages, you need to add the option `'debezium-json.schema-include' = 'true'` into above DDL WITH clause (`false` by default). Usually, this is not recommended to include schema because this makes the messages very verbose and reduces parsing performance.
+为了解析这一类信息，你需要在上述 DDL WITH 子句中添加选项 `'debezium-json.schema-include' = 'true'`（默认为 false）。通常情况下，建议不要包含 schema 的描述，因为这样会使消息变得非常冗长，并降低解析性能。
 
-After registering the topic as a Flink table, then you can consume the Debezium messages as a changelog source.
+在将主题注册为 Flink 表之后，可以将 Debezium 消息用作变更日志源。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
--- a real-time materialized view on the MySQL "products"
--- which calculate the latest average of weight for the same products
+-- MySQL "products" 的实时物化视图
+-- 计算相同产品的最新平均重量
 SELECT name, AVG(weight) FROM topic_products GROUP BY name;
 
--- synchronize all the data and incremental changes of MySQL "products" table to
--- Elasticsearch "products" index for future searching
+-- 将 MySQL "products" 表的所有数据和增量更改同步到
+-- Elasticsearch "products" 索引，供将来查找
 INSERT INTO elasticsearch_products
 SELECT * FROM topic_products;
 {% endhighlight %}
@@ -148,60 +148,58 @@ SELECT * FROM topic_products;
 </div>
 
 
-Format Options
+Format 参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be <code>'debezium-json'</code>.</td>
+      <td>指定要使用的格式，此处应为 <code>'debezium-json'</code>。</td>
     </tr>
     <tr>
       <td><h5>debezium-json.schema-include</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>When setting up a Debezium Kafka Connect, users may enable a Kafka configuration <code>'value.converter.schemas.enable'</code> to include schema in the message.
-          This option indicates whether the Debezium JSON message includes the schema or not. </td>
+      <td>设置 Debezium Kafka Connect 时，用户可以启用 Kafka 配置 <code>'value.converter.schemas.enable'</code> 以在消息中包含 schema。此选项表明 Debezium JSON 消息是否包含 schema。</td>
     </tr>
     <tr>
       <td><h5>debezium-json.ignore-parse-errors</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Skip fields and rows with parse errors instead of failing.
-      Fields are set to null in case of errors.</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
     </tr>
     <tr>
       <td><h5>debezium-json.timestamp-format.standard</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>Specify the input and output timestamp format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
+      <td>声明输入和输出的时间戳格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
       <ul>
-        <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g '2020-12-30 12:13:14.123' and output timestamp in the same format.</li>
-        <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
+        <li>可选参数 <code>'SQL'</code> 将会以 "yyyy-MM-dd HH:mm:ss.s{precision}" 的格式解析时间戳, 例如 '2020-12-30 12:13:14.123'，且会以相同的格式输出。</li>
+        <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入时间戳, 例如 '2020-12-30T12:13:14.123' ，且会以相同的格式输出。</li>
       </ul>
       </td>
     </tr>
     </tbody>
 </table>
 
-Data Type Mapping
+数据类型映射
 ----------------
 
-Currently, the Debezium format uses JSON format for deserialization. Please refer to [JSON format documentation]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping) for more details about the data type mapping.
+目前，Debezium Format 使用 JSON Format 进行反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
 
