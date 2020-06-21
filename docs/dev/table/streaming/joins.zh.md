@@ -31,6 +31,8 @@ Join 在批数据处理中是比较常见且广为人知的运算，一般用于
 * This will be replaced by the TOC
 {:toc}
 
+<a name="regular-joins"></a>
+
 常规 Join
 -------------
 
@@ -45,6 +47,8 @@ ON Orders.productId = Product.id
 上述语意允许对输入表进行任意类型的更新操作（insert, update, delete）。
 
 然而，常规 Join 隐含了一个重要的前提：即它需要在 Flink 的状态中永久保存 Join 两侧的数据。因而，如果 Join 操作中的一方或双方输入表持续增长的话，资源消耗也将会随之无限增长。
+
+<a name="interval-joins"></a>
 
 时间区间 Join
 -------------------
@@ -62,6 +66,8 @@ WHERE o.id = s.orderId AND
 
 与常规 Join 操作相比，时间区间 Join 只支持带有时间属性的递增表。由于时间属性是单调递增的，Flink 可以从状态中移除过期的数据，而不会影响结果的正确性。
 
+<a name="join-with-a-temporal-table-function"></a>
+
 时态表函数 Join
 --------------------------
 
@@ -69,8 +75,7 @@ WHERE o.id = s.orderId AND
 
 下方示例展示了一个递增表 `Orders` 与一个不断改变的汇率表 `RatesHistory` 的 Join 操作。
 
-`Orders` 表示了包含支付数据（数量字段 `amount` 和货币字段 `currency`）的递增表。
-例如 `10:15` 对应行的记录代表了一笔 2 欧元支付记录。
+`Orders` 表示了包含支付数据（数量字段 `amount` 和货币字段 `currency`）的递增表。例如 `10:15` 对应行的记录代表了一笔 2 欧元支付记录。
 
 {% highlight sql %}
 SELECT * FROM Orders;
@@ -84,8 +89,7 @@ rowtime amount currency
 11:04        5 US Dollar
 {% endhighlight %}
 
-字段 `RatesHistory` 表示不断变化的汇率信息。汇率以日元为基准（即 `Yen` 永远为 1）。
-例如，`09:00` 到 `10:45` 间欧元对日元的汇率是 `114`，`10:45` 到 `11:15` 间为 `116`。
+字段 `RatesHistory` 表示不断变化的汇率信息。汇率以日元为基准（即 `Yen` 永远为 1）。例如，`09:00` 到 `10:45` 间欧元对日元的汇率是 `114`，`10:45` 到 `11:15` 间为 `116`。
 
 {% highlight sql %}
 SELECT * FROM RatesHistory;
@@ -100,9 +104,7 @@ rowtime currency   rate
 11:49   Pounds      108
 {% endhighlight %}
 
-基于上述信息，欲计算 `Orders` 表中所有交易量并全部转换成日元。
-
-例如，若要转换下表中的交易，需要使用对应时间区间内的汇率（即 `114`）。
+基于上述信息，欲计算 `Orders` 表中所有交易量并全部转换成日元。例如，若要转换下表中的交易，需要使用对应时间区间内的汇率（即 `114`）。
 
 {% highlight text %}
 rowtime amount currency
@@ -136,8 +138,7 @@ FROM
 WHERE r.currency = o.currency
 {% endhighlight %}
 
-探针侧的每条记录都将与构建侧的表执行 Join 运算，构建侧的表中与探针侧对应时间属性的记录将参与运算。
-为了支持更新（包括覆盖）构建侧的表，该表必须定义主键。
+探针侧的每条记录都将与构建侧的表执行 Join 运算，构建侧的表中与探针侧对应时间属性的记录将参与运算。为了支持更新（包括覆盖）构建侧的表，该表必须定义主键。
 
 在示例中，`Orders` 表中的每一条记录都与时间点 `o.rowtime` 的 `Rates` 进行 Join 运算。`currency` 字段已被定义为 `Rates` 表的主键，在示例中该字段也被用于连接两个表。如果该查询采用的是 processing-time，则在执行时新增的订单将始终与最新的 `Rates` 执行 Join。
 
@@ -152,7 +153,7 @@ WHERE r.currency = o.currency
 在 [定义时态表函数](temporal_tables.html#defining-temporal-table-function) 之后就可以使用了。
 时态表函数可以和普通表函数一样使用。
 
-接下来这段代码解决了我们一开始提出的问题，即从计算 `Orders` 表中交易量之和并转换为对应货币：
+接下来这段代码解决了我们一开始提出的问题，即从计算订单表 `Orders` 的交易量之和，并转换为对应货币：
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -206,6 +207,8 @@ val result = orders
 因此，新插入的记录仅与时间戳小于等于 `12:30:00` 的记录进行 Join 计算（由主键决定哪些时间点的数据将参与计算）。
 
 通过定义事件时间（event time），[watermarks]({{ site.baseurl }}/zh/dev/event_time.html) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
+
+<a name="join-with-a-temporal-table"></a>
 
 时态表 Join
 --------------------------
