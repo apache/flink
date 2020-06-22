@@ -98,6 +98,7 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	V put(A aKey, B bKey, V value) {
 		final V oldValue = getValueByKeyA(aKey);
 
@@ -131,6 +132,7 @@ class DualKeyLinkedMap<A, B, V> {
 		return bMap.containsKey(bKey);
 	}
 
+	@Nullable
 	V removeKeyA(A aKey) {
 		Tuple2<B, V> aValue = aMap.remove(aKey);
 
@@ -142,6 +144,7 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	V removeKeyB(B bKey) {
 		A aKey = bMap.remove(bKey);
 
