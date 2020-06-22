@@ -48,6 +48,13 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     (8L, 8, "Hello World"),
     (20L, 20, "Hello World"))
 
+  @Before
+  def setupEnv(): Unit = {
+    // unaligned checkpoints are regenerating watermarks after recovery of in-flight data
+    // https://issues.apache.org/jira/browse/FLINK-18405
+    env.getCheckpointConfig.enableUnalignedCheckpoints(false)
+  }
+
   @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
