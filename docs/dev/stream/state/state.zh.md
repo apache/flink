@@ -739,6 +739,7 @@ public static class CounterSource
         state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
             "state",
             LongSerializer.INSTANCE));
+            
         // 从我们已保存的状态中恢复 offset 到内存中，在进行任务恢复的时候也会调用此初始化状态的方法
         for (Long l : state.get()) {
             offset = l;
