@@ -111,6 +111,10 @@ public class InputProcessorUtil {
 				}
 				return new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputGates);
 			case AT_LEAST_ONCE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					throw new IllegalStateException("Cannot use unaligned checkpoints with AT_LEAST_ONCE " +
+						"checkpointing mode");
+				}
 				int numInputChannels = Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum();
 				return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint);
 			default:
