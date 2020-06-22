@@ -1089,10 +1089,6 @@ public class SlotPoolImpl implements SlotPool {
 			return allocatedSlotsById.getValueByKeyA(allocationID);
 		}
 
-		AllocatedSlot get(final SlotRequestId slotRequestId) {
-			return allocatedSlotsById.getValueByKeyB(slotRequestId);
-		}
-
 		/**
 		 * Check whether we have allocated this slot.
 		 *
