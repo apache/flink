@@ -31,7 +31,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -43,101 +42,22 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+/**
+ * {@link PartitionRequestClientFactory} test.
+ */
 public class PartitionRequestClientFactoryTest {
 
-	private final static int SERVER_PORT = NetUtils.getAvailablePort();
-
-	@Ignore
-	public void testResourceReleaseAfterInterruptedConnect() throws Exception {
-
-		// Latch to synchronize on the connect call.
-		final CountDownLatch syncOnConnect = new CountDownLatch(1);
-
-		final Tuple2<NettyServer, NettyClient> netty = createNettyServerAndClient(
-				new NettyProtocol(null, null) {
-
-					@Override
-					public ChannelHandler[] getServerChannelHandlers() {
-						return new ChannelHandler[0];
-					}
-
-					@Override
-					public ChannelHandler[] getClientChannelHandlers() {
-						return new ChannelHandler[] {
-								new CountDownLatchOnConnectHandler(syncOnConnect)};
-					}
-				});
-
-		final NettyServer server = netty.f0;
-		final NettyClient client = netty.f1;
-
-		final UncaughtTestExceptionHandler exceptionHandler = new UncaughtTestExceptionHandler();
-
-		try {
-			final PartitionRequestClientFactory factory = new PartitionRequestClientFactory(client);
-
-			final Thread connect = new Thread(new Runnable() {
-				@Override
-				public void run() {
-					ConnectionID serverAddress = null;
-
-					try {
-						serverAddress = createServerConnectionID(0);
-
-						// This triggers a connect
-						factory.createPartitionRequestClient(serverAddress);
-					}
-					catch (Throwable t) {
-
-						if (serverAddress != null) {
-							factory.closeOpenChannelConnections(serverAddress);
-							Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), t);
-						} else {
-							t.printStackTrace();
-							fail("Could not create RemoteAddress for server.");
-						}
-					}
-				}
-			});
-
-			connect.setUncaughtExceptionHandler(exceptionHandler);
-
-			connect.start();
-
-			// Wait on the connect
-			syncOnConnect.await();
-
-			connect.interrupt();
-			connect.join();
-
-			// Make sure that after a failed connect all resources are cleared.
-			assertEquals(0, factory.getNumberOfActiveClients());
-
-			// Make sure that the interrupt exception is not swallowed
-			assertTrue(exceptionHandler.getErrors().size() > 0);
-		}
-		finally {
-			if (server != null) {
-				server.shutdown();
-			}
-
-			if (client != null) {
-				client.shutdown();
-			}
-		}
-	}
+	private static final int SERVER_PORT = NetUtils.getAvailablePort();
 
 	@Test
 	public void testNettyClientConnectRetry() throws Exception {
@@ -210,7 +130,7 @@ public class PartitionRequestClientFactoryTest {
 				assertNotNull(client);
 			} catch (Exception e) {
 				System.out.println(e.getMessage());
-				 fail();
+				fail();
 			}
 		});
 
