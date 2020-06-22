@@ -224,6 +224,11 @@ public class StreamingJobGraphGenerator {
 				}
 			}
 		}
+
+		if (checkpointConfig.isUnalignedCheckpointsEnabled() && getCheckpointingMode(checkpointConfig) != CheckpointingMode.EXACTLY_ONCE) {
+			LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
+			checkpointConfig.enableUnalignedCheckpoints(false);
+		}
 	}
 
 	private void setPhysicalEdges() {
@@ -500,8 +505,8 @@ public class StreamingJobGraphGenerator {
 
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
-		config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
 		config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
+		config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
 
 		for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
 			config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
