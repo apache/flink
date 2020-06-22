@@ -71,26 +71,31 @@ public class RocksDBStateMisuseOptionTest {
 	@Test
 	public void testMisuseOptimizePointLookupWithMapState() throws Exception {
 		RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
-		RocksDBKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend(rocksDBStateBackend, new MockEnvironmentBuilder().build(), IntSerializer.INSTANCE);
-		MapStateDescriptor<Integer, Long> stateDescriptor = new MapStateDescriptor<>("map", IntSerializer.INSTANCE, LongSerializer.INSTANCE);
-		MapState<Integer, Long> mapState = keyedStateBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+		RocksDBKeyedStateBackend<Integer> keyedStateBackend =
+			createKeyedStateBackend(rocksDBStateBackend, new MockEnvironmentBuilder().build(), IntSerializer.INSTANCE);
+		try {
+			MapStateDescriptor<Integer, Long> stateDescriptor = new MapStateDescriptor<>("map", IntSerializer.INSTANCE, LongSerializer.INSTANCE);
+			MapState<Integer, Long> mapState = keyedStateBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
 
-		keyedStateBackend.setCurrentKey(1);
-		Map<Integer, Long> expectedResult = new HashMap<>();
-		for (int i = 0; i < 100; i++) {
-			long uv = ThreadLocalRandom.current().nextLong();
-			mapState.put(i, uv);
-			expectedResult.put(i, uv);
-		}
+			keyedStateBackend.setCurrentKey(1);
+			Map<Integer, Long> expectedResult = new HashMap<>();
+			for (int i = 0; i < 100; i++) {
+				long uv = ThreadLocalRandom.current().nextLong();
+				mapState.put(i, uv);
+				expectedResult.put(i, uv);
+			}
 
-		Iterator<Map.Entry<Integer, Long>> iterator = mapState.entries().iterator();
-		while (iterator.hasNext()) {
-			Map.Entry<Integer, Long> entry = iterator.next();
-			assertEquals(entry.getValue(), expectedResult.remove(entry.getKey()));
-			iterator.remove();
+			Iterator<Map.Entry<Integer, Long>> iterator = mapState.entries().iterator();
+			while (iterator.hasNext()) {
+				Map.Entry<Integer, Long> entry = iterator.next();
+				assertEquals(entry.getValue(), expectedResult.remove(entry.getKey()));
+				iterator.remove();
+			}
+			assertTrue(expectedResult.isEmpty());
+			assertTrue(mapState.isEmpty());
+		} finally {
+			keyedStateBackend.dispose();
 		}
-		assertTrue(expectedResult.isEmpty());
-		assertTrue(mapState.isEmpty());
 	}
 
 	/**
@@ -101,27 +106,32 @@ public class RocksDBStateMisuseOptionTest {
 	@Test
 	public void testMisuseOptimizePointLookupWithPriorityQueue() throws IOException {
 		RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
-		RocksDBKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend(rocksDBStateBackend, new MockEnvironmentBuilder().build(), IntSerializer.INSTANCE);
-		KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<Integer, VoidNamespace>> priorityQueue =
-			keyedStateBackend.create("timer", new TimerSerializer<>(keyedStateBackend.getKeySerializer(), VoidNamespaceSerializer.INSTANCE));
+		RocksDBKeyedStateBackend<Integer> keyedStateBackend =
+			createKeyedStateBackend(rocksDBStateBackend, new MockEnvironmentBuilder().build(), IntSerializer.INSTANCE);
+		try {
+			KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<Integer, VoidNamespace>> priorityQueue =
+				keyedStateBackend.create("timer", new TimerSerializer<>(keyedStateBackend.getKeySerializer(), VoidNamespaceSerializer.INSTANCE));
 
-		PriorityQueue<TimerHeapInternalTimer<Integer, VoidNamespace>> expectedPriorityQueue = new PriorityQueue<>((o1, o2) -> (int) (o1.getTimestamp() - o2.getTimestamp()));
-		// ensure we insert timers more than cache capacity.
-		int queueSize = RocksDBPriorityQueueSetFactory.DEFAULT_CACHES_SIZE + 42;
-		List<Integer> timeStamps = IntStream.range(0, queueSize).boxed().collect(Collectors.toList());
-		Collections.shuffle(timeStamps);
-		for (Integer timeStamp : timeStamps) {
-			TimerHeapInternalTimer<Integer, VoidNamespace> timer = new TimerHeapInternalTimer<>(timeStamp, timeStamp, VoidNamespace.INSTANCE);
-			priorityQueue.add(timer);
-			expectedPriorityQueue.add(timer);
+			PriorityQueue<TimerHeapInternalTimer<Integer, VoidNamespace>> expectedPriorityQueue = new PriorityQueue<>((o1, o2) -> (int) (o1.getTimestamp() - o2.getTimestamp()));
+			// ensure we insert timers more than cache capacity.
+			int queueSize = RocksDBPriorityQueueSetFactory.DEFAULT_CACHES_SIZE + 42;
+			List<Integer> timeStamps = IntStream.range(0, queueSize).boxed().collect(Collectors.toList());
+			Collections.shuffle(timeStamps);
+			for (Integer timeStamp : timeStamps) {
+				TimerHeapInternalTimer<Integer, VoidNamespace> timer = new TimerHeapInternalTimer<>(timeStamp, timeStamp, VoidNamespace.INSTANCE);
+				priorityQueue.add(timer);
+				expectedPriorityQueue.add(timer);
+			}
+			assertEquals(queueSize, priorityQueue.size());
+			TimerHeapInternalTimer<Integer, VoidNamespace> timer;
+			while ((timer = priorityQueue.poll()) != null) {
+				assertEquals(expectedPriorityQueue.poll(), timer);
+			}
+			assertTrue(expectedPriorityQueue.isEmpty());
+			assertTrue(priorityQueue.isEmpty());
+		} finally {
+			keyedStateBackend.dispose();
 		}
-		assertEquals(queueSize, priorityQueue.size());
-		TimerHeapInternalTimer<Integer, VoidNamespace> timer;
-		while ((timer = priorityQueue.poll()) != null) {
-			assertEquals(expectedPriorityQueue.poll(), timer);
-		}
-		assertTrue(expectedPriorityQueue.isEmpty());
-		assertTrue(priorityQueue.isEmpty());
 
 	}
 
