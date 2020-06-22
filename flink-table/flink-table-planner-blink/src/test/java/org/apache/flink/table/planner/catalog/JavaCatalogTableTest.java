@@ -50,7 +50,7 @@ import static org.apache.flink.table.api.Expressions.lit;
  * Tests for resolving types of computed columns (including time attributes) of tables from catalog.
  */
 @RunWith(Parameterized.class)
-public class JavaCatalogTableITCase extends TableTestBase {
+public class JavaCatalogTableTest extends TableTestBase {
 	@Parameterized.Parameters(name = "streamingMode = {0}")
 	public static Collection<Boolean> parameters() {
 		return Arrays.asList(true, false);

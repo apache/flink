@@ -166,9 +166,9 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 		}
 
 		return TableSourceUtil.getSourceRowType(
-				flinkTypeFactory,
-				tableSchema,
-				scala.Option.empty(),
+			flinkTypeFactory,
+			tableSchema,
+			scala.Option.empty(),
 			isStreamingMode);
 	}
 

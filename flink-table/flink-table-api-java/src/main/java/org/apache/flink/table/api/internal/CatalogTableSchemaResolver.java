@@ -78,17 +78,17 @@ public class CatalogTableSchemaResolver {
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
 			TableColumn tableColumn = tableSchema.getTableColumns().get(i);
 			DataType fieldType = fieldTypes[i];
-			DataType exprType = null;
+
 			if (tableColumn.isGenerated()) {
-				exprType = resolveExpressionDataType(tableColumn.getExpr().get(), tableSchema);
+				fieldType = resolveExpressionDataType(tableColumn.getExpr().get(), tableSchema);
+				if (isProctime(fieldType)) {
+					if (fieldNames[i].equals(rowtime)) {
+						throw new TableException("Watermark can not be defined for a processing time attribute column.");
+					}
+				}
 			}
 
-			if (exprType != null && isProctime(exprType)) {
-				if (fieldNames[i].equals(rowtime)) {
-					throw new TableException("Watermark can not be defined for a processing time attribute column.");
-				}
-				fieldType = exprType;
-			} else if (isStreamingMode && fieldNames[i].equals(rowtime)) {
+			if (isStreamingMode && fieldNames[i].equals(rowtime)) {
 				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
 				LogicalType rowtimeType = new TimestampType(
 						originalType.isNullable(),
@@ -96,6 +96,7 @@ public class CatalogTableSchemaResolver {
 						originalType.getPrecision());
 				fieldType = TypeConversions.fromLogicalToDataType(rowtimeType);
 			}
+
 			if (tableColumn.isGenerated()) {
 				builder.field(fieldNames[i], fieldType, tableColumn.getExpr().get());
 			} else {
