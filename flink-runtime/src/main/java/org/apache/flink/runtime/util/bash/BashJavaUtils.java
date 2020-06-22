@@ -105,7 +105,7 @@ public class BashJavaUtils {
 
 		logMasterConfiguration(jobManagerProcessSpec);
 
-		return Collections.singletonList(ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
+		return Collections.singletonList(JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, configuration));
 	}
 
 	private static void logMasterConfiguration(JobManagerProcessSpec spec) {

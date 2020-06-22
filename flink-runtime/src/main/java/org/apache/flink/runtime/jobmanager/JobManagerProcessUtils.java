@@ -93,4 +93,10 @@ public class JobManagerProcessUtils {
 		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalProcessMemoryMb));
 		return processSpecFromConfig(configuration);
 	}
+
+	public static String generateJvmParametersStr(JobManagerProcessSpec processSpec, Configuration configuration) {
+		return ProcessMemoryUtils.generateJvmParametersStr(
+			processSpec,
+			configuration.getBoolean(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
+	}
 }

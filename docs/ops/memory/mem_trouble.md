@@ -37,7 +37,7 @@ greater than 1, etc.) or configuration conflicts. Check the documentation chapte
 The exception usually indicates that the *JVM Heap* is too small. You can try to increase the JVM Heap size
 by increasing [total memory](mem_setup.html#configure-total-memory). You can also directly increase
 [task heap memory](mem_setup_tm.html#task-operator-heap-memory) for TaskManagers or
-[JVM Heap memory]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) for Masters.
+[JVM Heap memory]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) for JobManagers.
 
 <span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_setup_tm.html#framework-memory)
 for TaskManagers, but you should only change this option if you are sure the Flink framework itself needs more memory.
@@ -54,7 +54,7 @@ See also how to configure off-heap memory for [TaskManagers](mem_setup_tm.html#c
 
 The exception usually indicates that [JVM metaspace limit](mem_setup.html#jvm-parameters) is configured too small.
 You can try to increase the JVM metaspace option for [TaskManagers](../config.html#taskmanager-memory-jvm-metaspace-size)
-or [Masters](../config.html#jobmanager-memory-jvm-metaspace-size).
+or [JobManagers](../config.html#jobmanager-memory-jvm-metaspace-size).
 
 ## IOException: Insufficient number of network buffers
 
@@ -71,6 +71,10 @@ is not big enough. You can try to increase the *network memory* by adjusting the
 If a Flink container tries to allocate memory beyond its requested size (Yarn, Mesos or Kubernetes),
 this usually indicates that Flink has not reserved enough native memory. You can observe this either by using an external
 monitoring system or from the error messages when a container gets killed by the deployment environment.
+
+If you encounter this problem in the *JobManager* process, you can also enable the *JVM Direct Memory* limit by setting the
+[`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) option
+to exclude possible *JVM Direct Memory* leak.
 
 If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is used, and the memory controlling is disabled,
 you can try to increase the TaskManager's [managed memory](mem_setup.html#managed-memory).

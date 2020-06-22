@@ -194,7 +194,6 @@ public class ConfigurationUtils {
 
 		checkArgument(configs.containsKey(xmx));
 		checkArgument(configs.containsKey(xms));
-		checkArgument(configs.containsKey(maxDirect));
 		checkArgument(configs.containsKey(maxMetadata));
 
 		return configs;

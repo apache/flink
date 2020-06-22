@@ -26,7 +26,6 @@ import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
-import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import org.junit.Test;
@@ -64,8 +63,9 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 					FLINK_LOG_DIR_IN_POD, FLINK_LOG_DIR_IN_POD);
 
 	// Memory variables
-	private static final String jmJvmMem = ProcessMemoryUtils.generateJvmParametersStr(
-		JobManagerProcessUtils.createDefaultJobManagerProcessSpec(JOB_MANAGER_MEMORY));
+	private final String jmJvmMem = JobManagerProcessUtils.generateJvmParametersStr(
+		JobManagerProcessUtils.createDefaultJobManagerProcessSpec(JOB_MANAGER_MEMORY),
+		flinkConfig);
 
 	private JavaCmdJobManagerDecorator javaCmdJobManagerDecorator;
 
