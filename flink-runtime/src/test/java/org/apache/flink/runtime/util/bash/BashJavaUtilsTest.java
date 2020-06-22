@@ -32,7 +32,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link BashJavaUtils}
+ * Tests for {@link BashJavaUtils}.
  */
 public class BashJavaUtilsTest extends TestLogger {
 	@Test
