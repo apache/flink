@@ -74,7 +74,7 @@ public class StatefulStreamJobUpgradeTestProgram {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		setupEnvironment(env, pt);
-		env.getCheckpointConfig().enableUnalignedCheckpoints();
+		env.getCheckpointConfig().enableUnalignedCheckpoints(true);
 
 		if (isOriginalJobVariant(pt)) {
 			executeOriginalVariant(env, pt);
