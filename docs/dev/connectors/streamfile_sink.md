@@ -733,6 +733,9 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, Flink will refuse to resume and it will throw an exception as it cannot locate the 
 in-progress file.
 
+<span class="label label-danger">Important Note 4</span>: Currently, the `StreamingFileSink` only supports three filesystems: 
+HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+
 ### S3-specific
 
 <span class="label label-danger">Important Note 1</span>: For S3, the `StreamingFileSink`
