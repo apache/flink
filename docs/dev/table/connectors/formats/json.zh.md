@@ -1,5 +1,5 @@
 ---
-title: "JSON格式"
+title: "JSON Format"
 nav-title: JSON
 nav-parent_id: sql-formats
 nav-pos: 2
@@ -29,21 +29,21 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[JSON](https://www.json.org/json-en.html)格式将会使用JSON数据进行读写。当前，JSON scheme是从table schema中自动推导而得的。
+[JSON](https://www.json.org/json-en.html) format 将会使用 JSON 数据进行读写。当前，JSON scheme 是从 table schema 中自动推导而得的。
 
 依赖
 ------------
 
-为了使用JSON格式，下表中列出了利用自动化构建工具（例如，Maven或者SBT）构建项目以及SQL Client所需要的依赖。
+为了使用 JSON format，下表列出了利用自动化构建工具（例如，Maven 或者 SBT ）构建项目以及 SQL Client 所需要的依赖。
 
 | Maven 依赖          | SQL Client JAR         |
 | :----------------- | :----------------------|
 | `flink-json`       | 内建                    |
 
-利用JSON格式构建表
+利用 JSON Format 构建表
 ----------------
 
-以下是利用Kafka以及Json构建表的一个例子。
+以下是一个利用 Kafka 以及 JSON 构建表的例子。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -67,7 +67,7 @@ CREATE TABLE user_behavior (
 </div>
 </div>
 
-格式选项
+Format 选项
 ----------------
 
 <table class="table table-bordered">
@@ -120,11 +120,11 @@ CREATE TABLE user_behavior (
 数据类型映射关系
 ----------------
 
-当前，JSON schema将会自动从table schema之中自动推导得到。显式地定义JSON schema不再得到支持。
+当前，JSON schema 将会自动从 table schema 之中自动推导得到。显式地定义 JSON schema 不再得到支持。
 
-Flink中的JSON格式使用 [jackson databind API](https://github.com/FasterXML/jackson-databind)去解析并生成JSON。
+在 Flink 中，JSON format 使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析并生成 JSON。
 
-下表列出了Flink中的数据类型与JSON中的数据类型的映射关系。
+下表列出了 Flink 中的数据类型与 JSON 中的数据类型的映射关系。
 
 <table class="table table-bordered">
     <thead>
