@@ -108,7 +108,7 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">none</td>
       <td>String</td>
-      <td>连接的 HBase 表名</td>
+      <td>连接的 HBase 表名。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.quorum</h5></td>
@@ -198,7 +198,7 @@ boolean toBoolean(byte[] b)
     </tr>
     <tr>
       <td><code>BINARY / VARBINARY</code></td>
-      <td>返回 <code>byte[]</code></td>
+      <td>返回 <code>byte[]</code>。</td>
     </tr>
     <tr>
       <td><code>DECIMAL</code></td>
