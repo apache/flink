@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import javax.annotation.Nullable;
+
 import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.HashMap;
@@ -58,6 +60,7 @@ class DualKeyLinkedMap<A, B, V> {
 		return aMap.size();
 	}
 
+	@Nullable
 	V getValueByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
