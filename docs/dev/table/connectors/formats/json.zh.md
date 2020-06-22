@@ -1,5 +1,5 @@
 ---
-title: "JSON Format"
+title: "JSON格式"
 nav-title: JSON
 nav-parent_id: sql-formats
 nav-pos: 2
@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[JSON](https://www.json.org/json-en.html) 格式将会使用JSON数据进行读写。当前，JSON模式是从数据表的模式中自动推导而得的。
+[JSON](https://www.json.org/json-en.html)格式将会使用JSON数据进行读写。当前，JSON scheme是从table schema中自动推导而得的。
 
 依赖
 ------------
@@ -120,9 +120,9 @@ CREATE TABLE user_behavior (
 数据类型映射关系
 ----------------
 
-当前，JSON的模式将会自动从表的模式之中自动推导得到。显式地定义JSON模式不再得到支持。
+当前，JSON schema将会自动从table schema之中自动推导得到。显式地定义JSON schema不再得到支持。
 
-Flink中的JSON格式使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析并生成JSON。
+Flink中的JSON格式使用 [jackson databind API](https://github.com/FasterXML/jackson-databind)去解析并生成JSON。
 
 下表列出了Flink中的数据类型与JSON中的数据类型的映射关系。
 
