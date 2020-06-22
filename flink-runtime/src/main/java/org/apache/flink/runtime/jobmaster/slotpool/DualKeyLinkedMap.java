@@ -87,6 +87,7 @@ class DualKeyLinkedMap<A, B, V> {
 		return bMap.get(bKey);
 	}
 
+	@Nullable
 	B getKeyBByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
