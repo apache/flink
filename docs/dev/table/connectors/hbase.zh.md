@@ -33,14 +33,14 @@ under the License.
 
 HBase 连接器支持读取和写入 HBase 集群。本文档介绍如何使用 HBase 连接器基于 HBase 进行 SQL 查询。
 
-HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的一个主键与外部系统交换更新操作消息。但是主键只能基于 HBase 的 rowkey 字段定义。如果没有声明主键，HBase 连接器默认取 rowkey。
+HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键与外部系统交换更新操作消息。但是主键只能基于 HBase 的 rowkey 字段定义。如果没有声明主键，HBase 连接器默认取 rowkey 作为主键。
 
 依赖
 ------------
 
 安装 HBase 连接器的依赖条件如下表，包括自动构建工具（比如 Maven 或者 SBT）和 SQL 客户端：
 
-| HBase 版本          | Maven 依赖                                          | SQL 客户端 jar        |
+| HBase 版本          | Maven 依赖                                          | SQL 客户端 JAR        |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
 | 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 只适用于 [稳定发布版]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
 
@@ -48,7 +48,7 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的一个�
 如何使用 HBase 表
 ----------------
 
-所有 HBase 表的列簇必须定义为 ROW 类型，字段名对应列簇名，嵌套的字段名对应列名。用户只需在表结构中声明查询中使用的的列簇和列。除了 ROW 类型的列，其它原子数据类型（比如，字符串、bigint）将被识别为 HBase 的 rowkey。rowkey 字段必须是唯一的，如果是保留关键字，需要用反引号。
+所有 HBase 表的列簇必须定义为 ROW 类型，字段名对应列簇名（column family），嵌套的字段名对应列限定符名（column qualifier）。用户只需在表结构中声明查询中使用的的列簇和列限定符。除了 ROW 类型的列，剩下的原子数据类型字段（比如，STRING, BIGINT）将被识别为 HBase 的 rowkey，一张表中只能声明一个 rowkey。rowkey 字段的名字可以是任意的，如果是保留关键字，需要用反引号。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -74,7 +74,7 @@ SELECT rowkey, ROW(f1q1), ROW(f2q2, f2q3), ROW(f3q4, f3q5, f3q6) FROM T;
 -- 从 HBase 表扫描数据
 SELECT rowkey, family1, family3.q4, family3.q6 FROM hTable;
 
--- temporal join HBase 表为一个维度表
+-- temporal join HBase 表，将 HBase 表作为维表
 SELECT * FROM myTopic
 LEFT JOIN hTable FOR SYSTEM_TIME AS OF myTopic.proctime
 ON myTopic.key = hTable.rowkey;
@@ -101,7 +101,7 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">none</td>
       <td>String</td>
-      <td>指定使用的连接器，这里写“hbase-1.4”</td>
+      <td>指定使用的连接器，这里写“hbase-1.4”。</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
@@ -115,28 +115,28 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">none</td>
       <td>String</td>
-      <td>HBase Zookeeper quorum 信息</td>
+      <td>HBase Zookeeper quorum 信息。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.znode.parent</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">/hbase</td>
       <td>String</td>
-      <td>HBase 集群的 Zookeeper 根目录</td>
+      <td>HBase 集群的 Zookeeper 根目录。</td>
     </tr>
     <tr>
       <td><h5>null-string-literal</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">null</td>
       <td>String</td>
-      <td>字符串为 null 时取值。HBase 的 source 和 sink 的编解码将所有数据类型（除字符串外）的空字节转为 null</td>
+      <td>当字符串值为 <code>null</code> 时的存储形式，默认存成 "null" 字符串。HBase 的 source 和 sink 的编解码将所有数据类型（除字符串外）将 <code>null</code> 值以空字节来存储。</td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.max-size</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">2mb</td>
       <td>MemorySize</td>
-      <td>写入的参数选项。每次写入请求缓存行的最大大小。它能提升写入 HBase 数据库的性能，但是也可能增加延迟
+      <td>写入的参数选项。每次写入请求缓存行的最大大小。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。
       </td>
     </tr>
     <tr>
@@ -144,7 +144,7 @@ ON myTopic.key = hTable.rowkey;
       <td>可选</td>
       <td style="word-wrap: break-word;">none</td>
       <td>Integer</td>
-      <td>写入的参数选项。 每次写入请求能缓存的最大行数。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。无默认值意味着默认刷写不依赖缓存的行数
+      <td>写入的参数选项。 每次写入请求缓存的最大行数。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。
       </td>
     </tr>
     <tr>
@@ -152,7 +152,7 @@ ON myTopic.key = hTable.rowkey;
       <td>可选</td>
       <td style="word-wrap: break-word;">1s</td>
       <td>Duration</td>
-      <td>写入的参数选项。刷写缓存行的间隔。无默认值意味着没有异步刷写线程将被调度。例如，“1s”， “5 s”
+      <td>写入的参数选项。刷写缓存行的间隔。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。注意："sink.buffer-flush.max-size" 和 "sink.buffer-flush.max-rows" 同时设置为 "0"，刷写选项整个异步处理缓存行为。
       </td>
     </tr>
     </tbody>
@@ -167,8 +167,7 @@ HBase 以字节数组存储所有数据。在读和写过程中要序列化和�
 
 Flink 的 HBase 连接器利用 HBase（Hadoop) 的工具类 org.apache.hadoop.hbase.util.Bytes 进行字节数组和 Flink 数据类型转换。
 
-Flink 的 HBase 连接器将所有数据类型（除字符串外）null 值编码成空字节。对于字符串类型，null 字面值由“null-string-literal”选项值决定。
-
+Flink 的 HBase 连接器将所有数据类型（除字符串外）`null` 值编码成空字节。对于字符串类型，`null`值的字面值由`null-string-literal`选项值决定。
 数据类型映射表如下：
 
 <table class="table table-bordered">
@@ -266,15 +265,15 @@ double toDouble(byte[] bytes)
     </tr>
     <tr>
       <td><code>DATE</code></td>
-      <td>从 1970-01-01 00:00:00 UTC 开始的天数，整数型</td>
+      <td>从 1970-01-01 00:00:00 UTC 开始的天数，int 值。</td>
     </tr>
     <tr>
       <td><code>TIME</code></td>
-      <td>从 1970-01-01 00:00:00 UTC 开始天的毫秒数，整数型</td>
+      <td>从 1970-01-01 00:00:00 UTC 开始天的毫秒数，int 值。</td>
     </tr>
     <tr>
       <td><code>TIMESTAMP</code></td>
-      <td>从 1970-01-01 00:00:00 UTC 开始的毫秒数，长整型</td>
+      <td>从 1970-01-01 00:00:00 UTC 开始的毫秒数，long 值。</td>
     </tr>
     <tr>
       <td><code>ARRAY</code></td>
