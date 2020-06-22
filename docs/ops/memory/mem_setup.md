@@ -94,13 +94,16 @@ Configuring other memory components also requires caution as it can produce furt
 Flink explicitly adds the following memory related JVM arguments while starting its processes, based on the configured
 or derived memory component sizes:
 
-| &nbsp;&nbsp;**JVM Arguments**&nbsp;&nbsp; | &nbsp;&nbsp;**Value for TaskManager**&nbsp;&nbsp; | &nbsp;&nbsp;**Value for JobManager**&nbsp;&nbsp; |
-| :---------------------------------------- | :------------------------------------------------- | :------------------------------------------------ |
-| *-Xmx* and *-Xms*                         | Framework + Task Heap Memory                       | JVM Heap Memory                                   |
-| *-XX:MaxDirectMemorySize*                 | Framework + Task Off-heap (*) + Network Memory     | Off-heap Memory (*)                               |
-| *-XX:MaxMetaspaceSize*                    | JVM Metaspace                                      | JVM Metaspace                                     |
+| &nbsp;&nbsp;**JVM Arguments**&nbsp;&nbsp;                                              | &nbsp;&nbsp;**Value for TaskManager**&nbsp;&nbsp;  | &nbsp;&nbsp;**Value for JobManager**&nbsp;&nbsp;  |
+| :------------------------------------------------------------------------------------- | :------------------------------------------------- | :------------------------------------------------ |
+| *-Xmx* and *-Xms*                                                                      | Framework + Task Heap Memory                       | JVM Heap Memory                                   |
+| *-XX:MaxDirectMemorySize*<br/>(always added only for TaskManager, see note for JobManager) | Framework + Task Off-heap (\*) + Network Memory     | Off-heap Memory (\*),(\*\*)                          |
+| *-XX:MaxMetaspaceSize*                                                                 | JVM Metaspace                                      | JVM Metaspace                                     |
 {:.table-bordered}
-(*) Notice, that the native non-direct usage of memory in user code can be also accounted for as a part of the off-heap memory.
+(\*) Notice, that the native non-direct usage of memory in user code can be also accounted for as a part of the off-heap memory.
+<br/>
+(\*\*) The *JVM Direct memory limit* is added for JobManager process only if the corresponding option
+[`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) is set.
 <br/><br/>
 
 Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and

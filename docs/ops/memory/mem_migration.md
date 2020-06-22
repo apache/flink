@@ -239,6 +239,19 @@ is also derived as the rest of what is left after subtracting all other componen
 control over the [JVM Heap]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) by adjusting the
 [`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size) option.
 
+## Flink JVM process memory limits
+
+Since *1.10* release, Flink sets the *JVM Metaspace* and *JVM Direct Memory* limits for the TaskManager process
+by adding the corresponding JVM arguments. Since *1.11* release, Flink also sets the *JVM Metaspace* limit for the JobManager process.
+You can enable the *JVM Direct Memory* limit for JobManager process if you set the
+[`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) option.
+See also [JVM parameters](mem_setup.html#jvm-parameters).
+
+Flink sets the mentioned JVM memory limits to simplify debugging of the corresponding memory leaks and avoid
+[the container out-of-memory errors](mem_trouble.html#container-memory-exceeded).
+See also the troubleshooting guide for details about the [JVM Metaspace](mem_trouble.html#outofmemoryerror-metaspace)
+and [JVM Direct Memory](mem_trouble.html#outofmemoryerror-direct-buffer-memory) *OutOfMemoryErrors*.
+
 ## Container Cut-Off Memory
 
 For containerized deployments, you could previously specify a cut-off memory. This memory could accommodate for unaccounted memory allocations.

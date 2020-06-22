@@ -29,7 +29,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
-import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
@@ -166,7 +166,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		final JobManagerProcessSpec jobManagerProcessSpec = createDefaultJobManagerProcessSpec(1024);
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec);
+		final String jvmmem = JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, cfg);
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
