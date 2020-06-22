@@ -27,6 +27,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorato
 import org.apache.flink.kubernetes.kubeclient.decorators.InitJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.JavaCmdJobManagerDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
@@ -64,6 +65,7 @@ public class KubernetesJobManagerFactory {
 			new InternalServiceDecorator(kubernetesJobManagerParameters),
 			new ExternalServiceDecorator(kubernetesJobManagerParameters),
 			new HadoopConfMountDecorator(kubernetesJobManagerParameters),
+			new KerberosMountDecorator(kubernetesJobManagerParameters),
 			new FlinkConfMountDecorator(kubernetesJobManagerParameters)};
 
 		for (KubernetesStepDecorator stepDecorator: stepDecorators) {
