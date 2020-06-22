@@ -290,9 +290,16 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
 	}
 
 	public static String generateJvmParametersStr(ProcessMemorySpec processSpec) {
-		return "-Xmx" + processSpec.getJvmHeapMemorySize().getBytes()
+		return generateJvmParametersStr(processSpec, true);
+	}
+
+	public static String generateJvmParametersStr(ProcessMemorySpec processSpec, boolean enableDirectMemoryLimit) {
+		String jvmArgStr = "-Xmx" + processSpec.getJvmHeapMemorySize().getBytes()
 			+ " -Xms" + processSpec.getJvmHeapMemorySize().getBytes()
-			+ " -XX:MaxDirectMemorySize=" + processSpec.getJvmDirectMemorySize().getBytes()
 			+ " -XX:MaxMetaspaceSize=" + processSpec.getJvmMetaspaceSize().getBytes();
+		if (enableDirectMemoryLimit) {
+			jvmArgStr += " -XX:MaxDirectMemorySize=" + processSpec.getJvmDirectMemorySize().getBytes();
+		}
+		return jvmArgStr;
 	}
 }

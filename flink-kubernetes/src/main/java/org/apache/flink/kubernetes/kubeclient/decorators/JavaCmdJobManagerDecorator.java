@@ -25,8 +25,6 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerPar
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
-import org.apache.flink.runtime.util.config.memory.ProcessMemorySpec;
-import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -84,13 +82,13 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 	 */
 	private static String getJobManagerStartCommand(
 			Configuration flinkConfig,
-			ProcessMemorySpec jobManagerProcessSpec,
+			JobManagerProcessSpec jobManagerProcessSpec,
 			String configDirectory,
 			String logDirectory,
 			boolean hasLogback,
 			boolean hasLog4j,
 			String mainClass) {
-		final String jvmMemOpts = ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec);
+		final String jvmMemOpts = JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, flinkConfig);
 		return KubernetesUtils.getCommonStartCommand(
 			flinkConfig,
 			KubernetesUtils.ClusterComponent.JOB_MANAGER,

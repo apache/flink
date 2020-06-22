@@ -74,8 +74,10 @@ The Flink scripts and CLI set the *JVM Heap* size via the JVM parameters *-Xms* 
 
 ### Configure Off-heap Memory
 
-The *Off-heap* memory component accounts for any type of *JVM direct memory* and *native memory* usage. Therefore, it
-is also set via the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
+The *Off-heap* memory component accounts for any type of *JVM direct memory* and *native memory* usage. Therefore,
+you can also enable the *JVM Direct Memory* limit by setting the [`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) option.
+If this option is configured, Flink will set the limit to the *Off-heap* memory size via the corresponding JVM argument: *-XX:MaxDirectMemorySize*.
+See also [JVM parameters](mem_setup.html#jvm-parameters).
 
 The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
 option. This option can be tuned e.g. if the JobManager process throws ‘OutOfMemoryError: Direct buffer memory’, see
