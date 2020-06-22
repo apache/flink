@@ -40,7 +40,7 @@ main components interact to execute applications and recover from failures.
 
 ## Anatomy of a Flink Cluster
 
-The Flink runtime consists of two types of processes: a _JobManager_ and one or more _Flink Workers_.
+The Flink runtime consists of two types of processes: a _JobManager_ and one or more _TaskManagers_.
 
 <img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="70%" />
 
@@ -70,7 +70,7 @@ failures, among others. This process consists of three different components:
 
     The _ResourceManager_ is responsible for resource de-/allocation and
     provisioning in a Flink cluster — it manages **task slots**, which are the
-    unit of resource scheduling in a Flink cluster (see [Flink Workers](#flink-workers)).
+    unit of resource scheduling in a Flink cluster (see [TaskManagers](#taskmanagers)).
     Flink implements multiple ResourceManagers for different environments and
     resource providers such as YARN, Mesos, Kubernetes and standalone
     deployments. In a standalone setup, the ResourceManager can only distribute
@@ -125,8 +125,8 @@ hence with five parallel threads.
 ## Task Slots and Resources
 
 Each worker (TaskManager) is a *JVM process*, and may execute one or more
-subtasks in separate threads.  To control how many tasks a worker accepts, a
-worker has so called **task slots** (at least one).
+subtasks in separate threads.  To control how many tasks a TaskManager accepts, it
+has so called **task slots** (at least one).
 
 Each *task slot* represents a fixed subset of resources of the TaskManager. A
 TaskManager with three slots, for example, will dedicate 1/3 of its managed
@@ -196,7 +196,7 @@ isolation guarantees.
   Because all jobs are sharing the same cluster, there is some competition for
   cluster resources — like network bandwidth in the submit-job phase. One
   limitation of this shared setup is that if one TaskManager crashes, then all
-  jobs that have tasks running on this worker will fail; in a similar way, if
+  jobs that have tasks running on this TaskManager will fail; in a similar way, if
   some fatal error occurs on the JobManager, it will affect all jobs running
   in the cluster.
 
