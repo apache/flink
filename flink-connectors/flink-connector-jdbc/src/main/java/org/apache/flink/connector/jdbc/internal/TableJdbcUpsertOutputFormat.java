@@ -83,7 +83,9 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 			super.close();
 		} finally {
 			try {
-				deleteExecutor.closeStatements();
+				if (deleteExecutor != null){
+					deleteExecutor.closeStatements();
+				}
 			} catch (SQLException e) {
 				LOG.warn("unable to close delete statement runner", e);
 			}
