@@ -601,13 +601,15 @@ public class SlotPoolImpl implements SlotPool {
 		// if the request of that allocated slot is still pending, it should take over the orphaned allocation.
 		// this enables the request to fail fast if the remapped allocation fails.
 		if (!allocationIdOfRequest.equals(allocationIdOfSlot)) {
-			final SlotRequestId requestIdOfAllocatedSlot = pendingRequests.getKeyAByKeyB(allocationIdOfSlot);
-			if (requestIdOfAllocatedSlot != null) {
-				final PendingRequest requestOfAllocatedSlot = pendingRequests.getValueByKeyA(requestIdOfAllocatedSlot);
-				checkNotNull(requestOfAllocatedSlot).setAllocationId(allocationIdOfRequest);
+			final PendingRequest requestOfAllocatedSlot = pendingRequests.getValueByKeyB(allocationIdOfSlot);
+			if (requestOfAllocatedSlot != null) {
+				requestOfAllocatedSlot.setAllocationId(allocationIdOfRequest);
 
-				// this re-insertion of initiatedRequestId will not affect its original insertion order
-				pendingRequests.put(requestIdOfAllocatedSlot, allocationIdOfRequest, requestOfAllocatedSlot);
+				// this re-insertion of request will not affect its original insertion order
+				pendingRequests.put(
+					requestOfAllocatedSlot.getSlotRequestId(),
+					allocationIdOfRequest,
+					requestOfAllocatedSlot);
 			} else {
 				// request id of the allocated slot can be null if the slot is returned by scheduler.
 				// the orphaned allocation will not be adopted in this case, which means it is not needed
