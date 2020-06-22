@@ -604,7 +604,7 @@ public class SlotPoolImpl implements SlotPool {
 			final SlotRequestId requestIdOfAllocatedSlot = pendingRequests.getKeyAByKeyB(allocationIdOfSlot);
 			if (requestIdOfAllocatedSlot != null) {
 				final PendingRequest requestOfAllocatedSlot = pendingRequests.getValueByKeyA(requestIdOfAllocatedSlot);
-				requestOfAllocatedSlot.setAllocationId(allocationIdOfRequest);
+				checkNotNull(requestOfAllocatedSlot).setAllocationId(allocationIdOfRequest);
 
 				// this re-insertion of initiatedRequestId will not affect its original insertion order
 				pendingRequests.put(requestIdOfAllocatedSlot, allocationIdOfRequest, requestOfAllocatedSlot);
@@ -1088,6 +1088,7 @@ public class SlotPoolImpl implements SlotPool {
 		 * @param allocationID The allocation id
 		 * @return The allocated slot, null if we can't find a match
 		 */
+		@Nullable
 		AllocatedSlot get(final AllocationID allocationID) {
 			return allocatedSlotsById.getValueByKeyA(allocationID);
 		}

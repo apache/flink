@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import javax.annotation.Nullable;
+
 import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.HashMap;
@@ -58,6 +60,7 @@ class DualKeyLinkedMap<A, B, V> {
 		return aMap.size();
 	}
 
+	@Nullable
 	V getValueByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
@@ -68,6 +71,7 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	V getValueByKeyB(B bKey) {
 		final A aKey = bMap.get(bKey);
 
@@ -78,10 +82,12 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	A getKeyAByKeyB(B bKey) {
 		return bMap.get(bKey);
 	}
 
+	@Nullable
 	B getKeyBByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
@@ -92,6 +98,7 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	V put(A aKey, B bKey, V value) {
 		final V oldValue = getValueByKeyA(aKey);
 
@@ -125,6 +132,7 @@ class DualKeyLinkedMap<A, B, V> {
 		return bMap.containsKey(bKey);
 	}
 
+	@Nullable
 	V removeKeyA(A aKey) {
 		Tuple2<B, V> aValue = aMap.remove(aKey);
 
@@ -136,6 +144,7 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	V removeKeyB(B bKey) {
 		A aKey = bMap.remove(bKey);
 
