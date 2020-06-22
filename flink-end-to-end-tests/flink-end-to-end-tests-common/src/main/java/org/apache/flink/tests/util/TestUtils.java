@@ -46,40 +46,43 @@ public enum TestUtils {
 	private static final ParameterProperty<Path> MODULE_DIRECTORY = new ParameterProperty<>("moduleDir", Paths::get);
 
 	/**
-	 * Searches for a jar matching the given regex in the given directory. This method is primarily intended to be used
-	 * for the initialization of static {@link Path} fields for jars that reside in the modules {@code target} directory.
+	 * Searches for a resource file matching the given regex in the given directory. This method is primarily intended
+	 * to be used for the initialization of static {@link Path} fields for resource file(i.e. jar, config file) that reside
+	 * in the modules {@code target} directory.
 	 *
-	 * @param jarNameRegex      regex pattern to match against
+	 * @param resourceNameRegex      regex pattern to match against
 	 * @return Path pointing to the matching jar
-	 * @throws RuntimeException if none or multiple jars could be found
+	 * @throws RuntimeException if none or multiple resource files could be found
 	 */
-	public static Path getResourceJar(final String jarNameRegex) {
+	public static Path getResource(final String resourceNameRegex) {
 		// if the property is not set then we are most likely running in the IDE, where the working directory is the
 		// module of the test that is currently running, which is exactly what we want
 		Path moduleDirectory = MODULE_DIRECTORY.get(Paths.get("").toAbsolutePath());
 
-		try (Stream<Path> dependencyJars = Files.walk(moduleDirectory)) {
-			final List<Path> matchingJars = dependencyJars
-				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.toAbsolutePath().toString()).find())
+		try (Stream<Path> dependencyResources = Files.walk(moduleDirectory)) {
+			final List<Path> matchingResources = dependencyResources
+				.filter(jar -> Pattern.compile(resourceNameRegex).matcher(jar.toAbsolutePath().toString()).find())
 				.collect(Collectors.toList());
-			switch (matchingJars.size()) {
+			switch (matchingResources.size()) {
 				case 0:
 					throw new RuntimeException(
 						new FileNotFoundException(
-							String.format("No jar could be found that matches the pattern %s. This could mean that the test module must be rebuilt via maven.", jarNameRegex)
+							String.format("No resource file could be found that matches the pattern %s. " +
+								"This could mean that the test module must be rebuilt via maven.", resourceNameRegex)
 						)
 					);
 				case 1:
-					return matchingJars.get(0);
+					return matchingResources.get(0);
 				default:
 					throw new RuntimeException(
 						new IOException(
-							String.format("Multiple jars were found matching the pattern %s. Matches=%s", jarNameRegex, matchingJars)
+							String.format("Multiple resource files were found matching the pattern %s. Matches=%s",
+								resourceNameRegex, matchingResources)
 						)
 					);
 			}
 		} catch (final IOException ioe) {
-			throw new RuntimeException("Could not search for resource jars.", ioe);
+			throw new RuntimeException("Could not search for resource resource files.", ioe);
 		}
 	}
 

@@ -82,7 +82,7 @@ public class StreamingKafkaITCase extends TestLogger {
 	}
 
 	public StreamingKafkaITCase(final String kafkaExampleJarPattern, final String kafkaVersion) {
-		this.kafkaExampleJar = TestUtils.getResourceJar(kafkaExampleJarPattern);
+		this.kafkaExampleJar = TestUtils.getResource(kafkaExampleJarPattern);
 		this.kafka = KafkaResource.get(kafkaVersion);
 		this.kafkaVersion = kafkaVersion;
 	}

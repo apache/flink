@@ -89,6 +89,7 @@ under the License.
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
+		<module>flink-end-to-end-tests-hbase</module>
 	</modules>
 
 	<dependencies>
