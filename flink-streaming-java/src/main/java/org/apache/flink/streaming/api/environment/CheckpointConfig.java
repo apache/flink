@@ -382,7 +382,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
+	 * Enables unaligned checkpoints, which greatly reduces checkpointing times under backpressure.
 	 *
 	 * <p>Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows
 	 * checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the
