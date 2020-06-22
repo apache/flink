@@ -68,7 +68,7 @@ public class ProgramDeployer {
 			throw new RuntimeException("No execution.target specified in your configuration file.");
 		}
 
-		PipelineExecutorServiceLoader executorServiceLoader = DefaultExecutorServiceLoader.INSTANCE;
+		PipelineExecutorServiceLoader executorServiceLoader = new DefaultExecutorServiceLoader();
 		final PipelineExecutorFactory executorFactory;
 		try {
 			executorFactory = executorServiceLoader.getExecutorFactory(configuration);
