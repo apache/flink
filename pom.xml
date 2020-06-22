@@ -1539,6 +1539,7 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 						<hadoop.version>${hadoop.version}</hadoop.version>
+						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>

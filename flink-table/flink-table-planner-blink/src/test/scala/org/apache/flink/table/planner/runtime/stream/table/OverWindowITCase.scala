@@ -40,6 +40,13 @@ import scala.collection.mutable
 @RunWith(classOf[Parameterized])
 class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
+  @Before
+  def setupEnv(): Unit = {
+    // unaligned checkpoints are regenerating watermarks after recovery of in-flight data
+    // https://issues.apache.org/jira/browse/FLINK-18405
+    env.getCheckpointConfig.enableUnalignedCheckpoints(false)
+  }
+
   @Test
   def testProcTimeUnBoundedPartitionedRowOver(): Unit = {
 

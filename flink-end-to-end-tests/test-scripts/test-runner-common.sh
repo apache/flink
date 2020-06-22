@@ -51,6 +51,9 @@ function run_test {
     # set a trap to catch a test execution error
     trap 'test_error' ERR
 
+    # Always enable unaligned checkpoint
+    set_config_key "execution.checkpointing.unaligned" "true"
+
     ${command}
     exit_code="$?"
     # remove trap for test execution
