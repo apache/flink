@@ -65,6 +65,20 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 	}
 
 	@Test
+	public void testUpsertFormatCloseBeforeOpen() throws Exception{
+		JdbcOptions options = JdbcOptions.builder()
+			.setDBUrl(getDbMetadata().getUrl())
+			.setTableName(OUTPUT_TABLE)
+			.build();
+		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
+			.withTableName(options.getTableName()).withDialect(options.getDialect())
+			.withFieldNames(fieldNames).withKeyFields(keyFields).build();
+		format = new TableJdbcUpsertOutputFormat(new SimpleJdbcConnectionProvider(options), dmlOptions, JdbcExecutionOptions.defaults());
+		// FLINK-17544: There should be no NPE thrown from this method
+		format.close();
+	}
+
+	@Test
 	public void testJdbcOutputFormat() throws Exception {
 		JdbcOptions options = JdbcOptions.builder()
 				.setDBUrl(getDbMetadata().getUrl())
