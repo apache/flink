@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>jobmanager.memory.enable-jvm-direct-memory-limit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable the JVM direct memory limit of the JobManager process (-XX:MaxDirectMemorySize). The limit will be set to the value of 'jobmanager.memory.off-heap.size' option. </td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.memory.flink.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
@@ -48,7 +54,7 @@
             <td><h5>jobmanager.memory.off-heap.size</h5></td>
             <td style="word-wrap: break-word;">128 mb</td>
             <td>MemorySize</td>
-            <td>Off-heap Memory size for JobManager. The JVM direct memory limit of the Job Manager process (-XX:MaxDirectMemorySize) will be set to this value. This option covers all off-heap memory usage including direct and native memory allocation.</td>
+            <td>Off-heap Memory size for JobManager. This option covers all off-heap memory usage including direct and native memory allocation. The JVM direct memory limit of the JobManager process (-XX:MaxDirectMemorySize) will be set to this value if the limit is enabled by 'jobmanager.memory.enable-jvm-direct-memory-limit'. </td>
         </tr>
         <tr>
             <td><h5>jobmanager.memory.process.size</h5></td>
