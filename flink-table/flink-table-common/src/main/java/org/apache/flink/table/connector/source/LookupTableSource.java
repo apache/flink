@@ -27,8 +27,8 @@ import java.io.Serializable;
  * A {@link DynamicTableSource} that looks up rows of an external storage system by one or more keys
  * during runtime.
  *
- * <p>Compared to {@link ScanTableSource}, the source must not read the entire table and can lazily fetch
- * individual values from a (possibly continuously changing) external table when necessary.
+ * <p>Compared to {@link ScanTableSource}, the source does not have to read the entire table and can
+ * lazily fetch individual values from a (possibly continuously changing) external table when necessary.
  *
  * <p>Note: Compared to {@link ScanTableSource}, a {@link LookupTableSource} does only support emitting
  * insert-only changes currently (see also {@link RowKind}). Further abilities are not supported.
