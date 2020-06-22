@@ -713,7 +713,7 @@ public static class CounterSource
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
     
-    /** Our state object. */
+    /** 存储 state 的变量. */
     private ListState<Long> state;
      
     @Override
@@ -739,9 +739,7 @@ public static class CounterSource
         state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
             "state",
             LongSerializer.INSTANCE));
-                 
-        // restore any state that we might already have to our fields, initialize state
-        // is also called in case of restore.
+        // 从我们已保存的状态中恢复 offset 到内存中，在进行任务恢复的时候也会调用此初始化状态的方法
         for (Long l : state.get()) {
             offset = l;
         }
