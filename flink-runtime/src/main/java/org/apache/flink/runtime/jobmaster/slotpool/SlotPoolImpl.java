@@ -614,7 +614,9 @@ public class SlotPoolImpl implements SlotPool {
 				// request id of the allocated slot can be null if the slot is returned by scheduler.
 				// the orphaned allocation will not be adopted in this case, which means it is not needed
 				// anymore by any pending requests. we should cancel it to avoid allocating unnecessary slots.
-				resourceManagerGateway.cancelSlotRequest(allocationIdOfRequest);
+				if (resourceManagerGateway != null) {
+					resourceManagerGateway.cancelSlotRequest(allocationIdOfRequest);
+				}
 			}
 		}
 	}
