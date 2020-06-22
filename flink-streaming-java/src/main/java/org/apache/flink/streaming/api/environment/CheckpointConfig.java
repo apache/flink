@@ -382,7 +382,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Enables unaligned checkpoints, which greatly reduces checkpointing times under backpressure.
+	 * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
 	 *
 	 * <p>Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows
 	 * checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the
@@ -399,9 +399,24 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Returns whether checkpoints should be persisted externally.
+	 * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
 	 *
-	 * @return <code>true</code> if checkpoints should be externalized.
+	 * <p>Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows
+	 * checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the
+	 * current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore.
+	 *
+	 * <p>Unaligned checkpoints can only be enabled if {@link #checkpointingMode} is
+	 * {@link CheckpointingMode#EXACTLY_ONCE}.
+	 */
+	@PublicEvolving
+	public void enableUnalignedCheckpoints() {
+		enableUnalignedCheckpoints(true);
+	}
+
+	/**
+	 * Returns whether unaligned checkpoints are enabled.
+	 *
+	 * @return <code>true</code> if unaligned checkpoints are enabled.
 	 */
 	@PublicEvolving
 	public boolean isUnalignedCheckpointsEnabled() {
