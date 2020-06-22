@@ -82,6 +82,7 @@ class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
+	@Nullable
 	A getKeyAByKeyB(B bKey) {
 		return bMap.get(bKey);
 	}
