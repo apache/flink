@@ -209,8 +209,6 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 		if (!closed) {
 			closed = true;
 
-			checkFlushException();
-
 			if (this.scheduledFuture != null) {
 				scheduledFuture.cancel(false);
 				this.scheduler.shutdown();
@@ -220,7 +218,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 				try {
 					flush();
 				} catch (Exception e) {
-					throw new RuntimeException("Writing records to JDBC failed.", e);
+					LOG.warn("Writing records to JDBC failed.", e);
 				}
 			}
 
@@ -233,6 +231,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 			}
 		}
 		super.close();
+		checkFlushException();
 	}
 
 	public static Builder builder() {
@@ -348,5 +347,4 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 	static JdbcStatementBuilder<Row> createRowJdbcStatementBuilder(int[] types) {
 		return (st, record) -> setRecordToStatement(st, types, record);
 	}
-
 }
