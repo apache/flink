@@ -50,6 +50,8 @@ public class KubernetesTestBase extends TestLogger {
 	protected static final String NAMESPACE = "test";
 	protected static final String CLUSTER_ID = "my-flink-cluster1";
 	protected static final String CONTAINER_IMAGE = "flink-k8s-test:latest";
+	protected static final String KEYTAB_FILE = "keytab";
+	protected static final String KRB5_CONF_FILE = "krb5.conf";
 	protected static final KubernetesConfigOptions.ImagePullPolicy CONTAINER_IMAGE_PULL_POLICY =
 		KubernetesConfigOptions.ImagePullPolicy.IfNotPresent;
 	protected static final int JOB_MANAGER_MEMORY = 768;
@@ -63,6 +65,8 @@ public class KubernetesTestBase extends TestLogger {
 	protected File flinkConfDir;
 
 	protected File hadoopConfDir;
+
+	protected File kerberosDir;
 
 	protected final Configuration flinkConfig = new Configuration();
 
@@ -86,6 +90,7 @@ public class KubernetesTestBase extends TestLogger {
 	public final void setup() throws Exception {
 		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
 		hadoopConfDir = temporaryFolder.newFolder().getAbsoluteFile();
+		kerberosDir = temporaryFolder.newFolder().getAbsoluteFile();
 
 		setupFlinkConfig();
 		writeFlinkConfiguration();
@@ -121,5 +126,10 @@ public class KubernetesTestBase extends TestLogger {
 	protected void generateHadoopConfFileItems() throws IOException {
 		KubernetesTestUtils.createTemporyFile("some data", hadoopConfDir, "core-site.xml");
 		KubernetesTestUtils.createTemporyFile("some data", hadoopConfDir, "hdfs-site.xml");
+	}
+
+	protected void generateKerberosFileItems() throws IOException {
+		KubernetesTestUtils.createTemporyFile("some keytab", kerberosDir, KEYTAB_FILE);
+		KubernetesTestUtils.createTemporyFile("some conf", kerberosDir, KRB5_CONF_FILE);
 	}
 }

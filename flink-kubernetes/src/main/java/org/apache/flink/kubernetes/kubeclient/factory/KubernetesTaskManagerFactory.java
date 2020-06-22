@@ -24,6 +24,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.JavaCmdTaskManagerDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
@@ -46,6 +47,7 @@ public class KubernetesTaskManagerFactory {
 			new MountSecretsDecorator(kubernetesTaskManagerParameters),
 			new JavaCmdTaskManagerDecorator(kubernetesTaskManagerParameters),
 			new HadoopConfMountDecorator(kubernetesTaskManagerParameters),
+			new KerberosMountDecorator(kubernetesTaskManagerParameters),
 			new FlinkConfMountDecorator(kubernetesTaskManagerParameters)};
 
 		for (KubernetesStepDecorator stepDecorator: stepDecorators) {
