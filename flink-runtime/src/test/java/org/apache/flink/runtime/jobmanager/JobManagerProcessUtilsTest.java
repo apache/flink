@@ -23,9 +23,9 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
-
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
 import org.apache.flink.testutils.logging.TestLoggerResource;
+
 import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -132,8 +132,8 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 		conf.set(JobManagerOptions.TOTAL_FLINK_MEMORY, totalFlinkMemory);
 		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeap);
 
-		JobManagerProcessSpec JobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
-		assertThat(JobManagerProcessSpec.getJvmDirectMemorySize(), is(expectedOffHeap));
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
+		assertThat(jobManagerProcessSpec.getJvmDirectMemorySize(), is(expectedOffHeap));
 		MatcherAssert.assertThat(
 			testLoggerResource.getMessages(),
 			hasItem(containsString(String.format(
