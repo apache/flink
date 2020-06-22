@@ -24,17 +24,13 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Base test class for the JobManager side.
  */
-public class KubernetesJobManagerTestBase extends KubernetesTestBase {
+public class KubernetesJobManagerTestBase extends KubernetesPodTestBase {
 
 	protected static final double JOB_MANAGER_CPU = 2.0;
 	protected static final int JOB_MANAGER_MEMORY = 768;
@@ -44,30 +40,7 @@ public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 	protected static final int RPC_PORT = 7123;
 	protected static final int BLOB_SERVER_PORT = 8346;
 
-	protected final Map<String, String> customizedEnvs = new HashMap<String, String>() {
-		{
-			put("key1", "value1");
-			put("key2", "value2");
-		}
-	};
-
-	protected final Map<String, String> userLabels = new HashMap<String, String>() {
-		{
-			put("label1", "value1");
-			put("label2", "value2");
-		}
-	};
-
-	protected final Map<String, String> nodeSelector = new HashMap<String, String>() {
-		{
-			put("env", "production");
-			put("disk", "ssd");
-		}
-	};
-
 	protected KubernetesJobManagerParameters kubernetesJobManagerParameters;
-
-	protected FlinkPod baseFlinkPod;
 
 	@Override
 	protected void setupFlinkConfig() {
@@ -94,7 +67,5 @@ public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 			.createClusterSpecification();
 
 		this.kubernetesJobManagerParameters = new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
-
-		this.baseFlinkPod = new FlinkPod.Builder().build();
 	}
 }

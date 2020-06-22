@@ -78,7 +78,10 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 		assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
 	}
 
-	private class TestingKubernetesParameters extends AbstractKubernetesParameters {
+	/**
+	 * KubernetesParameters for testing usecase.
+	 */
+	public static class TestingKubernetesParameters extends AbstractKubernetesParameters {
 
 		public TestingKubernetesParameters(Configuration flinkConfig) {
 			super(flinkConfig);

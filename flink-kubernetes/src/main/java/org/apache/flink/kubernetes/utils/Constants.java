@@ -39,6 +39,13 @@ public class Constants {
 	public static final String ENV_HADOOP_CONF_DIR = "HADOOP_CONF_DIR";
 	public static final String ENV_HADOOP_HOME = "HADOOP_HOME";
 
+	public static final String KERBEROS_KEYTAB_VOLUME = "kerberos-keytab-volume";
+	public static final String KERBEROS_KEYTAB_SECRET_PREFIX = "kerberos-keytab-";
+	public static final String KERBEROS_KEYTAB_MOUNT_POINT = "/opt/kerberos/kerberos-keytab";
+	public static final String KERBEROS_KRB5CONF_VOLUME = "kerberos-krb5conf-volume";
+	public static final String KERBEROS_KRB5CONF_CONFIG_MAP_PREFIX = "kerberos-krb5conf-";
+	public static final String KERBEROS_KRB5CONF_MOUNT_DIR = "/etc";
+
 	public static final String FLINK_REST_SERVICE_SUFFIX = "-rest";
 
 	public static final String NAME_SEPARATOR = "-";
