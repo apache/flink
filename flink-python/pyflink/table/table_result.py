@@ -134,10 +134,10 @@ class TableResult(object):
         """
         Print the result contents as tableau form to client console.
 
-        This method guarantees end-to-end exactly-once record delivery
+        For streaming mode, this method guarantees end-to-end exactly-once record delivery
         which requires the checkpointing mechanism to be enabled.
-        By default, checkpointing is disabled. To enable checkpointing,
-        call `StreamExecutionEnvironment#enableCheckpointing()` method.
+        By default, checkpointing is disabled. To enable checkpointing, set checkpointing properties
+        (see ExecutionCheckpointingOptions) through `TableConfig#getConfiguration()`.
 
         .. versionadded:: 1.11.0
         """
