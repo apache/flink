@@ -130,9 +130,8 @@ public class PrintUtils {
 					nullColumn,
 					printRowKind ? ROW_KIND_COLUMN : null);
 		} else {
-			//
-			List<Row> rows = new ArrayList<>();
-			List<String[]> content = new ArrayList<>();
+			final List<Row> rows = new ArrayList<>();
+			final List<String[]> content = new ArrayList<>();
 			content.add(columnNames);
 			while (it.hasNext()) {
 				Row row = it.next();
@@ -146,7 +145,7 @@ public class PrintUtils {
 		final String borderline = PrintUtils.genBorderLine(colWidths);
 		// print border line
 		printWriter.println(borderline);
-		// print filed names
+		// print field names
 		PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
 		// print border line
 		printWriter.println(borderline);
@@ -212,7 +211,7 @@ public class PrintUtils {
 			List<String[]> rows,
 			int maxColumnWidth) {
 		// fill width with field names first
-		int[] colWidths = Stream.of(columnNames).mapToInt(String::length).toArray();
+		final int[] colWidths = Stream.of(columnNames).mapToInt(String::length).toArray();
 
 		// fill column width with real data
 		for (String[] row : rows) {
@@ -230,8 +229,9 @@ public class PrintUtils {
 	}
 
 	/**
-	 * Try to infer column width based on column types. In streaming case, we will have an
-	 * endless result set, thus couldn't determine column widths based on column values.
+	 * Try to derive column width based on column types.
+	 * If result set is not small enough to be stored in java heap memory,
+	 * we can't determine column widths based on column values.
 	 */
 	public static int[] columnWidthsByType(
 			List<TableColumn> columns,
@@ -239,7 +239,7 @@ public class PrintUtils {
 			String nullColumn,
 			@Nullable String rowKindColumn) {
 		// fill width with field names first
-		int[] colWidths = columns.stream()
+		final int[] colWidths = columns.stream()
 				.mapToInt(col -> col.getName().length())
 				.toArray();
 
@@ -291,7 +291,7 @@ public class PrintUtils {
 
 		// add an extra column for row kind if necessary
 		if (rowKindColumn != null) {
-			int[] ret = new int[columns.size() + 1];
+			final int[] ret = new int[columns.size() + 1];
 			ret[0] = rowKindColumn.length();
 			System.arraycopy(colWidths, 0, ret, 1, columns.size());
 			return ret;

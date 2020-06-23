@@ -132,12 +132,13 @@ public interface TableResult {
 	 *  }
 	 * }</pre>
 	 *
-	 * <p>This method guarantees end-to-end exactly-once record delivery
+	 * <p>For streaming mode, this method guarantees end-to-end exactly-once record delivery
 	 * which requires the checkpointing mechanism to be enabled.
-	 * By default, checkpointing is disabled. To enable checkpointing,
-	 * call `StreamExecutionEnvironment#enableCheckpointing()` method.
+	 * By default, checkpointing is disabled. To enable checkpointing, set checkpointing properties
+	 * (see ExecutionCheckpointingOptions) through {@link TableConfig#getConfiguration()}.
 	 *
-	 * <p>Only this method or {@link #print()} method can be called for a TableResult instance,
+	 * <p>In order to fetch result to local, you can call either {@link #collect()} and {@link #print()}.
+	 * But, they can't be called both on the same {@link TableResult} instance,
 	 * because the result can only be accessed once.
 	 */
 	CloseableIterator<Row> collect();
@@ -145,12 +146,13 @@ public interface TableResult {
 	/**
 	 * Print the result contents as tableau form to client console.
 	 *
-	 * <p>This method guarantees end-to-end exactly-once record delivery
+	 * <p>For streaming mode, this method guarantees end-to-end exactly-once record delivery
 	 * which requires the checkpointing mechanism to be enabled.
-	 * By default, checkpointing is disabled. To enable checkpointing,
-	 * call `StreamExecutionEnvironment#enableCheckpointing()` method.
+	 * By default, checkpointing is disabled. To enable checkpointing, set checkpointing properties
+	 * (see ExecutionCheckpointingOptions) through {@link TableConfig#getConfiguration()}.
 	 *
-	 * <p>only this method or {@link #collect()} ()} method can be called for a TableResult instance,
+	 * <p>In order to fetch result to local, you can call either {@link #collect()} and {@link #print()}.
+	 * But, they can't be called both on the same {@link TableResult} instance,
 	 * because the result can only be accessed once.
 	 */
 	void print();

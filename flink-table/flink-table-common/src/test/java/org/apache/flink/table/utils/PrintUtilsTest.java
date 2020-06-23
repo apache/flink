@@ -112,7 +112,7 @@ public class PrintUtilsTest {
 	}
 
 	@Test
-	public void testPrintWithEmptyResultAndDriverColumnWidthByContent() {
+	public void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
 		PrintUtils.printAsTableauForm(
 				getSchema(),
 				Collections.<Row>emptyList().iterator(),
@@ -195,7 +195,7 @@ public class PrintUtilsTest {
 	}
 
 	@Test
-	public void testPrintWithMultipleRowsAndDriverColumnWidthByContent() {
+	public void testPrintWithMultipleRowsAndDeriveColumnWidthByContent() {
 		PrintUtils.printAsTableauForm(
 				getSchema(),
 				getData().subList(0, 3).iterator(),
