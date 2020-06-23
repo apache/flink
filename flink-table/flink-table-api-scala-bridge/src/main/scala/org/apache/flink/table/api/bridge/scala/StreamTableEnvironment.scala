@@ -391,8 +391,8 @@ trait StreamTableEnvironment extends TableEnvironment {
    * }}}
    *
    * @param connectorDescriptor connector descriptor describing the external system
-   * @deprecated this method might be refactored or dropped in the next versions,
-   *             please use [[executeSql]] to register a table instead.
+   * @deprecated The SQL `CREATE TABLE` DDL is richer than this part of the API. This method might be
+   *             refactored in the next versions. Please use [[executeSql]] to register a table instead.
    */
   @deprecated
   override def connect(connectorDescriptor: ConnectorDescriptor): StreamTableDescriptor
