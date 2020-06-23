@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTime
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
@@ -786,6 +787,78 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-3", 1500L, 7000L), 6999));
 		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-15", 0L, 7000L), 6999));
 		expectedOutput.add(new Watermark(4000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+
+		testHarness.close();
+	}
+
+	/**
+	 * This tests whether merging works correctly with the ContinuousProcessingTimeTrigger.
+	 */
+	@Test
+	public void testSessionWindowsWithContinuousProcessingTimeTrigger() throws Exception {
+		closeCalled.set(0);
+
+		final int sessionSize = 3;
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
+			ProcessingTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new SessionWindowFunction()),
+			ContinuousProcessingTimeTrigger.of(Time.seconds(2)),
+			0,
+			null /* late data output tag */);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+			createTestHarness(operator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		// add elements out-of-order and first trigger time is 2000
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 3)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 2)));
+
+		// triggers emit and next trigger time is 4000
+		testHarness.setProcessingTime(2500);
+
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-1", 0L, 3000L), 2999L));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 3000L), 2999L));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5)));
+		testHarness.setProcessingTime(3000);
+
+		// do a snapshot, close and restore again
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+		testHarness.close();
+
+		expectedOutput.clear();
+		testHarness = createTestHarness(operator);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+
+		testHarness.setProcessingTime(3500);
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 4)));
+		// triggers emit and next trigger time is 6000
+		testHarness.setProcessingTime(4000);
+
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-2", 3500L, 6500L), 6499L));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-15", 0L, 6500L), 6499L));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
