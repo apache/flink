@@ -1,5 +1,5 @@
 ---
-title: "Table & SQL Connectors"
+title: "Table 和 SQL 连接器"
 nav-id: sql-connectors
 nav-parent_id: connectors-root
 nav-pos: 2
@@ -25,108 +25,108 @@ under the License.
 -->
 
 
-Flink's Table API & SQL programs can be connected to other external systems for reading and writing both batch and streaming tables. A table source provides access to data which is stored in external systems (such as a database, key-value store, message queue, or file system). A table sink emits a table to an external storage system. Depending on the type of source and sink, they support different formats such as CSV, Avro, Parquet, or ORC.
+Flink Table 和 SQL 可以支持对外部系统进行读和写的 table 批和流的处理。table 源端对外部数据拥有多种支持类型(例如 数据库，键值对存储，消息队列，或者是文件系统)。table 目标端可以将表存储到另一个外部的系统中。可以支持指定类型的源端和目标端， 它们目前支持的格式有 CSV，Avro，Parquet，ORC。
 
-This page describes how to register table sources and table sinks in Flink using the natively supported connectors. After a source or sink has been registered, it can be accessed by Table API & SQL statements.
+这页主要描述的是如何使用现有flink 原生态支持连接器去注册 table 源端和 table 目标端。 在源端或者目标端注册完成之后。 所注册 table 通过 Table API 和 SQL 的声明方式去访问和使用。
 
-<span class="label label-info">NOTE</span> If you want to implement your own *custom* table source or sink, have a look at the [user-defined sources & sinks page]({% link dev/table/sourceSinks.zh.md %}).
+<span class="label label-info">笔记</span>如果你想要实现属于你自定义 table 源端 或 目标端。 可以查看 [user-defined sources & sinks page]({% link dev/table/sourceSinks.zh.md %})。
 
-<span class="label label-danger">Attention</span> Flink Table & SQL introduces a new set of connector options since 1.11.0, if you are using the legacy connector options, please refer to the [legacy documentation]({% link dev/table/connect.zh.md %}).
+<span class="label label-danger">注意</span> Flink Table & SQL 在新版本 1.11.0 之后引入了一组新的连接器选项， 如果你现在正在使用 以前历史连接器 选项， 可以查阅 [legacy documentation]({% link dev/table/connect.zh.md %})。
 
 * This will be replaced by the TOC
 {:toc}
 
-Supported Connectors
+已经支持连接器
 ------------
 
-Flink natively support various connectors. The following tables list all available connectors.
+Flink 原生支持各种不同的连接器。下表列出了所有可用的连接器。
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Name</th>
-        <th class="text-center">Version</th>
-        <th class="text-center">Source</th>
-        <th class="text-center">Sink</th>
+        <th class="text-left">名称</th>
+        <th class="text-center">版本</th>
+        <th class="text-center">源端</th>
+        <th class="text-center">目标端</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
       <td></td>
-      <td>Bounded and Unbounded Scan, Lookup</td>
-      <td>Streaming Sink, Batch Sink</td>
+      <td>有条件的，和无条件的，检索</td>
+      <td>流式，批处理</td>
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/elasticsearch.zh.md %}">Elasticsearch</a></td>
       <td>6.x & 7.x</td>
-      <td>Not supported</td>
-      <td>Streaming Sink, Batch Sink</td>
+      <td>不支持</td>
+      <td>流式，批处理</td>
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a></td>
       <td>0.10+</td>
-      <td>Unbounded Scan</td>
-      <td>Streaming Sink, Batch Sink</td>
+      <td>无条件查询</td>
+      <td>流式，批处理</td>
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/jdbc.zh.md %}">JDBC</a></td>
       <td></td>
-      <td>Bounded Scan, Lookup</td>
-      <td>Streaming Sink, Batch Sink</td>
+      <td>查询， 检索</td>
+      <td>流式，批处理</td>
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/hbase.zh.md %}">Apache HBase</a></td>
       <td>1.4.x</td>
-      <td>Bounded Scan, Lookup</td>
-      <td>Streaming Sink, Batch Sink</td>
+      <td>有条件查询， 检索</td>
+      <td>流式，批处理</td>
     </tr>
     </tbody>
 </table>
 
 {% top %}
 
-How to use connectors
+如何使用连接器
 --------
 
-Flink supports to use SQL CREATE TABLE statement to register a table. One can define the table name, the table schema, and the table options for connecting to an external system.
+FLink 支持使用 SQL 建表语句来进行注册 table。其中包括可以定义 table 名称，table 结构映射，也可以在 table 参数来自定义连接外部系统的所需要的参数。
 
-The following code shows a full example of how to connect to Kafka for reading Json records.
+接下来展示的代码是一个富具有代表性的如何去连接kafka去读取 Json 结构的消息体。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
-  -- declare the schema of the table
+  -- 声明表的表结构
   `user` BIGINT,
   message STRING,
   ts TIMESTAMP,
-  proctime AS PROCTIME(), -- use computed column to define proctime attribute
-  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND  -- use WATERMARK statement to define rowtime attribute
+  proctime AS PROCTIME(), -- 使用计算列定义 proctime 属性
+  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND  -- 使用水印语句定义行时属性
 ) WITH (
-  -- declare the external system to connect to
+  -- 申明定义外部系统连接
   'connector' = 'kafka',
   'topic' = 'topic_name',
   'scan.startup.mode' = 'earliest-offset',
   'properties.bootstrap.servers' = 'localhost:9092',
-  'format' = 'json'   -- declare a format for this system
+  'format' = 'json'   -- 声明此系统的格式
 )
 {% endhighlight %}
 </div>
 </div>
 
-In this way the desired connection properties are converted into string-based key-value pairs. So-called [table factories]({% link dev/table/sourceSinks.zh.md %}#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
+使用普遍性连接参数已经转变成了基于字符串的键值对。 其实表工厂 [table factories]({% link dev/table/sourceSinks.zh.md %}#define-a-tablefactory) 利用对应的键值对来创建相应的 table 源端，table 目标端，和相应的格式。所有的表工厂可以在 Java’s Service Provider Interfaces (SPI) 里面被找到。 现在已经经可能的考虑到所有各类涉及到的表对应匹配的表工厂设计。
 
-If no factory can be found or multiple factories match for the given properties, an exception will be thrown with additional information about considered factories and supported properties.
+如果没有找到对应的表工厂，或者没有找不到多个工厂指定属性参数的配置， 则将引发一个异常，其中包含有关考虑的工厂和支持的属性的附加信息。
 
 {% top %}
 
-Schema Mapping
+结构映射
 ------------
 
-The body clause of a SQL `CREATE TABLE` statement defines the names and types of columns, constraints and watermarks. Flink doesn't hold the data, thus the schema definition only declares how to map types from an external system to Flink’s representation. The mapping may not be mapped by names, it depends on the implementation of formats and connectors. For example, a MySQL database table is mapped by field names (not case sensitive), and a CSV filesystem is mapped by field order (field names can be arbitrary). This will be explained in every connectors.
+SQL 创建表语句中有相应的定义列、约束和水印的名称和类型等语句。Flink 不保存数据，因此模式定义只声明如何将类型从外部系统映射到Flink的表示。映射可能不能按名称映射，这取决于格式和连接器的实现。例如，MySQL 数据库表是按字段名映射的（不区分大小写），CSV文件系统是按字段顺序映射的（字段名可以是任意的）。这将在每个连接器中解释。
 
-The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns.
+下面的示例显示了一个没有时间属性和输入/输出到表列的一对一字段映射的简单模式。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -142,13 +142,13 @@ CREATE TABLE MyTable (
 </div>
 </div>
 
-### Primary Key
+### 主键
 
-Primary key constraints tell that a column or a set of columns of a table are unique and they do not contain nulls. Primary key uniquely identifies a row in a table.
+主键约束告诉表的一列或一组列是唯一的，并且它们不包含空值。主键唯一标识表中的行。
 
-The primary key of a source table is a metadata information for optimization. The primary key of a sink table is usually used by the sink implementation for upserting.
+源表的主键是用于优化的元数据信息。目标端 table 主键通常由目标端实现用于 upsperting。
 
-SQL standard specifies that a constraint can either be ENFORCED or NOT ENFORCED. This controls if the constraint checks are performed on the incoming/outgoing data. Flink does not own the data the only mode we want to support is the NOT ENFORCED mode. Its up to the user to ensure that the query enforces key integrity.
+SQL 标准指定可以强制或不强制约束。这将控制是否对传入/传出数据执行约束检查。Flink不拥有数据我们只想支持非强制模式。由用户来确保查询执行的完整性。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -157,7 +157,7 @@ CREATE TABLE MyTable (
   MyField1 INT,
   MyField2 STRING,
   MyField3 BOOLEAN,
-  PRIMARY KEY (MyField1, MyField2) NOT ENFORCED  -- defines a primary key on columns
+  PRIMARY KEY (MyField1, MyField2) NOT ENFORCED  -- 声明在列上定义主键
 ) WITH (
   ...
 )
@@ -165,16 +165,16 @@ CREATE TABLE MyTable (
 </div>
 </div>
 
-### Time Attributes
+### 时间属性
 
-Time attributes are essential when working with unbounded streaming tables. Therefore both proctime and rowtime attributes can be defined as part of the schema.
+使用无边界流表时，时间属性非常重要。因此，proctime 和 rowtime 属性都可以定义为模式的一部分。
 
-For more information about time handling in Flink and especially event-time, we recommend the general [event-time section]({% link dev/table/streaming/time_attributes.zh.md %}).
+有关Flink中时间处理的更多信息，特别是事件时间，我们建议使用 [event-time section]({% link dev/table/streaming/time_attributes.zh.md %})。
 
-#### Proctime Attributes
+#### 程序运行时间属性
 
-In order to declare a proctime attribute in the schema, you can use [Computed Column syntax]({% link dev/table/sql/create.zh.md %}#create-table) to declare a computed column which is generated from `PROCTIME()` builtin function.
-The computed column is a virtual column which is not stored in the physical data.
+为了在模式中声明 proctime 属性，可以使用计算列语法 [Computed Column syntax]({% link dev/table/sql/create.zh.md %}#create-table) 声明从 proctime（）内置函数生成的计算列。
+计算列是虚拟的，并不是存储在物理表列中，是不具备真实意义的列。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -183,7 +183,7 @@ CREATE TABLE MyTable (
   MyField1 INT,
   MyField2 STRING,
   MyField3 BOOLEAN
-  MyField4 AS PROCTIME() -- declares a proctime attribute
+  MyField4 AS PROCTIME() -- 声明 proctime 属性
 ) WITH (
   ...
 )
@@ -191,18 +191,18 @@ CREATE TABLE MyTable (
 </div>
 </div>
 
-#### Rowtime Attributes
+#### 行事件时间属性
 
-In order to control the event-time behavior for tables, Flink provides predefined timestamp extractors and watermark strategies.
+为了控制表的事件时间行为，Flink 提供了预定义的时间戳抽取器和水印策略。
 
-Please refer to [CREATE TABLE statements]({% link dev/table/sql/create.zh.md %}#create-table) for more information about defining time attributes in DDL.
+有关在 DDL 中定义时间属性的更多信息，请参阅 [CREATE TABLE statements]({% link dev/table/sql/create.zh.md %}#create-table)。
 
-The following timestamp extractors are supported:
+支持以下时间戳提取程序：
 
 <div class="codetabs" markdown="1">
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
--- use the existing TIMESTAMP(3) field in schema as the rowtime attribute
+-- 使用模式中现有的 TIMESTAMP（3）字段作为 rowtime 属性
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
   WATERMARK FOR ts_field AS ...
@@ -210,7 +210,7 @@ CREATE TABLE MyTable (
   ...
 )
 
--- use system functions or UDFs or expressions to extract the expected TIMESTAMP(3) rowtime field
+-- 使用系统函数或 udf 或表达式来提取预期的时间戳（3）rowtime 字段
 CREATE TABLE MyTable (
   log_ts STRING,
   ts_field AS TO_TIMESTAMP(log_ts),
@@ -222,14 +222,14 @@ CREATE TABLE MyTable (
 </div>
 </div>
 
-The following watermark strategies are supported:
+支持以下水印策略：
 
 <div class="codetabs" markdown="1">
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
--- Sets a watermark strategy for strictly ascending rowtime attributes. Emits a watermark of the
--- maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp
--- are not late.
+-- 为严格递增的行时属性设置水印策略。发出
+-- 迄今最大监视到的最大时间戳。时间戳小于最大时间戳的行
+-- 不会迟到的。
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
   WATERMARK FOR ts_field AS ts_field
@@ -237,9 +237,9 @@ CREATE TABLE MyTable (
   ...
 )
 
--- Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
--- observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
--- are not late.
+-- 为升序行时属性设置水印策略。发出最大值的水印
+-- 到目前为止监视到的时间戳减1。时间戳等于最大时间戳的行
+-- 不会迟到的。
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
   WATERMARK FOR ts_field AS ts_field - INTERVAL '0.001' SECOND
@@ -247,8 +247,8 @@ CREATE TABLE MyTable (
   ...
 )
 
--- Sets a watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
--- Emits watermarks which are the maximum observed timestamp minus the specified delay, e.g. 2 seconds.
+-- 针对行时间属性在有界时间间隔内无序的情况，设置一种水印策略。
+-- 发出最大监视时间戳减去指定延迟（例如2秒）的水印。
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
   WATERMARK FOR ts_field AS ts_field - INTERVAL '2' SECOND
@@ -259,10 +259,10 @@ CREATE TABLE MyTable (
 </div>
 </div>
 
-Make sure to always declare both timestamps and watermarks. Watermarks are required for triggering time-based operations.
+确保始终声明时间戳和水印。触发基于时间的操作需要水印。
 
-### SQL Types
+### SQL 类型
 
-Please see the [Data Types]({% link dev/table/types.zh.md %}) page about how to declare a type in SQL.
+请参阅数据类型页 [Data Types]({% link dev/table/types.zh.md %})，了解如何在SQL中声明类型。
 
 {% top %}
