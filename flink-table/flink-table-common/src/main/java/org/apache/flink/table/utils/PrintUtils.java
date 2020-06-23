@@ -55,7 +55,7 @@ public class PrintUtils {
 	public static final int MAX_COLUMN_WIDTH = 30;
 	public static final String NULL_COLUMN = "(NULL)";
 	private static final String COLUMN_TRUNCATED_FLAG = "...";
-	private static final String ROW_KIND_COLUMN = "row_kind";
+	private static final String ROW_KIND_COLUMN = "op";
 
 	private PrintUtils() {
 	}
@@ -88,14 +88,14 @@ public class PrintUtils {
 	 *
 	 * <p>For example: (printRowKind is true)
 	 * <pre>
-	 * +----------+-------------+---------+-------------+
-	 * | row_kind | boolean_col | int_col | varchar_col |
-	 * +----------+-------------+---------+-------------+
-	 * |       +I |        true |       1 |         abc |
-	 * |       -U |       false |       2 |         def |
-	 * |       +U |       false |       3 |         def |
-	 * |       -D |      (NULL) |  (NULL) |      (NULL) |
-	 * +----------+-------------+---------+-------------+
+	 * +----+-------------+---------+-------------+
+	 * | op | boolean_col | int_col | varchar_col |
+	 * +----+-------------+---------+-------------+
+	 * | +I |        true |       1 |         abc |
+	 * | -U |       false |       2 |         def |
+	 * | +U |       false |       3 |         def |
+	 * | -D |      (NULL) |  (NULL) |      (NULL) |
+	 * +----+-------------+---------+-------------+
 	 * 4 rows in result
 	 * </pre>
 	 *

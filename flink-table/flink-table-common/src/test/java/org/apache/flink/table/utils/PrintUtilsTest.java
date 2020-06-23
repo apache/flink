@@ -104,9 +104,9 @@ public class PrintUtilsTest {
 				true);
 
 		assertEquals(
-				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
-				"| row_kind | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |" + System.lineSeparator() +
-				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
+				"+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
+				"| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |" + System.lineSeparator() +
+				"+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
 				"0 row in set" + System.lineSeparator(),
 				outContent.toString());
 	}
@@ -178,18 +178,18 @@ public class PrintUtilsTest {
 		// Because the length of `これは日本語をテストするた` plus the length of `...` is 29,
 		// no more Japanese character can be added to the line.
 		assertEquals(
-				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
-				"| row_kind | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |" + System.lineSeparator() +
-				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
-				"|       +I |         |           1 |                    2 |                            abc |           1.23 |      2020-03-01 18:39:14.0 |" + System.lineSeparator() +
-				"|       +I |   false |             |                    0 |                                |              1 |      2020-03-01 18:39:14.1 |" + System.lineSeparator() +
-				"|       -D |    true |  2147483647 |                      |                        abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |" + System.lineSeparator() +
-				"|       +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 |    2020-03-01 18:39:14.123 |" + System.lineSeparator() +
-				"|       +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |" + System.lineSeparator() +
-				"|       -U |         |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                            |" + System.lineSeparator() +
-				"|       +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
-				"|       -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
-				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
+				"+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
+				"| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |" + System.lineSeparator() +
+				"+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
+				"| +I |         |           1 |                    2 |                            abc |           1.23 |      2020-03-01 18:39:14.0 |" + System.lineSeparator() +
+				"| +I |   false |             |                    0 |                                |              1 |      2020-03-01 18:39:14.1 |" + System.lineSeparator() +
+				"| -D |    true |  2147483647 |                      |                        abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |" + System.lineSeparator() +
+				"| +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 |    2020-03-01 18:39:14.123 |" + System.lineSeparator() +
+				"| +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |" + System.lineSeparator() +
+				"| -U |         |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                            |" + System.lineSeparator() +
+				"| +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
+				"| -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
+				"+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+" + System.lineSeparator() +
 				"8 rows in set" + System.lineSeparator(),
 				outContent.toString());
 	}
@@ -206,13 +206,13 @@ public class PrintUtilsTest {
 				true);
 
 		assertEquals(
-				"+----------+---------+------------+--------+---------+----------------+------------------------+" + System.lineSeparator() +
-				"| row_kind | boolean |        int | bigint | varchar | decimal(10, 5) |              timestamp |" + System.lineSeparator() +
-				"+----------+---------+------------+--------+---------+----------------+------------------------+" + System.lineSeparator() +
-				"|       +I |         |          1 |      2 |     abc |           1.23 |  2020-03-01 18:39:14.0 |" + System.lineSeparator() +
-				"|       +I |   false |            |      0 |         |              1 |  2020-03-01 18:39:14.1 |" + System.lineSeparator() +
-				"|       -D |    true | 2147483647 |        | abcdefg |     1234567890 | 2020-03-01 18:39:14.12 |" + System.lineSeparator() +
-				"+----------+---------+------------+--------+---------+----------------+------------------------+" + System.lineSeparator() +
+				"+----+---------+------------+--------+---------+----------------+------------------------+" + System.lineSeparator() +
+				"| op | boolean |        int | bigint | varchar | decimal(10, 5) |              timestamp |" + System.lineSeparator() +
+				"+----+---------+------------+--------+---------+----------------+------------------------+" + System.lineSeparator() +
+				"| +I |         |          1 |      2 |     abc |           1.23 |  2020-03-01 18:39:14.0 |" + System.lineSeparator() +
+				"| +I |   false |            |      0 |         |              1 |  2020-03-01 18:39:14.1 |" + System.lineSeparator() +
+				"| -D |    true | 2147483647 |        | abcdefg |     1234567890 | 2020-03-01 18:39:14.12 |" + System.lineSeparator() +
+				"+----+---------+------------+--------+---------+----------------+------------------------+" + System.lineSeparator() +
 				"3 rows in set" + System.lineSeparator(),
 				outContent.toString());
 	}
