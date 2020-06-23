@@ -190,6 +190,7 @@ class HistoryServerArchiveFetcher {
 			webJobDir.mkdir();
 			this.webOverviewDir = new File(webDir, "overviews");
 			webOverviewDir.mkdir();
+			updateJobOverview(webOverviewDir, webDir);
 		}
 
 		@Override
