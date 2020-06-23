@@ -61,7 +61,11 @@ public class InternalSerializers {
 
 	/**
 	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
+	 *
+	 * @deprecated Use {@link #create(LogicalType)} instead. All types of the new type system have been
+	 *             fully resolved before.
 	 */
+	@Deprecated
 	public static TypeSerializer create(LogicalType type, ExecutionConfig config) {
 		// ordered by type root definition
 		switch (type.getTypeRoot()) {

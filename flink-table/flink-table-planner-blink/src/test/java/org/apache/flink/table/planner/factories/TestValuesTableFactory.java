@@ -54,7 +54,6 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Keyed
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -597,7 +596,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-			assert context.createTypeInformation(schema.toPhysicalRowDataType()) instanceof RowDataTypeInfo;
 			DataStructureConverter converter = context.createDataStructureConverter(schema.toPhysicalRowDataType());
 			if (isInsertOnly) {
 				checkArgument(expectedNum == -1,

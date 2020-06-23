@@ -79,6 +79,9 @@ import static org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive;
  * 1.See {@link TableFunctionDefinition#getResultType()}.
  * 2.See {@link AggregateFunctionDefinition#getAccumulatorTypeInfo()}.
  * 3.See {@link MapViewTypeInfo#getKeyType()}.
+ *
+ * @deprecated Use {@link WrapperTypeInfo#of(LogicalType)} instead if {@link TypeInformation} is really
+ *             required. In many cases, {@link InternalSerializers#create(LogicalType)} should be sufficient.
  */
 @Deprecated
 public class TypeInfoDataTypeConverter {
@@ -191,6 +194,6 @@ public class TypeInfoDataTypeConverter {
 	}
 
 	private static <T> WrapperTypeInfo<T> createWrapperTypeInfo(RawType<T> rawType) {
-		return new WrapperTypeInfo<>(rawType.getOriginatingClass(), rawType.getTypeSerializer());
+		return new WrapperTypeInfo<>(rawType, rawType.getOriginatingClass(), rawType.getTypeSerializer());
 	}
 }

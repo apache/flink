@@ -20,7 +20,7 @@ package org.apache.flink.formats.json.debezium;
 
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
@@ -74,7 +74,7 @@ public class DebeziumJsonDeserializationSchemaTest {
 		List<String> lines = readLines(resourceFile);
 		DebeziumJsonDeserializationSchema deserializationSchema = new DebeziumJsonDeserializationSchema(
 			SCHEMA,
-			new RowDataTypeInfo(SCHEMA),
+			WrapperTypeInfo.of(SCHEMA),
 			schemaInclude,
 			false,
 			TimestampFormat.ISO_8601);
