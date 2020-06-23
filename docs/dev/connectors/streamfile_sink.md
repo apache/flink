@@ -734,7 +734,7 @@ by subsequent successful checkpoints, Flink will refuse to resume and it will th
 in-progress file.
 
 <span class="label label-danger">Important Note 4</span>: Currently, the `StreamingFileSink` only supports three filesystems: 
-HDFS/S3/Local. Flink will throw an exception when using an unsupported filesystem.
+HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 ### S3-specific
 
