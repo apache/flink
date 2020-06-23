@@ -272,6 +272,8 @@ CREATE VIEW [IF NOT EXISTS] view_name [(column_name, ...) ]
 
 #### Alter
 
+**NOTE**: Altering view only works in Table API, but not supported via SQL client.
+
 ##### Rename
 
 {% highlight sql %}
@@ -345,3 +347,4 @@ location is only supported in Hive-2.4.0 or later.
 - Hive and Calcite have different sets of reserved keywords. For example, `default` is a reserved keyword in Calcite and
 a non-reserved keyword in Hive. Even with Hive dialect, you have to quote such keywords with backtick ( ` ) in order to
 use them as identifiers.
+- Due to expanded query incompatibility, views created in Flink cannot be queried in Hive.
