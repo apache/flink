@@ -22,25 +22,52 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.runtime.types.InternalSerializers;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 
 /**
- * Type information that wraps an existing serializer.
+ * Type information that wraps a serializer that originated from a {@link LogicalType}.
+ *
+ * <p>Use {@link #of(LogicalType)} for type information of internal data structures.
  */
 @Internal
 public final class WrapperTypeInfo<T> extends TypeInformation<T> {
 
 	private static final String FORMAT = "%s(%s, %s)";
 
+	private final LogicalType type;
+
 	private final Class<T> typeClass;
 
 	private final TypeSerializer<T> typeSerializer;
 
-	public WrapperTypeInfo(Class<T> typeClass, TypeSerializer<T> typeSerializer) {
+	public WrapperTypeInfo(LogicalType type, Class<T> typeClass, TypeSerializer<T> typeSerializer) {
+		this.type = Preconditions.checkNotNull(type);
 		this.typeClass = Preconditions.checkNotNull(typeClass);
 		this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
+	}
+
+	/**
+	 * Creates type information for a logical type represented by internal data structures.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public static <T> WrapperTypeInfo<T> of(LogicalType type) {
+		final Class<?> typeClass = LogicalTypeUtils.toInternalConversionClass(type);
+		final TypeSerializer<?> serializer = InternalSerializers.create(type);
+		return (WrapperTypeInfo<T>) new WrapperTypeInfo(type, typeClass, serializer);
+	}
+
+	public LogicalType toLogicalType() {
+		return type;
+	}
+
+	public RowType toRowType() {
+		return (RowType) type;
 	}
 
 	@Override
@@ -82,7 +109,7 @@ public final class WrapperTypeInfo<T> extends TypeInformation<T> {
 	public String toString() {
 		return String.format(
 			FORMAT,
-			this.getClass().getSimpleName(),
+			type.asSummaryString(),
 			typeClass.getName(),
 			typeSerializer.getClass().getName());
 	}
@@ -96,12 +123,14 @@ public final class WrapperTypeInfo<T> extends TypeInformation<T> {
 			return false;
 		}
 		final WrapperTypeInfo<?> that = (WrapperTypeInfo<?>) o;
-		return typeClass.equals(that.typeClass) && typeSerializer.equals(that.typeSerializer);
+		return type.equals(that.type) &&
+			typeClass.equals(that.typeClass) &&
+			typeSerializer.equals(that.typeSerializer);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(typeClass, typeSerializer);
+		return Objects.hash(type, typeClass, typeSerializer);
 	}
 
 	@Override

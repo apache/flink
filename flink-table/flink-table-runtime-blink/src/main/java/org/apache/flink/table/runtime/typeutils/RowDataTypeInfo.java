@@ -40,8 +40,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * TypeInformation for {@link RowData}.
+ *
+ * @deprecated Use {@link WrapperTypeInfo#of(LogicalType)} to represent all kinds of {@link LogicalType}
+ *             as instances of {@link TypeInformation}.
  */
 @Internal
+@Deprecated
 public class RowDataTypeInfo extends TupleTypeInfoBase<RowData> {
 
 	private static final long serialVersionUID = 1L;
