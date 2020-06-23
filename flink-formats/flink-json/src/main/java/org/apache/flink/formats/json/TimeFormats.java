@@ -44,6 +44,14 @@ class TimeFormats {
 	/** Formatter for ISO8601 string representation of a timestamp value (without UTC timezone). */
 	static final DateTimeFormatter ISO8601_TIMESTAMP_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
+	/** Formatter for ISO8601 string representation of a timestamp value (with UTC timezone). */
+	static final DateTimeFormatter ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT = new DateTimeFormatterBuilder()
+		.append(DateTimeFormatter.ISO_LOCAL_DATE)
+		.appendLiteral('T')
+		.append(DateTimeFormatter.ISO_LOCAL_TIME)
+		.appendPattern("'Z'")
+		.toFormatter();
+
 	/** Formatter for SQL string representation of a time value. */
 	static final DateTimeFormatter SQL_TIME_FORMAT = new DateTimeFormatterBuilder()
 		.appendPattern("HH:mm:ss")
@@ -55,6 +63,14 @@ class TimeFormats {
 		.append(DateTimeFormatter.ISO_LOCAL_DATE)
 		.appendLiteral(' ')
 		.append(SQL_TIME_FORMAT)
+		.toFormatter();
+
+	/** Formatter for SQL string representation of a timestamp value (with UTC timezone). */
+	static final DateTimeFormatter SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT = new DateTimeFormatterBuilder()
+		.append(DateTimeFormatter.ISO_LOCAL_DATE)
+		.appendLiteral(' ')
+		.append(SQL_TIME_FORMAT)
+		.appendPattern("'Z'")
 		.toFormatter();
 
 	private TimeFormats() {

@@ -42,12 +42,15 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 
 /**
@@ -170,6 +173,8 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 				return createTimeConverter();
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return createTimestampConverter();
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return createTimestampWithLocalZone();
 			case DECIMAL:
 				return createDecimalConverter();
 			case ARRAY:
@@ -221,6 +226,25 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 					TimestampData timestamp = (TimestampData) value;
 					return mapper.getNodeFactory()
 						.textNode(SQL_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
+				};
+			default:
+				throw new TableException("Unsupported timestamp format. Validator should have checked that.");
+		}
+	}
+
+	private SerializationRuntimeConverter createTimestampWithLocalZone() {
+		switch (timestampFormat){
+			case ISO_8601:
+				return (mapper, reuse, value) -> {
+					TimestampData timestampWithLocalZone = (TimestampData) value;
+					return mapper.getNodeFactory()
+						.textNode(ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(timestampWithLocalZone.toInstant().atOffset(ZoneOffset.UTC)));
+				};
+			case SQL:
+				return (mapper, reuse, value) -> {
+					TimestampData timestampWithLocalZone = (TimestampData) value;
+					return mapper.getNodeFactory()
+						.textNode(SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(timestampWithLocalZone.toInstant().atOffset(ZoneOffset.UTC)));
 				};
 			default:
 				throw new TableException("Unsupported timestamp format. Validator should have checked that.");
