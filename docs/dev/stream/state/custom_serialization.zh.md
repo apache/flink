@@ -63,14 +63,14 @@ checkpointedState = getRuntimeContext.getListState(descriptor)
 </div>
 </div>
 
-## State serializers and schema evolution
+<a name="state-serializers-and-schema-evolution"></a>
+## State 序列化器及结构升级
 
-本节介绍了 state 序列化以及结构升级相关的面向用户的抽象，以及 Flink 如何与这些抽象交互的一些内部细节。
+本节介绍了 state 序列化以及结构升级的用户抽象，以及 Flink 如何与这些抽象交互的一些内部细节。
 
-从 savepoint 恢复时，Flink 允许更改 state 的序列化器，从而支持结构升级。state 恢复之后，将使用新的序列化器进行 state 注册（即恢复后作业中 `StateDescriptor` 指定的序列化器），
-新的序列化器可能和之前的序列化器拥有不同的结构。因此，实现 state 序列化器的时候，处理正确处理读写数据的基本逻辑外，另外一个需要重点考虑的是未来如何支持 state 的机构升级。
+从 savepoint 恢复时，Flink 允许更改 state 的序列化器，从而支持结构升级。state 恢复之后，将使用新序列化器进行 state 注册（即恢复后作业中 `StateDescriptor` 指定的序列化器），新的序列化器可能和之前的序列化器拥有不同的结构。因此，实现 state 序列化器的时候，除了正确处理读写数据的基本逻辑外，另外一个需要重点考虑的是未来如何支持 state 的结构升级。
 
-这里说的 *结构*，既可能指 state 的 *数据模型*，也可能指 *序列化之后的二进制格式"。一般来说，结构在如下情况下会发生改变：
+这里说的 *结构*，既可能指 state 的 *数据模型*，也可能指 *序列化之后的二进制格式* 。一般来说，结构在如下情况下会发生改变：
 
  1. state 的结构发生变化，比如 POJO 类中增加或删除字段。
  2. 一般来说，数据格式变化之后，序列化器的序列化格式需要进行升级。
@@ -78,7 +78,7 @@ checkpointedState = getRuntimeContext.getListState(descriptor)
  
 为了能在新作业中获取到之前 state 的结构，并检测到模式是否发生变化，在生成 savepoint 的时候，会把 state 序列化器的快照也一并写出。这个快照被抽象为 `TypeSerializerSnapshot`，在下一节中详细描述
 
-### The `TypeSerializerSnapshot` abstraction
+### `TypeSerializerSnapshot` 抽象
 
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -102,29 +102,29 @@ public abstract class TypeSerializer<T> {
 }
 {% endhighlight %}
 </div>
-序列化器的 `TypeSerializerSnapshot` 包含序列化器的结构信息，以及恢复序列化器所需要的其他附加信息。序列化器的快照读写逻辑在 `writeSnapshot` 以及 `readSnapshot` 中进行实现。
+序列化器的 `TypeSerializerSnapshot` 包含序列化器的结构信息，以及恢复序列化器所需要的其他附加信息。序列化器快照的读写逻辑在 `writeSnapshot` 以及 `readSnapshot` 中进行实现。
 
-需要注意的是快照本身的格式可能也需要随时间发生变化（比如，往快照中增加更多序列化器的信息）。为了方便，快照携带版本号，可以通过 `getCurrentVersion` 获取当前版本。在恢复的时候，从 savepoint 读取到快照后，`readSnapshot` 会调用对应版本的实现方法。
+需要注意的是快照本身的格式可能也需要随时间迁移而发生变化（比如，往快照中增加更多序列化器的信息）。为了方便，快照携带版本号，可以通过 `getCurrentVersion` 获取当前版本。在恢复的时候，从 savepoint 读取到快照后，`readSnapshot` 会调用对应版本的实现方法。
 
-在恢复时，检测序列化器格式是否发生变化的逻辑应该在 `resolveSchemaCompatibility` 中实现，该方法接收新的序列化器作为参数。该方法返回一个 `TypeSerializerSchemaCompatibility` 表示兼容性的结果，该结果有如下几种：
- 1. **`TypeSerializerSchemaCompatibility.compatibleAsIs()`**: 该结果表明新的序列化器是兼容的，意味着新序列化器和之前的序列化器拥有相同的格式。也可能是在 `resolveSchemaCompatibility` 中对新序列化器继续重新配置所达到的。
+在恢复时，检测序列化器格式是否发生变化的逻辑应该在 `resolveSchemaCompatibility` 中实现，该方法接收新序列化器作为参数。该方法返回一个 `TypeSerializerSchemaCompatibility` 表示兼容性的结果，该结果有如下几种：
+ 1. **`TypeSerializerSchemaCompatibility.compatibleAsIs()`**: 该结果表明新序列化器是兼容的，意味着新旧序列化器拥有相同的格式。也可能是在 `resolveSchemaCompatibility` 中对新序列化器继续重新配置所达到的。
  2. **`TypeSerializerSchemaCompatibility.compatibleAfterMigration()`**: 该结果表示新旧序列化器的格式不同，不过可以使用之前的序列化器反序列化，然后再用新序列化器进行序列化，从而进行迁移。
  3. **`TypeSerializerSchemaCompatibility.incompatible()`**: 该结果表示新旧序列化器的格式不同，且无法进行迁移。
 
-最后一点细节在于需要进行 state 迁移时如何获取之前的序列化器。`TypeSerializerSnapshot` 的另一个重要作用是可以构造之前的序列化器。更具体的说，`TypeSerializerSnapshot` 应该实现 `restoreSerializer` 方法，该方法返回一个可以安全读取之前序列化器写出数据的序列化器。
+最后一点细节在于需要进行 state 迁移时如何获取之前的序列化器。`TypeSerializerSnapshot` 的另一个重要作用是可以构造之前的序列化器。更具体地说，`TypeSerializerSnapshot` 应该实现 `restoreSerializer` 方法，该方法返回一个可以安全读取由之前序列化器写出数据的序列化器。
 
-### How Flink interacts with the `TypeSerializer` and `TypeSerializerSnapshot` abstractions
+### Flink 如何使用 `TypeSerializer` 与 `TypeSerializerSnapshot`
 
-总结一下，本节总结了 Flink，或者更具体的说状态后端，是如何与这些抽象交互。根据状态后端的不同，交互方式略有不同，但这与序列化器以及序列化器快照的实现是正交的。
+本节总结了 Flink 或者更具体的说状态后端，是如何与这些抽象交互。根据状态后端的不同，交互方式略有不同，但这与序列化器以及序列化器快照的实现是正交的。
 
 #### Off-heap state backends (e.g. `RocksDBStateBackend`)
 
  1. **以拥有格式 _A_ 的序列化器注册一个新的 state**
   - state 的每次访问（读/写）都使用注册的 `TypeSerializer`.
   - state 以格式 *A* 进行序列化.
- 2. **Take a savepoint**
+ 2. **执行 savepoint**
   - 通过 `TypeSerializer#snapshotConfiguration` 获取序列化器快照。
-  - 序列化器快照和序列化后的 state 数据一起写到 savepoin。
+  - 序列化器快照和序列化后的 state 数据一起写到 savepoint。
  3. **以一个拥有格式 _B_ 的新序列化器恢复 state 数据**
   - 恢复之前序列化器的快照。
   - state 的数据不会真正被反序列化，仅加载到状态后端（这个时候仍然以格式 *A* 的形式存在）。
@@ -137,16 +137,16 @@ public abstract class TypeSerializer<T> {
 
  1. **以拥有格式 _A_ 的序列化器注册一个新的 state**
   - 注册的 `TypeSerializer` 后状态后端维护.
- 2. **做 savepoint 时, 以格式 _A_ 序列化所有的 state**
-  - 通过 `TypeSerializer#snapshotConfiguration` 获取序列化器快照.
-  - 将序列化器快照写到 savepoint.
+ 2. **执行 savepoint 时, 以格式 _A_ 序列化所有的 state**
+  - 通过 `TypeSerializer#snapshotConfiguration` 获取序列化器快照。
+  - 将序列化器快照写到 savepoint。
   - 以格式 _A_ 将 state 序列化到 savepoint 中。
  3. **恢复时，将 state 反序列化到堆上的对象**
   - 恢复之前的序列化器快照。
   - 通过 `TypeSerializerSnapshot#restoreSerializer()` 获取之前的格式 _A_ 的序列化器，并用于反序列化 state。
   - 至此，所有的 state 都被反序列化完成。
  4. **恢复后以新格式 _B_ 的序列化器访问 state。
-  - 接受到新的序列化器后，通过 `TypeSerializer#resolveSchemaCompatibility` 检查格式的兼容性。
+  - 接受到新序列化器后，通过 `TypeSerializer#resolveSchemaCompatibility` 检查格式的兼容性。
   - 如果兼容性表明需要迁移，则不需要做任何事情，因为所有的 state 都已经被反序列化成对象。
   - 如果兼容性表明不兼容，则会抛出异常。
  5. **再次执行 savepoint 时，以格式 _B_ 序列化所有的 state**
