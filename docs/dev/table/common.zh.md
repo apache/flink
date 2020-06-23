@@ -818,7 +818,7 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 * 当 `TableEnvironment.executeSql()` 被调用时。该方法是用来执行一个 SQL 语句，一旦该方法被调用， SQL 语句立即被翻译。
 * 当 `Table.executeInsert()` 被调用时。该方法是用来将一个表的内容插入到目标表中，一旦该方法被调用， TABLE API 程序立即被翻译。
 * 当 `Table.execute()` 被调用时。该方法是用来将一个表的内容收集到本地，一旦该方法被调用， TABLE API 程序立即被翻译。
-* 当 `SatementSet.execute()` 被调用时。`Table` （通过 `SatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `SatementSet.addInsertSql()`）会先被缓存到 `SatementSet` 中，`SatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
+* 当 `StatementSet.execute()` 被调用时。`Table` （通过 `StatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `StatementSet.addInsertSql()`）会先被缓存到 `StatementSet` 中，`StatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
 * 当 `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并会在调用 `StreamExecutionEnvironment.execute()` 时被执行。
 
 <span class="label label-danger">注意</span> **从 1.11 版本开始，`sqlUpdate` 方法 和 `insertInto` 方法被废弃，从这两个方法构建的 Table 程序必须通过 `StreamTableEnvironment.execute()` 方法执行，而不能通过 `StreamExecutionEnvironment.execute()` 方法来执行。**
@@ -835,7 +835,7 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 * 当 `TableEnvironment.executeSql()` 被调用时。该方法是用来执行一个 SQL 语句，一旦该方法被调用， SQL 语句立即被翻译。
 * 当 `Table.executeInsert()` 被调用时。该方法是用来将一个表的内容插入到目标表中，一旦该方法被调用， TABLE API 程序立即被翻译。
 * 当 `Table.execute()` 被调用时。该方法是用来将一个表的内容收集到本地，一旦该方法被调用， TABLE API 程序立即被翻译。
-* 当 `SatementSet.execute()` 被调用时。`Table` （通过 `SatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `SatementSet.addInsertSql()`）会先被缓存到 `SatementSet` 中，`SatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
+* 当 `StatementSet.execute()` 被调用时。`Table` （通过 `StatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `StatementSet.addInsertSql()`）会先被缓存到 `StatementSet` 中，`StatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
 * 对于 Streaming 而言，当`Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）触发翻译。转换完成后，它就成为一个普通的 DataStream 程序，并会在调用 `StreamExecutionEnvironment.execute()` 时被执行。对于 Batch 而言，`Table` 被转换成 `DataSet` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）触发翻译。转换完成后，它就成为一个普通的 DataSet 程序，并会在调用 `ExecutionEnvironment.execute()` 时被执行。
 
 <span class="label label-danger">注意</span> **从 1.11 版本开始，`sqlUpdate` 方法 和 `insertInto` 方法被废弃。对于 Streaming 而言，如果一个 Table 程序是从这两个方法构建出来的，必须通过 `StreamTableEnvironment.execute()` 方法执行，而不能通过 `StreamExecutionEnvironment.execute()` 方法执行；对于 Batch 而言，如果一个 Table 程序是从这两个方法构建出来的，必须通过 `BatchTableEnvironment.execute()` 方法执行，而不能通过 `ExecutionEnvironment.execute()` 方法执行。**

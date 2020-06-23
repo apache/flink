@@ -140,12 +140,12 @@ table_env \
 {% top %}
 
 ## 执行查询
-SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` 方法来执行，将选择的结果收集到本地。该方法返回 `TableResult` 对象用于包装查询的结果。和 SELECT 语句很像，`Table.execute()` 方法可以将 `Table` 的内容收集到本地。
+SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` 方法来执行，将选择的结果收集到本地。该方法返回 `TableResult` 对象用于包装查询的结果。和 SELECT 语句很像，一个 `Table` 对象可以通过 `Table.execute()` 方法执行从而将 `Table` 的内容收集到本地客户端。
 `TableResult.collect()` 方法返回一个可以关闭的行迭代器。除非所有的数据都被收集到本地，否则一个查询作业永远不会结束。所以我们应该通过 `CloseableIterator#close()` 方法主动地关闭作业以防止资源泄露。
 我们还可以通过 `TableResult.print()` 方法将查询结果打印到本地控制台。`TableResult` 中的结果数据只能被访问一次，因此一个 `TableResult` 实例中，`collect()` 方法和 `print()` 方法不能被同时使用。
 
-对于流模式，`TableResult.collect()` 方法或者 `TableResult.print` 方法保证端到端精确一次的数据交付。这就要求 checkpoint 机制被打开。（默认情况下 checkpoint 是禁止的，可以调用 `StreamExecutionEnvironment#enableCheckpointing()` 方法开启。）
-因此一条结果数据只有在其对应的 checkpoint 完成后才能在客户端被访问。
+对于流模式，`TableResult.collect()` 方法或者 `TableResult.print` 方法保证端到端精确一次的数据交付。这就要求开启 checkpointing。默认情况下 checkpointing 是禁止的，我们可以通过 `TableConfig` 设置 checkpointing 相关属性（请参考 <a href="{{ site.baseurl }}/zh/ops/config.html#checkpointing">checkpointing 配置</a>）来开启 checkpointing。
+因此一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
 
 **注意：** 对于流模式，当前仅支持追加模式的查询语句，并且应该开启 checkpoint。因为一条结果只有在其对应的 checkpoint 完成之后才能被客户端访问到。
 
@@ -153,9 +153,12 @@ SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` �
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-// enable checkpointing
-env.enableCheckpointing(1000);
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+// enable checkpointing
+tableEnv.getConfig().getConfiguration().set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE);
+tableEnv.getConfig().getConfiguration().set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10));
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
@@ -178,9 +181,12 @@ tableResult2.print();
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
-// enable checkpointing
-env.enableCheckpointing(1000)
 val tableEnv = StreamTableEnvironment.create(env, settings)
+// enable checkpointing
+tableEnv.getConfig.getConfiguration.set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+tableEnv.getConfig.getConfiguration.set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -202,9 +208,10 @@ tableResult2.print()
 <div data-lang="python" markdown="1">
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
-# enable checkpointing
-env.enable_checkpointing(1000)
 table_env = StreamTableEnvironment.create(env, settings)
+# enable checkpointing
+table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "10s")
 
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 

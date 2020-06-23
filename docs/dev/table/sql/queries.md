@@ -141,11 +141,11 @@ table_env \
 {% top %}
 
 ## Execute a Query
-A SELECT statement or a VALUES statement can be executed to collect the content to local through the `TableEnvironment.executeSql()` method. The method returns the result of the SELECT statement (or the VALUES statement) as a `TableResult`. Similar to SELECT statement, a `Table` can also be executed to collect to content of the table to local through the `Table.execute()` method.
+A SELECT statement or a VALUES statement can be executed to collect the content to local through the `TableEnvironment.executeSql()` method. The method returns the result of the SELECT statement (or the VALUES statement) as a `TableResult`. Similar to a SELECT statement, a `Table` object can be executed using the `Table.execute()` method to collect the content of the query to the local client.
 `TableResult.collect()` method returns a closeable row iterator. The select job will not be finished unless all result data has been collected. We should actively close the job to avoid resource leak through the `CloseableIterator#close()` method. 
-We can also print the select result to client console through the `TableResult.print()` method. The result data in `TableResult` can be accessed only once, so for a `TableResult` instance, `collect()` method and `print()` method can't be called both.
+We can also print the select result to client console through the `TableResult.print()` method. The result data in `TableResult` can be accessed only once. Thus, `collect()` and `print()` must not be called after each other.
 
-For streaming job, `TableResult.collect()` method or `TableResult.print` method guarantee end-to-end exactly-once record delivery. This requires the checkpointing mechanism is enabled (By default, checkpointing is disabled. To enable checkpointing, call `StreamExecutionEnvironment#enableCheckpointing()` method).
+For streaming job, `TableResult.collect()` method or `TableResult.print` method guarantee end-to-end exactly-once record delivery. This requires the checkpointing mechanism to be enabled. By default, checkpointing is disabled. To enable checkpointing, we can set checkpointing properties (see the <a href="{{ site.baseurl }}/ops/config.html#checkpointing">checkpointing config</a> for details) through `TableConfig`.
 So a result record can be accessed by client only after its corresponding checkpoint completes.
 
 **Notes:** For streaming mode, only append-only query is supported now. 
@@ -154,9 +154,12 @@ So a result record can be accessed by client only after its corresponding checkp
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-// enable checkpointing
-env.enableCheckpointing(1000);
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+// enable checkpointing
+tableEnv.getConfig().getConfiguration().set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE);
+tableEnv.getConfig().getConfiguration().set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10));
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
@@ -179,9 +182,12 @@ tableResult2.print();
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
-// enable checkpointing
-env.enableCheckpointing(1000)
 val tableEnv = StreamTableEnvironment.create(env, settings)
+// enable checkpointing
+tableEnv.getConfig.getConfiguration.set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+tableEnv.getConfig.getConfiguration.set(
+  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -203,9 +209,10 @@ tableResult2.print()
 <div data-lang="python" markdown="1">
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
-# enable checkpointing
-env.enable_checkpointing(1000)
 table_env = StreamTableEnvironment.create(env, settings)
+# enable checkpointing
+table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "10s")
 
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 

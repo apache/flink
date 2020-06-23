@@ -53,7 +53,7 @@ tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount 
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// Execute insert sql with a registered table
+// Execute insert SQL with a registered table
 // register a TableSink
 tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
 // run an insert SQL on the Table and emit the result to the TableSink
@@ -74,7 +74,7 @@ tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount 
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// Execute insert sql with a registered table
+// Execute insert SQL with a registered table
 // register a TableSink
 tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
 // run an insert SQL on the Table and emit the result to the TableSink
