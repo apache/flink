@@ -678,7 +678,11 @@ public interface TableEnvironment {
 	 *</pre>
 	 *
 	 * @param connectorDescriptor connector descriptor describing the external system
+	 * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
+	 * might be refactored in the next versions. Please use {@link #executeSql(String) executeSql(ddl)}
+	 * to register a table instead.
 	 */
+	@Deprecated
 	ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
