@@ -305,6 +305,16 @@ public class DataTypeExtractorTest {
 					"Could not extract a data type from 'java.util.HashMap<java.lang.Integer, java.lang.String>'. " +
 						"Interpreting it as a structured type was also not successful."),
 
+			TestSpec
+				.forGeneric(
+					"ARRAY type with List conversion class",
+					TableFunction.class, 0, TableFunctionWithList.class)
+				.expectDataType(
+					DataTypes.ARRAY(
+						DataTypes.ARRAY(DataTypes.STRING()).bridgedTo(List.class)
+					).bridgedTo(List.class)
+				),
+
 			// simple structured type without RAW type
 			TestSpec
 				.forType(SimplePojo.class)
@@ -739,6 +749,12 @@ public class DataTypeExtractorTest {
 	// --------------------------------------------------------------------------------------------
 
 	private static class TableFunctionWithHashMap extends TableFunction<HashMap<Integer, String>> {
+
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class TableFunctionWithList extends TableFunction<List<List<String>>> {
 
 	}
 

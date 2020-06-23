@@ -68,9 +68,11 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -405,8 +407,8 @@ public class LogicalTypesTest {
 			new ArrayType(new TimestampType()),
 			"ARRAY<TIMESTAMP(6)>",
 			"ARRAY<TIMESTAMP(6)>",
-			new Class[]{java.sql.Timestamp[].class, java.time.LocalDateTime[].class},
-			new Class[]{java.sql.Timestamp[].class, java.time.LocalDateTime[].class},
+			new Class[]{java.sql.Timestamp[].class, java.time.LocalDateTime[].class, List.class, ArrayList.class},
+			new Class[]{java.sql.Timestamp[].class, java.time.LocalDateTime[].class, List.class},
 			new LogicalType[]{new TimestampType()},
 			new ArrayType(new SmallIntType())
 		);
