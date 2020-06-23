@@ -303,34 +303,38 @@ trait BatchTableEnvironment extends TableEnvironment {
   override def execute(jobName: String): JobExecutionResult
 
   /**
-    * Creates a temporary table from a descriptor.
-    *
-    * Descriptors allow for declaring the communication to external systems in an
-    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-    * the desired configuration.
-    *
-    * The following example shows how to read from a connector using a JSON format and
-    * registering a temporary table as "MyTable":
-    *
-    * {{{
-    *
-    * tableEnv
-    *   .connect(
-    *     new ExternalSystemXYZ()
-    *       .version("0.11"))
-    *   .withFormat(
-    *     new Json()
-    *       .jsonSchema("{...}")
-    *       .failOnMissingField(false))
-    *   .withSchema(
-    *     new Schema()
-    *       .field("user-name", "VARCHAR").from("u_name")
-    *       .field("count", "DECIMAL")
-    *   .createTemporaryTable("MyTable")
-    * }}}
-    *
-    * @param connectorDescriptor connector descriptor describing the external system
-    */
+   * Creates a temporary table from a descriptor.
+   *
+   * Descriptors allow for declaring the communication to external systems in an
+   * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+   * the desired configuration.
+   *
+   * The following example shows how to read from a connector using a JSON format and
+   * registering a temporary table as "MyTable":
+   *
+   * {{{
+   *
+   * tableEnv
+   *   .connect(
+   *     new ExternalSystemXYZ()
+   *       .version("0.11"))
+   *   .withFormat(
+   *     new Json()
+   *       .jsonSchema("{...}")
+   *       .failOnMissingField(false))
+   *   .withSchema(
+   *     new Schema()
+   *       .field("user-name", "VARCHAR").from("u_name")
+   *       .field("count", "DECIMAL")
+   *   .createTemporaryTable("MyTable")
+   * }}}
+   *
+   * @param connectorDescriptor connector descriptor describing the external system
+   * @deprecated The SQL `CREATE TABLE` DDL is richer than this part of the API.
+   *             This method might be refactored in the next versions.
+   *             Please use [[executeSql]] to register a table instead.
+   */
+  @deprecated
   override def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor
 }
 
