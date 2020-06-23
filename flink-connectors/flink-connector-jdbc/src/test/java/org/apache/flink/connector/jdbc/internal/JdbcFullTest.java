@@ -28,7 +28,6 @@ import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
-import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
@@ -44,7 +43,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.function.Function;
@@ -59,10 +57,8 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 
 /**
  * Tests using both {@link JdbcInputFormat} and {@link JdbcBatchingOutputFormat}.
@@ -105,49 +101,6 @@ public class JdbcFullTest extends JdbcDataTestBase {
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
 			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
-		}
-	}
-
-	@Test
-	public void testJdbcBatchingOutputFormatCloseDuringRuntime() throws Exception{
-		JdbcOptions options = JdbcOptions.builder()
-			.setDBUrl(getDbMetadata().getUrl())
-			.setTableName(OUTPUT_TABLE)
-			.build();
-		// use scheduledThreadPool
-		JdbcExecutionOptions jdbcExecutionOptions = JdbcExecutionOptions.builder()
-			.withBatchIntervalMs(1000_000L)
-			.withBatchSize(2)
-			.withMaxRetries(1)
-			.build();
-		ExecutionConfig executionConfig = new ExecutionConfig();
-
-		RuntimeContext context = Mockito.mock(RuntimeContext.class);
-		JdbcBatchStatementExecutor executor = Mockito.mock(JdbcBatchStatementExecutor.class);
-
-		doReturn(executionConfig).when(context).getExecutionConfig();
-		// always throw Exception to trigger close() method
-		doThrow(SQLException.class).when(executor).executeBatch();
-
-		JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> format =
-			new JdbcBatchingOutputFormat<>(
-				new SimpleJdbcConnectionProvider(options),
-				jdbcExecutionOptions,
-				(ctx) -> executor,
-				(tuple2) -> tuple2.f1);
-
-		format.setRuntimeContext(context);
-		format.open(0, 1);
-
-		try {
-			for (JdbcTestFixture.TestEntry entry : TEST_DATA) {
-				format.writeRecord(Tuple2.of(true, toRow(entry)));
-			}
-		} catch (Exception e) {
-			// artifact failure
-			format.close();
-		} finally {
-			assertNull(format.getConnection());
 		}
 	}
 
