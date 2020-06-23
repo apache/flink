@@ -61,8 +61,8 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -452,10 +452,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	}
 
 	private LocalDateTime convertToLocalDateTime(ObjectMapper mapper, JsonNode jsonNode) {
-		// according to RFC 3339 every date-time must have a timezone;
-		// until we have full timezone support, we only support UTC;
-		// users can parse their time as string as a workaround
-		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+		// The input of Time can't contain any zone info
+		// Users have to cast time with zone into local time manually.
+		TemporalAccessor parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 
 		ZoneOffset zoneOffset = parsedTimestamp.query(TemporalQueries.offset());
 
@@ -476,11 +475,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	}
 
 	private LocalTime convertToLocalTime(ObjectMapper mapper, JsonNode jsonNode) {
-		// according to RFC 3339 every full-time must have a timezone;
-		// until we have full timezone support, we only support UTC;
-		// users can parse their time as string as a workaround
-
-		TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+		// The input of Time can't contain any zone info
+		// Users have to cast time with zone into local time manually.
+		TemporalAccessor parsedTime = SQL_TIME_FORMAT.parse(jsonNode.asText());
 
 		ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
 		LocalTime localTime = parsedTime.query(TemporalQueries.localTime());

@@ -87,10 +87,10 @@ public class JsonRowDeserializationSchemaTest {
 		root.put("bytes", bytes);
 		root.put("date1", "1990-10-14");
 		root.put("date2", "1990-10-14");
-		root.put("time1", "12:12:43Z");
-		root.put("time2", "12:12:43Z");
-		root.put("timestamp1", "1990-10-14T12:12:43Z");
-		root.put("timestamp2", "1990-10-14T12:12:43Z");
+		root.put("time1", "12:12:43");
+		root.put("time2", "12:12:43");
+		root.put("timestamp1", "1990-10-14T12:12:43");
+		root.put("timestamp2", "1990-10-14T12:12:43");
 		root.putObject("map").put("flink", 123);
 		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
@@ -141,8 +141,8 @@ public class JsonRowDeserializationSchemaTest {
 		root.putNull("idOrNull");
 		root.put("name", name);
 		root.put("date", "1990-10-14");
-		root.put("time", "12:12:43Z");
-		root.put("timestamp", "1990-10-14T12:12:43Z");
+		root.put("time", "12:12:43");
+		root.put("timestamp", "1990-10-14T12:12:43");
 		root.put("bytes", bytes);
 		root.putArray("numbers").add(1).add(2).add(3);
 		root.putArray("strings").add("one").add("two").add("three");

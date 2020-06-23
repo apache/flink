@@ -51,6 +51,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.HashMap;
@@ -61,6 +62,7 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -202,6 +204,8 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 				return this::convertToTime;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return this::convertToTimestamp;
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return this::convertToTimestampWithLocalZone;
 			case FLOAT:
 				return this::convertToFloat;
 			case DOUBLE:
@@ -301,6 +305,21 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
 
 		return TimestampData.fromLocalDateTime(LocalDateTime.of(localDate, localTime));
+	}
+
+	private TimestampData convertToTimestampWithLocalZone(JsonNode jsonNode){
+		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+
+		ZoneOffset offset = parsedTimestamp.query(TemporalQueries.offset());
+		if (offset != ZoneOffset.UTC) {
+			throw new JsonParseException(
+				"Invalid timestamp format. Only a timestamp in UTC timezone is supported yet. " +
+					"Format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+		}
+		LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
+		LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
+
+		return TimestampData.fromInstant(LocalDateTime.of(localDate, localTime).atOffset(offset).toInstant());
 	}
 
 	private StringData convertToString(JsonNode jsonNode) {

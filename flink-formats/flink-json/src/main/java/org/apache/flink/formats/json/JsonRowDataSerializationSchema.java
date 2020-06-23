@@ -42,11 +42,13 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 
@@ -170,6 +172,8 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 				return createTimeConverter();
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return createTimestampConverter();
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return createTimestampWithLocalZone();
 			case DECIMAL:
 				return createDecimalConverter();
 			case ARRAY:
@@ -225,6 +229,13 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 			default:
 				throw new TableException("Unsupported timestamp format. Validator should have checked that.");
 		}
+	}
+
+	private SerializationRuntimeConverter createTimestampWithLocalZone() {
+		return (mapper, reuse, value) -> {
+			TimestampData timestampData = (TimestampData) value;
+			return mapper.getNodeFactory().textNode(RFC3339_TIMESTAMP_FORMAT.format(timestampData.toInstant().atOffset(ZoneOffset.UTC)));
+		};
 	}
 
 	private SerializationRuntimeConverter createArrayConverter(ArrayType type) {

@@ -31,7 +31,7 @@ class TimeFormats {
 	static final DateTimeFormatter RFC3339_TIME_FORMAT = new DateTimeFormatterBuilder()
 		.appendPattern("HH:mm:ss")
 		.appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-		.appendPattern("'Z'")
+		.appendPattern("X")
 		.toFormatter();
 
 	/** Formatter for RFC 3339-compliant string representation of a timestamp value (with UTC timezone). */

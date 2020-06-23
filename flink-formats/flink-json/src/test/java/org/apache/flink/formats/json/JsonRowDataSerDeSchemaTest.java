@@ -35,8 +35,11 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +63,7 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
@@ -85,6 +89,9 @@ public class JsonRowDataSerDeSchemaTest {
 		LocalTime time = LocalTime.parse("12:12:43");
 		Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
 		Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
+		Instant timestampWithLocalZone =
+			LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789).
+				atOffset(ZoneOffset.of("Z")).toInstant();
 
 		Map<String, Long> map = new HashMap<>();
 		map.put("flink", 123L);
@@ -113,6 +120,7 @@ public class JsonRowDataSerDeSchemaTest {
 		root.put("time", "12:12:43");
 		root.put("timestamp3", "1990-10-14T12:12:43.123");
 		root.put("timestamp9", "1990-10-14T12:12:43.123456789");
+		root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
 		root.putObject("map").put("flink", 123);
 		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
@@ -133,6 +141,7 @@ public class JsonRowDataSerDeSchemaTest {
 			FIELD("time", TIME(0)),
 			FIELD("timestamp3", TIMESTAMP(3)),
 			FIELD("timestamp9", TIMESTAMP(9)),
+			FIELD("timestampWithLocalZone", TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
 			FIELD("map", MAP(STRING(), BIGINT())),
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
 		RowType schema = (RowType) dataType.getLogicalType();
@@ -141,7 +150,7 @@ public class JsonRowDataSerDeSchemaTest {
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
 
-		Row expected = new Row(16);
+		Row expected = new Row(17);
 		expected.setField(0, true);
 		expected.setField(1, tinyint);
 		expected.setField(2, smallint);
@@ -156,8 +165,9 @@ public class JsonRowDataSerDeSchemaTest {
 		expected.setField(11, time);
 		expected.setField(12, timestamp3.toLocalDateTime());
 		expected.setField(13, timestamp9.toLocalDateTime());
-		expected.setField(14, map);
-		expected.setField(15, nestedMap);
+		expected.setField(14, timestampWithLocalZone);
+		expected.setField(15, map);
+		expected.setField(16, nestedMap);
 
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		Row actual = convertToExternal(rowData, dataType);
@@ -324,7 +334,7 @@ public class JsonRowDataSerDeSchemaTest {
 		String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
 		try {
 			deserializationSchema.deserialize(serializedJson);
-			Assert.fail("expecting exception message: " + errorMessage);
+			fail("expecting exception message: " + errorMessage);
 		} catch (Throwable t) {
 			assertEquals(errorMessage, t.getMessage());
 		}
@@ -538,6 +548,17 @@ public class JsonRowDataSerDeSchemaTest {
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.rowType(ROW(FIELD("map", MAP(STRING(), INT()))))
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'"),
+
+		TestSpec
+			.json("{\"id\":\"2019-11-12T18:00:12\"}")
+			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"2019-11-12T18:00:12\"}")
+			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'")
 			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'.")
 	);
 
