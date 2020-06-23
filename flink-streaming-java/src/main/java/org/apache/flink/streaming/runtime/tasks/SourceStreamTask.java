@@ -34,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -53,7 +54,7 @@ import java.util.concurrent.Future;
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
 
-	private final LegacySourceFunctionThread sourceThread;
+	private final LegacySourceFunctionRunner sourceFunctionRunner;
 	private final Object lock;
 
 	private volatile boolean externallyInducedCheckpoints;
@@ -69,9 +70,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	private SourceStreamTask(Environment env, Object lock) throws Exception {
+		this(env, lock, LegacySourceFunctionThread::new);
+	}
+
+	SourceStreamTask(Environment env, Object lock, Function<SourceStreamTask<OUT, SRC, OP>, LegacySourceFunctionRunner> runnerFactory) throws Exception {
 		super(env, null, FatalExitExceptionHandler.INSTANCE, StreamTaskActionExecutor.synchronizedExecutor(lock));
 		this.lock = Preconditions.checkNotNull(lock);
-		this.sourceThread = new LegacySourceFunctionThread();
+		this.sourceFunctionRunner = runnerFactory.apply(this);
 	}
 
 	@Override
@@ -129,9 +134,9 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
 		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
-		sourceThread.setTaskDescription(getName());
-		sourceThread.start();
-		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
+		sourceFunctionRunner.setTaskDescription(getName());
+		sourceFunctionRunner.start();
+		sourceFunctionRunner.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
 			if (isCanceled() && ExceptionUtils.findThrowable(sourceThreadThrowable, InterruptedException.class).isPresent()) {
 				mailboxProcessor.reportThrowable(new CancelTaskException(sourceThreadThrowable));
 			} else if (!isFinished && sourceThreadThrowable != null) {
@@ -150,7 +155,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			}
 		}
 		finally {
-			sourceThread.interrupt();
+			sourceFunctionRunner.interrupt();
 		}
 	}
 
@@ -184,21 +189,33 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		}
 	}
 
+	interface LegacySourceFunctionRunner {
+		void setTaskDescription(String taskDescription);
+
+		void start();
+
+		void interrupt();
+
+		CompletableFuture<Void> getCompletionFuture();
+	}
+
 	/**
 	 * Runnable that executes the the source function in the head operator.
 	 */
-	private class LegacySourceFunctionThread extends Thread {
+	static class LegacySourceFunctionThread extends Thread implements LegacySourceFunctionRunner {
 
 		private final CompletableFuture<Void> completionFuture;
+		private final SourceStreamTask<?, ?, ?> task;
 
-		LegacySourceFunctionThread() {
+		LegacySourceFunctionThread(SourceStreamTask<?, ?, ?> task) {
 			this.completionFuture = new CompletableFuture<>();
+			this.task = task;
 		}
 
 		@Override
 		public void run() {
 			try {
-				headOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+				task.headOperator.run(task.lock, task.getStreamStatusMaintainer(), task.operatorChain);
 				completionFuture.complete(null);
 			} catch (Throwable t) {
 				// Note, t can be also an InterruptedException
@@ -206,11 +223,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			}
 		}
 
+		@Override
 		public void setTaskDescription(final String taskDescription) {
 			setName("Legacy Source Thread - " + taskDescription);
 		}
 
-		CompletableFuture<Void> getCompletionFuture() {
+		@Override
+		public CompletableFuture<Void> getCompletionFuture() {
 			return completionFuture;
 		}
 	}
