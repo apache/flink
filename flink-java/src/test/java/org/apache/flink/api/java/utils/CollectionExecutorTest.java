@@ -51,7 +51,7 @@ public class CollectionExecutorTest {
 		config.set(DeploymentOptions.TARGET, CollectionPipelineExecutor.NAME);
 		config.set(DeploymentOptions.ATTACHED, true);
 
-		PipelineExecutorFactory factory = DefaultExecutorServiceLoader.INSTANCE.getExecutorFactory(config);
+		PipelineExecutorFactory factory = new DefaultExecutorServiceLoader().getExecutorFactory(config);
 		assertTrue(factory instanceof CollectionExecutorFactory);
 
 		PipelineExecutor executor = factory.getExecutor(config);
