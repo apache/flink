@@ -314,15 +314,35 @@ public final class DataTypeExtractor {
 			return DataTypes.ARRAY(
 				extractDataTypeOrRaw(template, typeHierarchy, genericArray.getGenericComponentType()));
 		}
-		// for my.custom.Pojo[][]
-		else if (type instanceof Class) {
-			final Class<?> clazz = (Class<?>) type;
-			if (clazz.isArray()) {
-				return DataTypes.ARRAY(
-					extractDataTypeOrRaw(template, typeHierarchy, clazz.getComponentType()));
-			}
+
+		final Class<?> clazz = toClass(type);
+		if (clazz == null) {
+			return null;
 		}
-		return null;
+
+		// for my.custom.Pojo[][]
+		if (clazz.isArray()) {
+			return DataTypes.ARRAY(
+				extractDataTypeOrRaw(template, typeHierarchy, clazz.getComponentType()));
+		}
+
+		// for List<T>
+		// we only allow List here (not a subclass) because we cannot guarantee more specific
+		// data structures after conversion
+		if (clazz != List.class) {
+			return null;
+		}
+		if (!(type instanceof ParameterizedType)) {
+			throw extractionError(
+				"The class '%s' needs generic parameters for an array type.",
+				List.class.getName());
+		}
+		final ParameterizedType parameterizedType = (ParameterizedType) type;
+		final DataType element = extractDataTypeOrRaw(
+			template,
+			typeHierarchy,
+			parameterizedType.getActualTypeArguments()[0]);
+		return DataTypes.ARRAY(element).bridgedTo(List.class);
 	}
 
 	private @Nullable DataType extractEnforcedRawType(DataTypeTemplate template, Type type) {
@@ -429,11 +449,15 @@ public final class DataTypeExtractor {
 
 	private @Nullable DataType extractMapType(DataTypeTemplate template, List<Type> typeHierarchy, Type type) {
 		final Class<?> clazz = toClass(type);
+		// we only allow Map here (not a subclass) because we cannot guarantee more specific
+		// data structures after conversion
 		if (clazz != Map.class) {
 			return null;
 		}
 		if (!(type instanceof ParameterizedType)) {
-			throw extractionError("Raw map type needs generic parameters.");
+			throw extractionError(
+				"The class '%s' needs generic parameters for a map type.",
+				Map.class.getName());
 		}
 		final ParameterizedType parameterizedType = (ParameterizedType) type;
 		final DataType key = extractDataTypeOrRaw(

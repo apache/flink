@@ -53,8 +53,10 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -205,12 +207,14 @@ public class DataStructureConvertersTest {
 			TestSpec
 				.forDataType(ARRAY(BOOLEAN()))
 				.convertedTo(Boolean[].class, new Boolean[]{true, null, true, true})
+				.convertedTo(List.class, Arrays.asList(true, null, true, true))
 				.convertedTo(ArrayData.class, new GenericArrayData(new Boolean[]{true, null, true, true})),
 
 			TestSpec
-				.forDataType(ARRAY(INT().notNull()))
+				.forDataType(ARRAY(INT().notNull().bridgedTo(int.class))) // int.class should not have an impact
 				.convertedTo(int[].class, new int[]{1, 2, 3, 4})
-				.convertedTo(Integer[].class, new Integer[]{1, 2, 3, 4}),
+				.convertedTo(Integer[].class, new Integer[]{1, 2, 3, 4})
+				.convertedTo(List.class, new LinkedList<>(Arrays.asList(1, 2, 3, 4))), // test List that is not backed by an array
 
 			// arrays of TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE are skipped for simplicity
 
@@ -218,10 +222,13 @@ public class DataStructureConvertersTest {
 				.forDataType(ARRAY(DATE()))
 				.convertedTo(
 					LocalDate[].class,
-					new LocalDate[]{null, LocalDate.parse("2010-11-12"), null, LocalDate.parse("2010-11-12")}),
+					new LocalDate[]{null, LocalDate.parse("2010-11-12"), null, LocalDate.parse("2010-11-12")})
+				.convertedTo(
+					List.class,
+					Arrays.asList(null, LocalDate.parse("2010-11-12"), null, LocalDate.parse("2010-11-12"))),
 
 			TestSpec
-				.forDataType(MAP(INT(), BOOLEAN()))
+				.forDataType(MAP(INT().bridgedTo(int.class), BOOLEAN())) // int.class should not have an impact
 				.convertedTo(Map.class, createIdentityMap())
 				.convertedTo(MapData.class, new GenericMapData(createIdentityMap())),
 
@@ -350,7 +357,16 @@ public class DataStructureConvertersTest {
 					new Row[] {
 						Row.of(null, null),
 						Row.of(new PojoWithImmutableFields(10, "Bob"), null)
-					})
+					}),
+
+			TestSpec
+				.forDataType(DataTypes.of(PojoWithList.class))
+				.convertedTo(
+					PojoWithList.class,
+					new PojoWithList(Arrays.asList(Arrays.asList(1.0, null, 2.0, null), Collections.emptyList(), null)))
+				.convertedTo(
+					Row.class,
+					Row.of(Arrays.asList(Arrays.asList(1.0, null, 2.0, null), Collections.emptyList(), null)))
 		);
 	}
 
@@ -755,6 +771,35 @@ public class DataStructureConvertersTest {
 			int result = Objects.hash(inner);
 			result = 31 * result + Arrays.hashCode(innerArray);
 			return result;
+		}
+	}
+
+	/**
+	 * Pojo with {@link List}.
+	 */
+	public static class PojoWithList {
+
+		public List<List<Double>> factors;
+
+		public PojoWithList(List<List<Double>> factors) {
+			this.factors = factors;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			PojoWithList that = (PojoWithList) o;
+			return Objects.equals(factors, that.factors);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(factors);
 		}
 	}
 }
