@@ -81,6 +81,10 @@ You can then access the Flink UI via different ways:
 
         {% highlight bash %}./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar{% endhighlight %}
 
+You can also access the queryable state of TaskManager if you create a `NodePort` service for it:
+  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service on taskmanager. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+  2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.zh.md %}#querying-state) to submit the state queries.
+
 In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
 and use `kubectl` to terminate the common components:
 
@@ -89,6 +93,8 @@ and use `kubectl` to terminate the common components:
     kubectl delete -f flink-configuration-configmap.yaml
     # if created then also the rest service
     kubectl delete -f jobmanager-rest-service.yaml
+    # if created then also the queryable state service
+    kubectl delete -f taskmanager-query-state-service.yaml
 ```
 
 ### Deploy Session Cluster
@@ -175,7 +181,7 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.server.ports: 6125
+    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -262,6 +268,24 @@ spec:
   selector:
     app: flink
     component: jobmanager
+{% endhighlight %}
+
+`taskmanager-query-state-service.yaml`. Optional service, that exposes the TaskManager port to access the queryable state as a public Kubernetes node's port.
+{% highlight yaml %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-taskmanager-query-state
+spec:
+  type: NodePort
+  ports:
+  - name: query-state
+    port: 6125
+    targetPort: 6125
+    nodePort: 30025
+  selector:
+    app: flink
+    component: taskmanager
 {% endhighlight %}
 
 ### Session cluster resource definitions
