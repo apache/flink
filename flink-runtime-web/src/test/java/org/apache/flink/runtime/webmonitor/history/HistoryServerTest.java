@@ -128,13 +128,7 @@ public class HistoryServerTest extends TestLogger {
 	@Test
 	public void testHistoryServerIntegration() throws Exception {
 		final int numJobs = 2;
-		for (int x = 0; x < numJobs; x++) {
-			runJob();
-		}
 		final int numLegacyJobs = 1;
-		createLegacyArchive(jmDirectory.toPath());
-
-		waitForArchivesCreation(numJobs + numLegacyJobs);
 
 		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + numLegacyJobs);
 
@@ -149,8 +143,16 @@ public class HistoryServerTest extends TestLogger {
 		try {
 			hs.start();
 			String baseUrl = "http://localhost:" + hs.getWebPort();
-			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 
+			Assert.assertEquals(0, getJobsOverview(baseUrl).getJobs().size());
+
+			for (int x = 0; x < numJobs; x++) {
+				runJob();
+			}
+			createLegacyArchive(jmDirectory.toPath());
+			waitForArchivesCreation(numJobs + numLegacyJobs);
+
+			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 			Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
 
 			// checks whether the dashboard configuration contains all expected fields
