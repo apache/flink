@@ -44,10 +44,12 @@ import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 import org.apache.commons.lang3.StringUtils
+
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
@@ -634,7 +636,8 @@ abstract class TableEnvImpl(
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(tableSchema)
         .data(tableSink.getResultIterator)
-        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
+        .setPrintStyle(
+          PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, true))
         .build
     } catch {
       case e: Exception =>

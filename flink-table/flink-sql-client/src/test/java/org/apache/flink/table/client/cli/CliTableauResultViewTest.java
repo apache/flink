@@ -310,7 +310,7 @@ public class CliTableauResultViewTest {
 				"|   + |    true |  2147483647 |               (NULL) |              abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |" + System.lineSeparator() +
 				"|   - |   false | -2147483648 |  9223372036854775807 |               (NULL) |    12345.06789 |    2020-03-01 18:39:14.123 |" + System.lineSeparator() +
 				"|   + |    true |         100 | -9223372036854775808 |           abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |" + System.lineSeparator() +
-				"|   - |  (NULL) |          -1 |                   -1 |  abcdefghijklmnop... |   -12345.06789 |                     (NULL) |" + System.lineSeparator() +
+				"|   - |  (NULL) |          -1 |                   -1 | abcdefghijklmnopq... |   -12345.06789 |                     (NULL) |" + System.lineSeparator() +
 				"|   + |  (NULL) |          -1 |                   -1 |         这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
 				"|   - |  (NULL) |          -1 |                   -1 |  これは日本語をテ... |   -12345.06789 |      2020-03-04 18:39:14.0 |" + System.lineSeparator() +
 				"+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+" + System.lineSeparator() +

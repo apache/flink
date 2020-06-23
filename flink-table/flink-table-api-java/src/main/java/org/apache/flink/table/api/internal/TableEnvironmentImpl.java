@@ -735,7 +735,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.tableSchema(tableSchema)
 					.data(tableSink.getResultIterator())
 					.setPrintStyle(TableResultImpl.PrintStyle.tableau(
-							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
+							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, true))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -1121,7 +1121,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						headers,
 						types).build())
 				.data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
-				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, ""))
+				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false))
 				.build();
 	}
 
