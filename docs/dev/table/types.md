@@ -1007,6 +1007,8 @@ equivalent to `ARRAY<INT>`.
 | Java Type                              | Input | Output | Remarks                           |
 |:---------------------------------------|:-----:|:------:|:----------------------------------|
 |*t*`[]`                                 | (X)   | (X)    | Depends on the subtype. *Default* |
+| `java.util.List<t>`                    | X     | X      |                                   |
+| *subclass* of `java.util.List<t>`      | X     |        |                                   |
 |`org.apache.flink.table.data.ArrayData` | X     | X      | Internal data structure.          |
 
 #### `MAP`

@@ -42,6 +42,7 @@ public final class ArrayType extends LogicalType {
 	public static final String FORMAT = "ARRAY<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
+		List.class.getName(),
 		ArrayData.class.getName());
 
 	private final LogicalType elementType;
@@ -76,6 +77,9 @@ public final class ArrayType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
+		if (List.class.isAssignableFrom(clazz)) {
+			return true;
+		}
 		if (INPUT_OUTPUT_CONVERSION.contains(clazz.getName())) {
 			return true;
 		}

@@ -34,6 +34,7 @@ import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -146,10 +147,17 @@ public final class DataStructureConverters {
 		// special cases
 		switch (logicalType.getTypeRoot()) {
 			case ARRAY:
+				// for subclasses of List
+				if (List.class.isAssignableFrom(dataType.getConversionClass())) {
+					return ArrayListConverter.create(dataType);
+				}
+				// for non-primitive arrays
 				return ArrayObjectArrayConverter.create(dataType);
 			case MULTISET:
+				// for subclasses of Map
 				return MapMapConverter.createForMultisetType(dataType);
 			case MAP:
+				// for subclasses of Map
 				return MapMapConverter.createForMapType(dataType);
 			case DISTINCT_TYPE:
 				return getConverterInternal(dataType.getChildren().get(0));
