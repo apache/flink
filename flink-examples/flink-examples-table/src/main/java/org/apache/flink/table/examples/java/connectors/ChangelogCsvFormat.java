@@ -50,7 +50,7 @@ public final class ChangelogCsvFormat implements DecodingFormat<DeserializationS
 		final TypeInformation<RowData> producedTypeInfo = (TypeInformation<RowData>) context.createTypeInformation(producedDataType);
 
 		// most of the code in DeserializationSchema will not work on internal data structures
-    	// create a converter for conversion at the end
+		// create a converter for conversion at the end
 		final DataStructureConverter converter = context.createDataStructureConverter(producedDataType);
 
 		// use logical types during runtime for parsing
