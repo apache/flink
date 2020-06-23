@@ -442,8 +442,11 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * </pre>
 	 *
 	 * @param connectorDescriptor connector descriptor describing the external system
+	 * @deprecated this method might be refactored or dropped in the next versions,
+	 * please use {@link #executeSql(String) executeSql(ddl)} to register a table instead.
 	 */
 	@Override
+	@Deprecated
 	BatchTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
