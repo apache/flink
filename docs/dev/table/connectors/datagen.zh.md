@@ -41,7 +41,7 @@ Datagen 连接器是内置的。
 怎么创建一个 Datagen 的表
 ----------------
 
-表的有界性：表中字段的数据生成完成后，就读取完成。 因此，表的有界性取决于字段的有界性。
+表的有界性：当表中字段的数据全部生成完成后，source 就结束了。 因此，表的有界性取决于字段的有界性。
 
 每个列，都有两种生成数据的方法：
 
@@ -111,7 +111,7 @@ CREATE TABLE datagen (
       <td>可选</td>
       <td style="word-wrap: break-word;">random</td>
       <td>String</td>
-      <td>生成器的 '#' 字段。可以是 'sequence' 或 'random'。</td>
+      <td>指定 '#' 字段的生成器。可以是 'sequence' 或 'random'。</td>
     </tr>
     <tr>
       <td><h5>fields.#.min</h5></td>
