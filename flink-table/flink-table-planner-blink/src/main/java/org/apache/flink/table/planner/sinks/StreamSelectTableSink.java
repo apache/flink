@@ -35,7 +35,7 @@ import org.apache.flink.types.Row;
 public class StreamSelectTableSink extends SelectTableSinkBase implements AppendStreamTableSink<Row> {
 
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
+		super(tableSchema, true);
 	}
 
 	@Override

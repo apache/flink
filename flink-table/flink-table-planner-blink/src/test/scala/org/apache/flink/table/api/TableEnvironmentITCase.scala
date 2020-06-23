@@ -20,7 +20,9 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration
+import org.apache.flink.streaming.api.CheckpointingMode
+import org.apache.flink.streaming.api.environment.{ExecutionCheckpointingOptions, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
@@ -32,16 +34,18 @@ import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, TestLogger}
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Rule, Test}
+
+import java.time.Duration
 import _root_.java.io.{File, FileFilter}
 import _root_.java.lang.{Long => JLong}
 import _root_.java.util
-
 import _root_.scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
@@ -71,9 +75,23 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     tableEnvName match {
       case "TableEnvironment" =>
         tEnv = TableEnvironmentImpl.create(settings)
+        if (isStreaming) {
+          tEnv.getConfig.getConfiguration.set(
+            ExecutionCheckpointingOptions.CHECKPOINTING_MODE,
+            CheckpointingMode.EXACTLY_ONCE)
+          tEnv.getConfig.getConfiguration.set(
+            ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+            Duration.ofMillis(CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME)
+          )
+        }
       case "StreamTableEnvironment" =>
-        tEnv = StreamTableEnvironment.create(
-          StreamExecutionEnvironment.getExecutionEnvironment, settings)
+        val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+        tEnv = StreamTableEnvironment.create(execEnv, settings)
+        if (isStreaming) {
+          execEnv.enableCheckpointing(
+            CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+            CheckpointingMode.EXACTLY_ONCE)
+        }
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")

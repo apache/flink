@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.util.CloseableIterator;
 
 import java.io.IOException;
@@ -38,9 +40,25 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
 	private T bufferedResult;
 
 	public CollectResultIterator(
+			boolean isStreamingMode,
+			CheckpointConfig checkpointConfig,
 			CompletableFuture<OperatorID> operatorIdFuture,
 			TypeSerializer<T> serializer,
 			String accumulatorName) {
+		// in the future we should support result fetchers with at least once semantics
+		// or exactly once semantics with no failure tolerance,
+		// currently we just throw an exception
+		if (isStreamingMode) {
+			CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingMode();
+			long getCheckpointInterval = checkpointConfig.getCheckpointInterval();
+			if (checkpointingMode != CheckpointingMode.EXACTLY_ONCE || getCheckpointInterval <= 0) {
+				throw new UnsupportedOperationException(
+					"CollectResultIterator in streaming mode currently only supports " +
+						"EXACTLY_ONCE checkpointing mode with positive checkpoint interval. " +
+						"Please set your checkpointing mode and checkpoint interval accordingly.");
+			}
+		}
+
 		this.fetcher = new CollectResultFetcher<>(operatorIdFuture, serializer, accumulatorName);
 		this.bufferedResult = null;
 	}

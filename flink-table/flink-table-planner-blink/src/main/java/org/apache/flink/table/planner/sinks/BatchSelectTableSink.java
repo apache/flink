@@ -32,7 +32,7 @@ import org.apache.flink.types.Row;
 public class BatchSelectTableSink extends SelectTableSinkBase implements StreamTableSink<Row> {
 
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
+		super(tableSchema, false);
 	}
 
 	@Override

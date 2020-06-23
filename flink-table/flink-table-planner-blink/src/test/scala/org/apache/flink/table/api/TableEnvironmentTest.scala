@@ -20,6 +20,8 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration
+import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
@@ -30,15 +32,14 @@ import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.Simple
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
-
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -1104,6 +1105,32 @@ class TableEnvironmentTest {
         Row.of("x", "INT", Boolean.box(false), null, null, null),
         Row.of("y", "STRING", Boolean.box(false), null, null, null)).iterator(),
       tableResult3.collect())
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testStreamingNoCheckpointCollectUnsupported(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    assertTrue(execEnv.getCheckpointConfig.getCheckpointInterval <= 0)
+
+    val tableResult = tEnv.executeSql("SELECT 1")
+    tableResult.collect()
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testStreamingAtLeastOnceCollectUnsupported(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    execEnv.enableCheckpointing(
+      CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+      CheckpointingMode.AT_LEAST_ONCE)
+
+    val tableResult = tEnv.executeSql("SELECT 1")
+    tableResult.collect()
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
