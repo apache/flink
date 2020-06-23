@@ -136,6 +136,15 @@ under the License.
 									<include>io.airlift:aircompressor</include>
 								</includes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<!-- JSON is CatX so we're not allowed to bundle it in our jar -->
+									<artifact>org.apache.hive:hive-exec</artifact>
+									<excludes>
+										<exclude>org/json/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
