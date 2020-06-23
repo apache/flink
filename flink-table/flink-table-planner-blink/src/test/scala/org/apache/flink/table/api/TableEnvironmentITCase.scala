@@ -75,25 +75,22 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     tableEnvName match {
       case "TableEnvironment" =>
         tEnv = TableEnvironmentImpl.create(settings)
-        if (isStreaming) {
-          tEnv.getConfig.getConfiguration.set(
-            ExecutionCheckpointingOptions.CHECKPOINTING_MODE,
-            CheckpointingMode.EXACTLY_ONCE)
-          tEnv.getConfig.getConfiguration.set(
-            ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
-            Duration.ofMillis(CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME)
-          )
-        }
       case "StreamTableEnvironment" =>
-        val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
-        tEnv = StreamTableEnvironment.create(execEnv, settings)
-        if (isStreaming) {
-          execEnv.enableCheckpointing(
-            CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
-            CheckpointingMode.EXACTLY_ONCE)
-        }
+        tEnv = StreamTableEnvironment.create(
+          StreamExecutionEnvironment.getExecutionEnvironment, settings)
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
+
+    if (isStreaming) {
+      tEnv.getConfig.getConfiguration.set(
+        ExecutionCheckpointingOptions.CHECKPOINTING_MODE,
+        CheckpointingMode.EXACTLY_ONCE)
+      tEnv.getConfig.getConfiguration.set(
+        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+        Duration.ofMillis(CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME)
+      )
+    }
+
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
   }
 
