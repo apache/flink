@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.types.logical.IntType;
 
 import java.time.DayOfWeek;
 
@@ -34,12 +35,15 @@ public class WrapperTypeInfoTest extends TypeInformationTestBase<WrapperTypeInfo
 	protected WrapperTypeInfo<?>[] getTestData() {
 		return new WrapperTypeInfo<?>[] {
 				new WrapperTypeInfo<>(
+					new IntType(),
 					Object.class,
 					new KryoSerializer<>(Object.class, new ExecutionConfig())),
 				new WrapperTypeInfo<>(
+					new IntType(),
 					DayOfWeek.class,
 					new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())),
 				new WrapperTypeInfo<>(
+					new IntType(),
 					Integer.class,
 					IntSerializer.INSTANCE)
 		};

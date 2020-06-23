@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -115,11 +116,63 @@ public final class DataTypeUtils {
 		throw new IllegalArgumentException("Expected a composite type");
 	}
 
+	/**
+	 * The {@link DataType} class can only partially verify the conversion class. This method can perform
+	 * the final check when we know if the data type should be used for input.
+	 */
+	public static void validateInputDataType(DataType dataType) {
+		dataType.accept(DataTypeInputClassValidator.INSTANCE);
+	}
+
+	/**
+	 * The {@link DataType} class can only partially verify the conversion class. This method can perform
+	 * the final check when we know if the data type should be used for output.
+	 */
+	public static void validateOutputDataType(DataType dataType) {
+		dataType.accept(DataTypeOutputClassValidator.INSTANCE);
+	}
+
 	private DataTypeUtils() {
 		// no instantiation
 	}
 
 	// ------------------------------------------------------------------------------------------
+
+	private static class DataTypeInputClassValidator extends DataTypeDefaultVisitor<Void> {
+
+		private static final DataTypeInputClassValidator INSTANCE = new DataTypeInputClassValidator();
+
+		@Override
+		protected Void defaultMethod(DataType dataType) {
+			if (!dataType.getLogicalType().supportsInputConversion(dataType.getConversionClass())) {
+				throw new ValidationException(
+					String.format(
+						"Data type '%s' does not support an input conversion from class '%s'.",
+						dataType,
+						dataType.getConversionClass().getName()));
+			}
+			dataType.getChildren().forEach(child -> child.accept(this));
+			return null;
+		}
+	}
+
+	private static class DataTypeOutputClassValidator extends DataTypeDefaultVisitor<Void> {
+
+		private static final DataTypeOutputClassValidator INSTANCE = new DataTypeOutputClassValidator();
+
+		@Override
+		protected Void defaultMethod(DataType dataType) {
+			if (!dataType.getLogicalType().supportsOutputConversion(dataType.getConversionClass())) {
+				throw new ValidationException(
+					String.format(
+						"Data type '%s' does not support an output conversion to class '%s'.",
+						dataType,
+						dataType.getConversionClass().getName()));
+			}
+			dataType.getChildren().forEach(child -> child.accept(this));
+			return null;
+		}
+	}
 
 	private static class DataTypeTransformer implements DataTypeVisitor<DataType> {
 

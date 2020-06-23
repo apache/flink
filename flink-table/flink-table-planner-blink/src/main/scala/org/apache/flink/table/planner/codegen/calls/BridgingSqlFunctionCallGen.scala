@@ -39,6 +39,8 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.{validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
 
 /**
@@ -260,13 +262,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
-    enrichedDataTypes.foreach(dataType => {
-      if (!dataType.getLogicalType.supportsOutputConversion(dataType.getConversionClass)) {
-        throw new CodeGenException(
-          s"Data type '$dataType' does not support an output conversion " +
-            s"to class '${dataType.getConversionClass}'.")
-      }
-    })
+    enrichedDataTypes.foreach(validateOutputDataType)
   }
 
   private def verifyFunctionAwareOutputType(
@@ -301,11 +297,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
-    if (!enrichedType.supportsInputConversion(enrichedDataType.getConversionClass)) {
-      throw new CodeGenException(
-        s"Data type '$enrichedDataType' does not support an input conversion " +
-          s"to class '${enrichedDataType.getConversionClass}'.")
-    }
+    validateInputDataType(enrichedDataType)
   }
 
   private def verifyFunctionAwareImplementation(

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -35,6 +36,7 @@ import org.junit.Test;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -43,9 +45,11 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link DataTypeUtils}.
@@ -160,5 +164,24 @@ public class DataTypeUtilsTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testExpandThrowExceptionOnAtomicType() {
 		DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+	}
+
+	@Test
+	public void testDataTypeValidation() {
+		final DataType validDataType = DataTypes.MAP(DataTypes.INT(), DataTypes.STRING());
+
+		DataTypeUtils.validateInputDataType(validDataType);
+		DataTypeUtils.validateOutputDataType(validDataType);
+
+		final DataType inputOnlyDataType = validDataType.bridgedTo(HashMap.class);
+		DataTypeUtils.validateInputDataType(inputOnlyDataType);
+		try {
+			DataTypeUtils.validateOutputDataType(inputOnlyDataType);
+			fail();
+		} catch (ValidationException e) {
+			assertEquals(
+				e.getMessage(),
+				"Data type 'MAP<INT, STRING>' does not support an output conversion to class '" + java.util.HashMap.class.getName() + "'.");
+		}
 	}
 }
