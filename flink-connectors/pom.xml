@@ -56,7 +56,6 @@ under the License.
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-kinesis</module>
-		<module>flink-sql-connector-elasticsearch7</module>
 		<module>flink-connector-base</module>
 	</modules>
 
@@ -96,13 +95,14 @@ under the License.
 			<modules>
 				<module>flink-sql-connector-elasticsearch6</module>
 				<module>flink-sql-connector-elasticsearch7</module>
-				<module>flink-sql-connector-kafka-0.10</module>
-				<module>flink-sql-connector-kafka-0.11</module>
-				<module>flink-sql-connector-kafka</module>
+				<module>flink-sql-connector-hbase</module>
 				<module>flink-sql-connector-hive-1.2.2</module>
 				<module>flink-sql-connector-hive-2.2.0</module>
 				<module>flink-sql-connector-hive-2.3.6</module>
 				<module>flink-sql-connector-hive-3.1.2</module>
+				<module>flink-sql-connector-kafka-0.10</module>
+				<module>flink-sql-connector-kafka-0.11</module>
+				<module>flink-sql-connector-kafka</module>
 			</modules>
 		</profile>
 	</profiles>
