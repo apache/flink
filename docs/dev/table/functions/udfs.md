@@ -545,8 +545,7 @@ public static class LiteralFunction extends ScalarFunction {
 
 </div>
 
-Runtime Integration
--------------------
+### Runtime Integration
 
 Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataStream API.
 
