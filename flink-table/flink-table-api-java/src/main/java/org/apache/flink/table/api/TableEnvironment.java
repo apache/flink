@@ -555,7 +555,7 @@ public interface TableEnvironment {
 	 *
 	 * @param name        The name under which the {@link TableSource} is registered.
 	 * @param tableSource The {@link TableSource} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
+	 * @deprecated Use {@link #executeSql(String) executeSql(ddl)} to register a table instead.
 	 */
 	@Deprecated
 	void registerTableSource(String name, TableSource<?> tableSource);
@@ -573,7 +573,7 @@ public interface TableEnvironment {
 	 * @param fieldNames The field names to register with the {@link TableSink}.
 	 * @param fieldTypes The field types to register with the {@link TableSink}.
 	 * @param tableSink The {@link TableSink} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
+	 * @deprecated Use {@link #executeSql(String) executeSql(ddl)} to register a table instead.
 	 */
 	@Deprecated
 	void registerTableSink(String name, String[] fieldNames, TypeInformation<?>[] fieldTypes, TableSink<?> tableSink);
@@ -589,7 +589,7 @@ public interface TableEnvironment {
 	 *
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param configuredSink The configured {@link TableSink} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
+	 * @deprecated Use {@link #executeSql(String) executeSql(ddl)} to register a table instead.
 	 */
 	@Deprecated
 	void registerTableSink(String name, TableSink<?> configuredSink);
@@ -728,7 +728,11 @@ public interface TableEnvironment {
 	 *</pre>
 	 *
 	 * @param connectorDescriptor connector descriptor describing the external system
+	 * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
+	 * might be refactored in the next versions. Please use {@link #executeSql(String) executeSql(ddl)}
+	 * to register a table instead.
 	 */
+	@Deprecated
 	ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**

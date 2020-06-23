@@ -359,39 +359,43 @@ trait StreamTableEnvironment extends TableEnvironment {
   override def execute(jobName: String): JobExecutionResult
 
   /**
-    * Creates a table source and/or table sink from a descriptor.
-    *
-    * Descriptors allow for declaring the communication to external systems in an
-    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-    * the desired configuration.
-    *
-    * The following example shows how to read from a Kafka connector using a JSON format and
-    * registering a table source "MyTable" in append mode:
-    *
-    * {{{
-    *
-    * tableEnv
-    *   .connect(
-    *     new Kafka()
-    *       .version("0.11")
-    *       .topic("clicks")
-    *       .property("group.id", "click-group")
-    *       .startFromEarliest())
-    *   .withFormat(
-    *     new Json()
-    *       .jsonSchema("{...}")
-    *       .failOnMissingField(false))
-    *   .withSchema(
-    *     new Schema()
-    *       .field("user-name", "VARCHAR").from("u_name")
-    *       .field("count", "DECIMAL")
-    *       .field("proc-time", "TIMESTAMP").proctime())
-    *   .inAppendMode()
-    *   .createTemporaryTable("MyTable")
-    * }}}
-    *
-    * @param connectorDescriptor connector descriptor describing the external system
-    */
+   * Creates a table source and/or table sink from a descriptor.
+   *
+   * Descriptors allow for declaring the communication to external systems in an
+   * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+   * the desired configuration.
+   *
+   * The following example shows how to read from a Kafka connector using a JSON format and
+   * registering a table source "MyTable" in append mode:
+   *
+   * {{{
+   *
+   * tableEnv
+   *   .connect(
+   *     new Kafka()
+   *       .version("0.11")
+   *       .topic("clicks")
+   *       .property("group.id", "click-group")
+   *       .startFromEarliest())
+   *   .withFormat(
+   *     new Json()
+   *       .jsonSchema("{...}")
+   *       .failOnMissingField(false))
+   *   .withSchema(
+   *     new Schema()
+   *       .field("user-name", "VARCHAR").from("u_name")
+   *       .field("count", "DECIMAL")
+   *       .field("proc-time", "TIMESTAMP").proctime())
+   *   .inAppendMode()
+   *   .createTemporaryTable("MyTable")
+   * }}}
+   *
+   * @param connectorDescriptor connector descriptor describing the external system
+   * @deprecated The SQL `CREATE TABLE` DDL is richer than this part of the API.
+   *             This method might be refactored in the next versions.
+   *             Please use [[executeSql]] to register a table instead.
+   */
+  @deprecated
   override def connect(connectorDescriptor: ConnectorDescriptor): StreamTableDescriptor
 }
 
