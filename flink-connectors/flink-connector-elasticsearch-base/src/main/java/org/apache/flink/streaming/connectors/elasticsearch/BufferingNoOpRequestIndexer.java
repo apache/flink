@@ -27,9 +27,7 @@ import org.elasticsearch.action.update.UpdateRequest;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
