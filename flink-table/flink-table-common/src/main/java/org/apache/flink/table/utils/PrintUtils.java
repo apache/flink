@@ -31,7 +31,6 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import com.ibm.icu.lang.UCharacter;
@@ -84,16 +83,30 @@ public class PrintUtils {
 	/**
 	 * Displays the result in a tableau form.
 	 *
+	 * <p><b>NOTE:</b> please make sure the data to print is small enough to be stored in java heap memory
+	 * if the column width is derived from content (`deriveColumnWidthByType` is false).
+	 *
 	 * <p>For example: (printRowKind is true)
-	 * +-------------+-------------+---------+-------------+
+	 * <pre>
+	 * +----------+-------------+---------+-------------+
 	 * | row_kind | boolean_col | int_col | varchar_col |
-	 * +-------------+-------------+---------+-------------+
+	 * +----------+-------------+---------+-------------+
 	 * |       +I |        true |       1 |         abc |
 	 * |       -U |       false |       2 |         def |
 	 * |       +U |       false |       3 |         def |
 	 * |       -D |      (NULL) |  (NULL) |      (NULL) |
-	 * +-------------+-------------+---------+-------------+
+	 * +----------+-------------+---------+-------------+
 	 * 4 rows in result
+	 * </pre>
+	 *
+	 * @param tableSchema The schema of the data to print
+	 * @param it The iterator for the data to print
+	 * @param printWriter The writer to write to
+	 * @param maxColumnWidth The max width of a column
+	 * @param nullColumn The string representation of a null value
+	 * @param deriveColumnWidthByType A flag to indicate whether the column width
+	 *        is derived from type (true) or content (false).
+	 * @param printRowKind A flag to indicate whether print row kind info
 	 */
 	public static void printAsTableauForm(
 			TableSchema tableSchema,
@@ -103,12 +116,54 @@ public class PrintUtils {
 			String nullColumn,
 			boolean deriveColumnWidthByType,
 			boolean printRowKind) {
-		final long numRows;
+		final List<TableColumn> columns = tableSchema.getTableColumns();
+		String[] columnNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
+		if (printRowKind) {
+			columnNames = Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames)).toArray(String[]::new);
+		}
+
+		final int[] colWidths;
 		if (deriveColumnWidthByType) {
-			numRows = printWithTypeColumnWidth(tableSchema, it, printWriter, maxColumnWidth, nullColumn, printRowKind);
+			colWidths = columnWidthsByType(
+					columns,
+					maxColumnWidth,
+					nullColumn,
+					printRowKind ? ROW_KIND_COLUMN : null);
 		} else {
-			numRows = printWithContentColumnWidth(
-					tableSchema, it, printWriter, maxColumnWidth, nullColumn, printRowKind);
+			//
+			List<Row> rows = new ArrayList<>();
+			List<String[]> content = new ArrayList<>();
+			content.add(columnNames);
+			while (it.hasNext()) {
+				Row row = it.next();
+				rows.add(row);
+				content.add(rowToString(row, nullColumn, printRowKind));
+			}
+			colWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
+			it = rows.iterator();
+		}
+
+		final String borderline = PrintUtils.genBorderLine(colWidths);
+		// print border line
+		printWriter.println(borderline);
+		// print filed names
+		PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
+		// print border line
+		printWriter.println(borderline);
+		printWriter.flush();
+
+		long numRows = 0;
+		while (it.hasNext()) {
+			String[] cols = rowToString(it.next(), nullColumn, printRowKind);
+
+			// print content
+			printSingleRow(colWidths, cols, printWriter);
+			numRows++;
+		}
+
+		if (numRows > 0) {
+			// print border line
+			printWriter.println(borderline);
 		}
 
 		final String rowTerm;
@@ -119,89 +174,6 @@ public class PrintUtils {
 		}
 		printWriter.println(numRows + " " + rowTerm + " in set");
 		printWriter.flush();
-	}
-
-	private static long printWithTypeColumnWidth(
-			TableSchema tableSchema,
-			Iterator<Row> it,
-			PrintWriter printWriter,
-			int maxColumnWidth,
-			String nullColumn,
-			boolean printRowKind) {
-		Preconditions.checkArgument(maxColumnWidth < Integer.MAX_VALUE,
-				"maxColumnWidth should be less than Integer.MAX_VALUE");
-		final int[] colWidths = columnWidthsByType(
-				tableSchema.getTableColumns(),
-				maxColumnWidth,
-				nullColumn,
-				getRowKindColumn(printRowKind));
-		final String borderline = PrintUtils.genBorderLine(colWidths);
-		// print border line
-		printWriter.println(borderline);
-
-		String[] fullColumnNames = getFullColumnNames(tableSchema, printRowKind);
-		// print filed names
-		PrintUtils.printSingleRow(colWidths, fullColumnNames, printWriter);
-		// print border line
-		printWriter.println(borderline);
-		printWriter.flush();
-
-		long numRows = 0;
-		while (it.hasNext()) {
-			String[] cols = rowToString(it.next(), nullColumn, printRowKind);
-			// print content
-			printSingleRow(colWidths, cols, printWriter);
-			numRows++;
-		}
-
-		if (numRows > 0) {
-			// print border line
-			printWriter.println(borderline);
-		}
-		return numRows;
-	}
-
-	private static long printWithContentColumnWidth(
-			TableSchema tableSchema,
-			Iterator<Row> it,
-			PrintWriter printWriter,
-			int maxColumnWidth,
-			String nullColumn,
-			boolean printRowKind) {
-		String[] fullColumnNames = getFullColumnNames(tableSchema, printRowKind);
-		List<String[]> rows = new ArrayList<>();
-		rows.add(fullColumnNames);
-		while (it.hasNext()) {
-			rows.add(rowToString(it.next(), nullColumn, printRowKind));
-		}
-
-		int[] colWidths = columnWidthsByContent(fullColumnNames, rows, maxColumnWidth);
-		String borderline = genBorderLine(colWidths);
-
-		// print field names
-		printWriter.println(borderline);
-		printSingleRow(colWidths, rows.get(0), printWriter);
-		printWriter.println(borderline);
-
-		// print content
-		if (rows.size() > 1) {
-			rows.subList(1, rows.size()).forEach(row -> printSingleRow(colWidths, row, printWriter));
-			printWriter.println(borderline);
-		}
-		return rows.size() - 1;
-	}
-
-	private static String getRowKindColumn(boolean printRowKind) {
-		return printRowKind ? ROW_KIND_COLUMN : null;
-	}
-
-	private static String[] getFullColumnNames(TableSchema tableSchema, boolean printRowKind) {
-		final List<TableColumn> columns = tableSchema.getTableColumns();
-		String[] columnNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
-		if (printRowKind) {
-			columnNames = Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames)).toArray(String[]::new);
-		}
-		return columnNames;
 	}
 
 	public static String[] rowToString(Row row) {
