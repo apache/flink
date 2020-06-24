@@ -45,5 +45,5 @@ public interface CheckpointListener {
 	 * @param checkpointId The ID of the checkpoint that has been aborted.
 	 * @throws Exception
 	 */
-	void notifyCheckpointAborted(long checkpointId) throws Exception;
+	default void notifyCheckpointAborted(long checkpointId) throws Exception {};
 }
