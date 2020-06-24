@@ -33,7 +33,7 @@ under the License.
 
 如果发生故障，Flink 可以恢复应用程序的完整状态并继续处理，就如同没有出现过异常。
 
-Flink 管理的状态存储 _state backend_。Flink 有两种 state backend 的实现 -- 一种基于 RocksDB 内嵌 key/value 存储将其工作状态保存在磁盘上的，另一种基于堆的 state backend，将其工作状态保存在 Java 的堆内存中。这种基于堆的 state backend 有两种类型：FsStateBackend，将其状态快照持久化到分布式文件系统；MemoryStateBackend，它使用 JobManager 的堆保存状态快照。
+Flink 管理的状态存储在 _state backend_。Flink 有两种 state backend 的实现 -- 一种基于 RocksDB 内嵌 key/value 存储将其工作状态保存在磁盘上的，另一种基于堆的 state backend，将其工作状态保存在 Java 的堆内存中。这种基于堆的 state backend 有两种类型：FsStateBackend，将其状态快照持久化到分布式文件系统；MemoryStateBackend，它使用 JobManager 的堆保存状态快照。
 
 <table class="table table-bordered">
   <thead>
