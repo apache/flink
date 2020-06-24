@@ -26,7 +26,7 @@ The memory setup has changed a lot with the *1.10* release for [TaskManagers](me
 release for [JobManagers]({% link ops/memory/mem_setup_jobmanager.md %}). Many configuration options were removed or their semantics changed.
 This guide will help you to migrate the TaskManager memory configuration from Flink
 [<= *1.9*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10* and
-the Master memory configuration from Flink <= *1.10* to >= *1.11*.
+the JobManager memory configuration from Flink <= *1.10* to >= *1.11*.
 
 * toc
 {:toc}
@@ -34,16 +34,16 @@ the Master memory configuration from Flink <= *1.10* to >= *1.11*.
 <div class="alert alert-warning">
   <strong>Warning:</strong> It is important to review this guide because the legacy and new memory configuration can
   result in different sizes of memory components. If you try to reuse your Flink configuration from older versions
-  before 1.10 for TaskManagers or before 1.11 for Masters, it can result in changes to the behavior,
+  before 1.10 for TaskManagers or before 1.11 for JobManagers, it can result in changes to the behavior,
   performance or even configuration failures of your application.
 </div>
 
-<span class="label label-info">Note</span> Before version *1.10* for TaskManagers and before *1.11* for Masters,
+<span class="label label-info">Note</span> Before version *1.10* for TaskManagers and before *1.11* for JobManagers,
 Flink did not require that memory related options are set at all as they all had default values.
 The [new memory configuration](mem_setup.html#configure-total-memory) requires that at least one subset of
 the following options is configured explicitly, otherwise the configuration will fail:
 
-| &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for Master:**&nbsp;&nbsp;                                      |
+| &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for JobManager:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
 | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
 | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
@@ -224,7 +224,7 @@ they also included other off-heap memory consumption. The size of *JVM Heap* was
 cut-off which has been completely removed after *1.11*.
 
 The [Mesos](../deployment/mesos.html) integration did not take into account the mentioned legacy memory options.
-The scripts provided in Flink to start the Mesos Master process did not set any memory JVM arguments. After the *1.11* release,
+The scripts provided in Flink to start the Mesos JobManager process did not set any memory JVM arguments. After the *1.11* release,
 they are set the same way as it is done by the [standalone deployment](../deployment/cluster_setup.html) scripts.
 
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
@@ -272,7 +272,7 @@ The other direct or native off-heap memory consumers can now be addressed by the
 * JVM metaspace ([`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size))
 * [JVM overhead](mem_setup_tm.html#detailed-memory-model)
 
-### for Masters
+### for JobManagers
 
 The direct or native off-heap memory consumers can now be addressed by the following new configuration options:
 * Off-heap memory ([`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size))
@@ -286,7 +286,7 @@ This section describes the changes of the default `flink-conf.yaml` shipped with
 The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
 in the default `flink-conf.yaml`. The value increased from 1024Mb to 1728Mb.
 
-The total memory for Masters (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)
+The total memory for JobManagers (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)
 in the default `flink-conf.yaml`. The value increased from 1024Mb to 1600Mb.
 
 See also [how to configure total memory now](mem_setup.html#configure-total-memory).
