@@ -59,7 +59,7 @@ to make the default memory configuration consistent.
 This [spreadsheet](https://docs.google.com/spreadsheets/d/1mJaMkMPfDJJ-w6nMXALYmTc4XxiV30P5U7DzgwLkSoE) can also help
 to evaluate and compare the results of the legacy and new memory computations.
 
-## Migrate Task Executor Memory Configuration
+## Migrate Task Manager Memory Configuration
 
 ### Changes in Configuration Options
 
@@ -79,7 +79,7 @@ The following options are completely removed. If they are still used, they will 
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                Check the description of the new option <a href="../config.html#taskmanager-memory-managed-fraction)">taskmanager.memory.managed.fraction</a>.
+                Check the description of the new option <a href="../config.html#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a>.
                 The new option has different semantics and the value of the deprecated option usually has to be adjusted.
                 See also <a href="#managed-memory">how to migrate managed memory</a>.
             </td>
@@ -139,7 +139,7 @@ It can change if other memory components have new sizes, e.g. the total memory w
 See also [new detailed memory model](mem_setup_tm.html#detailed-memory-model).
 
 The container cut-off configuration options, `containerized.heap-cutoff-ratio` and `containerized.heap-cutoff-min`,
-have no effect anymore. See also [how to migrate container cut-off](#container-cut-off-memory).
+have no effect anymore for TaskManagers. See also [how to migrate container cut-off](#container-cut-off-memory).
 
 ### Total Memory (Previously Heap Memory)
 
@@ -231,6 +231,7 @@ The mentioned legacy options have been deprecated. If they are used without spec
 they will be directly translated into the following new options:
 * JVM Heap ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)) for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments
 * Total process memory ([`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html))
+
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
 Now, if only the *total Flink memory* or *total process memory* is configured, then the [JVM Heap]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap)
