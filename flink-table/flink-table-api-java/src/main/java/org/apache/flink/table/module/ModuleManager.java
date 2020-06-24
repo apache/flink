@@ -126,7 +126,7 @@ public class ModuleManager {
 			.findFirst();
 
 		if (result.isPresent()) {
-			LOG.info("Got FunctionDefinition '{}' from '{}' module.", name, result.get().getKey());
+			LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, result.get().getKey());
 
 			return result.get().getValue().getFunctionDefinition(name);
 		} else {
