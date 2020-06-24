@@ -20,9 +20,12 @@ package org.apache.flink.runtime.registration;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.time.Duration;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -54,4 +57,22 @@ public class RetryingRegistrationConfigurationTest extends TestLogger {
 		assertThat(retryingRegistrationConfiguration.getErrorDelayMillis(), is(errorRegistrationDelay));
 	}
 
+	@Test
+	public void testConfigurationWithDeprecatedOptions() {
+		final Configuration configuration = new Configuration();
+
+		final Duration refusedRegistrationBackoff = Duration.ofMinutes(42L);
+		final Duration registrationMaxBackoff = Duration.ofSeconds(1L);
+		final Duration initialRegistrationBackoff = Duration.ofHours(1337L);
+
+		configuration.set(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF, refusedRegistrationBackoff);
+		configuration.set(TaskManagerOptions.REGISTRATION_MAX_BACKOFF, registrationMaxBackoff);
+		configuration.set(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF, initialRegistrationBackoff);
+
+		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
+
+		assertThat(retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis(), is(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT.defaultValue()));
+		assertThat(retryingRegistrationConfiguration.getRefusedDelayMillis(), is(ClusterOptions.REFUSED_REGISTRATION_DELAY.defaultValue()));
+		assertThat(retryingRegistrationConfiguration.getMaxRegistrationTimeoutMillis(), is(ClusterOptions.MAX_REGISTRATION_TIMEOUT.defaultValue()));
+	}
 }
