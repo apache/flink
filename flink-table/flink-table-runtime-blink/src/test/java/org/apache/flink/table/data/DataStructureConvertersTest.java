@@ -198,9 +198,19 @@ public class DataStructureConvertersTest {
 				.convertedTo(Long.class, 123L),
 
 			TestSpec
-				.forDataType(ARRAY(BOOLEAN()))
+				.forDataType(ARRAY(BOOLEAN().notNull()))
 				.convertedTo(boolean[].class, new boolean[]{true, false, true, true})
 				.convertedTo(ArrayData.class, new GenericArrayData(new boolean[]{true, false, true, true})),
+
+			TestSpec
+				.forDataType(ARRAY(BOOLEAN()))
+				.convertedTo(Boolean[].class, new Boolean[]{true, null, true, true})
+				.convertedTo(ArrayData.class, new GenericArrayData(new Boolean[]{true, null, true, true})),
+
+			TestSpec
+				.forDataType(ARRAY(INT().notNull()))
+				.convertedTo(int[].class, new int[]{1, 2, 3, 4})
+				.convertedTo(Integer[].class, new Integer[]{1, 2, 3, 4}),
 
 			// arrays of TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE are skipped for simplicity
 
