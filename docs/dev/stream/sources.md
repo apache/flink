@@ -187,7 +187,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 
 Source mySource = new MySource(...);
 
-DataStream<Integer> stream = env.continuousSource(
+DataStream<Integer> stream = env.fromSource(
         mySource,
         WatermarkStrategy.noWatermarks(),
         "MySourceName");
@@ -200,7 +200,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
 val mySource = new MySource(...)
 
-val stream = env.continuousSource(
+val stream = env.fromSource(
       mySource,
       WatermarkStrategy.noWatermarks(),
       "MySourceName")
@@ -352,7 +352,7 @@ Apparently, the `SourceReader` implementations can also implement their own thre
 The `WatermarkStrategy` is passed to the Source during creation in the DataStream API and creates both the [TimestampAssigner](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java) and [WatermarkGenerator](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java).
 
 {% highlight java %}
-environment.continuousSource(
+environment.fromSource(
     Source<OUT, ?, ?> source,
     WatermarkStrategy<OUT> timestampsAndWatermarks,
     String sourceName)

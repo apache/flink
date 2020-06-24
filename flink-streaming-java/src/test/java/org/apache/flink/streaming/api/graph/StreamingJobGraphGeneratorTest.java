@@ -283,7 +283,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testOperatorCoordinatorAddedToJobVertex() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Integer> stream = env.continuousSource(
+		DataStream<Integer> stream = env.fromSource(
 				new MockSource(Boundedness.BOUNDED, 1),
 				WatermarkStrategy.noWatermarks(),
 				"TestingSource");
@@ -493,7 +493,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testCoordinatedOperator() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Integer> source = env.continuousSource(
+		DataStream<Integer> source = env.fromSource(
 				new MockSource(Boundedness.BOUNDED, 1),
 				WatermarkStrategy.noWatermarks(),
 				"TestSource");

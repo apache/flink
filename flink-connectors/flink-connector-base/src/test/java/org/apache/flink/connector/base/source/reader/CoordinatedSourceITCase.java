@@ -45,7 +45,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
 	public void testEnumeratorReaderCommunication() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		MockBaseSource source = new MockBaseSource(2, 10, Boundedness.BOUNDED);
-		DataStream<Integer> stream = env.continuousSource(
+		DataStream<Integer> stream = env.fromSource(
 				source,
 				WatermarkStrategy.noWatermarks(),
 				"TestingSource");
@@ -57,11 +57,11 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		MockBaseSource source1 = new MockBaseSource(2, 10, Boundedness.BOUNDED);
 		MockBaseSource source2 = new MockBaseSource(2, 10, 20, Boundedness.BOUNDED);
-		DataStream<Integer> stream1 = env.continuousSource(
+		DataStream<Integer> stream1 = env.fromSource(
 				source1,
 				WatermarkStrategy.noWatermarks(),
 				"TestingSource1");
-		DataStream<Integer> stream2 = env.continuousSource(
+		DataStream<Integer> stream2 = env.fromSource(
 				source2,
 				WatermarkStrategy.noWatermarks(),
 				"TestingSource2");

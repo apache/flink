@@ -40,7 +40,7 @@ class StreamExecutionEnvironmentTest {
     implicit val typeInfo: TypeInformation[Integer] = new MockTypeInfo()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val stream = env.continuousSource(
+    val stream = env.fromSource(
       new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
       WatermarkStrategy.noWatermarks(),
       "test source")
