@@ -94,6 +94,8 @@ FsStateBackend 适用场景:
 
 建议同时将 [managed memory](../memory/mem_setup_tm.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
+<a name="the-rocksdbstatebackend" />
+
 ### RocksDBStateBackend
 
 *RocksDBStateBackend* 需要配置一个文件系统的 URL （类型、地址、路径），例如："hdfs://namenode:40010/flink/checkpoints" 或 "file:///data/flink/checkpoints"。
