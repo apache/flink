@@ -244,39 +244,82 @@ public final class GenericArrayData implements ArrayData {
 	// Conversion Utilities
 	// ------------------------------------------------------------------------------------------
 
+	private boolean anyNull() {
+		for (Object element : (Object[]) array) {
+			if (element == null) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void checkNoNull() {
+		if (anyNull()) {
+			throw new RuntimeException("Primitive array must not contain a null value.");
+		}
+	}
+
 	@Override
 	public boolean[] toBooleanArray() {
-		return (boolean[]) array;
+		if (isPrimitiveArray) {
+			return (boolean[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Boolean[]) array);
 	}
 
 	@Override
 	public byte[] toByteArray() {
-		return (byte[]) array;
+		if (isPrimitiveArray) {
+			return (byte[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Byte[]) array);
 	}
 
 	@Override
 	public short[] toShortArray() {
-		return (short[]) array;
+		if (isPrimitiveArray) {
+			return (short[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Short[]) array);
 	}
 
 	@Override
 	public int[] toIntArray() {
-		return (int[]) array;
+		if (isPrimitiveArray) {
+			return (int[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Integer[]) array);
 	}
 
 	@Override
 	public long[] toLongArray() {
-		return (long[]) array;
+		if (isPrimitiveArray) {
+			return (long[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Long[]) array);
 	}
 
 	@Override
 	public float[] toFloatArray() {
-		return (float[]) array;
+		if (isPrimitiveArray) {
+			return (float[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Float[]) array);
 	}
 
 	@Override
 	public double[] toDoubleArray() {
-		return (double[]) array;
+		if (isPrimitiveArray) {
+			return (double[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Double[]) array);
 	}
 }
 
