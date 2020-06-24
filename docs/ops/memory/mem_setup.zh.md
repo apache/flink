@@ -1,5 +1,5 @@
 ---
-title: "Set up Flink's Process Memory"
+title: "配置 Flink 进程的内存"
 nav-parent_id: ops_mem
 nav-pos: 1
 ---
@@ -22,134 +22,133 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink provides efficient workloads on top of the JVM by tightly controlling the memory usage of its various components.
-While the community strives to offer sensible defaults to all configurations, the full breadth of applications
-that users deploy on Flink means this isn't always possible. To provide the most production value to our users,
-Flink allows both high level and fine-grained tuning of memory allocation within clusters.
+Apache Flink 基于 JVM 的高效处理能力，依赖于其对各组件内存用量的细致掌控。
+考虑到用户在 Flink 上运行的应用的多样性，尽管社区已经努力为所有配置项提供合理的默认值，仍无法满足所有情况下的需求。
+为了给用户生产提供最大化的价值， Flink 允许用户在整体上以及细粒度上对集群的内存分配进行调整。
 
 * toc
 {:toc}
 
-The further described memory configuration is applicable starting with the release version *1.10* for TaskManager and
-*1.11* for JobManager processes. If you upgrade Flink from earlier versions, check the [migration guide](mem_migration.html)
-because many changes were introduced with the *1.10* and *1.11* releases.
+本文接下来介绍的内存配置方法适用于 *1.10* 及以上版本的 TaskManager 进程和 *1.11* 及以上版本的 JobManager 进程。
+Flink 在 *1.10* 和 *1.11* 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南](mem_migration.html)。
 
-## Configure Total Memory
+<a name="configure-total-memory" />
 
-The *total process memory* of Flink JVM processes consists of memory consumed by the Flink application (*total Flink memory*)
-and by the JVM to run the process. The *total Flink memory* consumption includes usage of *JVM Heap* and *Off-heap*
-(*Direct* or *Native*) memory.
+## 配置总内存
+
+Flink JVM 进程的*进程总内存（Total Process Memory）*包含了由 Flink 应用使用的内存（*Flink 总内存*）以及由运行 Flink 的 JVM 使用的内存。
+*Flink 总内存（Total Flink Memory）*包括 *JVM 堆内存（Heap Memory）*和*堆外内存（Off-Heap Memory）*。
+其中堆外内存包括*直接内存（Direct Memory）*和*本地内存（Native Memory）*。
 
 <center>
   <img src="{{ site.baseurl }}/fig/process_mem_model.svg" width="300px" alt="Flink's process memory model" usemap="#process-mem-model">
 </center>
 <br />
 
-The simplest way to setup memory in Flink is to configure either of the two following options:
+配置 Flink 进程内存最简单的方法是指定以下两个配置项中的任意一个：
 
-| &nbsp;&nbsp;**Component**&nbsp;&nbsp; | &nbsp;&nbsp;**Option for TaskManager**&nbsp;&nbsp;                                 | &nbsp;&nbsp;**Option for JobManager**&nbsp;&nbsp;                                |
+| &nbsp;&nbsp;**配置项**&nbsp;&nbsp; | &nbsp;&nbsp;**TaskManager 配置参数**&nbsp;&nbsp;                                 | &nbsp;&nbsp;**JobManager 配置参数**&nbsp;&nbsp;                                |
 | :------------------------------------ | :---------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
-| Total Flink memory                    | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
-| Total process memory                  | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
+| Flink 总内存                    | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
+| 进程总内存                  | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
 {:.table-bordered}
 <br/>
 
-<span class="label label-info">Note</span> For local execution, see detailed information for [TaskManager](mem_setup_tm.html#local-execution) and [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#local-execxution) processes.
+<span class="label label-info">提示</span>
+关于本地执行，请分别参考 [TaskManager](mem_setup_tm.html#local-execution) 和 [JobManager](mem_setup_jobmanager.html#local-execution) 的相关文档。
 
-The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
-See also how to set up other components for [TaskManager](mem_setup_tm.html) and [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}) memory.
+Flink 会根据默认值或其他配置参数自动调整剩余内存部分的大小。
+关于各内存部分的更多细节，请分别参考 [TaskManager](mem_setup_tm.html) 和 [JobManager](mem_setup_jobmanager.html) 的相关文档。
 
-Configuring *total Flink memory* is better suited for [standalone deployments](../deployment/cluster_setup.html)
-where you want to declare how much memory is given to Flink itself. The *total Flink memory* splits up into *JVM Heap*
-and *Off-heap* memory.
-See also [how to configure memory for standalone deployments](mem_tuning.html#configure-memory-for-standalone-deployment).
+对于[独立部署模式（Standalone Deployment）](../deployment/cluster_setup.html)，如果你希望指定由 Flink 应用本身使用的内存大小，最好选择配置 *Flink 总内存*。
+*Flink 总内存*会进一步划分为 *JVM 堆内存*和*堆外内存*。
+更多详情请参考[如何为独立部署模式配置内存](mem_tuning.html#configure-memory-for-standalone-deployment)。
 
-If you configure *total process memory* you declare how much memory in total should be assigned to the Flink *JVM process*.
-For the containerized deployments it corresponds to the size of the requested container, see also
-[how to configure memory for containers](mem_tuning.html#configure-memory-for-containers)
-([Kubernetes](../deployment/kubernetes.html), [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html)).
+通过配置*进程总内存*可以指定由 Flink *JVM 进程*使用的总内存大小。
+对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存](mem_tuning.html#configure-memory-for-containers)（[Kubernetes](../deployment/kubernetes.html)、[Yarn](../deployment/yarn_setup.html) 或 [Mesos](../deployment/mesos.html)）。
 
-Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
-specific to the concrete Flink process. Check how to configure them for [TaskManager](mem_setup_tm.html#configure-heap-and-managed-memory)
-and for [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#configure-jvm-heap).
+此外，还可以通过设置 *Flink 总内存*的特定内部组成部分的方式来进行内存配置。
+不同进程需要设置的内存组成部分是不一样的。
+详情请分别参考 [TaskManager](mem_setup_tm.html#configure-heap-and-managed-memory) 和 [JobManager](mem_setup_jobmanager.html#configure-jvm-heap) 的相关文档。
 
-<span class="label label-info">Note</span> One of the three mentioned ways has to be used to configure Flink’s memory
-(except for local execution), or the Flink startup will fail. This means that one of the following option subsets,
-which do not have default values, have to be configured explicitly:
+<span class="label label-info">提示</span>
+以上三种方式中，用户需要至少选择其中一种进行配置（本地运行除外），否则 Flink 将无法启动。
+这意味着，用户需要从以下无默认值的配置参数（或参数组合）中选择一个给出明确的配置：
 
-| &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for JobManager:**&nbsp;&nbsp;                                      |
+| &nbsp;&nbsp;**TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**JobManager:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
 | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
 | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
-| [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)       |
+| [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size) 和 <br/> [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)       |
 {:.table-bordered}
 <br/>
 
-<span class="label label-info">Note</span> Explicitly configuring both *total process memory* and *total Flink memory*
-is not recommended. It may lead to deployment failures due to potential memory configuration conflicts.
-Configuring other memory components also requires caution as it can produce further configuration conflicts.
+<span class="label label-info">提示</span>
+不建议同时设置*进程总内存*和 *Flink 总内存*。
+这可能会造成内存配置冲突，从而导致部署失败。
+额外配置其他内存部分时，同样需要注意可能产生的配置冲突。
 
-## JVM Parameters
+<a name="jvm-parameters" />
 
-Flink explicitly adds the following memory related JVM arguments while starting its processes, based on the configured
-or derived memory component sizes:
+## JVM 参数
 
-| &nbsp;&nbsp;**JVM Arguments**&nbsp;&nbsp;                                                  | &nbsp;&nbsp;**Value for TaskManager**&nbsp;&nbsp;  | &nbsp;&nbsp;**Value for JobManager**&nbsp;&nbsp;  |
-| :----------------------------------------------------------------------------------------- | :------------------------------------------------- | :------------------------------------------------ |
-| *-Xmx* and *-Xms*                                                                          | Framework + Task Heap Memory                       | JVM Heap Memory                                   |
-| *-XX:MaxDirectMemorySize*<br/>(always added only for TaskManager, see note for JobManager) | Framework + Task Off-heap (\*) + Network Memory    | Off-heap Memory (\*),(\*\*)                       |
-| *-XX:MaxMetaspaceSize*                                                                     | JVM Metaspace                                      | JVM Metaspace                                     |
+Flink 进程启动时，会根据配置的和自动推导出的各内存部分大小，显式地设置以下 JVM 参数：
+
+| &nbsp;&nbsp;**JVM 参数**&nbsp;&nbsp; | &nbsp;&nbsp;**TaskManager 取值**&nbsp;&nbsp; | &nbsp;&nbsp;**JobManager 取值**&nbsp;&nbsp; |
+| :---------------------------------------- | :------------------------------------------------- | :------------------------------------------------ |
+| *-Xmx* 和 *-Xms*                         | 框架堆内存 + 任务堆内存                       | JVM 堆内存                                   |
+| *-XX:MaxDirectMemorySize*<br/>（TaskManager 始终设置，JobManager 见注释）                 | 框架堆外内存 + 任务堆外内存(\*) + 网络内存     | 堆外内存 (\*) (\*\*)                               |
+| *-XX:MaxMetaspaceSize*                    | JVM Metaspace                                      | JVM Metaspace                                     |
 {:.table-bordered}
-(\*) Notice, that the native non-direct usage of memory in user code can be also accounted for as a part of the off-heap memory.
+(\*) 请注意，堆外内存也包括了用户代码使用的本地内存（非直接内存）。
 <br/>
-(\*\*) The *JVM Direct memory limit* is added for JobManager process only if the corresponding option
-[`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) is set.
+(\*\*) 只有在 [`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) 设置为 `true` 时，JobManager 才会设置 *JVM 直接内存限制*。
 <br/><br/>
 
-Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and
-[JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) to understand how to configure the relevant components.
+相关内存部分的配置方法，请同时参考 [TaskManager](mem_setup_tm.html#detailed-memory-model) 和 [JobManager](mem_setup_jobmanager.html#detailed-configuration) 的详细内存模型。
 
-## Capped Fractionated Components
+<a name="capped-fractionated-components" />
 
-This section describes the configuration details of options which can be a fraction of some other memory size while being constrained by a min-max range:
+## 受限的等比内存部分
 
-* *JVM Overhead* can be a fraction of the *total process memory*
-* *Network memory* can be a fraction of the *total Flink memory* (only for TaskManager)
+本节介绍下列内存部分的配置方法，它们都可以通过指定在总内存中所占比例的方式进行配置，同时受限于相应的的最大/最小值范围。
+* *JVM 开销*：可以配置占用*进程总内存*的固定比例
+* *网络内存*：可以配置占用 *Flink 总内存*的固定比例（仅针对 TaskManager）
 
-Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and
-[JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) to understand how to configure the relevant components.
+相关内存部分的配置方法，请同时参考 [TaskManager](mem_setup_tm.html#detailed-memory-model) 和 [JobManager](mem_setup_jobmanager.html#detailed-configuration) 的详细内存模型。
 
-The size of those components always has to be between its maximum and minimum value, otherwise Flink startup will fail.
-The maximum and minimum values have defaults or can be explicitly set by corresponding configuration options.
-For example, if you only set the following memory options:
-- *total Process memory* = 1000Mb,
-- *JVM Overhead min* = 64Mb,
-- *JVM Overhead max* = 128Mb,
-- *JVM Overhead fraction* = 0.1
+这些内存部分的大小必须在相应的最大值、最小值范围内，否则 Flink 将无法启动。
+最大值、最小值具有默认值，也可以通过相应的配置参数进行设置。
+例如，如果仅配置下列参数：
+- *进程总内存* = 1000Mb
+- *JVM 开销最小值* = 64Mb
+- *JVM 开销最大值* = 128Mb
+- *JVM 开销占比* = 0.1
 
-then the *JVM Overhead* will be 1000Mb x 0.1 = 100Mb which is within the range 64-128Mb.
+那么 *JVM 开销*的实际大小将会是 1000Mb x 0.1 = 100Mb，在 64-128Mb 的范围内。
 
-Notice if you configure the same maximum and minimum value it effectively fixes the size to that value.
+如果将最大值、最小值设置成相同大小，那相当于明确指定了该内存部分的大小。
 
-If you do not explicitly configure the component memory, then Flink will use the fraction to calculate the memory size
-based on the total memory. The calculated value is capped by its corresponding min/max options.
-For example, if only the following memory options are set:
-- *total Process memory* = 1000Mb,
-- *JVM Overhead min* = 128Mb,
-- *JVM Overhead max* = 256Mb,
-- *JVM Overhead fraction* = 0.1
+如果没有明确指定内存部分的大小，Flink 会根据总内存和占比计算出该内存部分的大小。
+计算得到的内存大小将受限于相应的最大值、最小值范围。
+例如，如果仅配置下列参数：
+- *进程总内存* = 1000Mb
+- *JVM 开销最小值* = 128Mb
+- *JVM 开销最大值* = 256Mb
+- *JVM 开销占比* = 0.1
 
-then the *JVM Overhead* will be 128Mb because the size derived from fraction is 100Mb, and it is less than the minimum.
+那么 *JVM 开销*的实际大小将会是 128Mb，因为根据总内存和占比计算得到的内存大小 100Mb 小于最小值。
 
-It can also happen that the fraction is ignored if the sizes of the total memory and its other components are defined.
-In this case, the *JVM Overhead* is the rest of the total memory. The derived value still has to be within its min/max
-range otherwise the configuration fails. For example, suppose only the following memory options are set:
-- *total Process memory* = 1000Mb,
-- *task heap* = 100Mb, (similar example can be for *JVM Heap* in the JobManager)
-- *JVM Overhead min* = 64Mb,
-- *JVM Overhead max* = 256Mb,
-- *JVM Overhead fraction* = 0.1
+如果配置了总内存和其他内存部分的大小，那么 Flink 也有可能会忽略给定的占比。
+这种情况下，受限的等比内存部分的实际大小是总内存减去其他所有内存部分后剩余的部分。
+这样推导得出的内存大小必须符合最大值、最小值范围，否则 Flink 将无法启动。
+例如，如果仅配置下列参数：
+- *进程总内存* = 1000Mb
+- *任务堆内存* = 100Mb（或 JobManager 的 *JVM 堆内存*）
+- *JVM 开销最小值* = 64Mb
+- *JVM 开销最大值* = 256Mb
+- *JVM 开销占比* = 0.1
 
-All other components of the *total Process memory* have default values, including the default *Managed Memory* fraction
-(or *Off-heap* memory in the JobManager). Then the *JVM Overhead* is not the fraction (1000Mb x 0.1 = 100Mb), but the rest
-of the *total Process memory* which will either be within the range 64-256Mb or fail.
+*进程总内存*中所有其他内存部分均有默认大小，包括 TaskManager 的*托管内存*默认占比或 JobManager 的默认*堆外内存*。
+因此，*JVM 开销*的实际大小不是根据占比算出的大小（1000Mb x 0.1 = 100Mb），而是*进程总内存*中剩余的部分。
+这个剩余部分的大小必须在 64-256Mb 的范围内，否则将会启动失败。
