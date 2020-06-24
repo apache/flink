@@ -121,7 +121,7 @@ Checkpoint _n_ 将包含每个 operator 的 state，这些 state 是对应的 op
 
 <img src="{% link fig/stream_aligning.svg %}" alt="Barrier alignment" class="center" width="100%" />
 
-Flink 的 state backends 使用写时复制（copy-on-write）机制允许流处理在异步快照状态的旧版本时不受阻碍地继续。只有当快照被持久保存时，这些旧版本的状态才会被垃圾回收。
+Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异步生成旧版本的状态快照时，能够不受影响地继续流处理。只有当快照被持久保存时，这些旧版本的状态才会被当做垃圾回收。
 
 ### 确保精确一次（exactly once）
 
