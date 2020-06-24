@@ -42,6 +42,11 @@ If you run the JobManager process using local [execution mode](#local-execution)
 
 ## Detailed configuration
 
+<center>
+  <img src="{{ site.baseurl }}/fig/process_mem_model.svg" width="300px" alt="Flink's process memory model" usemap="#process-mem-model">
+</center>
+<br />
+
 The following table lists all memory components, depicted above, and references Flink configuration options which
 affect the size of the respective components:
 
