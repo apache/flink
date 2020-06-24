@@ -115,7 +115,7 @@ Flink 使用 [Chandy-Lamport algorithm](https://en.wikipedia.org/wiki/Chandy-Lam
 
 <img src="{% link fig/stream_barriers.svg %}" alt="Checkpoint barriers are inserted into the streams" class="center" width="80%" />
 
-Checkpoint _n_ 将包含每个 operator 的 state，这些 state 是对应的 operator 消费了 **严格在 checkpoint barrier _n_ 之前的所有事件，并且不包含在此（checkpoint barrier _n_）后的任何事件** 后而生成的状态。
+Checkpoint _n_ 将包含每个 operator 的 state，这些 state 是对应的 operator 消费了**严格在 checkpoint barrier _n_ 之前的所有事件，并且不包含在此（checkpoint barrier _n_）后的任何事件**后而生成的状态。
 
 当 job graph 中的每个 operator 接收到 barriers 时，它就会记录下其状态。拥有两个输入流的 Operators（例如 `CoProcessFunction`）会执行 _barrier 对齐（barrier alignment）_ 以便当前快照能够包含消费两个输入流 barrier 之前（但不超过）的所有 events 而产生的状态。
 
