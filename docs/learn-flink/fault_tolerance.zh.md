@@ -127,13 +127,13 @@ Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异
 
 当流处理应用程序发生错误的时候，结果可能会产生丢失或者重复。Flink 根据你为应用程序和集群的配置，可以产生以下结果：
 
-- Flink 不会努力从故障中恢复（_at most once_）
+- Flink 不会尽力从故障中恢复（_at most once_）
 - 没有任何丢失，但是你可能会得到重复冗余的结果（_at least once_）
 - 没有丢失或冗余重复（_exactly once_）
 
-Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为 **精确一次** 时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
+Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为**精确一次**时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
 
-Barrier 只需要在提供精确一次的语义保证时需要对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭屏障对齐（Barrier alignment）来提高性能。
+只有在需要提供精确一次的语义保证时需要屏障对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭屏障对齐来提高性能。
 
 ### 端到端精确一次
 
