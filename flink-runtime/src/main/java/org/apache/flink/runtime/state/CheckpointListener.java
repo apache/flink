@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 /**
  * This interface must be implemented by functions/operations that want to receive
  * a commit notification once a checkpoint has been completely acknowledged by all
  * participants.
  */
-@PublicEvolving
+@Public
 public interface CheckpointListener {
 
 	/**

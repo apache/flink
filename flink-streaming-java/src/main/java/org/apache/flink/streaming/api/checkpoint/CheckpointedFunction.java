@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -140,7 +140,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * @see ListCheckpointed
  * @see RuntimeContext
  */
-@PublicEvolving
+@Public
 public interface CheckpointedFunction {
 
 	/**
