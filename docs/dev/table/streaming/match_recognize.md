@@ -25,7 +25,7 @@ under the License.
 -->
 
 It is a common use case to search for a set of event patterns, especially in case of data streams.
-Flink comes with a [complex event processing (CEP) library]({{ site.baseurl }}/dev/libs/cep.html)
+Flink comes with a [complex event processing (CEP) library]({% link dev/libs/cep.md %})
 which allows for pattern detection in event streams. Furthermore, Flink's SQL API provides a
 relational way of expressing queries with a large set of built-in functions and rule-based
 optimizations that can be used out of the box.
@@ -93,10 +93,10 @@ project.
 {% endhighlight %}
 
 Alternatively, you can also add the dependency to the cluster classpath (see the
-[dependency section]({{ site.baseurl}}/dev/project-configuration.html) for more information).
+[dependency section]({% link dev/project-configuration.md %}) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
-[SQL Client]({{ site.baseurl}}/dev/table/sqlClient.html), you don't have to do anything as all the
+[SQL Client]({% link dev/table/sqlClient.md %}), you don't have to do anything as all the
 dependencies are included by default.
 
 ### SQL Semantics
@@ -263,8 +263,8 @@ look at the [event stream navigation](#pattern-navigation) section.
 ### Aggregations
 
 Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both
-[built-in]({{ site.baseurl }}/dev/table/functions/systemFunctions.html) and custom
-[user defined]({{ site.baseurl }}/dev/table/functions/udfs.html) functions are supported.
+[built-in]({% link dev/table/functions/systemFunctions.md %}) and custom
+[user defined]({% link dev/table/functions/udfs.md %}) functions are supported.
 
 Aggregate functions are applied to each subset of rows mapped to a match. In order to understand
 how those subsets are evaluated have a look at the [event stream navigation](#pattern-navigation)
