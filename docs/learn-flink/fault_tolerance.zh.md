@@ -29,7 +29,7 @@ under the License.
 
 ## State Backends
 
-由 Flink 管理的 keyed state 是一种分片的键/值存储，每个 keyed state 的工作副本都保存在负责该键的 taskmanager 本地的某个位置。Operator state 也存在机器节点本地。Flink 定期获取所有状态的快照，并将这些快照复制到持久化的位置，例如分布式文件系统。
+由 Flink 管理的 keyed state 是一种分片的键/值存储，每个 keyed state 的工作副本都保存在负责该键的 taskmanager 本地中。另外，Operator state 也保存在机器节点本地。Flink 定期获取所有状态的快照，并将这些快照复制到持久化的位置，例如分布式文件系统。
 
 如果发生故障，Flink 可以恢复应用程序的完整状态并继续处理，就如同没有出现过异常。
 
@@ -123,7 +123,7 @@ Checkpoint _n_ 将包含每个 operator 的 state，这些 state 是对应的 op
 
 Flink 的 state backends 使用写时复制（copy-on-write）机制允许流处理在异步快照状态的旧版本时不受阻碍地继续。只有当快照被持久保存时，这些旧版本的状态才会被垃圾回收。
 
-### 精确一次保证
+### 确保精确一次（exactly once）
 
 当流处理应用程序发生错误的时候，可能产生缺失，或者重复冗余的结果。使用 Flink，根据你为应用程序和运行的集群所做的选择，可能会出现以下任何结果：
 
@@ -133,7 +133,7 @@ Flink 的 state backends 使用写时复制（copy-on-write）机制允许流处
 
 Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为 **精确一次（exactly once）** 时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
 
-Barrier 只需要在提供精确一次的语义保证时需要对齐（Barrier alignment）。如果不需要这种语义，可以通过将 Flink 配置为使用 `CheckpointingMode.AT_LEAST_ONCE` 来获得一些性能，这具有关闭屏障对齐（Barrier alignment）的效果。
+Barrier 只需要在提供精确一次的语义保证时需要对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭屏障对齐（Barrier alignment）来提高性能。
 
 ### 端到端精确一次
 
