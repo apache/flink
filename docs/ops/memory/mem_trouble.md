@@ -80,4 +80,5 @@ If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) i
 you can try to increase the TaskManager's [managed memory](mem_setup.html#managed-memory).
 
 Alternatively, you can increase the [JVM Overhead](mem_setup.html#capped-fractionated-components).
+
 See also [how to configure memory for containers](mem_tuning.html#configure-memory-for-containers).
