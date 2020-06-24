@@ -131,7 +131,7 @@ Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异
 - 没有任何丢失，但是你可能会得到重复冗余的结果（_at least once_）
 - 没有丢失或冗余重复（_exactly once_）
 
-Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为 **精确一次（exactly once）** 时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
+Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为 **精确一次** 时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
 
 Barrier 只需要在提供精确一次的语义保证时需要对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭屏障对齐（Barrier alignment）来提高性能。
 
