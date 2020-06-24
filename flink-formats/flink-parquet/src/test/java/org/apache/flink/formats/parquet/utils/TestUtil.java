@@ -27,14 +27,17 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.generated.ArrayItem;
 import org.apache.flink.formats.parquet.generated.Bar;
+import org.apache.flink.formats.parquet.generated.DecimalRecord;
 import org.apache.flink.formats.parquet.generated.MapItem;
 import org.apache.flink.formats.parquet.generated.NestedRecord;
 import org.apache.flink.formats.parquet.generated.SimpleRecord;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -45,6 +48,7 @@ import org.mockito.Mockito;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,6 +72,7 @@ public class TestUtil {
 	public static TemporaryFolder tempRoot = new TemporaryFolder();
 	public static final Schema NESTED_SCHEMA = getTestSchema("nested.avsc");
 	public static final Schema SIMPLE_SCHEMA = getTestSchema("simple.avsc");
+	public static final Schema DECIMAL_SCHEMA = getTestSchema("decimal.avsc");
 
 	public static final TypeInformation<Row> SIMPLE_ROW_TYPE = Types.ROW_NAMED(new String[] {"foo", "bar", "arr"},
 		BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO);
@@ -84,9 +89,16 @@ public class TestUtil {
 		nestedArray);
 
 	public static Path createTempParquetFile(File folder, Schema schema, List<IndexedRecord> records) throws IOException {
+		SpecificData model = new SpecificData();
+		model.addLogicalTypeConversion(new Conversions.DecimalConversion());
+
 		Path path = new Path(folder.getPath(), UUID.randomUUID().toString());
-		ParquetWriter<IndexedRecord> writer = AvroParquetWriter.<IndexedRecord>builder(
-			new org.apache.hadoop.fs.Path(path.toUri())).withSchema(schema).withRowGroupSize(10).build();
+		ParquetWriter<IndexedRecord> writer = AvroParquetWriter
+			.<IndexedRecord>builder(new org.apache.hadoop.fs.Path(path.toUri()))
+			.withSchema(schema)
+			.withDataModel(model)
+			.withRowGroupSize(10)
+			.build();
 
 		for (IndexedRecord record : records) {
 			writer.write(record);
@@ -112,6 +124,26 @@ public class TestUtil {
 		t.f0 = SimpleRecord.class;
 		t.f1 = simpleRecord;
 		t.f2 = simpleRow;
+
+		return t;
+	}
+
+	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getDecimalRecordTestData() {
+		BigDecimal decimalFitsBinary = new BigDecimal("12345678901234567890.1234567899");
+
+		final DecimalRecord record = DecimalRecord.newBuilder()
+			.setDecAsBytes(decimalFitsBinary)
+			.setDecAsFixed(decimalFitsBinary)
+			.build();
+
+		final Row row = new Row(2);
+		row.setField(0, decimalFitsBinary);
+		row.setField(1, decimalFitsBinary);
+
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
+		t.f0 = SimpleRecord.class;
+		t.f1 = record;
+		t.f2 = row;
 
 		return t;
 	}

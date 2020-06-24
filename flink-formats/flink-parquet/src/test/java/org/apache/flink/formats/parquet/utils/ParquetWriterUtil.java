@@ -76,10 +76,18 @@ public class ParquetWriterUtil {
 						consumer.startField("f" + i, i);
 						switch (type.getPrimitiveTypeName()) {
 							case INT64:
-								consumer.addLong(((Number) field).longValue());
+								if (field instanceof BigDecimal) {
+									consumer.addLong(((BigDecimal) field).unscaledValue().longValueExact());
+								} else {
+									consumer.addLong(((Number) field).longValue());
+								}
 								break;
 							case INT32:
-								consumer.addInteger(((Number) field).intValue());
+								if (field instanceof BigDecimal) {
+									consumer.addInteger(((BigDecimal) field).unscaledValue().intValueExact());
+								} else {
+									consumer.addInteger(((Number) field).intValue());
+								}
 								break;
 							case BOOLEAN:
 								consumer.addBoolean((Boolean) field);

@@ -40,6 +40,7 @@ import org.apache.parquet.schema.Type;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -169,6 +170,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 	}
 
 	static class RowPrimitiveConverter extends PrimitiveConverter {
+		private Type dataType;
 		private OriginalType originalType;
 		private PrimitiveType.PrimitiveTypeName primitiveTypeName;
 		private ParentDataHolder parentDataHolder;
@@ -176,6 +178,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 
 		RowPrimitiveConverter(Type dataType, ParentDataHolder parentDataHolder, int pos) {
 			this.parentDataHolder = parentDataHolder;
+			this.dataType = dataType;
 			this.pos = pos;
 			if (dataType.isPrimitive()) {
 				this.originalType = dataType.getOriginalType();
@@ -199,7 +202,10 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 			if (originalType != null) {
 				switch (originalType) {
 					case DECIMAL:
-						parentDataHolder.add(pos, new BigDecimal(value.toStringUsingUTF8().toCharArray()));
+						int scale = dataType.asPrimitiveType().getDecimalMetadata().getScale();
+						BigInteger unscaled = new BigInteger(value.getBytes());
+						BigDecimal decimal = new BigDecimal(unscaled, scale);
+						parentDataHolder.add(pos, decimal);
 						break;
 					case UTF8:
 					case ENUM:
@@ -254,6 +260,11 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 					case INT_32:
 						parentDataHolder.add(pos, value);
 						break;
+					case DECIMAL:
+						int scale = dataType.asPrimitiveType().getDecimalMetadata().getScale();
+						BigDecimal decimal = BigDecimal.valueOf(value, scale);
+						parentDataHolder.add(pos, decimal);
+						break;
 					default:
 						throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()
 							+ " for primitive type INT32");
@@ -276,8 +287,9 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 						break;
 					case INT_64:
 					case DECIMAL:
-						// long is more efficient then BigDecimal in terms of memory.
-						parentDataHolder.add(pos, value);
+						int scale = dataType.asPrimitiveType().getDecimalMetadata().getScale();
+						BigDecimal decimal = BigDecimal.valueOf(value, scale);
+						parentDataHolder.add(pos, decimal);
 						break;
 					default:
 						throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()

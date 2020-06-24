@@ -18,7 +18,11 @@
 
 package org.apache.flink.formats.parquet.utils;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
+import org.apache.flink.types.Row;
 
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
@@ -27,6 +31,7 @@ import org.apache.parquet.schema.Type;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -89,6 +94,32 @@ public class ParquetSchemaConverterTest extends TestUtil {
 	}
 
 	@Test
+	public void testDecimalSchemaConversion() {
+		Type[] decimalTypes = {
+			org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).precision(30).scale(10).named("decimalInBinary"),
+			org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).length(30).precision(30).scale(10).named("decimalInFixed"),
+			org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).precision(18).scale(4).named("decimalInInt64"),
+			org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT32, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).precision(9).scale(4).named("decimalInInt32"),
+		};
+
+		MessageType messageType = new MessageType("decimals", decimalTypes);
+		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(messageType);
+
+		TypeInformation<Row> expected = Types.ROW_NAMED(
+			new String[] {"decimalInBinary", "decimalInFixed", "decimalInInt64", "decimalInInt32"},
+			BigDecimalTypeInfo.of(30, 10),
+			BigDecimalTypeInfo.of(30, 10),
+			BigDecimalTypeInfo.of(18, 4),
+			BigDecimalTypeInfo.of(9, 4));
+
+		assertEquals(expected, rowTypeInfo);
+	}
+
+	@Test
 	public void testNestedSchemaConversion() {
 		MessageType nestedTypes = new MessageType("nested", this.nestedTypes);
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedTypes);
@@ -99,6 +130,30 @@ public class ParquetSchemaConverterTest extends TestUtil {
 	public void testSimpleRowTypeConversion() {
 		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(SIMPLE_ROW_TYPE, true);
 		assertEquals(Arrays.asList(simpleStandardTypes), simpleSchema.getFields());
+	}
+
+	@Test
+	public void testDecimalRowTypeConversion() {
+		TypeInformation<Row> rowType = Types.ROW_NAMED(
+			new String[] {"a", "b", "c"},
+			BigDecimalTypeInfo.of(30, 10),
+			BigDecimalTypeInfo.of(18, 4),
+			BigDecimalTypeInfo.of(9, 4));
+
+		List<Type> expected = Arrays.asList(
+			org.apache.parquet.schema.Types
+				.primitive(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).length(13).precision(30).scale(10).named("a"),
+			org.apache.parquet.schema.Types
+				.primitive(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).length(8).precision(18).scale(4).named("b"),
+			org.apache.parquet.schema.Types
+				.primitive(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Type.Repetition.OPTIONAL)
+				.as(OriginalType.DECIMAL).length(4).precision(9).scale(4).named("c")
+		);
+
+		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(rowType, true);
+		assertEquals(expected, simpleSchema.getFields());
 	}
 
 	@Test

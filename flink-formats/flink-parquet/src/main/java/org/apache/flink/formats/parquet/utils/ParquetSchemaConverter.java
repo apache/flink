@@ -25,10 +25,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.parquet.schema.DecimalMetadata;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
@@ -102,7 +104,8 @@ public class ParquetSchemaConverter {
 					if (originalType != null) {
 						switch (originalType) {
 							case DECIMAL:
-								typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+								DecimalMetadata meta = primitiveType.getDecimalMetadata();
+								typeInfo = BigDecimalTypeInfo.of(meta.getPrecision(), meta.getScale());
 								break;
 							case UTF8:
 							case ENUM:
@@ -149,6 +152,10 @@ public class ParquetSchemaConverter {
 							case INT_32:
 								typeInfo = BasicTypeInfo.INT_TYPE_INFO;
 								break;
+							case DECIMAL:
+								DecimalMetadata meta = primitiveType.getDecimalMetadata();
+								typeInfo = BigDecimalTypeInfo.of(meta.getPrecision(), meta.getScale());
+								break;
 							default:
 								throw new UnsupportedOperationException("Unsupported original type : "
 									+ originalType.name() + " for primitive type INT32");
@@ -168,8 +175,11 @@ public class ParquetSchemaConverter {
 								typeInfo = SqlTimeTypeInfo.TIMESTAMP;
 								break;
 							case INT_64:
-							case DECIMAL:
 								typeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+								break;
+							case DECIMAL:
+								DecimalMetadata meta = primitiveType.getDecimalMetadata();
+								typeInfo = BigDecimalTypeInfo.of(meta.getPrecision(), meta.getScale());
 								break;
 							default:
 								throw new UnsupportedOperationException("Unsupported original type : "
@@ -193,7 +203,8 @@ public class ParquetSchemaConverter {
 					if (originalType != null) {
 						switch (originalType) {
 							case DECIMAL:
-								typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+								DecimalMetadata meta = primitiveType.getDecimalMetadata();
+								typeInfo = BigDecimalTypeInfo.of(meta.getPrecision(), meta.getScale());
 								break;
 							default:
 								throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()
@@ -354,6 +365,15 @@ public class ParquetSchemaConverter {
 				|| basicTypeInfo.equals(BasicTypeInfo.STRING_TYPE_INFO)) {
 				fieldType = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition)
 					.as(OriginalType.UTF8)
+					.named(fieldName);
+			} else if (basicTypeInfo instanceof BigDecimalTypeInfo) {
+				BigDecimalTypeInfo decimalTypeInfo = (BigDecimalTypeInfo) typeInfo;
+				fieldType = Types.primitive(
+					PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, repetition)
+					.precision(decimalTypeInfo.precision())
+					.scale(decimalTypeInfo.scale())
+					.length(computeMinBytesForDecimalPrecision(decimalTypeInfo.precision()))
+					.as(OriginalType.DECIMAL)
 					.named(fieldName);
 			}
 		} else if (typeInfo instanceof MapTypeInfo) {

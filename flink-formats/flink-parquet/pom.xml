@@ -185,6 +185,7 @@ under the License.
 							<goal>schema</goal>
 						</goals>
 						<configuration>
+							<enableDecimalLogicalType>true</enableDecimalLogicalType>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
 							<testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
 						</configuration>

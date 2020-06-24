@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.generated.SimpleRecord;
+import org.apache.flink.formats.parquet.utils.ParquetWriterUtil;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
@@ -31,12 +32,14 @@ import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,6 +81,62 @@ public class ParquetRowInputFormatTest {
 		row = inputFormat.nextRecord(null);
 		assertNotNull(row);
 		assertEquals(simple.f2, row);
+
+		assertTrue(inputFormat.reachedEnd());
+	}
+
+	@Test
+	public void testReadDecimalsFromParquetWithAvro() throws IOException {
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = TestUtil.getDecimalRecordTestData();
+		Path path = TestUtil.createTempParquetFile(
+			tempRoot.getRoot(), TestUtil.DECIMAL_SCHEMA, Arrays.asList(testData.f1));
+		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.DECIMAL_SCHEMA);
+
+		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, messageType);
+		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+		assertEquals(1, splits.length);
+		inputFormat.open(splits[0]);
+
+		Row row = inputFormat.nextRecord(null);
+		assertNotNull(row);
+		assertEquals(testData.f2, row);
+
+		assertTrue(inputFormat.reachedEnd());
+	}
+
+	@Test
+	public void testReadDecimalsFromParquetDirectly() throws IOException {
+		MessageType messageType = MessageTypeParser.parseMessageType(
+			"message TestMessage {\n" +
+				"  optional binary decimal_as_binary (DECIMAL(30,10));\n" +
+				"  optional int64 decimal_as_int64 (DECIMAL(18,4));\n" +
+				"  optional int32 decimal_as_int32 (DECIMAL(9,4));\n" +
+				"}\n");
+
+		BigDecimal decimalFitsBinary = new BigDecimal("12345678901234567890.1234567899");
+		BigDecimal decimalFitsInt64 = new BigDecimal("12345678901234.5678");
+		BigDecimal decimalFitsInt32 = new BigDecimal("12345.6789");
+
+		Row rowOriginal = new Row(3);
+		rowOriginal.setField(0, decimalFitsBinary);
+		rowOriginal.setField(1, decimalFitsInt64);
+		rowOriginal.setField(2, decimalFitsInt32);
+
+		Path parquetFile = ParquetWriterUtil.createTempParquetFile(
+			tempRoot.getRoot(), messageType, Arrays.asList(rowOriginal), 1);
+
+		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(parquetFile, messageType);
+		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+		assertEquals(1, splits.length);
+		inputFormat.open(splits[0]);
+
+		Row rowActual = inputFormat.nextRecord(null);
+		assertNotNull(rowActual);
+		assertEquals(rowOriginal, rowActual);
 
 		assertTrue(inputFormat.reachedEnd());
 	}

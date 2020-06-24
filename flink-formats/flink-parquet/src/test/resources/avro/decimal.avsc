@@ -1,0 +1,37 @@
+{
+  "name": "DecimalRecord",
+  "namespace": "org.apache.flink.formats.parquet.generated",
+  "type": "record",
+  "fields": [
+    {
+      "default": null,
+      "name": "decAsBytes",
+      "type": [
+        "null",
+        {
+          "type": "bytes",
+          "logicalType": "decimal",
+          "precision": 20,
+          "scale": 10
+        }
+      ]
+    },
+    {
+      "default": null,
+      "name": "decAsFixed",
+      "type": [
+        "null",
+        {
+          "type": "fixed",
+          "name": "decimal",
+          "logicalType": "decimal",
+          "size": 30,
+          "precision": 20,
+          "scale": 10
+        }
+      ]
+    }
+  ],
+  "schema_id": 1,
+  "type": "record"
+}

@@ -78,9 +78,9 @@ public class ParquetRowDataWriterTest {
 			new FloatType(),
 			new DoubleType(),
 			new TimestampType(9),
-			new DecimalType(5, 0),
-			new DecimalType(15, 0),
-			new DecimalType(20, 0));
+			new DecimalType(9, 4),
+			new DecimalType(18, 4),
+			new DecimalType(30, 10));
 
 	@SuppressWarnings("unchecked")
 	private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER =
@@ -121,9 +121,9 @@ public class ParquetRowDataWriterTest {
 					v.floatValue(),
 					v.doubleValue(),
 					toDateTime(v),
-					BigDecimal.valueOf(v),
-					BigDecimal.valueOf(v),
-					BigDecimal.valueOf(v)));
+					new BigDecimal("12345.6789").add(BigDecimal.valueOf(v)),
+					new BigDecimal("12345678901234.5678").add(BigDecimal.valueOf(v)),
+					new BigDecimal("12345678901234567890.1234567890").add(BigDecimal.valueOf(v))));
 		}
 
 		ParquetWriterFactory<RowData> factory = ParquetRowDataBuilder.createWriterFactory(
