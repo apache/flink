@@ -49,7 +49,7 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
                 'socketTextStream', 'initializeContextEnvironment', 'readTextFile', 'addSource',
                 'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
-                'clearJobListeners', 'getJobListeners', "source"}
+                'clearJobListeners', 'getJobListeners', "fromSource"}
 
 
 if __name__ == '__main__':

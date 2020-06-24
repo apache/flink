@@ -1629,11 +1629,11 @@ public class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	@Experimental
-	public <OUT> DataStreamSource<OUT> source(
+	public <OUT> DataStreamSource<OUT> fromSource(
 			Source<OUT, ?, ?> source,
 			WatermarkStrategy<OUT> timestampsAndWatermarks,
 			String sourceName) {
-		return source(source, timestampsAndWatermarks, sourceName, null);
+		return fromSource(source, timestampsAndWatermarks, sourceName, null);
 	}
 
 	/**
@@ -1650,7 +1650,7 @@ public class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	@Experimental
-	public <OUT> DataStreamSource<OUT> source(
+	public <OUT> DataStreamSource<OUT> fromSource(
 			Source<OUT, ?, ?> source,
 			WatermarkStrategy<OUT> timestampsAndWatermarks,
 			String sourceName,
