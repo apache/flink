@@ -32,10 +32,10 @@ Print 连接器允许将每一行写入标准输出流或者标准错误流。
 
 设计目的：
 
-- 流处理的简易测试。
-- 非常方便实用的用于生产调试。
+- 简单的流作业测试。
+- 对生产调试带来极大便利。
 
-四种可能的输出内容选项：
+四种 format 选项：
 
 <table class="table table-bordered">
     <thead>
@@ -47,7 +47,7 @@ Print 连接器允许将每一行写入标准输出流或者标准错误流。
     </thead>
     <tbody>
     <tr>
-      <td><h5>标识符：任务 ID > 输出数据</h5></td>
+      <td><h5>标识符:任务 ID> 输出数据</h5></td>
       <td>需要提供前缀打印标识符</td>
       <td>parallelism > 1</td>
     </tr>
@@ -57,7 +57,7 @@ Print 连接器允许将每一行写入标准输出流或者标准错误流。
       <td>parallelism == 1</td>
     </tr>
     <tr>
-      <td><h5>任务 ID > 输出数据</h5></td>
+      <td><h5>任务 ID> 输出数据</h5></td>
       <td>不需要提供前缀打印标识符</td>
       <td>parallelism > 1</td>
     </tr>
@@ -69,13 +69,13 @@ Print 连接器允许将每一行写入标准输出流或者标准错误流。
     </tbody>
 </table>
 
-输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个[RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html)类型的短字符串，例如："+I(1,1)"。
+输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个 [RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html) 类型的短字符串，例如："+I(1,1)"。
 
 Print 连接器是内置的。
 
 <span class="label label-danger">注意</span> 在任务运行时使用 Print Sinks 打印记录，你需要注意观察任务日志。
 
-怎么创建一个 Print 的表
+如何创建一张基于 Print 的表
 ----------------
 
 <div class="codetabs" markdown="1">
@@ -93,7 +93,7 @@ CREATE TABLE print_table (
 </div>
 </div>
 
-或者，也可以通过[LIKE子句]({% link dev/table/sql/create.zh.md %}#create-table)基于已有表的结构去创建新表。
+或者，也可以通过 [LIKE子句]({% link dev/table/sql/create.zh.md %}#create-table) 基于已有表的结构去创建新表。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -137,7 +137,7 @@ LIKE source_table (EXCLUDING ALL)
       <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>如果格式应打印为标准错误而不是标准输出，则为 True 。</td>
+      <td>如果 format 需要打印为标准错误而不是标准输出，则为 True 。</td>
     </tr>
     </tbody>
 </table>
