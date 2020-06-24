@@ -28,6 +28,7 @@ import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -61,7 +62,7 @@ import static org.junit.Assert.assertThat;
 /**
  * End-to-end test for the HBase connectors.
  */
-@Category(value = {TravisGroup1.class, PreCommit.class})
+@Category(value = {TravisGroup1.class, PreCommit.class, FailsOnJava11.class})
 public class SQLClientHBaseITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SQLClientHBaseITCase.class);
