@@ -214,7 +214,7 @@ public class DataStructureConvertersTest {
 				.forDataType(ARRAY(INT().notNull().bridgedTo(int.class))) // int.class should not have an impact
 				.convertedTo(int[].class, new int[]{1, 2, 3, 4})
 				.convertedTo(Integer[].class, new Integer[]{1, 2, 3, 4})
-				.convertedTo(List.class, new LinkedList<>(Arrays.asList(1, 2, 3, 4))),
+				.convertedTo(List.class, new LinkedList<>(Arrays.asList(1, 2, 3, 4))), // test List that is not backed by an array
 
 			// arrays of TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE are skipped for simplicity
 
@@ -225,7 +225,7 @@ public class DataStructureConvertersTest {
 					new LocalDate[]{null, LocalDate.parse("2010-11-12"), null, LocalDate.parse("2010-11-12")})
 				.convertedTo(
 					List.class,
-					new LinkedList<>(Arrays.asList(null, LocalDate.parse("2010-11-12"), null, LocalDate.parse("2010-11-12")))),
+					Arrays.asList(null, LocalDate.parse("2010-11-12"), null, LocalDate.parse("2010-11-12"))),
 
 			TestSpec
 				.forDataType(MAP(INT(), BOOLEAN()))

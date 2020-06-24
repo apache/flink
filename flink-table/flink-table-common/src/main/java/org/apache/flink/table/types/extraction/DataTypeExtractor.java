@@ -327,7 +327,7 @@ public final class DataTypeExtractor {
 		}
 
 		// for List<T>
-		// we require only List here (not a subclass) because we cannot guarantee more specific
+		// we only allow List here (not a subclass) because we cannot guarantee more specific
 		// data structures after conversion
 		if (clazz != List.class) {
 			return null;
@@ -449,7 +449,7 @@ public final class DataTypeExtractor {
 
 	private @Nullable DataType extractMapType(DataTypeTemplate template, List<Type> typeHierarchy, Type type) {
 		final Class<?> clazz = toClass(type);
-		// we require only Map here (not a subclass) because we cannot guarantee more specific
+		// we only allow Map here (not a subclass) because we cannot guarantee more specific
 		// data structures after conversion
 		if (clazz != Map.class) {
 			return null;
