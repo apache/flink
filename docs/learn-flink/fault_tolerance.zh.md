@@ -127,7 +127,7 @@ Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异
 
 当流处理应用程序发生错误的时候，结果可能会产生丢失或者重复。Flink 根据你为应用程序和集群的配置，可以产生以下结果：
 
-- Flink 不会尽力从故障中恢复（_at most once_）
+- Flink 不会努力从故障中恢复（_at most once_）
 - 没有任何丢失，但是你可能会得到重复冗余的结果（_at least once_）
 - 没有丢失或冗余重复（_exactly once_）
 
