@@ -226,7 +226,7 @@ The web UI still displays this value but it is always `0` now.
 The Kafka 0.8 and 0.9 connectors are no longer under active development and were removed.
 
 #### Dropped Elasticsearch 2.x connector ([FLINK-16046](https://issues.apache.org/jira/browse/FLINK-16046))
-The Elasticsearch 2 connector is no longer under active development and were removed.
+The Elasticsearch 2 connector is no longer under active development and was removed.
 Prior version of these connectors will continue to work with Flink. 
 
 #### Removal of deprecated `KafkaPartitioner` ([FLINK-15862](https://issues.apache.org/jira/browse/FLINK-15862))
