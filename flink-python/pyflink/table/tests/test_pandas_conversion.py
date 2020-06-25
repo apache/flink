@@ -21,6 +21,7 @@ import decimal
 from pandas.util.testing import assert_frame_equal
 
 from pyflink.table.types import DataTypes, Row
+from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase
@@ -123,8 +124,7 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.data_type.field_names(),
             self.data_type.field_types())
         self.t_env.register_table_sink("Results", table_sink)
-        table.insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(table, "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,1,1,1,true,1.1,1.2,hello,[97, 97, 97],"

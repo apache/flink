@@ -18,6 +18,7 @@
 import unittest
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
+from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, PyFlinkBlinkBatchTableTestCase
@@ -54,7 +55,7 @@ class UserDefinedTableFunctionTests(object):
             ['a', 'b', 'c'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "multi_emit", udtf(MultiEmit(), [DataTypes.BIGINT(), DataTypes.BIGINT()],
                                [DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
@@ -71,8 +72,7 @@ class UserDefinedTableFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
     def _get_output(self, t):
-        t.insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t, "Results")
         return source_sink_utils.results()
 
 

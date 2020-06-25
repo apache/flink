@@ -22,6 +22,8 @@ import tempfile
 import os
 import shutil
 
+from pyflink.table.utils import exec_insert_table
+
 sink_path = tempfile.gettempdir() + '/batch.csv'
 if os.path.exists(sink_path):
     if os.path.isfile(sink_path):
@@ -42,9 +44,7 @@ bt_env.connect(FileSystem().path(sink_path)) \
                  .field("c", DataTypes.STRING())) \
     .create_temporary_table("batch_sink")
 
-t.select("a + 1, b, c").insert_into("batch_sink")
-
-bt_env.execute("test")
+exec_insert_table(t.select("a + 1, b, c"), "batch_sink")
 
 with open(sink_path, 'r') as f:
     lines = f.read()

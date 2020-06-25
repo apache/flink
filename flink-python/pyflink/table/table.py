@@ -50,12 +50,11 @@ class Table(object):
         >>> t_env = StreamTableEnvironment.create(env)
         >>> ...
         >>> t_env.register_table_source("source", ...)
-        >>> t = t_env.scan("source")
+        >>> t = t_env.from_path("source")
         >>> t.select(...)
         >>> ...
         >>> t_env.register_table_sink("result", ...)
-        >>> t.insert_into("result")
-        >>> t_env.execute("table_job")
+        >>> t.execute_insert("result")
 
     Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,
     :func:`~pyflink.table.Table.where` and :func:`~pyflink.table.Table.group_by`
@@ -287,7 +286,8 @@ class Table(object):
         Example:
         ::
 
-            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> t_env.create_java_temporary_system_function("split",
+           ...     "java.table.function.class.name")
             >>> tab.join_lateral("split(text, ' ') as (b)", "a = b")
 
         :param table_function_call: An expression representing a table function call.
@@ -314,7 +314,8 @@ class Table(object):
         Example:
         ::
 
-            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> t_env.create_java_temporary_system_function("split",
+            ...     "java.table.function.class.name")
             >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
 
         :param table_function_call: An expression representing a table function call.

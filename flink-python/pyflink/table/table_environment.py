@@ -118,6 +118,7 @@ class TableEnvironment(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source), self)
 
     def register_catalog(self, catalog_name, catalog):
@@ -568,7 +569,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
                   use :func:`create_statement_set` for multiple sinks.
         """
-        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink,"
+        warnings.warn("Deprecated in 1.11. Use Table#execute_insert for single sink,"
                       "use create_statement_set for multiple sinks.", DeprecationWarning)
         self._j_tenv.insertInto(target_path, table._j_table)
 
@@ -1423,7 +1424,7 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :return: The result :class:`~pyflink.table.Table`.
         """
-
+        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
         # serializes to a file, and we read the file in java
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         serializer = BatchedSerializer(self._serializer)

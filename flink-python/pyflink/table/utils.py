@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+from pyflink.common import JobExecutionResult
 from pyflink.table.types import DataType, LocalZonedTimestampType
 
 
@@ -67,3 +67,7 @@ def tz_convert_to_internal(s, t: DataType, local_tz):
         elif is_datetime64tz_dtype(s.dtype):
             return s.dt.tz_convert(local_tz).dt.tz_localize(None)
     return s
+
+
+def exec_insert_table(table, table_path) -> JobExecutionResult:
+    return table.execute_insert(table_path).get_job_client().get_job_execution_result().result()

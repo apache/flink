@@ -17,6 +17,7 @@
 ################################################################################
 
 from pyflink.table.types import DataTypes
+from pyflink.table.utils import exec_insert_table
 from pyflink.testing.test_case_utils import MLTestCase
 
 from pyflink.ml.api import JavaTransformer, Transformer, Estimator, Model, \
@@ -103,8 +104,7 @@ class PythonModel(Model):
         """
         table_sink = source_sink_utils.TestRetractSink(["max_sum"], [DataTypes.BIGINT()])
         table_env.register_table_sink("Model_Results", table_sink)
-        self._model_data_table.insert_into("Model_Results")
-        table_env.execute("load model")
+        exec_insert_table(self._model_data_table, "Model_Results")
         actual = source_sink_utils.results()
         self.max_sum = actual.apply(0)
 

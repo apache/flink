@@ -24,6 +24,7 @@ import pytz
 from pyflink.table import DataTypes, Row
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
+from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase
@@ -41,14 +42,14 @@ class PandasUDFITTests(object):
 
     def test_basic_functionality(self):
         # pandas UDF
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one",
             udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT(), udf_type="pandas"))
 
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         # general Python UDF
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
@@ -57,10 +58,10 @@ class PandasUDFITTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.where("add_one(b) <= 3") \
-            .select("a, b + 1, add(a + 1, subtract_one(c)) + 2, add(add_one(a), 1L)") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(
+            t.where("add_one(b) <= 3").select("a, b + 1, add(a + 1, subtract_one(c)) + 2, "
+                                              "add(add_one(a), 1L)"),
+            "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,3,6,3", "3,2,14,5"])
 
@@ -218,7 +219,7 @@ class PandasUDFITTests(object):
 
         self.t_env.register_function(
             "time_func",
-            udf(time_func, [DataTypes.TIME()],   DataTypes.TIME(), udf_type="pandas"))
+            udf(time_func, [DataTypes.TIME()], DataTypes.TIME(), udf_type="pandas"))
 
         self.t_env.register_function(
             "timestamp_func",
@@ -347,7 +348,7 @@ class BlinkPandasUDFITTests(object):
                 (local_zoned_timestamp_param[0], local_datetime)
             return local_zoned_timestamp_param
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "local_zoned_timestamp_func",
             udf(local_zoned_timestamp_func,
                 [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)],
@@ -362,9 +363,8 @@ class BlinkPandasUDFITTests(object):
             [(local_datetime,)],
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
-        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))"),
+                          "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1970-01-02T00:00:00.123Z"])
 
@@ -377,14 +377,14 @@ class StreamPandasUDFITTests(PandasUDFITTests,
 class BatchPandasUDFITTests(PyFlinkBatchTableTestCase):
 
     def test_basic_functionality(self):
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one",
             udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT(), udf_type="pandas"))
 
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         # general Python UDF
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
