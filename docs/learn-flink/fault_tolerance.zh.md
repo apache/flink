@@ -109,9 +109,9 @@ Flink 管理的状态存储在 _state backend_ 中。Flink 有两种 state backe
 
 ### 状态快照如何工作？
 
-Flink 使用 [Chandy-Lamport algorithm](https://en.wikipedia.org/wiki/Chandy-Lamport_algorithm) 算法的一种变体，称为异步屏障快照（_asynchronous barrier snapshotting_）。
+Flink 使用 [Chandy-Lamport algorithm](https://en.wikipedia.org/wiki/Chandy-Lamport_algorithm) 算法的一种变体，称为异步 barrier 快照（_asynchronous barrier snapshotting_）。
 
-当 checkpoint coordinator（job manager 的一部分）指示 task manager 开始 checkpoint 时，它会让所有 sources 记录它们的偏移量，并将编号的 _checkpoint barriers_ 插入到它们的流中。这些屏障（barriers）流经 job graph，标注每个 checkpoint 前后的流部分。
+当 checkpoint coordinator（job manager 的一部分）指示 task manager 开始 checkpoint 时，它会让所有 sources 记录它们的偏移量，并将编号的 _checkpoint barriers_ 插入到它们的流中。这些 barriers 流经 job graph，标注每个 checkpoint 前后的流部分。
 
 <img src="{% link fig/stream_barriers.svg %}" alt="Checkpoint barriers are inserted into the streams" class="center" width="80%" />
 
@@ -121,19 +121,19 @@ Checkpoint _n_ 将包含每个 operator 的 state，这些 state 是对应的 op
 
 <img src="{% link fig/stream_aligning.svg %}" alt="Barrier alignment" class="center" width="100%" />
 
-Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异步生成旧版本的状态快照时，能够不受影响地继续流处理。只有当快照被持久保存时，这些旧版本的状态才会被当做垃圾回收。
+Flink 的 state backends 利用写时复制（copy-on-write）机制允许当异步生成旧版本的状态快照时，能够不受影响地继续流处理。只有当快照被持久保存后，这些旧版本的状态才会被当做垃圾回收。
 
 ### 确保精确一次（exactly once）
 
 当流处理应用程序发生错误的时候，结果可能会产生丢失或者重复。Flink 根据你为应用程序和集群的配置，可以产生以下结果：
 
-- Flink 不会努力从故障中恢复（_at most once_）
+- Flink 不会从快照中进行恢复（_at most once_）
 - 没有任何丢失，但是你可能会得到重复冗余的结果（_at least once_）
 - 没有丢失或冗余重复（_exactly once_）
 
 Flink 通过回退和重新发送 source 数据流从故障中恢复，当理想情况被描述为**精确一次**时，这并*不*意味着每个事件都将被精确一次处理。相反，这意味着 _每一个事件都会影响 Flink 管理的状态精确一次_。
 
-只有在需要提供精确一次的语义保证时需要屏障对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭屏障对齐来提高性能。
+Barrier 只有在需要提供精确一次的语义保证时需要进行对齐（Barrier alignment）。如果不需要这种语义，可以通过配置 `CheckpointingMode.AT_LEAST_ONCE` 关闭 Barrier 对齐来提高性能。
 
 ### 端到端精确一次
 
