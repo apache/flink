@@ -753,8 +753,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				.thenCompose(Function.identity())
 				.whenCompleteAsync(
 					(ack, failure) -> {
-						// only respond to the failure case
-						if (failure != null) {
+						if (failure == null) {
+							getExecutionGraph()
+								.getExecutionDeploymentListener()
+								.onCompletedDeployment(attemptId, getAssignedResourceLocation().getResourceID());
+						} else {
 							if (failure instanceof TimeoutException) {
 								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 
@@ -1601,6 +1604,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				}
 			}
 
+			getExecutionGraph().getExecutionStateUpdateListener().onStateUpdate(attemptId, state);
+
 			if (targetState.isTerminal()) {
 				// complete the terminal state future
 				terminalStateFuture.complete(targetState);
@@ -1699,6 +1704,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	@Override
 	public ArchivedExecution archive() {
 		return new ArchivedExecution(this);
+	}
+
+	private ExecutionGraph getExecutionGraph() {
+		return getVertex().getExecutionGraph();
 	}
 
 	private void assertRunningInJobMasterMainThread() {

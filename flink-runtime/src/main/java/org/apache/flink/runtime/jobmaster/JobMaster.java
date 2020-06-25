@@ -84,8 +84,8 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -181,7 +181,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// -------- Mutable fields ---------
 
-	private HeartbeatManager<AccumulatorReport, AllocatedSlotReport> taskManagerHeartbeatManager;
+	private HeartbeatManager<TaskExecutorToJobManagerHeartbeatPayload, AllocatedSlotReport> taskManagerHeartbeatManager;
 
 	private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
@@ -206,6 +206,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final JobMasterPartitionTracker partitionTracker;
 
+	private final ExecutionDeploymentTracker executionDeploymentTracker;
+	private final ExecutionDeploymentReconciler executionDeploymentReconciler;
+
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
@@ -224,9 +227,33 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			ClassLoader userCodeLoader,
 			SchedulerNGFactory schedulerNGFactory,
 			ShuffleMaster<?> shuffleMaster,
-			PartitionTrackerFactory partitionTrackerFactory) throws Exception {
+			PartitionTrackerFactory partitionTrackerFactory,
+			ExecutionDeploymentTracker executionDeploymentTracker,
+			ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME), null);
+
+		final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler = new ExecutionDeploymentReconciliationHandler() {
+			@Override
+			public void onMissingDeployment(ExecutionAttemptID deployment) {
+				log.debug("Failing deployment {} due to no longer being deployed.", deployment);
+				schedulerNG.updateTaskExecutionState(new TaskExecutionState(
+					jobGraph.getJobID(), deployment, ExecutionState.FAILED, new FlinkException("State de-sync")
+				));
+			}
+
+			@Override
+			public void onUnknownDeployment(ExecutionAttemptID deployment, ResourceID host) {
+				log.debug("Canceling left-over deployment {} on task executor {}.", deployment, host);
+				Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(host);
+				if (taskManagerInfo != null) {
+					taskManagerInfo.f1.cancelTask(deployment, rpcTimeout);
+				}
+			}
+		};
+
+		this.executionDeploymentTracker = executionDeploymentTracker;
+		this.executionDeploymentReconciler = executionDeploymentReconcilerFactory.get(executionStateReconciliationHandler);
 
 		this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
 		this.resourceId = checkNotNull(resourceId);
@@ -269,7 +296,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.shuffleMaster = checkNotNull(shuffleMaster);
 
 		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
-		this.schedulerNG = createScheduler(jobManagerJobMetricGroup);
+		this.schedulerNG = createScheduler(executionDeploymentTracker, jobManagerJobMetricGroup);
 		this.jobStatusListener = null;
 
 		this.resourceManagerConnection = null;
@@ -280,7 +307,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
-	private SchedulerNG createScheduler(final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
+	private SchedulerNG createScheduler(ExecutionDeploymentTracker executionDeploymentTracker, final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
 		return schedulerNGFactory.createInstance(
 			log,
 			jobGraph,
@@ -296,7 +323,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobManagerJobMetricGroup,
 			jobMasterConfiguration.getSlotRequestTimeout(),
 			shuffleMaster,
-			partitionTracker);
+			partitionTracker,
+			executionDeploymentTracker);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -641,8 +669,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(final ResourceID resourceID, AccumulatorReport accumulatorReport) {
-		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, accumulatorReport);
+	public void heartbeatFromTaskManager(final ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
+		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, payload);
 	}
 
 	@Override
@@ -874,7 +902,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		} else {
 			suspendAndClearSchedulerFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
-			final SchedulerNG newScheduler = createScheduler(newJobManagerJobMetricGroup);
+			final SchedulerNG newScheduler = createScheduler(executionDeploymentTracker, newJobManagerJobMetricGroup);
 
 			schedulerAssignedFuture = schedulerNG.getTerminationFuture().handle(
 				(ignored, throwable) -> {
@@ -1185,7 +1213,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 	}
 
-	private class TaskManagerHeartbeatListener implements HeartbeatListener<AccumulatorReport, AllocatedSlotReport> {
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<TaskExecutorToJobManagerHeartbeatPayload, AllocatedSlotReport> {
 
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
@@ -1196,9 +1224,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		@Override
-		public void reportPayload(ResourceID resourceID, AccumulatorReport payload) {
+		public void reportPayload(ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
 			validateRunsInMainThread();
-			for (AccumulatorSnapshot snapshot : payload.getAccumulatorSnapshots()) {
+			executionDeploymentReconciler.reconcileExecutionDeployments(resourceID, payload.getExecutionDeploymentReport(), executionDeploymentTracker.getExecutions(resourceID));
+			for (AccumulatorSnapshot snapshot : payload.getAccumulatorReport().getAccumulatorSnapshots()) {
 				schedulerNG.updateAccumulators(snapshot);
 			}
 		}

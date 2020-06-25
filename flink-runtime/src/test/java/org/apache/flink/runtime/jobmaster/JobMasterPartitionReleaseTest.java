@@ -162,10 +162,10 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 		}
 	}
 
-	private static final class AllocationIdsResourceManagerGateway extends TestingResourceManagerGateway {
+	public static final class AllocationIdsResourceManagerGateway extends TestingResourceManagerGateway {
 		private final BlockingQueue<AllocationID> allocationIds;
 
-		private AllocationIdsResourceManagerGateway() {
+		public AllocationIdsResourceManagerGateway() {
 			this.allocationIds = new ArrayBlockingQueue<>(10);
 			setRequestSlotConsumer(
 				slotRequest -> allocationIds.offer(slotRequest.getAllocationId())

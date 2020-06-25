@@ -313,6 +313,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Shuffle master to register partitions for task deployment. */
 	private final ShuffleMaster<?> shuffleMaster;
 
+	private final ExecutionDeploymentListener executionDeploymentListener;
+	private final ExecutionStateUpdateListener executionStateUpdateListener;
+
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -332,7 +335,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
 			JobMasterPartitionTracker partitionTracker,
-			ScheduleMode scheduleMode) throws IOException {
+			ScheduleMode scheduleMode,
+			ExecutionDeploymentListener executionDeploymentListener,
+			ExecutionStateUpdateListener executionStateUpdateListener) throws IOException {
 
 		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
@@ -390,6 +395,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.resultPartitionAvailabilityChecker = new ExecutionGraphResultPartitionAvailabilityChecker(
 			this::createResultPartitionId,
 			partitionTracker);
+
+		this.executionDeploymentListener = executionDeploymentListener;
+		this.executionStateUpdateListener = executionStateUpdateListener;
 	}
 
 	public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
@@ -1725,5 +1733,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	PartitionReleaseStrategy getPartitionReleaseStrategy() {
 		return partitionReleaseStrategy;
+	}
+
+	ExecutionDeploymentListener getExecutionDeploymentListener() {
+		return executionDeploymentListener;
+	}
+
+	ExecutionStateUpdateListener getExecutionStateUpdateListener() {
+		return executionStateUpdateListener;
 	}
 }
