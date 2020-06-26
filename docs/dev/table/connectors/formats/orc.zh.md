@@ -26,25 +26,25 @@ under the License.
 <span class="label label-info">Format: Serialization Schema</span>
 <span class="label label-info">Format: Deserialization Schema</span>
 
-* This will be replaced by the TOC
+* This will be replaced by the TOC {:toc}
 {:toc}
 
-The [Apache Orc](https://orc.apache.org/) format allows to read and write Orc data.
+[Apache Orc](https://orc.apache.org/) Format 允许读写 ORC 数据。
 
-Dependencies
+依赖
 ------------
 
-In order to setup the Orc format, the following table provides dependency information for both
-projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+为了建立Orc格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
 
-| Maven dependency   | SQL Client JAR         |
+| Maven 依赖         | SQL 客户端 JAR         |
 | :----------------- | :----------------------|
 | flink-orc{{site.scala_version_suffix}}        |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc{{site.scala_version_suffix}}/{{site.version}}/flink-sql-orc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
 
-How to create a table with Orc format
+
+如何用 Orc 格式创建一个表格
 ----------------
 
-Here is an example to create a table using Filesystem connector and Orc format.
+下面是一个用 Filesystem connector 和 Orc format 创建表格的例子
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -65,45 +65,42 @@ CREATE TABLE user_behavior (
 </div>
 </div>
 
-Format Options
+Format 参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be 'orc'.</td>
+      <td>指定要使用的格式，这里应该是 'orc'。</td>
     </tr>
     </tbody>
 </table>
 
-Orc format also supports table properties from [Table properties](https://orc.apache.org/docs/hive-config.html#table-properties).
-For example, you can configure `orc.compress=SNAPPY` to enable snappy compression.
+Orc 格式也支持来源于 [Table properties](https://orc.apache.org/docs/hive-config.html#table-properties) 的表属性。 举个例子，你可以设置 `orc.compress=SNAPPY` 来允许spappy压缩。
 
-Data Type Mapping
+数据类型映射
 ----------------
 
-Orc format type mapping is compatible with Apache Hive.
-The following table lists the type mapping from Flink type to Orc type.
-
+Orc 格式类型的映射和 Apache Hive 是兼容的。下面的表格列出了 Flink 类型的数据和 Orc 类型的数据的映射关系。
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink Data Type</th>
-        <th class="text-center">Orc physical type</th>
-        <th class="text-center">Orc logical type</th>
+        <th class="text-left">Flink 数据类型</th>
+        <th class="text-center">Orc 物理类型</th>
+        <th class="text-center">Orc 逻辑类型</th>
       </tr>
     </thead>
     <tbody>
@@ -180,4 +177,4 @@ The following table lists the type mapping from Flink type to Orc type.
     </tbody>
 </table>
 
-<span class="label label-danger">Attention</span> Composite data type: Array, Map and Row are not supported.
+<span class="label label-danger">注意</span> 复合数据类型: 数组、 映射和行类型暂不支持。
