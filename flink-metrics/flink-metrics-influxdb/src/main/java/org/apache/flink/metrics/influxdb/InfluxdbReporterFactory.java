@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.influxdb;
 
+import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
@@ -26,6 +27,7 @@ import java.util.Properties;
 /**
  * {@link MetricReporterFactory} for {@link InfluxdbReporter}.
  */
+@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.influxdb.InfluxdbReporter")
 public class InfluxdbReporterFactory implements MetricReporterFactory {
 
 	@Override
