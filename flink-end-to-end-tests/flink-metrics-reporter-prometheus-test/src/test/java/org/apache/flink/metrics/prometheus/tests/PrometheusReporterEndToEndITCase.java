@@ -135,7 +135,15 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				FACTORY),
 			TestParams.from("Jar in 'plugins'",
 				builder -> {},
+				REFLECTION),
+			TestParams.from("Jar in 'plugins'",
+				builder -> {},
 				FACTORY),
+			TestParams.from("Jar in 'lib' and 'plugins'",
+				builder -> {
+					builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB);
+				},
+				REFLECTION),
 			TestParams.from("Jar in 'lib' and 'plugins'",
 				builder -> {
 					builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB);
