@@ -17,6 +17,7 @@
 
 package org.apache.flink.metrics.prometheus;
 
+import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
@@ -24,6 +25,7 @@ import java.util.Properties;
 /**
  * {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}.
  */
+@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter")
 public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
 
 	@Override

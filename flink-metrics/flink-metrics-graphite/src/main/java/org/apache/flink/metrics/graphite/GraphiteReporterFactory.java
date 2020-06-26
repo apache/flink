@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.graphite;
 
+import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
@@ -26,6 +27,7 @@ import java.util.Properties;
 /**
  * {@link MetricReporterFactory} for {@link GraphiteReporter}.
  */
+@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.graphite.GraphiteReporter")
 public class GraphiteReporterFactory implements MetricReporterFactory {
 
 	@Override
