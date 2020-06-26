@@ -28,6 +28,9 @@ import java.lang.annotation.Target;
  * backwards-compatibility with existing reflection-based configurations.
  *
  * <p>When an annotated reporter is configured to be used via reflection the given factory will be used instead.
+ *
+ * <p>Attention: This annotation does not work if the reporter is loaded as a plugin. For these cases, annotate the
+ * factory with {@link InterceptInstantiationViaReflection} instead.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
