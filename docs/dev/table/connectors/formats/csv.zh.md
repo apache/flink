@@ -1,8 +1,8 @@
 ---
-title: "CSV Format"
-nav-title: CSV
-nav-parent_id: sql-formats
-nav-pos: 1
+标题: "CSV 格式"
+源标题: CSV
+父id: sql 格式
+位置: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,27 +23,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<span class="label label-info">Format: Serialization Schema</span>
-<span class="label label-info">Format: Deserialization Schema</span>
+<span class="label label-info">格式: 序列化结构</span>
+<span class="label label-info">格式: 反序列化结构</span>
 
-* This will be replaced by the TOC
+* 此处被TOC替换
 {:toc}
 
-The [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) format allows to read and write CSV data based on an CSV schema. Currently, the CSV schema is derived from table schema.
+[CSV](https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC) 格式允许我们基于CSV框架进行进行数据读写，目前CSV框架是基于表的格式建立的。
 
-Dependencies
+依赖
 ------------
 
-In order to setup the CSV format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
-| Maven dependency   | SQL Client JAR         |
+为了建立CSV格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
+
+| Maven依赖           | SQL 客户端 JAR包        |
 | :----------------- | :----------------------|
 | `flink-csv`        | Built-in               |
 
-How to create a table with CSV format
+如何创建CSV格式的表格
 ----------------
 
-Here is an example to create a table using Kafka connector and CSV format.
+
+以下是一个使用kafka connector和CSV格式创建表格的示例。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -67,116 +69,112 @@ CREATE TABLE user_behavior (
 </div>
 </div>
 
-Format Options
+格式选项
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-center" style="width: 8%">要求</th>
+        <th class="text-center" style="width: 7%">默认</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 50%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必须</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be <code>'csv'</code>.</td>
+      <td>详细描述使用什么格式，这里应该是 <code>'csv'</code>。</td>
     </tr>
     <tr>
       <td><h5>csv.field-delimiter</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
-      <td>Field delimiter character (<code>','</code> by default).</td>
+      <td>分隔方式 (默认<code>','</code>)。</td>
     </tr>
     <tr>
       <td><h5>csv.line-delimiter</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;"><code>\n</code></td>
       <td>String</td>
-      <td>Line delimiter, <code>\n</code> by default. Note the <code>\n</code> and <code>\r</code> are invisible special characters, you have to use unicode to specify them in plain SQL.
+      <td>行分隔符, 默认<code>\n</code>. <code>\n</code> 和 <code>\r</code> 是不可见的特殊符号, 在显式的sql语句中必须使用unicode编码。
           <ul>
-           <li>e.g. <code>'csv.line-delimiter' = U&'\\000D'</code> specifies the to use carriage return <code>\r</code> as line delimiter.</li>
-           <li>e.g. <code>'csv.line-delimiter' = U&'\\000A'</code> specifies the to use line feed <code>\n</code> as line delimiter.</li>
+           <li>例如 <code>'csv.line-delimiter' = U&'\\000D'</code> 使用换行符号 <code>\r</code> 作为行分隔符。</li>
+           <li>例如 <code>'csv.line-delimiter' = U&'\\000A'</code> 使用换行符号 <code>\n</code> 作为行分隔符。</li>
           </ul>
       </td>
     </tr>
     <tr>
       <td><h5>csv.disable-quote-character</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Disabled quote character for enclosing field values (false by default).
-      If true, option <code>'csv.quote-character'</code> must be set.</td>
+      <td>关闭对引用的值使用引号 (默认是 false).如果允许，选项 <code>'csv.quote-character'</code> 必须被设置。</td>
     </tr>
     <tr>
       <td><h5>csv.quote-character</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
-      <td>Quote character for enclosing field values (<code>"</code> by default).</td>
+      <td>引用内容的符号设置 (默认<code>"</code>).</td>
     </tr>
     <tr>
       <td><h5>csv.allow-comments</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Ignore comment lines that start with <code>'#'</code> (disabled by default).
-      If enabled, make sure to also ignore parse errors to allow empty rows.</td>
+      <td>对注释的行使用 <code>'#'</code> (默认关闭).如果开启, 忽略解析错误来允许空行的存在.
+      </td>
     </tr>
     <tr>
       <td><h5>csv.ignore-parse-errors</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Skip fields and rows with parse errors instead of failing.
-      Fields are set to null in case of errors.</td>
+      <td>对于解析失败的字段和行直接忽略.解析失败的字段直接设置为null.</td>
     </tr>
     <tr>
       <td><h5>csv.array-element-delimiter</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
-      <td>Array element delimiter string for separating
-      array and row element values (<code>';'</code> by default).</td>
+      <td>分隔数组和行元素的字符串(默认<code>';'</code>).</td>
     </tr>
     <tr>
       <td><h5>csv.escape-character</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Escape character for escaping values (disabled by default).</td>
+      <td>转义字符(默认关闭).</td>
     </tr>
     <tr>
       <td><h5>csv.null-literal</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Null literal string that is interpreted as a null value (disabled by default).</td>
+      <td>null会被转化为空值 (默认关闭).</td>
     </tr>
     </tbody>
 </table>
 
-Data Type Mapping
+数据类型映射
 ----------------
 
-Currently, the CSV schema is always derived from table schema. Explicitly defining an CSV schema is not supported yet.
+目前CSV框架默认基于表格的形式。 显式的定义一个CSV框架还不被支持。
+Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析csv字符串。
 
-Flink CSV format uses [jackson databind API](https://github.com/FasterXML/jackson-databind) to parse and generate CSV string.
-
-The following table lists the type mapping from Flink type to CSV type.
+下面的表格列出了flink数据和CSV数据的对应关系。
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink SQL type</th>
-        <th class="text-left">CSV type</th>
+        <th class="text-left">Flink SQL 类型</th>
+        <th class="text-left">CSV 类型</th>
       </tr>
     </thead>
     <tbody>
