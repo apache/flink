@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[JSON](https://www.json.org/json-en.html) Format 能读写 JSON 格式的数据。当前，JSON scheme 是从 table schema 中自动推导而得的。
+[JSON](https://www.json.org/json-en.html) Format 能读写 JSON 格式的数据。当前，JSON schema 是从 table schema 中自动推导而得的。
 
 依赖
 ------------
