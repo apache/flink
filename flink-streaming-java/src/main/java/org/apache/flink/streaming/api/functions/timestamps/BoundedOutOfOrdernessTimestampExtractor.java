@@ -40,7 +40,7 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T> implements Assi
 	private long lastEmittedWatermark = Long.MIN_VALUE;
 
 	/**
-	 * The (fixed) interval between the maximum seen timestamp seen in the records
+	 * The (fixed) interval between the maximum seen timestamp, seen in the records
 	 * and that of the watermark to be emitted.
 	 */
 	private final long maxOutOfOrderness;
