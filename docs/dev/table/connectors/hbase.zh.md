@@ -42,7 +42,9 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键�
 
 | HBase 版本          | Maven 依赖                                          | SQL 客户端 JAR        |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 只适用于 [稳定发布版]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
+| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | 不支持|
+
+*注意: 在 SQL Client 或者 Flink 集群中使用 HBase 连接器时，推荐将 HBase 依赖的 jar 包添加到 Hadoop 的 classpath。Flink 会自动加载 Hadoop classpath 下的所有 jar, 请参阅 [HBase, MapReduce 和 CLASSPATH](https://hbase.apache.org/book.html#hbase.mapreduce.classpath) 了解如何将 HBase 依赖的 jar 包添加到 Hadoop 的 classpath。*
 
 
 如何使用 HBase 表
