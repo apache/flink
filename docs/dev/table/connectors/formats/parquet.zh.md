@@ -34,16 +34,16 @@ under the License.
 依赖
 ------------
 
-下表为使用了自动化构建工具（例如 Maven 或 SBT）的项目及带 SQL JAR 捆绑包的 SQL 客户端皆提供了设置 Parquet 格式的依赖信息。
+为设置 Parquet 格式，下表为使用自动化构建工具（例如 Maven 或 SBT）的项目及SQL 客户端皆提供了所需的依赖信息。
 
 | Maven dependency   | SQL Client JAR         |
 | :----------------- | :----------------------|
 | flink-parquet{{site.scala_version_suffix}}    |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-sql-parquet{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 仅可用于稳定版本 {% endif %}|
 
-如何创建 Parquet 格式的表
+如何创建基于 Parquet 格式的表
 ----------------
 
-此为用 Filesystem 连接器和 Parquet 格式创建表的示例，
+以下为用 Filesystem 连接器和 Parquet 格式创建表的示例，
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -64,15 +64,15 @@ CREATE TABLE user_behavior (
 </div>
 </div>
 
-格式选项
+Format 参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">选项</th>
-        <th class="text-center" style="width: 8%">必要性</th>
-        <th class="text-center" style="width: 7%">默认</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 8%">是否必须</th>
+        <th class="text-center" style="width: 7%">默认值</th>
         <th class="text-center" style="width: 10%">类型</th>
         <th class="text-center" style="width: 50%">描述</th>
       </tr>
@@ -80,7 +80,7 @@ CREATE TABLE user_behavior (
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>必须</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>指定使用的格式，此处应为"parquet"。</td>
@@ -106,7 +106,7 @@ Parquet 格式也支持 [ParquetOutputFormat](https://www.javadoc.io/doc/org.apa
 - Timestamp：不论精度，映射 timestamp 类型至 int96。
 - Decimal：根据精度，映射 decimal 类型至固定长度字节的数组。
 
-下表列举了从 Flink 类型到Parquet 类型的类型映射，
+下表列举了 Flink 中的数据类型与 JSON 中的数据类型的映射关系。
 
 <table class="table table-bordered">
     <thead>
