@@ -97,16 +97,16 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 
 ## 配置堆外内存（直接内存或本地内存）
 
-用户代码中分配的堆外内存被归为*任务堆外内存（Task Off-heap Memory），可以通过 [`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size) 指定。
+用户代码中分配的堆外内存被归为*任务堆外内存（Task Off-heap Memory）*，可以通过 [`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size) 指定。
 
 <span class="label label-info">提示</span>
-你也可以调整[框架推外内存（Framework Off-heap Memory）](#framework-memory)。
+你也可以调整[框架堆外内存（Framework Off-heap Memory）](#framework-memory)。
 这是一个进阶配置，建议仅在确定 Flink 框架需要更多的内存时调整该配置。
 
 Flink 将*框架堆外内存*和*任务堆外内存*都计算在 JVM 的*直接内存*限制中，请参考 [JVM 参数](mem_setup.html#jvm-parameters)。
 
 <span class="label label-info">提示</span>
-本地内存（非直接内存）也可以被归在*框架堆外内存*或*任务推外内存*中，在这种情况下 JVM 的*直接内存*限制可能会高于实际需求。
+本地内存（非直接内存）也可以被归在*框架堆外内存*或*任务堆外内存*中，在这种情况下 JVM 的*直接内存*限制可能会高于实际需求。
 
 <span class="label label-info">提示</span>
 *网络内存（Network Memory）*同样被计算在 JVM *直接内存*中。
