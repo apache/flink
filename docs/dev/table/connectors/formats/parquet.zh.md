@@ -185,4 +185,4 @@ Parquet 格式也支持 [ParquetOutputFormat](https://www.javadoc.io/doc/org.apa
     </tbody>
 </table>
 
-<span class="label label-danger">注意</span> 复合数据类型（Array、Map 与 Row）不被支持。
+<span class="label label-danger">注意</span> 暂不支持复合数据类型（Array、Map 与 Row）。
