@@ -406,9 +406,11 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					curRank = rankOfLastRecord;
 				} else {
 					int index = Long.valueOf(rankEnd - curRank - 1).intValue();
-					List<RowData> inputs = dataState.get(key);
-					RowData toAdd = inputs.get(index);
-					collectInsert(out, toAdd);
+					if (index >= 0) {
+						List<RowData> inputs = dataState.get(key);
+						RowData toAdd = inputs.get(index);
+						collectInsert(out, toAdd);
+					}
 					break;
 				}
 			} else {
