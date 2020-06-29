@@ -17,9 +17,21 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 
+import com.amazonaws.kinesis.agg.AggRecord;
+import com.amazonaws.kinesis.agg.RecordAggregator;
+import com.amazonaws.services.kinesis.model.Record;
+import org.apache.commons.lang3.RandomStringUtils;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * General test utils.
@@ -36,4 +48,49 @@ public class TestUtils {
 
 		return config;
 	}
+
+	/**
+	 * Creates a batch of {@code numOfAggregatedRecords} aggregated records.
+	 * Each aggregated record contains {@code numOfChildRecords} child records.
+	 * Each record is assigned the sequence number: {@code sequenceNumber + index * numOfChildRecords}.
+	 * The next sequence number is output to the {@code sequenceNumber}.
+	 *
+	 * @param numOfAggregatedRecords the number of records in the batch
+	 * @param numOfChildRecords the number of child records for each aggregated record
+	 * @param sequenceNumber the starting sequence number, outputs the next sequence number
+	 * @return the batch af aggregated records
+	 */
+	public static List<Record> createAggregatedRecordBatch(
+			final int numOfAggregatedRecords,
+			final int numOfChildRecords,
+			final AtomicInteger sequenceNumber) {
+		List<Record> recordBatch = new ArrayList<>();
+		RecordAggregator recordAggregator = new RecordAggregator();
+
+		for (int record = 0; record < numOfAggregatedRecords; record++) {
+			String partitionKey = UUID.randomUUID().toString();
+
+			for (int child = 0; child < numOfChildRecords; child++) {
+				byte[] data = RandomStringUtils.randomAlphabetic(1024)
+					.getBytes(ConfigConstants.DEFAULT_CHARSET);
+
+				try {
+					recordAggregator.addUserRecord(partitionKey, data);
+				} catch (Exception e) {
+					throw new IllegalStateException("Error aggregating message", e);
+				}
+			}
+
+			AggRecord aggRecord = recordAggregator.clearAndGet();
+
+			recordBatch.add(new Record()
+				.withData(ByteBuffer.wrap(aggRecord.toRecordBytes()))
+				.withPartitionKey(partitionKey)
+				.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
+				.withSequenceNumber(String.valueOf(sequenceNumber.getAndAdd(numOfChildRecords))));
+		}
+
+		return recordBatch;
+	}
+
 }
