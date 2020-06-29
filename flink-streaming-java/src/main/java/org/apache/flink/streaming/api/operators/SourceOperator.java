@@ -173,10 +173,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			sourceReader.addSplits(splits);
 		}
 
-		// Start the reader.
-		sourceReader.start();
 		// Register the reader to the coordinator.
 		registerReader();
+
+		// Start the reader after registration, sending messages in start is allowed.
+		sourceReader.start();
 
 		eventTimeLogic.startPeriodicWatermarkEmits();
 	}
