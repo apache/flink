@@ -166,7 +166,7 @@ CREATE TABLE user_behavior (
 数据类型映射
 ----------------
 
-目前CSV框架默认基于表格的形式。 显式的定义一个CSV框架还不被支持。
+目前 CSV 的 schema 都是从 table schema 推断而来的。显式地定义 CSV schema 暂不支持。
 Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析csv字符串。
 
 下面的表格列出了flink数据和CSV数据的对应关系。
