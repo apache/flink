@@ -29,7 +29,7 @@ under the License.
 * 此处被TOC替换
 {:toc}
 
-[CSV](https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC) 格式允许我们基于CSV框架进行进行数据读写，目前CSV框架是基于表的格式建立的。
+[CSV](https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC) 格式允许我们基于 CSV schema 进行解析和生成 CSV 数据。目前 CSV schema 是基于 table schema 推断而来的。
 
 依赖
 ------------
@@ -245,4 +245,3 @@ Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXM
     </tr>
     </tbody>
 </table>
-
