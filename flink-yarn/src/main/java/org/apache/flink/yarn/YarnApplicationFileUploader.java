@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,6 +140,21 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		IOUtils.closeQuietly(fileSystem);
 	}
 
+	YarnLocalResourceDescriptor registerSingleLocalResource(
+		final String key,
+		final Path resourcePath,
+		final String relativeDstPath,
+		final boolean whetherToAddToRemotePaths,
+		final boolean whetherToAddToEnvShipResourceList) throws IOException {
+		return registerSingleLocalResource(
+			key,
+			resourcePath,
+			relativeDstPath,
+			whetherToAddToRemotePaths,
+			whetherToAddToEnvShipResourceList,
+			LocalResourceType.FILE);
+	}
+
 	/**
 	 * Register a single local/remote resource and adds it to <tt>localResources</tt>.
 	 * @param key the key to add the resource under
@@ -155,7 +171,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			final Path resourcePath,
 			final String relativeDstPath,
 			final boolean whetherToAddToRemotePaths,
-			final boolean whetherToAddToEnvShipResourceList) throws IOException {
+			final boolean whetherToAddToEnvShipResourceList,
+			final LocalResourceType resourceType) throws IOException {
 
 		addToRemotePaths(whetherToAddToRemotePaths, resourcePath);
 
@@ -164,7 +181,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			LOG.debug("Using remote file {} to register local resource", fileStatus.getPath());
 
 			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION);
+				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION, resourceType);
 			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 			localResources.put(key, descriptor.toLocalResource());
 			return descriptor;
@@ -177,7 +194,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			remoteFileInfo.f0,
 			localFile.length(),
 			remoteFileInfo.f1,
-			LocalResourceVisibility.APPLICATION);
+			LocalResourceVisibility.APPLICATION,
+			resourceType
+		);
 		addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 		localResources.put(key, descriptor.toLocalResource());
 		return descriptor;
@@ -206,6 +225,13 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return Tuple2.of(dst, fss[0].getModificationTime());
 	}
 
+	List<String> registerMultipleLocalResources(
+		final Collection<Path> shipFiles,
+		final String localResourcesDirectory
+	) throws IOException {
+		return registerMultipleLocalResources(shipFiles, localResourcesDirectory, LocalResourceType.FILE);
+	}
+
 	/**
 	 * Recursively uploads (and registers) any (user and system) files in <tt>shipFiles</tt> except
 	 * for files matching "<tt>flink-dist*.jar</tt>" which should be uploaded separately. If it is
@@ -220,7 +246,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 */
 	List<String> registerMultipleLocalResources(
 			final Collection<Path> shipFiles,
-			final String localResourcesDirectory) throws IOException {
+			final String localResourcesDirectory,
+			LocalResourceType resourceType
+			) throws IOException {
 
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
@@ -268,7 +296,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 						localPath,
 						relativePath.getParent().toString(),
 						true,
-						true);
+						true,
+						resourceType
+					);
 
 				if (!resourceDescriptor.alreadyRegisteredAsLocalResource()) {
 					if (key.endsWith("jar")) {
@@ -302,7 +332,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 				localJarPath,
 				"",
 				true,
-				false);
+				false,
+				LocalResourceType.FILE
+		);
 		return flinkDist;
 	}
 
@@ -313,26 +345,34 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * @return list of class paths with the file name
 	 */
 	List<String> registerProvidedLocalResources() {
+		return registerLocalResources(providedSharedLibs, LocalResourceVisibility.PUBLIC, LocalResourceType.FILE);
+	}
+
+	List<String> registerLocalResources(
+			Map<String, FileStatus> resources,
+			LocalResourceVisibility resourceVisibility,
+			LocalResourceType resourceType) {
 		checkNotNull(localResources);
 
 		final ArrayList<String> classPaths = new ArrayList<>();
-		providedSharedLibs.forEach(
-				(fileName, fileStatus) -> {
-					final Path filePath = fileStatus.getPath();
-					LOG.debug("Using remote file {} to register local resource", filePath);
+		resources.forEach(
+			(fileName, fileStatus) -> {
+				final Path filePath = fileStatus.getPath();
+				LOG.debug("Using remote file {} to register local resource", filePath);
 
-					final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-							.fromFileStatus(fileName, fileStatus, LocalResourceVisibility.PUBLIC);
-					localResources.put(fileName, descriptor.toLocalResource());
-					remotePaths.add(filePath);
-					envShipResourceList.add(descriptor);
+				final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+					.fromFileStatus(fileName, fileStatus, resourceVisibility, resourceType);
+				localResources.put(fileName, descriptor.toLocalResource());
+				remotePaths.add(filePath);
+				envShipResourceList.add(descriptor);
 
-					if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-						classPaths.add(fileName);
-					} else if (isFlinkDistJar(filePath.getName())) {
-						flinkDist = descriptor;
-					}
-				});
+				if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
+					classPaths.add(fileName);
+				} else if (isFlinkDistJar(filePath.getName())) {
+					flinkDist = descriptor;
+
+				}
+			});
 		return classPaths;
 	}
 
