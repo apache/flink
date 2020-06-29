@@ -41,7 +41,7 @@ under the License.
 | :----------------- | :----------------------|
 | `flink-csv`        | Built-in               |
 
-如何创建CSV格式的表格
+如何创建使用 CSV 格式的表
 ----------------
 
 
@@ -245,5 +245,4 @@ Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXM
     </tr>
     </tbody>
 </table>
-
 
