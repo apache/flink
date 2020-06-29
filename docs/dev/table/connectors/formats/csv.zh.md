@@ -121,7 +121,7 @@ CREATE TABLE user_behavior (
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
-      <td>引用内容的符号设置 (默认<code>"</code>).</td>
+      <td>用于围住字段值的引号字符 (默认<code>"</code>).</td>
     </tr>
     <tr>
       <td><h5>csv.allow-comments</h5></td>
@@ -244,7 +244,6 @@ Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXM
     </tr>
     </tbody>
 </table>
-
 
 
 
