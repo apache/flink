@@ -57,6 +57,7 @@ under the License.
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-kinesis</module>
 		<module>flink-connector-base</module>
+		<module>flink-connector-files</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
