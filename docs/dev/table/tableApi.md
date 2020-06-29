@@ -1326,9 +1326,27 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
+      
       <td>
-        <p>Currently not supported in python API.</p>
+              <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+      
+              <p>A Time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+              <p>For example, the following predicates are valid interval join conditions:</p>
+      
+              <ul>
+                <li><code>ltime = rtime</code></li>
+                <li><code>ltime &gt;= rtime &amp;&amp; ltime &lt; rtime + 2.second</code></li>
+              </ul>
+      
+      {% highlight python %}
+left = table_env.from_path("Source1").select("a, b, c, rowtime1")
+right = table_env.from_path("Source2").select("d, e, f, rowtime2")
+  
+result = left.join(right).where("a = d && rowtime1 >= rowtime2 - 1.second 
+                       && rowtime1 <= rowtime2 + 2.second").select("a, b, e, rowtime1")
+      {% endhighlight %}
       </td>
+      
     </tr>
     <tr>
     	<td>

@@ -1325,9 +1325,24 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
-      <td>
-        <p>Python API暂不支持。</p>
-      </td>
+      <td>                   
+                    <p><b>注意：</b> Time-windowed Join 是所有常规流式数据处理join操作中的其中一种场景。</p>               
+                    <p>Time-windowed Join 要求至少有一个等值连接条件以及一个用于划定时间间隔的条件。对两条数据流时间的划定可以通过两个范围比较确定一个合适时间区间(<code>&lt;, &lt;=, &gt;=, &gt;</code>)， 也可以简单的通过对相同<a href="streaming/time_attributes.html">时间属性</a>（当前处理时间或事件时间）的时间值进行等值比较确定。</p>
+                    <p>如下示例是合法的Time-windowed Join条件：</p>
+            
+                    <ul>
+                      <li><code>ltime = rtime</code></li>
+                      <li><code>ltime &gt;= rtime &amp;&amp; ltime &lt; rtime + 2.second</code></li>
+                    </ul>
+            
+            {% highlight python %}
+left = table_env.from_path("Source1").select("a, b, c, rowtime1")
+right = table_env.from_path("Source2").select("d, e, f, rowtime2")
+
+result = left.join(right).where("a = d && rowtime1 >= rowtime2 - 1.second 
+                     && rowtime1 <= rowtime2 + 2.second").select("a, b, e, rowtime1")
+            {% endhighlight %}
+            </td>
     </tr>
     <tr>
     	<td>
