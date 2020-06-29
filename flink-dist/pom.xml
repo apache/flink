@@ -137,6 +137,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Base Connector Support -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Default file system support. The Hadoop and MapR dependencies -->
 		<!--       are optional, so not being added to the dist jar        -->
 
