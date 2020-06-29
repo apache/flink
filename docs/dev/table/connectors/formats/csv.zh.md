@@ -45,7 +45,7 @@ under the License.
 ----------------
 
 
-以下是一个使用kafka connector和CSV格式创建表格的示例。
+以下是一个使用 Kafka 连接器和 CSV 格式创建表的示例。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
