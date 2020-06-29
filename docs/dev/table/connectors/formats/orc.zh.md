@@ -1,8 +1,8 @@
 ---
-标题: "Orc 格式"
-源标题: Orc
-父id: sql-formats
-位置: 6
+title: "Orc Format"
+nav-title: Orc
+nav-parent_id: sql-formats
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +26,7 @@ under the License.
 <span class="label label-info">格式: 序列化结构</span>
 <span class="label label-info">格式: 反序列化结构</span>
 
-* 这里将会被TOC替换
+* This will be replaced by the TOC {:toc}
 {:toc}
 
 [Apache Orc](https://orc.apache.org/) 格式允许读写orc数据。
@@ -36,15 +36,15 @@ under the License.
 
 为了建立Orc格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
 
-| Maven 依赖          | SQL 客户端 JAR          |
+| Maven 依赖         | SQL 客户端 JAR         |
 | :----------------- | :----------------------|
 | flink-orc{{site.scala_version_suffix}}        |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc{{site.scala_version_suffix}}/{{site.version}}/flink-sql-orc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
 
 
-如何用Orc格式创建一个表格
+如何用 Orc 格式创建一个表格
 ----------------
 
-下面是一个用 Filesystem connector 和 Orc格式创建表格的例子
+下面是一个用 Filesystem connector 和 Orc format 创建表格的例子
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -72,8 +72,8 @@ CREATE TABLE user_behavior (
     <thead>
       <tr>
         <th class="text-left" style="width: 25%">选项</th>
-        <th class="text-center" style="width: 8%">要求</th>
-        <th class="text-center" style="width: 7%">默认</th>
+        <th class="text-center" style="width: 8%">是否必选</th>
+        <th class="text-center" style="width: 7%">默认值</th>
         <th class="text-center" style="width: 10%">类型</th>
         <th class="text-center" style="width: 50%">描述</th>
       </tr>
@@ -81,7 +81,7 @@ CREATE TABLE user_behavior (
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>描述应该用什么格式，这里应该是 'orc'。</td>
@@ -89,16 +89,16 @@ CREATE TABLE user_behavior (
     </tbody>
 </table>
 
-Orc格式也支持来源于 [Table properties](https://orc.apache.org/docs/hive-config.html#table-properties) 的表属性。举个例子，你可以设置 `orc.compress=SNAPPY` 来允许spappy压缩。
+Orc 格式也支持来源于 [Table properties](https://orc.apache.org/docs/hive-config.html#table-properties) 的表属性。 举个例子，你可以设置 `orc.compress=SNAPPY` 来允许spappy压缩。
 
 数据类型映射
 ----------------
 
-Orc格式类型的映射和Apache Hive是兼容的。下面的表格列出了Flink类型的数据和Orc类型的数据的映射关系。
+Orc 格式类型的映射和 Apache Hive 是兼容的。下面的表格列出了 Flink 类型的数据和 Orc 类型的数据的映射关系。
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink数据类型</th>
+        <th class="text-left">Flink 数据类型</th>
         <th class="text-center">Orc 物理类型</th>
         <th class="text-center">Orc 逻辑类型</th>
       </tr>
