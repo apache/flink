@@ -64,7 +64,9 @@ public class TestingReaderContext implements SourceReaderContext {
 	}
 
 	@Override
-	public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}
+	public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
+		sentEvents.add(sourceEvent);
+	}
 
 	// ------------------------------------------------------------------------
 
