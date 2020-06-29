@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
-import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSinkITCase;
+import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchITCase;
 
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
@@ -32,7 +32,7 @@ import java.util.Collections;
 
 /**
  * Implementation of {@link EmbeddedElasticsearchNodeEnvironment} for Elasticsearch 7.
- * Will be dynamically loaded in {@link ElasticsearchSinkITCase} for integration tests.
+ * Will be dynamically loaded in {@link ElasticsearchITCase} for integration tests.
  */
 public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElasticsearchNodeEnvironment {
 

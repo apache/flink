@@ -21,36 +21,42 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch7.ElasticSearch7InputFormat;
+import org.apache.flink.streaming.connectors.elasticsearch7.Elasticsearch7ApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch7.RestClientFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
+import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A {@link DynamicTableSource} that describes how to create a {@link Elasticsearch7DynamicSource} from a logical
  * description.
  */
 @Internal
-public class Elasticsearch7DynamicSource implements ScanTableSource, SupportsProjectionPushDown {
+public class Elasticsearch7DynamicSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
 
 	private final DecodingFormat<DeserializationSchema<RowData>> format;
 	private final Elasticsearch7Configuration config;
-	//	projectedFields 不使用用TableSchema替代
+	private final ElasticsearchLookupOptions lookupOptions;
 	private TableSchema physicalSchema;
 
 	public Elasticsearch7DynamicSource(
 		DecodingFormat<DeserializationSchema<RowData>> format,
 		Elasticsearch7Configuration config,
-		TableSchema physicalSchema) {
+		TableSchema physicalSchema,
+		ElasticsearchLookupOptions lookupOptions) {
 		this.format = format;
 		this.config = config;
 		this.physicalSchema = physicalSchema;
+		this.lookupOptions = lookupOptions;
 	}
 
 	@Override
@@ -74,15 +80,15 @@ public class Elasticsearch7DynamicSource implements ScanTableSource, SupportsPro
 		elasticsearchInputformatBuilder.setRestClientFactory(restClientFactory);
 		elasticsearchInputformatBuilder.setDeserializationSchema(this.format.createRuntimeDecoder(runtimeProviderContext, physicalSchema.toRowDataType()));
 		elasticsearchInputformatBuilder.setFieldNames(physicalSchema.getFieldNames());
-//		elasticsearchInputformatBuilder.setRowDataTypeInfo((TypeInformation<RowData>) runtimeProviderContext
-//			.createTypeInformation(physicalSchema.toRowDataType()));
 		elasticsearchInputformatBuilder.setIndex(config.getIndex());
 		config.getScrollMaxSize().ifPresent(elasticsearchInputformatBuilder::setScrollMaxSize);
 		config.getScrollTimeout().ifPresent(elasticsearchInputformatBuilder::setScrollTimeout);
 
-//		for SupportsFilterPushDown/ SupportsLimitPushDown
-//		builder.setPredicate();
-//		builder.setLimit();
+		/**
+		 * TODO: for SupportsFilterPushDown/ SupportsLimitPushDown
+		 * 	builder.setPredicate();
+		 * 	builder.setLimit();
+		 */
 
 		return InputFormatProvider.of(
 			elasticsearchInputformatBuilder.build()
@@ -90,8 +96,42 @@ public class Elasticsearch7DynamicSource implements ScanTableSource, SupportsPro
 	}
 
 	@Override
+	public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
+
+		RestClientFactory restClientFactory = null;
+		if (config.getPathPrefix().isPresent()) {
+			restClientFactory = new Elasticsearch7DynamicSink.DefaultRestClientFactory(config.getPathPrefix().get());
+		} else {
+			restClientFactory = restClientBuilder -> {
+			};
+		}
+
+		Elasticsearch7ApiCallBridge elasticsearch7ApiCallBridge = new Elasticsearch7ApiCallBridge(config.getHosts(), restClientFactory);
+
+		// Elasticsearch only support non-nested look up keys
+		String[] lookupKeys = new String[context.getKeys().length];
+		for (int i = 0; i < lookupKeys.length; i++) {
+			int[] innerKeyArr = context.getKeys()[i];
+			Preconditions.checkArgument(innerKeyArr.length == 1,
+				"ELasticsearch only support non-nested look up keys");
+			lookupKeys[i] = physicalSchema.getFieldNames()[innerKeyArr[0]];
+		}
+
+		return TableFunctionProvider.of(new ElasticsearchRowDataLookupFunction(
+			this.format.createRuntimeDecoder(context, physicalSchema.toRowDataType()),
+			lookupOptions,
+			config.getIndex(),
+			config.getDocumentType(),
+			physicalSchema.getFieldNames(),
+			physicalSchema.getFieldDataTypes(),
+			lookupKeys,
+			elasticsearch7ApiCallBridge)
+		);
+	}
+
+	@Override
 	public DynamicTableSource copy() {
-		return new Elasticsearch7DynamicSource(format, config, physicalSchema);
+		return new Elasticsearch7DynamicSource(format, config, physicalSchema, lookupOptions);
 	}
 
 	@Override

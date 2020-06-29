@@ -56,6 +56,9 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.HOSTS_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.INDEX_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.KEY_DELIMITER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.LOOKUP_CACHE_MAX_ROWS;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.LOOKUP_CACHE_TTL;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.LOOKUP_MAX_RETRIES;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.SCROLL_MAX_SIZE_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.SCROLL_TIMEOUT_OPTION;
 
@@ -70,10 +73,10 @@ public class Elasticsearch7DynamicTableFactory implements DynamicTableSourceFact
 		INDEX_OPTION
 	).collect(Collectors.toSet());
 	private static final Set<ConfigOption<?>> optionalOptions = Stream.of(
-		KEY_DELIMITER_OPTION,
-		FAILURE_HANDLER_OPTION,
 		SCROLL_MAX_SIZE_OPTION,
 		SCROLL_TIMEOUT_OPTION,
+		KEY_DELIMITER_OPTION,
+		FAILURE_HANDLER_OPTION,
 		FLUSH_ON_CHECKPOINT_OPTION,
 		BULK_FLASH_MAX_SIZE_OPTION,
 		BULK_FLUSH_MAX_ACTIONS_OPTION,
@@ -83,13 +86,15 @@ public class Elasticsearch7DynamicTableFactory implements DynamicTableSourceFact
 		BULK_FLUSH_BACKOFF_DELAY_OPTION,
 		CONNECTION_MAX_RETRY_TIMEOUT_OPTION,
 		CONNECTION_PATH_PREFIX,
-		FORMAT_OPTION
+		FORMAT_OPTION,
+		LOOKUP_CACHE_MAX_ROWS,
+		LOOKUP_CACHE_TTL,
+		LOOKUP_MAX_RETRIES
 	).collect(Collectors.toSet());
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
 		TableSchema tableSchema = context.getCatalogTable().getSchema();
-		//少了validatePrimaryKey(tableSchema)
 		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 		final DecodingFormat<DeserializationSchema<RowData>> format = helper.discoverDecodingFormat(
 			DeserializationFormatFactory.class,
@@ -106,7 +111,12 @@ public class Elasticsearch7DynamicTableFactory implements DynamicTableSourceFact
 		return new Elasticsearch7DynamicSource(
 			format,
 			config,
-			TableSchemaUtils.getPhysicalSchema(tableSchema)
+			TableSchemaUtils.getPhysicalSchema(tableSchema),
+			new ElasticsearchLookupOptions.Builder()
+				.setCacheExpireMs(config.getCacheExpiredMs().toMillis())
+				.setCacheMaxSize(config.getCacheMaxSize())
+				.setMaxRetryTimes(config.getMaxRetryTimes())
+				.build()
 		);
 	}
 
@@ -153,6 +163,28 @@ public class Elasticsearch7DynamicTableFactory implements DynamicTableSourceFact
 				"'%s' must be at least 1. Got: %s",
 				SCROLL_TIMEOUT_OPTION.key(),
 				config.getScrollTimeout().get())
+		);
+		long cacheMaxSize = config.getCacheMaxSize();
+		validate(
+			cacheMaxSize == -1 || cacheMaxSize >= 1,
+			() -> String.format(
+				"'%s' must be at least 1. Got: %s",
+				LOOKUP_CACHE_MAX_ROWS.key(),
+				cacheMaxSize)
+		);
+		validate(
+			config.getCacheExpiredMs().toSeconds() >= 1,
+			() -> String.format(
+				"'%s' must be at least 1. Got: %s",
+				LOOKUP_CACHE_TTL.key(),
+				config.getCacheExpiredMs().toSeconds())
+		);
+		validate(
+			config.getMaxRetryTimes() >= 1,
+			() -> String.format(
+				"'%s' must be at least 1. Got: %s",
+				LOOKUP_MAX_RETRIES.key(),
+				config.getMaxRetryTimes())
 		);
 	}
 

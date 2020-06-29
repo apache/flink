@@ -61,7 +61,7 @@ public class ElasticSearch6InputFormat<T> extends ElasticSearchInputFormatBase<T
 	/**
 	 * A builder for creating an {@link ElasticSearch6InputFormat}.
 	 *
-	 * @param <T> Type of the elements handled by the sink this builder creates.
+	 * @param <T> Type of the elements.
 	 */
 	@PublicEvolving
 	public static class Builder<T> {
@@ -70,11 +70,13 @@ public class ElasticSearch6InputFormat<T> extends ElasticSearchInputFormatBase<T
 		private RestClientFactory restClientFactory = restClientBuilder -> {
 		};
 		private DeserializationSchema<T> deserializationSchema;
-		private String[] fieldNames;
 		private String index;
 		private String type;
+
 		private long scrollTimeout;
 		private int scrollMaxSize;
+
+		private String[] fieldNames;
 		private QueryBuilder predicate;
 		private int limit;
 
@@ -103,11 +105,6 @@ public class ElasticSearch6InputFormat<T> extends ElasticSearchInputFormatBase<T
 
 		public Builder setDeserializationSchema(DeserializationSchema<T> deserializationSchema) {
 			this.deserializationSchema = deserializationSchema;
-			return this;
-		}
-
-		public Builder setFieldNames(String[] fieldNames) {
-			this.fieldNames = fieldNames;
 			return this;
 		}
 
@@ -146,6 +143,11 @@ public class ElasticSearch6InputFormat<T> extends ElasticSearchInputFormatBase<T
 				"Yhe search context alive for scroll requests must be larger than or equal to 0.");
 
 			this.scrollTimeout = scrollTimeout;
+			return this;
+		}
+
+		public Builder setFieldNames(String[] fieldNames) {
+			this.fieldNames = fieldNames;
 			return this;
 		}
 

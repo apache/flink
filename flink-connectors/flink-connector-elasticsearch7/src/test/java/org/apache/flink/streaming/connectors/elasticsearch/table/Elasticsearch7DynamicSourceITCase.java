@@ -38,9 +38,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * IT tests for {@link Elasticsearch6DynamicSink}.
+ * IT tests for {@link Elasticsearch7DynamicSink}.
  */
-public class Elasticsearch6DynamicSourceITCase extends Elasticsearch6DynamicTableTestBase {
+public class Elasticsearch7DynamicSourceITCase extends Elasticsearch7DynamicTableTestBase {
 	private final String scanKeywordIndex = "scan-keyword-index";
 	private final String scanKeywordType = "scan-keyword-type";
 
@@ -68,9 +68,8 @@ public class Elasticsearch6DynamicSourceITCase extends Elasticsearch6DynamicTabl
 			"PRIMARY KEY (c, d) NOT ENFORCED\n" +
 			")\n" +
 			"WITH (\n" +
-			String.format("'%s'='%s',\n", "connector", "elasticsearch-6") +
+			String.format("'%s'='%s',\n", "connector", "elasticsearch-7") +
 			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), scanKeywordIndex) +
-			String.format("'%s'='%s',\n", ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), scanKeywordType) +
 			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
 			String.format("'%s'='%s',\n", ElasticsearchOptions.SCROLL_MAX_SIZE_OPTION.key(), 10) +
 			String.format("'%s'='%s'\n", ElasticsearchOptions.SCROLL_TIMEOUT_OPTION.key(), 1000) +

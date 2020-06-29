@@ -24,12 +24,12 @@ import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
 
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
@@ -37,7 +37,6 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.Scroll;
-import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,60 +60,37 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends RichInputFormat<T, ElasticsearchInputSplit> implements ResultTypeQueryable<T> {
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticSearchInputFormatBase.class);
+	private static final long serialVersionUID = 1L;
 
-	private DeserializationSchema<T> deserializationSchema;
+	private final DeserializationSchema<T> deserializationSchema;
+	private final String index;
+	private final String type;
 
-	private QueryBuilder predicate;
-
-	private String index;
-
-	private String type;
-
-	private Scroll scroll;
-	private String currentScrollWindowId;
-	private SearchHit[] currentScrollWindowHits;
-
-	private int nextRecordIndex = 0;
-
-	private long currentReadCount = 0L;
-
-	private long limit;
+	private final String[] fieldNames;
+	private final QueryBuilder predicate;
+	private final long limit;
 
 	private final long scrollTimeout;
 	private final int scrollSize;
-	private String[] fieldNames;
 
-	// ------------------------------------------------------------------------
-	//  User-facing API and configuration
-	// ------------------------------------------------------------------------
+	private Scroll scroll;
+	private String currentScrollWindowId;
+	private String[] currentScrollWindowHits;
 
-	/**
-	 * The config map that contains configuration for the bulk flushing behaviours.
-	 *
-	 * <p>For {@link org.elasticsearch.client.transport.TransportClient} based implementations, this config
-	 * map would also contain Elasticsearch-shipped configuration, and therefore this config map
-	 * would also be forwarded when creating the Elasticsearch client.
-	 */
-	private final Map<String, String> userConfig;
-
-
-	// ------------------------------------------------------------------------
-	//  Internals for the Flink Elasticsearch Inpuformat
-	// ------------------------------------------------------------------------
+	private int nextRecordIndex = 0;
+	private long currentReadCount = 0L;
 
 	/**
 	 * Call bridge for different version-specific.
 	 */
 	private final ElasticsearchApiCallBridge<C> callBridge;
 
+	private final Map<String, String> userConfig;
 	/**
 	 * Elasticsearch client created using the call bridge.
 	 */
 	private transient C client;
 
-	// ------------------------------------------------------------------------
-	//  Internal search configuration
-	// ------------------------------------------------------------------------
 	public ElasticSearchInputFormatBase(
 		ElasticsearchApiCallBridge<C> callBridge,
 		Map<String, String> userConfig,
@@ -128,22 +104,21 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 		long limit) {
 
 		this.callBridge = checkNotNull(callBridge);
-
 		checkNotNull(userConfig);
 		// copy config so we can remove entries without side-effects
 		this.userConfig = new HashMap<>(userConfig);
 
 		this.deserializationSchema = checkNotNull(deserializationSchema);
-
-		this.fieldNames = fieldNames;
-
 		this.index = index;
 		this.type = type;
 
-		this.scrollTimeout = scrollTimeout;
-		this.scrollSize = scrollSize;
+		this.fieldNames = fieldNames;
 		this.predicate = predicate;
 		this.limit = limit;
+
+		this.scrollTimeout = scrollTimeout;
+		this.scrollSize = scrollSize;
+
 	}
 
 	@Override
@@ -153,14 +128,14 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 			client = callBridge.createClient(userConfig);
 			callBridge.verifyClientConnection(client);
 		} catch (IOException ioe) {
-			LOG.error("Exception while creating connection to Elasticsearch 5.x.", ioe);
-			throw new RuntimeException("Cannot create connection to Elasticsearcg 5.x.", ioe);
+			LOG.error("Exception while creating connection to Elasticsearch.", ioe);
+			throw new RuntimeException("Cannot create connection to Elasticsearcg.", ioe);
 		}
 	}
 
 	@Override
 	public ElasticsearchInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		return callBridge.createInputSplitsInternal(index, type, client, minNumSplits);
+		return callBridge.createInputSplitsInternal(client, index, type,  minNumSplits);
 	}
 
 	@Override
@@ -196,7 +171,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 		} else {
 			size = scrollSize;
 		}
-		//es默认值是10
+		//elasticsearch default value is 10 here.
 		searchSourceBuilder.size(size);
 		searchSourceBuilder.fetchSource(fieldNames, null);
 		if (predicate != null) {
@@ -206,7 +181,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 		}
 		searchRequest.source(searchSourceBuilder);
 		searchRequest.preference("_shards:" + split.getShard());
-		SearchResponse searchResponse = null;
+		Tuple2<String, String[]> searchResponse = null;
 		try {
 
 			searchResponse = callBridge.search(client, searchRequest);
@@ -214,8 +189,8 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 			LOG.error("Search has error: ", e.getMessage());
 		}
 		if (searchResponse != null) {
-			currentScrollWindowId = searchResponse.getScrollId();
-			currentScrollWindowHits = searchResponse.getHits().getHits();
+			currentScrollWindowId = searchResponse.f0;
+			currentScrollWindowHits = searchResponse.f1;
 			nextRecordIndex = 0;
 		}
 	}
@@ -226,7 +201,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 			return true;
 		}
 
-		// SearchResponse can be InternalSearchHits.empty(), where the InternalSearchHit[] EMPTY = new InternalSearchHit[0]
+		// SearchResponse can be InternalSearchHits.empty(), and the InternalSearchHit[] EMPTY = new InternalSearchHit[0]
 		if (currentScrollWindowHits.length != 0 && nextRecordIndex > currentScrollWindowHits.length - 1) {
 			fetchNextScrollWindow();
 		}
@@ -240,7 +215,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 			LOG.warn("Already reached the end of the split.");
 		}
 
-		SearchHit hit = currentScrollWindowHits[nextRecordIndex];
+		String hit = currentScrollWindowHits[nextRecordIndex];
 		nextRecordIndex++;
 		currentReadCount++;
 		LOG.debug("Yielding new record for hit: " + hit);
@@ -249,7 +224,7 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 	}
 
 	private void fetchNextScrollWindow() {
-		SearchResponse searchResponse = null;
+		Tuple2<String, String[]> searchResponse = null;
 		SearchScrollRequest scrollRequest = new SearchScrollRequest(currentScrollWindowId);
 		scrollRequest.scroll(scroll);
 
@@ -260,16 +235,16 @@ public class ElasticSearchInputFormatBase<T, C extends AutoCloseable> extends Ri
 		}
 
 		if (searchResponse != null) {
-			currentScrollWindowId = searchResponse.getScrollId();
-			currentScrollWindowHits = searchResponse.getHits().getHits();
+			currentScrollWindowId = searchResponse.f0;
+			currentScrollWindowHits = searchResponse.f1;
 			nextRecordIndex = 0;
 		}
 	}
 
-	private T parseSearchHit(SearchHit hit) {
+	private T parseSearchHit(String hit) {
 		T row = null;
 		try {
-			row = deserializationSchema.deserialize(hit.getSourceAsString().getBytes());
+			row = deserializationSchema.deserialize(hit.getBytes());
 		} catch (IOException e) {
 			LOG.error("Deserialize search hit failed: " + e.getMessage());
 		}

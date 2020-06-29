@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch5;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchInputSplit;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
@@ -41,6 +42,7 @@ import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.transport.Netty3Plugin;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
@@ -101,7 +103,7 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<T
 	}
 
 	@Override
-	public ElasticsearchInputSplit[] createInputSplitsInternal(String index, String type, TransportClient client, int minNumSplits) {
+	public ElasticsearchInputSplit[] createInputSplitsInternal(TransportClient client, String index, String type, int minNumSplits) {
 		//type get from config do later
 		ClusterSearchShardsResponse response = client.admin().cluster().searchShards(new ClusterSearchShardsRequest(index)).actionGet();
 
@@ -141,13 +143,23 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<T
 	}
 
 	@Override
-	public SearchResponse search(TransportClient client, SearchRequest searchRequest) throws IOException {
-		return client.search(searchRequest).actionGet();
+	public Tuple2<String, String[]> search(TransportClient client, SearchRequest searchRequest) throws IOException {
+		SearchResponse searchResponse = client.search(searchRequest).actionGet();
+		SearchHit[] searchHits = searchResponse.getHits().getHits();
+		return new Tuple2<String, String[]>(
+			searchResponse.getScrollId(),
+			Stream.of(searchHits).map(SearchHit::getSourceAsString).toArray(String[]::new)
+		);
 	}
 
 	@Override
-	public SearchResponse scroll(TransportClient client, SearchScrollRequest searchScrollRequest) {
-		return client.searchScroll(searchScrollRequest).actionGet();
+	public Tuple2<String, String[]> scroll(TransportClient client, SearchScrollRequest searchScrollRequest) {
+		SearchResponse searchResponse = client.searchScroll(searchScrollRequest).actionGet();
+		SearchHit[] searchHits = searchResponse.getHits().getHits();
+		return new Tuple2<String, String[]>(
+			searchResponse.getScrollId(),
+			Stream.of(searchHits).map(SearchHit::getSourceAsString).toArray(String[]::new)
+		);
 	}
 
 	@Override

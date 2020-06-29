@@ -147,6 +147,18 @@ public class ElasticsearchConfiguration {
 		return config.getOptional(ElasticsearchOptions.CONNECTION_PATH_PREFIX);
 	}
 
+	public long getCacheMaxSize() {
+		return config.get(ElasticsearchOptions.LOOKUP_CACHE_MAX_ROWS);
+	}
+
+	public Duration getCacheExpiredMs() {
+		return config.get(ElasticsearchOptions.LOOKUP_CACHE_TTL);
+	}
+
+	public int getMaxRetryTimes() {
+		return config.get(ElasticsearchOptions.LOOKUP_MAX_RETRIES);
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

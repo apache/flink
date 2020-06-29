@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch7;
+package org.apache.flink.streaming.connectors.elasticsearch5;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -25,19 +25,21 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 
-import org.apache.http.HttpHost;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.junit.Test;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
  */
-public class ElasticsearchSinkITCase<T> extends ElasticsearchSinkTestBase<T, RestHighLevelClient, HttpHost> {
+public class ElasticsearchITCase<T> extends ElasticsearchSinkTestBase<T, TransportClient, InetSocketAddress> {
 
 	@Test
 	public void testElasticsearchSink() throws Exception {
@@ -45,8 +47,18 @@ public class ElasticsearchSinkITCase<T> extends ElasticsearchSinkTestBase<T, Res
 	}
 
 	@Test
+	public void testElasticsearchSinkWithCbor() throws Exception {
+		runElasticsearchSinkCborTest();
+	}
+
+	@Test
 	public void testElasticsearchSinkWithSmile() throws Exception {
 		runElasticsearchSinkSmileTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithYaml() throws Exception {
+		runElasticsearchSinkYamlTest();
 	}
 
 	@Test
@@ -64,26 +76,56 @@ public class ElasticsearchSinkITCase<T> extends ElasticsearchSinkTestBase<T, Res
 		runInvalidElasticsearchClusterTest();
 	}
 
-	@Override
-	protected ElasticSearchInputFormatBase createElasticsearchInputFormat(Map<String, String> userConfig, DeserializationSchema<T> deserializationSchema, String[] fieldNames, String index, String type, long scrollTimeout, int scrollMaxSize, QueryBuilder predicate, int limit) throws Exception {
-		return null;
+	@Test
+	public void testElasticsearchInputFormat() throws Exception {
+		runElasticsearchSinkTest();
+		runElasticSearchInputFormatTest();
 	}
 
 	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(
+	protected ElasticSearchInputFormatBase createElasticsearchInputFormat(
+		Map<String, String> userConfig,
+		DeserializationSchema<T> deserializationSchema,
+		String[] fieldNames,
+		String index,
+		String type,
+		long scrollTimeout,
+		int scrollMaxSize,
+		QueryBuilder predicate,
+		int limit) throws Exception {
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+
+		ElasticSearch5InputFormat builder = new ElasticSearch5InputFormat.Builder()
+			.setUserConfig(userConfig)
+			.setTransportAddresses(transports)
+			.setDeserializationSchema(deserializationSchema)
+			.setFieldNames(fieldNames)
+			.setIndex(index)
+			.setType(type)
+			.setScrollTimeout(scrollTimeout)
+			.setScrollMaxSize(scrollMaxSize)
+			.setPredicate(predicate)
+			.setLimit(limit)
+			.build();
+		return builder;
+	}
+
+	@Override
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSink(
 		int bulkFlushMaxActions,
 		String clusterName,
-		List<HttpHost> httpHosts,
+		List<InetSocketAddress> addresses,
 		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
-
-		return builder.build();
+		return new ElasticsearchSink<>(
+			Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+			addresses,
+			elasticsearchSinkFunction);
 	}
 
 	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForEmbeddedNode(
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForEmbeddedNode(
 		int bulkFlushMaxActions,
 		String clusterName,
 		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
@@ -93,18 +135,18 @@ public class ElasticsearchSinkITCase<T> extends ElasticsearchSinkTestBase<T, Res
 	}
 
 	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForNode(
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForNode(
 		int bulkFlushMaxActions,
 		String clusterName,
 		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
 		String ipAddress) throws Exception {
 
-		ArrayList<HttpHost> httpHosts = new ArrayList<>();
-		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
 
-		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
-
-		return builder.build();
+		return new ElasticsearchSink<>(
+			Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+			transports,
+			elasticsearchSinkFunction);
 	}
 }

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch7;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchInputSplit;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
@@ -42,6 +43,7 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +81,7 @@ public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<R
 
 	private final ObjectMapper jsonParser = new ObjectMapper();
 
-	Elasticsearch7ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
+	public Elasticsearch7ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
 		Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
 		this.httpHosts = httpHosts;
 		this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
@@ -101,7 +103,7 @@ public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<R
 	}
 
 	@Override
-	public ElasticsearchInputSplit[] createInputSplitsInternal(String index, String type, RestHighLevelClient client, int minNumSplits) {
+	public ElasticsearchInputSplit[] createInputSplitsInternal(RestHighLevelClient client, String index, String type, int minNumSplits) {
 		Map<String, String> nodeMap = constructNodeId2Hostnames(new Request("GET", "/_nodes"), client);
 
 		List<ElasticsearchInputSplit> splits = new ArrayList<>();
@@ -166,13 +168,23 @@ public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<R
 	}
 
 	@Override
-	public SearchResponse search(RestHighLevelClient client, SearchRequest searchRequest) throws IOException {
-		return client.search(searchRequest, RequestOptions.DEFAULT);
+	public Tuple2<String, String[]> search(RestHighLevelClient client, SearchRequest searchRequest) throws IOException {
+		SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+		SearchHit[] searchHits = searchResponse.getHits().getHits();
+		return new Tuple2<String, String[]>(
+			searchResponse.getScrollId(),
+			Stream.of(searchHits).map(SearchHit::getSourceAsString).toArray(String[]::new)
+		);
 	}
 
 	@Override
-	public SearchResponse scroll(RestHighLevelClient client, SearchScrollRequest searchScrollRequest) throws IOException {
-		return client.scroll(searchScrollRequest, RequestOptions.DEFAULT);
+	public Tuple2<String, String[]> scroll(RestHighLevelClient client, SearchScrollRequest searchScrollRequest) throws IOException {
+		SearchResponse searchResponse = client.searchScroll(searchScrollRequest, RequestOptions.DEFAULT);
+		SearchHit[] searchHits = searchResponse.getHits().getHits();
+		return new Tuple2<String, String[]>(
+			searchResponse.getScrollId(),
+			Stream.of(searchHits).map(SearchHit::getSourceAsString).toArray(String[]::new)
+		);
 	}
 
 	@Override
