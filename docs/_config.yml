@@ -30,7 +30,7 @@
 version: "1.11.0"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.11"
+version_title: 1.11
 # Branch on Github for this version
 github_branch: "release-1.11"
 
