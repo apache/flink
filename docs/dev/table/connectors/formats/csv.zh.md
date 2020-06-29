@@ -158,7 +158,7 @@ CREATE TABLE user_behavior (
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>null会被转化为空值 (默认关闭).</td>
+      <td>是否讲 "null" 字符串转化为 null 值。</td>
     </tr>
     </tbody>
 </table>
