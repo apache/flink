@@ -128,7 +128,8 @@ CREATE TABLE user_behavior (
       <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>对注释的行使用 <code>'#'</code> (默认关闭).如果开启, 忽略解析错误来允许空行的存在.
+      <td>是否允许忽略注释行（默认不允许），注释行以 <code>'#'</code> 作为起始字符。
+      如果允许注释行，请确保 <code>csv.ignore-parse-errors</code> 也开启了从而允许空行。 
       </td>
     </tr>
     <tr>
@@ -244,6 +245,5 @@ Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXM
     </tr>
     </tbody>
 </table>
-
 
 
