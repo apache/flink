@@ -71,6 +71,19 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	void assignSplits(SplitsAssignment<SplitT> newSplitAssignments);
 
 	/**
+	 * Assigns a single split.
+	 *
+	 * <p>When assigning multiple splits, it is more efficient to assign all of them in a single
+	 * call to the {@link #assignSplits(SplitsAssignment)} method.
+	 *
+	 * @param split The new split
+	 * @param subtask The index of the operator's parallel subtask that shall receive the split.
+	 */
+	default void assignSplit(SplitT split, int subtask) {
+		assignSplits(new SplitsAssignment<>(split, subtask));
+	}
+
+	/**
 	 * Invoke the callable and handover the return value to the handler which will be executed
 	 * by the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>s
 	 * may be executed in a thread pool concurrently.
