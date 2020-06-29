@@ -209,6 +209,14 @@ public class YarnConfigOptions {
 				.noDefaultValue()
 				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
 
+	public static final ConfigOption<List<String>> SHIP_ARCHIVES =
+			key("yarn.ship-archives")
+				.stringType()
+				.asList()
+				.noDefaultValue()
+				.withDescription("A semicolon-separated list of archives to be shipped to the YARN cluster." +
+						" They will be un-packed when localizing.");
+
 	public static final ConfigOption<String> FLINK_DIST_JAR =
 			key("yarn.flink-dist-jar")
 				.stringType()

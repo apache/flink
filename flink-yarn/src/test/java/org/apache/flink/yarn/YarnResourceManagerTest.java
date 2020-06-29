@@ -72,6 +72,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -159,7 +160,8 @@ public class YarnResourceManagerTest extends TestLogger {
 			new Path("/tmp/flink.jar"),
 			0,
 			System.currentTimeMillis(),
-			LocalResourceVisibility.APPLICATION).toString());
+			LocalResourceVisibility.APPLICATION,
+			LocalResourceType.FILE).toString());
 		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 
 		BootstrapTools.writeConfiguration(flinkConfig, new File(home.getAbsolutePath(), FLINK_CONF_FILENAME));

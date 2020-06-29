@@ -135,6 +135,12 @@
             <td>When this is true Flink will ship the keytab file configured via security.kerberos.login.keytab as a localized YARN resource.</td>
         </tr>
         <tr>
+            <td><h5>yarn.ship-archives</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. They will be un-packed when localizing.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.ship-directories</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
