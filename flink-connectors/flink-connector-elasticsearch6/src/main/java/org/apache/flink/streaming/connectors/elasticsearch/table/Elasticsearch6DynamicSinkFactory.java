@@ -113,7 +113,7 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 		validate(
 			maxActions == -1 || maxActions >= 1,
 			() -> String.format(
-				"'%s' must be at least 1 character. Got: %s",
+				"'%s' must be at least 1. Got: %s",
 				BULK_FLUSH_MAX_ACTIONS_OPTION.key(),
 				maxActions)
 		);
