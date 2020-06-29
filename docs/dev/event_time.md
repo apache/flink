@@ -77,11 +77,11 @@ stream
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
 
-env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
 # alternatively:
 # env.set_stream_time_characteristic(TimeCharacteristic.IngestionTime)
-# env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+# env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 {% endhighlight %}
 </div>
 </div>
