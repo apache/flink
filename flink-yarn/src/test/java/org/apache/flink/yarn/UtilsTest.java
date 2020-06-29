@@ -58,4 +58,5 @@ public class UtilsTest extends TestLogger {
 			assertThat(files.count(), equalTo(0L));
 		}
 	}
+
 }
