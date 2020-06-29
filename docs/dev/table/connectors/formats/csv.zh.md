@@ -1,8 +1,8 @@
 ---
-标题: "CSV 格式"
-源标题: CSV
-父id: sql 格式
-位置: 1
+title: "CSV Format"
+nav-title: CSV
+nav-parent_id: sql-formats
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[CSV](https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC) 格式允许我们基于 CSV schema 进行解析和生成 CSV 数据。目前 CSV schema 是基于 table schema 推断而来的。
+[CSV](https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC) 格式允许我们基于 CSV schema 进行解析和生成 CSV 数据。 目前 CSV schema 是基于 table schema 推断而来的。
 
 依赖
 ------------
@@ -77,7 +77,7 @@ CREATE TABLE user_behavior (
       <tr>
         <th class="text-left" style="width: 25%">选项</th>
         <th class="text-center" style="width: 8%">要求</th>
-        <th class="text-center" style="width: 7%">默认</th>
+        <th class="text-center" style="width: 7%">默认值</th>
         <th class="text-center" style="width: 10%">类型</th>
         <th class="text-center" style="width: 50%">描述</th>
       </tr>
@@ -167,7 +167,7 @@ CREATE TABLE user_behavior (
 ----------------
 
 目前 CSV 的 schema 都是从 table schema 推断而来的。显式地定义 CSV schema 暂不支持。
-Flink的 CSV Format 数据使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析 CSV 字符串。
+Flink 的 CSV Format 数据使用 [jackson databind API](https://github.com/FasterXML/jackson-databind) 去解析 CSV 字符串。
 
 下面的表格列出了flink数据和CSV数据的对应关系。
 
