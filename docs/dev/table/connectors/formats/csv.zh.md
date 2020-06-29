@@ -85,7 +85,7 @@ CREATE TABLE user_behavior (
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>必须</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>详细描述使用什么格式，这里应该是 <code>'csv'</code>。</td>
@@ -244,7 +244,6 @@ Flink的CSV格式数据使用 [jackson databind API](https://github.com/FasterXM
     </tr>
     </tbody>
 </table>
-
 
 
 
