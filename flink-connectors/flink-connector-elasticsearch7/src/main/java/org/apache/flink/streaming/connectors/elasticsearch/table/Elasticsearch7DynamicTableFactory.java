@@ -173,11 +173,11 @@ public class Elasticsearch7DynamicTableFactory implements DynamicTableSourceFact
 				cacheMaxSize)
 		);
 		validate(
-			config.getCacheExpiredMs().toSeconds() >= 1,
+			config.getCacheExpiredMs().getSeconds() >= 1,
 			() -> String.format(
 				"'%s' must be at least 1. Got: %s",
 				LOOKUP_CACHE_TTL.key(),
-				config.getCacheExpiredMs().toSeconds())
+				config.getCacheExpiredMs().getSeconds())
 		);
 		validate(
 			config.getMaxRetryTimes() >= 1,
