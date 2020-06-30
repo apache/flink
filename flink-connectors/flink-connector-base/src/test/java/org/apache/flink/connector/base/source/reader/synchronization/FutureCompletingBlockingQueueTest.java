@@ -23,7 +23,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /**
- * The unit test for {@link FutureCompletingBlockingQueue}
+ * The unit test for {@link FutureCompletingBlockingQueue}.
  */
 public class FutureCompletingBlockingQueueTest {
 
@@ -32,13 +32,13 @@ public class FutureCompletingBlockingQueueTest {
 	private static final Integer SPECIFIED_CAPACITY = 20000;
 
 	@Test
-	public void testFutureCompletingBlockingQueueConstructor(){
+	public void testFutureCompletingBlockingQueueConstructor() {
 		FutureNotifier notifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<Object> defaultCapacityFutureCompletingBlockingQueue = new FutureCompletingBlockingQueue<>(notifier);
 		FutureCompletingBlockingQueue<Object> specifiedCapacityFutureCompletingBlockingQueue = new FutureCompletingBlockingQueue<>(notifier, SPECIFIED_CAPACITY);
 		// The capacity of the queue needs to be equal to 10000
-		assertEquals(defaultCapacityFutureCompletingBlockingQueue.remainingCapacity(),(int)DEFAULT_CAPACITY);
+		assertEquals(defaultCapacityFutureCompletingBlockingQueue.remainingCapacity(), (int) DEFAULT_CAPACITY);
 		// The capacity of the queue needs to be equal to SPECIFIED_CAPACITY
-		assertEquals(specifiedCapacityFutureCompletingBlockingQueue.remainingCapacity(),(int)SPECIFIED_CAPACITY);
+		assertEquals(specifiedCapacityFutureCompletingBlockingQueue.remainingCapacity(), (int) SPECIFIED_CAPACITY);
 	}
 }
