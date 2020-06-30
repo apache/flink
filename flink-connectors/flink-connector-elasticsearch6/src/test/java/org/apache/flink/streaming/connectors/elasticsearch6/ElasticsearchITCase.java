@@ -99,8 +99,16 @@ public class ElasticsearchITCase<T> extends ElasticsearchSinkTestBase<T, RestHig
 	}
 
 	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(int bulkFlushMaxActions, String clusterName, List<HttpHost> addresses, ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
-		return null;
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(
+		int bulkFlushMaxActions,
+		String clusterName,
+		List<HttpHost> httpHosts,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+
+		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
+
+		return builder.build();
 	}
 
 	@Override
