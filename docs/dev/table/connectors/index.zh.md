@@ -25,18 +25,18 @@ under the License.
 -->
 
 
-Flink Table 和 SQL 可以支持对外部系统进行读和写的 table 批和流的处理。table 源端对外部数据拥有多种支持类型(例如 数据库，键值对存储，消息队列，或者是文件系统)。table 目标端可以将表存储到另一个外部的系统中。可以支持指定类型的源端和目标端， 它们目前支持的格式有 CSV，Avro，Parquet，ORC。
+Flink Table 和 SQL 可以连接到外部系统进行批和流的读写。table source 用于读取存储在外部系统（例如数据库、键值存储、消息队列或者文件系统）中的数据。table sink 可以将表存储到另一个外部的系统中。不同的 source 和 sink 支持不同的数据格式，例如 CSV、Avro、Parquet 或者 ORC。
 
-这页主要描述的是如何使用现有flink 原生态支持连接器去注册 table 源端和 table 目标端。 在源端或者目标端注册完成之后。 所注册 table 通过 Table API 和 SQL 的声明方式去访问和使用。
+本文档主要描述如何使用内置支持的连接器（connector）注册 table source 和 sink。在 source 或 sink 注册完成之后，就可以在 Table API 和 SQL 中访问它们了。
 
-<span class="label label-info">笔记</span>如果你想要实现属于你自定义 table 源端 或 目标端。 可以查看 [user-defined sources & sinks page]({% link dev/table/sourceSinks.zh.md %})。
+<span class="label label-info">注意</span> 如果你想要实现自定义 table source 或 sink， 可以查看 [自定义 source 和 sink]({% link dev/table/sourceSinks.zh.md %})。
 
-<span class="label label-danger">注意</span> Flink Table & SQL 在新版本 1.11.0 之后引入了一组新的连接器选项， 如果你现在正在使用 以前历史连接器 选项， 可以查阅 [legacy documentation]({% link dev/table/connect.zh.md %})。
+<span class="label label-danger">注意</span> Flink Table & SQL 在 1.11.0 之后引入了一组新的连接器选项， 如果你现在还在使用遗留（legacy）连接器选项，可以查阅 [遗留文档]({% link dev/table/connect.zh.md %})。
 
 * This will be replaced by the TOC
 {:toc}
 
-已经支持连接器
+已经支持的连接器
 ------------
 
 Flink 原生支持各种不同的连接器。下表列出了所有可用的连接器。
@@ -54,7 +54,7 @@ Flink 原生支持各种不同的连接器。下表列出了所有可用的连�
     <tr>
       <td><a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
       <td></td>
-      <td>有条件的，和无条件的，检索</td>
+      <td>有界和无界的扫描和查询</td>
       <td>流式，批处理</td>
     </tr>
     <tr>
@@ -66,19 +66,19 @@ Flink 原生支持各种不同的连接器。下表列出了所有可用的连�
     <tr>
       <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a></td>
       <td>0.10+</td>
-      <td>无条件查询</td>
+      <td>无界的扫描</td>
       <td>流式，批处理</td>
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/jdbc.zh.md %}">JDBC</a></td>
       <td></td>
-      <td>查询， 检索</td>
+      <td>有界的扫描和查询</td>
       <td>流式，批处理</td>
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/hbase.zh.md %}">Apache HBase</a></td>
       <td>1.4.x</td>
-      <td>有条件查询， 检索</td>
+      <td>有界的扫描和查询</td>
       <td>流式，批处理</td>
     </tr>
     </tbody>
@@ -89,22 +89,22 @@ Flink 原生支持各种不同的连接器。下表列出了所有可用的连�
 如何使用连接器
 --------
 
-FLink 支持使用 SQL 建表语句来进行注册 table。其中包括可以定义 table 名称，table 结构映射，也可以在 table 参数来自定义连接外部系统的所需要的参数。
+FLink 支持使用 SQL 建表语句来进行注册 table。可以定义表的名称、表结构、以及连接外部系统用的一些选项。
 
-接下来展示的代码是一个富具有代表性的如何去连接kafka去读取 Json 结构的消息体。
+下面的代码展示了如何读取 Kafka 并且用 Json 解析数据的一个完整的例子。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
-  -- 声明表的表结构
+  -- 声明表结构
   `user` BIGINT,
   message STRING,
   ts TIMESTAMP,
-  proctime AS PROCTIME(), -- 使用计算列定义 proctime 属性
-  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND  -- 使用水印语句定义行时属性
+  proctime AS PROCTIME(), -- 使用计算列定义处理时间属性
+  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND  -- 使用 WATERMARK 语句定义事件时间属性
 ) WITH (
-  -- 申明定义外部系统连接
+  -- 声明要连接的外部系统
   'connector' = 'kafka',
   'topic' = 'topic_name',
   'scan.startup.mode' = 'earliest-offset',
