@@ -65,7 +65,7 @@ Check the updated user documentation for [Flink Docker integration](https://ci.a
 ##### Overview
 With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Unified+Memory+Configuration+for+Job+Managers), a new memory model has been introduced for the Flink Master. New configuration options have been introduced to control the memory consumption of the Flink Master process. This affects all types of deployments: standalone, YARN, Mesos, and the new active Kubernetes integration.
 
-Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_master.html).
+Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html).
 
 If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures. See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#migrate-job-manager-memory-configuration).
 
@@ -75,8 +75,8 @@ The following options are deprecated:
  * `jobmanager.heap.mb`
 
 If these deprecated options are still used, they will be interpreted as one of the following new options in order to maintain backwards compatibility:
- * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_master.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
- * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_master.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
+ * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
+ * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
 
 The following options have been removed and have no effect anymore:
  * `containerized.heap-cutoff-ratio`
