@@ -29,19 +29,19 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro data based on an Avro schema. Currently, the Avro schema is derived from table schema.
+[Apache Avro](https://avro.apache.org/) format 允许基于 Avro schema 读取和写入 Avro 数据。目前，Avro schema 从 table schema 推导而来。
 
-Dependencies
+依赖
 ------------
 
-In order to setup the Avro format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+为了设置 Avro format，下表提供了使用自动化构建工具（例如 Maven 或 SBT）和带有 SQL JAR 捆绑包的 SQL Client 的项目依赖信息。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL Client JAR" markdown="1">
-You can download flink-avro from [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar),
-and requires additional [Hadoop dependency]({% link ops/deployment/hadoop.zh.md %}) for cluster execution.
+您可以从 [这里](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) 下载 flink-avro，除此之外还需要额外的 [Hadoop 依赖]({% link ops/deployment/hadoop.zh.md %}) 用于集群执行。
+
 </div>
-<div data-lang="Maven dependency" markdown="1">
+<div data-lang="Maven 依赖" markdown="1">
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -52,10 +52,10 @@ and requires additional [Hadoop dependency]({% link ops/deployment/hadoop.zh.md 
 </div>
 </div>
 
-How to create a table with Avro format
+如何使用 Avro format 创建表
 ----------------
 
-Here is an example to create a table using Kafka connector and Avro format.
+这是使用 Kafka 连接器和 Avro format 创建表的示例。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -77,49 +77,48 @@ CREATE TABLE user_behavior (
 </div>
 </div>
 
-Format Options
+Format 参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必要</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be <code>'avro'</code>.</td>
+      <td>指定使用什么 format，这里应该是 <code>'avro'</code>。</td>
     </tr>
     <tr>
       <td><h5>avro.codec</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>For <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a> only, the compression codec for avro. No compression as default. The valid enumerations are: deflate, snappy, bzip2, xz.</td>
+      <td>仅用于 <a href="{% link dev/table/connectors/filesystem.zh.md %}">filesystem</a>，avro 压缩编解码器。默认不压缩。目前支持：deflate、snappy、bzip2、xz。</td>
     </tr>
     </tbody>
 </table>
 
-Data Type Mapping
+数据类型映射
 ----------------
 
-Currently, the Avro schema is always derived from table schema. Explicitly defining an Avro schema is not supported yet.
-So the following table lists the type mapping from Flink type to Avro type.
+目前，Avro schema 通常是从 table schema 中推导而来。尚不支持显式定义 Avro schema。因此，下表列出了从 Flink 类型到 Avro 类型的类型映射。
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink SQL type</th>
-        <th class="text-left">Avro type</th>
-        <th class="text-left">Avro logical type</th>
+        <th class="text-left">Flink SQL 类型</th>
+        <th class="text-left">Avro 类型</th>
+        <th class="text-left">Avro 逻辑类型</th>
       </tr>
     </thead>
     <tbody>
@@ -195,13 +194,13 @@ So the following table lists the type mapping from Flink type to Avro type.
     </tr>
     <tr>
       <td><code>MAP</code><br>
-      (key must be string/char/varchar type)</td>
+      (key 必须是 string/char/varchar 类型)</td>
       <td><code>map</code></td>
       <td></td>
     </tr>
     <tr>
       <td><code>MULTISET</code><br>
-      (element must be string/char/varchar type)</td>
+      (元素必须是 string/char/varchar 类型)</td>
       <td><code>map</code></td>
       <td></td>
     </tr>
@@ -213,6 +212,6 @@ So the following table lists the type mapping from Flink type to Avro type.
     </tbody>
 </table>
 
-In addition to the types listed above, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
+除了上面列出的类型，Flink 支持读取/写入 nullable 的类型。Flink 将 nullable 的类型映射到 Avro `union(something, null)`，其中 `something` 是从 Flink 类型转换的 Avro 类型。
 
-You can refer to [Avro Specification](https://avro.apache.org/docs/current/spec.html) for more information about Avro types.
+您可以参考 [Avro 规范](https://avro.apache.org/docs/current/spec.html) 获取更多有关 Avro 类型的信息。
