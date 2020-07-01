@@ -121,7 +121,7 @@ Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, th
 
 This section lists issues that developers have run into in the past when working with IntelliJ:
 
-- Compilation fails with `invalid flag: --add-expots=java.base/sun.net.util=ALL-UNNAMED`
+- Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
 
 This means that IntelliJ activated the `java11` profile despite an older JDK being used.
 Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.
