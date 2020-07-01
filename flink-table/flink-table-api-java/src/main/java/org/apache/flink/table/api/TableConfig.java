@@ -282,7 +282,7 @@ public class TableConfig {
 			!(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
 			throw new IllegalArgumentException(
 				"Difference between minTime: " + minTime.toString() + " and maxTime: " + maxTime.toString() +
-					"shoud be at least 5 minutes.");
+					" should be at least 5 minutes.");
 		}
 		minIdleStateRetentionTime = minTime.toMilliseconds();
 		maxIdleStateRetentionTime = maxTime.toMilliseconds();
