@@ -90,6 +90,7 @@ object FlinkBatchRuleSets {
 
   private val LIMIT_RULES: RuleSet = RuleSets.ofList(
     //push down localLimit
+    PushLimitIntoTableSourceScanRule.INSTANCE,
     PushLimitIntoLegacyTableSourceScanRule.INSTANCE)
 
   /**
