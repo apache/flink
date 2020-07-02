@@ -9,10 +9,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:amazon-kinesis-client:1.11.2
 - com.amazonaws:amazon-kinesis-producer:0.14.0
 - com.amazonaws:aws-java-sdk-core:1.11.754
-- com.amazonaws:aws-java-sdk-dynamodb:1.11.754
+- com.amazonaws:aws-java-sdk-dynamodb:1.11.603
 - com.amazonaws:aws-java-sdk-kinesis:1.11.754
-- com.amazonaws:aws-java-sdk-kms:1.11.754
-- com.amazonaws:aws-java-sdk-s3:1.11.754
+- com.amazonaws:aws-java-sdk-kms:1.11.603
+- com.amazonaws:aws-java-sdk-s3:1.11.603
 - com.amazonaws:aws-java-sdk-sts:1.11.754
 - com.amazonaws:dynamodb-streams-kinesis-adapter:1.5.0
 - com.amazonaws:jmespath-java:1.11.754
