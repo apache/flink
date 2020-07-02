@@ -66,15 +66,29 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       // try ONLY_UPDATE_AFTER first, and then BEFORE_AND_AFTER
       Seq(UpdateKindTrait.ONLY_UPDATE_AFTER, UpdateKindTrait.BEFORE_AND_AFTER)
     }
+    var throwable: Throwable = null
     val finalRoot = requiredUpdateKindTraits.flatMap { requiredUpdateKindTrait =>
-      SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
+      try {
+        SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
+      } catch {
+        case t: Throwable =>
+          // cache exception and return None to
+          throwable = t
+          None
+      }
     }
 
     // step3: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
       val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
-      throw new TableException(
-        "Can't generate a valid execution plan for the given query:\n" + plan)
+      if (throwable == null) {
+        throw new TableException(
+          "Can't generate a valid execution plan for the given query:\n" + plan)
+      } else {
+        // rethrow with the exception
+        throw new TableException(
+          "Can't generate a valid execution plan for the given query:\n" + plan, throwable)
+      }
     } else {
       finalRoot.head
     }
@@ -687,9 +701,24 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     private def visitSink(
         sink: StreamPhysicalRel,
         sinkRequiredTraits: Seq[UpdateKindTrait]): Option[StreamPhysicalRel] = {
-      val children = sinkRequiredTraits.flatMap(t => visitChildren(sink, t))
+      var throwable: Throwable = null
+      val children = sinkRequiredTraits.flatMap { t =>
+        try {
+          visitChildren(sink, t)
+        } catch {
+          case t: Throwable =>
+            // cache exception and return None to
+            throwable = t
+            None
+        }
+      }
       if (children.isEmpty) {
-        None
+        if (throwable == null) {
+          None
+        } else {
+          // rethrow the exception
+          throw throwable
+        }
       } else {
         val sinkTrait = sink.getTraitSet.plus(UpdateKindTrait.NONE)
         Some(sink.copy(sinkTrait, children.head).asInstanceOf[StreamPhysicalRel])
