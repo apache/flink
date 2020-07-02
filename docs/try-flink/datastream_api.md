@@ -2,7 +2,7 @@
 title: "Fraud Detection with the DataStream API"
 nav-title: 'Fraud Detection with the DataStream API'
 nav-parent_id: try-flink
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
