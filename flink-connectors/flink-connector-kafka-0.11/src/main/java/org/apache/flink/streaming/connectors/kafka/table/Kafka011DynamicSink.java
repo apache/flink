@@ -22,7 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -42,13 +44,15 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			String semantic) {
 		super(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				encodingFormat);
+				encodingFormat,
+				semantic);
 	}
 
 	@Override
@@ -56,12 +60,15 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			SerializationSchema<RowData> serializationSchema,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			String semantic) {
 		return new FlinkKafkaProducer011<>(
 				topic,
-				serializationSchema,
+				new KeyedSerializationSchemaWrapper<>(serializationSchema),
 				properties,
-				partitioner);
+				partitioner,
+				getSemantic(semantic),
+				FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
 	}
 
 	@Override
@@ -71,11 +78,25 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 				this.topic,
 				this.properties,
 				this.partitioner,
-				this.encodingFormat);
+				this.encodingFormat,
+				this.semantic);
 	}
 
 	@Override
 	public String asSummaryString() {
 		return "Kafka 0.11 table sink";
+	}
+
+	private FlinkKafkaProducer011.Semantic getSemantic(String semantic){
+		switch (semantic){
+			case "exactly-once":
+				return FlinkKafkaProducer011.Semantic.EXACTLY_ONCE;
+			case "at-least-once":
+				return FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE;
+			case "none":
+				return FlinkKafkaProducer011.Semantic.NONE;
+			default:
+				throw new TableException("Validator should have validted.");
+		}
 	}
 }

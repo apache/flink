@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -41,13 +42,15 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			String semantic) {
 		super(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				encodingFormat);
+				encodingFormat,
+				semantic);
 	}
 
 	@Override
@@ -55,7 +58,8 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			SerializationSchema<RowData> serializationSchema,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			String semantic) {
 		return new FlinkKafkaProducer<>(
 				topic,
 				serializationSchema,
@@ -70,11 +74,25 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 				this.topic,
 				this.properties,
 				this.partitioner,
-				this.encodingFormat);
+				this.encodingFormat,
+				this.semantic);
 	}
 
 	@Override
 	public String asSummaryString() {
 		return "Kafka universal table sink";
+	}
+
+	private FlinkKafkaProducer.Semantic getSemantic(String semantic){
+		switch (semantic){
+			case "exactly-once":
+				return FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
+			case "at-least-once":
+				return FlinkKafkaProducer.Semantic.AT_LEAST_ONCE;
+			case "none":
+				return FlinkKafkaProducer.Semantic.NONE;
+			default:
+				throw new TableException("Validator should have validted.");
+		}
 	}
 }

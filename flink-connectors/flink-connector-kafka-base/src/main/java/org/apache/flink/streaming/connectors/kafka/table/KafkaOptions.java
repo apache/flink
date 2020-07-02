@@ -103,6 +103,11 @@ public class KafkaOptions {
 					+ "\"round-robin\": (a Flink partition is distributed to Kafka partitions round-robin)\n"
 					+ "\"custom class name\": (use a custom FlinkKafkaPartitioner subclass)");
 
+	public static final ConfigOption<String> SINK_SEMANTIC = ConfigOptions.key("sink.semantic")
+			.stringType()
+			.defaultValue("at-lease-once")
+			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-lease-once\", \"exactly-once\", \"none\"]");
+
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations
 	// --------------------------------------------------------------------------------------------
@@ -129,6 +134,17 @@ public class KafkaOptions {
 			SINK_PARTITIONER_VALUE_FIXED,
 			SINK_PARTITIONER_VALUE_ROUND_ROBIN));
 
+	// Sink semantic
+	public static final String SINK_SEMANTIC_VALUE_EXACTLY_ONCE = "exactly-once";
+	public static final String SINK_SEMANTIC_VALUE_AT_LEAST_ONCE = "at-least-once";
+	public static final String SINK_SEMANTIC_VALUE_NONE = "none";
+
+	private static final Set<String> SINK_SEMANTIC_ENUMS = new HashSet<>(Arrays.asList(
+		SINK_SEMANTIC_VALUE_AT_LEAST_ONCE,
+		SINK_SEMANTIC_VALUE_EXACTLY_ONCE,
+		SINK_SEMANTIC_VALUE_NONE
+	));
+
 	// Prefix for Kafka specific properties.
 	public static final String PROPERTIES_PREFIX = "properties.";
 
@@ -140,9 +156,10 @@ public class KafkaOptions {
 	// Validation
 	// --------------------------------------------------------------------------------------------
 
-	public static void validateTableOptions(ReadableConfig tableOptions) {
+	public static void validateTableOptions(ReadableConfig tableOptions, String kafkaVersion) {
 		validateScanStartupMode(tableOptions);
 		validateSinkPartitioner(tableOptions);
+		validateSinkSemantic(tableOptions, kafkaVersion);
 	}
 
 	private static void validateScanStartupMode(ReadableConfig tableOptions) {
@@ -189,6 +206,21 @@ public class KafkaOptions {
 						}
 					}
 				});
+	}
+
+	private static void validateSinkSemantic(ReadableConfig tableOptions, String kafkaVersion) {
+		tableOptions.getOptional(SINK_SEMANTIC).ifPresent(semantic -> {
+			if (!SINK_SEMANTIC_ENUMS.contains(semantic)){
+				throw new ValidationException(
+					String.format("Unsupported value '%s' for '%s'. Supported values are ['at-least-once', 'exactly-once', 'none'].",
+						semantic, SINK_SEMANTIC.key()));
+			}
+
+			if (kafkaVersion.equals("kafka-0.10") && (!SINK_SEMANTIC_VALUE_AT_LEAST_ONCE.equals(semantic))){
+				throw new ValidationException(
+					String.format("Connector kafka-0.10 only supports 'at-least-once' semantic. But got '%s'.", semantic));
+			}
+		});
 	}
 
 	// --------------------------------------------------------------------------------------------
