@@ -61,13 +61,15 @@ Check the updated user documentation for [Flink Docker integration](https://ci.a
 - [standalone Kubernetes](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/kubernetes.html)
 
 ### Memory Management
-#### New Flink Master Memory Model
+#### New JobManager Memory Model
 ##### Overview
-With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Unified+Memory+Configuration+for+Job+Managers), a new memory model has been introduced for the Flink Master. New configuration options have been introduced to control the memory consumption of the Flink Master process. This affects all types of deployments: standalone, YARN, Mesos, and the new active Kubernetes integration.
+With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Unified+Memory+Configuration+for+Job+Managers), a new memory model has been introduced for the JobManager. New configuration options have been introduced to control the memory consumption of the JobManager process. This affects all types of deployments: standalone, YARN, Mesos, and the new active Kubernetes integration.
 
 Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html).
 
-If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures. See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#migrate-job-manager-memory-configuration).
+If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures.
+In order to start the JobManager process, you have to specify at least one of the following options [`jobmanager.memory.flink.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-flink-size), [`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size) or [`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size).
+See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#migrate-job-manager-memory-configuration) for more information.
 
 ##### Deprecation and breaking changes
 The following options are deprecated:
@@ -85,7 +87,7 @@ The following options have been removed and have no effect anymore:
 There is [no container cut-off](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#container-cut-off-memory) anymore.
 
 ##### JVM arguments
-The `direct` and `metaspace` memory of the Flink Master's JVM process are now limited by configurable values:
+The `direct` and `metaspace` memory of the JobManager's JVM process are now limited by configurable values:
  * [`jobmanager.memory.off-heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-off-heap-size)
  * [`jobmanager.memory.jvm-metaspace.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-jvm-metaspace-size)
 
