@@ -165,6 +165,14 @@ Connector Options
       </ul>
       </td>
     </tr>
+    <tr>
+      <td><h5>sink.semantic</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">at-least-once</td>
+      <td>String</td>
+      <td>Optional semantic when commit. Valid enumerationns are ['at-lease-once', 'exactly-once', 'none']. 
+          Only Kafka whose version greater than 1.0.0 support 'exactly-once' with checkpointing enabled.</td>
+    </tr>
     </tbody>
 </table>
 
@@ -206,6 +214,8 @@ However, it will cause a lot of network connections between all the Flink instan
 ### Consistency guarantees
 
 By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
+With Kafka whose version is greater than 1.0.0, `sink.semantic` can provide exactly-once delivery guarantee. Whenever you write to Kafka using transactions, do not forget about setting the desired `isolation.level`
+(`read_committed` or `read_uncommitted` - latter one is the default value) for any application consuming records from Kafka.
 
 Data Type Mapping
 ----------------
