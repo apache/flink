@@ -155,7 +155,7 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testScanOnChangelogSource(): Unit = {
+  def testFilterOnChangelogSource(): Unit = {
     util.addTable(
       """
         |CREATE TABLE src (
@@ -168,6 +168,58 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testScanOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT b,a,ts FROM src", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUnionChangelogSourceAndAggregation(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE changelog_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE append_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I'
+        |)
+      """.stripMargin)
+
+    val query = """
+      |SELECT b, ts, a
+      |FROM (
+      |  SELECT * FROM changelog_src
+      |  UNION ALL
+      |  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
+      |)
+      |""".stripMargin
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

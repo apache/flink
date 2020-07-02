@@ -111,6 +111,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE3);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE4);
+			stat.execute("DROP TABLE " + USER_TABLE);
 		}
 	}
 

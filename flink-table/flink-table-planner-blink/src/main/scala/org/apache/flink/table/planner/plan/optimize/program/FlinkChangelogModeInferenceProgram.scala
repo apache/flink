@@ -66,29 +66,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       // try ONLY_UPDATE_AFTER first, and then BEFORE_AND_AFTER
       Seq(UpdateKindTrait.ONLY_UPDATE_AFTER, UpdateKindTrait.BEFORE_AND_AFTER)
     }
-    var throwable: Throwable = null
     val finalRoot = requiredUpdateKindTraits.flatMap { requiredUpdateKindTrait =>
-      try {
-        SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
-      } catch {
-        case t: Throwable =>
-          // cache exception and return None to
-          throwable = t
-          None
-      }
+      SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
     }
 
     // step3: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
       val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
-      if (throwable == null) {
-        throw new TableException(
-          "Can't generate a valid execution plan for the given query:\n" + plan)
-      } else {
-        // rethrow with the exception
-        throw new TableException(
-          "Can't generate a valid execution plan for the given query:\n" + plan, throwable)
-      }
+      throw new TableException(
+        "Can't generate a valid execution plan for the given query:\n" + plan)
     } else {
       finalRoot.head
     }
@@ -576,10 +562,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                   case (UpdateKind.NONE, r: UpdateKind) => r
                   case (l: UpdateKind, UpdateKind.NONE) => l
                   case (l: UpdateKind, r: UpdateKind) if l == r => l
-                  case (_, _) =>
-                    throw new UnsupportedOperationException(
-                      "UNION doesn't support to union ONLY_UPDATE_AFTER input " +
-                        "and BEFORE_AND_AFTER input.")
+                  // UNION doesn't support to union ONLY_UPDATE_AFTER and BEFORE_AND_AFTER inputs
+                  case (_, _) => return None
                 }
               }
             new UpdateKindTrait(merged)
@@ -632,12 +616,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             return None
           case Some(newChild) =>
             val providedTrait = newChild.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
-            val childDescription = newChild.getRelDetailedDescription
             if (!providedTrait.satisfies(requiredChildrenTrait)) {
-              throw new TableException(s"Provided trait $providedTrait can't satisfy " +
-                s"required trait $requiredChildrenTrait. " +
-                s"This is a bug in planner, please file an issue. \n" +
-                s"Current node is $childDescription")
+              // the provided trait can't satisfy required trait, thus we should return None.
+              // for example, the changelog source can't provide ONLY_UPDATE_AFTER.
+              None
             }
             newChild
         }
@@ -701,24 +683,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     private def visitSink(
         sink: StreamPhysicalRel,
         sinkRequiredTraits: Seq[UpdateKindTrait]): Option[StreamPhysicalRel] = {
-      var throwable: Throwable = null
-      val children = sinkRequiredTraits.flatMap { t =>
-        try {
-          visitChildren(sink, t)
-        } catch {
-          case t: Throwable =>
-            // cache exception and return None to
-            throwable = t
-            None
-        }
-      }
+      val children = sinkRequiredTraits.flatMap(t => visitChildren(sink, t))
       if (children.isEmpty) {
-        if (throwable == null) {
-          None
-        } else {
-          // rethrow the exception
-          throw throwable
-        }
+        None
       } else {
         val sinkTrait = sink.getTraitSet.plus(UpdateKindTrait.NONE)
         Some(sink.copy(sinkTrait, children.head).asInstanceOf[StreamPhysicalRel])
