@@ -13,6 +13,5 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.parquet:parquet-format:2.4.0
 - org.codehaus.jackson:jackson-mapper-asl:1.9.13
 - org.codehaus.jackson:jackson-core-asl:1.9.13
-- org.apache.commons:commons-compress:1.20
 - commons-pool:commons-pool:1.6
 - commons-codec:commons-codec:1.10
