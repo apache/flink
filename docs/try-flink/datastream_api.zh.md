@@ -2,7 +2,7 @@
 title: "基于 DataStream API 实现欺诈检测"
 nav-title: '基于 DataStream API 实现欺诈检测'
 nav-parent_id: try-flink
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

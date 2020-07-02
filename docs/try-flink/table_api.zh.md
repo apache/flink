@@ -2,7 +2,7 @@
 title: "基于 Table API 实现实时报表"
 nav-title: '基于 Table API 实现实时报表'
 nav-parent_id: try-flink
-nav-pos: 2
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

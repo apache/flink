@@ -2,7 +2,7 @@
 title: "Real Time Reporting with the Table API"
 nav-title: 'Real Time Reporting with the Table API'
 nav-parent_id: try-flink
-nav-pos: 2
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
