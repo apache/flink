@@ -619,7 +619,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             if (!providedTrait.satisfies(requiredChildrenTrait)) {
               // the provided trait can't satisfy required trait, thus we should return None.
               // for example, the changelog source can't provide ONLY_UPDATE_AFTER.
-              None
+              return None
             }
             newChild
         }
