@@ -103,6 +103,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 
 	@After
 	public void clearOutputTable() throws Exception {
+		TestValuesTableFactory.clearAllData();
 		Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
@@ -313,9 +314,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			"  'connector' = 'jdbc'," +
 			"  'url'='" + DB_URL + "'," +
 			"  'table-name' = '" + USER_TABLE + "'," +
-			"  'sink.buffer-flush.max-rows' = '1'," +
-			"  'sink.buffer-flush.interval' = '300ms'," +
-			"  'sink.max-retries' = '4'" +
+			"  'sink.buffer-flush.max-rows' = '2'," +
+			"  'sink.buffer-flush.interval' = '0'" + // disable async flush
 			")");
 		TableEnvUtil.execInsertSqlAndWaitResult(
 			tEnv,
