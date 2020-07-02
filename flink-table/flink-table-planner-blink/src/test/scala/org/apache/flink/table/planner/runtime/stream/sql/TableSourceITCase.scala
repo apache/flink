@@ -262,35 +262,4 @@ class TableSourceITCase extends StreamingTestBase {
     )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
-
-  @Test
-  def testChangelogSource(): Unit = {
-    val dataId = TestValuesTableFactory.registerData(TestData.userChangelog)
-    val ddl =
-      s"""
-         |CREATE TABLE user_logs (
-         |  user_id STRING,
-         |  user_name STRING,
-         |  email STRING,
-         |  balance DECIMAL(18,2),
-         |  balance2 AS balance * 2
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '$dataId',
-         | 'changelog-mode' = 'I,UA,UB,D'
-         |)
-         |""".stripMargin
-    tEnv.executeSql(ddl)
-
-    val result = tEnv.sqlQuery("SELECT * FROM user_logs").toRetractStream[Row]
-    val sink = new TestingRetractSink()
-    result.addSink(sink).setParallelism(result.parallelism)
-    env.execute()
-
-    val expected = Seq(
-      "user1,Tom,tom123@gmail.com,8.10,16.20",
-      "user3,Bailey,bailey@qq.com,9.99,19.98",
-      "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
 }

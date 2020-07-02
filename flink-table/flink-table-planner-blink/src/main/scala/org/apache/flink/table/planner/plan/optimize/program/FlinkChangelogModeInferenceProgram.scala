@@ -562,10 +562,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                   case (UpdateKind.NONE, r: UpdateKind) => r
                   case (l: UpdateKind, UpdateKind.NONE) => l
                   case (l: UpdateKind, r: UpdateKind) if l == r => l
-                  case (_, _) =>
-                    throw new UnsupportedOperationException(
-                      "UNION doesn't support to union ONLY_UPDATE_AFTER input " +
-                        "and BEFORE_AND_AFTER input.")
+                  // UNION doesn't support to union ONLY_UPDATE_AFTER and BEFORE_AND_AFTER inputs
+                  case (_, _) => return None
                 }
               }
             new UpdateKindTrait(merged)
@@ -618,12 +616,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             return None
           case Some(newChild) =>
             val providedTrait = newChild.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
-            val childDescription = newChild.getRelDetailedDescription
             if (!providedTrait.satisfies(requiredChildrenTrait)) {
-              throw new TableException(s"Provided trait $providedTrait can't satisfy " +
-                s"required trait $requiredChildrenTrait. " +
-                s"This is a bug in planner, please file an issue. \n" +
-                s"Current node is $childDescription")
+              // the provided trait can't satisfy required trait, thus we should return None.
+              // for example, the changelog source can't provide ONLY_UPDATE_AFTER.
+              return None
             }
             newChild
         }

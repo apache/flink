@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
@@ -58,11 +59,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test suite for {@link JdbcRowDataOutputFormat}.
+ * Test suite for {@link JdbcDynamicOutputFormatBuilder}.
  */
-public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
+public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
-	private static JdbcRowDataOutputFormat outputFormat;
+	private static JdbcBatchingOutputFormat<RowData, ?, ?> outputFormat;
 	private static String[] fieldNames = new String[] {"id", "title", "author", "price", "qty"};
 	private static DataType[] fieldDataTypes = new DataType[]{
 		DataTypes.INT(),
@@ -100,7 +101,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = new JdbcDynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -128,7 +129,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = new JdbcDynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -155,7 +156,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = new JdbcDynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -188,7 +189,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = new JdbcDynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -222,7 +223,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = new JdbcDynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -258,7 +259,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 			.withFieldNames(fieldNames)
 			.build();
 
-		outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+		outputFormat = new JdbcDynamicOutputFormatBuilder()
 			.setJdbcOptions(jdbcOptions)
 			.setFieldDataTypes(fieldDataTypes)
 			.setJdbcDmlOptions(dmlOptions)
@@ -312,7 +313,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 			.withBatchSize(3)
 			.build();
 
-		outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+		outputFormat = new JdbcDynamicOutputFormatBuilder()
 			.setJdbcOptions(jdbcOptions)
 			.setFieldDataTypes(fieldDataTypes)
 			.setJdbcDmlOptions(dmlOptions)
@@ -374,7 +375,7 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 			.withFieldNames(fieldNames)
 			.build();
 
-		outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+		outputFormat = new JdbcDynamicOutputFormatBuilder()
 			.setJdbcOptions(jdbcOptions)
 			.setFieldDataTypes(fieldDataTypes)
 			.setJdbcDmlOptions(dmlOptions)
