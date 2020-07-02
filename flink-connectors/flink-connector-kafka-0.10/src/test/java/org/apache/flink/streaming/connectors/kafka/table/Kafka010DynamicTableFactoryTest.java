@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.util.CoreMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 
 /**
  * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created

@@ -105,8 +105,8 @@ public class KafkaOptions {
 
 	public static final ConfigOption<String> SINK_SEMANTIC = ConfigOptions.key("sink.semantic")
 			.stringType()
-			.defaultValue("at-lease-once")
-			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-lease-once\", \"exactly-once\", \"none\"]");
+			.defaultValue("at-least-once")
+			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
 
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations

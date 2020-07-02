@@ -64,7 +64,9 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 				topic,
 				serializationSchema,
 				properties,
-				partitioner);
+				partitioner.orElse(null),
+				getSemantic(semantic),
+				FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
 	}
 
 	@Override
