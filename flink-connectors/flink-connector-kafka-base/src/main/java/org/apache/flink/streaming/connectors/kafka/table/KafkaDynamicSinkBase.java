@@ -38,11 +38,10 @@ import java.util.Properties;
  * A version-agnostic Kafka {@link DynamicTableSink}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
+ * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional, KafkaSinkSemantic)}}.
  */
 @Internal
 public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
-
 	/** Consumed data type of the table. */
 	protected final DataType consumedDataType;
 
@@ -58,17 +57,22 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 	/** Partitioner to select Kafka partition for each item. */
 	protected final Optional<FlinkKafkaPartitioner<RowData>> partitioner;
 
+	/** Sink commit semantic.*/
+	protected final KafkaSinkSemantic semantic;
+
 	protected KafkaDynamicSinkBase(
 			DataType consumedDataType,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSinkSemantic semantic) {
 		this.consumedDataType = Preconditions.checkNotNull(consumedDataType, "Consumed data type must not be null.");
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
 		this.encodingFormat = Preconditions.checkNotNull(encodingFormat, "Encoding format must not be null.");
+		this.semantic = Preconditions.checkNotNull(semantic, "Semantic must not be null.");
 	}
 
 	@Override
@@ -85,7 +89,8 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 				this.topic,
 				properties,
 				serializationSchema,
-				this.partitioner);
+				this.partitioner,
+				this.semantic);
 
 		return SinkFunctionProvider.of(kafkaProducer);
 	}
@@ -103,7 +108,8 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 		String topic,
 		Properties properties,
 		SerializationSchema<RowData> serializationSchema,
-		Optional<FlinkKafkaPartitioner<RowData>> partitioner);
+		Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+		KafkaSinkSemantic semantic);
 
 	@Override
 	public boolean equals(Object o) {
@@ -118,7 +124,8 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(encodingFormat, that.encodingFormat) &&
-			Objects.equals(partitioner, that.partitioner);
+			Objects.equals(partitioner, that.partitioner) &&
+			Objects.equals(semantic, that.semantic);
 	}
 
 	@Override
@@ -128,6 +135,7 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 			topic,
 			properties,
 			encodingFormat,
-			partitioner);
+			partitioner,
+			semantic);
 	}
 }

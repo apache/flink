@@ -165,6 +165,13 @@ Connector Options
       </ul>
       </td>
     </tr>
+    <tr>
+      <td><h5>sink.semantic</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">at-least-once</td>
+      <td>String</td>
+      <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. <code>'kafka-0.10'</code> doesn't support this option. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
+    </tr>
     </tbody>
 </table>
 
@@ -206,6 +213,19 @@ However, it will cause a lot of network connections between all the Flink instan
 ### Consistency guarantees
 
 By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
+
+With Flink's checkpointing enabled, the `kafka` and `kafka-0.11` connectors can provide exactly-once delivery guarantees.
+
+Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.semantic` option:
+
+ * `none`: Flink will not guarantee anything. Produced records can be lost or they can be duplicated.
+ * `at-least-once` (default setting): This guarantees that no records will be lost (although they can be duplicated).
+ * `exactly-once`: Kafka transactions will be used to provide exactly-once semantic. Whenever you write
+ to Kafka using transactions, do not forget about setting desired `isolation.level` (`read_committed`
+ or `read_uncommitted` - the latter one is the default value) for any application consuming records
+ from Kafka.
+
+Please refer to [Kafka documentation]({% link dev/connectors/kafka.md %}#kafka-producers-and-fault-tolerance) for more caveats about delivery guarantees.
 
 Data Type Mapping
 ----------------

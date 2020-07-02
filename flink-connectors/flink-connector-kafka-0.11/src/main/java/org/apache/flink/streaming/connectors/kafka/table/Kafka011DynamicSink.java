@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -42,13 +43,15 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSinkSemantic semantic) {
 		super(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				encodingFormat);
+				encodingFormat,
+				semantic);
 	}
 
 	@Override
@@ -56,12 +59,15 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			SerializationSchema<RowData> serializationSchema,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			KafkaSinkSemantic semantic) {
 		return new FlinkKafkaProducer011<>(
 				topic,
-				serializationSchema,
+				new KeyedSerializationSchemaWrapper<>(serializationSchema),
 				properties,
-				partitioner);
+				partitioner,
+				FlinkKafkaProducer011.Semantic.valueOf(semantic.toString()),
+				FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
 	}
 
 	@Override
@@ -71,7 +77,8 @@ public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 				this.topic,
 				this.properties,
 				this.partitioner,
-				this.encodingFormat);
+				this.encodingFormat,
+				this.semantic);
 	}
 
 	@Override
