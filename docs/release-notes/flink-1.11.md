@@ -29,6 +29,17 @@ these notes carefully if you are planning to upgrade your Flink version to 1.11.
 {:toc}
 
 ### Clusters & Deployment
+#### Support for Application Mode ([FLIP-85](https://cwiki.apache.org/confluence/display/FLINK/FLIP-85+Flink+Application+Mode))
+The user can now submit applications and choose to execute their `main()` method on the cluster rather than the client.
+This allows for more light-weight application submission. For more details,
+see the [Application Mode documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/#application-mode).
+ 
+#### Web Submission behaves the same as detached mode.
+With [FLINK-16657](https://issues.apache.org/jira/browse/FLINK-16657) the web submission logic changes and it exposes
+the same behavior as submitting a job through the CLI in detached mode. This implies that, for instance, jobs based on 
+the DataSet API that were using sinks like `print()`, `count()` or `collect()` will now throw an exception while 
+before the output was simply never printed. See also comments on related [PR](https://github.com/apache/flink/pull/11460).
+
 #### Support for Hadoop 3.0.0 and higher ([FLINK-11086](https://issues.apache.org/jira/browse/FLINK-11086))
 Flink project does not provide any updated "flink-shaded-hadoop-*" jars.
 Users need to provide Hadoop dependencies through the HADOOP_CLASSPATH environment variable (recommended) or via `lib/` folder.
