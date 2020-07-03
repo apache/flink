@@ -58,7 +58,8 @@ class StreamTableEnvironmentImpl (
     scalaExecutionEnvironment: StreamExecutionEnvironment,
     planner: Planner,
     executor: Executor,
-    isStreaming: Boolean)
+    isStreaming: Boolean,
+    userClassLoader: ClassLoader)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
@@ -66,7 +67,8 @@ class StreamTableEnvironmentImpl (
     executor,
     functionCatalog,
     planner,
-    isStreaming)
+    isStreaming,
+    userClassLoader)
   with org.apache.flink.table.api.bridge.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
@@ -299,7 +301,8 @@ object StreamTableEnvironmentImpl {
       executionEnvironment,
       planner,
       executor,
-      settings.isStreamingMode
+      settings.isStreamingMode,
+      classLoader
     )
   }
 
