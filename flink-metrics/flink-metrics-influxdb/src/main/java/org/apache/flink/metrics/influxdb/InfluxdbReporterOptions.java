@@ -21,6 +21,8 @@ package org.apache.flink.metrics.influxdb;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.metrics.MetricConfig;
 
 import org.influxdb.InfluxDB;
@@ -35,6 +37,12 @@ public class InfluxdbReporterOptions {
 		.key("host")
 		.noDefaultValue()
 		.withDescription("the InfluxDB server host");
+
+	public static final ConfigOption<Scheme> SCHEME = ConfigOptions
+		.key("scheme")
+		.enumType(Scheme.class)
+		.defaultValue(Scheme.HTTP)
+		.withDescription("the InfluxDB schema");
 
 	public static final ConfigOption<Integer> PORT = ConfigOptions
 		.key("port")
@@ -87,5 +95,42 @@ public class InfluxdbReporterOptions {
 
 	static InfluxDB.ConsistencyLevel getConsistencyLevel(MetricConfig config, ConfigOption<InfluxDB.ConsistencyLevel> key) {
 		return InfluxDB.ConsistencyLevel.valueOf(config.getProperty(key.key(), key.defaultValue().name()));
+	}
+
+	static Scheme getScheme(MetricConfig config) {
+		final String value = config.getProperty(SCHEME.key());
+
+		if (value != null) {
+			try {
+				return ConfigurationUtils.convertValue(value, Scheme.class);
+			} catch (IllegalArgumentException iae) {
+				throw new IllegalConfigurationException(
+					String.format(
+						"Cannot parse the configuration option: %s. Please make sure that you specify a valid value.",
+						SCHEME.key()),
+					iae);
+			}
+		} else {
+			return SCHEME.defaultValue();
+		}
+	}
+
+	/**
+	 * Supported URL schemes for the {@link InfluxdbReporter}.
+	 */
+	enum Scheme {
+		HTTP("http"),
+		HTTPS("https");
+
+		private final String scheme;
+
+		Scheme(String scheme) {
+			this.scheme = scheme;
+		}
+
+		@Override
+		public String toString() {
+			return scheme;
+		}
 	}
 }
