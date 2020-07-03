@@ -25,11 +25,13 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 
@@ -50,6 +52,11 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception {
+		NativeLibraryLoader.getInstance().loadLibrary(tempFolder.newFolder().getAbsolutePath());
+	}
 
 	@Test
 	public void testEmptyMergeIterator() throws Exception {
