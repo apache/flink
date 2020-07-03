@@ -26,11 +26,17 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 public interface ExecutionDeploymentReconciliationHandler {
 	/**
 	 * Called if an execution is expected to be hosted on a task executor, but isn't.
+	 *
+	 * @param executionAttemptId id of te missing deployment
+	 * @param hostingTaskExecutor expected hosting task executor
 	 */
-	void onMissingDeployment(ExecutionAttemptID deployment);
+	void onMissingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor);
 
 	/**
 	 * Called if an execution is hosted on a task executor, but we don't expect it.
+	 *
+	 * @param executionAttemptId id of the unknown execution
+	 * @param hostingTaskExecutor hosting task executor
 	 */
-	void onUnknownDeployment(ExecutionAttemptID deployment, ResourceID hostingTaskExecutor);
+	void onUnknownDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor);
 }

@@ -235,25 +235,28 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler = new ExecutionDeploymentReconciliationHandler() {
 			@Override
-			public void onMissingDeployment(ExecutionAttemptID deployment) {
-				log.debug("Failing deployment {} due to no longer being deployed.", deployment);
+			public void onMissingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
+				log.debug("Failing deployment {} due to no longer being deployed.", executionAttemptId);
 				schedulerNG.updateTaskExecutionState(new TaskExecutionState(
-					jobGraph.getJobID(), deployment, ExecutionState.FAILED, new FlinkException("State de-sync")
+					jobGraph.getJobID(),
+					executionAttemptId,
+					ExecutionState.FAILED,
+					new FlinkException(String.format("Execution %s is unexpectedly no longer running on task executor %s.", executionAttemptId, host))
 				));
 			}
 
 			@Override
-			public void onUnknownDeployment(ExecutionAttemptID deployment, ResourceID host) {
-				log.debug("Canceling left-over deployment {} on task executor {}.", deployment, host);
+			public void onUnknownDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
+				log.debug("Canceling left-over deployment {} on task executor {}.", executionAttemptId, host);
 				Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(host);
 				if (taskManagerInfo != null) {
-					taskManagerInfo.f1.cancelTask(deployment, rpcTimeout);
+					taskManagerInfo.f1.cancelTask(executionAttemptId, rpcTimeout);
 				}
 			}
 		};
 
 		this.executionDeploymentTracker = executionDeploymentTracker;
-		this.executionDeploymentReconciler = executionDeploymentReconcilerFactory.get(executionStateReconciliationHandler);
+		this.executionDeploymentReconciler = executionDeploymentReconcilerFactory.create(executionStateReconciliationHandler);
 
 		this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
 		this.resourceId = checkNotNull(resourceId);
@@ -1226,7 +1229,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		public void reportPayload(ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
 			validateRunsInMainThread();
-			executionDeploymentReconciler.reconcileExecutionDeployments(resourceID, payload.getExecutionDeploymentReport(), executionDeploymentTracker.getExecutions(resourceID));
+			executionDeploymentReconciler.reconcileExecutionDeployments(resourceID, payload.getExecutionDeploymentReport(), executionDeploymentTracker.getExecutionsOn(resourceID));
 			for (AccumulatorSnapshot snapshot : payload.getAccumulatorReport().getAccumulatorSnapshots()) {
 				schedulerNG.updateAccumulators(snapshot);
 			}

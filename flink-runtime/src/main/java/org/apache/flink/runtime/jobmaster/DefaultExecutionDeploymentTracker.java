@@ -19,7 +19,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,29 +29,23 @@ import java.util.Set;
 /**
  * Default {@link ExecutionDeploymentTracker} implementation.
  */
-public class ExecutionDeploymentTrackerImpl implements ExecutionDeploymentTracker, ExecutionDeploymentListener {
+public class DefaultExecutionDeploymentTracker implements ExecutionDeploymentTracker {
 
 	private final Map<ResourceID, Set<ExecutionAttemptID>> executionsByHost = new HashMap<>();
 	private final Map<ExecutionAttemptID, ResourceID> hostByExecution = new HashMap<>();
 
 	@Override
-	public void startTrackingDeployment(ExecutionAttemptID execution, ResourceID host) {
-		hostByExecution.put(execution, host);
-		executionsByHost.compute(host, (resourceID, executionAttemptIds) -> {
-			if (executionAttemptIds == null) {
-				executionAttemptIds = new HashSet<>();
-			}
-			executionAttemptIds.add(execution);
-			return executionAttemptIds;
-		});
+	public void startTrackingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
+		hostByExecution.put(executionAttemptId, host);
+		executionsByHost.computeIfAbsent(host, ignored -> new HashSet<>()).add(executionAttemptId);
 	}
 
 	@Override
-	public void stopTrackingDeployment(ExecutionAttemptID execution) {
-		ResourceID host = hostByExecution.remove(execution);
+	public void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId) {
+		ResourceID host = hostByExecution.remove(executionAttemptId);
 		if (host != null) {
 			executionsByHost.computeIfPresent(host, (resourceID, executionAttemptIds) -> {
-				executionAttemptIds.remove(execution);
+				executionAttemptIds.remove(executionAttemptId);
 
 				return executionAttemptIds.isEmpty()
 					? null
@@ -62,12 +55,7 @@ public class ExecutionDeploymentTrackerImpl implements ExecutionDeploymentTracke
 	}
 
 	@Override
-	public Set<ExecutionAttemptID> getExecutions(ResourceID host) {
+	public Set<ExecutionAttemptID> getExecutionsOn(ResourceID host) {
 		return executionsByHost.getOrDefault(host, Collections.emptySet());
-	}
-
-	@Override
-	public void onCompletedDeployment(ExecutionAttemptID execution, ResourceID host) {
-		startTrackingDeployment(execution, host);
 	}
 }

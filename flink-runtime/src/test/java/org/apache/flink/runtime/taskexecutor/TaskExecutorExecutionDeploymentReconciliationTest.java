@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -28,8 +27,8 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -39,8 +38,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
-import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
@@ -55,16 +52,14 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -77,7 +72,6 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.StreamSupport;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
@@ -92,12 +86,13 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
 	private static final Time timeout = Time.seconds(10L);
 
-	private static TestingRpcService rpc;
-
 	private final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 	private final SettableLeaderRetrievalService jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
 	private final SettableLeaderRetrievalService resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
 	private final JobID jobId = new JobID();
+
+	@ClassRule
+	public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE = new TestingRpcServiceResource();
 
 	@Rule
 	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
@@ -110,26 +105,16 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
 	@After
 	public void shutdown() {
-		rpc.clearGateways();
-	}
-
-	@BeforeClass
-	public static void setupClass() {
-		rpc = new TestingRpcService();
-	}
-
-	@AfterClass
-	public static void shutdownClass() throws ExecutionException, InterruptedException {
-		rpc.stopService().get();
+		RPC_SERVICE_RESOURCE.getTestingRpcService().clearGateways();
 	}
 
 	@Test
 	public void testDeployedExecutionReporting() throws Exception {
 		final OneShotLatch slotOfferLatch = new OneShotLatch();
-		final BlockingQueue<Set<ExecutionAttemptID>> deployedExecutionsFuture = new ArrayBlockingQueue<>(3);
+		final BlockingQueue<Set<ExecutionAttemptID>> deployedExecutionsQueue = new ArrayBlockingQueue<>(3);
 		final CompletableFuture<Void> taskFinishedFuture = new CompletableFuture<>();
 		final ResourceID jobManagerResourceId = ResourceID.generate();
-		final TestingJobMasterGateway jobMasterGateway = setupJobManagerGateway(slotOfferLatch, deployedExecutionsFuture, taskFinishedFuture, jobManagerResourceId);
+		final TestingJobMasterGateway jobMasterGateway = setupJobManagerGateway(slotOfferLatch, deployedExecutionsQueue, taskFinishedFuture, jobManagerResourceId);
 
 		final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
 		final TestingResourceManagerGateway testingResourceManagerGateway = setupResourceManagerGateway(initialSlotReportFuture);
@@ -160,7 +145,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
 			// nothing as deployed, so the deployment report should be empty
 			taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-			assertThat(deployedExecutionsFuture.take(), hasSize(0));
+			assertThat(deployedExecutionsQueue.take(), hasSize(0));
 
 			taskExecutorGateway.submitTask(taskDeploymentDescriptor, jobMasterGateway.getFencingToken(), timeout)
 				.get();
@@ -169,14 +154,14 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
 			// task is deployed, so the deployment report should contain it
 			taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-			assertThat(deployedExecutionsFuture.take(), hasItem(taskDeploymentDescriptor.getExecutionAttemptId()));
+			assertThat(deployedExecutionsQueue.take(), hasItem(taskDeploymentDescriptor.getExecutionAttemptId()));
 
 			TestingInvokable.sync.releaseBlocker();
 
 			// task is finished ans was cleaned up, so the deployment report should be empty
 			taskFinishedFuture.get();
 			taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-			assertThat(deployedExecutionsFuture.take(), hasSize(0));
+			assertThat(deployedExecutionsQueue.take(), hasSize(0));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
@@ -202,7 +187,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) throws IOException {
 		final Configuration configuration = new Configuration();
 		return new TestingTaskExecutor(
-			rpc,
+			RPC_SERVICE_RESOURCE.getTestingRpcService(),
 			TaskManagerConfiguration.fromConfiguration(
 				configuration,
 				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
@@ -219,31 +204,11 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 				null),
 			testingFatalErrorHandlerResource.getFatalErrorHandler(),
 			new TestingTaskExecutorPartitionTracker(),
-			TaskManagerRunner.createBackPressureSampleService(configuration, rpc.getScheduledExecutor()));
+			TaskManagerRunner.createBackPressureSampleService(configuration, RPC_SERVICE_RESOURCE.getTestingRpcService().getScheduledExecutor()));
 	}
 
 	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(JobID jobId) throws IOException {
-		final ResultPartitionDeploymentDescriptor taskResultPartitionDescriptor =
-			PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
-
-		return TaskExecutorSubmissionTest.createTaskDeploymentDescriptor(
-			jobId,
-			"job",
-			taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID().getProducerId(),
-			new SerializedValue<>(new ExecutionConfig()),
-			"Sender",
-			1,
-			0,
-			1,
-			0,
-			new Configuration(),
-			new Configuration(),
-			TestingInvokable.class.getName(),
-			Collections.singletonList(taskResultPartitionDescriptor),
-			Collections.emptyList(),
-			Collections.emptyList(),
-			Collections.emptyList(),
-			0);
+		return TaskDeploymentDescriptorBuilder.newBuilder(jobId, TestingInvokable.class).build();
 	}
 
 	private static TestingJobMasterGateway setupJobManagerGateway(OneShotLatch slotOfferLatch, BlockingQueue<Set<ExecutionAttemptID>> deployedExecutionsFuture, CompletableFuture<Void> taskFinishedFuture, ResourceID jobManagerResourceId) {
@@ -288,8 +253,8 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 			CompletableFuture<SlotReport> initialSlotReportFuture,
 			AllocationID allocationId) throws Exception {
 		final String jobMasterAddress = "jm";
-		rpc.registerGateway(jobMasterAddress, jobMasterGateway);
-		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+		RPC_SERVICE_RESOURCE.getTestingRpcService().registerGateway(jobMasterAddress, jobMasterGateway);
+		RPC_SERVICE_RESOURCE.getTestingRpcService().registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 
 		// inform the task manager about the job leader
 		jobLeaderService.addJob(jobId, jobMasterAddress);

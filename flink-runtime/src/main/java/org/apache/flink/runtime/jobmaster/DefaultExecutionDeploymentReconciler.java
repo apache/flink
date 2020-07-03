@@ -28,11 +28,11 @@ import java.util.Set;
  * Default {@link ExecutionDeploymentReconciler} implementation. Detects missing/unknown deployments, and defers
  * to a provided {@link ExecutionDeploymentReconciliationHandler} to resolve them.
  */
-public class ExecutionDeploymentReconcilerImpl implements ExecutionDeploymentReconciler {
+public class DefaultExecutionDeploymentReconciler implements ExecutionDeploymentReconciler {
 
 	private final ExecutionDeploymentReconciliationHandler handler;
 
-	public ExecutionDeploymentReconcilerImpl(ExecutionDeploymentReconciliationHandler handler) {
+	public DefaultExecutionDeploymentReconciler(ExecutionDeploymentReconciliationHandler handler) {
 		this.handler = handler;
 	}
 
@@ -40,12 +40,14 @@ public class ExecutionDeploymentReconcilerImpl implements ExecutionDeploymentRec
 	public void reconcileExecutionDeployments(ResourceID taskExecutorHost, ExecutionDeploymentReport executionDeploymentReport, Set<ExecutionAttemptID> expectedDeployedExecutions) {
 		final Set<ExecutionAttemptID> executions = new HashSet<>(expectedDeployedExecutions);
 
-		executionDeploymentReport.getExecutions().forEach(executionAttemptID -> {
+		for (ExecutionAttemptID executionAttemptID : executionDeploymentReport.getExecutions()) {
 			boolean isTracked = executions.remove(executionAttemptID);
 			if (!isTracked) {
-				handler.onUnknownDeployment(executionAttemptID, taskExecutorHost);
+				handler.onUnknownDeploymentOf(executionAttemptID, taskExecutorHost);
 			}
-		});
-		executions.forEach(handler::onMissingDeployment);
+		}
+		for (ExecutionAttemptID execution : executions) {
+			handler.onMissingDeploymentOf(execution, taskExecutorHost);
+		}
 	}
 }

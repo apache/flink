@@ -24,8 +24,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.ExecutionDeploymentReconcilerImpl;
-import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerImpl;
+import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentReconciler;
+import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
@@ -115,7 +115,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 				shuffleMaster,
 				lookup
 			),
-			new ExecutionDeploymentTrackerImpl(),
-			ExecutionDeploymentReconcilerImpl::new);
+			new DefaultExecutionDeploymentTracker(),
+			DefaultExecutionDeploymentReconciler::new);
 	}
 }

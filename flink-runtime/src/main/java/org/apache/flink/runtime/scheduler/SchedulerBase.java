@@ -272,10 +272,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final JobMasterPartitionTracker partitionTracker,
 		ExecutionDeploymentTracker executionDeploymentTracker) throws JobExecutionException, JobException {
 
-		ExecutionDeploymentListener executionDeploymentListener = executionDeploymentTracker::startTrackingDeployment;
+		ExecutionDeploymentListener executionDeploymentListener = executionDeploymentTracker::startTrackingDeploymentOf;
 		ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {
 			if (newState.isTerminal()) {
-				executionDeploymentTracker.stopTrackingDeployment(execution);
+				executionDeploymentTracker.stopTrackingDeploymentOf(execution);
 			}
 		};
 

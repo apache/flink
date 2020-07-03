@@ -30,17 +30,17 @@ public interface ExecutionDeploymentTracker {
 	/**
 	 * Starts tracking the given execution that was deployed on the given host.
 	 *
-	 * @param deployment deployment to start tracking
+	 * @param executionAttemptId execution to start tracking
 	 * @param host hosting task executor
 	 */
-	void startTrackingDeployment(ExecutionAttemptID deployment, ResourceID host);
+	void startTrackingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host);
 
 	/**
 	 * Stops tracking the given execution.
 	 *
-	 * @param deployment deployment to stop tracking
+	 * @param executionAttemptId execution to stop tracking
 	 */
-	void stopTrackingDeployment(ExecutionAttemptID deployment);
+	void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId);
 
 	/**
 	 * Returns all tracked executions for the given host.
@@ -48,6 +48,6 @@ public interface ExecutionDeploymentTracker {
 	 * @param host hosting task executor
 	 * @return tracked executions
 	 */
-	Set<ExecutionAttemptID> getExecutions(ResourceID host);
+	Set<ExecutionAttemptID> getExecutionsOn(ResourceID host);
 
 }

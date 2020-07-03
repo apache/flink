@@ -35,9 +35,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link ExecutionDeploymentReconcilerImpl}.
+ * Tests for {@link DefaultExecutionDeploymentReconciler}.
  */
-public class ExecutionDeploymentReconcilerImplTest extends TestLogger {
+public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
 
 	@Test
 	public void testMatchingDeployments() throws Exception {
@@ -67,7 +67,7 @@ public class ExecutionDeploymentReconcilerImplTest extends TestLogger {
 				Collections.singleton(attemptId));
 
 			assertFalse(unknownFuture.isDone());
-			assertThat(missingFuture.get(), is(attemptId));
+			assertThat(missingFuture.get(), is(Tuple2.of(attemptId, resourceId)));
 		});
 	}
 
@@ -106,29 +106,29 @@ public class ExecutionDeploymentReconcilerImplTest extends TestLogger {
 	}
 
 	private static void runTest(TestRun test) throws Exception {
-		CompletableFuture<ExecutionAttemptID> missingFuture = new CompletableFuture<>();
+		CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> missingFuture = new CompletableFuture<>();
 		CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> unknownFuture = new CompletableFuture<>();
 
 		ExecutionDeploymentReconciliationHandler handler = new ExecutionDeploymentReconciliationHandler() {
 			@Override
-			public void onMissingDeployment(ExecutionAttemptID deployment) {
-				missingFuture.complete(deployment);
+			public void onMissingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor) {
+				missingFuture.complete(Tuple2.of(executionAttemptId, hostingTaskExecutor));
 			}
 
 			@Override
-			public void onUnknownDeployment(ExecutionAttemptID deployment, ResourceID hostingTaskExecutor) {
-				unknownFuture.complete(Tuple2.of(deployment, hostingTaskExecutor));
+			public void onUnknownDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor) {
+				unknownFuture.complete(Tuple2.of(executionAttemptId, hostingTaskExecutor));
 			}
 		};
 
-		ExecutionDeploymentReconcilerImpl reconciler = new ExecutionDeploymentReconcilerImpl(handler);
+		DefaultExecutionDeploymentReconciler reconciler = new DefaultExecutionDeploymentReconciler(handler);
 
 		test.run(reconciler, missingFuture, unknownFuture);
 	}
 
 	@FunctionalInterface
 	private interface TestRun {
-		void run(ExecutionDeploymentReconciler reconciler, CompletableFuture<ExecutionAttemptID> missingFuture, CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> unknownFuture) throws Exception;
+		void run(ExecutionDeploymentReconciler reconciler, CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> missingFuture, CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> unknownFuture) throws Exception;
 	}
 
 }

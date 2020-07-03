@@ -19,12 +19,16 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
+import java.io.Serializable;
 import java.util.Set;
 
 /**
  * A report about the currently deployed executions of a TaskExecutor.
  */
-public class ExecutionDeploymentReport {
+public class ExecutionDeploymentReport implements Serializable {
+
+	private static final long serialVersionUID = -2731996813330298044L;
+
 	private final Set<ExecutionAttemptID> executions;
 
 	public ExecutionDeploymentReport(Set<ExecutionAttemptID> executions) {

@@ -318,8 +318,8 @@ public class JobMasterTest extends TestLogger {
 				schedulerNGFactory,
 				NettyShuffleMaster.INSTANCE,
 				NoOpJobMasterPartitionTracker.FACTORY,
-				new ExecutionDeploymentTrackerImpl(),
-				ExecutionDeploymentReconcilerImpl::new) {
+				new DefaultExecutionDeploymentTracker(),
+				DefaultExecutionDeploymentReconciler::new) {
 				@Override
 				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
 					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
@@ -1670,8 +1670,8 @@ public class JobMasterTest extends TestLogger {
 			schedulerNGFactory,
 			NettyShuffleMaster.INSTANCE,
 			NoOpJobMasterPartitionTracker.FACTORY,
-			new ExecutionDeploymentTrackerImpl(),
-			ExecutionDeploymentReconcilerImpl::new) {
+			new DefaultExecutionDeploymentTracker(),
+			DefaultExecutionDeploymentReconciler::new) {
 
 			@Override
 			public CompletableFuture<String> triggerSavepoint(

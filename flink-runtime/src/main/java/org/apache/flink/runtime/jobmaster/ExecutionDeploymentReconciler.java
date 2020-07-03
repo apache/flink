@@ -32,13 +32,13 @@ public interface ExecutionDeploymentReconciler {
 	 * Factory for {@link ExecutionDeploymentReconciler}.
 	 */
 	interface Factory {
-		ExecutionDeploymentReconciler get(ExecutionDeploymentReconciliationHandler reconciliationHandler);
+		ExecutionDeploymentReconciler create(ExecutionDeploymentReconciliationHandler reconciliationHandler);
 	}
 
 	/**
 	 * Reconciles the deployment states between all reported/expected executions for the given task executor.
 	 *
-	 * @param taskExecutorHost
+	 * @param taskExecutorHost hosting task executor
 	 * @param executionDeploymentReport task executor report for deployed executions
 	 * @param expectedDeployedExecutionIds set of expected deployed executions
 	 */

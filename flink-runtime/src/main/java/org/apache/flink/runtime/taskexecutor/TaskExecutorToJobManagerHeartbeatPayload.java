@@ -17,12 +17,15 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import java.io.Serializable;
 import java.util.Collections;
 
 /**
  * Payload for heartbeats sent from the TaskExecutor to the JobManager.
  */
-public class TaskExecutorToJobManagerHeartbeatPayload {
+public class TaskExecutorToJobManagerHeartbeatPayload implements Serializable {
+
+	private static final long serialVersionUID = 525146950563585444L;
 
 	private final AccumulatorReport accumulatorReport;
 
