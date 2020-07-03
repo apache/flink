@@ -101,7 +101,8 @@ public class StreamTableEnvironmentImplTest {
 			env,
 			new TestPlanner(elements.getTransformation()),
 			new ExecutorMock(),
-			true
+			true,
+			this.getClass().getClassLoader()
 		);
 	}
 

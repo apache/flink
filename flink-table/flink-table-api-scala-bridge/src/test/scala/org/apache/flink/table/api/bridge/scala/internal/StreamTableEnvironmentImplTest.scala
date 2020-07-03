@@ -91,7 +91,8 @@ class StreamTableEnvironmentImplTest {
       env,
       new TestPlanner(elements.javaStream.getTransformation),
       new ExecutorMock,
-      true)
+      true,
+      this.getClass.getClassLoader)
   }
 
   private class TestPlanner(transformation: Transformation[_]) extends PlannerMock {

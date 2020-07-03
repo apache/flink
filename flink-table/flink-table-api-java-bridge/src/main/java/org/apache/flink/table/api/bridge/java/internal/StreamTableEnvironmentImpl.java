@@ -89,8 +89,17 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			StreamExecutionEnvironment executionEnvironment,
 			Planner planner,
 			Executor executor,
-			boolean isStreamingMode) {
-		super(catalogManager, moduleManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
+			boolean isStreamingMode,
+			ClassLoader userClassLoader) {
+		super(
+			catalogManager,
+			moduleManager,
+			tableConfig,
+			executor,
+			functionCatalog,
+			planner,
+			isStreamingMode,
+			userClassLoader);
 		this.executionEnvironment = executionEnvironment;
 	}
 
@@ -137,7 +146,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			executionEnvironment,
 			planner,
 			executor,
-			settings.isStreamingMode()
+			settings.isStreamingMode(),
+			classLoader
 		);
 	}
 

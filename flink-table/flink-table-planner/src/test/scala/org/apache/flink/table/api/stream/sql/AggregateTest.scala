@@ -79,7 +79,8 @@ class AggregateTest extends TableTestBase {
       Mockito.mock(classOf[StreamExecutionEnvironment]),
       new PlannerMock,
       Mockito.mock(classOf[Executor]),
-      true
+      true,
+      Thread.currentThread().getContextClassLoader
     )
 
     tablEnv.registerFunction("udag", new MyAgg)

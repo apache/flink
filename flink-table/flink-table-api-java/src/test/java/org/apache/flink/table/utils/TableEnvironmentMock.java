@@ -46,7 +46,15 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 			FunctionCatalog functionCatalog,
 			PlannerMock planner,
 			boolean isStreamingMode) {
-		super(catalogManager, moduleManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
+		super(
+			catalogManager,
+			moduleManager,
+			tableConfig,
+			executor,
+			functionCatalog,
+			planner,
+			isStreamingMode,
+			TableEnvironmentMock.class.getClassLoader());
 
 		this.catalogManager = catalogManager;
 		this.executor = executor;

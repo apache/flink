@@ -959,7 +959,8 @@ class TestingTableEnvironment private(
     executor: Executor,
     functionCatalog: FunctionCatalog,
     planner: PlannerBase,
-    isStreamingMode: Boolean)
+    isStreamingMode: Boolean,
+    userClassLoader: ClassLoader)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
@@ -967,7 +968,8 @@ class TestingTableEnvironment private(
     executor,
     functionCatalog,
     planner,
-    isStreamingMode) {
+    isStreamingMode,
+    userClassLoader) {
 
   // just for testing, remove this method while
   // `<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);`
@@ -1118,7 +1120,8 @@ object TestingTableEnvironment {
       executor,
       functionCatalog,
       planner,
-      settings.isStreamingMode)
+      settings.isStreamingMode,
+      classLoader)
   }
 }
 
