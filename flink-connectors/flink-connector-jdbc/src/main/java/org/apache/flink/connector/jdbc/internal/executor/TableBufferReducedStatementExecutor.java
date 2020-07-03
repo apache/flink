@@ -32,7 +32,7 @@ import java.util.function.Function;
  * Currently, this statement executor is only used for table/sql to buffer insert/update/delete
  * events, and reduce them in buffer before submit to external database.
  */
-public class BufferReduceStatementExecutor implements JdbcBatchStatementExecutor<RowData> {
+public final class TableBufferReducedStatementExecutor implements JdbcBatchStatementExecutor<RowData> {
 
 	private final JdbcBatchStatementExecutor<RowData> upsertExecutor;
 	private final JdbcBatchStatementExecutor<RowData> deleteExecutor;
@@ -41,7 +41,7 @@ public class BufferReduceStatementExecutor implements JdbcBatchStatementExecutor
 	// the mapping is [KEY, <+/-, VALUE>]
 	private final Map<RowData, Tuple2<Boolean, RowData>> reduceBuffer = new HashMap<>();
 
-	public BufferReduceStatementExecutor(
+	public TableBufferReducedStatementExecutor(
 			JdbcBatchStatementExecutor<RowData> upsertExecutor,
 			JdbcBatchStatementExecutor<RowData> deleteExecutor,
 			Function<RowData, RowData> keyExtractor,
@@ -87,12 +87,12 @@ public class BufferReduceStatementExecutor implements JdbcBatchStatementExecutor
 
 	@Override
 	public void executeBatch() throws SQLException {
-		// TODO: reuse the extracted key and avoid value copy in the future
-		for (Tuple2<Boolean, RowData> tuple : reduceBuffer.values()) {
-			if (tuple.f0) {
-				upsertExecutor.addToBatch(tuple.f1);
+		for (Map.Entry<RowData, Tuple2<Boolean, RowData>> entry : reduceBuffer.entrySet()) {
+			if (entry.getValue().f0) {
+				upsertExecutor.addToBatch(entry.getValue().f1);
 			} else {
-				deleteExecutor.addToBatch(tuple.f1);
+				// delete by key
+				deleteExecutor.addToBatch(entry.getKey());
 			}
 		}
 		upsertExecutor.executeBatch();
