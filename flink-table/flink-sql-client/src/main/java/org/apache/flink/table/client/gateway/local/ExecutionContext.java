@@ -424,7 +424,8 @@ public class ExecutionContext<ClusterID> {
 			Executor executor,
 			CatalogManager catalogManager,
 			ModuleManager moduleManager,
-			FunctionCatalog functionCatalog) {
+			FunctionCatalog functionCatalog,
+			ClassLoader userClassLoader) {
 
 		final Map<String, String> plannerProperties = settings.toPlannerProperties();
 		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
@@ -438,7 +439,8 @@ public class ExecutionContext<ClusterID> {
 			env,
 			planner,
 			executor,
-			settings.isStreamingMode());
+			settings.isStreamingMode(),
+			userClassLoader);
 	}
 
 	private static Executor lookupExecutor(
@@ -599,7 +601,8 @@ public class ExecutionContext<ClusterID> {
 					executor,
 					catalogManager,
 					moduleManager,
-					functionCatalog);
+					functionCatalog,
+					classLoader);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
 			execEnv = ExecutionEnvironment.getExecutionEnvironment();
