@@ -61,11 +61,14 @@ public class BufferReduceStatementExecutor implements JdbcBatchStatementExecutor
 	@Override
 	public void addToBatch(RowData record) throws SQLException {
 		RowData key = keyExtractor.apply(record);
-		reduceBuffer.put(key, Tuple2.of(changeFlag(record.getRowKind()), valueTransform.apply(record)));
+		boolean flag = changeFlag(record.getRowKind());
+		RowData value = valueTransform.apply(record); // copy or not
+		reduceBuffer.put(key, Tuple2.of(flag, value));
 	}
 
 	/**
-	 * Returns true if it is INSERT or UPDATE_AFTER, returns false if it is DELETE or UPDATE_BEFORE.
+	 * Returns true if the row kind is INSERT or UPDATE_AFTER,
+	 * returns false if the row kind is DELETE or UPDATE_BEFORE.
 	 */
 	private boolean changeFlag(RowKind rowKind) {
 		switch (rowKind) {

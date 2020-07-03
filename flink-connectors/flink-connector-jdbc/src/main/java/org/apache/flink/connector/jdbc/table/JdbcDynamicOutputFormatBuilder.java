@@ -38,7 +38,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.Row;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -203,7 +202,7 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 	}
 
 	/**
-	 * Creates a {@link JdbcStatementBuilder} for {@link Row} using the provided SQL types array.
+	 * Creates a {@link JdbcStatementBuilder} for {@link RowData} using the provided SQL types array.
 	 * Uses {@link JdbcUtils#setRecordToStatement}
 	 */
 	private static JdbcStatementBuilder<RowData> createRowDataJdbcStatementBuilder(JdbcDialect dialect, LogicalType[] types) {
