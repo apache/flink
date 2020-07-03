@@ -1604,8 +1604,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				}
 			}
 
-			getExecutionGraph().getExecutionStateUpdateListener().onStateUpdate(attemptId, state);
-
 			if (targetState.isTerminal()) {
 				// complete the terminal state future
 				terminalStateFuture.complete(targetState);

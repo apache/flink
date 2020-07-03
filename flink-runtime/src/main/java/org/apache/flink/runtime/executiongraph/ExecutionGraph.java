@@ -1683,6 +1683,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			return;
 		}
 
+		executionStateUpdateListener.onStateUpdate(execution.getAttemptId(), newExecutionState);
+
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
 			final Throwable ex = error != null ? error : new FlinkException("Unknown Error (missing cause)");
@@ -1737,9 +1739,5 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	ExecutionDeploymentListener getExecutionDeploymentListener() {
 		return executionDeploymentListener;
-	}
-
-	ExecutionStateUpdateListener getExecutionStateUpdateListener() {
-		return executionStateUpdateListener;
 	}
 }
