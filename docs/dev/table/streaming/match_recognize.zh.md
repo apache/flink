@@ -31,7 +31,7 @@ under the License.
 * 对与 `PARTITION BY` 和 `ORDER BY` 子句一起使用的数据进行逻辑分区和排序。
 * 使用 `PATTERN` 子句定义要查找的行的模式。这些模式使用类似于正则表达式的语法。
 * 行模式变量的逻辑组件在 `DEFINE` 子句中指定。
-* 在 `MEASURES` 子句中定义可用于 SQL 查询其他部分的表达式 measures。
+* measures 是指在 `MEASURES` 子句中定义的表达式，这些表达式可用在 SQL 查询中的其他部分。
 
 下面的示例演示了基本模式识别的语法：
 
