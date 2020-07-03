@@ -89,7 +89,7 @@ public enum FlinkSqlConformance implements SqlConformance {
 
 	@Override
 	public boolean isPercentRemainderAllowed() {
-		return false;
+		return true;
 	}
 
 	@Override
