@@ -170,7 +170,7 @@ public class TableSchemaTest {
 	public void testDifferentWatermarkStrategyOutputTypes() {
 		List<Tuple2<DataType, String>> testData = new ArrayList<>();
 		testData.add(Tuple2.of(DataTypes.BIGINT(), "but is of type 'BIGINT'"));
-		testData.add(Tuple2.of(DataTypes.STRING(), "but is of type 'VARCHAR(2147483647)'"));
+		testData.add(Tuple2.of(DataTypes.STRING(), "but is of type 'STRING'"));
 		testData.add(Tuple2.of(DataTypes.INT(), "but is of type 'INT'"));
 		testData.add(Tuple2.of(DataTypes.TIMESTAMP(), "PASS"));
 		testData.add(Tuple2.of(DataTypes.TIMESTAMP(0), "PASS"));

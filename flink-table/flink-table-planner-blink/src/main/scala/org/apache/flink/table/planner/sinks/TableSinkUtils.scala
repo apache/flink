@@ -89,10 +89,10 @@ object TableSinkUtils {
     } else {
       // format query and sink schema strings
       val srcSchema = queryLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSerializableString()}")
+        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
         .mkString("[", ", ", "]")
       val sinkSchema = sinkLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSerializableString()}")
+        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
         .mkString("[", ", ", "]")
 
       val sinkDesc: String = sinkIdentifier.getOrElse("")

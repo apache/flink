@@ -339,4 +339,22 @@ class TableScanTest extends TableTestBase {
     thrown.expectMessage("DynamicTableSource with SupportsFilterPushDown ability is not supported")
     util.verifyPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testInvalidWatermarkOutputType(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Watermark strategy '' must be of type TIMESTAMP but is of type 'CHAR(0) NOT NULL'.")
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR `ts` AS ''
+        |) WITH (
+        |  'connector' = 'values'
+        |)
+      """.stripMargin)
+  }
 }
