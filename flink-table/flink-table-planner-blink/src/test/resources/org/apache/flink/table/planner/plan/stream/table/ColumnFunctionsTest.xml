@@ -158,7 +158,7 @@ LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$($2)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc0$(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+Correlate(correlate=[table(org$apache$flink$table$planner$utils$TableFunc0$(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]], fields=[int, long, string])
 ]]>
     </Resource>

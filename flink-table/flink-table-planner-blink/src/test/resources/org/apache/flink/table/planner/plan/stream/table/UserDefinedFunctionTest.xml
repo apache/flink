@@ -114,17 +114,17 @@ LogicalProject(c=[$0], i=[$1], k=[$2], j=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$($0)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc2$(c))], select=[c,i,k,j], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) i, VARCHAR(2147483647) k, INTEGER j)], joinType=[INNER])
+Correlate(correlate=[table(org$apache$flink$table$planner$utils$TableFunc2$(c))], select=[c,i,k,j], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) i, VARCHAR(2147483647) k, INTEGER j)], joinType=[INNER])
 +- Calc(select=[c, i])
-   +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc5$e0824bf457765a5e237b5e909b21aa2a($1)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc5$e0824bf457765a5e237b5e909b21aa2a(h))], select=[c,h,i], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) h, VARCHAR(2147483647) i)], joinType=[INNER])
+   +- Correlate(correlate=[table(org$apache$flink$table$planner$utils$TableFunc5$e0824bf457765a5e237b5e909b21aa2a(h))], select=[c,h,i], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) h, VARCHAR(2147483647) i)], joinType=[INNER])
       +- Calc(select=[c, h])
-         +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc5$c693457a0ee603ab3a7b5ddbb73042cf($1)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc5$c693457a0ee603ab3a7b5ddbb73042cf(f))], select=[c,f,h], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) f, VARCHAR(2147483647) h)], joinType=[INNER])
+         +- Correlate(correlate=[table(org$apache$flink$table$planner$utils$TableFunc5$c693457a0ee603ab3a7b5ddbb73042cf(f))], select=[c,f,h], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) f, VARCHAR(2147483647) h)], joinType=[INNER])
             +- Calc(select=[c, f])
-               +- Correlate(invocation=[table_func5($1)], correlate=[table(table_func5(e))], select=[c,e,f], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) e, VARCHAR(2147483647) f)], joinType=[INNER])
+               +- Correlate(correlate=[table(table_func5(e))], select=[c,e,f], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) e, VARCHAR(2147483647) f)], joinType=[INNER])
                   +- Calc(select=[c, e])
-                     +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$($1)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc1$(d))], select=[c,d,e], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) d, VARCHAR(2147483647) e)], joinType=[INNER])
+                     +- Correlate(correlate=[table(org$apache$flink$table$planner$utils$TableFunc1$(d))], select=[c,d,e], rowType=[RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) d, VARCHAR(2147483647) e)], joinType=[INNER])
                         +- Calc(select=[c, d])
-                           +- Correlate(invocation=[table_func1($2)], correlate=[table(table_func1(c))], select=[a,b,c,d], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, VARCHAR(2147483647) d)], joinType=[INNER])
+                           +- Correlate(correlate=[table(table_func1(c))], select=[a,b,c,d], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, VARCHAR(2147483647) d)], joinType=[INNER])
                               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

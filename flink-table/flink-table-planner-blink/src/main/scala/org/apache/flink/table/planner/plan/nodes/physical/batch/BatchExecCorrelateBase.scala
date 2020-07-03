@@ -71,11 +71,9 @@ abstract class BatchExecCorrelateBase(
       outputType: RelDataType): RelNode
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
     super.explainTerms(pw)
-      .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
-        input.getRowType, rexCall, getExpressionString))
+        input.getRowType, scan.getCall.asInstanceOf[RexCall], getExpressionString))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

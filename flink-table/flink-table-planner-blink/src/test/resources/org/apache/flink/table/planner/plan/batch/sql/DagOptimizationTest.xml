@@ -648,7 +648,7 @@ Calc(select=[a, total_c], reuse_id=[2])
             +- Exchange(distribution=[hash[a, b, c]])
                +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
                   +- Calc(select=[a, b, f0 AS c])
-                     +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+                     +- Correlate(correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
                         +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}')), <>(c, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
                            +- Reused(reference_id=[1])
 
@@ -836,7 +836,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a,
     <Resource name="planAfter">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
-+- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER])
++- Correlate(correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- HashJoin(joinType=[InnerJoin], where=[=(a, i)], select=[a, b, c, d, e, f, i, j, k, l, m], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- HashJoin(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, c, d, e, f], build=[right])

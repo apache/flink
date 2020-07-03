@@ -361,7 +361,7 @@ Calc(select=[a, total_c], changelogMode=[I,UB,UA], reuse_id=[2])
 +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(DISTINCT c) AS total_c], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
       +- Calc(select=[a, b, f0 AS c], changelogMode=[I])
-         +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
+         +- Correlate(correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
             +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}')), <>(c, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], changelogMode=[I])
                +- Reused(reference_id=[1])
 
@@ -860,7 +860,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
     <Resource name="planAfter">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s], changelogMode=[NONE])
-+- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
++- Correlate(correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
    +- Join(joinType=[InnerJoin], where=[=(a, i)], select=[a, b, c, d, e, f, i, j, k, l, m], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a]], changelogMode=[I])
       :  +- Join(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
