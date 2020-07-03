@@ -103,11 +103,11 @@ public class TaskExecutorITCase extends TestLogger {
 
 		miniCluster.startTaskExecutor();
 
+		final JobGraph newJobGraph = createJobGraph(PARALLELISM);
 		BlockingOperator.unblock();
+		miniCluster.submitJob(newJobGraph).get();
 
-		miniCluster.submitJob(jobGraph).get();
-
-		miniCluster.requestJobResult(jobGraph.getJobID()).get();
+		miniCluster.requestJobResult(newJobGraph.getJobID()).get();
 	}
 
 	/**
