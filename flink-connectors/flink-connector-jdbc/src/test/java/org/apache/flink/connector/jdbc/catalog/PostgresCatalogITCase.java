@@ -53,6 +53,13 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	}
 
 	@Test
+	public void testSelectField() {
+		List<Row> results = Lists.newArrayList(
+			tEnv.sqlQuery(String.format("select id from %s", TABLE1)).execute().collect());
+		assertEquals("[1]", results.toString());
+	}
+
+	@Test
 	public void testWithoutSchema() {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE1)).execute().collect());
