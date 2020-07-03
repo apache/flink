@@ -91,8 +91,8 @@ are supported. Additional features may be supported based on community feeback, 
 * [MEASURES](#define--measures) - 定义子句的输出；类似于 `SELECT` 子句。
 * [ONE ROW PER MATCH](#输出方式) - 输出方式，定义每个匹配项应产生多少行。
 * [AFTER MATCH SKIP](#匹配后的策略) - 指定下一个匹配的开始位置；这也是一种控制单个事件可以属于多少个不同匹配的方法。
-* [PATTERN](#定义模式) - 允许使用类似于 _正则表达式_ 的语法构造将要搜索的模式。
-* [DEFINE](#define--measures) - 本节定义模式变量必须满足的条件。
+* [PATTERN](#定义模式) - 允许使用类似于 _正则表达式_ 的语法构造搜索的模式。
+* [DEFINE](#define--measures) - 本部分定义了模式变量必须满足的条件。
 
 <span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于追加表（[append table](dynamic_tables.html#更新和追加查询)）。此外，它还总是生成一个追加表。
 
