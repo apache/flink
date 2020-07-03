@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.filesystem.PartitionTimeExtractor;
 import org.apache.flink.util.StringUtils;
 
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
@@ -126,7 +126,8 @@ public class PartitionTimeCommitTigger implements PartitionCommitTrigger {
 			String partition = iter.next();
 			LocalDateTime partTime = extractor.extract(
 					partitionKeys, extractPartitionValues(new Path(partition)));
-			if (watermark > toMills(partTime) + commitDelay) {
+			long pTime = TimestampData.fromLocalDateTime(partTime).toTimestamp().getTime();
+			if (watermark > pTime + commitDelay) {
 				needCommit.add(partition);
 				iter.remove();
 			}
