@@ -64,6 +64,7 @@ public class ClassLoaderUtils {
 
 	private static File writeSourceFile(File root, String filename, String source) throws IOException {
 		File file = new File(root, filename);
+		file.getParentFile().mkdirs();
 		FileWriter fileWriter = new FileWriter(file);
 
 		fileWriter.write(source);
@@ -102,10 +103,22 @@ public class ClassLoaderUtils {
 
 		private final File root;
 		private final Map<String, String> classes;
+		private final Map<String, String> resources;
 
 		private ClassLoaderBuilder(File root) {
 			this.root = root;
 			this.classes = new HashMap<>();
+			this.resources = new HashMap<>();
+		}
+
+		public ClassLoaderBuilder addResource(String targetPath, String resource){
+			String oldValue = resources.putIfAbsent(targetPath, resource);
+
+			if (oldValue != null) {
+				throw new RuntimeException(String.format("Resource with path %s already registered.", resource));
+			}
+
+			return this;
 		}
 
 		public ClassLoaderBuilder addClass(String className, String source) {
@@ -121,6 +134,10 @@ public class ClassLoaderUtils {
 		public URLClassLoader build() throws IOException {
 			for (Map.Entry<String, String> classInfo : classes.entrySet()) {
 				writeAndCompile(root, createFileName(classInfo.getKey()), classInfo.getValue());
+			}
+
+			for (Map.Entry<String, String> resource : resources.entrySet()) {
+				writeSourceFile(root, resource.getKey(), resource.getValue());
 			}
 
 			return createClassLoader(root);
