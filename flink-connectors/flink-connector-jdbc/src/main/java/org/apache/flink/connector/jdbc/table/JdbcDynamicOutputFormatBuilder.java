@@ -116,11 +116,11 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createKeyedRowExecutor(
-		JdbcDialect dialect,
-		int[] pkFields,
-		LogicalType[] pkTypes,
-		String sql,
-		LogicalType[] logicalTypes) {
+			JdbcDialect dialect,
+			int[] pkFields,
+			LogicalType[] pkTypes,
+			String sql,
+			LogicalType[] logicalTypes) {
 		final JdbcRowConverter rowConverter = dialect.getRowConverter(RowType.of(pkTypes));
 		final Function<RowData, RowData> keyExtractor = createRowKeyExtractor(logicalTypes, pkFields);
 		return JdbcBatchStatementExecutor.keyed(
@@ -130,10 +130,10 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createBufferReduceExecutor(
-		JdbcDmlOptions opt,
-		RuntimeContext ctx,
-		TypeInformation<RowData> rowDataTypeInfo,
-		LogicalType[] fieldTypes) {
+			JdbcDmlOptions opt,
+			RuntimeContext ctx,
+			TypeInformation<RowData> rowDataTypeInfo,
+			LogicalType[] fieldTypes) {
 		checkArgument(opt.getKeyFields().isPresent());
 		int[] pkFields = Arrays.stream(opt.getKeyFields().get()).mapToInt(Arrays.asList(opt.getFieldNames())::indexOf).toArray();
 		LogicalType[] pkTypes = Arrays.stream(pkFields).mapToObj(f -> fieldTypes[f]).toArray(LogicalType[]::new);
@@ -151,13 +151,13 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createUpsertRowExecutor(
-		JdbcDmlOptions opt,
-		RuntimeContext ctx,
-		TypeInformation<RowData> rowDataTypeInfo,
-		int[] pkFields,
-		LogicalType[] pkTypes,
-		LogicalType[] fieldTypes,
-		Function<RowData, RowData> valueTransform) {
+			JdbcDmlOptions opt,
+			RuntimeContext ctx,
+			TypeInformation<RowData> rowDataTypeInfo,
+			int[] pkFields,
+			LogicalType[] pkTypes,
+			LogicalType[] fieldTypes,
+			Function<RowData, RowData> valueTransform) {
 		checkArgument(opt.getKeyFields().isPresent());
 		JdbcDialect dialect = opt.getDialect();
 		return opt.getDialect()
@@ -176,10 +176,10 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createDeleteExecutor(
-		JdbcDmlOptions dmlOptions,
-		int[] pkFields,
-		LogicalType[] pkTypes,
-		LogicalType[] fieldTypes) {
+			JdbcDmlOptions dmlOptions,
+			int[] pkFields,
+			LogicalType[] pkTypes,
+			LogicalType[] fieldTypes) {
 		checkArgument(dmlOptions.getKeyFields().isPresent());
 		String[] pkNames = Arrays.stream(pkFields).mapToObj(k -> dmlOptions.getFieldNames()[k]).toArray(String[]::new);
 		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), pkNames);

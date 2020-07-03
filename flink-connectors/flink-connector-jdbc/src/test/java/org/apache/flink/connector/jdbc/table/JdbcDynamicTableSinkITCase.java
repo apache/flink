@@ -314,7 +314,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			"  'connector' = 'jdbc'," +
 			"  'url'='" + DB_URL + "'," +
 			"  'table-name' = '" + USER_TABLE + "'," +
-			"  'sink.buffer-flush.max-rows' = '2'," +
+			"  'sink.buffer-flush.max-rows' = '100'," +
 			"  'sink.buffer-flush.interval' = '0'" + // disable async flush
 			")");
 		TableEnvUtil.execInsertSqlAndWaitResult(
