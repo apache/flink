@@ -74,8 +74,6 @@ import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -553,11 +551,7 @@ public class SqlToOperationConverter {
 		sqlCreateCatalog.getPropertyList().getList().forEach(p ->
 			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 
-		final CatalogFactory factory =
-			TableFactoryService.find(CatalogFactory.class, properties, this.getClass().getClassLoader());
-
-		Catalog catalog = factory.createCatalog(catalogName, properties);
-		return new CreateCatalogOperation(catalogName, catalog);
+		return new CreateCatalogOperation(catalogName, properties);
 	}
 
 	/** Convert DROP CATALOG statement. */
