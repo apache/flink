@@ -57,6 +57,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test suite for {@link JdbcDynamicOutputFormatBuilder}.
@@ -108,6 +109,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
 				.build();
 			outputFormat.open(0, 1);
+			fail("Expected exception is not thrown.");
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, IOException.class).isPresent());
 			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
@@ -136,6 +138,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
 				.build();
 			outputFormat.open(0, 1);
+			fail("Expected exception is not thrown.");
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, NullPointerException.class).isPresent());
 			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
@@ -170,6 +173,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			RowData row = buildGenericData(4, "hello", "world", 0.99, "imthewrongtype");
 			outputFormat.writeRecord(row);
 			outputFormat.close();
+			fail("Expected exception is not thrown.");
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
 		}
@@ -203,6 +207,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			RowData row = buildGenericData(entry.id, entry.title, entry.author, 0L, entry.qty);
 			outputFormat.writeRecord(row);
 			outputFormat.close();
+			fail("Expected exception is not thrown.");
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
 		}
@@ -238,8 +243,9 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
 			outputFormat.writeRecord(row);
 			outputFormat.writeRecord(row); // writing the same record twice must yield a unique key violation.
-
 			outputFormat.close();
+
+			fail("Expected exception is not thrown.");
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, RuntimeException.class).isPresent());
 			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());

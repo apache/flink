@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
@@ -81,7 +82,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	}
 
 	@Override
-	public PreparedStatement toExternal(RowData rowData, PreparedStatement statement) throws SQLException {
+	public FieldNamedPreparedStatement toExternal(RowData rowData, FieldNamedPreparedStatement statement) throws SQLException {
 		for (int index = 0; index < rowData.getArity(); index++) {
 			toExternalConverters[index].serialize(rowData, index, statement);
 		}
@@ -105,7 +106,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	 */
 	@FunctionalInterface
 	interface JdbcSerializationConverter extends Serializable {
-		void serialize(RowData rowData, int index, PreparedStatement statement) throws SQLException;
+		void serialize(RowData rowData, int index, FieldNamedPreparedStatement statement) throws SQLException;
 	}
 
 	/**
@@ -188,7 +189,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 			TypeConversions.fromLogicalToDataType(type)));
 		return (val, index, statement)  -> {
 			if (val == null || val.isNullAt(index) || LogicalTypeRoot.NULL.equals(type.getTypeRoot())) {
-				statement.setNull(index + 1, sqlType);
+				statement.setNull(index, sqlType);
 			} else {
 				jdbcSerializationConverter.serialize(val, index, statement);
 			}
@@ -198,47 +199,47 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	protected JdbcSerializationConverter createExternalConverter(LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case BOOLEAN:
-				return (val, index, statement) -> statement.setBoolean(index + 1, val.getBoolean(index));
+				return (val, index, statement) -> statement.setBoolean(index, val.getBoolean(index));
 			case TINYINT:
-				return (val, index, statement) -> statement.setByte(index + 1, val.getByte(index));
+				return (val, index, statement) -> statement.setByte(index, val.getByte(index));
 			case SMALLINT:
-				return (val, index, statement) -> statement.setShort(index + 1, val.getShort(index));
+				return (val, index, statement) -> statement.setShort(index, val.getShort(index));
 			case INTEGER:
 			case INTERVAL_YEAR_MONTH:
-				return (val, index, statement) -> statement.setInt(index + 1, val.getInt(index));
+				return (val, index, statement) -> statement.setInt(index, val.getInt(index));
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
-				return (val, index, statement) -> statement.setLong(index + 1, val.getLong(index));
+				return (val, index, statement) -> statement.setLong(index, val.getLong(index));
 			case FLOAT:
-				return (val, index, statement) -> statement.setFloat(index + 1, val.getFloat(index));
+				return (val, index, statement) -> statement.setFloat(index, val.getFloat(index));
 			case DOUBLE:
-				return (val, index, statement) -> statement.setDouble(index + 1, val.getDouble(index));
+				return (val, index, statement) -> statement.setDouble(index, val.getDouble(index));
 			case CHAR:
 			case VARCHAR:
 				// value is BinaryString
-				return (val, index, statement) -> statement.setString(index + 1, val.getString(index).toString());
+				return (val, index, statement) -> statement.setString(index, val.getString(index).toString());
 			case BINARY:
 			case VARBINARY:
-				return (val, index, statement) -> statement.setBytes(index + 1, val.getBinary(index));
+				return (val, index, statement) -> statement.setBytes(index, val.getBinary(index));
 			case DATE:
 				return (val, index, statement) ->
-					statement.setDate(index + 1, Date.valueOf(LocalDate.ofEpochDay(val.getInt(index))));
+					statement.setDate(index, Date.valueOf(LocalDate.ofEpochDay(val.getInt(index))));
 			case TIME_WITHOUT_TIME_ZONE:
 				return (val, index, statement) ->
-					statement.setTime(index + 1, Time.valueOf(LocalTime.ofNanoOfDay(val.getInt(index) * 1_000_000L)));
+					statement.setTime(index, Time.valueOf(LocalTime.ofNanoOfDay(val.getInt(index) * 1_000_000L)));
 			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				final int timestampPrecision = ((TimestampType) type).getPrecision();
 				return (val, index, statement) ->
 					statement.setTimestamp(
-						index + 1,
+						index,
 						val.getTimestamp(index, timestampPrecision).toTimestamp());
 			case DECIMAL:
 				final int decimalPrecision = ((DecimalType) type).getPrecision();
 				final int decimalScale = ((DecimalType) type).getScale();
 				return (val, index, statement) ->
 					statement.setBigDecimal(
-						index + 1,
+						index,
 						val.getDecimal(index, decimalPrecision, decimalScale).toBigDecimal());
 			case ARRAY:
 			case MAP:

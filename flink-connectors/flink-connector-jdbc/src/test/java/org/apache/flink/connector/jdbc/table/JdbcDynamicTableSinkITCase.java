@@ -200,7 +200,9 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table-name'='" + OUTPUT_TABLE1 + "'" +
+				"  'table-name'='" + OUTPUT_TABLE1 + "'," +
+				"  'sink.buffer-flush.max-rows' = '2'," +
+				"  'sink.buffer-flush.interval' = '0'" +
 				")");
 
 		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink \n" +
@@ -314,7 +316,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			"  'connector' = 'jdbc'," +
 			"  'url'='" + DB_URL + "'," +
 			"  'table-name' = '" + USER_TABLE + "'," +
-			"  'sink.buffer-flush.max-rows' = '100'," +
+			"  'sink.buffer-flush.max-rows' = '2'," +
 			"  'sink.buffer-flush.interval' = '0'" + // disable async flush
 			")");
 		TableEnvUtil.execInsertSqlAndWaitResult(

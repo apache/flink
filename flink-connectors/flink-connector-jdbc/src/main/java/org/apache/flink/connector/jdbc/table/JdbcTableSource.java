@@ -25,6 +25,7 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -40,6 +41,7 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
@@ -186,8 +188,11 @@ public class JdbcTableSource implements
 
 	private String getBaseQueryStatement(RowTypeInfo rowTypeInfo) {
 		return readOptions.getQuery().orElseGet(() ->
-			options.getDialect().getSelectFromStatement(
-				options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]));
+			FieldNamedPreparedStatementImpl.parseNamedStatement(
+				options.getDialect().getSelectFromStatement(options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]),
+				new HashMap<>()
+			)
+		);
 	}
 
 	@Override
