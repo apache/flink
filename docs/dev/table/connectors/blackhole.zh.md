@@ -74,7 +74,7 @@ LIKE source_table (EXCLUDING ALL)
     <thead>
       <tr>
         <th class="text-left" style="width: 25%">选项</th>
-        <th class="text-center" style="width: 8%">是否必要</th>
+        <th class="text-center" style="width: 9%">是否必要</th>
         <th class="text-center" style="width: 7%">默认值</th>
         <th class="text-center" style="width: 10%">类型</th>
         <th class="text-center" style="width: 50%">描述</th>
