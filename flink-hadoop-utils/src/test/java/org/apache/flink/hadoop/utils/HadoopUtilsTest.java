@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.hadoop.utils;
 
 import org.apache.flink.util.TestLogger;
 
@@ -31,7 +31,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import sun.security.krb5.KrbException;
 
-import static org.apache.flink.runtime.util.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
+import static org.apache.flink.hadoop.utils.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;

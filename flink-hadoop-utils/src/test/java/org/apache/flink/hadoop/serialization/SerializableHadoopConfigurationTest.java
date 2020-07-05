@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.sequencefile;
+package org.apache.flink.hadoop.serialization;
 
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Description;
@@ -70,9 +70,9 @@ public class SerializableHadoopConfigurationTest {
 			@Override
 			public void describeTo(Description description) {
 				description.appendText("a Hadoop Configuration with property: key=")
-						.appendValue(TEST_KEY)
-						.appendText(" and value=")
-						.appendValue(TEST_VALUE);
+					.appendValue(TEST_KEY)
+					.appendText(" and value=")
+					.appendValue(TEST_VALUE);
 			}
 		};
 	}
@@ -81,8 +81,8 @@ public class SerializableHadoopConfigurationTest {
 
 	private byte[] serializeAndGetBytes(SerializableHadoopConfiguration serializableConfigUnderTest) throws IOException {
 		try (
-				ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-				ObjectOutputStream out = new ObjectOutputStream(byteStream)
+			ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(byteStream)
 		) {
 			out.writeObject(serializableConfigUnderTest);
 			out.flush();
@@ -96,3 +96,4 @@ public class SerializableHadoopConfigurationTest {
 		}
 	}
 }
+

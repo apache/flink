@@ -21,7 +21,7 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopUtils;
 
 import org.junit.Rule;
 import org.junit.Test;

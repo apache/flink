@@ -21,6 +21,7 @@ package org.apache.flink.orc.writer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.hadoop.serialization.SerializableHadoopConfiguration;
 import org.apache.flink.orc.vector.Vectorizer;
 
 import org.apache.hadoop.conf.Configuration;
@@ -29,8 +30,6 @@ import org.apache.orc.OrcFile;
 import org.apache.orc.impl.WriterImpl;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,7 +55,7 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 
 	private final Vectorizer<T> vectorizer;
 	private final Properties writerProperties;
-	private final Map<String, String> confMap;
+	private final SerializableHadoopConfiguration serializableHadoopConf;
 
 	private OrcFile.WriterOptions writerOptions;
 
@@ -93,12 +92,7 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 	public OrcBulkWriterFactory(Vectorizer<T> vectorizer, Properties writerProperties, Configuration configuration) {
 		this.vectorizer = checkNotNull(vectorizer);
 		this.writerProperties = writerProperties;
-		this.confMap = new HashMap<>();
-
-		// Todo: Replace the Map based approach with a better approach
-		for (Map.Entry<String, String> entry : configuration) {
-			confMap.put(entry.getKey(), entry.getValue());
-		}
+		this.serializableHadoopConf = new SerializableHadoopConfiguration(checkNotNull(configuration));
 	}
 
 	@Override
@@ -111,12 +105,7 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 
 	private OrcFile.WriterOptions getWriterOptions() {
 		if (null == writerOptions) {
-			Configuration conf = new ThreadLocalClassLoaderConfiguration();
-			for (Map.Entry<String, String> entry : confMap.entrySet()) {
-				conf.set(entry.getKey(), entry.getValue());
-			}
-
-			writerOptions = OrcFile.writerOptions(writerProperties, conf);
+			writerOptions = OrcFile.writerOptions(writerProperties, this.serializableHadoopConf.get());
 			writerOptions.setSchema(this.vectorizer.getSchema());
 		}
 

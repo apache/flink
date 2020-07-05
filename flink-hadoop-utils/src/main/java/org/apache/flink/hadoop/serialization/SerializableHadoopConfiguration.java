@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.sequencefile;
+package org.apache.flink.hadoop.serialization;
 
 import org.apache.hadoop.conf.Configuration;
 
@@ -28,17 +28,17 @@ import java.io.Serializable;
 /**
  * Wrapper class for serialization of {@link Configuration}.
  */
-class SerializableHadoopConfiguration implements Serializable {
+public class SerializableHadoopConfiguration implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private transient Configuration hadoopConfig;
 
-	SerializableHadoopConfiguration(Configuration hadoopConfig) {
+	public SerializableHadoopConfiguration(Configuration hadoopConfig) {
 		this.hadoopConfig = hadoopConfig;
 	}
 
-	Configuration get() {
+	public Configuration get() {
 		return this.hadoopConfig;
 	}
 

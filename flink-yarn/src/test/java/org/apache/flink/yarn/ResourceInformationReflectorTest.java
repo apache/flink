@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Resource;

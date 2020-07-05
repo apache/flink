@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream.Committer;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopUtils;
 
 import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;

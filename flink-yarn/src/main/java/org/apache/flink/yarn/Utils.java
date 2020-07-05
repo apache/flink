@@ -18,9 +18,9 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.hadoop.utils.HadoopUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;

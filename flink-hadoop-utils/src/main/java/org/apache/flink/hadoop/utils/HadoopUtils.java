@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.hadoop.utils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -179,7 +179,7 @@ public class HadoopUtils {
 
 		if (versionParts.length < 2) {
 			throw new FlinkRuntimeException(
-					"Cannot determine version of Hadoop, unexpected version string: " + versionString);
+				"Cannot determine version of Hadoop, unexpected version string: " + versionString);
 		}
 
 		int maj = Integer.parseInt(versionParts[0]);
@@ -206,4 +206,5 @@ public class HadoopUtils {
 		}
 		return foundHadoopConfiguration;
 	}
+
 }
