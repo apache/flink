@@ -17,8 +17,7 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, _to_java_type
-from pyflink.util import utils
+from pyflink.table.types import _to_java_type
 
 __all__ = ['TableSource', 'CsvTableSource']
 
@@ -36,6 +35,11 @@ class CsvTableSource(TableSource):
     """
     A :class:`TableSource` for simple CSV files with a
     (logically) unlimited number of fields.
+
+    Example:
+    ::
+
+        >>> CsvTableSource("/csv/file/path", ["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
 
     :param source_path: The path to the CSV file.
     :type source_path: str
@@ -55,6 +59,8 @@ class CsvTableSource(TableSource):
     :type ignore_comments: str, optional
     :param lenient: Flag to skip records with parse error instead to fail, false by default.
     :type lenient: bool, optional
+    :param empty_column_as_null: Treat empty column as null, false by default.
+    :type empty_column_as_null: bool, optional
     """
 
     def __init__(
@@ -68,6 +74,7 @@ class CsvTableSource(TableSource):
         ignore_first_line=None,
         ignore_comments=None,
         lenient=None,
+        empty_column_as_null=None,
     ):
         gateway = get_gateway()
 
@@ -106,5 +113,8 @@ class CsvTableSource(TableSource):
 
         if lenient:
             builder.ignoreParseErrors()
+
+        if empty_column_as_null:
+            builder.emptyColumnAsNull()
 
         super(CsvTableSource, self).__init__(builder.build())
