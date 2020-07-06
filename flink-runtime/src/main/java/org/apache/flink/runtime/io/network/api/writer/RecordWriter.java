@@ -90,6 +90,9 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	/** To avoid synchronization overhead on the critical path, best-effort error tracking is enough here.*/
 	private Throwable flusherException;
+	private volatile Throwable volatileFlusherException;
+	private int volatileFlusherExceptionCheckSkipCount;
+	private static final int VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT = 100;
 
 	RecordWriter(ResultPartitionWriter writer, long timeout, String taskName) {
 		this.targetPartition = writer;
@@ -271,12 +274,18 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		if (flusherException == null) {
 			LOG.error("An exception happened while flushing the outputs", t);
 			flusherException = t;
+			volatileFlusherException = t;
 		}
 	}
 
 	protected void checkErroneous() throws IOException {
-		if (flusherException != null) {
-			throw new IOException("An exception happened while flushing the outputs", flusherException);
+		// For performance reasons, we are not checking volatile field every single time.
+		if (flusherException != null ||
+				(volatileFlusherExceptionCheckSkipCount >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT && volatileFlusherException != null)) {
+			throw new IOException("An exception happened while flushing the outputs", volatileFlusherException);
+		}
+		if (++volatileFlusherExceptionCheckSkipCount >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT) {
+			volatileFlusherExceptionCheckSkipCount = 0;
 		}
 	}
 
