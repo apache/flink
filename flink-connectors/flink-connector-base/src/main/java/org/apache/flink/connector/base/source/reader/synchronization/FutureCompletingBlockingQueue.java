@@ -36,9 +36,19 @@ import java.util.concurrent.TimeUnit;
  * @param <T> the type of the elements in the queue.
  */
 public class FutureCompletingBlockingQueue<T> extends LinkedBlockingQueue<T> {
+
 	private final FutureNotifier futureNotifier;
+	/**
+	 * The default capacity for {@link LinkedBlockingQueue}.
+	 */
+	private static final Integer DEFAULT_CAPACITY = 10000;
 
 	public FutureCompletingBlockingQueue(FutureNotifier futureNotifier) {
+		this(futureNotifier, DEFAULT_CAPACITY);
+	}
+
+	public FutureCompletingBlockingQueue(FutureNotifier futureNotifier, int capacity) {
+		super(capacity);
 		this.futureNotifier = futureNotifier;
 	}
 
