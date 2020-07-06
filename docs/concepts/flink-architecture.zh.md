@@ -250,18 +250,3 @@ isolation guarantees.
 <div class="alert alert-info"> <strong>Note:</strong> A Flink Job Cluster can be seen as a “run-on-client” alternative to Flink Application Clusters. </div>
 
 {% top %}
-
-## Self-contained Flink Applications
-
-When you want to create and deploy something like an event-driven application, it doesn’t make
-sense that you have to think about and manage a cluster. So, there are efforts
-in the community towards fully enabling _Flink-as-a-Library_ in the future.
-
-The idea is that deploying a Flink Application becomes as easy as starting a
-process: Flink would be like any other library which you add to your application, with no effect on how you deploy it. When you want to deploy such an
-application, it simply starts a set of processes which connect to each other,
-figure out their roles (e.g. JobManager, TaskManager) and execute the
-application in a distributed, parallel way. If the application cannot keep up
-with the workload, Flink automatically starts new processes to rescale (i.e. auto-scaling).
-
-{% top %}
