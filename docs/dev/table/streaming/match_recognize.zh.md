@@ -65,7 +65,7 @@ FROM MyTable
 
 ### 安装指南
 
-模式识别特性在使用 Apache Flink 内部的 CEP 库。为了能够使用 `MATCH_RECOGNIZE` 子句，需要将库作为依赖项添加到 Maven 项目中。
+模式识别特性使用 Apache Flink 内部的 CEP 库。为了能够使用 `MATCH_RECOGNIZE` 子句，需要将库作为依赖项添加到 Maven 项目中。
 
 {% highlight xml %}
 <dependency>
