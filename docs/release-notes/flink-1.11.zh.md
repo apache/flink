@@ -45,6 +45,9 @@ Flink project does not provide any updated "flink-shaded-hadoop-*" jars.
 Users need to provide Hadoop dependencies through the HADOOP_CLASSPATH environment variable (recommended) or via `lib/` folder.
 Also, the `include-hadoop` Maven profile has been removed.
 
+#### `flink-csv` and `flink-json` are bundled in lib folder ([FLINK-18173](https://issues.apache.org/jira/browse/FLINK-18173))
+There is no need to download manually jar files for `flink-csv` and `flink-json` formats as they are now bundled in the `lib` folder.
+
 #### Removal of `LegacyScheduler` ([FLINK-15629](https://issues.apache.org/jira/browse/FLINK-15629))
 Flink no longer supports the legacy scheduler. 
 Hence, setting `jobmanager.scheduler: legacy` will no longer work and fail with an `IllegalArgumentException`. 
