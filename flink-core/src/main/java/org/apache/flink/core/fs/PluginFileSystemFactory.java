@@ -62,6 +62,11 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 		}
 	}
 
+	@Override
+	public String toString() {
+		return String.format("Plugin %s", inner.getClass().getName());
+	}
+
 	static class ClassLoaderFixingFileSystem extends FileSystem {
 		private final FileSystem inner;
 		private final ClassLoader loader;
