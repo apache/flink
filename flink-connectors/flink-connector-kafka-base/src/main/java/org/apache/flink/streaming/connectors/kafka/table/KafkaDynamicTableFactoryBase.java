@@ -54,6 +54,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOP
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getFlinkKafkaPartitioner;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getStartupOptions;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.transformSemantic;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableOptions;
 
 /**
@@ -77,7 +78,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 		// Validate the option data type.
 		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
 		// Validate the option values.
-		validateTableOptions(tableOptions, factoryIdentifier());
+		validateTableOptions(tableOptions);
 
 		DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 		final KafkaOptions.StartupOptions startupOptions = getStartupOptions(tableOptions, topic);
@@ -105,7 +106,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 		// Validate the option data type.
 		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
 		// Validate the option values.
-		validateTableOptions(tableOptions, factoryIdentifier());
+		validateTableOptions(tableOptions);
 
 		DataType consumedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 		return createKafkaTableSink(
@@ -114,7 +115,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 				getKafkaProperties(context.getCatalogTable().getOptions()),
 				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
 				encodingFormat,
-				semantic);
+				transformSemantic(semantic));
 	}
 
 	/**

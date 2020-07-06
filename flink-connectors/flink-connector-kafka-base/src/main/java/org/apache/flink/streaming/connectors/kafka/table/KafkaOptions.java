@@ -156,10 +156,10 @@ public class KafkaOptions {
 	// Validation
 	// --------------------------------------------------------------------------------------------
 
-	public static void validateTableOptions(ReadableConfig tableOptions, String kafkaVersion) {
+	public static void validateTableOptions(ReadableConfig tableOptions) {
 		validateScanStartupMode(tableOptions);
 		validateSinkPartitioner(tableOptions);
-		validateSinkSemantic(tableOptions, kafkaVersion);
+		validateSinkSemantic(tableOptions);
 	}
 
 	private static void validateScanStartupMode(ReadableConfig tableOptions) {
@@ -208,17 +208,12 @@ public class KafkaOptions {
 				});
 	}
 
-	private static void validateSinkSemantic(ReadableConfig tableOptions, String kafkaVersion) {
+	private static void validateSinkSemantic(ReadableConfig tableOptions) {
 		tableOptions.getOptional(SINK_SEMANTIC).ifPresent(semantic -> {
 			if (!SINK_SEMANTIC_ENUMS.contains(semantic)){
 				throw new ValidationException(
 					String.format("Unsupported value '%s' for '%s'. Supported values are ['at-least-once', 'exactly-once', 'none'].",
 						semantic, SINK_SEMANTIC.key()));
-			}
-
-			if (kafkaVersion.equals("kafka-0.10") && (!SINK_SEMANTIC_VALUE_AT_LEAST_ONCE.equals(semantic))){
-				throw new ValidationException(
-					String.format("Connector kafka-0.10 only supports 'at-least-once' semantic. But got '%s'.", semantic));
 			}
 		});
 	}
@@ -226,6 +221,10 @@ public class KafkaOptions {
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
+
+	public static String transformSemantic(String semantic){
+		return semantic.toUpperCase().replace('-', '_');
+	}
 
 	public static StartupOptions getStartupOptions(
 			ReadableConfig tableOptions,

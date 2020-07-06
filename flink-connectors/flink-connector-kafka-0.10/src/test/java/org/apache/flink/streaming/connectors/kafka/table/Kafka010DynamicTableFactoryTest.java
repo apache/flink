@@ -42,8 +42,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-
 /**
  * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
  * by {@link Kafka010TableSourceSinkFactory}.
@@ -91,13 +89,23 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
 			String semantic) {
+		// we only support "at-least-semantic" for kafka-0.10 connector.
+		// if users use `sink.semantic` to select behaviour for kafka-0.10 connector,
+		// he/she will get validation error of unsupported option.
 		return new Kafka010DynamicSink(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
 				encodingFormat,
-				semantic);
+				"AT_LEAST_ONCE");
+	}
+
+	@Override
+	protected Map<String, String> getFullSinkOptions(){
+		Map<String, String> options = super.getFullSinkOptions();
+		options.remove("sink.semantic");
+		return options;
 	}
 
 	@Override
@@ -108,14 +116,13 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			"sinkTable");
 
 		final Map<String, String> modifiedOptions = getModifiedOptions(
-			getFullSourceOptions(),
+			getFullSinkOptions(),
 			options -> {
 				options.put("sink.semantic", "exactly-once");
 			});
 		final CatalogTable sinkTable = createKafkaSinkCatalogTable(modifiedOptions);
 
 		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException("Connector kafka-0.10 only supports 'at-least-once' semantic. But got 'exactly-once'.")));
 		FactoryUtil.createTableSink(
 			null,
 			objectIdentifier,

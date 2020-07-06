@@ -87,7 +87,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 	private static final String COMPUTED_COLUMN_NAME = "computed-column";
 	private static final String COMPUTED_COLUMN_EXPRESSION = COUNT + " + 1.0";
 	private static final DataType COMPUTED_COLUMN_DATATYPE = DataTypes.DECIMAL(10, 3);
-	private static final String SEMANTIC = "at-least-once";
+	private static final String SEMANTIC = "exactly-once";
 
 	private static final Properties KAFKA_PROPERTIES = new Properties();
 	static {
@@ -212,7 +212,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				KAFKA_PROPERTIES,
 				Optional.of(new FlinkFixedPartitioner<>()),
 				encodingFormat,
-				SEMANTIC);
+				KafkaOptions.transformSemantic(SEMANTIC));
 		assertEquals(expectedSink, actualSink);
 
 		// Test sink format.
@@ -403,7 +403,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		return tableOptions;
 	}
 
-	private Map<String, String> getFullSinkOptions() {
+	protected Map<String, String> getFullSinkOptions() {
 		Map<String, String> tableOptions = new HashMap<>();
 		// Kafka specific options.
 		tableOptions.put("connector", factoryIdentifier());
@@ -411,7 +411,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		tableOptions.put("properties.group.id", "dummy");
 		tableOptions.put("properties.bootstrap.servers", "dummy");
 		tableOptions.put("sink.partitioner", KafkaOptions.SINK_PARTITIONER_VALUE_FIXED);
-		tableOptions.put("sink.semantic", KafkaOptions.SINK_SEMANTIC_VALUE_AT_LEAST_ONCE);
+		tableOptions.put("sink.semantic", KafkaOptions.SINK_SEMANTIC_VALUE_EXACTLY_ONCE);
 		// Format options.
 		tableOptions.put("format", TestFormatFactory.IDENTIFIER);
 		final String formatDelimiterKey = String.format("%s.%s",

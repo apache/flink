@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -65,7 +64,7 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 				serializationSchema,
 				properties,
 				partitioner.orElse(null),
-				getSemantic(semantic),
+				FlinkKafkaProducer.Semantic.valueOf(semantic),
 				FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
 	}
 
@@ -83,18 +82,5 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 	@Override
 	public String asSummaryString() {
 		return "Kafka universal table sink";
-	}
-
-	private FlinkKafkaProducer.Semantic getSemantic(String semantic){
-		switch (semantic){
-			case "exactly-once":
-				return FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
-			case "at-least-once":
-				return FlinkKafkaProducer.Semantic.AT_LEAST_ONCE;
-			case "none":
-				return FlinkKafkaProducer.Semantic.NONE;
-			default:
-				throw new TableException("Validator should have validted.");
-		}
 	}
 }
