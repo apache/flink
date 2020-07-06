@@ -23,12 +23,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流的情况下。Flink 提供 [复杂事件处理（CEP）库]({% link dev/libs/cep.zh.md %})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含一大组内置函数和基于规则的优化，可以开箱即用。
+搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流的情况下。Flink 提供 [复杂事件处理（CEP）库]({% link dev/libs/cep.zh.md %})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含大量内置函数和基于规则的优化，可以开箱即用。
 
 2016 年 12 月，国际标准化组织（ISO）发布了新版本的 SQL 标准，其中包括在 _SQL 中的行模式识别（Row Pattern Recognition in SQL）_([ISO/IEC TR 19075-5:2016](https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip))。它允许 Flink 使用 `MATCH_RECOGNIZE` 子句融合 CEP 和 SQL API，以便在 SQL 中进行复杂事件处理。
 
 `MATCH_RECOGNIZE` 子句启用以下任务：
-* 对与 `PARTITION BY` 和 `ORDER BY` 子句一起使用的数据进行逻辑分区和排序。
+* 使用 `PARTITION BY` 和 `ORDER BY` 子句对数据进行逻辑分区和排序。
 * 使用 `PATTERN` 子句定义要查找的行的模式。这些模式使用类似于正则表达式的语法。
 * 行模式变量的逻辑组件在 `DEFINE` 子句中指定。
 * measures 是指在 `MEASURES` 子句中定义的表达式，这些表达式可用在 SQL 查询中的其他部分。
@@ -55,13 +55,17 @@ FROM MyTable
 
 本页将更详细地解释每个关键字，并演示说明更复杂的示例。
 
-<span class="label label-danger">注意</span> Flink 的 `MATCH_RECOGNIZE` 子句实现是完整标准的一个子集。仅支持以下部分中记录的功能。由于开发仍处于初期阶段，请查看[已知的局限](#已知的局限)。
+<span class="label label-danger">注意</span> Flink 的 `MATCH_RECOGNIZE` 子句实现是完整标准的一个子集。仅支持以下部分中记录的功能。由于开发仍处于初期阶段，请查看[已知的局限](#known-limitations)。
 
 * This will be replaced by the TOC
 {:toc}
 
+<a name="introduction-and-examples"></a>
+
 介绍和示例
 -------------------------
+
+<a name="installation-guide"></a>
 
 ### 安装指南
 
@@ -75,23 +79,27 @@ FROM MyTable
 </dependency>
 {% endhighlight %}
 
-或者，也可以将依赖项添加到集群类路径（查看[依赖部分]({% link dev/project-configuration.zh.md %})获取更多信息）。
+或者，也可以将依赖项添加到集群 classpath（查看 [dependency section]({% link dev/project-configuration.zh.md %}) 获取更多相关依赖信息）。
 
 如果你想在 [SQL Client]({% link dev/table/sqlClient.zh.md %}) 中使用 `MATCH_RECOGNIZE` 子句，你无需执行任何操作，因为默认情况下包含所有依赖项。
+
+<a name="sql-semantics"></a>
 
 ### SQL 语义
 
 每个 `MATCH_RECOGNIZE` 查询都包含以下子句：
 
-* [PARTITION BY](#分区) - 定义表的逻辑分区；类似于 `GROUP BY` 操作。
-* [ORDER BY](#事件顺序) - 指定传入行的排序方式；这是必须的，因为模式依赖于顺序。
+* [PARTITION BY](#partitioning) - 定义表的逻辑分区；类似于 `GROUP BY` 操作。
+* [ORDER BY](#order-of-events) - 指定传入行的排序方式；这是必须的，因为模式依赖于顺序。
 * [MEASURES](#define--measures) - 定义子句的输出；类似于 `SELECT` 子句。
-* [ONE ROW PER MATCH](#输出方式) - 输出方式，定义每个匹配项应产生多少行。
-* [AFTER MATCH SKIP](#匹配后的策略) - 指定下一个匹配的开始位置；这也是一种控制单个事件可以属于多少个不同匹配的方法。
-* [PATTERN](#定义模式) - 允许使用类似于 _正则表达式_ 的语法构造搜索的模式。
+* [ONE ROW PER MATCH](#output-mode) - 输出方式，定义每个匹配项应产生多少行。
+* [AFTER MATCH SKIP](#after-match-strategy) - 指定下一个匹配的开始位置；这也是一种控制单个事件可以属于多少个不同匹配的方法。
+* [PATTERN](#defining-a-pattern) - 允许使用类似于 _正则表达式_ 的语法构造搜索的模式。
 * [DEFINE](#define--measures) - 本部分定义了模式变量必须满足的条件。
 
-<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于追加表（[append table]({% link dev/table/streaming/dynamic_tables.zh.md %}#更新和追加查询)）。此外，它还总是生成一个追加表。
+<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于追加表（[append table]({% link dev/table/streaming/dynamic_tables.zh.md %}#update-and-append-queries)）。此外，它还总是生成一个追加表。
+
+<a name="examples"></a>
 
 ### 示例
 
@@ -171,6 +179,7 @@ ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 
 该行结果描述了从 `01-APR-11 10:00:04` 开始的价格下跌期，在 `01-APR-11 10:00:07` 达到最低价格，到 `01-APR-11 10:00:08` 再次上涨。
 
+<a name="partitioning"></a>
 
 分区
 ------------
@@ -179,14 +188,16 @@ ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 
 <span class="label label-danger">注意</span> 强烈建议对传入的数据进行分区，否则 `MATCH_RECOGNIZE` 子句将被转换为非并行算子，以确保全局排序。
 
+<a name="order-of-events"></a>
+
 事件顺序
 ---------------
 
-Apache Flink 可以根据时间（[processing time or event time]({% link dev/table/streaming/time_attributes.zh.md %})）进行模式搜索。
+Apache Flink 可以根据时间（[处理时间或者事件时间]({% link dev/table/streaming/time_attributes.zh.md %})）进行模式搜索。
 
-如果是 event time，则在将事件传递到内部模式状态机之前对其进行排序。所以，无论行添加到表的顺序如何，生成的输出都是正确的。相反，模式是按照每行中包含的时间指定的顺序计算的。
+如果是事件时间，则在将事件传递到内部模式状态机之前对其进行排序。所以，无论行添加到表的顺序如何，生成的输出都是正确的。相反，模式是按照每行中包含的时间指定的顺序计算的。
 
-`MATCH_RECOGNIZE` 子句假定升序的 [time attribute]({% link dev/table/streaming/time_attributes.zh.md %}) 是 `ORDER BY` 子句的第一个参数。
+`MATCH_RECOGNIZE` 子句假定升序的 [时间属性]({% link dev/table/streaming/time_attributes.zh.md %}) 是 `ORDER BY` 子句的第一个参数。
 
 对于示例 `Ticker` 表，诸如 `ORDER BY rowtime ASC, price DESC` 的定义是有效的，但 `ORDER BY price, rowtime` 或者 `ORDER BY rowtime DESC, price ASC` 是无效的。
 
@@ -195,17 +206,17 @@ Define & Measures
 
 `DEFINE` 和 `MEASURES` 关键字与简单 SQL 查询中的 `WHERE` 和 `SELECT` 子句具有相近的含义。
 
-`MEASURES` 子句定义匹配模式的输出中要包含哪些内容。它可以投影列并定义表达式进行计算。产生的行数取决于 [output mode](#输出方式) 设置。
+`MEASURES` 子句定义匹配模式的输出中要包含哪些内容。它可以投影列并定义表达式进行计算。产生的行数取决于 [output mode](#output-mode) 设置。
 
-`DEFINE` 子句指定行必须满足的条件才能被分类到相应的 [pattern variable](#定义模式)。如果没有为模式变量定义条件，则将使用对每一行的计算结果为 `true` 的默认条件。
+`DEFINE` 子句指定行必须满足的条件才能被分类到相应的 [pattern variable](#defining-a-pattern)。如果没有为模式变量定义条件，则将使用对每一行的计算结果为 `true` 的默认条件。
 
-有关在这些子句中可使用的表达式的更详细的说明，请查看 [event stream navigation](#模式导航) 部分。
+有关在这些子句中可使用的表达式的更详细的说明，请查看 [event stream navigation](#pattern-navigation) 部分。
 
 ### Aggregations
 
-Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持 [built-in]({% link dev/table/functions/systemFunctions.zh.md %}) 和用户 [user defined]({% link dev/table/functions/udfs.zh.md %}) 函数。
+Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({% link dev/table/functions/systemFunctions.zh.md %})和[用户自定义函数]({% link dev/table/functions/udfs.zh.md %})。
 
-Aggregate functions 应用于映射到匹配项的行的每个子集。为了了解如何评估这些子集，请查看 [event stream navigation](#模式导航) 部分。
+Aggregate functions 应用于映射到匹配项的行的每个子集。为了了解如何评估这些子集，请查看 [event stream navigation](#pattern-navigation) 部分。
 
 下面这个示例的任务是找出股票平均价格没有低于某个阈值的最长时间段。它展示了 `MATCH_RECOGNIZE` 在聚合中的可表达性。可以使用以下查询执行此任务：
 
@@ -260,6 +271,8 @@ ACME       01-APR-11 10:00:05  01-APR-11 10:00:10     13.5
 
 <span class="label label-danger">注意</span> 不支持 `DISTINCT` 聚合。
 
+<a name="defining-a-pattern"></a>
+
 定义模式
 ------------------
 
@@ -287,6 +300,8 @@ PATTERN (A B+ C* D)
 
 
 <span class="label label-danger">注意</span> 不支持可能产生空匹配的模式。此类模式的示例如 `PATTERN (A*)`，`PATTERN  (A? B*)`，`PATTERN (A{0,} B{0,} C*)` 等。
+
+<a name="greedy--reluctant-quantifiers"></a>
 
 ### 贪婪和勉强量词
 
@@ -356,6 +371,8 @@ DEFINE
 
 <span class="label label-danger">注意</span> 目前不支持可选的勉强量词（`A??` 或者 `A{0,1}?`）。
 
+<a name="time-constraint"></a>
+
 ### 时间约束
 
 特别是对于流的使用场景，通常需要在给定的时间内完成模式。这要求限制 Flink 必须在内部保持的总体状态大小，即使在贪婪的量词的情况下也是如此。
@@ -420,12 +437,14 @@ symbol         dropTime         dropDiff
 
 请注意，即使价格也下降了较高的值，例如，下降了`11`（在`01-Apr-11 10:00:00`和`01-Apr-11 11:40:00`之间），这两个事件之间的时间差大于1小时。因此，它们不会产生匹配。
 
+<a name="output-mode"></a>
+
 输出方式
 -----------
 
 _output mode_ 描述每个找到的匹配项应该输出多少行。SQL 标准描述了两种方式：
 - `ALL ROWS PER MATCH`
-- `ONE ROW PER MATCH`。
+- `ONE ROW PER MATCH`
 
 目前，唯一支持的输出方式是 `ONE ROW PER MATCH`，它将始终为每个找到的匹配项生成一个输出摘要行。
 
@@ -472,6 +491,8 @@ FROM Ticker
 
 该模式识别由 `symbol` 列分区。即使在 `MEASURES` 子句中未明确提及，分区列仍会添加到结果的开头。
 
+<a name="pattern-navigation"></a>
+
 模式导航
 ------------------
 
@@ -479,15 +500,19 @@ FROM Ticker
 
 本节讨论用于声明条件或产生输出结果的导航。
 
+<a name="pattern-variable-referencing"></a>
+
 ### 引用模式变量
 
-_pattern variable reference_ 允许引用一组映射到 `DEFINE` 或 `MEASURES` 子句中特定模式变量的行。
+_引用模式变量_ 允许引用一组映射到 `DEFINE` 或 `MEASURES` 子句中特定模式变量的行。
 
 如果 `DEFINE`/`MEASURES` 子句中的表达式需要一行（例如 `a.price` 或 `a.price>10`），它将选择属于相应集合的最后一个值。
 
 例如，如果我们尝试将当前行与 `A` 进行匹配，则会描述当前行，表达式 `A.price` 描述了目前为止已映射到 `A` 的一组行。如果 `DEFINE`/`MEASURES` 子句中的表达式需要单行（例如 `A.price` 或者 `A.price > 10`），它将选择属于相应集合的最后一个值。
 
 如果没有指定模式变量（例如 `SUM(price)`），则表达式引用默认模式变量 `*`，该变量引用模式中的所有变量。换句话说，它创建了一个列表，其中列出了迄今为止映射到任何变量的所有行以及当前行。
+
+<a name="example"></a>
 
 #### 示例
 
@@ -624,6 +649,8 @@ FIRST(variable.field, n)
   </tr>
   </tbody>
 </table>
+
+<a name="examples-1"></a>
 
 #### 示例
 
@@ -766,6 +793,8 @@ DEFINE
 
 因此，可以使用 `LAST(A.price * A.tax)`，但不允许使用类似 `LAST(A.price * B.tax)` 的表达式。
 
+<a name="after-match-strategy"></a>
+
 匹配后的策略
 --------------------
 
@@ -778,6 +807,8 @@ DEFINE
 * `SKIP TO FIRST variable` - 在映射到指定模式变量的第一行继续模式匹配。
 
 这也是一种指定单个事件可以属于多少个匹配项的方法。例如，使用 `SKIP PAST LAST ROW` 策略，每个事件最多只能属于一个匹配项。
+
+<a name="examples-2"></a>
 
 #### 示例
 
@@ -880,10 +911,12 @@ FROM Ticker
 
 必须记住，在 `SKIP TO FIRST/LAST variable` 策略的场景下，可能没有映射到该变量的行（例如，对于模式 `A*`）。在这种情况下，将抛出一个运行时异常，因为标准要求一个有效的行来继续匹配。
 
+<a name="time-attributes"></a>
+
 时间属性
 ---------------
 
-为了在 `MATCH_RECOGNIZE` 之上应用一些后续查询，可能需要使用 [time attributes]({% link dev/table/streaming/time_attributes.zh.md %})。有两个函数可供选择：
+为了在 `MATCH_RECOGNIZE` 之上应用一些后续查询，可能需要使用[时间属性]({% link dev/table/streaming/time_attributes.zh.md %})。有两个函数可供选择：
 
 <table class="table table-bordered">
   <thead>
@@ -900,7 +933,7 @@ FROM Ticker
       </td>
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
-        <p>结果属性是 <a href="{% link dev/table/streaming/time_attributes.zh.md %}">rowtime attribute</a>，可用于后续基于时间的操作，例如 <a href="{% link dev/table/streaming/joins.zh.md %}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>结果属性是<a href="{% link dev/table/streaming/time_attributes.zh.md %}">行时间属性</a>，可用于后续基于时间的操作，例如 <a href="{% link dev/table/streaming/joins.zh.md %}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>
@@ -908,11 +941,13 @@ FROM Ticker
         <code>MATCH_PROCTIME()</code><br/>
       </td>
       <td>
-        <p>返回 <a href="{% link dev/table/streaming/time_attributes.zh.md %}#处理时间">proctime attribute</a>，该属性可用于随后的基于时间的操作，例如 <a href="{% link dev/table/streaming/joins.zh.md %}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>返回<a href="{% link dev/table/streaming/time_attributes.zh.md %}#processing-time">处理时间属性</a>，该属性可用于随后的基于时间的操作，例如 <a href="{% link dev/table/streaming/joins.zh.md %}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
   </tbody>
 </table>
+
+<a name="controlling-memory-consumption"></a>
 
 控制内存消耗
 ------------------------------
@@ -938,7 +973,7 @@ DEFINE
   C as C.price > 20
 {% endhighlight %}
 
-或者使用 [reluctant quantifier](#贪婪和勉强量词)：
+或者使用 [reluctant quantifier](#greedy--reluctant-quantifiers)：
 
 {% highlight sql %}
 PATTERN (A B+? C)
@@ -947,7 +982,9 @@ DEFINE
   C as C.price > 20
 {% endhighlight %}
 
-<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({% link dev/table/streaming/query_configuration.zh.md %}#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [clause](#时间约束)。
+<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({% link dev/table/streaming/query_configuration.zh.md %}#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [clause](#known-limitations)。
+
+<a name="known-limitations"></a>
 
 已知的局限
 -----------------
@@ -967,7 +1004,7 @@ Flink 对 `MATCH_RECOGNIZE` 子句的实现是一项持续的工作，目前尚�
   * `CLASSIFIER` 函数，尚不支持返回行映射到的模式变量。
 * `SUBSET` - 它允许创建模式变量的逻辑组，并在 `DEFINE` 和 `MEASURES` 子句中使用这些组。
 * Physical offsets - `PREV/NEXT`，它为所有可见事件建立索引，而不是仅将那些映射到模式变量的事件编入索引（如 [logical offsets](#logical-offsets) 的情况）。
-* Extracting time attributes - 目前无法为后续基于时间的操作获取时间属性。
+* 提取时间属性 - 目前无法为后续基于时间的操作提取时间属性。
 * `MATCH_RECOGNIZE` 仅 SQL 支持。Table API 中没有等效项。
 * Aggregations:
   * 不支持 distinct aggregations。
