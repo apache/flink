@@ -84,6 +84,18 @@ class CsvTableSource(TableSource):
             builder.lineDelimiter(line_delim)
 
         if quote_character is not None:
+            # Java API has a Character type for this field. At time of writing,
+            # Py4J will convert the Python str to Java Character by taking only
+            # the first character.  This results in either:
+            #   - Silently truncating a Python str with more than one character
+            #     with no further type error from either Py4J or Java
+            #     CsvTableSource
+            #   - java.lang.StringIndexOutOfBoundsException from Py4J for an
+            #     empty Python str.  That error can be made more friendly here.
+            if len(quote_character) != 1:
+                raise ValueError(
+                    "Expected a single CSV quote character but got '{}'".format(quote_character)
+                )
             builder.quoteCharacter(quote_character)
 
         if ignore_first_line:
