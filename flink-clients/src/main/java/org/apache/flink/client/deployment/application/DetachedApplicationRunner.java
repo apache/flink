@@ -29,13 +29,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -78,7 +81,7 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, true);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute application: ", e);
-			throw new FlinkRuntimeException("Could not execute application.", e);
+			throw new CompletionException(new RestHandlerException("Could not execute application.", HttpResponseStatus.BAD_REQUEST, e));
 		}
 
 		return applicationJobIds;

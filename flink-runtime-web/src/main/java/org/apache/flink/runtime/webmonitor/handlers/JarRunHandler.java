@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -33,6 +32,8 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHandlerContext;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
 
@@ -99,7 +100,8 @@ public class JarRunHandler extends
 				.supplyAsync(() -> applicationRunner.run(gateway, program, effectiveConfiguration), executor)
 				.thenApply(jobIds -> {
 					if (jobIds.isEmpty()) {
-						throw new CompletionException(new ProgramInvocationException("No jobs submitted."));
+						throw new CompletionException(
+								new RestHandlerException("No jobs included in application.", HttpResponseStatus.BAD_REQUEST));
 					}
 					return new JarRunResponseBody(jobIds.get(0));
 				});
