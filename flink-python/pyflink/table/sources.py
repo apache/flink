@@ -69,7 +69,6 @@ class CsvTableSource(TableSource):
         ignore_comments=None,
         lenient=None,
     ):
-        # type: (str, list[str], list[DataType]) -> None
         gateway = get_gateway()
 
         builder = gateway.jvm.CsvTableSource.builder()
