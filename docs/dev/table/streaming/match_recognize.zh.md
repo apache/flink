@@ -483,7 +483,7 @@ FROM Ticker
 
 _pattern variable reference_ 允许引用一组映射到 `DEFINE` 或 `MEASURES` 子句中特定模式变量的行。
 
-如果 `DEFINE`/`MEASURES` 子句中的表达式需要一行（例如`a.price`或`a.price>10`），它将选择属于相应集合的最后一个值。
+如果 `DEFINE`/`MEASURES` 子句中的表达式需要一行（例如 `a.price` 或 `a.price>10`），它将选择属于相应集合的最后一个值。
 
 例如，如果我们尝试将当前行与 `A` 进行匹配，则会描述当前行，表达式 `A.price` 描述了目前为止已映射到 `A` 的一组行。如果 `DEFINE`/`MEASURES` 子句中的表达式需要单行（例如 `A.price` 或者 `A.price > 10`），它将选择属于相应集合的最后一个值。
 
