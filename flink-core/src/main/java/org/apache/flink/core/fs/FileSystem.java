@@ -1067,7 +1067,7 @@ public abstract class FileSystem {
 			try {
 				FileSystemFactory factory = iter.next();
 				list.add(factory);
-				LOG.debug("Added file system {}:{}", factory.getScheme(), factory.getClass().getName());
+				LOG.debug("Added file system {}:{}", factory.getScheme(), factory.toString());
 			}
 			catch (Throwable t) {
 				// catching Throwable here to handle various forms of class loading
