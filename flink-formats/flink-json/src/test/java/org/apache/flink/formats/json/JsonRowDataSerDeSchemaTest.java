@@ -360,7 +360,9 @@ public class JsonRowDataSerDeSchemaTest {
 	public void testSerDeSQLTimestampFormat() throws Exception{
 		RowType rowType = (RowType) ROW(
 			FIELD("timestamp3", TIMESTAMP(3)),
-			FIELD("timestamp9", TIMESTAMP(9))
+			FIELD("timestamp9", TIMESTAMP(9)),
+			FIELD("timestamp_with_local_timezone3", TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+			FIELD("timestamp_with_local_timezone9", TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))
 		).getLogicalType();
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
@@ -372,6 +374,8 @@ public class JsonRowDataSerDeSchemaTest {
 		ObjectNode root = objectMapper.createObjectNode();
 		root.put("timestamp3", "1990-10-14 12:12:43.123");
 		root.put("timestamp9", "1990-10-14 12:12:43.123456789");
+		root.put("timestamp_with_local_timezone3", "1990-10-14 12:12:43.123Z");
+		root.put("timestamp_with_local_timezone9", "1990-10-14 12:12:43.123456789Z");
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		byte[] actual = serializationSchema.serialize(rowData);

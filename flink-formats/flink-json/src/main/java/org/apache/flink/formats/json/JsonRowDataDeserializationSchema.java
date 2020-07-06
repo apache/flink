@@ -62,8 +62,9 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -308,18 +309,21 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	}
 
 	private TimestampData convertToTimestampWithLocalZone(JsonNode jsonNode){
-		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
-
-		ZoneOffset offset = parsedTimestamp.query(TemporalQueries.offset());
-		if (offset != ZoneOffset.UTC) {
-			throw new JsonParseException(
-				"Invalid timestamp format. Only a timestamp in UTC timezone is supported yet. " +
-					"Format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+		TemporalAccessor parsedTimestampWithLocalZone;
+		switch (timestampFormat){
+			case SQL:
+				parsedTimestampWithLocalZone = SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jsonNode.asText());
+				break;
+			case ISO_8601:
+				parsedTimestampWithLocalZone = ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jsonNode.asText());
+				break;
+			default:
+				throw new TableException(String.format("Unsupported timestamp format '%s'. Validator should have checked that.", timestampFormat));
 		}
-		LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
-		LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
+		LocalTime localTime = parsedTimestampWithLocalZone.query(TemporalQueries.localTime());
+		LocalDate localDate = parsedTimestampWithLocalZone.query(TemporalQueries.localDate());
 
-		return TimestampData.fromInstant(LocalDateTime.of(localDate, localTime).atOffset(offset).toInstant());
+		return TimestampData.fromInstant(LocalDateTime.of(localDate, localTime).atOffset(ZoneOffset.UTC).toInstant());
 	}
 
 	private StringData convertToString(JsonNode jsonNode) {
