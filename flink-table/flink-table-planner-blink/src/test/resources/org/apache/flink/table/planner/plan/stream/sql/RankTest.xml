@@ -296,6 +296,26 @@ Calc(select=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRowNumOverWindow">
+    <Resource name="sql">
+      <![CDATA[select name, age, row_num from src_view where row_num <= 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$0], age=[$1], row_num=[$2])
++- LogicalFilter(condition=[<=($2, 3)])
+   +- LogicalProject(name=[$0], age=[$1], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[age DESC], select=[name, age, w0$o0])
++- Exchange(distribution=[hash[name]])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, age])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTopN">
     <Resource name="sql">
       <![CDATA[
