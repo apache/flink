@@ -28,8 +28,11 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.TestUtil;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.expressions.EqualTo;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.GetCompositeField;
@@ -38,6 +41,8 @@ import org.apache.flink.table.expressions.ItemAt;
 import org.apache.flink.table.expressions.Literal;
 import org.apache.flink.table.expressions.PlannerResolvedFieldReference;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.avro.AvroSchemaConverter;
@@ -53,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.api.common.typeinfo.Types.STRING;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -60,6 +66,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test cases for {@link ParquetTableSource}.
@@ -214,6 +221,41 @@ public class ParquetTableSourceTest extends TestUtil {
 		FilterPredicate predicate = parquetIF.getPredicate();
 		// check predicate
 		assertEquals(expected, predicate);
+	}
+
+	@Test
+	public void testPushProjectAndFilter() {
+		// test for https://issues.apache.org/jira/browse/FLINK-15563
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
+
+		RowTypeInfo typeInfo = new RowTypeInfo(
+			new TypeInformation<?>[] { STRING, STRING, STRING },
+			new String[] { "log_id", "city", "log_from" });
+
+		ParquetTableSource tableSource = ParquetTableSource
+			.builder()
+			.forParquetSchema(ParquetSchemaConverter.toParquetType(typeInfo, false))
+			.path("/tmp/login_data")
+			.build();
+
+		tableEnv.registerTableSource("MyTable", tableSource);
+
+		Table t1 = tableEnv.sqlQuery("select log_id, city from MyTable where city = '274' ");
+		tableEnv.registerTable("t1", t1);
+
+		Table t2 = tableEnv.sqlQuery("select * from t1 where log_id='5927070661978133'");
+		try {
+			tableEnv.explain(t2);
+		} catch (Exception e) {
+			if (e instanceof JsonMappingException) {
+				// TODO remove this after https://issues.apache.org/jira/browse/FLINK-16315 is fixed
+				// the program can reach here to prove that the optimization does not hang until OOM
+			} else {
+				fail(e.getMessage());
+			}
+		}
 	}
 
 	private static Path createTestParquetFile() throws Exception {
