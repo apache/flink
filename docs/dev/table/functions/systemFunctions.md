@@ -1065,6 +1065,17 @@ numeric1 / numeric2
     <tr>
       <td>
 {% highlight text %}
+numeric1 % numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the remainder (modulus) of <i>numeric1</i> divided by <i>numeric2</i>. The result is negative only if <i>numeric1</i> is negative.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+{% highlight text %}
 POWER(numeric1, numeric2)
 {% endhighlight %}
       </td>
