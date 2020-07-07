@@ -37,12 +37,14 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_INTERVAL_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FAILURE_HANDLER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.SCROLL_MAX_SIZE_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.SCROLL_TIMEOUT_OPTION;
 
 /**
  * Accessor methods to elasticsearch options.
  */
 @Internal
-class ElasticsearchConfiguration {
+public class ElasticsearchConfiguration {
 	protected final ReadableConfig config;
 	private final ClassLoader classLoader;
 
@@ -121,6 +123,14 @@ class ElasticsearchConfiguration {
 		return config.getOptional(BULK_FLUSH_BACKOFF_DELAY_OPTION).map(Duration::toMillis);
 	}
 
+	public Optional<Integer> getScrollMaxSize() {
+		return config.getOptional(SCROLL_MAX_SIZE_OPTION);
+	}
+
+	public Optional<Long> getScrollTimeout() {
+		return config.getOptional(SCROLL_TIMEOUT_OPTION).map(Duration::toMillis);
+	}
+
 	public boolean isDisableFlushOnCheckpoint() {
 		return !config.get(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION);
 	}
@@ -135,6 +145,18 @@ class ElasticsearchConfiguration {
 
 	public Optional<String> getPathPrefix() {
 		return config.getOptional(ElasticsearchOptions.CONNECTION_PATH_PREFIX);
+	}
+
+	public long getCacheMaxSize() {
+		return config.get(ElasticsearchOptions.LOOKUP_CACHE_MAX_ROWS);
+	}
+
+	public Duration getCacheExpiredMs() {
+		return config.get(ElasticsearchOptions.LOOKUP_CACHE_TTL);
+	}
+
+	public int getMaxRetryTimes() {
+		return config.get(ElasticsearchOptions.LOOKUP_MAX_RETRIES);
 	}
 
 	@Override

@@ -18,20 +18,31 @@
 package org.apache.flink.streaming.connectors.elasticsearch5;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchInputSplit;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsGroup;
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.transport.Netty3Plugin;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
@@ -39,9 +50,14 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 5.x.
@@ -84,6 +100,71 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<T
 	@Override
 	public BulkProcessor.Builder createBulkProcessorBuilder(TransportClient client, BulkProcessor.Listener listener) {
 		return BulkProcessor.builder(client, listener);
+	}
+
+	@Override
+	public ElasticsearchInputSplit[] createInputSplitsInternal(TransportClient client, String index, String type, int minNumSplits) {
+		//type get from config do later
+		ClusterSearchShardsResponse response = client.admin().cluster().searchShards(new ClusterSearchShardsRequest(index)).actionGet();
+
+		DiscoveryNode[] nodes = response.getNodes();
+		Map<String, String>  nodeMap = constructNodeId2Hostnames(nodes);
+
+		List<ElasticsearchInputSplit> splits = new ArrayList<>();
+		for (ClusterSearchShardsGroup group : response.getGroups()) {
+			List<String> locations = new ArrayList<>();
+			for (ShardRouting shard: group.getShards()) {
+				if (nodeMap.containsKey(shard.currentNodeId())) {
+					locations.add(nodeMap.get(shard.currentNodeId()));
+				} else {
+					LOG.warn("shard " + shard + " is on the node " + shard.currentNodeId() + ", which is not in the discovery node " + Stream.of((String[]) nodeMap.keySet().toArray()).collect(Collectors.joining(",")));
+				}
+			}
+
+			int id = splits.size();
+			ElasticsearchInputSplit split = new ElasticsearchInputSplit(
+				id,
+				locations.toArray(new String[0]),
+				index,
+				type,
+				group.getShardId().getId()
+			);
+			splits.add(split);
+		}
+		return splits.toArray(new ElasticsearchInputSplit[0]);
+	}
+
+	private Map<String, String> constructNodeId2Hostnames(DiscoveryNode[] nodes) {
+		Map<String, String> nodeMap = new HashMap<>();
+		for (DiscoveryNode node: nodes) {
+			nodeMap.put(node.getId(), node.getAddress().toString());
+		}
+		return nodeMap;
+	}
+
+	@Override
+	public Tuple2<String, String[]> search(TransportClient client, SearchRequest searchRequest) throws IOException {
+		SearchResponse searchResponse = client.search(searchRequest).actionGet();
+		SearchHit[] searchHits = searchResponse.getHits().getHits();
+		return new Tuple2<String, String[]>(
+			searchResponse.getScrollId(),
+			Stream.of(searchHits).map(SearchHit::getSourceAsString).toArray(String[]::new)
+		);
+	}
+
+	@Override
+	public Tuple2<String, String[]> scroll(TransportClient client, SearchScrollRequest searchScrollRequest) {
+		SearchResponse searchResponse = client.searchScroll(searchScrollRequest).actionGet();
+		SearchHit[] searchHits = searchResponse.getHits().getHits();
+		return new Tuple2<String, String[]>(
+			searchResponse.getScrollId(),
+			Stream.of(searchHits).map(SearchHit::getSourceAsString).toArray(String[]::new)
+		);
+	}
+
+	@Override
+	public void close(TransportClient client) {
+		client.close();
 	}
 
 	@Override

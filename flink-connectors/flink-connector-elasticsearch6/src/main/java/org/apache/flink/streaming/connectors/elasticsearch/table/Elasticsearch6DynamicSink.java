@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
@@ -47,7 +47,7 @@ import java.util.Objects;
  * A {@link DynamicTableSink} that describes how to create a {@link ElasticsearchSink} from a logical
  * description.
  */
-@PublicEvolving
+@Internal
 final class Elasticsearch6DynamicSink implements DynamicTableSink {
 	@VisibleForTesting
 	static final Elasticsearch6RequestFactory REQUEST_FACTORY = new Elasticsearch6RequestFactory();

@@ -19,9 +19,12 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 
 import javax.annotation.Nullable;
 
@@ -55,11 +58,19 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	/**
 	 * Creates a {@link BulkProcessor.Builder} for creating the bulk processor.
 	 *
-	 * @param client the Elasticsearch client.
+	 * @param client   the Elasticsearch client.
 	 * @param listener the bulk processor listender.
 	 * @return the bulk processor builder.
 	 */
 	BulkProcessor.Builder createBulkProcessorBuilder(C client, BulkProcessor.Listener listener);
+
+	ElasticsearchInputSplit[] createInputSplitsInternal(C client, String index, String type, int minNumSplits);
+
+	Tuple2<String, String[]> search(C client, SearchRequest searchRequest) throws IOException;
+
+	Tuple2<String, String[]> scroll(C client, SearchScrollRequest searchScrollRequest) throws IOException;
+
+	void close(C client) throws IOException;
 
 	/**
 	 * Extracts the cause of failure of a bulk item action.
@@ -67,13 +78,14 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	 * @param bulkItemResponse the bulk item response to extract cause of failure
 	 * @return the extracted {@link Throwable} from the response ({@code null} is the response is successful).
 	 */
-	@Nullable Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
+	@Nullable
+	Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
 
 	/**
 	 * Set backoff-related configurations on the provided {@link BulkProcessor.Builder}.
 	 * The builder will be later on used to instantiate the actual {@link BulkProcessor}.
 	 *
-	 * @param builder the {@link BulkProcessor.Builder} to configure.
+	 * @param builder            the {@link BulkProcessor.Builder} to configure.
 	 * @param flushBackoffPolicy user-provided backoff retry settings ({@code null} if the user disabled backoff retries).
 	 */
 	void configureBulkProcessorBackoff(
@@ -94,9 +106,9 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	 * Creates a {@link RequestIndexer} that is able to work with {@link BulkProcessor} binary compatible.
 	 */
 	default RequestIndexer createBulkProcessorIndexer(
-			BulkProcessor bulkProcessor,
-			boolean flushOnCheckpoint,
-			AtomicLong numPendingRequestsRef) {
+		BulkProcessor bulkProcessor,
+		boolean flushOnCheckpoint,
+		AtomicLong numPendingRequestsRef) {
 		return new PreElasticsearch6BulkProcessorIndexer(
 			bulkProcessor,
 			flushOnCheckpoint,

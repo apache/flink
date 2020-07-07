@@ -17,23 +17,38 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchResource;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.elasticsearch.client.Client;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.junit.ClassRule;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
@@ -42,7 +57,7 @@ import static org.junit.Assert.fail;
  * @param <C> Elasticsearch client type
  * @param <A> The address type to use
  */
-public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> extends AbstractTestBase {
+public abstract class ElasticsearchSinkTestBase<T, C extends AutoCloseable, A> extends AbstractTestBase {
 
 	protected static final String CLUSTER_NAME = "test-cluster";
 
@@ -83,9 +98,9 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
-				1,
-				CLUSTER_NAME,
-				functionFactory.apply(index)));
+			1,
+			CLUSTER_NAME,
+			functionFactory.apply(index)));
 
 		env.execute("Elasticsearch Sink Test");
 
@@ -96,16 +111,84 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		client.close();
 	}
 
+	protected void runElasticSearchInputFormatTest() throws Exception {
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put("cluster.name", CLUSTER_NAME);
+		DataType dataType = ROW(FIELD("data", STRING()));
+		RowType schema = (RowType) dataType.getLogicalType();
+
+		// pass on missing field
+		DeserializationSchema<RowData> deserializationSchema = new JsonRowDataDeserializationSchema(
+			schema, new RowDataTypeInfo(schema), false, false, TimestampFormat.ISO_8601);
+
+		ElasticSearchInputFormatBase inputFormat = createElasticsearchInputFormat(
+			userConfig,
+			(DeserializationSchema<T>) deserializationSchema,
+			null,
+			"elasticsearch-sink-test-json-index",
+			"flink-es-test-type",
+			1000,
+			10,
+			null,
+			0
+		);
+
+		DataStream<RowData> dataStream = env.createInput(inputFormat);
+		TestingAppendRowDataSink sink = new TestingAppendRowDataSink(new RowDataTypeInfo(schema));
+		dataStream.addSink(sink);
+		env.execute("Elasticsearch Source Test");
+		List<String> expected = Arrays.asList(
+			"+I(message #0)",
+			"+I(message #1)",
+			"+I(message #10)",
+			"+I(message #11)",
+			"+I(message #12)",
+			"+I(message #13)",
+			"+I(message #14)",
+			"+I(message #15)",
+			"+I(message #16)",
+			"+I(message #17)",
+			"+I(message #18)",
+			"+I(message #19)",
+			"+I(message #2)",
+			"+I(message #3)",
+			"+I(message #4)",
+			"+I(message #5)",
+			"+I(message #6)",
+			"+I(message #7)",
+			"+I(message #8)",
+			"+I(message #9)"
+		);
+		List<String> results = sink.getJavaAppendResults();
+		results.sort(String::compareTo);
+		assertEquals(expected, results);
+	}
+
+	protected abstract ElasticSearchInputFormatBase createElasticsearchInputFormat(
+		Map<String, String> userConfig,
+		DeserializationSchema<T> deserializationSchema,
+		String[] fieldNames,
+		String index,
+		String type,
+		long scrollTimeout,
+		int scrollMaxSize,
+		QueryBuilder predicate,
+		int limit
+	) throws Exception;
+
 	/**
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is {@code null}.
 	 */
 	public void runNullAddressesTest() throws Exception {
 		try {
 			createElasticsearchSink(
-					1,
-					CLUSTER_NAME,
-					null,
-					SourceSinkDataTestKit.getJsonSinkFunction("test"));
+				1,
+				CLUSTER_NAME,
+				null,
+				SourceSinkDataTestKit.getJsonSinkFunction("test"));
 		} catch (IllegalArgumentException | NullPointerException expectedException) {
 			// test passes
 			return;
@@ -120,10 +203,10 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	public void runEmptyAddressesTest() throws Exception {
 		try {
 			createElasticsearchSink(
-					1,
-					CLUSTER_NAME,
-					Collections.emptyList(),
-					SourceSinkDataTestKit.getJsonSinkFunction("test"));
+				1,
+				CLUSTER_NAME,
+				Collections.emptyList(),
+				SourceSinkDataTestKit.getJsonSinkFunction("test"));
 		} catch (IllegalArgumentException expectedException) {
 			// test passes
 			return;
@@ -141,10 +224,10 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
 		source.addSink(createElasticsearchSinkForNode(
-				1,
-				"invalid-cluster-name",
-				SourceSinkDataTestKit.getJsonSinkFunction("test"),
-				"123.123.123.123")); // incorrect ip address
+			1,
+			"invalid-cluster-name",
+			SourceSinkDataTestKit.getJsonSinkFunction("test"),
+			"123.123.123.123")); // incorrect ip address
 
 		try {
 			env.execute("Elasticsearch Sink Test");
@@ -169,12 +252,14 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		return userConfig;
 	}
 
-	/** Creates a version-specific Elasticsearch sink, using arbitrary transport addresses. */
+	/**
+	 * Creates a version-specific Elasticsearch sink, using arbitrary transport addresses.
+	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<A> addresses,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction);
+		int bulkFlushMaxActions,
+		String clusterName,
+		List<A> addresses,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction);
 
 	/**
 	 * Creates a version-specific Elasticsearch sink to connect to a local embedded Elasticsearch node.
@@ -183,16 +268,16 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * because the Elasticsearch Java API to do so is incompatible across different versions.
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
+		int bulkFlushMaxActions,
+		String clusterName,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
 
 	/**
 	 * Creates a version-specific Elasticsearch sink to connect to a specific Elasticsearch node.
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception;
+		int bulkFlushMaxActions,
+		String clusterName,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+		String ipAddress) throws Exception;
 }

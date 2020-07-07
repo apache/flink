@@ -18,22 +18,26 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch7;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticSearchInputFormatBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
  */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
+public class ElasticsearchITCase<T> extends ElasticsearchSinkTestBase<T, RestHighLevelClient, HttpHost> {
 
 	@Test
 	public void testElasticsearchSink() throws Exception {
@@ -56,16 +60,55 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 	}
 
 	@Test
-	public void testInvalidElasticsearchCluster() throws Exception{
+	public void testInvalidElasticsearchCluster() throws Exception {
 		runInvalidElasticsearchClusterTest();
+	}
+
+	@Test
+	public void testElasticsearchInputFormat() throws Exception {
+		runElasticsearchSinkTest();
+		/**
+		 * It will need sleep in this unit test at some time.
+		 * If we just run all unit tests in this class, it doesn't need add this.
+		 * Because the testElasticsearchSink test  has already put the data into elasticsearch.
+		 */
+//		Thread.sleep(1000);
+		runElasticSearchInputFormatTest();
+	}
+
+	@Override
+	protected ElasticSearchInputFormatBase createElasticsearchInputFormat(
+		Map<String, String> userConfig,
+		DeserializationSchema<T> deserializationSchema,
+		String[] fieldNames,
+		String index,
+		String type,
+		long scrollTimeout,
+		int scrollMaxSize,
+		QueryBuilder predicate,
+		int limit) throws Exception {
+		ArrayList<HttpHost> httpHosts = new ArrayList<>();
+		httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
+
+		ElasticSearch7InputFormat builder = new ElasticSearch7InputFormat.Builder()
+			.setHttpHosts(httpHosts)
+			.setDeserializationSchema(deserializationSchema)
+			.setFieldNames(fieldNames)
+			.setIndex(index)
+			.setScrollTimeout(scrollTimeout)
+			.setScrollMaxSize(scrollMaxSize)
+			.setPredicate(predicate)
+			.setLimit(limit)
+			.build();
+		return builder;
 	}
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<HttpHost> httpHosts,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+		int bulkFlushMaxActions,
+		String clusterName,
+		List<HttpHost> httpHosts,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
 		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
 		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
@@ -75,20 +118,20 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+		int bulkFlushMaxActions,
+		String clusterName,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
 
 		return createElasticsearchSinkForNode(
-				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
+			bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
 	}
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception {
+		int bulkFlushMaxActions,
+		String clusterName,
+		ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+		String ipAddress) throws Exception {
 
 		ArrayList<HttpHost> httpHosts = new ArrayList<>();
 		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));

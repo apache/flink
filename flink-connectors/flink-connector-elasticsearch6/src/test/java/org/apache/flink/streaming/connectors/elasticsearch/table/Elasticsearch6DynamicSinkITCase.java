@@ -85,7 +85,7 @@ public class Elasticsearch6DynamicSinkITCase {
 
 		String index = "writing-documents";
 		String myType = "MyType";
-		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+		Elasticsearch6DynamicTableFactory sinkFactory = new Elasticsearch6DynamicTableFactory();
 
 		SinkFunctionProvider sinkRuntimeProvider = (SinkFunctionProvider) sinkFactory.createDynamicTableSink(
 			context()

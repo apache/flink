@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
@@ -34,6 +35,8 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.junit.Assert;
@@ -43,6 +46,7 @@ import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -558,6 +562,26 @@ public class ElasticsearchSinkBaseTest {
 		@Override
 		public BulkProcessor.Builder createBulkProcessorBuilder(Client client, BulkProcessor.Listener listener) {
 			return null;
+		}
+
+		@Override
+		public ElasticsearchInputSplit[] createInputSplitsInternal(Client client, String index, String type, int minNumSplits) {
+			return new ElasticsearchInputSplit[0];
+		}
+
+		@Override
+		public Tuple2<String, String[]> search(Client client, SearchRequest searchRequest) throws IOException {
+			return null;
+		}
+
+		@Override
+		public Tuple2<String, String[]> scroll(Client client, SearchScrollRequest searchScrollRequest) throws IOException {
+			return null;
+		}
+
+		@Override
+		public void close(Client client) throws IOException {
+
 		}
 
 		@Nullable
