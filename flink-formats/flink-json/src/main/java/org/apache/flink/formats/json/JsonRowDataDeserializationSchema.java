@@ -323,7 +323,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		LocalTime localTime = parsedTimestampWithLocalZone.query(TemporalQueries.localTime());
 		LocalDate localDate = parsedTimestampWithLocalZone.query(TemporalQueries.localDate());
 
-		return TimestampData.fromInstant(LocalDateTime.of(localDate, localTime).atOffset(ZoneOffset.UTC).toInstant());
+		return TimestampData.fromInstant(LocalDateTime.of(localDate, localTime).toInstant(ZoneOffset.UTC));
 	}
 
 	private StringData convertToString(JsonNode jsonNode) {

@@ -560,7 +560,7 @@ public class JsonRowDataSerDeSchemaTest {
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
 
 		TestSpec
-			.json("{\"id\":\"2019-11-12T18:00:12\"}")
+			.json("{\"id\":\"2019-11-12T18:00:12+0800\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'")
 			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'.")

@@ -52,8 +52,8 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -314,7 +314,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
 	private JsonNode convertLocalDateTime(ObjectMapper mapper, JsonNode reuse, Object object) {
 		return mapper.getNodeFactory()
-			.textNode(ISO8601_TIMESTAMP_FORMAT.format((LocalDateTime) object));
+			.textNode(RFC3339_TIMESTAMP_FORMAT.format((LocalDateTime) object));
 	}
 
 	private JsonNode convertTimestamp(ObjectMapper mapper, JsonNode reuse, Object object) {
@@ -324,7 +324,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
 	private JsonNode convertLocalTime(ObjectMapper mapper, JsonNode reuse, Object object) {
 		JsonNodeFactory nodeFactory = mapper.getNodeFactory();
-		return nodeFactory.textNode(SQL_TIME_FORMAT.format((LocalTime) object));
+		return nodeFactory.textNode(RFC3339_TIME_FORMAT.format((LocalTime) object));
 	}
 
 	private JsonNode convertTime(ObjectMapper mapper, JsonNode reuse, Object object) {
