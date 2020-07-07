@@ -108,12 +108,12 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>Specify the input and output timestamp/timestamp with local time zone format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
+      <td>Specify the input and output timestamp format for <code>TIMESTAMP</code> and <code>TIMESTAMP WITH LOCAL TIME ZONE</code> type. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
       <ul>
-        <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g "2020-12-30 12:13:14.123", 
-        parse input timestamp with local time zone in "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30 12:13:14.123Z" and output timestamp in the same format.</li>
-        <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g "2020-12-30T12:13:14.123" 
-        parse input timestamp with local time zone in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30T12:13:14.123Z" and output timestamp in the same format.</li>
+        <li>Option <code>'SQL'</code> will parse input TIMESTAMP values in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g "2020-12-30 12:13:14.123", 
+        parse input TIMESTAMP WITH LOCAL TIME ZONE values in "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30 12:13:14.123Z" and output timestamp in the same format.</li>
+        <li>Option <code>'ISO-8601'</code>will parse input TIMESTAMP in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g "2020-12-30T12:13:14.123" 
+        parse input TIMESTAMP WITH LOCAL TIME ZONE in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30T12:13:14.123Z" and output timestamp in the same format.</li>
       </ul>
       </td>
     </tr>
@@ -191,7 +191,7 @@ The following table lists the type mapping from Flink type to JSON type.
     </tr>
     <tr>
       <td><code>TIMESTAMP_WITH_LOCAL_TIME_ZONE</code></td>
-      <td><code>string with format: date-time(with UTC time zone)</code></td>
+      <td><code>string with format: date-time (with UTC time zone)</code></td>
     </tr>
     <tr>
       <td><code>INTERVAL</code></td>
@@ -211,7 +211,6 @@ The following table lists the type mapping from Flink type to JSON type.
     </tr>
     </tbody>
 </table>
-
 
 
 
