@@ -51,11 +51,11 @@ github_url: "https://github.com/apache/flink"
 download_url: "https://flink.apache.org/downloads.html"
 
 # please use a protocol relative URL here
-baseurl: //ci.apache.org/projects/flink/flink-docs-1.11
+baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.11
 stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 
-javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-1.11
-pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-1.11
+javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.11
+pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.11
 
 statefundocs_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-master
 statefundocs_stable_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-stable
