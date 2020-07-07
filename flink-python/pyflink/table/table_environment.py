@@ -1006,15 +1006,17 @@ class TableEnvironment(object):
         """
         self._j_tenv.useDatabase(database_name)
 
-    @abstractmethod
-    def get_config(self):
+    def get_config(self) -> TableConfig:
         """
         Returns the table config to define the runtime behavior of the Table API.
 
         :return: Current table config.
-        :rtype: pyflink.table.TableConfig
         """
-        pass
+        if not hasattr(self, "table_config"):
+            table_config = TableConfig()
+            table_config._j_table_config = self._j_tenv.getConfig()
+            setattr(self, "table_config", table_config)
+        return getattr(self, "table_config")
 
     @abstractmethod
     def connect(self, connector_descriptor):
@@ -1617,17 +1619,6 @@ class StreamTableEnvironment(TableEnvironment):
         else:
             return self._j_tenv.getPlanner().getExecutionEnvironment()
 
-    def get_config(self):
-        """
-        Returns the table config to define the runtime behavior of the Table API.
-
-        :return: Current table config.
-        :rtype: pyflink.table.TableConfig
-        """
-        table_config = TableConfig()
-        table_config._j_table_config = self._j_tenv.getConfig()
-        return table_config
-
     def connect(self, connector_descriptor):
         """
         Creates a temporary table from a descriptor.
@@ -1751,17 +1742,6 @@ class BatchTableEnvironment(TableEnvironment):
             return self._j_tenv.getPlanner().getExecEnv()
         else:
             return self._j_tenv.execEnv()
-
-    def get_config(self):
-        """
-        Returns the table config to define the runtime behavior of the Table API.
-
-        :return: Current table config.
-        :rtype: pyflink.table.TableConfig
-        """
-        table_config = TableConfig()
-        table_config._j_table_config = self._j_tenv.getConfig()
-        return table_config
 
     def connect(self, connector_descriptor):
         """
