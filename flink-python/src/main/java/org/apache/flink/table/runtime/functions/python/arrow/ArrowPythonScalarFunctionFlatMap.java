@@ -21,20 +21,15 @@ package org.apache.flink.table.runtime.functions.python.arrow;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.functions.python.AbstractPythonScalarFunctionFlatMap;
-import org.apache.flink.table.runtime.runners.python.scalar.arrow.ArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.serializers.python.ArrowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowArrowSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowStreamReader;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 
@@ -47,21 +42,23 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Allocator which is used for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocator;
+	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
+
+	static {
+		ArrowUtils.checkArrowUsable();
+	}
 
 	/**
-	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
+	 * The current number of elements to be included in an arrow batch.
 	 */
-	private transient ArrowReader<Row> arrowReader;
+	private transient int currentBatchCount;
 
 	/**
-	 * Reader which is responsible for convert the execution result from
-	 * byte array to arrow format.
+	 * Max number of elements to include in an arrow batch.
 	 */
-	private transient ArrowStreamReader reader;
+	private final int maxArrowBatchSize;
+
+	private transient ArrowSerializer<Row> arrowSerializer;
 
 	public ArrowPythonScalarFunctionFlatMap(
 		Configuration config,
@@ -71,58 +68,70 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+		maxArrowBatchSize = getPythonConfig().getMaxArrowBatchSize();
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
-		reader = new ArrowStreamReader(bais, allocator);
+		arrowSerializer = new RowArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
+		arrowSerializer.open(bais, baos);
+		currentBatchCount = 0;
+	}
+
+	@Override
+	public void flatMap(Row value, Collector<Row> out) throws Exception {
+		this.resultCollector = out;
+		bufferInput(value);
+
+		arrowSerializer.dump(getFunctionInput(value));
+		currentBatchCount++;
+		if (currentBatchCount >= maxArrowBatchSize) {
+			invokeCurrentBatch();
+		}
+		emitResults();
 	}
 
 	@Override
 	public void close() throws Exception {
+		invokeCurrentBatch();
 		try {
 			super.close();
 		} finally {
-			reader.close();
-			allocator.close();
+			arrowSerializer.close();
 		}
 	}
 
 	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
-
-		return new ArrowPythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			userDefinedFunctionResultReceiver,
-			scalarFunctions,
-			createPythonEnvironmentManager(),
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize(),
-			jobOptions,
-			getFlinkMetricContainer());
+	@SuppressWarnings("ConstantConditions")
+	public void emitResult() throws IOException {
+		byte[] udfResult = resultTuple.f0;
+		int length = resultTuple.f1;
+		bais.setBuffer(udfResult, 0, length);
+		int rowCount = arrowSerializer.load();
+		for (int i = 0; i < rowCount; i++) {
+			resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowSerializer.index(i)));
+		}
 	}
 
 	@Override
-	public void emitResults() throws IOException {
-		byte[] udfResult;
-		while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			bais.setBuffer(udfResult, 0, udfResult.length);
-			reader.loadNextBatch();
-			VectorSchemaRoot root = reader.getVectorSchemaRoot();
-			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createRowArrowReader(root, userDefinedFunctionOutputType);
-			}
-			for (int i = 0; i < root.getRowCount(); i++) {
-				resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowReader.read(i)));
-			}
+	public String getInputOutputCoderUrn() {
+		return SCHEMA_ARROW_CODER_URN;
+	}
+
+	@Override
+	protected void invokeFinishBundle() throws Exception {
+		invokeCurrentBatch();
+		super.invokeFinishBundle();
+	}
+
+	private void invokeCurrentBatch() throws Exception {
+		if (currentBatchCount > 0) {
+			arrowSerializer.finishCurrentBatch();
+			currentBatchCount = 0;
+			pythonFunctionRunner.process(baos.toByteArray());
+			baos.reset();
 		}
 	}
 }

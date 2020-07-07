@@ -19,27 +19,33 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.runners.python.beam.BeamPythonStatelessFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import com.google.protobuf.ByteString;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -88,13 +94,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	/**
 	 * The queue holding the input elements for which the execution results have not been received.
 	 */
-	protected transient LinkedBlockingQueue<IN> forwardedInputQueue;
-
-	/**
-	 * The queue holding the user-defined function execution results. The execution results
-	 * are in the same order as the input elements.
-	 */
-	protected transient LinkedBlockingQueue<byte[]> userDefinedFunctionResultQueue;
+	protected transient LinkedList<IN> forwardedInputQueue;
 
 	/**
 	 * Reusable InputStream used to holding the execution results to be deserialized.
@@ -105,6 +105,21 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 * InputStream Wrapper.
 	 */
 	protected transient DataInputViewStreamWrapper baisWrapper;
+
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
+	protected transient ByteArrayOutputStreamWithPos baos;
+
+	/**
+	 * OutputStream Wrapper.
+	 */
+	protected transient DataOutputViewStreamWrapper baosWrapper;
+
+	/**
+	 * The TypeSerializer for input elements.
+	 */
+	protected transient TypeSerializer<UDFIN> inputTypeSerializer;
 
 	public AbstractStatelessFunctionOperator(
 		Configuration config,
@@ -120,36 +135,68 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 	@Override
 	public void open() throws Exception {
-		forwardedInputQueue = new LinkedBlockingQueue<>();
-		userDefinedFunctionResultQueue = new LinkedBlockingQueue<>();
+		forwardedInputQueue = new LinkedList<>();
 		userDefinedFunctionInputType = new RowType(
 			Arrays.stream(userDefinedFunctionInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
 		bais = new ByteArrayInputStreamWithPos();
 		baisWrapper = new DataInputViewStreamWrapper(bais);
+		baos = new ByteArrayOutputStreamWithPos();
+		baosWrapper = new DataOutputViewStreamWrapper(baos);
+		inputTypeSerializer = getInputTypeSerializer();
 		super.open();
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		bufferInput(element.getValue());
-		super.processElement(element);
+		IN value = element.getValue();
+		bufferInput(value);
+		inputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
 		emitResults();
+		baos.reset();
 	}
 
 	@Override
-	public PythonFunctionRunner<IN> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
+	public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+		return new BeamPythonStatelessFunctionRunner(
+			getRuntimeContext().getTaskName(),
+			createPythonEnvironmentManager(),
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType,
+			getFunctionUrn(),
+			getUserDefinedFunctionsProto(),
+			getInputOutputCoderUrn(),
+			jobOptions,
+			getFlinkMetricContainer());
+	}
 
-		return new ProjectUdfInputPythonScalarFunctionRunner(
-			createPythonFunctionRunner(
-				userDefinedFunctionResultReceiver,
-				createPythonEnvironmentManager(),
-				jobOptions));
+	protected void emitResults() throws Exception {
+		if (this.isAsyncPythonFunctionRunner) {
+			checkInvokeFinishBundleByCount();
+		} else {
+			resultTuple = pythonFunctionRunner.receive();
+			emitResult();
+		}
+	}
+
+	protected FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
+		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
+		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
+		for (Object input : pythonFunctionInfo.getInputs()) {
+			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
+				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
+			if (input instanceof PythonFunctionInfo) {
+				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
+			} else if (input instanceof Integer) {
+				inputProto.setInputOffset((Integer) input);
+			} else {
+				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
+			}
+			builder.addInputs(inputProto);
+		}
+		return builder.build();
 	}
 
 	/**
@@ -160,10 +207,20 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 	public abstract UDFIN getFunctionInput(IN element);
 
-	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager,
-		Map<String, String> jobOptions);
+	/**
+	 * Returns the TypeSerializer for input elements.
+	 */
+	public abstract TypeSerializer<UDFIN> getInputTypeSerializer();
+
+	/**
+	 * Gets the proto representation of the Python user-defined functions to be executed.
+	 */
+	@VisibleForTesting
+	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+
+	public abstract String getInputOutputCoderUrn();
+
+	public abstract String getFunctionUrn();
 
 	private Map<String, String> buildJobOptions(Configuration config) {
 		Map<String, String> jobOptions = new HashMap<>();
@@ -171,40 +228,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
 		}
 		return jobOptions;
-	}
-
-	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
-
-		private final PythonFunctionRunner<UDFIN> pythonFunctionRunner;
-
-		ProjectUdfInputPythonScalarFunctionRunner(PythonFunctionRunner<UDFIN> pythonFunctionRunner) {
-			this.pythonFunctionRunner = pythonFunctionRunner;
-		}
-
-		@Override
-		public void open() throws Exception {
-			pythonFunctionRunner.open();
-		}
-
-		@Override
-		public void close() throws Exception {
-			pythonFunctionRunner.close();
-		}
-
-		@Override
-		public void startBundle() throws Exception {
-			pythonFunctionRunner.startBundle();
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			pythonFunctionRunner.finishBundle();
-		}
-
-		@Override
-		public void processElement(IN element) throws Exception {
-			pythonFunctionRunner.processElement(getFunctionInput(element));
-		}
 	}
 
 	/**

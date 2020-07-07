@@ -21,8 +21,6 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.JoinedRowData;
@@ -34,23 +32,17 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.runners.python.table.RowDataPythonTableFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
-
-import java.io.IOException;
-import java.util.Map;
 
 /**
  * The Python {@link TableFunction} operator for the blink planner.
  */
 @Internal
-public class RowDataPythonTableFunctionOperator
-	extends AbstractPythonTableFunctionOperator<RowData, RowData, RowData> {
+public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunctionOperator<RowData, RowData, RowData> {
 
 
 	private static final long serialVersionUID = 1L;
@@ -116,19 +108,9 @@ public class RowDataPythonTableFunctionOperator
 	}
 
 	@Override
-	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager,
-		Map<String, String> jobOptions) {
-		return new RowDataPythonTableFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			tableFunction,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
+	@SuppressWarnings("unchecked")
+	public TypeSerializer<RowData> getInputTypeSerializer() {
+		return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
 	}
 
 	private Projection<RowData, BinaryRowData> createUdtfInputProjection() {
@@ -143,33 +125,31 @@ public class RowDataPythonTableFunctionOperator
 	}
 
 	@Override
-	public void emitResults() throws IOException {
-		RowData input = null;
+	@SuppressWarnings("ConstantConditions")
+	public void emitResult() throws Exception {
+		RowData input = forwardedInputQueue.poll();
 		byte[] rawUdtfResult;
-		boolean lastIsFinishResult = true;
-		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			if (input == null) {
-				input = forwardedInputQueue.poll();
-			}
-			boolean isFinishResult = isFinishResult(rawUdtfResult);
-			if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
-				input = forwardedInputQueue.poll();
-			} else if (input != null) {
-				if (!isFinishResult) {
-					reuseJoinedRow.setRowKind(input.getRowKind());
-					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-					RowData udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
-					rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
-				} else {
-					GenericRowData udtfResult = new GenericRowData(userDefinedFunctionOutputType.getFieldCount());
-					for (int i = 0; i < udtfResult.getArity(); i++) {
-						udtfResult.setField(i, null);
-					}
-					rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
-					input = forwardedInputQueue.poll();
+		int length;
+		boolean isFinishResult;
+		boolean hasJoined = false;
+		do {
+			rawUdtfResult = resultTuple.f0;
+			length = resultTuple.f1;
+			isFinishResult = isFinishResult(rawUdtfResult, length);
+			if (!isFinishResult) {
+				reuseJoinedRow.setRowKind(input.getRowKind());
+				bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
+				RowData udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+				rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
+				resultTuple = pythonFunctionRunner.receive();
+				hasJoined = true;
+			} else if (joinType == JoinRelType.LEFT && !hasJoined) {
+				GenericRowData udtfResult = new GenericRowData(userDefinedFunctionOutputType.getFieldCount());
+				for (int i = 0; i < udtfResult.getArity(); i++) {
+					udtfResult.setField(i, null);
 				}
+				rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
 			}
-			lastIsFinishResult = isFinishResult;
-		}
+		} while (!isFinishResult);
 	}
 }

@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;

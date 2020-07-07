@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -62,7 +63,6 @@ public abstract class AbstractRowPythonScalarFunctionOperator extends AbstractPy
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
@@ -89,5 +89,11 @@ public abstract class AbstractRowPythonScalarFunctionOperator extends AbstractPy
 	@Override
 	public Row getFunctionInput(CRow element) {
 		return Row.project(element.row(), userDefinedFunctionInputOffsets);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public TypeSerializer<Row> getInputTypeSerializer() {
+		return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
 	}
 }

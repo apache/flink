@@ -19,14 +19,16 @@
 package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.python.AsyncPythonFunctionRunner;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryReservationException;
@@ -35,43 +37,46 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Base class for all stream operators to execute Python functions.
  */
 @Internal
 public abstract class AbstractPythonFunctionOperator<IN, OUT>
-		extends AbstractStreamOperator<OUT>
-		implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+	extends AbstractStreamOperator<OUT>
+	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
 	 */
-	private transient PythonFunctionRunner<IN> pythonFunctionRunner;
+	protected transient PythonFunctionRunner pythonFunctionRunner;
 
 	/**
-	 * Use an AtomicBoolean because we start/stop bundles by a timer thread.
+	 * Flag indicating whether the PythonFunctionRunner is a AsyncPythonFunctionRunner.
 	 */
-	private transient AtomicBoolean bundleStarted;
+	protected transient boolean isAsyncPythonFunctionRunner;
+
+	/**
+	 * The Python function execution result tuple.
+	 */
+	protected transient Tuple2<byte[], Integer> resultTuple;
+
+	/**
+	 * Max number of elements to include in a bundle.
+	 */
+	protected transient int maxBundleSize;
 
 	/**
 	 * Number of processed elements in the current bundle.
 	 */
 	private transient int elementCount;
-
-	/**
-	 * Max number of elements to include in a bundle.
-	 */
-	private transient int maxBundleSize;
 
 	/**
 	 * Max duration of a bundle.
@@ -115,7 +120,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	@Override
 	public void open() throws Exception {
 		try {
-			this.bundleStarted = new AtomicBoolean(false);
 
 			if (config.isUsingManagedMemory()) {
 				reserveMemoryForPythonWorker();
@@ -140,18 +144,23 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			}
 
 			this.pythonFunctionRunner = createPythonFunctionRunner();
-			this.pythonFunctionRunner.open();
+			this.pythonFunctionRunner.open(config);
+			if (this.pythonFunctionRunner instanceof AsyncPythonFunctionRunner) {
+				this.isAsyncPythonFunctionRunner = true;
+			}
 
 			this.elementCount = 0;
 			this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
 			// Schedule timer to check timeout of finish bundle.
 			long bundleCheckPeriod = Math.max(this.maxBundleTimeMills, 1);
-			this.checkFinishBundleTimer =
-				getProcessingTimeService()
-					.scheduleAtFixedRate(
-						// ProcessingTimeService callbacks are executed under the checkpointing lock
-						timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
+			if (this.isAsyncPythonFunctionRunner) {
+				this.checkFinishBundleTimer =
+					getProcessingTimeService()
+						.scheduleAtFixedRate(
+							// ProcessingTimeService callbacks are executed under the checkpointing lock
+							timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
+			}
 		} finally {
 			super.open();
 		}
@@ -160,7 +169,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	@Override
 	public void close() throws Exception {
 		try {
-			invokeFinishBundle();
+			if (this.isAsyncPythonFunctionRunner) {
+				invokeFinishBundle();
+			}
 		} finally {
 			super.close();
 		}
@@ -188,21 +199,17 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 
 	@Override
 	public void endInput() throws Exception {
-		invokeFinishBundle();
-	}
-
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		checkInvokeStartBundle();
-		pythonFunctionRunner.processElement(element.getValue());
-		checkInvokeFinishBundleByCount();
+		if (this.isAsyncPythonFunctionRunner) {
+			invokeFinishBundle();
+		}
 	}
 
 	@Override
 	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
 		try {
-			// Ensures that no new bundle gets started
-			invokeFinishBundle();
+			if (this.isAsyncPythonFunctionRunner) {
+				invokeFinishBundle();
+			}
 		} finally {
 			super.prepareSnapshotPreBarrier(checkpointId);
 		}
@@ -233,32 +240,36 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		// Approach 1) is the easiest and gives better latency, yet 2)
 		// gives better throughput due to the bundle not getting cut on
 		// every watermark. So we have implemented 2) below.
-		if (mark.getTimestamp() == Long.MAX_VALUE) {
-			invokeFinishBundle();
-			super.processWatermark(mark);
-		} else if (!bundleStarted.get()) {
-			// forward the watermark immediately if the bundle is already finished.
-			super.processWatermark(mark);
+		if (this.isAsyncPythonFunctionRunner) {
+			if (mark.getTimestamp() == Long.MAX_VALUE) {
+				invokeFinishBundle();
+				super.processWatermark(mark);
+			} else if (elementCount == 0) {
+				// forward the watermark immediately if the bundle is already finished.
+				super.processWatermark(mark);
+			} else {
+				// It is not safe to advance the output watermark yet, so add a hold on the current
+				// output watermark.
+				bundleFinishedCallback =
+					() -> {
+						try {
+							// at this point the bundle is finished, allow the watermark to pass
+							super.processWatermark(mark);
+						} catch (Exception e) {
+							throw new RuntimeException(
+								"Failed to process watermark after finished bundle.", e);
+						}
+					};
+			}
 		} else {
-			// It is not safe to advance the output watermark yet, so add a hold on the current
-			// output watermark.
-			bundleFinishedCallback =
-				() -> {
-					try {
-						// at this point the bundle is finished, allow the watermark to pass
-						super.processWatermark(mark);
-					} catch (Exception e) {
-						throw new RuntimeException(
-							"Failed to process watermark after finished bundle.", e);
-					}
-				};
+			super.processWatermark(mark);
 		}
 	}
 
 	/**
 	 * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
 	 */
-	public abstract PythonFunctionRunner<IN> createPythonFunctionRunner() throws Exception;
+	public abstract PythonFunctionRunner createPythonFunctionRunner() throws Exception;
 
 	/**
 	 * Returns the {@link PythonEnv} used to create PythonEnvironmentManager..
@@ -266,9 +277,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	public abstract PythonEnv getPythonEnv();
 
 	/**
-	 * Sends the execution results to the downstream operator.
+	 * Sends the execution result to the downstream operator.
 	 */
-	public abstract void emitResults() throws IOException;
+	public abstract void emitResult() throws Exception;
 
 	/**
 	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
@@ -297,18 +308,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	}
 
 	/**
-	 * Checks whether to invoke startBundle.
-	 */
-	private void checkInvokeStartBundle() throws Exception {
-		if (bundleStarted.compareAndSet(false, true)) {
-			pythonFunctionRunner.startBundle();
-		}
-	}
-
-	/**
 	 * Checks whether to invoke finishBundle by elements count. Called in processElement.
 	 */
-	private void checkInvokeFinishBundleByCount() throws Exception {
+	protected void checkInvokeFinishBundleByCount() throws Exception {
 		elementCount++;
 		if (elementCount >= maxBundleSize) {
 			invokeFinishBundle();
@@ -320,23 +322,22 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 */
 	private void checkInvokeFinishBundleByTime() throws Exception {
 		long now = getProcessingTimeService().getCurrentProcessingTime();
-		if (now - lastFinishBundleTime >= maxBundleTimeMills) {
+		if (now - lastFinishBundleTime >= maxBundleTimeMills && elementCount > 0) {
 			invokeFinishBundle();
 		}
 	}
 
-	private void invokeFinishBundle() throws Exception {
-		if (bundleStarted.compareAndSet(true, false)) {
-			pythonFunctionRunner.finishBundle();
-
-			emitResults();
-			elementCount = 0;
-			lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
-			// callback only after current bundle was fully finalized
-			if (bundleFinishedCallback != null) {
-				bundleFinishedCallback.run();
-				bundleFinishedCallback = null;
-			}
+	protected void invokeFinishBundle() throws Exception {
+		((AsyncPythonFunctionRunner) pythonFunctionRunner).flush();
+		elementCount = 0;
+		while ((resultTuple = pythonFunctionRunner.receive()) != null) {
+			emitResult();
+		}
+		lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+		// callback only after current bundle was fully finalized
+		if (bundleFinishedCallback != null) {
+			bundleFinishedCallback.run();
+			bundleFinishedCallback = null;
 		}
 	}
 
