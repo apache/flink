@@ -16,10 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env;
+package org.apache.flink.python.env.beam;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.python.env.ProcessPythonEnvironment;
+import org.apache.flink.python.env.PythonDependencyInfo;
+import org.apache.flink.python.env.PythonEnvironment;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.FileUtils;
@@ -27,8 +31,6 @@ import org.apache.flink.util.ShutdownHookUtil;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Environments;
 import org.codehaus.commons.nullanalysis.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +54,7 @@ import java.util.UUID;
 
 /**
  * The ProcessPythonEnvironmentManager is used to prepare the working dir of python UDF worker and create
- * ProcessEnvironment object of Beam Fn API. It's used when the python function runner is configured to run python UDF
+ * ProcessPythonEnvironment object of Beam Fn API. It's used when the python function runner is configured to run python UDF
  * in process mode.
  */
 @Internal
@@ -164,7 +166,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	}
 
 	@Override
-	public RunnerApi.Environment createEnvironment() throws IOException {
+	public PythonEnvironment createEnvironment() throws IOException {
 		Map<String, String> env = constructEnvironmentVariables();
 
 		if (dependencyInfo.getRequirementsFilePath().isPresent()) {
@@ -178,11 +180,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		}
 		String runnerScript = PythonEnvironmentManagerUtils.getPythonUdfRunnerScript(dependencyInfo.getPythonExec(), env);
 
-		return Environments.createProcessEnvironment(
-			"",
-			"",
-			runnerScript,
-			env);
+		return new ProcessPythonEnvironment(runnerScript, env);
 	}
 
 	/**

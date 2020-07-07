@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -41,6 +42,8 @@ import java.util.Arrays;
 public abstract class AbstractPythonScalarFunctionFlatMap extends AbstractPythonStatelessFunctionFlatMap {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
 
 	/**
 	 * The Python {@link ScalarFunction}s to be executed.
@@ -95,5 +98,21 @@ public abstract class AbstractPythonScalarFunctionFlatMap extends AbstractPython
 	@Override
 	public int getForwardedFieldsCount() {
 		return forwardedFields.length;
+	}
+
+	@Override
+	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
+		// add udf proto
+		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
+			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
+		}
+		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+		return builder.build();
+	}
+
+	@Override
+	public String getFunctionUrn() {
+		return SCALAR_FUNCTION_URN;
 	}
 }

@@ -19,25 +19,16 @@
 package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.arrow.ArrowReader;
-import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
+import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
-import org.apache.flink.table.runtime.runners.python.scalar.arrow.RowDataArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowStreamReader;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-
-import java.io.IOException;
-import java.util.Map;
 
 /**
  * Arrow Python {@link ScalarFunction} operator for the blink planner.
@@ -47,21 +38,19 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Allocator which is used for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocator;
+	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
 
 	/**
-	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
+	 * The current number of elements to be included in an arrow batch.
 	 */
-	private transient ArrowReader<RowData> arrowReader;
+	private transient int currentBatchCount;
 
 	/**
-	 * Reader which is responsible for convert the execution result from
-	 * byte array to arrow format.
+	 * Max number of elements to include in an arrow batch.
 	 */
-	private transient ArrowStreamReader reader;
+	private transient int maxArrowBatchSize;
+
+	private transient ArrowSerializer<RowData> arrowSerializer;
 
 	public RowDataArrowPythonScalarFunctionOperator(
 		Configuration config,
@@ -76,53 +65,71 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 	@Override
 	public void open() throws Exception {
 		super.open();
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
-		reader = new ArrowStreamReader(bais, allocator);
+		maxArrowBatchSize = Math.min(getPythonConfig().getMaxArrowBatchSize(), maxBundleSize);
+		arrowSerializer = new RowDataArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
+		arrowSerializer.open(bais, baos);
+		currentBatchCount = 0;
+	}
+
+	@Override
+	protected void invokeFinishBundle() throws Exception {
+		invokeCurrentBatch();
+		super.invokeFinishBundle();
+	}
+
+	@Override
+	public void endInput() throws Exception {
+		invokeCurrentBatch();
+		super.endInput();
+	}
+
+	@Override
+	public void dispose() throws Exception {
+		super.dispose();
+		arrowSerializer.close();
 	}
 
 	@Override
 	public void close() throws Exception {
-		try {
-			super.close();
-		} finally {
-			reader.close();
-			allocator.close();
-		}
-	}
-
-	@Override
-	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager,
-		Map<String, String> jobOptions) {
-		return new RowDataArrowPythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			scalarFunctions,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize(),
-			jobOptions,
-			getFlinkMetricContainer());
+		invokeCurrentBatch();
+		super.close();
 	}
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResults() throws IOException {
-		byte[] udfResult;
-		while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			bais.setBuffer(udfResult, 0, udfResult.length);
-			reader.loadNextBatch();
-			VectorSchemaRoot root = reader.getVectorSchemaRoot();
-			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createRowDataArrowReader(root, outputType);
-			}
-			for (int i = 0; i < root.getRowCount(); i++) {
-				RowData input = forwardedInputQueue.poll();
-				reuseJoinedRow.setRowKind(input.getRowKind());
-				rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowReader.read(i)));
-			}
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+		byte[] udfResult = resultTuple.f0;
+		int length = resultTuple.f1;
+		bais.setBuffer(udfResult, 0, length);
+		int rowCount = arrowSerializer.load();
+		for (int i = 0; i < rowCount; i++) {
+			RowData input = forwardedInputQueue.poll();
+			reuseJoinedRow.setRowKind(input.getRowKind());
+			rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
+		}
+	}
+
+	@Override
+	public String getInputOutputCoderUrn() {
+		return SCHEMA_ARROW_CODER_URN;
+	}
+
+	@Override
+	public void processElementInternal(RowData value) throws Exception {
+		arrowSerializer.write(getFunctionInput(value));
+		currentBatchCount++;
+		if (currentBatchCount >= maxArrowBatchSize) {
+			invokeCurrentBatch();
+		}
+	}
+
+	private void invokeCurrentBatch() throws Exception {
+		if (currentBatchCount > 0) {
+			arrowSerializer.finishCurrentBatch();
+			currentBatchCount = 0;
+			pythonFunctionRunner.process(baos.toByteArray());
+			checkInvokeFinishBundleByCount();
+			baos.reset();
 		}
 	}
 }

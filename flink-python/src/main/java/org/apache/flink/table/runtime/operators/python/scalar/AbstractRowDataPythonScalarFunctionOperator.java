@@ -75,7 +75,6 @@ public abstract class AbstractRowDataPythonScalarFunctionOperator
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
 		rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);

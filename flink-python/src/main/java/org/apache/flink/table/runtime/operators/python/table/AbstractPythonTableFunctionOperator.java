@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -42,6 +43,10 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 	extends AbstractStatelessFunctionOperator<IN, OUT, UDTFIN> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final String TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1";
+
+	private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
 	/**
 	 * The Python {@link TableFunction} to be executed.
@@ -81,10 +86,28 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 		return tableFunction.getPythonFunction().getPythonEnv();
 	}
 
+	@Override
+	public String getInputOutputCoderUrn() {
+		return TABLE_FUNCTION_SCHEMA_CODER_URN;
+	}
+
+	@Override
+	public String getFunctionUrn() {
+		return TABLE_FUNCTION_URN;
+	}
+
+	@Override
+	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
+		builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
+		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+		return builder.build();
+	}
+
 	/**
 	 * The received udtf execution result is a finish message when it is a byte with value 0x00.
 	 */
-	protected boolean isFinishResult(byte[] rawUdtfResult) {
-		return rawUdtfResult.length == 1 && rawUdtfResult[0] == 0x00;
+	boolean isFinishResult(byte[] rawUdtfResult, int length) {
+		return length == 1 && rawUdtfResult[0] == 0x00;
 	}
 }

@@ -20,20 +20,15 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.RowDataPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * The Python {@link ScalarFunction} operator for the blink planner.
@@ -47,6 +42,11 @@ public class RowDataPythonScalarFunctionOperator extends AbstractRowDataPythonSc
 	 * The TypeSerializer for udf execution results.
 	 */
 	private transient TypeSerializer<RowData> udfOutputTypeSerializer;
+
+	/**
+	 * The TypeSerializer for udf input elements.
+	 */
+	private transient TypeSerializer<RowData> udfInputTypeSerializer;
 
 	public RowDataPythonScalarFunctionOperator(
 		Configuration config,
@@ -62,35 +62,26 @@ public class RowDataPythonScalarFunctionOperator extends AbstractRowDataPythonSc
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
+		udfInputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
 		udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResults() throws IOException {
-		byte[] rawUdfResult;
-		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			RowData input = forwardedInputQueue.poll();
-			reuseJoinedRow.setRowKind(input.getRowKind());
-			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
-			rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
-		}
+	public void processElementInternal(RowData value) throws Exception {
+		udfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
+		baos.reset();
 	}
 
 	@Override
-	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager,
-			Map<String, String> jobOptions) {
-		return new RowDataPythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			scalarFunctions,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
+	@SuppressWarnings("ConstantConditions")
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
+		byte[] rawUdfResult = resultTuple.f0;
+		int length = resultTuple.f1;
+		RowData input = forwardedInputQueue.poll();
+		reuseJoinedRow.setRowKind(input.getRowKind());
+		bais.setBuffer(rawUdfResult, 0, length);
+		RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
+		rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
 	}
 }

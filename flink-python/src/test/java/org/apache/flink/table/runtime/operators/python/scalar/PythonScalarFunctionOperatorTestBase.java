@@ -33,9 +33,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
-import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -224,7 +225,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 			config,
 			new PythonFunctionInfo[] {
 				new PythonFunctionInfo(
-					AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
+					DummyPythonFunction.INSTANCE,
 					new Integer[]{0})
 			},
 			dataType,
@@ -255,4 +256,24 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 	public abstract StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env);
 
 	public abstract TypeSerializer<OUT> getOutputTypeSerializer(RowType dataType);
+
+	/**
+	 * Dummy PythonFunction.
+	 */
+	public static class DummyPythonFunction implements PythonFunction {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final PythonFunction INSTANCE = new DummyPythonFunction();
+
+		@Override
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return new PythonEnv(PythonEnv.ExecType.PROCESS);
+		}
+	}
 }
