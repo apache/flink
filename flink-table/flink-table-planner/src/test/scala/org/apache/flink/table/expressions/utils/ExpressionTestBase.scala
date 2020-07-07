@@ -36,10 +36,10 @@ import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.internal.TableEnvImpl
-import org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl
+import org.apache.flink.table.api.bridge.scala.internal.BatchTableEnvironmentImpl
 import org.apache.flink.table.calcite.{CalciteParser, FlinkRelBuilder}
 import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}

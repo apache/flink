@@ -29,7 +29,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.lang3.time.StopWatch;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -331,9 +330,6 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		dfs.recoverLease(path);
 
 		final Deadline deadline = Deadline.now().plus(Duration.ofMillis(LEASE_TIMEOUT));
-
-		final StopWatch sw = new StopWatch();
-		sw.start();
 
 		boolean isClosed = dfs.isFileClosed(path);
 		while (!isClosed && deadline.hasTimeLeft()) {

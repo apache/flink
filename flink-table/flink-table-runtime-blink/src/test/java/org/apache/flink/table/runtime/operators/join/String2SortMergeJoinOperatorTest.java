@@ -25,8 +25,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -38,7 +38,7 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.join.String2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.StringNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.StringRecordComparator;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Test;
@@ -59,9 +59,9 @@ import static org.apache.flink.table.runtime.operators.join.String2HashJoinOpera
 public class String2SortMergeJoinOperatorTest {
 
 	private boolean leftIsSmall;
-	BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(
+	RowDataTypeInfo typeInfo = new RowDataTypeInfo(
 			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
-	private BaseRowTypeInfo joinedInfo = new BaseRowTypeInfo(
+	private RowDataTypeInfo joinedInfo = new RowDataTypeInfo(
 			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
 
 	public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
@@ -76,7 +76,7 @@ public class String2SortMergeJoinOperatorTest {
 	@Test
 	public void testInnerJoin() throws Exception {
 		StreamOperator joinOperator = newOperator(FlinkJoinType.INNER, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 				buildSortMergeJoin(joinOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -91,7 +91,7 @@ public class String2SortMergeJoinOperatorTest {
 	@Test
 	public void testLeftOuterJoin() throws Exception {
 		StreamOperator joinOperator = newOperator(FlinkJoinType.LEFT, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 				buildSortMergeJoin(joinOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -107,7 +107,7 @@ public class String2SortMergeJoinOperatorTest {
 	@Test
 	public void testRightOuterJoin() throws Exception {
 		StreamOperator joinOperator = newOperator(FlinkJoinType.RIGHT, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 				buildSortMergeJoin(joinOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -123,7 +123,7 @@ public class String2SortMergeJoinOperatorTest {
 	@Test
 	public void testFullJoin() throws Exception {
 		StreamOperator joinOperator = newOperator(FlinkJoinType.FULL, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 				buildSortMergeJoin(joinOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -138,8 +138,8 @@ public class String2SortMergeJoinOperatorTest {
 				transformToBinary(testHarness.getOutput()));
 	}
 
-	private TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> buildSortMergeJoin(StreamOperator operator) throws Exception {
-		final TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+	private TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> buildSortMergeJoin(StreamOperator operator) throws Exception {
+		final TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 				new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, 2, 2,
 					new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, joinedInfo);
 

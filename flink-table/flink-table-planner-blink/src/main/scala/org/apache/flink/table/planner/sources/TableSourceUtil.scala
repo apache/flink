@@ -119,24 +119,23 @@ object TableSourceUtil {
   /**
     * Returns schema of the selected fields of the given [[TableSource]].
     *
-    * @param typeFactory    Type factory to create the type
-    * @param fieldNameArray Field names to build the row type
-    * @param fieldDataTypeArray Field data types to build the row type
-    * @param tableSource    The [[TableSource]] to derive time attributes
-    * @param streaming      Flag to determine whether the schema of
-    *                       a stream or batch table is created
-    * @return The schema for the selected fields of the given [[TableSource]]
+    * <p> The watermark strategy specifications should either come from the [[TableSchema]]
+    * or [[TableSource]].
+    *
+    * @param typeFactory Type factory to create the type
+    * @param tableSource Table source to derive watermark strategies
+    * @param streaming Flag to determine whether the schema of a stream or batch table is created
+    * @return The row type for the selected fields of the given [[TableSource]], this type would
+    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
     */
-  def getSourceRowType(
+  def getSourceRowTypeFromSource(
       typeFactory: FlinkTypeFactory,
-      fieldNameArray: Array[String],
-      fieldDataTypeArray: Array[DataType],
       tableSource: TableSource[_],
       streaming: Boolean): RelDataType = {
-
-    val fieldNames = fieldNameArray
-    var fieldTypes = fieldDataTypeArray
-      .map(fromDataTypeToLogicalType)
+    val tableSchema = tableSource.getTableSchema
+    val fieldNames = tableSchema.getFieldNames
+    val fieldDataTypes = tableSchema.getFieldDataTypes
+    var fieldTypes = fieldDataTypes.map(fromDataTypeToLogicalType)
 
     if (streaming) {
       // adjust the type of time attributes for streaming tables
@@ -162,61 +161,18 @@ object TableSourceUtil {
   }
 
   /**
-    * Returns schema of the selected fields of the given [[TableSource]].
-    *
-    * @param typeFactory Type factory to create the type
-    * @param fieldNameArray Field names to build the row type
-    * @param fieldDataTypeArray Field data types to build the row type
-    * @param watermarkSpec Watermark specifications defined through DDL
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created
-    * @return The row type for the selected fields of the given [[TableSource]], this type would
-    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
-    */
-  def getSourceRowType(
-      typeFactory: FlinkTypeFactory,
-      fieldNameArray: Array[String],
-      fieldDataTypeArray: Array[DataType],
-      watermarkSpec: WatermarkSpec,
-      streaming: Boolean): RelDataType = {
-
-    val fieldNames = fieldNameArray
-    var fieldTypes = fieldDataTypeArray
-      .map(fromDataTypeToLogicalType)
-
-    // patch rowtime field according to WatermarkSpec
-    fieldTypes = if (streaming) {
-      // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
-      val rowtime = watermarkSpec.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new ValidationException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
-      val idx = fieldNames.indexOf(rowtime)
-      val originalType = fieldTypes(idx).asInstanceOf[TimestampType]
-      val rowtimeType = new TimestampType(
-        originalType.isNullable,
-        TimestampKind.ROWTIME,
-        originalType.getPrecision)
-      fieldTypes.patch(idx, Seq(rowtimeType), 1)
-    } else {
-      fieldTypes
-    }
-    typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
-  }
-
-  /**
-    * Returns schema of the selected fields of the given [[TableSource]].
-    *
-    * <p> The watermark strategy specifications should either come from the [[TableSchema]]
-    * or [[TableSource]].
-    *
-    * @param typeFactory Type factory to create the type
-    * @param tableSchema Table schema to derive table field names and data types
-    * @param tableSource Table source to derive watermark strategies
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created
-    * @return The row type for the selected fields of the given [[TableSource]], this type would
-    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
-    */
+   * Returns schema of the selected fields of the given [[TableSource]].
+   *
+   * <p> The watermark strategy specifications should either come from the [[TableSchema]]
+   * or [[TableSource]].
+   *
+   * @param typeFactory Type factory to create the type
+   * @param tableSchema Table schema to derive table field names and data types
+   * @param tableSource Table source to derive watermark strategies
+   * @param streaming Flag to determine whether the schema of a stream or batch table is created
+   * @return The row type for the selected fields of the given [[TableSource]], this type would
+   *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+   */
   def getSourceRowType(
       typeFactory: FlinkTypeFactory,
       tableSchema: TableSchema,
@@ -226,12 +182,8 @@ object TableSourceUtil {
     val fieldNames = tableSchema.getFieldNames
     val fieldDataTypes = tableSchema.getFieldDataTypes
 
-    if (tableSchema.getWatermarkSpecs.nonEmpty) {
-      getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSchema.getWatermarkSpecs.head,
-        streaming)
-    } else if (tableSource.isDefined) {
-      getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSource.get,
-        streaming)
+    if (tableSource.isDefined) {
+      getSourceRowTypeFromSource(typeFactory, tableSource.get, streaming)
     } else {
       val fieldTypes = fieldDataTypes.map(fromDataTypeToLogicalType)
       typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)

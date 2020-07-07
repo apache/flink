@@ -20,6 +20,7 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.data.binary.BinaryRawValueData;
 import org.apache.flink.table.types.logical.RawType;
 
 /**
@@ -60,8 +61,14 @@ public interface RawValueData<T> {
 	 * Creates an instance of {@link RawValueData} from a Java object.
 	 */
 	static <T> RawValueData<T> fromObject(T javaObject) {
-		// TODO
-		throw new UnsupportedOperationException();
+		return BinaryRawValueData.fromObject(javaObject);
+	}
+
+	/**
+	 * Creates an instance of {@link RawValueData} from the given byte array.
+	 */
+	static <T> RawValueData<T> fromBytes(byte[] bytes) {
+		return BinaryRawValueData.fromBytes(bytes);
 	}
 
 }

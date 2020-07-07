@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.expressions.{Expression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -39,11 +38,12 @@ import org.apache.flink.table.runtime.types.InternalSerializers
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
-
+import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
+
+import scala.annotation.tailrec
 
 /**
   * Batch aggregate code generate helper.
@@ -118,7 +118,7 @@ object AggCodeGenHelper {
       lastKeyTerm: String): String = {
     s"""
        |$currentKeyTerm.getSizeInBytes() != $lastKeyTerm.getSizeInBytes() ||
-       |  !(org.apache.flink.table.dataformat.util.BinaryRowUtil.byteArrayEquals(
+       |  !(org.apache.flink.table.data.binary.BinaryRowDataUtil.byteArrayEquals(
        |     $currentKeyTerm.getSegments()[0].getHeapMemory(),
        |     $lastKeyTerm.getSegments()[0].getHeapMemory(),
        |     $currentKeyTerm.getSizeInBytes()))
@@ -360,21 +360,30 @@ object AggCodeGenHelper {
 
     aggBufferExprs.zip(initAggBufferExprs).map {
       case (aggBufVar, initExpr) =>
-        val resultCode = aggBufVar.resultType.getTypeRoot match {
-          case VARCHAR | CHAR | ROW | ARRAY | MULTISET | MAP =>
-            val serializer = InternalSerializers.create(
-              aggBufVar.resultType, new ExecutionConfig)
-            val term = ctx.addReusableObject(
-              serializer, "serializer", serializer.getClass.getCanonicalName)
-            s"$term.copy(${initExpr.resultTerm})"
-          case _ => initExpr.resultTerm
-        }
+        val resultCode = genElementCopyTerm(ctx, aggBufVar.resultType, initExpr.resultTerm)
         s"""
            |${initExpr.code}
            |${aggBufVar.nullTerm} = ${initExpr.nullTerm};
            |${aggBufVar.resultTerm} = $resultCode;
          """.stripMargin.trim
     } mkString "\n"
+  }
+
+  @tailrec
+  private def genElementCopyTerm(
+      ctx: CodeGeneratorContext,
+      t: LogicalType,
+      inputTerm: String)
+  : String = t.getTypeRoot match {
+    case CHAR | VARCHAR | ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE =>
+      val serializer = InternalSerializers.create(t)
+      val term = ctx.addReusableObject(
+        serializer, "serializer", serializer.getClass.getCanonicalName)
+      val typeTerm = boxedTypeTermForType(t)
+      s"($typeTerm) $term.copy($inputTerm)"
+    case DISTINCT_TYPE =>
+      genElementCopyTerm(ctx, t.asInstanceOf[DistinctType].getSourceType, inputTerm)
+    case _ => inputTerm
   }
 
   private[flink] def genAggregateByFlatAggregateBuffer(
@@ -452,11 +461,11 @@ object AggCodeGenHelper {
         outputType)
       val valueRowType = RowType.of(getValueExprs.map(_.resultType): _*)
       resultCodegen.generateResultExpression(
-        getValueExprs, valueRowType, classOf[GenericRow], valueRow)
+        getValueExprs, valueRowType, classOf[GenericRowData], valueRow)
     } else {
       val valueRowType = RowType.of(aggBufferExprs.map(_.resultType): _*)
       resultCodegen.generateResultExpression(
-        aggBufferExprs, valueRowType, classOf[GenericRow], valueRow)
+        aggBufferExprs, valueRowType, classOf[GenericRowData], valueRow)
     }
   }
 
@@ -663,7 +672,7 @@ object AggCodeGenHelper {
       operatorBaseClass: String,
       processCode: String,
       endInputCode: String,
-      inputType: RowType): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      inputType: RowType): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     ctx.addReusableMember("private boolean hasInput = false;")
     ctx.addReusableMember(s"$STREAM_RECORD element = new $STREAM_RECORD((Object)null);")
     OperatorCodeGenerator.generateOneInputStreamOperator(

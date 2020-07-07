@@ -1,0 +1,189 @@
+---
+title: "Canal Format"
+nav-title: Canal
+nav-parent_id: sql-formats
+nav-pos: 5
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<span class="label label-info">Changelog-Data-Capture Format</span>
+<span class="label label-info">Format: Deserialization Schema</span>
+
+* This will be replaced by the TOC
+{:toc}
+
+[Canal](https://github.com/alibaba/canal/wiki) 是一个 CDC（ChangeLog Data Capture，变更日志数据捕获）工具，可以实时地将 MySQL 变更传输到其他系统。Canal 为变更日志提供了统一的数据格式，并支持使用 JSON 或 [protobuf](https://developers.google.com/protocol-buffers) 序列化消息（Canal 默认使用 protobuf）。
+
+Flink 支持将 Canal 的 JSON 消息解析为 INSERT / UPDATE / DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常的有用，例如
+ - 将增量数据从数据库同步到其他系统
+ - 日志审计
+ - 数据库的实时物化视图
+ - 关联维度数据库的变更历史，等等。
+
+*注意：未来会支持 Canal protobuf 类型消息的解析以及输出 Canal 格式的消息。*
+
+依赖
+------------
+
+为了设置 Canal 格式，下表提供了使用自动化构建工具（例如：Maven 或 SBT）项目和使用绑定 SQL JAR 包的 SQL Client 所需的依赖信息。
+
+| Maven 依赖   | SQL Client JAR         |
+| :----------------- | :----------------------|
+| `flink-json`       | 内置               |
+
+*注意：有关如何部署 Canal 以将变更日志同步到消息队列，请参阅 [Canal 文档](https://github.com/alibaba/canal/wiki)。*
+
+
+如何使用 Canal Format
+----------------
+
+Canal 为变更日志提供了统一的格式，下面是一个从 MySQL 库 `products` 表中捕获更新操作的简单示例：
+
+```json
+{
+  "data": [
+    {
+      "id": "111",
+      "name": "scooter",
+      "description": "Big 2-wheel scooter",
+      "weight": "5.18"
+    }
+  ],
+  "database": "inventory",
+  "es": 1589373560000,
+  "id": 9,
+  "isDdl": false,
+  "mysqlType": {
+    "id": "INTEGER",
+    "name": "VARCHAR(255)",
+    "description": "VARCHAR(512)",
+    "weight": "FLOAT"
+  },
+  "old": [
+    {
+      "weight": "5.15"
+    }
+  ],
+  "pkNames": [
+    "id"
+  ],
+  "sql": "",
+  "sqlType": {
+    "id": 4,
+    "name": 12,
+    "description": 12,
+    "weight": 7
+  },
+  "table": "products",
+  "ts": 1589373560798,
+  "type": "UPDATE"
+}
+```
+
+*注意：有关各个字段的含义，请参阅 [Canal 文档](https://github.com/alibaba/canal/wiki)*
+
+MySQL `products` 表有4列（`id`，`name`，`description` 和 `weight`）。上面的 JSON 消息是 `products` 表上的一个更新事件，表示 `id = 111` 的行数据上 `weight` 字段值从`5.15`变更成为 `5.18`。假设消息已经同步到了一个 Kafka 主题：`products_binlog`，那么就可以使用以下DDL来从这个主题消费消息并解析变更事件。
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE topic_products (
+  -- 元数据与 MySQL "products" 表完全相同
+  id BIGINT,
+  name STRING,
+  description STRING,
+  weight DECIMAL(10, 2)
+) WITH (
+ 'connector' = 'kafka',
+ 'topic' = 'products_binlog',
+ 'properties.bootstrap.servers' = 'localhost:9092',
+ 'properties.group.id' = 'testGroup',
+ 'format' = 'canal-json'  -- 使用 canal-json 格式
+)
+{% endhighlight %}
+</div>
+</div>
+
+将 Kafka 主题注册成 Flink 表之后，就可以将 Canal 消息用作变更日志源。
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+-- 关于MySQL "products" 表的实时物化视图
+-- 计算相同产品的最新平均重量
+SELECT name, AVG(weight) FROM topic_products GROUP BY name;
+
+-- 将 MySQL "products" 表的所有数据和增量更改同步到
+-- Elasticsearch "products" 索引以供将来搜索
+INSERT INTO elasticsearch_products
+SELECT * FROM topic_products;
+{% endhighlight %}
+</div>
+</div>
+
+
+Format 参数
+----------------
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-center" style="width: 8%">要求</th>
+        <th class="text-center" style="width: 7%">默认</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 50%">描述</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>format</h5></td>
+      <td>必填</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>指定要使用的格式，此处应为 <code>'canal-json'</code>.</td>
+    </tr>
+    <tr>
+      <td><h5>canal-json.ignore-parse-errors</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
+    </tr>
+    <tr>
+       <td><h5>canal-json.timestamp-format.standard</h5></td>
+       <td>选填</td>
+       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
+       <td>String</td>
+       <td>指定输入和输出时间戳格式。 当前支持的值是 <code>'SQL'</code> 和 <code>'ISO-8601'</code>:
+       <ul>
+         <li>选项 <code>'SQL'</code> 将解析 "yyyy-MM-dd HH:mm:ss.s{precision}" 格式的输入时间戳，例如 '2020-12-30 12:13:14.123'，并以相同格式输出时间戳。</li>
+         <li>选项 <code>'ISO-8601'</code> 将解析 "yyyy-MM-ddTHH:mm:ss.s{precision}" 格式的输入时间戳，例如 '2020-12-30T12:13:14.123'，并以相同的格式输出时间戳。</li>
+       </ul>
+       </td>
+    </tr>
+    </tbody>
+</table>
+
+数据类型映射
+----------------
+
+目前，Canal Format 使用 JSON Format 进行反序列化。 有关数据类型映射的更多详细信息，请参阅 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
+

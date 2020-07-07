@@ -452,7 +452,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		checkpointCoordinator.triggerCheckpoint(false);
 		checkpointTriggeredLatch.await();
 		assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints(), is(equalTo(1)));
 
@@ -481,7 +481,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		checkpointCoordinator.addMasterHook(masterHook);
 
 		// complete one checkpoint for state restore
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		checkpointCoordinator.triggerCheckpoint(false);
 		checkpointTriggeredLatch.await();
 		final long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
 		acknowledgePendingCheckpoint(scheduler, checkpointId);
@@ -513,7 +513,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		checkpointCoordinator.addMasterHook(masterHook);
 
 		// complete one checkpoint for state restore
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		checkpointCoordinator.triggerCheckpoint(false);
 		checkpointTriggeredLatch.await();
 		final long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
 		acknowledgePendingCheckpoint(scheduler, checkpointId);

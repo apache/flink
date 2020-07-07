@@ -56,11 +56,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	 * released.
 	 */
 	@Nullable
-	private final ByteBuffer offHeapBuffer;
-
-	/** The cleaner is called to free the underlying native memory. */
-	@Nullable
-	private final Runnable cleaner;
+	private ByteBuffer offHeapBuffer;
 
 	/**
 	  * Creates a new memory segment that represents the memory backing the given direct byte buffer.
@@ -71,13 +67,11 @@ public final class HybridMemorySegment extends MemorySegment {
 	  *
 	  * @param buffer The byte buffer whose memory is represented by this memory segment.
 	  * @param owner The owner references by this memory segment.
-	  * @param cleaner optional action to run upon freeing the segment.
 	  * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
 	  */
-	HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
+	HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
 		super(getByteBufferAddress(buffer), buffer.capacity(), owner);
 		this.offHeapBuffer = buffer;
-		this.cleaner = cleaner;
 	}
 
 	/**
@@ -91,12 +85,17 @@ public final class HybridMemorySegment extends MemorySegment {
 	HybridMemorySegment(byte[] buffer, Object owner) {
 		super(buffer, owner);
 		this.offHeapBuffer = null;
-		this.cleaner = null;
 	}
 
 	// -------------------------------------------------------------------------
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
+
+	@Override
+	public void free() {
+		super.free();
+		offHeapBuffer = null; // to enable GC of unsafe memory
+	}
 
 	/**
 	 * Gets the buffer that owns the memory of this memory segment.
@@ -106,6 +105,8 @@ public final class HybridMemorySegment extends MemorySegment {
 	public ByteBuffer getOffHeapBuffer() {
 		if (offHeapBuffer != null) {
 			return offHeapBuffer;
+		} else if (isFreed()) {
+			throw new IllegalStateException("segment has been freed");
 		} else {
 			throw new IllegalStateException("Memory segment does not represent off heap memory");
 		}
@@ -131,14 +132,6 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		else {
 			throw new IllegalStateException("segment has been freed");
-		}
-	}
-
-	@Override
-	public void free() {
-		super.free();
-		if (cleaner != null) {
-			cleaner.run();
 		}
 	}
 
@@ -202,8 +195,7 @@ public final class HybridMemorySegment extends MemorySegment {
 			throw new IllegalStateException("segment has been freed");
 		}
 		else {
-			// index is in fact invalid
-			throw new IndexOutOfBoundsException();
+			throw new IndexOutOfBoundsException(String.format("pos: %d, length: %d, index: %d, offset: %d", pos, length, index, offset));
 		}
 	}
 

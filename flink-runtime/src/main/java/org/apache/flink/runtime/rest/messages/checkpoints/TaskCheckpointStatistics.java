@@ -38,6 +38,12 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_LATEST_ACK_TIMESTAMP = "latest_ack_timestamp";
 
+	/**
+	 * The accurate name of this field should be 'checkpointed_data_size',
+	 * keep it as before to not break backwards compatibility for old web UI.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+	 */
 	public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
 	public static final String FIELD_NAME_DURATION = "end_to_end_duration";
@@ -103,10 +109,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
 	public long getDuration() {
 		return duration;
-	}
-
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
 	}
 
 	public int getNumSubtasks() {

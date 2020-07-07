@@ -21,9 +21,13 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.util.SerializableFunction;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A simple testing implementation of the {@link OperatorCoordinator}.
@@ -34,11 +38,20 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	private final ArrayList<Integer> failedTasks = new ArrayList<>();
 
+	@Nullable
+	private byte[] lastRestoredCheckpointState;
+
+	private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
+
+	private BlockingQueue<Long> lastCheckpointComplete;
+
 	private boolean started;
 	private boolean closed;
 
 	public TestingOperatorCoordinator(OperatorCoordinator.Context context) {
 		this.context = context;
+		this.triggeredCheckpoints = new LinkedBlockingQueue<>();
+		this.lastCheckpointComplete = new LinkedBlockingQueue<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -57,23 +70,24 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	public void handleEventFromOperator(int subtask, OperatorEvent event) {}
 
 	@Override
-	public void subtaskFailed(int subtask) {
+	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
 		failedTasks.add(subtask);
 	}
 
 	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
-		throw new UnsupportedOperationException();
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+		boolean added = triggeredCheckpoints.offer(result);
+		assert added; // guard the test assumptions
 	}
 
 	@Override
 	public void checkpointComplete(long checkpointId) {
-		throw new UnsupportedOperationException();
+		lastCheckpointComplete.offer(checkpointId);
 	}
 
 	@Override
 	public void resetToCheckpoint(byte[] checkpointData) {
-		throw new UnsupportedOperationException();
+		lastRestoredCheckpointState = checkpointData;
 	}
 
 	// ------------------------------------------------------------------------
@@ -92,6 +106,27 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	public Collection<Integer> getFailedTasks() {
 		return failedTasks;
+	}
+
+	@Nullable
+	public byte[] getLastRestoredCheckpointState() {
+		return lastRestoredCheckpointState;
+	}
+
+	public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {
+		return triggeredCheckpoints.take();
+	}
+
+	public boolean hasTriggeredCheckpoint() {
+		return !triggeredCheckpoints.isEmpty();
+	}
+
+	public long getLastCheckpointComplete() throws InterruptedException {
+		return lastCheckpointComplete.take();
+	}
+
+	public boolean hasCompleteCheckpoint() throws InterruptedException {
+		return !lastCheckpointComplete.isEmpty();
 	}
 
 	// ------------------------------------------------------------------------

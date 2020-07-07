@@ -384,6 +384,32 @@ public class ResourceProfile implements Serializable {
 		);
 	}
 
+	@Nonnull
+	public ResourceProfile multiply(final int multiplier) {
+		checkArgument(multiplier >= 0, "multiplier must be >= 0");
+		if (equals(ANY)) {
+			return ANY;
+		}
+
+		if (this.equals(UNKNOWN)) {
+			return UNKNOWN;
+		}
+
+		Map<String, Resource> resultExtendedResource = new HashMap<>(extendedResources.size());
+		for (Map.Entry<String, Resource> entry : extendedResources.entrySet()) {
+			resultExtendedResource.put(entry.getKey(), entry.getValue().multiply(multiplier));
+		}
+
+		return new ResourceProfile(
+			cpuCores.multiply(multiplier),
+			taskHeapMemory.multiply(multiplier),
+			taskOffHeapMemory.multiply(multiplier),
+			managedMemory.multiply(multiplier),
+			networkMemory.multiply(multiplier),
+			resultExtendedResource
+		);
+	}
+
 	@Override
 	public String toString() {
 		if (this.equals(UNKNOWN)) {

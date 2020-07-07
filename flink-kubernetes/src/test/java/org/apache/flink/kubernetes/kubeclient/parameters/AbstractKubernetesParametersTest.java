@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.StringUtils;
@@ -31,6 +32,8 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * General tests for the {@link AbstractKubernetesParameters}.
@@ -60,6 +63,19 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 			IllegalArgumentException.class,
 			testingKubernetesParameters::getClusterId
 		);
+	}
+
+	@Test
+	public void getConfigDirectory() {
+		final String confDir = "/path/of/flink-conf";
+		flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, confDir);
+		assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDir));
+	}
+
+	@Test
+	public void getConfigDirectoryFallbackToPodConfDir() {
+		final String confDirInPod = flinkConfig.get(KubernetesConfigOptions.FLINK_CONF_DIR);
+		assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
 	}
 
 	private class TestingKubernetesParameters extends AbstractKubernetesParameters {

@@ -23,10 +23,9 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 # flag indicating if we have already cleared up things after a test
 CLEARED=0
 
-JM_WATCHDOG_PID=0
-TM_WATCHDOG_PID=0
-
 function stop_watchdogs() {
+    JM_WATCHDOG_PID=`cat $TEST_DATA_DIR/jm_watchdog.pid`
+    TM_WATCHDOG_PID=`cat $TEST_DATA_DIR/tm_watchdog.pid`
     if [ ${CLEARED} -eq 0 ]; then
 
         if ! [ ${JM_WATCHDOG_PID} -eq 0 ]; then
@@ -115,6 +114,7 @@ function start_jm_cmd {
 function start_ha_jm_watchdog() {
     jm_watchdog $1 $2 ${@:3} &
     JM_WATCHDOG_PID=$!
+    echo $JM_WATCHDOG_PID > $TEST_DATA_DIR/jm_watchdog.pid
     echo "Running JM watchdog @ ${JM_WATCHDOG_PID}"
 }
 
@@ -179,6 +179,7 @@ function ha_tm_watchdog() {
 function start_ha_tm_watchdog() {
     ha_tm_watchdog $1 $2 &
     TM_WATCHDOG_PID=$!
+    echo $TM_WATCHDOG_PID > $TEST_DATA_DIR/tm_watchdog.pid
     echo "Running TM watchdog @ ${TM_WATCHDOG_PID}"
 }
 

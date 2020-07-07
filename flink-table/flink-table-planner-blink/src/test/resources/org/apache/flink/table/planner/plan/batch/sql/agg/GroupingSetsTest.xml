@@ -39,7 +39,7 @@ Calc(select=[d, c, g])
       +- LocalHashAggregate(groupBy=[d, g, $e], select=[d, g, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[d, g, $e], projects=[{d, g, 0 AS $e}, {d, null AS g, 1 AS $e}, {null AS d, g, 2 AS $e}, {null AS d, null AS g, 3 AS $e}])
             +- Calc(select=[MOD(deptno, 20) AS d, gender AS g])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -63,7 +63,7 @@ Calc(select=[c])
       +- LocalHashAggregate(groupBy=[$f0, $e], select=[$f0, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[$f0, $e], projects=[{$f0, 0 AS $e}, {null AS $f0, 1 AS $e}])
             +- Calc(select=[1 AS $f0])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -90,7 +90,7 @@ Calc(select=[d1, -(d1, 1) AS d0, c])
       +- LocalHashAggregate(groupBy=[d1, $e], select=[d1, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[d1, $e], projects=[{d1, 0 AS $e}, {null AS d1, 1 AS $e}])
             +- Calc(select=[+(deptno, 1) AS d1])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -117,7 +117,7 @@ Calc(select=[d, c, g])
       +- LocalHashAggregate(groupBy=[d, g, $e], select=[d, g, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[d, g, $e], projects=[{d, g, 0 AS $e}, {d, null AS g, 1 AS $e}, {null AS d, null AS g, 3 AS $e}])
             +- Calc(select=[MOD(deptno, 20) AS d, gender AS g])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -141,7 +141,7 @@ Calc(select=[c])
       +- LocalHashAggregate(groupBy=[$f0, $e], select=[$f0, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[$f0, $e], projects=[{$f0, 0 AS $e}, {null AS $f0, 1 AS $e}])
             +- Calc(select=[1 AS $f0])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -164,7 +164,7 @@ Calc(select=[deptno, c])
       +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
             +- Calc(select=[deptno])
-               +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
   </TestCase>
@@ -197,7 +197,7 @@ Union(all=[true], union=[deptno, g, c])
 :        +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
 :           +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
 :              +- Calc(select=[deptno], reuse_id=[1])
-:                 +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 +- Calc(select=[deptno, 1:BIGINT AS g, c])
    +- HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_COUNT(count1$0) AS c])
       +- Exchange(distribution=[hash[deptno]])
@@ -236,7 +236,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -264,7 +264,7 @@ HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])
                +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
                   +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
                      +- Calc(select=[deptno, gender])
-                        +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -300,10 +300,10 @@ Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-
                +- Expand(projects=[ename, deptno, gender, deptno0, $e], projects=[{ename, deptno, gender, deptno0, 0 AS $e}, {ename, deptno, gender, null AS deptno0, 1 AS $e}, {ename, deptno, null AS gender, deptno0, 2 AS $e}, {ename, deptno, null AS gender, null AS deptno0, 3 AS $e}, {ename, null AS deptno, gender, deptno0, 4 AS $e}, {ename, null AS deptno, gender, null AS deptno0, 5 AS $e}, {ename, null AS deptno, null AS gender, deptno0, 6 AS $e}, {ename, null AS deptno, null AS gender, null AS deptno0, 7 AS $e}])
                   +- HashJoin(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0], build=[right])
                      :- Exchange(distribution=[hash[deptno]])
-                     :  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
                      +- Exchange(distribution=[hash[deptno]])
                         +- Calc(select=[deptno])
-                           +- TableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
 ]]>
     </Resource>
   </TestCase>
@@ -337,7 +337,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -368,7 +368,7 @@ Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:
       +- LocalHashAggregate(groupBy=[gender, deptno, $e], select=[gender, deptno, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[gender, deptno, $e], projects=[{gender, deptno, 0 AS $e}, {gender, null AS deptno, 1 AS $e}, {null AS gender, null AS deptno, 3 AS $e}])
             +- Calc(select=[gender, CAST(10) AS deptno], where=[=(deptno, 10)])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -392,7 +392,7 @@ Calc(select=[+(deptno, 1) AS EXPR$0, c])
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
             +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -430,7 +430,7 @@ Sort(orderBy=[deptno ASC, job ASC, empno ASC])
             +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
                +- Expand(projects=[deptno, job, empno, ename, sal, $e], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
                   +- Calc(select=[deptno, job, empno, ename, sal])
-                     +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -465,7 +465,7 @@ Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) A
          +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT), CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT))])
             +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
                +- Calc(select=[deptno, gender])
-                  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -498,7 +498,7 @@ Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) A
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
             +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -532,7 +532,7 @@ Calc(select=[deptno, gender, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
             +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -563,7 +563,7 @@ Calc(select=[deptno, job, c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT
       +- LocalHashAggregate(groupBy=[deptno, job, $e], select=[deptno, job, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, job, $e], projects=[{deptno, job, 0 AS $e}, {deptno, null AS job, 1 AS $e}, {null AS deptno, job, 2 AS $e}, {null AS deptno, null AS job, 3 AS $e}])
             +- Calc(select=[deptno, job])
-               +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -586,7 +586,7 @@ Calc(select=[c, 0:BIGINT AS g])
    +- Exchange(distribution=[hash[deptno]])
       +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_COUNT(*) AS count1$0])
          +- Calc(select=[deptno])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -612,7 +612,7 @@ Calc(select=[c, deptno, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
       +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
             +- Calc(select=[deptno])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -638,7 +638,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -660,7 +660,7 @@ Calc(select=[b, c, a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -695,7 +695,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) A
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1), Partial_COUNT(*) AS count1$2])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -720,7 +720,7 @@ Calc(select=[EXPR$0, c])
       +- LocalHashAggregate(groupBy=[EXPR$0, $e], select=[EXPR$0, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[EXPR$0, $e], projects=[{EXPR$0, 0 AS $e}, {null AS EXPR$0, 1 AS $e}])
             +- Calc(select=[+(deptno, 1) AS EXPR$0])
-               +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
   </TestCase>
@@ -751,7 +751,7 @@ Calc(select=[c])
                +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
                   +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
                      +- Calc(select=[deptno])
-                        +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -781,7 +781,7 @@ Calc(select=[deptno, a, 0:BIGINT AS g, 0:BIGINT AS gb, 0:BIGINT AS gib])
    +- Exchange(distribution=[hash[deptno]])
       +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_AVG(age) AS (sum$0, count$1)])
          +- Calc(select=[deptno, age])
-            +- TableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
   </TestCase>
@@ -815,7 +815,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -849,7 +849,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[a, b, c, $e], projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -873,7 +873,7 @@ Calc(select=[deptno, c])
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
             +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -900,7 +900,7 @@ Calc(select=[+($f0, 1) AS half1, c])
       +- LocalHashAggregate(groupBy=[$f0, gender, $f2, $e], select=[$f0, gender, $f2, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[$f0, gender, $f2, $e], projects=[{$f0, gender, $f2, 0 AS $e}, {$f0, gender, null AS $f2, 1 AS $e}, {$f0, null AS gender, $f2, 2 AS $e}, {$f0, null AS gender, null AS $f2, 3 AS $e}, {null AS $f0, null AS gender, $f2, 6 AS $e}, {null AS $f0, null AS gender, null AS $f2, 7 AS $e}])
             +- Calc(select=[/(deptno, 2) AS $f0, gender, SUBSTRING(ename, 1, 1) AS $f2])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -926,7 +926,7 @@ Calc(select=[gender, +(deptno, 1) AS EXPR$1, c])
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, gender, $e], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
             +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -949,7 +949,7 @@ Calc(select=[gender, c])
       +- LocalHashAggregate(groupBy=[gender, $e], select=[gender, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[gender, $e], projects=[{gender, 0 AS $e}, {null AS gender, 1 AS $e}])
             +- Calc(select=[gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -975,7 +975,7 @@ Sort(orderBy=[c DESC])
             +- LocalHashAggregate(groupBy=[gender, $e], select=[gender, $e, Partial_COUNT(*) AS count1$0])
                +- Expand(projects=[gender, $e], projects=[{gender, 0 AS $e}, {null AS gender, 1 AS $e}])
                   +- Calc(select=[gender])
-                     +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -1002,7 +1002,7 @@ Calc(select=[+(deptno, 1) AS d1, c], where=[>(c, 3)])
       +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
             +- Calc(select=[deptno])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -1026,7 +1026,7 @@ Calc(select=[+(deptno, 1) AS EXPR$0, c])
       +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
             +- Calc(select=[deptno])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>

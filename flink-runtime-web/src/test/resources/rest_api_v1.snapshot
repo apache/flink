@@ -318,7 +318,7 @@
     }
   }, {
     "url" : "/jars/:jarid/plan",
-    "method" : "GET",
+    "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,
     "path-parameters" : {
@@ -1428,6 +1428,39 @@
     },
     "response" : {
       "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/coordinators/:operatorid",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "operatorid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:coordination:ClientCoordinationRequestBody",
+      "properties" : {
+        "serializedCoordinationRequest" : {
+          "type" : "any"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:coordination:ClientCoordinationResponseBody",
+      "properties" : {
+        "serializedCoordinationResult" : {
+          "type" : "any"
+        }
+      }
     }
   }, {
     "url" : "/jobs/:jobid/exceptions",
@@ -2642,6 +2675,37 @@
               "freeSlots" : {
                 "type" : "integer"
               },
+              "totalResource" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+                "properties" : {
+                  "cpuCores" : {
+                    "type" : "number"
+                  },
+                  "taskHeapMemory" : {
+                    "type" : "integer"
+                  },
+                  "taskOffHeapMemory" : {
+                    "type" : "integer"
+                  },
+                  "managedMemory" : {
+                    "type" : "integer"
+                  },
+                  "networkMemory" : {
+                    "type" : "integer"
+                  },
+                  "extendedResources" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "number"
+                    }
+                  }
+                }
+              },
+              "freeResource" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+              },
               "hardware" : {
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
@@ -2728,6 +2792,37 @@
         },
         "freeSlots" : {
           "type" : "integer"
+        },
+        "totalResource" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+          "properties" : {
+            "cpuCores" : {
+              "type" : "number"
+            },
+            "taskHeapMemory" : {
+              "type" : "integer"
+            },
+            "taskOffHeapMemory" : {
+              "type" : "integer"
+            },
+            "managedMemory" : {
+              "type" : "integer"
+            },
+            "networkMemory" : {
+              "type" : "integer"
+            },
+            "extendedResources" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "number"
+              }
+            }
+          }
+        },
+        "freeResource" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
         },
         "hardware" : {
           "type" : "object",
@@ -2873,6 +2968,43 @@
     },
     "response" : {
       "type" : "any"
+    }
+  }, {
+    "url" : "/taskmanagers/:taskmanagerid/thread-dump",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "taskmanagerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo",
+      "properties" : {
+        "threadInfos" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo:ThreadInfo",
+            "properties" : {
+              "threadName" : {
+                "type" : "string"
+              },
+              "stringifiedThreadInfo" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      }
     }
   } ]
 }

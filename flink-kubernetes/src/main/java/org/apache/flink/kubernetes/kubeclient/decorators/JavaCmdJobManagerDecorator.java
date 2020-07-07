@@ -19,10 +19,12 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -44,9 +46,12 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 
 	@Override
 	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+		final JobManagerProcessSpec processSpec = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
+			kubernetesJobManagerParameters.getFlinkConfiguration(),
+			JobManagerOptions.TOTAL_PROCESS_MEMORY);
 		final String startCommand = getJobManagerStartCommand(
 			kubernetesJobManagerParameters.getFlinkConfiguration(),
-			kubernetesJobManagerParameters.getJobManagerMemoryMB(),
+			processSpec,
 			kubernetesJobManagerParameters.getFlinkConfDirInPod(),
 			kubernetesJobManagerParameters.getFlinkLogDirInPod(),
 			kubernetesJobManagerParameters.hasLogback(),
@@ -67,7 +72,7 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 	 * Generates the shell command to start a jobmanager for kubernetes.
 	 *
 	 * @param flinkConfig The Flink configuration.
-	 * @param jobManagerMemoryMb JobManager heap size.
+	 * @param jobManagerProcessSpec JobManager process memory spec.
 	 * @param configDirectory The configuration directory for the flink-conf.yaml
 	 * @param logDirectory The log directory.
 	 * @param hasLogback Uses logback?
@@ -77,14 +82,13 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 	 */
 	private static String getJobManagerStartCommand(
 			Configuration flinkConfig,
-			int jobManagerMemoryMb,
+			JobManagerProcessSpec jobManagerProcessSpec,
 			String configDirectory,
 			String logDirectory,
 			boolean hasLogback,
 			boolean hasLog4j,
 			String mainClass) {
-		final int heapSize = BootstrapTools.calculateHeapSize(jobManagerMemoryMb, flinkConfig);
-		final String jvmMemOpts = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
+		final String jvmMemOpts = JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, flinkConfig);
 		return KubernetesUtils.getCommonStartCommand(
 			flinkConfig,
 			KubernetesUtils.ClusterComponent.JOB_MANAGER,

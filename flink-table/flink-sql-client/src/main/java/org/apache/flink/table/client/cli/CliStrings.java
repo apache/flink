@@ -122,12 +122,6 @@ public final class CliStrings {
 
 	public static final String MESSAGE_EMPTY = "Result was empty.";
 
-	public static final String MESSAGE_UNKNOWN_SQL = "Unknown or invalid SQL statement.";
-
-	public static final String MESSAGE_UNKNOWN_TABLE = "Unknown table.";
-
-	public static final String MESSAGE_RESULT_SNAPSHOT_ERROR = "Could not create a snapshot of the dynamic table.";
-
 	public static final String MESSAGE_RESULT_QUIT = "Result retrieval cancelled.";
 
 	public static final String MESSAGE_SUBMITTING_STATEMENT = "Submitting SQL update statement to the cluster...";
@@ -152,20 +146,29 @@ public final class CliStrings {
 
 	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
 
+	public static final String MESSAGE_ALTER_VIEW_SUCCEEDED = "Alter view succeeded!";
+
+	public static final String MESSAGE_ALTER_VIEW_FAILED = "Alter view failed!";
+
+	public static final String MESSAGE_FUNCTION_CREATED = "Function has been created.";
+
+	public static final String MESSAGE_FUNCTION_REMOVED = "Function has been removed.";
+
+	public static final String MESSAGE_ALTER_FUNCTION_SUCCEEDED = "Alter function succeeded!";
+
+	public static final String MESSAGE_ALTER_FUNCTION_FAILED = "Alter function failed!";
+
 	public static final String MESSAGE_DATABASE_CREATED = "Database has been created.";
 
 	public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
 
-	public static final String MESSAGE_DATABASE_ALTER_SUCCEEDED = "Alter database succeeded!";
+	public static final String MESSAGE_ALTER_DATABASE_SUCCEEDED = "Alter database succeeded!";
 
-	public static final String MESSAGE_DATABASE_ALTER_FAILED = "Alter database failed!";
+	public static final String MESSAGE_ALTER_DATABASE_FAILED = "Alter database failed!";
 
-	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
+	public static final String MESSAGE_CATALOG_CREATED = "Catalog has been created.";
 
-	public static final String MESSAGE_VIEW_NOT_FOUND = "The given view does not exist in the current CLI session. " +
-		"Only views created with a CREATE VIEW statement can be accessed.";
-
-	public static final String MESSAGE_VIEW_NOT_REMOVED = "The given view cannot be removed without affecting other views.";
+	public static final String MESSAGE_CATALOG_REMOVED = "Catalog has been removed.";
 
 	// --------------------------------------------------------------------------------------------
 

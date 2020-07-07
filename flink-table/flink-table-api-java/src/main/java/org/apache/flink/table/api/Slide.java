@@ -61,7 +61,9 @@ public final class Slide {
 	 *
 	 * @param size the size of the window as time or row-count interval
 	 * @return a partially specified sliding window
+	 * @deprecated use {@link #over(Expression)}
 	 */
+	@Deprecated
 	public static SlideWithSize over(String size) {
 		return over(ExpressionParser.parseExpression(size));
 	}

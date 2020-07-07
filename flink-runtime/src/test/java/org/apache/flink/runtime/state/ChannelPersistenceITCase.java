@@ -50,6 +50,7 @@ import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult.NO_MORE_DATA;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN;
+import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertArrayEquals;
 
@@ -98,18 +99,18 @@ public class ChannelPersistenceITCase {
 		int maxStateSize = sizeOfBytes(icMap) + sizeOfBytes(rsMap) + Long.BYTES * 2;
 		Map<InputChannelInfo, Buffer> icBuffers = wrapWithBuffers(icMap);
 		Map<ResultSubpartitionInfo, Buffer> rsBuffers = wrapWithBuffers(rsMap);
-		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(getStreamFactoryFactory(maxStateSize))) {
+		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl("test", getStreamFactoryFactory(maxStateSize))) {
 			writer.open();
 			writer.start(checkpointId, new CheckpointOptions(CHECKPOINT, new CheckpointStorageLocationReference("poly".getBytes())));
 			for (Map.Entry<InputChannelInfo, Buffer> e : icBuffers.entrySet()) {
-				writer.addInputData(checkpointId, e.getKey(), SEQUENCE_NUMBER_UNKNOWN, e.getValue());
+				writer.addInputData(checkpointId, e.getKey(), SEQUENCE_NUMBER_UNKNOWN, ofElements(Buffer::recycleBuffer, e.getValue()));
 			}
 			writer.finishInput(checkpointId);
 			for (Map.Entry<ResultSubpartitionInfo, Buffer> e : rsBuffers.entrySet()) {
 				writer.addOutputData(checkpointId, e.getKey(), SEQUENCE_NUMBER_UNKNOWN, e.getValue());
 			}
 			writer.finishOutput(checkpointId);
-			ChannelStateWriteResult result = writer.getWriteResult(checkpointId);
+			ChannelStateWriteResult result = writer.getAndRemoveWriteResult(checkpointId);
 			result.getResultSubpartitionStateHandles().join(); // prevent abnormal complete in close
 			return result;
 		}

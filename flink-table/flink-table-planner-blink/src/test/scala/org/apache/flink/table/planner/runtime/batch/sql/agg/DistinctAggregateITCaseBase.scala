@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.types.Row
-import org.junit.{Before, Ignore, Test}
+
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -338,32 +336,4 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
       "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3) FROM Table5",
       Seq(row(3, 3, 5, 2, 12)))
   }
-
-  // TODO remove Ignore after supporting generated code cloud be splitted into
-  //  small classes or methods due to code is too large
-  @Ignore
-  @Test
-  def testMaxDistinctAggOnDifferentColumn(): Unit = {
-    // the max groupCount must be less than 64.
-    // so the max number of distinct aggregate on different column without group by column is 63.
-    val fields = (0 until 63).map(i => s"f$i")
-    val types = new RowTypeInfo(Seq.fill(fields.size)(Types.INT): _*)
-    val nullablesOfData = Array.fill(fields.size)(false)
-    val data = new Row(fields.length)
-    fields.indices.foreach(i => data.setField(i, i))
-
-    registerCollection("MyTable", Seq(data), types, fields.mkString(","), nullablesOfData)
-
-    val expected = new Row(fields.length * 2)
-    fields.indices.foreach(i => expected.setField(i, 1))
-    fields.indices.foreach(i => expected.setField(i + fields.length, i))
-
-    val distinctList = fields.map(f => s"COUNT(DISTINCT $f)").mkString(", ")
-    val maxList = fields.map(f => s"MAX($f)").mkString(", ")
-    checkResult(
-      s"SELECT $distinctList, $maxList FROM MyTable",
-      Seq(expected)
-    )
-  }
-
 }

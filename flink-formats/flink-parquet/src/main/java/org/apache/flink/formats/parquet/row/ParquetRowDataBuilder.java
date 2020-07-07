@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.conf.Configuration;
@@ -46,9 +46,9 @@ import static org.apache.parquet.hadoop.ParquetOutputFormat.getWriterVersion;
 import static org.apache.parquet.hadoop.codec.CodecConfig.getParquetCompressionCodec;
 
 /**
- * {@link BaseRow} of {@link ParquetWriter.Builder}.
+ * {@link RowData} of {@link ParquetWriter.Builder}.
  */
-public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, ParquetRowDataBuilder> {
+public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, ParquetRowDataBuilder> {
 
 	private final RowType rowType;
 	private final boolean utcTimestamp;
@@ -68,11 +68,11 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 	}
 
 	@Override
-	protected WriteSupport<BaseRow> getWriteSupport(Configuration conf) {
+	protected WriteSupport<RowData> getWriteSupport(Configuration conf) {
 		return new ParquetWriteSupport();
 	}
 
-	private class ParquetWriteSupport extends WriteSupport<BaseRow> {
+	private class ParquetWriteSupport extends WriteSupport<RowData> {
 
 		private MessageType schema = convertToParquetMessageType("flink_schema", rowType);
 		private ParquetRowDataWriter writer;
@@ -92,7 +92,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 		}
 
 		@Override
-		public void write(BaseRow record) {
+		public void write(RowData record) {
 			try {
 				this.writer.write(record);
 			} catch (Exception e) {
@@ -110,7 +110,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 	 *                     and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x
 	 *                     use UTC timezone.
 	 */
-	public static ParquetWriterFactory<BaseRow> createWriterFactory(
+	public static ParquetWriterFactory<RowData> createWriterFactory(
 			RowType rowType,
 			Configuration conf,
 			boolean utcTimestamp) {
@@ -121,7 +121,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 	/**
 	 * Flink Row {@link ParquetBuilder}.
 	 */
-	public static class FlinkParquetBuilder implements ParquetBuilder<BaseRow> {
+	public static class FlinkParquetBuilder implements ParquetBuilder<RowData> {
 
 		private final RowType rowType;
 		private final SerializableConfiguration configuration;
@@ -137,7 +137,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<BaseRow, Parque
 		}
 
 		@Override
-		public ParquetWriter<BaseRow> createWriter(OutputFile out) throws IOException {
+		public ParquetWriter<RowData> createWriter(OutputFile out) throws IOException {
 			Configuration conf = configuration.conf();
 			return new ParquetRowDataBuilder(out, rowType, utcTimestamp)
 					.withCompressionCodec(getParquetCompressionCodec(conf))

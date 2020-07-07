@@ -388,6 +388,10 @@ public final class FunctionCatalog {
 		);
 	}
 
+	/**
+	 * @deprecated Use {@link #registerTemporarySystemFunction(String, FunctionDefinition, boolean)} instead.
+	 */
+	@Deprecated
 	public <T> void registerTempSystemTableFunction(
 			String name,
 			TableFunction<T> function,
@@ -567,13 +571,13 @@ public final class FunctionCatalog {
 					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
 
 				FunctionDefinition fd;
-				if (catalog.getFunctionDefinitionFactory().isPresent()) {
+				if (catalog.getFunctionDefinitionFactory().isPresent() &&
+					catalogFunction.getFunctionLanguage() != FunctionLanguage.PYTHON) {
 					fd = catalog.getFunctionDefinitionFactory().get()
 						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				} else {
 					// TODO update the FunctionDefinitionUtil once we drop the old function stack in DDL
-					fd = FunctionDefinitionUtil.createFunctionDefinition(
-						oi.getObjectName(), catalogFunction.getClassName());
+					fd = getFunctionDefinition(oi.getObjectName(), catalogFunction);
 				}
 
 				return Optional.of(
@@ -639,11 +643,12 @@ public final class FunctionCatalog {
 			// directly.
 			return ((InlineCatalogFunction) function).getDefinition();
 		}
-		// Currently the uninstantiated functions are all from sql and catalog that use the old type inference,
-		// so using FunctionDefinitionUtil to instantiate them and wrap them with `ScalarFunctionDefinition`,
-		// `TableFunctionDefinition`, etc. If the new type inference is fully functional, this should be
+		// Until all functions support the new type inference, uninstantiated functions from sql and
+		// catalog use the FunctionDefinitionUtil to instantiate them and wrap them with `AggregateFunctionDefinition`,
+		// `TableAggregateFunctionDefinition`. If the new type inference is fully functional, this should be
 		// changed to use `UserDefinedFunctionHelper#instantiateFunction`.
-		return FunctionDefinitionUtil.createFunctionDefinition(name, function.getClassName());
+		return FunctionDefinitionUtil.createFunctionDefinition(
+			name, function.getClassName(), function.getFunctionLanguage(), config);
 	}
 
 	/**

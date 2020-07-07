@@ -46,6 +46,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +61,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -360,6 +363,32 @@ public class ResultPartitionTest {
 		}
 	}
 
+	/**
+	 * Tests {@link ResultPartition#getAvailableFuture()}.
+	 */
+	@Test
+	public void testIsAvailableOrNot() throws IOException, InterruptedException {
+		final int numAllBuffers = 10;
+		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
+				.setNumNetworkBuffers(numAllBuffers).build();
+		final ResultPartition resultPartition = createPartition(network, ResultPartitionType.PIPELINED, 1);
+
+		try {
+			resultPartition.setup();
+
+			resultPartition.getBufferPool().setNumBuffers(2);
+
+			assertTrue(resultPartition.getAvailableFuture().isDone());
+
+			resultPartition.getBufferBuilder(0);
+			resultPartition.getBufferBuilder(0);
+			assertFalse(resultPartition.getAvailableFuture().isDone());
+		} finally {
+			resultPartition.release();
+			network.close();
+		}
+	}
+
 	@Test
 	public void testPipelinedPartitionBufferPool() throws Exception {
 		testPartitionBufferPool(ResultPartitionType.PIPELINED_BOUNDED);
@@ -427,7 +456,7 @@ public class ResultPartitionTest {
 		final ChannelStateReader stateReader = ChannelStateReader.NO_OP;
 		try {
 			partition.setup();
-			partition.initializeState(stateReader);
+			partition.readRecoveredState(stateReader);
 
 			for (ResultSubpartition subpartition : partition.getAllPartitions()) {
 				// no buffers are added into the queue for empty states
@@ -470,20 +499,25 @@ public class ResultPartitionTest {
 						ResultSubpartition.BufferAndBacklog bufferAndBacklog = view.getNextBuffer();
 						if (bufferAndBacklog != null) {
 							Buffer buffer = bufferAndBacklog.buffer();
-							BufferBuilderAndConsumerTest.assertContent(buffer, partition.getBufferPool(), states);
+							BufferBuilderAndConsumerTest.assertContent(
+								buffer,
+								partition.getBufferPool()
+									.getSubpartitionBufferRecyclers()[subpartition.getSubPartitionIndex()],
+								states);
 							buffer.recycleBuffer();
 							numConsumedBuffers++;
 						} else {
 							Thread.sleep(5);
 						}
 					}
+					assertNull(view.getNextBuffer());
 				}
 				return null;
 			};
 			Future<Void> result = executor.submit(partitionConsumeTask);
 
 			partition.setup();
-			partition.initializeState(stateReader);
+			partition.readRecoveredState(stateReader);
 
 			// wait the partition consume task finish
 			result.get(20, TimeUnit.SECONDS);
@@ -500,12 +534,39 @@ public class ResultPartitionTest {
 	}
 
 	/**
+	 * Tests that the buffer is recycled correctly if exception is thrown during
+	 * {@link ChannelStateReader#readOutputData(ResultSubpartitionInfo, BufferBuilder)}.
+	 */
+	@Test
+	public void testReadRecoveredStateWithException() throws Exception {
+		final int totalBuffers = 2;
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1, 1);
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setNetworkBufferPool(globalPool)
+			.build();
+		final ChannelStateReader stateReader = new ChannelStateReaderWithException();
+
+		try {
+			partition.setup();
+			partition.readRecoveredState(stateReader);
+		} catch (IOException e) {
+			assertThat("should throw custom exception message", e.getMessage().contains("test"));
+		} finally {
+			globalPool.destroyAllBufferPools();
+			// verify whether there are any buffers leak
+			assertEquals(totalBuffers, globalPool.getNumberOfAvailableMemorySegments());
+			globalPool.destroy();
+		}
+	}
+
+	/**
 	 * The {@link ChannelStateReader} instance for restoring the specific number of states.
 	 */
 	public static final class FiniteChannelStateReader implements ChannelStateReader {
 		private final int totalStates;
 		private int numRestoredStates;
 		private final int[] states;
+		private final Map<InputChannelInfo, Integer> counters = new HashMap<>();
 
 		public FiniteChannelStateReader(int totalStates, int[] states) {
 			this.totalStates = totalStates;
@@ -513,19 +574,58 @@ public class ResultPartitionTest {
 		}
 
 		@Override
+		public boolean hasChannelStates() {
+			return true;
+		}
+
+		@Override
 		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
-			return ReadResult.NO_MORE_DATA;
+			for (int state: states) {
+				buffer.asByteBuf().writeInt(state);
+			}
+			int result = counters.compute(info, (unused, counter) -> (counter == null) ? 1 : ++counter);
+
+			return getReadResult(result);
 		}
 
 		@Override
 		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) {
 			bufferBuilder.appendAndCommit(BufferBuilderAndConsumerTest.toByteBuffer(states));
+			return getReadResult(++numRestoredStates);
+		}
 
-			if (++numRestoredStates < totalStates) {
+		private ReadResult getReadResult(int numRestoredStates) {
+			if (numRestoredStates < totalStates) {
 				return ReadResult.HAS_MORE_DATA;
 			} else {
 				return ReadResult.NO_MORE_DATA;
 			}
+		}
+
+		@Override
+		public void close() {
+		}
+	}
+
+	/**
+	 * The {@link ChannelStateReader} instance for throwing exception when
+	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)} and {@link #readInputData(InputChannelInfo, Buffer)}.
+	 */
+	public static final class ChannelStateReaderWithException implements ChannelStateReader {
+
+		@Override
+		public boolean hasChannelStates() {
+			return true;
+		}
+
+		@Override
+		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException {
+			throw new IOException("test");
+		}
+
+		@Override
+		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) throws IOException {
+			throw new IOException("test");
 		}
 
 		@Override

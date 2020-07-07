@@ -35,6 +35,7 @@ import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +45,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -152,6 +154,25 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 	@Test
 	public void testWithoutCoLocationConstraints() {
 		assertFalse(adapter.containsCoLocationConstraints());
+	}
+
+	@Test
+	public void testGetAllPipelinedRegions() {
+		final Iterable<DefaultSchedulingPipelinedRegion> allPipelinedRegions = adapter.getAllPipelinedRegions();
+		assertEquals(1, Iterables.size(allPipelinedRegions));
+	}
+
+	@Test
+	public void testGetPipelinedRegionOfVertex() {
+		for (DefaultExecutionVertex vertex : adapter.getVertices()) {
+			final DefaultSchedulingPipelinedRegion pipelinedRegion = adapter.getPipelinedRegionOfVertex(vertex.getId());
+			assertRegionContainsAllVertices(pipelinedRegion);
+		}
+	}
+
+	private void assertRegionContainsAllVertices(final DefaultSchedulingPipelinedRegion pipelinedRegionOfVertex) {
+		final Set<DefaultExecutionVertex> allVertices = Sets.newHashSet(pipelinedRegionOfVertex.getVertices());
+		assertEquals(Sets.newHashSet(adapter.getVertices()), allVertices);
 	}
 
 	private ExecutionGraph createExecutionGraphWithCoLocationConstraint() throws Exception {

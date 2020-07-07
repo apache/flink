@@ -21,8 +21,6 @@ package org.apache.flink.table.runtime.runners.python.table;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -39,8 +37,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 
+import static org.apache.flink.table.runtime.utils.PythonTestUtils.createTestEnvironmentManager;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -86,11 +84,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			// ignore the execution results
 		};
 
-		final PythonEnvironmentManager environmentManager =
-			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
-				new String[]{System.getProperty("java.io.tmpdir")},
-				new HashMap<>());
+		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
 		return new PythonTableFunctionRunner(
 			"testPythonRunner",
@@ -111,11 +105,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 
 		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
 
-		final PythonEnvironmentManager environmentManager =
-			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
-				new String[]{System.getProperty("java.io.tmpdir")},
-				new HashMap<>());
+		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
 		return new PythonTableFunctionRunnerTestHarness(
 			"testPythonRunner",

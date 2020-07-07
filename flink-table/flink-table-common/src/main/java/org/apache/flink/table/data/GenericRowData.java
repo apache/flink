@@ -22,6 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.StringUtils;
+
+import java.util.Arrays;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,6 +52,21 @@ public final class GenericRowData implements RowData {
 
 	/** The kind of change that a row describes in a changelog. */
 	private RowKind kind;
+
+	/**
+	 * Creates an instance of {@link GenericRowData} with given kind and number of fields.
+	 *
+	 * <p>Initially, all fields are set to null.
+	 *
+	 * <p>Note: All fields of the row must be internal data structures.
+	 *
+	 * @param kind kind of change that this row describes in a changelog
+	 * @param arity number of fields
+	 */
+	public GenericRowData(RowKind kind, int arity) {
+		this.fields = new Object[arity];
+		this.kind = kind;
+	}
 
 	/**
 	 * Creates an instance of {@link GenericRowData} with given number of fields.
@@ -186,6 +205,40 @@ public final class GenericRowData implements RowData {
 		return (RowData) this.fields[pos];
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof GenericRowData)) {
+			return false;
+		}
+		GenericRowData that = (GenericRowData) o;
+		return kind == that.kind &&
+			Arrays.deepEquals(fields, that.fields);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = Objects.hash(kind);
+		result = 31 * result + Arrays.deepHashCode(fields);
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(kind.shortString()).append("(");
+		for (int i = 0; i < fields.length; i++) {
+			if (i != 0) {
+				sb.append(",");
+			}
+			sb.append(StringUtils.arrayAwareToString(fields[i]));
+		}
+		sb.append(")");
+		return sb.toString();
+	}
+
 	// ----------------------------------------------------------------------------------------
 	// Utilities
 	// ----------------------------------------------------------------------------------------
@@ -199,6 +252,21 @@ public final class GenericRowData implements RowData {
 	 */
 	public static GenericRowData of(Object... values) {
 		GenericRowData row = new GenericRowData(values.length);
+
+		for (int i = 0; i < values.length; ++i) {
+			row.setField(i, values[i]);
+		}
+
+		return row;
+	}
+
+	/**
+	 * Creates an instance of {@link GenericRowData} with given kind and field values.
+	 *
+	 * <p>Note: All fields of the row must be internal data structures.
+	 */
+	public static GenericRowData ofKind(RowKind kind, Object... values) {
+		GenericRowData row = new GenericRowData(kind, values.length);
 
 		for (int i = 0; i < values.length; ++i) {
 			row.setField(i, values[i]);

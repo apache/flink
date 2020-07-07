@@ -75,7 +75,7 @@ public class ExecutionFailureHandler {
 	 * @return result of the failure handling
 	 */
 	public FailureHandlingResult getFailureHandlingResult(ExecutionVertexID failedTask, Throwable cause) {
-		return handleFailure(cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause));
+		return handleFailure(cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause), false);
 	}
 
 	/**
@@ -90,15 +90,18 @@ public class ExecutionFailureHandler {
 			cause,
 			IterableUtils.toStream(schedulingTopology.getVertices())
 				.map(SchedulingExecutionVertex::getId)
-				.collect(Collectors.toSet()));
+				.collect(Collectors.toSet()),
+			true);
 	}
 
 	private FailureHandlingResult handleFailure(
 			final Throwable cause,
-			final Set<ExecutionVertexID> verticesToRestart) {
+			final Set<ExecutionVertexID> verticesToRestart,
+			final boolean globalFailure) {
 
 		if (isUnrecoverableError(cause)) {
-			return FailureHandlingResult.unrecoverable(new JobException("The failure is not recoverable", cause));
+			return FailureHandlingResult.unrecoverable(
+				new JobException("The failure is not recoverable", cause), globalFailure);
 		}
 
 		restartBackoffTimeStrategy.notifyFailure(cause);
@@ -107,10 +110,12 @@ public class ExecutionFailureHandler {
 
 			return FailureHandlingResult.restartable(
 				verticesToRestart,
-				restartBackoffTimeStrategy.getBackoffTime());
+				restartBackoffTimeStrategy.getBackoffTime(),
+				globalFailure);
 		} else {
 			return FailureHandlingResult.unrecoverable(
-				new JobException("Recovery is suppressed by " + restartBackoffTimeStrategy, cause));
+				new JobException("Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
+				globalFailure);
 		}
 	}
 

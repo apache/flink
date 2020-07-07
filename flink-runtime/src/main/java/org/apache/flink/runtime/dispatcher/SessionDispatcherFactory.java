@@ -35,7 +35,6 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
-			getEndpointId(),
 			fencingToken,
 			dispatcherBootstrap,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));

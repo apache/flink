@@ -21,16 +21,16 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{AppendFastStrategy, ChangelogPlanUtils, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UpdateFastStrategy}
-import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
-import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction, UpdatableTopNFunction}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
+import org.apache.flink.table.runtime.operators.rank._
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -57,7 +57,7 @@ class StreamExecSortLimit(
     rankStrategy: RankProcessStrategy)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   private val limitStart: Long = SortUtil.getLimitStart(offset)
   private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -112,18 +112,18 @@ class StreamExecSortLimit(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     if (fetch == null) {
       throw new TableException(
         "FETCH is missed, which on streaming table is not supported currently")
     }
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+      .asInstanceOf[Transformation[RowData]]
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
     val fieldCollations = sortCollation.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
-    val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
+    val sortKeySelector = KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo)
     val sortKeyType = sortKeySelector.getProducedType
     val tableConfig = planner.getTableConfig
     val sortKeyComparator = ComparatorCodeGenerator.gen(
@@ -159,7 +159,7 @@ class StreamExecSortLimit(
           cacheSize)
 
       case UpdateFastStrategy(primaryKeys) =>
-        val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
+        val rowKeySelector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo)
         new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
@@ -192,7 +192,7 @@ class StreamExecSortLimit(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
 
-    val outputRowTypeInfo = BaseRowTypeInfo.of(
+    val outputRowTypeInfo = RowDataTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val ret = new OneInputTransformation(
@@ -207,7 +207,7 @@ class StreamExecSortLimit(
       ret.setMaxParallelism(1)
     }
 
-    val selector = NullBinaryRowKeySelector.INSTANCE
+    val selector = EmptyRowDataKeySelector.INSTANCE
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret

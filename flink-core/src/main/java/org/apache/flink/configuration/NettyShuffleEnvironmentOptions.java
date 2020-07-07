@@ -156,10 +156,9 @@ public class NettyShuffleEnvironmentOptions {
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 		key("taskmanager.network.memory.buffers-per-channel")
 			.defaultValue(2)
-			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
-				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
-				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
-				" for parallel serialization.");
+			.withDescription("Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel)" +
+				" in the credit-based flow control model. It should be configured at least 2 for good performance." +
+				" 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.");
 
 	/**
 	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
@@ -173,6 +172,20 @@ public class NettyShuffleEnvironmentOptions {
 				" The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can" +
 				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
+
+	/**
+	 * Number of max buffers can be used for each output subparition.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
+		key("taskmanager.network.memory.max-buffers-per-channel")
+			.defaultValue(10)
+			.withDescription("Number of max buffers that can be used for each channel. If a channel exceeds the number of max" +
+				" buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This" +
+				" might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in" +
+				" case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed," +
+				" and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer" +
+				" producing large amount of data.");
 
 	/**
 	 * The timeout for requesting exclusive buffers for each channel.
@@ -233,6 +246,14 @@ public class NettyShuffleEnvironmentOptions {
 			.defaultValue(120) // default: 120s = 2min
 			.withDeprecatedKeys("taskmanager.net.client.connectTimeoutSec")
 			.withDescription("The Netty client connection timeout.");
+
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_RETRIES =
+		key("taskmanager.network.retries")
+			.defaultValue(0)
+			.withDeprecatedKeys("taskmanager.network.retries")
+			.withDescription("The number of retry attempts for network communication." +
+				" Currently it's only used for establishing input/output channel connections");
 
 	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE =

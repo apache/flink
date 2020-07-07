@@ -128,7 +128,7 @@ public class ExpressionResolverTest {
 				.inputSchemas(
 					TableSchema.builder()
 						.field("f0", DataTypes.INT())
-						.field("f1", DataTypes.STRING())
+						.field("f1", DataTypes.DOUBLE())
 						.build()
 				)
 				.select($("f0").isEqual($("f1")))
@@ -138,7 +138,7 @@ public class ExpressionResolverTest {
 						BuiltInFunctionDefinitions.EQUALS,
 						Arrays.asList(
 							new FieldReferenceExpression("f0", DataTypes.INT(), 0, 0),
-							new FieldReferenceExpression("f1", DataTypes.STRING(), 0, 1)
+							new FieldReferenceExpression("f1", DataTypes.DOUBLE(), 0, 1)
 						),
 						DataTypes.BOOLEAN()
 					)),
@@ -170,6 +170,20 @@ public class ExpressionResolverTest {
 				.equalTo(
 					new CallExpression(
 						FunctionIdentifier.of("func"),
+						new ScalarFunc(),
+						Arrays.asList(valueLiteral(1), new FieldReferenceExpression("f0", DataTypes.INT(), 0, 0)),
+						DataTypes.INT().notNull().bridgedTo(int.class)
+					)),
+
+			TestSpec.test("Inline function call via a class")
+				.inputSchemas(
+					TableSchema.builder()
+						.field("f0", DataTypes.INT())
+						.build()
+				)
+				.select(call(ScalarFunc.class, 1, $("f0")))
+				.equalTo(
+					new CallExpression(
 						new ScalarFunc(),
 						Arrays.asList(valueLiteral(1), new FieldReferenceExpression("f0", DataTypes.INT(), 0, 0)),
 						DataTypes.INT().notNull().bridgedTo(int.class)

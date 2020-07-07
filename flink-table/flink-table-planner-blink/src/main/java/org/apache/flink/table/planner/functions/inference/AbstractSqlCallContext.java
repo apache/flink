@@ -22,6 +22,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.util.DateString;
@@ -82,6 +83,8 @@ public abstract class AbstractSqlCallContext implements CallContext {
 	 */
 	@SuppressWarnings("unchecked")
 	protected static <T> T getLiteralValueAs(LiteralValueAccessor accessor, Class<T> clazz) {
+		Preconditions.checkArgument(!clazz.isPrimitive());
+
 		Object convertedValue = null;
 
 		if (clazz == Duration.class) {

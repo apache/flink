@@ -127,4 +127,8 @@ public class IntegerSource
 			blocker.notifyAll();
 		}
 	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
 }

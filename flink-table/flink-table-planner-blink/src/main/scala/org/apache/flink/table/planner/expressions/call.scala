@@ -25,22 +25,21 @@ import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationRes
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 /**
- * Wrapper for call expressions resolved already in the API with the new type inference stack.
+ * Wrapper for expressions that have been resolved already in the API with the new type inference
+ * stack.
  */
-case class ApiResolvedCallExpression(
-    resolvedCall: CallExpression)
+case class ApiResolvedExpression(resolvedDataType: DataType)
   extends LeafExpression {
 
-  override private[flink] def resultType: TypeInformation[_] = TypeConversions
-    .fromDataTypeToLegacyInfo(
-      resolvedCall
-        .getOutputDataType)
+  override private[flink] def resultType: TypeInformation[_] =
+    TypeConversions.fromDataTypeToLegacyInfo(resolvedDataType)
 }
 
 /**

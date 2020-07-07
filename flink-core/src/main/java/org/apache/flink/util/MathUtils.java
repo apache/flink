@@ -209,13 +209,16 @@ public final class MathUtils {
 
 	/**
 	 * Divide and rounding up to integer.
-	 * E.g., divideRoundUp(3, 2) returns 2.
+	 * E.g., divideRoundUp(3, 2) returns 2, divideRoundUp(0, 3) returns 0.
+	 * Note that this method does not support negative values.
 	 * @param dividend value to be divided by the divisor
 	 * @param divisor value by which the dividend is to be divided
 	 * @return the quotient rounding up to integer
 	 */
 	public static int divideRoundUp(int dividend, int divisor) {
-		return (dividend - 1) / divisor + 1;
+		Preconditions.checkArgument(dividend >= 0, "Negative dividend is not supported.");
+		Preconditions.checkArgument(divisor > 0, "Negative or zero divisor is not supported.");
+		return dividend == 0 ? 0 : (dividend - 1) / divisor + 1;
 	}
 
 	// ============================================================================================

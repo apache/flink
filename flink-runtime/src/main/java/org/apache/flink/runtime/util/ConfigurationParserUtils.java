@@ -19,10 +19,19 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
+import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.util.MathUtils.checkedDownCast;
 
@@ -31,6 +40,8 @@ import static org.apache.flink.util.MathUtils.checkedDownCast;
  * sanity check them.
  */
 public class ConfigurationParserUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigurationParserUtils.class);
 
 	/**
 	 * Parses the configuration to get the number of slots and validates the value.
@@ -94,5 +105,29 @@ public class ConfigurationParserUtils {
 			"Memory segment size must be a power of 2.");
 
 		return pageSize;
+	}
+
+	/**
+	 * Generate configuration from only the config file and dynamic properties.
+	 * @param args the commandline arguments
+	 * @param cmdLineSyntax the syntax for this application
+	 * @return generated configuration
+	 * @throws FlinkParseException if the configuration cannot be generated
+	 */
+	public static Configuration loadCommonConfiguration(String[] args, String cmdLineSyntax) throws FlinkParseException {
+		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+
+		final ClusterConfiguration clusterConfiguration;
+
+		try {
+			clusterConfiguration = commandLineParser.parse(args);
+		} catch (FlinkParseException e) {
+			LOG.error("Could not parse the command line options.", e);
+			commandLineParser.printHelp(cmdLineSyntax);
+			throw e;
+		}
+
+		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
+		return GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir(), dynamicProperties);
 	}
 }

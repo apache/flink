@@ -19,6 +19,7 @@ package org.apache.flink.util;
 
 import org.slf4j.Logger;
 
+import java.util.Collections;
 import java.util.Properties;
 
 /**
@@ -106,6 +107,28 @@ public class PropertiesUtil {
 		} else {
 			return Boolean.parseBoolean(val);
 		}
+	}
+
+	/**
+	 * Flatten a recursive {@link Properties} to a first level property map.
+	 *
+	 * <p>In some cases, {@code KafkaProducer#propsToMap} for example, Properties is used purely as a HashTable
+	 * without considering its default properties.
+	 *
+	 * @param config Properties to be flattened
+	 * @return Properties without defaults; all properties are put in the first-level
+	 */
+	public static Properties flatten(Properties config) {
+		final Properties flattenProperties = new Properties();
+
+		Collections.list(config.propertyNames()).stream().forEach(
+			name -> {
+				Preconditions.checkArgument(name instanceof String);
+				flattenProperties.setProperty((String) name, config.getProperty((String) name));
+			}
+		);
+
+		return flattenProperties;
 	}
 
 	// ------------------------------------------------------------------------

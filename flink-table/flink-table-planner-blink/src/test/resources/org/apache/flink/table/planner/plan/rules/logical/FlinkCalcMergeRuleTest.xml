@@ -32,7 +32,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="planAfter">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b], where=[=(a, b)])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -52,7 +52,7 @@ LogicalProject(a=[$0], a1=[$1])
       <![CDATA[
 FlinkLogicalCalc(select=[a, a1], where=[>(a1, 10)])
 +- FlinkLogicalCalc(select=[a, random_udf(a) AS a1])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -73,7 +73,7 @@ LogicalProject(a=[$0])
 FlinkLogicalCalc(select=[a])
 +- FlinkLogicalCalc(select=[a], where=[>(random_udf(a), 10)])
    +- FlinkLogicalCalc(select=[a])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

@@ -116,7 +116,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
     cdef void _encode_bigint(self, libc.stdint.int64_t v)
     cdef void _encode_float(self, float v)
     cdef void _encode_double(self, double v)
-    cdef void _encode_bytes(self, char*b)
+    cdef void _encode_bytes(self, char*b, size_t length)
 
     # decode data from input_stream
     cdef void _decode_next_row(self)

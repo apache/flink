@@ -68,6 +68,14 @@ public abstract class Resource implements Serializable {
 		return create(value.subtract(other.value));
 	}
 
+	public Resource multiply(BigDecimal multiplier) {
+		return create(value.multiply(multiplier));
+	}
+
+	public Resource multiply(int multiplier) {
+		return multiply(BigDecimal.valueOf(multiplier));
+	}
+
 	public Resource divide(BigDecimal by) {
 		return create(value.divide(by, 16, RoundingMode.DOWN));
 	}

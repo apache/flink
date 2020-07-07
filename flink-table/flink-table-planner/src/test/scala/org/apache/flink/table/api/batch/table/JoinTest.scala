@@ -19,11 +19,12 @@
 package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.batch.table.JoinTest.Merger
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class JoinTest extends TableTestBase {

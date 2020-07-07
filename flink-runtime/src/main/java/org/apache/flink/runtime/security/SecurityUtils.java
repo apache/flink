@@ -94,9 +94,11 @@ public class SecurityUtils {
 						break;
 					} catch (SecurityContextInitializeException e) {
 						LOG.error("Cannot instantiate security context with: " + contextFactoryClass, e);
+					} catch (LinkageError le) {
+						LOG.error("Error occur when instantiate security context with: " + contextFactoryClass , le);
 					}
 				} else {
-					LOG.warn("Unable to install incompatible security context factory {}", contextFactoryClass);
+					LOG.debug("Unable to install security context factory {}", contextFactoryClass);
 				}
 			} catch (NoMatchSecurityFactoryException ne) {
 				LOG.warn("Unable to instantiate security context factory {}", contextFactoryClass);

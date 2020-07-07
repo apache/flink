@@ -18,17 +18,18 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
@@ -155,21 +156,6 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void removeView(String sessionId, String name) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
 		public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
 			return null;
 		}
@@ -200,6 +186,11 @@ public class CliResultViewTest {
 		}
 
 		@Override
+		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
@@ -225,7 +216,7 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+		public Parser getSqlParser(String sessionId) {
 			return null;
 		}
 

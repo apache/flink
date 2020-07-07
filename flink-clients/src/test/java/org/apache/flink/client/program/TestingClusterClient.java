@@ -23,8 +23,11 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nonnull;
@@ -130,6 +133,14 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
 	@Override
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) {
 		return triggerSavepointFunction.apply(jobId, savepointDirectory);
+	}
+
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+			JobID jobId,
+			OperatorID operatorId,
+			CoordinationRequest request) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

@@ -46,6 +46,11 @@ public interface NetworkSequenceViewReader {
 	void addCredit(int creditDeltas);
 
 	/**
+	 * Resumes data consumption after an exactly once checkpoint.
+	 */
+	void resumeConsumption();
+
+	/**
 	 * Checks whether this reader is available or not.
 	 *
 	 * @return True if the reader is available.

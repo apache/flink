@@ -222,6 +222,12 @@ public class StreamOperatorStateHandler {
 		}
 	}
 
+	public void notifyCheckpointAborted(long checkpointId) throws Exception {
+		if (keyedStateBackend != null) {
+			keyedStateBackend.notifyCheckpointAborted(checkpointId);
+		}
+	}
+
 	@SuppressWarnings("unchecked")
 	public <K> KeyedStateBackend<K> getKeyedStateBackend() {
 		return (KeyedStateBackend<K>) keyedStateBackend;

@@ -71,7 +71,7 @@ MemoryStateBackend 适用场景：
   - 本地开发和调试。
   - 状态很小的 Job，例如：由每次只处理一条记录的函数（Map、FlatMap、Filter 等）构成的 Job。Kafka Consumer 仅仅需要非常小的状态。
 
-建议同时将 [managed memory](../memory/mem_setup.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+建议同时将 [managed memory](../memory/mem_setup_tm.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
 ### FsStateBackend
 
@@ -92,7 +92,9 @@ FsStateBackend 适用场景:
   - 状态比较大、窗口比较长、key/value 状态比较大的 Job。
   - 所有高可用的场景。
 
-建议同时将 [managed memory](../memory/mem_setup.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+建议同时将 [managed memory](../memory/mem_setup_tm.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+
+<a name="the-rocksdbstatebackend" />
 
 ### RocksDBStateBackend
 
@@ -206,6 +208,8 @@ RocksDBStateBackend 支持*增量快照*。不同于产生一个包含所有数�
   - 在 `flink-conf.yaml` 中设置：`state.backend.incremental: true` 或者
   - 在代码中按照右侧方式配置（来覆盖默认配置）：`RocksDBStateBackend backend = new RocksDBStateBackend(filebackend, true);`
 
+需要注意的是，一旦启用了增量快照，网页上展示的 `Checkpointed Data Size` 只代表增量上传的数据量，而不是一次快照的完整数据量。
+
 ### 内存管理
 
 Flink 致力于控制整个进程的内存消耗，以确保 Flink 任务管理器（TaskManager）有良好的内存使用，从而既不会在容器（Docker/Kubernetes, Yarn等）环境中由于内存超用被杀掉，也不会因为内存利用率过低导致不必要的数据落盘或是缓存命中率下降，致使性能下降。
@@ -229,7 +233,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
   - `state.backend.rocksdb.memory.high-prio-pool-ratio`，默认值 `0.1`，即 10% 的 block cache 内存会优先分配给索引及过滤器。
   我们强烈建议不要将此值设置为零，以防止索引和过滤器被频繁踢出缓存而导致性能问题。此外，我们默认将L0级的过滤器和索引将被固定到缓存中以提高性能，更多详细信息请参阅 [RocksDB 文档](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks)。
 
-<span class="label label-info">注意</span> 上述机制开启时将覆盖用户在 [`PredefinedOptions`](#predefined-per-columnfamily-options) 和 [`OptionsFactory`](#passing-options-factory-to-rocksdb) 中对 block cache 和 write buffer 进行的配置。
+<span class="label label-info">注意</span> 上述机制开启时将覆盖用户在 [`PredefinedOptions`](#predefined-per-columnfamily-options) 和 [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb) 中对 block cache 和 write buffer 进行的配置。
 
 <span class="label label-info">注意</span> *仅面向专业用户*：若要手动控制内存，可以将 `state.backend.rocksdb.memory.managed` 设置为 `false`，并通过 [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb) 配置 RocksDB。
 或者可以复用上述 cache/write-buffer-manager 机制，但将内存大小设置为与 Flink 的托管内存大小无关的固定大小（通过 `state.backend.rocksdb.memory.fixed-per-slot` 选项）。
@@ -316,7 +320,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 
     @Override
-    public OptionsFactory configure(Configuration configuration) {
+    public RocksDBOptionsFactory configure(Configuration configuration) {
         this.blockCacheSize =
             configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
         return this;

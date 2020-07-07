@@ -20,37 +20,48 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import javax.annotation.Nullable;
+
 import java.util.AbstractCollection;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
- * Map which stores values under two different indices.
+ * Map which stores values under two different indices. The mapping of the primary key to the
+ * value is backed by {@link LinkedHashMap} so that the iteration order over the values and
+ * the primary key set is the insertion order. Note that the insertion order is not affected
+ * if a primary key is re-inserted into the map. Also note that there is no contract of the
+ * iteration order over the secondary key set.
  *
- * @param <A> Type of key A
- * @param <B> Type of key B
+ *
+ * @param <A> Type of key A. Key A is the primary key.
+ * @param <B> Type of key B. Key B is the secondary key.
  * @param <V> Type of the value
  */
-public class DualKeyLinkedMap<A, B, V> {
+class DualKeyLinkedMap<A, B, V> {
 
 	private final LinkedHashMap<A, Tuple2<B, V>> aMap;
 
-	private final LinkedHashMap<B, A> bMap;
+	private final Map<B, A> bMap;
 
 	private transient Collection<V> values;
 
-	public DualKeyLinkedMap(int initialCapacity) {
+	DualKeyLinkedMap(int initialCapacity) {
 		this.aMap = new LinkedHashMap<>(initialCapacity);
-		this.bMap = new LinkedHashMap<>(initialCapacity);
+		this.bMap = new HashMap<>(initialCapacity);
 	}
 
-	public int size() {
+	int size() {
 		return aMap.size();
 	}
 
-	public V getKeyA(A aKey) {
+	@Nullable
+	V getValueByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
 
 		if (value != null) {
@@ -60,7 +71,8 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V getKeyB(B bKey) {
+	@Nullable
+	V getValueByKeyB(B bKey) {
 		final A aKey = bMap.get(bKey);
 
 		if (aKey != null) {
@@ -70,26 +82,58 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V put(A aKey, B bKey, V value) {
-		Tuple2<B, V> aValue = aMap.put(aKey, Tuple2.of(bKey, value));
-		bMap.put(bKey, aKey);
+	@Nullable
+	A getKeyAByKeyB(B bKey) {
+		return bMap.get(bKey);
+	}
 
-		if (aValue != null) {
-			return aValue.f1;
+	@Nullable
+	B getKeyBByKeyA(A aKey) {
+		final Tuple2<B, V> value = aMap.get(aKey);
+
+		if (value != null) {
+			return value.f0;
 		} else {
 			return null;
 		}
 	}
 
-	public boolean containsKeyA(A aKey) {
+	@Nullable
+	V put(A aKey, B bKey, V value) {
+		final V oldValue = getValueByKeyA(aKey);
+
+		// cleanup orphaned keys if the given primary key and secondary key were not matched previously
+		if (!Objects.equals(aKey, getKeyAByKeyB(bKey))) {
+			// remove legacy secondary key as well as its corresponding primary key and value
+			removeKeyB(bKey);
+
+			// remove the secondary key that the primary key once pointed to
+			final B oldBKeyOfAKey = getKeyBByKeyA(aKey);
+			if (oldBKeyOfAKey != null) {
+				bMap.remove(oldBKeyOfAKey);
+			}
+		}
+
+		aMap.put(aKey, Tuple2.of(bKey, value));
+		bMap.put(bKey, aKey);
+
+		if (oldValue != null) {
+			return oldValue;
+		} else {
+			return null;
+		}
+	}
+
+	boolean containsKeyA(A aKey) {
 		return aMap.containsKey(aKey);
 	}
 
-	public boolean containsKeyB(B bKey) {
+	boolean containsKeyB(B bKey) {
 		return bMap.containsKey(bKey);
 	}
 
-	public V removeKeyA(A aKey) {
+	@Nullable
+	V removeKeyA(A aKey) {
 		Tuple2<B, V> aValue = aMap.remove(aKey);
 
 		if (aValue != null) {
@@ -100,7 +144,8 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public V removeKeyB(B bKey) {
+	@Nullable
+	V removeKeyB(B bKey) {
 		A aKey = bMap.remove(bKey);
 
 		if (aKey != null) {
@@ -115,7 +160,7 @@ public class DualKeyLinkedMap<A, B, V> {
 		}
 	}
 
-	public Collection<V> values() {
+	Collection<V> values() {
 		Collection<V> vs = values;
 
 		if (vs == null) {
@@ -126,15 +171,15 @@ public class DualKeyLinkedMap<A, B, V> {
 		return vs;
 	}
 
-	public Set<A> keySetA() {
+	Set<A> keySetA() {
 		return aMap.keySet();
 	}
 
-	public Set<B> keySetB() {
+	Set<B> keySetB() {
 		return bMap.keySet();
 	}
 
-	public void clear() {
+	void clear() {
 		aMap.clear();
 		bMap.clear();
 	}

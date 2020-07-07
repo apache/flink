@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, TableException, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.planner.utils.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils

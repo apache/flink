@@ -17,16 +17,16 @@
  */
 package org.apache.flink.table.api.stream.table
 
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.PlannerConfig
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.CalciteConfigBuilder
 import org.apache.flink.table.expressions.utils.Func13
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
+
+import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
+import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
 import scala.collection.JavaConversions._

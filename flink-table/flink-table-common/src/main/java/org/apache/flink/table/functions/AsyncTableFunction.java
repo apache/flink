@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.inference.TypeInference;
 
 import java.util.concurrent.CompletableFuture;
@@ -55,7 +56,7 @@ import java.util.concurrent.CompletableFuture;
  * runtime.
  *
  * <p>By default the result type of an evaluation method is determined by Flink's type extraction
- * facilities. Currently, only support {@link org.apache.flink.types.Row} and {@code BaseRow} as
+ * facilities. Currently, only support {@link org.apache.flink.types.Row} and {@link RowData} as
  * the result type. Will support more complex, custom types in the future.
  *
  * <p>Example:

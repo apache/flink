@@ -20,8 +20,8 @@ package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.python.util.ResourceUtil;
-import org.apache.flink.python.util.ZipUtil;
+import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
+import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -78,6 +78,9 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	@VisibleForTesting
 	static final String PYTHON_FILES_DIR = "python-files";
 
+	private static final long CHECK_INTERVAL = 20;
+	private static final long CHECK_TIMEOUT = 1000;
+
 	private transient String baseDirectory;
 
 	/**
@@ -127,25 +130,58 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	}
 
 	@Override
-	public void close() {
-		FileUtils.deleteDirectoryQuietly(new File(baseDirectory));
-		if (shutdownHook != null) {
-			ShutdownHookUtil.removeShutdownHook(
-				shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
-			shutdownHook = null;
+	public void close() throws Exception {
+		try {
+			int retries = 0;
+			while (true) {
+				try {
+					FileUtils.deleteDirectory(new File(baseDirectory));
+					break;
+				} catch (Throwable t) {
+					retries++;
+					if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+								baseDirectory),
+							t);
+					} else {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker.", baseDirectory),
+							t);
+						break;
+					}
+				}
+			}
+		} finally {
+			if (shutdownHook != null) {
+				ShutdownHookUtil.removeShutdownHook(
+					shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
+				shutdownHook = null;
+			}
 		}
 	}
 
 	@Override
-	public RunnerApi.Environment createEnvironment() throws IOException, InterruptedException {
+	public RunnerApi.Environment createEnvironment() throws IOException {
 		Map<String, String> env = constructEnvironmentVariables();
-		ResourceUtil.extractUdfRunner(baseDirectory);
-		String pythonWorkerCommand = String.join(File.separator, baseDirectory, "pyflink-udf-runner.sh");
+
+		if (dependencyInfo.getRequirementsFilePath().isPresent()) {
+			LOG.info("Trying to pip install the Python requirements...");
+			PythonEnvironmentManagerUtils.pipInstallRequirements(
+				dependencyInfo.getRequirementsFilePath().get(),
+				dependencyInfo.getRequirementsCacheDir().orElse(null),
+				requirementsDirectory,
+				dependencyInfo.getPythonExec(),
+				env);
+		}
+		String runnerScript = PythonEnvironmentManagerUtils.getPythonUdfRunnerScript(dependencyInfo.getPythonExec(), env);
 
 		return Environments.createProcessEnvironment(
 			"",
 			"",
-			pythonWorkerCommand,
+			runnerScript,
 			env);
 	}
 
@@ -180,7 +216,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	 */
 	@VisibleForTesting
 	Map<String, String> constructEnvironmentVariables()
-			throws IOException, IllegalArgumentException, InterruptedException {
+			throws IOException, IllegalArgumentException {
 		Map<String, String> env = new HashMap<>(this.systemEnv);
 
 		constructFilesDirectory(env);
@@ -195,7 +231,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		// disable the launching of gateway server to prevent from this dead loop:
 		// launch UDF worker -> import udf -> import job code
 		//        ^                                    | (If the job code is not enclosed in a
-		//        									   |  if name == 'main' statement)
+		//        |                                    |  if name == 'main' statement)
 		//        |                                    V
 		// execute job in local mode <- launch gateway server and submit job to local executor
 		env.put(PYFLINK_GATEWAY_DISABLED, "true");
@@ -257,7 +293,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
 			// extract archives to archives directory
 			for (Map.Entry<String, String> entry : dependencyInfo.getArchives().entrySet()) {
-				ZipUtil.extractZipFileWithPermissions(
+				ZipUtils.extractZipFileWithPermissions(
 					entry.getKey(), String.join(File.separator, archivesDirectory, entry.getValue()));
 			}
 		}

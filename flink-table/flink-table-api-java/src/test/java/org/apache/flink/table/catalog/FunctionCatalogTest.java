@@ -26,9 +26,7 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -37,7 +35,6 @@ import org.hamcrest.Matcher;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -47,7 +44,6 @@ import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -59,24 +55,31 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
  */
 public class FunctionCatalogTest {
 
-	// TODO for now the resolution still returns the marker interfaces for functions
-	//  until we drop the old function stack in DDL
-
 	private static final ScalarFunction FUNCTION_1 = new TestFunction1();
 
 	private static final ScalarFunction FUNCTION_2 = new TestFunction2();
 
+	private static final ScalarFunction FUNCTION_3 = new TestFunction3();
+
+	private static final ScalarFunction FUNCTION_4 = new TestFunction4();
+
 	private static final ScalarFunction FUNCTION_INVALID = new InvalidTestFunction();
+
+	private static final TableFunction<?> TABLE_FUNCTION = new TestTableFunction();
+
+	private static final AggregateFunction<?, ?> AGGREGATE_FUNCTION = new TestAggregateFunction();
 
 	private static final String NAME = "test_function";
 
 	private static final ObjectIdentifier IDENTIFIER = ObjectIdentifier.of(
 		DEFAULT_CATALOG,
-		DEFAULT_DATABASE, NAME);
+		DEFAULT_DATABASE,
+		NAME);
 
 	private static final UnresolvedIdentifier FULL_UNRESOLVED_IDENTIFIER = UnresolvedIdentifier.of(
 		DEFAULT_CATALOG,
-		DEFAULT_DATABASE, NAME);
+		DEFAULT_DATABASE,
+		NAME);
 
 	private static final UnresolvedIdentifier PARTIAL_UNRESOLVED_IDENTIFIER = UnresolvedIdentifier.of(NAME);
 
@@ -120,24 +123,23 @@ public class FunctionCatalogTest {
 		// test catalog function is found
 		catalog.createFunction(
 			IDENTIFIER.toObjectPath(),
-			new CatalogFunctionImpl(TestFunction1.class.getName()),
+			new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
 			false);
 
-		FunctionLookup.Result result = functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER).get();
-
-		assertEquals(Optional.of(IDENTIFIER), result.getFunctionIdentifier().getIdentifier());
-		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction1);
+		assertThat(
+			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
 
 		// test temp catalog function is found
-		functionCatalog.registerTempCatalogScalarFunction(
-			IDENTIFIER,
-			new TestFunction2()
+		functionCatalog.registerTemporaryCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			FUNCTION_2,
+			false
 		);
 
-		result = functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER).get();
-
-		assertEquals(Optional.of(IDENTIFIER), result.getFunctionIdentifier().getIdentifier());
-		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction2);
+		assertThat(
+			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
 	}
 
 	@Test
@@ -148,40 +150,37 @@ public class FunctionCatalogTest {
 		// test catalog function is found
 		catalog.createFunction(
 			IDENTIFIER.toObjectPath(),
-			new CatalogFunctionImpl(TestFunction1.class.getName()),
+			new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
 			false);
 
-		FunctionLookup.Result result = functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER).get();
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
 
-		assertEquals(Optional.of(IDENTIFIER), result.getFunctionIdentifier().getIdentifier());
-		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction1);
-
-		// test temp catalog function is found
-		functionCatalog.registerTempCatalogScalarFunction(
-			IDENTIFIER,
-			new TestFunction2()
+		// test temporary catalog function is found
+		functionCatalog.registerTemporaryCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			FUNCTION_2,
+			false
 		);
 
-		result = functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER).get();
-
-		assertEquals(Optional.of(IDENTIFIER), result.getFunctionIdentifier().getIdentifier());
-		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction2);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
 
 		// test system function is found
 		moduleManager.loadModule("test_module", new TestModule());
 
-		result = functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER).get();
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(NAME), FUNCTION_3));
 
-		assertEquals(Optional.of(NAME), result.getFunctionIdentifier().getSimpleName());
-		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction3);
+		// test temporary system function is found
+		functionCatalog.registerTemporarySystemFunction(NAME, FUNCTION_4, false);
 
-		// test temp system function is found
-		functionCatalog.registerTempSystemScalarFunction(NAME, new TestFunction4());
-
-		result = functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER).get();
-
-		assertEquals(Optional.of(NAME), result.getFunctionIdentifier().getSimpleName());
-		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction4);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(NAME), FUNCTION_4));
 	}
 
 	@Test
@@ -196,7 +195,8 @@ public class FunctionCatalogTest {
 			returnsFunction(FunctionIdentifier.of(NAME), FUNCTION_1));
 
 		// register second time lenient
-		functionCatalog.registerTemporarySystemFunction(NAME,
+		functionCatalog.registerTemporarySystemFunction(
+			NAME,
 			FUNCTION_2,
 			true);
 		assertThat(
@@ -254,27 +254,27 @@ public class FunctionCatalogTest {
 		// register first time
 		functionCatalog.registerTemporarySystemFunction(
 			NAME,
-			TestFunction1.class.getName(),
+			FUNCTION_1.getClass().getName(),
 			FunctionLanguage.JAVA,
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(FunctionIdentifier.of(NAME), new ScalarFunctionDefinition(NAME, FUNCTION_1)));
+			returnsFunction(FunctionIdentifier.of(NAME), FUNCTION_1));
 
 		// register second time lenient
 		functionCatalog.registerTemporarySystemFunction(NAME,
-			TestFunction2.class.getName(),
+			FUNCTION_2.getClass().getName(),
 			FunctionLanguage.JAVA,
 			true);
 		assertThat(
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(FunctionIdentifier.of(NAME), new ScalarFunctionDefinition(NAME, FUNCTION_1)));
+			returnsFunction(FunctionIdentifier.of(NAME), FUNCTION_1));
 
 		// register second time not lenient
 		try {
 			functionCatalog.registerTemporarySystemFunction(
 				NAME,
-				TestFunction2.class.getName(),
+				FUNCTION_2.getClass().getName(),
 				FunctionLanguage.JAVA,
 				false);
 			fail();
@@ -288,7 +288,7 @@ public class FunctionCatalogTest {
 		try {
 			functionCatalog.registerTemporarySystemFunction(
 				NAME,
-				InvalidTestFunction.class.getName(),
+				FUNCTION_INVALID.getClass().getName(),
 				FunctionLanguage.JAVA,
 				false);
 			fail();
@@ -305,28 +305,29 @@ public class FunctionCatalogTest {
 		// test register uninstantiated table function
 		functionCatalog.registerTemporarySystemFunction(
 			NAME,
-			TestTableFunction1.class.getName(),
+			TABLE_FUNCTION.getClass().getName(),
 			FunctionLanguage.JAVA,
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
 			returnsFunction(
 				FunctionIdentifier.of(NAME),
-				new TableFunctionDefinition(NAME, new TestTableFunction1(), Types.STRING)));
+				TABLE_FUNCTION));
 
 		functionCatalog.dropTemporarySystemFunction(NAME, true);
 
 		// test register uninstantiated aggregate function
 		functionCatalog.registerTemporarySystemFunction(
 			NAME,
-			TestAggregateFunction1.class.getName(),
+			AGGREGATE_FUNCTION.getClass().getName(),
 			FunctionLanguage.JAVA,
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
 			returnsFunction(
 				FunctionIdentifier.of(NAME),
-				new AggregateFunctionDefinition(NAME, new TestAggregateFunction1(), Types.STRING, Types.STRING)));
+				// TODO aggregate functions still use marker interface
+				new AggregateFunctionDefinition(NAME, AGGREGATE_FUNCTION, Types.STRING, Types.STRING)));
 	}
 
 	@Test
@@ -338,9 +339,7 @@ public class FunctionCatalogTest {
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(NAME, FUNCTION_1)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
 
 		// register second time lenient
 		functionCatalog.registerCatalogFunction(
@@ -349,9 +348,7 @@ public class FunctionCatalogTest {
 			true);
 		assertThat(
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(NAME, FUNCTION_1)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
 
 		// register second time not lenient
 		try {
@@ -414,9 +411,7 @@ public class FunctionCatalogTest {
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(NAME, FUNCTION_2)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
 
 		// register temporary first time
 		functionCatalog.registerTemporaryCatalogFunction(
@@ -488,7 +483,7 @@ public class FunctionCatalogTest {
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
 			returnsFunction(
 				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(NAME, FUNCTION_2))); // permanent function is visible again
+				FUNCTION_2)); // permanent function is visible again
 
 		// drop temporary second time lenient
 		assertThat(
@@ -530,9 +525,7 @@ public class FunctionCatalogTest {
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(NAME, FUNCTION_2)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
 
 		// register temporary first time
 		functionCatalog.registerTemporaryCatalogFunction(
@@ -542,9 +535,7 @@ public class FunctionCatalogTest {
 		// temporary function hides catalog function
 		assertThat(
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(IDENTIFIER.getObjectName(), FUNCTION_1)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
 
 		// register temporary second time lenient
 		functionCatalog.registerTemporaryCatalogFunction(
@@ -553,9 +544,7 @@ public class FunctionCatalogTest {
 			true);
 		assertThat(
 			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new ScalarFunctionDefinition(IDENTIFIER.getObjectName(), FUNCTION_1)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
 
 		// register temporary second time not lenient
 		try {
@@ -590,58 +579,25 @@ public class FunctionCatalogTest {
 		// test register uninstantiated table function
 		functionCatalog.registerTemporaryCatalogFunction(
 			PARTIAL_UNRESOLVED_IDENTIFIER,
-			new CatalogFunctionImpl(TestTableFunction1.class.getName()),
+			new CatalogFunctionImpl(TABLE_FUNCTION.getClass().getName()),
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
-			returnsFunction(
-				FunctionIdentifier.of(IDENTIFIER),
-				new TableFunctionDefinition(NAME, new TestTableFunction1(), Types.STRING)));
+			returnsFunction(FunctionIdentifier.of(IDENTIFIER), TABLE_FUNCTION));
 
 		functionCatalog.dropTemporaryCatalogFunction(PARTIAL_UNRESOLVED_IDENTIFIER, true);
 
 		// test register uninstantiated aggregate function
 		functionCatalog.registerTemporaryCatalogFunction(
 			PARTIAL_UNRESOLVED_IDENTIFIER,
-			new CatalogFunctionImpl(TestAggregateFunction1.class.getName()),
+			new CatalogFunctionImpl(AGGREGATE_FUNCTION.getClass().getName()),
 			false);
 		assertThat(
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
 			returnsFunction(
 				FunctionIdentifier.of(IDENTIFIER),
-				new AggregateFunctionDefinition(NAME, new TestAggregateFunction1(), Types.STRING, Types.STRING)));
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Legacy function handling before FLIP-65
-	// --------------------------------------------------------------------------------------------
-
-	@Test
-	public void testRegisterAndDropTempSystemFunction() {
-		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(NAME));
-
-		functionCatalog.registerTempSystemScalarFunction(NAME, new TestFunction1());
-		assertTrue(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(NAME));
-
-		functionCatalog.dropTemporarySystemFunction(NAME, false);
-		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(NAME));
-
-		functionCatalog.dropTemporarySystemFunction(NAME, true);
-		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(NAME));
-	}
-
-	@Test
-	public void testRegisterAndDropTempCatalogFunction() {
-		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(NAME));
-
-		functionCatalog.registerTempCatalogScalarFunction(IDENTIFIER, new TestFunction1());
-		assertTrue(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(IDENTIFIER.getObjectName()));
-
-		functionCatalog.dropTempCatalogFunction(IDENTIFIER, false);
-		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(IDENTIFIER.getObjectName()));
-
-		functionCatalog.dropTempCatalogFunction(IDENTIFIER, true);
-		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(IDENTIFIER.getObjectName()));
+				// TODO aggregate functions still use marker interface
+				new AggregateFunctionDefinition(NAME, AGGREGATE_FUNCTION, Types.STRING, Types.STRING)));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -673,7 +629,7 @@ public class FunctionCatalogTest {
 
 		@Override
 		public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-			return Optional.of(new ScalarFunctionDefinition(NAME, new TestFunction3()));
+			return Optional.of(FUNCTION_3);
 		}
 	}
 
@@ -698,6 +654,11 @@ public class FunctionCatalogTest {
 		public String eval(){
 			return null;
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			return o != null && o.getClass() == this.getClass();
+		}
 	}
 
 	/**
@@ -707,6 +668,11 @@ public class FunctionCatalogTest {
 		public String eval(){
 			return null;
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			return o != null && o.getClass() == this.getClass();
+		}
 	}
 
 	/**
@@ -715,6 +681,11 @@ public class FunctionCatalogTest {
 	public static class TestFunction4 extends ScalarFunction {
 		public String eval(){
 			return null;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			return o != null && o.getClass() == this.getClass();
 		}
 	}
 
@@ -728,7 +699,8 @@ public class FunctionCatalogTest {
 	/**
 	 * Testing table function.
 	 */
-	public static class TestTableFunction1 extends TableFunction<String> {
+	@SuppressWarnings("unused")
+	public static class TestTableFunction extends TableFunction<String> {
 		public void eval(String in) {}
 
 		@Override
@@ -740,7 +712,8 @@ public class FunctionCatalogTest {
 	/**
 	 * Testing aggregate function.
 	 */
-	public static class TestAggregateFunction1 extends AggregateFunction<String, String> {
+	@SuppressWarnings("unused")
+	public static class TestAggregateFunction extends AggregateFunction<String, String> {
 
 		@Override
 		public String getValue(String accumulator) {

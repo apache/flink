@@ -113,6 +113,12 @@ public class TestProcessingTimeService implements TimerService {
 	}
 
 	@Override
+	public ScheduledFuture<?> scheduleWithFixedDelay(ProcessingTimeCallback callback, long initialDelay, long period) {
+		// for all testing purposed, there is no difference between the fixed rate and fixed delay
+		return scheduleAtFixedRate(callback, initialDelay, period);
+	}
+
+	@Override
 	public boolean isTerminated() {
 		return isTerminated;
 	}

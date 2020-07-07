@@ -24,7 +24,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
+import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
  * {@link PartitionWriter} for single directory writer. It just use one format to write.

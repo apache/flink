@@ -21,14 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
-import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
@@ -36,7 +34,6 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -86,26 +83,20 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 	}
 
 	protected void createInputProcessor(
-			Collection<IndexedInputGate>[] inputGates,
+			List<IndexedInputGate>[] inputGates,
 			TypeSerializer<?>[] inputDeserializers,
 			WatermarkGauge[] inputWatermarkGauges) {
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
 			inputGates.length);
 
-		InputGate[] unionedInputGates = new InputGate[inputGates.length];
-		for (int i = 0; i < inputGates.length; i++) {
-			unionedInputGates[i] = InputGateUtil.createInputGate(inputGates[i].toArray(new IndexedInputGate[0]));
-		}
-
-		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
 			this,
 			getConfiguration(),
-			getChannelStateWriter(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
+			getCheckpointCoordinator(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
-			unionedInputGates);
+			inputGates);
 		checkState(checkpointedInputGates.length == inputGates.length);
 
 		inputProcessor = new StreamMultipleInputProcessor(

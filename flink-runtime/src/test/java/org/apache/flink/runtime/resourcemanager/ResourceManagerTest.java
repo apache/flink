@@ -257,7 +257,6 @@ public class ResourceManagerTest extends TestLogger {
 
 		final TestingResourceManager resourceManager = new TestingResourceManager(
 			rpcService,
-			ResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 			resourceManagerResourceId,
 			highAvailabilityServices,
 			heartbeatServices,

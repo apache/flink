@@ -414,9 +414,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Returns whether checkpoints should be persisted externally.
+	 * Returns whether unaligned checkpoints are enabled.
 	 *
-	 * @return <code>true</code> if checkpoints should be externalized.
+	 * @return <code>true</code> if unaligned checkpoints are enabled.
 	 */
 	@PublicEvolving
 	public boolean isUnalignedCheckpointsEnabled() {

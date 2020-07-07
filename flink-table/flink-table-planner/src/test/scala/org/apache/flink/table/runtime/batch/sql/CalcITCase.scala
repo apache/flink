@@ -18,13 +18,10 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import java.sql.{Date, Time, Timestamp}
-import java.util
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils.{Func13, SplitUDF}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.batch.table.OldHashCode
@@ -32,10 +29,14 @@ import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMod
 import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-import org.junit._
+
 import org.junit.Assert.assertEquals
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.sql.{Date, Time, Timestamp}
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -52,7 +53,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT * FROM MyTable"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -76,7 +77,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT * FROM MyTable"
 
-    val ds = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv).as('a, 'b)
+    val ds = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv)as("a", "b")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -119,7 +120,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT a, b, c FROM MyTable"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -164,7 +165,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT a, foo FROM MyTable"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     tEnv.sqlQuery(sqlQuery)
@@ -219,7 +220,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT * FROM MyTable WHERE c LIKE '%world%'"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -237,7 +238,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)=0"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -258,7 +259,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT * FROM MyTable WHERE a < 2 OR a > 20 OR a IN(3,4,5)"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -277,7 +278,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)<>0 AND MOD(b,2)=0 AND b NOT IN(1,2,3)"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -391,15 +392,6 @@ class CalcITCase(
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  // new type inference for functions is only supported in the Blink planner
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedNewFunctionTypeInference(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-    tEnv.createTemporarySystemFunction("testFunc", new Func13(">>"))
-    tEnv.sqlQuery("SELECT testFunc('fail')").toDataSet[Row]
   }
 }
 

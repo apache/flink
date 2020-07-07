@@ -37,6 +37,10 @@ public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSch
 		this.serializationSchema = serializationSchema;
 	}
 
+	public SerializationSchema<T> getSerializationSchema() {
+		return serializationSchema;
+	}
+
 	@Override
 	public byte[] serializeKey(T element) {
 		return null;

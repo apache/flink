@@ -83,42 +83,23 @@ public class HadoopModule implements SecurityModule {
 				// supplement with any available tokens
 				String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
 				if (fileLocation != null) {
-					// Use reflection API since the API semantics are not available in Hadoop1 profile. Below APIs are
-					// used in the context of reading the stored tokens from UGI.
-					// Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), config.hadoopConf);
-					// loginUser.addCredentials(cred);
-					try {
-						Method readTokenStorageFileMethod = Credentials.class.getMethod("readTokenStorageFile",
-							File.class, org.apache.hadoop.conf.Configuration.class);
-						Credentials cred =
-							(Credentials) readTokenStorageFileMethod.invoke(
-								null,
-								new File(fileLocation),
-								hadoopConfiguration);
+					Credentials credentialsFromTokenStorageFile = Credentials.readTokenStorageFile(new File(fileLocation), hadoopConfiguration);
 
-						// if UGI uses Kerberos keytabs for login, do not load HDFS delegation token since
-						// the UGI would prefer the delegation token instead, which eventually expires
-						// and does not fallback to using Kerberos tickets
-						Method getAllTokensMethod = Credentials.class.getMethod("getAllTokens");
-						Credentials credentials = new Credentials();
-						final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
-						Collection<Token<? extends TokenIdentifier>> usrTok = (Collection<Token<? extends TokenIdentifier>>) getAllTokensMethod.invoke(cred);
-						//If UGI use keytab for login, do not load HDFS delegation token.
-						for (Token<? extends TokenIdentifier> token : usrTok) {
-							if (!token.getKind().equals(hdfsDelegationTokenKind)) {
-								final Text id = new Text(token.getIdentifier());
-								credentials.addToken(id, token);
-							}
+					// if UGI uses Kerberos keytabs for login, do not load HDFS delegation token since
+					// the UGI would prefer the delegation token instead, which eventually expires
+					// and does not fallback to using Kerberos tickets
+					Credentials credentialsToBeAdded = new Credentials();
+					final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+					Collection<Token<? extends TokenIdentifier>> usrTok = credentialsFromTokenStorageFile.getAllTokens();
+					//If UGI use keytab for login, do not load HDFS delegation token.
+					for (Token<? extends TokenIdentifier> token : usrTok) {
+						if (!token.getKind().equals(hdfsDelegationTokenKind)) {
+							final Text id = new Text(token.getIdentifier());
+							credentialsToBeAdded.addToken(id, token);
 						}
-
-						Method addCredentialsMethod = UserGroupInformation.class.getMethod("addCredentials",
-							Credentials.class);
-						addCredentialsMethod.invoke(loginUser, credentials);
-					} catch (NoSuchMethodException e) {
-						LOG.warn("Could not find method implementations in the shaded jar.", e);
-					} catch (InvocationTargetException e) {
-						throw e.getTargetException();
 					}
+
+					loginUser.addCredentials(credentialsToBeAdded);
 				}
 			} else {
 				// login with current user credentials (e.g. ticket cache, OS login)
@@ -137,18 +118,20 @@ public class HadoopModule implements SecurityModule {
 				loginUser = UserGroupInformation.getLoginUser();
 			}
 
-			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(
-				loginUser, securityConfig.useTicketCache());
+			LOG.info("Hadoop user set to {}", loginUser);
 
-			LOG.info("Hadoop user set to {}, credentials check status: {}", loginUser, isCredentialsConfigured);
+			if (HadoopUtils.isKerberosSecurityEnabled(loginUser)) {
+				boolean isCredentialsConfigured = HadoopUtils.areKerberosCredentialsValid(loginUser, securityConfig.useTicketCache());
 
+				LOG.info("Kerberos security is enabled and credentials are {}.", isCredentialsConfigured ? "valid" : "invalid");
+			}
 		} catch (Throwable ex) {
 			throw new SecurityInstallException("Unable to set the Hadoop login user", ex);
 		}
 	}
 
 	@Override
-	public void uninstall() throws SecurityInstallException {
+	public void uninstall() {
 		throw new UnsupportedOperationException();
 	}
 }

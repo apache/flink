@@ -19,8 +19,8 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
@@ -145,11 +145,11 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 	 * Get properties map for the cluster-side after removal of some keys.
 	 */
 	private Map<String, String> getClusterSidePropertiesMap(Configuration flinkConfig) {
-		final Map<String, String> propertiesMap = flinkConfig.toMap();
-
-		// remove kubernetes.config.file
-		propertiesMap.remove(KubernetesConfigOptions.KUBE_CONFIG_FILE.key());
-		return propertiesMap;
+		final Configuration clusterSideConfig = flinkConfig.clone();
+		// Remove some configuration options that should not be taken to cluster side.
+		clusterSideConfig.removeConfig(KubernetesConfigOptions.KUBE_CONFIG_FILE);
+		clusterSideConfig.removeConfig(DeploymentOptionsInternal.CONF_DIR);
+		return clusterSideConfig.toMap();
 	}
 
 	@VisibleForTesting
@@ -167,7 +167,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 	}
 
 	private List<File> getLocalLogConfFiles() {
-		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
+		final String confDir = kubernetesComponentConf.getConfigDirectory();
 		final File logbackFile = new File(confDir, CONFIG_FILE_LOGBACK_NAME);
 		final File log4jFile = new File(confDir, CONFIG_FILE_LOG4J_NAME);
 

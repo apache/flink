@@ -34,6 +34,16 @@ import scala.collection.mutable.ArrayBuffer
 object ChangelogPlanUtils {
 
   /**
+   * A [[ChangelogMode]] contains all kinds of [[RowKind]].
+   */
+  val FULL_CHANGELOG_MODE: ChangelogMode = ChangelogMode.newBuilder()
+    .addContainedKind(RowKind.INSERT)
+    .addContainedKind(RowKind.UPDATE_BEFORE)
+    .addContainedKind(RowKind.UPDATE_AFTER)
+    .addContainedKind(RowKind.DELETE)
+    .build()
+
+  /**
    * Returns true if the inputs of current node produce insert-only changes.
    *
    *  <p>Note: this method must be called after [[FlinkChangelogModeInferenceProgram]] is applied.

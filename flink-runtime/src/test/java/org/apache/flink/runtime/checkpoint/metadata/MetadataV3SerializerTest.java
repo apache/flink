@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint.metadata;
 
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -25,7 +27,11 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -42,6 +48,9 @@ import static org.junit.Assert.assertEquals;
  */
 public class MetadataV3SerializerTest {
 
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
 	public void testCheckpointWithNoState() throws Exception {
 		final Random rnd = new Random();
@@ -51,7 +60,7 @@ public class MetadataV3SerializerTest {
 			final Collection<OperatorState> taskStates = Collections.emptyList();
 			final Collection<MasterState> masterStates = Collections.emptyList();
 
-			testCheckpointSerialization(checkpointId, taskStates, masterStates);
+			testCheckpointSerialization(checkpointId, taskStates, masterStates, null);
 		}
 	}
 
@@ -69,12 +78,20 @@ public class MetadataV3SerializerTest {
 			final Collection<MasterState> masterStates =
 					CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-			testCheckpointSerialization(checkpointId, operatorStates, masterStates);
+			testCheckpointSerialization(checkpointId, operatorStates, masterStates, null);
 		}
 	}
 
 	@Test
-	public void testCheckpointWithOnlyTaskState() throws Exception {
+	public void testCheckpointWithOnlyTaskStateForCheckpoint() throws Exception {
+		testCheckpointWithOnlyTaskState(null);
+	}
+	@Test
+	public void testCheckpointWithOnlyTaskStateForSavepoint() throws Exception {
+		testCheckpointWithOnlyTaskState(temporaryFolder.newFolder().toURI().toString());
+	}
+
+	private void testCheckpointWithOnlyTaskState(String basePath) throws Exception {
 		final Random rnd = new Random();
 		final int maxTaskStates = 20;
 		final int maxNumSubtasks = 20;
@@ -85,16 +102,25 @@ public class MetadataV3SerializerTest {
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
 			final Collection<OperatorState> taskStates =
-					CheckpointTestUtils.createOperatorStates(rnd, numTasks, numSubtasks);
+					CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
 
 			final Collection<MasterState> masterStates = Collections.emptyList();
 
-			testCheckpointSerialization(checkpointId, taskStates, masterStates);
+			testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
 		}
 	}
 
 	@Test
-	public void testCheckpointWithMasterAndTaskState() throws Exception {
+	public void testCheckpointWithMasterAndTaskStateForCheckpoint() throws Exception {
+		testCheckpointWithMasterAndTaskState(null);
+	}
+
+	@Test
+	public void testCheckpointWithMasterAndTaskStateForSavepoint() throws Exception {
+		testCheckpointWithMasterAndTaskState(temporaryFolder.newFolder().toURI().toString());
+	}
+
+	private void testCheckpointWithMasterAndTaskState(String basePath) throws Exception {
 		final Random rnd = new Random();
 
 		final int maxNumMasterStates = 5;
@@ -107,34 +133,55 @@ public class MetadataV3SerializerTest {
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
 			final Collection<OperatorState> taskStates =
-					CheckpointTestUtils.createOperatorStates(rnd, numTasks, numSubtasks);
+					CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
 
 			final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
 			final Collection<MasterState> masterStates =
 					CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-			testCheckpointSerialization(checkpointId, taskStates, masterStates);
+			testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
 		}
 	}
 
+	/**
+	 * Test checkpoint metadata (de)serialization.
+	 *
+	 * @param checkpointId The given checkpointId will write into the metadata.
+	 * @param operatorStates the given states for all the operators.
+	 * @param masterStates the masterStates of the given checkpoint/savepoint.
+	 */
 	private void testCheckpointSerialization(
 			long checkpointId,
 			Collection<OperatorState> operatorStates,
-			Collection<MasterState> masterStates) throws IOException {
+			Collection<MasterState> masterStates,
+			@Nullable String basePath) throws IOException {
 
 		MetadataV3Serializer serializer = MetadataV3Serializer.INSTANCE;
 
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);
 
-		MetadataV3Serializer.serialize(new CheckpointMetadata(checkpointId, operatorStates, masterStates), out);
+		CheckpointMetadata metadata = new CheckpointMetadata(checkpointId, operatorStates, masterStates);
+		MetadataV3Serializer.serialize(metadata, out);
 		out.close();
+
+		// The relative pointer resolution in MetadataV2V3SerializerBase currently runs the same
+		// code as the file system checkpoint location resolution. Because of that, it needs the
+		// a "_metadata" file present. we could change the code to resolve the pointer without doing
+		// file I/O, but it is somewhat delicate to reproduce that logic without I/O and the same guarantees
+		// to differentiate between the supported options of directory addressing and metadata file addressing.
+		// So, better safe than sorry, we do actually do the file system operations in the serializer for now,
+		// even if it makes the tests a a tad bit more clumsy
+		if (basePath != null) {
+			final Path metaPath = new Path(basePath, "_metadata");
+			// this is in the temp folder, so it will get automatically deleted
+			FileSystem.getLocalFileSystem().create(metaPath, FileSystem.WriteMode.OVERWRITE).close();
+		}
 
 		byte[] bytes = baos.toByteArray();
 
 		DataInputStream in = new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(bytes));
-		CheckpointMetadata deserialized = serializer.deserialize(in, getClass().getClassLoader());
-
+		CheckpointMetadata deserialized = serializer.deserialize(in, getClass().getClassLoader(), basePath);
 		assertEquals(checkpointId, deserialized.getCheckpointId());
 		assertEquals(operatorStates, deserialized.getOperatorStates());
 

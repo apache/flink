@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -50,19 +49,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
+import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
 /**
  * Utility class that provides helper methods to work with Apache Hadoop YARN.
@@ -71,20 +69,11 @@ public final class Utils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
-	/** Keytab file name populated in YARN container. */
-	public static final String DEFAULT_KEYTAB_FILE = "krb5.keytab";
-
 	/** KRB5 file name populated in YARN container for secure IT run. */
 	public static final String KRB5_FILE_NAME = "krb5.conf";
 
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
-
-	/** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
-	public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
-
-	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
-	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
 
 	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
 		addToEnvironment(
@@ -97,118 +86,6 @@ public final class Utils {
 		for (String c : applicationClassPathEntries) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
-	}
-
-	/**
-	 * Copy a local file to a remote file system and register as Local Resource.
-	 *
-	 * @param fs
-	 * 		remote filesystem
-	 * @param appId
-	 * 		application ID
-	 * @param localSrcPath
-	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
-	 * @param relativeTargetPath
-	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
-	 * @param replication
-	 * 	    number of replications of a remote file to be created
-	 *
-	 * @return Path to remote file (usually hdfs)
-	 */
-	static Tuple2<Path, LocalResource> setupLocalResource(
-		FileSystem fs,
-		String appId,
-		Path localSrcPath,
-		Path homedir,
-		String relativeTargetPath,
-		int replication) throws IOException {
-
-		File localFile = new File(localSrcPath.toUri().getPath());
-		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath, replication);
-		// now create the resource instance
-		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
-		return Tuple2.of(remoteFileInfo.f0, resource);
-	}
-
-	/**
-	 * Copy a local file to a remote file system.
-	 *
-	 * @param fs
-	 * 		remote filesystem
-	 * @param appId
-	 * 		application ID
-	 * @param localSrcPath
-	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
-	 * @param relativeTargetPath
-	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
-	 * @param replication
-	 * 	    number of replications of a remote file to be created
-	 *
-	 * @return Path to remote file (usually hdfs)
-	 */
-	static Tuple2<Path, Long> uploadLocalFileToRemote(
-		FileSystem fs,
-		String appId,
-		Path localSrcPath,
-		Path homedir,
-		String relativeTargetPath,
-		int replication) throws IOException {
-
-		File localFile = new File(localSrcPath.toUri().getPath());
-		if (localFile.isDirectory()) {
-			throw new IllegalArgumentException("File to copy must not be a directory: " +
-				localSrcPath);
-		}
-
-		// copy resource to HDFS
-		String suffix =
-			".flink/"
-				+ appId
-				+ (relativeTargetPath.isEmpty() ? "" : "/" + relativeTargetPath)
-				+ "/" + localSrcPath.getName();
-
-		Path dst = new Path(homedir, suffix);
-
-		LOG.debug("Copying from {} to {} with replication number {}", localSrcPath, dst, replication);
-		fs.copyFromLocalFile(false, true, localSrcPath, dst);
-		fs.setReplication(dst, (short) replication);
-
-		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
-		//       file once again which has problems with eventually consistent read-after-write file
-		//       systems. Instead, we decide to wait until the remote file be available.
-
-		FileStatus[] fss = null;
-		int iter = 1;
-		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY + 1) {
-			try {
-				fss = fs.listStatus(dst);
-				break;
-			} catch (FileNotFoundException e) {
-				LOG.debug("Got FileNotFoundException while fetching uploaded remote resources at retry num {}", iter);
-				try {
-					LOG.debug("Sleeping for {}ms", REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
-					TimeUnit.MILLISECONDS.sleep(REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
-				} catch (InterruptedException ie) {
-					LOG.warn("Failed to sleep for {}ms at retry num {} while fetching uploaded remote resources",
-						REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI, iter, ie);
-				}
-				iter++;
-			}
-		}
-
-		final long dstModificationTime;
-		if (fss != null && fss.length >  0) {
-			dstModificationTime = fss[0].getModificationTime();
-			LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
-		} else {
-			dstModificationTime = localFile.lastModified();
-			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
-		}
-		return new Tuple2<>(dst, dstModificationTime);
 	}
 
 	/**
@@ -243,28 +120,33 @@ public final class Utils {
 	 *
 	 * @return YARN resource
 	 */
-	private static LocalResource registerLocalResource(
+	static LocalResource registerLocalResource(
 			Path remoteRsrcPath,
 			long resourceSize,
-			long resourceModificationTime) {
+			long resourceModificationTime,
+			LocalResourceVisibility resourceVisibility) {
 		LocalResource localResource = Records.newRecord(LocalResource.class);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(resourceSize);
 		localResource.setTimestamp(resourceModificationTime);
 		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		localResource.setVisibility(resourceVisibility);
 		return localResource;
 	}
 
+	/**
+	 * Creates a YARN resource for the remote object at the given location.
+	 * @param fs remote filesystem
+	 * @param remoteRsrcPath resource path to be registered
+	 * @return YARN resource
+	 */
 	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
-		LocalResource localResource = Records.newRecord(LocalResource.class);
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
-		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
-		localResource.setSize(jarStat.getLen());
-		localResource.setTimestamp(jarStat.getModificationTime());
-		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
-		return localResource;
+		return registerLocalResource(
+			remoteRsrcPath,
+			jarStat.getLen(),
+			jarStat.getModificationTime(),
+			LocalResourceVisibility.APPLICATION);
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -440,8 +322,8 @@ public final class Utils {
 
 		// get and validate all relevant variables
 
-		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_JAR_PATH);
-		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_JAR_PATH);
+		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_DIST_JAR);
+		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
 
 		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
 		require(appId != null, "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
@@ -500,19 +382,14 @@ public final class Utils {
 			hasKrb5 = true;
 		}
 
-		// register Flink Jar with remote HDFS
-		final String flinkJarPath;
-		final LocalResource flinkJar;
-		{
-			Path remoteJarPath = new Path(remoteFlinkJarPath);
-			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
-			flinkJarPath = remoteJarPath.getName();
-			flinkJar = registerLocalResource(fs, remoteJarPath);
-		}
-
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 
-		taskManagerLocalResources.put(flinkJarPath, flinkJar);
+		// register Flink Jar with remote HDFS
+		final YarnLocalResourceDescriptor flinkDistLocalResourceDesc =
+				YarnLocalResourceDescriptor.fromString(remoteFlinkJarPath);
+		taskManagerLocalResources.put(
+				flinkDistLocalResourceDesc.getResourceKey(),
+				flinkDistLocalResourceDesc.toLocalResource());
 
 		//To support Yarn Secure Integration Test Scenario
 		if (yarnConfResource != null) {
@@ -526,15 +403,8 @@ public final class Utils {
 		}
 
 		// prepare additional files to be shipped
-		for (String pathStr : shipListString.split(",")) {
-			if (!pathStr.isEmpty()) {
-				String[] keyAndPath = pathStr.split("=");
-				require(keyAndPath.length == 2, "Invalid entry in ship file list: %s", pathStr);
-				Path path = new Path(keyAndPath[1]);
-				LocalResource resource = registerLocalResource(path.getFileSystem(yarnConfig), path);
-				taskManagerLocalResources.put(keyAndPath[0], resource);
-			}
-		}
+		decodeYarnLocalResourceDescriptorListFromString(shipListString).forEach(
+			resourceDesc -> taskManagerLocalResources.put(resourceDesc.getResourceKey(), resourceDesc.toLocalResource()));
 
 		// now that all resources are prepared, we can create the launch context
 
@@ -586,14 +456,7 @@ public final class Utils {
 			log.debug("Adding security tokens to TaskExecutor's container launch context.");
 
 			try (DataOutputBuffer dob = new DataOutputBuffer()) {
-				Method readTokenStorageFileMethod = Credentials.class.getMethod(
-					"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
-
-				Credentials cred =
-					(Credentials) readTokenStorageFileMethod.invoke(
-						null,
-						new File(fileLocation),
-						HadoopUtils.getHadoopConfiguration(flinkConfig));
+				Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), HadoopUtils.getHadoopConfiguration(flinkConfig));
 
 				// Filter out AMRMToken before setting the tokens to the TaskManager container context.
 				Credentials taskManagerCred = new Credentials();
@@ -616,6 +479,21 @@ public final class Utils {
 		}
 
 		return ctx;
+	}
+
+	static boolean isRemotePath(String path) throws IOException {
+		org.apache.flink.core.fs.Path flinkPath = new org.apache.flink.core.fs.Path(path);
+		return flinkPath.getFileSystem().isDistributedFS();
+	}
+
+	private static List<YarnLocalResourceDescriptor> decodeYarnLocalResourceDescriptorListFromString(String resources) throws Exception {
+		final List<YarnLocalResourceDescriptor> resourceDescriptors = new ArrayList<>();
+		for (String shipResourceDescStr : resources.split(LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR)) {
+			if (!shipResourceDescStr.isEmpty()) {
+				resourceDescriptors.add(YarnLocalResourceDescriptor.fromString(shipResourceDescStr));
+			}
+		}
+		return resourceDescriptors;
 	}
 
 	/**

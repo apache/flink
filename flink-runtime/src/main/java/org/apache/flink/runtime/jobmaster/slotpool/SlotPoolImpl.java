@@ -41,10 +41,10 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
@@ -134,6 +134,8 @@ public class SlotPoolImpl implements SlotPool {
 
 	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
+	protected boolean batchSlotRequestTimeoutCheckEnabled;
+
 	// ------------------------------------------------------------------------
 
 	public SlotPoolImpl(
@@ -160,13 +162,16 @@ public class SlotPoolImpl implements SlotPool {
 		this.jobManagerAddress = null;
 
 		this.componentMainThreadExecutor = null;
+
+		this.batchSlotRequestTimeoutCheckEnabled = true;
 	}
 
 	// ------------------------------------------------------------------------
 	//  Getters
 	// ------------------------------------------------------------------------
 
-	private Collection<SlotInfo> getAllocatedSlotsInformation() {
+	@Override
+	public Collection<SlotInfo> getAllocatedSlotsInformation() {
 		return allocatedSlots.listSlotInfo();
 	}
 
@@ -319,20 +324,27 @@ public class SlotPoolImpl implements SlotPool {
 		checkNotNull(resourceManagerGateway);
 		checkNotNull(pendingRequest);
 
-		log.info("Requesting new slot [{}] and profile {} from resource manager.", pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile());
-
 		final AllocationID allocationId = new AllocationID();
+		pendingRequest.setAllocationId(allocationId);
 
 		pendingRequests.put(pendingRequest.getSlotRequestId(), allocationId, pendingRequest);
 
 		pendingRequest.getAllocatedSlotFuture().whenComplete(
 			(AllocatedSlot allocatedSlot, Throwable throwable) -> {
-				if (throwable != null || !allocationId.equals(allocatedSlot.getAllocationId())) {
-					// cancel the slot request if there is a failure or if the pending request has
-					// been completed with another allocated slot
-					resourceManagerGateway.cancelSlotRequest(allocationId);
+				if (throwable != null) {
+					// the allocation id can be remapped so we need to get it from the pendingRequest
+					// where it will be updated timely
+					final Optional<AllocationID> updatedAllocationId = pendingRequest.getAllocationId();
+
+					if (updatedAllocationId.isPresent()) {
+						// cancel the slot request if there is a failure
+						resourceManagerGateway.cancelSlotRequest(updatedAllocationId.get());
+					}
 				}
 			});
+
+		log.info("Requesting new slot [{}] and profile {} with allocation id {} from resource manager.",
+			pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile(), allocationId);
 
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
 			jobMasterId,
@@ -351,12 +363,12 @@ public class SlotPoolImpl implements SlotPool {
 	}
 
 	private void slotRequestToResourceManagerFailed(SlotRequestId slotRequestID, Throwable failure) {
-		final PendingRequest request = pendingRequests.getKeyA(slotRequestID);
+		final PendingRequest request = pendingRequests.getValueByKeyA(slotRequestID);
 		if (request != null) {
 			if (isBatchRequestAndFailureCanBeIgnored(request, failure)) {
 				log.debug("Ignoring failed request to the resource manager for a batch slot request.");
 			} else {
-				pendingRequests.removeKeyA(slotRequestID);
+				removePendingRequest(slotRequestID);
 				request.getAllocatedSlotFuture().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
 			}
@@ -414,25 +426,27 @@ public class SlotPoolImpl implements SlotPool {
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 			@Nonnull SlotRequestId slotRequestId,
 			@Nonnull ResourceProfile resourceProfile,
-			Time timeout) {
+			@Nullable Time timeout) {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
 		final PendingRequest pendingRequest = PendingRequest.createStreamingRequest(slotRequestId, resourceProfile);
 
-		// register request timeout
-		FutureUtils
-			.orTimeout(
-				pendingRequest.getAllocatedSlotFuture(),
-				timeout.toMilliseconds(),
-				TimeUnit.MILLISECONDS,
-				componentMainThreadExecutor)
-			.whenComplete(
-				(AllocatedSlot ignored, Throwable throwable) -> {
-					if (throwable instanceof TimeoutException) {
-						timeoutPendingSlotRequest(slotRequestId);
-					}
-				});
+		if (timeout != null) {
+			// register request timeout
+			FutureUtils
+				.orTimeout(
+					pendingRequest.getAllocatedSlotFuture(),
+					timeout.toMilliseconds(),
+					TimeUnit.MILLISECONDS,
+					componentMainThreadExecutor)
+				.whenComplete(
+					(AllocatedSlot ignored, Throwable throwable) -> {
+						if (throwable instanceof TimeoutException) {
+							timeoutPendingSlotRequest(slotRequestId);
+						}
+					});
+		}
 
 		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply((Function.identity()));
@@ -450,6 +464,11 @@ public class SlotPoolImpl implements SlotPool {
 
 		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply(Function.identity());
+	}
+
+	@Override
+	public void disableBatchSlotRequestTimeoutCheck() {
+		batchSlotRequestTimeoutCheckEnabled = false;
 	}
 
 	@Override
@@ -473,7 +492,9 @@ public class SlotPoolImpl implements SlotPool {
 		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
 
 		if (pendingRequest != null) {
-			failPendingRequest(pendingRequest, new FlinkException("Pending slot request with " + slotRequestId + " has been released."));
+			failPendingRequest(
+				pendingRequest,
+				new FlinkException("Pending slot request with " + slotRequestId + " has been released.", cause));
 		} else {
 			final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
 
@@ -527,27 +548,37 @@ public class SlotPoolImpl implements SlotPool {
 	private void tryFulfillSlotRequestOrMakeAvailable(AllocatedSlot allocatedSlot) {
 		Preconditions.checkState(!allocatedSlot.isUsed(), "Provided slot is still in use.");
 
-		final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
+		final PendingRequest pendingRequest = findMatchingPendingRequest(allocatedSlot);
 
 		if (pendingRequest != null) {
-			log.debug("Fulfilling pending slot request [{}] early with returned slot [{}]",
+			log.debug("Fulfilling pending slot request [{}] with slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
+
+			removePendingRequest(pendingRequest.getSlotRequestId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
+
+			// this allocation may become orphan once its corresponding request is removed
+			final Optional<AllocationID> allocationIdOfRequest = pendingRequest.getAllocationId();
+
+			// the allocation id can be null if the request was fulfilled by a slot directly offered
+			// by a reconnected TaskExecutor before the ResourceManager is connected
+			if (allocationIdOfRequest.isPresent()) {
+				maybeRemapOrphanedAllocation(allocationIdOfRequest.get(), allocatedSlot.getAllocationId());
+			}
 		} else {
-			log.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
+			log.debug("Adding slot [{}] to available slots", allocatedSlot.getAllocationId());
 			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
 		}
 	}
 
-	private PendingRequest pollMatchingPendingRequest(final AllocatedSlot slot) {
+	private PendingRequest findMatchingPendingRequest(final AllocatedSlot slot) {
 		final ResourceProfile slotResources = slot.getResourceProfile();
 
 		// try the requests sent to the resource manager first
 		for (PendingRequest request : pendingRequests.values()) {
 			if (slotResources.isMatching(request.getResourceProfile())) {
-				pendingRequests.removeKeyA(request.getSlotRequestId());
 				return request;
 			}
 		}
@@ -555,13 +586,40 @@ public class SlotPoolImpl implements SlotPool {
 		// try the requests waiting for a resource manager connection next
 		for (PendingRequest request : waitingForResourceManager.values()) {
 			if (slotResources.isMatching(request.getResourceProfile())) {
-				waitingForResourceManager.remove(request.getSlotRequestId());
 				return request;
 			}
 		}
 
 		// no request pending, or no request matches
 		return null;
+	}
+
+	private void maybeRemapOrphanedAllocation(
+			final AllocationID allocationIdOfRequest,
+			final AllocationID allocationIdOfSlot) {
+
+		// allocation of a request is orphaned if the request is fulfilled by a different allocated slot.
+		// if the request of that allocated slot is still pending, it should take over the orphaned allocation.
+		// this enables the request to fail fast if the remapped allocation fails.
+		if (!allocationIdOfRequest.equals(allocationIdOfSlot)) {
+			final PendingRequest requestOfAllocatedSlot = pendingRequests.getValueByKeyB(allocationIdOfSlot);
+			if (requestOfAllocatedSlot != null) {
+				requestOfAllocatedSlot.setAllocationId(allocationIdOfRequest);
+
+				// this re-insertion of request will not affect its original insertion order
+				pendingRequests.put(
+					requestOfAllocatedSlot.getSlotRequestId(),
+					allocationIdOfRequest,
+					requestOfAllocatedSlot);
+			} else {
+				// request id of the allocated slot can be null if the slot is returned by scheduler.
+				// the orphaned allocation will not be adopted in this case, which means it is not needed
+				// anymore by any pending requests. we should cancel it to avoid allocating unnecessary slots.
+				if (resourceManagerGateway != null) {
+					resourceManagerGateway.cancelSlotRequest(allocationIdOfRequest);
+				}
+			}
+		}
 	}
 
 	@Override
@@ -648,26 +706,8 @@ public class SlotPoolImpl implements SlotPool {
 			slotOffer.getResourceProfile(),
 			taskManagerGateway);
 
-		// check whether we have request waiting for this slot
-		PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
-		if (pendingRequest != null) {
-			// we were waiting for this!
-			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
-
-			if (!pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot)) {
-				// we could not complete the pending slot future --> try to fulfill another pending request
-				allocatedSlots.remove(pendingRequest.getSlotRequestId());
-				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-			} else {
-				log.debug("Fulfilled slot request [{}] with allocated slot [{}].", pendingRequest.getSlotRequestId(), allocationID);
-			}
-		}
-		else {
-			// we were actually not waiting for this:
-			//   - could be that this request had been fulfilled
-			//   - we are receiving the slots from TaskManagers after becoming leaders
-			tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-		}
+		// use the slot to fulfill pending request, in requested order
+		tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 
 		// we accepted the request in any case. slot will be released after it idled for
 		// too long and timed out
@@ -698,13 +738,13 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		final PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
+		final PendingRequest pendingRequest = pendingRequests.getValueByKeyB(allocationID);
 		if (pendingRequest != null) {
 			if (isBatchRequestAndFailureCanBeIgnored(pendingRequest, cause)) {
-				// pending batch requests don't react to this signal --> put it back
-				pendingRequests.put(pendingRequest.getSlotRequestId(), allocationID, pendingRequest);
+				log.debug("Ignoring allocation failure for batch slot request {}.", pendingRequest.getSlotRequestId());
 			} else {
 				// request was still pending
+				removePendingRequest(pendingRequest.getSlotRequestId());
 				failPendingRequest(pendingRequest, cause);
 			}
 			return Optional.empty();
@@ -871,6 +911,10 @@ public class SlotPoolImpl implements SlotPool {
 	}
 
 	protected void checkBatchSlotTimeout() {
+		if (!batchSlotRequestTimeoutCheckEnabled) {
+			return;
+		}
+
 		final Collection<PendingRequest> pendingBatchRequests = getPendingBatchRequests();
 
 		if (!pendingBatchRequests.isEmpty()) {
@@ -1049,12 +1093,9 @@ public class SlotPoolImpl implements SlotPool {
 		 * @param allocationID The allocation id
 		 * @return The allocated slot, null if we can't find a match
 		 */
+		@Nullable
 		AllocatedSlot get(final AllocationID allocationID) {
-			return allocatedSlotsById.getKeyA(allocationID);
-		}
-
-		AllocatedSlot get(final SlotRequestId slotRequestId) {
-			return allocatedSlotsById.getKeyB(slotRequestId);
+			return allocatedSlotsById.getValueByKeyA(allocationID);
 		}
 
 		/**
@@ -1348,6 +1389,9 @@ public class SlotPoolImpl implements SlotPool {
 
 		private final CompletableFuture<AllocatedSlot> allocatedSlotFuture;
 
+		@Nullable
+		private AllocationID allocationId;
+
 		private long unfillableSince;
 
 		private PendingRequest(
@@ -1418,6 +1462,14 @@ public class SlotPoolImpl implements SlotPool {
 
 		long getUnfulfillableSince() {
 			return unfillableSince;
+		}
+
+		void setAllocationId(final AllocationID allocationId) {
+			this.allocationId = allocationId;
+		}
+
+		Optional<AllocationID> getAllocationId() {
+			return Optional.ofNullable(allocationId);
 		}
 	}
 

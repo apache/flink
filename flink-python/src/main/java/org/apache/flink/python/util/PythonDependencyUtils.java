@@ -17,6 +17,7 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
@@ -26,6 +27,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.commons.cli.CommandLine;
 
 import javax.annotation.Nullable;
 
@@ -38,6 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 
@@ -45,6 +52,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
  * Utility class for Python dependency management. The dependencies will be registered at the distributed
  * cache.
  */
+@Internal
 public class PythonDependencyUtils {
 
 	public static final String FILE = "file";
@@ -75,6 +83,23 @@ public class PythonDependencyUtils {
 			Configuration config) {
 		PythonDependencyManager pythonDependencyManager = new PythonDependencyManager(cachedFiles, config);
 		return pythonDependencyManager.getConfigWithPythonDependencyOptions();
+	}
+
+	public static Configuration parsePythonDependencyConfiguration(CommandLine commandLine) {
+		Configuration config = new Configuration();
+		if (commandLine.hasOption(PYFILES_OPTION.getOpt())) {
+			config.set(PythonOptions.PYTHON_FILES, commandLine.getOptionValue(PYFILES_OPTION.getOpt()));
+		}
+		if (commandLine.hasOption(PYREQUIREMENTS_OPTION.getOpt())) {
+			config.set(PythonOptions.PYTHON_REQUIREMENTS, commandLine.getOptionValue(PYREQUIREMENTS_OPTION.getOpt()));
+		}
+		if (commandLine.hasOption(PYARCHIVE_OPTION.getOpt())) {
+			config.set(PythonOptions.PYTHON_ARCHIVES, commandLine.getOptionValue(PYARCHIVE_OPTION.getOpt()));
+		}
+		if (commandLine.hasOption(PYEXEC_OPTION.getOpt())) {
+			config.set(PythonOptions.PYTHON_EXECUTABLE, commandLine.getOptionValue(PYEXEC_OPTION.getOpt()));
+		}
+		return config;
 	}
 
 	/**

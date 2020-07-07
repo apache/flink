@@ -50,7 +50,9 @@ public final class SessionWithGap {
 	 *
 	 * @param timeField time attribute for streaming and batch tables
 	 * @return a tumbling window on event-time
+	 * @deprecated use {@link #on(Expression)}
 	 */
+	@Deprecated
 	public SessionWithGapOnTime on(String timeField) {
 		return on(ExpressionParser.parseExpression(timeField));
 	}

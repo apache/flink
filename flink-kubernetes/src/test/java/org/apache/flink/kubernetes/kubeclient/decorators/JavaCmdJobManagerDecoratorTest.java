@@ -25,9 +25,9 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -63,19 +63,25 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 					FLINK_LOG_DIR_IN_POD, FLINK_LOG_DIR_IN_POD);
 
 	// Memory variables
-	private static final String jmJvmMem = String.format("-Xms%dm -Xmx%dm",
-			JOB_MANAGER_MEMORY - 600, JOB_MANAGER_MEMORY - 600);
+	private final String jmJvmMem = JobManagerProcessUtils.generateJvmParametersStr(
+		JobManagerProcessUtils.createDefaultJobManagerProcessSpec(JOB_MANAGER_MEMORY),
+		flinkConfig);
 
 	private JavaCmdJobManagerDecorator javaCmdJobManagerDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.set(KubernetesConfigOptions.FLINK_CONF_DIR, FLINK_CONF_DIR_IN_POD);
 		flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, FLINK_LOG_DIR_IN_POD);
 		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
 		flinkConfig.set(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH, KUBERNETES_ENTRY_PATH);
+	}
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		this.javaCmdJobManagerDecorator = new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters);
 	}

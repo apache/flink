@@ -28,6 +28,8 @@ import threading
 class MLEnvironmentFactory:
     """
     Factory to get the MLEnvironment using a MLEnvironmentId.
+
+    .. versionadded:: 1.11.0
     """
     _lock = threading.RLock()
     _default_ml_environment_id = 0
@@ -41,6 +43,8 @@ class MLEnvironmentFactory:
 
         :param ml_env_id: the MLEnvironmentId
         :return: the MLEnvironment
+
+        .. versionadded:: 1.11.0
         """
         with MLEnvironmentFactory._lock:
             if ml_env_id == 0:
@@ -58,6 +62,8 @@ class MLEnvironmentFactory:
         Get the MLEnvironment use the default MLEnvironmentId.
 
         :return: the default MLEnvironment.
+
+        .. versionadded:: 1.11.0
         """
         with MLEnvironmentFactory._lock:
             if MLEnvironmentFactory._map[MLEnvironmentFactory._default_ml_environment_id] is None:
@@ -78,6 +84,8 @@ class MLEnvironmentFactory:
         Create a unique MLEnvironment id and register a new MLEnvironment in the factory.
 
         :return: the MLEnvironment id.
+
+        .. versionadded:: 1.11.0
         """
         with MLEnvironmentFactory._lock:
             return MLEnvironmentFactory.register_ml_environment(MLEnvironment())
@@ -89,6 +97,8 @@ class MLEnvironmentFactory:
 
         :param ml_environment: the MLEnvironment that will be stored in the factory.
         :return: the MLEnvironment id.
+
+        .. versionadded:: 1.11.0
         """
         with MLEnvironmentFactory._lock:
             MLEnvironmentFactory._map[MLEnvironmentFactory._next_id] = ml_environment
@@ -102,6 +112,8 @@ class MLEnvironmentFactory:
 
         :param ml_env_id: the id.
         :return: the removed MLEnvironment
+
+        .. versionadded:: 1.11.0
         """
         with MLEnvironmentFactory._lock:
             if ml_env_id is None:

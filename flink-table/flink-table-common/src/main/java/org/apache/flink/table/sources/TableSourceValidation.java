@@ -69,10 +69,19 @@ public class TableSourceValidation {
 	 * Checks if the given {@link TableSource} defines a rowtime attribute.
 	 *
 	 * @param tableSource The table source to check.
-	 * @return true if the given table source defines rotime attribute
+	 * @return true if the given table source defines rowtime attribute
 	 */
 	public static boolean hasRowtimeAttribute(TableSource<?> tableSource) {
 		return !getRowtimeAttributes(tableSource).isEmpty();
+	}
+
+	/**
+	 * Checks if the given {@link TableSource} defines a proctime attribute.
+	 * @param tableSource The table source to check.
+	 * @return true if the given table source defines proctime attribute.
+	 */
+	public static boolean hasProctimeAttribute(TableSource<?> tableSource) {
+		return getProctimeAttribute(tableSource).isPresent();
 	}
 
 	private static void validateSingleRowtimeAttribute(List<RowtimeAttributeDescriptor> rowtimeAttributes) {

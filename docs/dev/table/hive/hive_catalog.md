@@ -49,7 +49,7 @@ as those of an overall Flink-Hive integration.
 
 ## How to use HiveCatalog
 
-Once configured properly, `HiveCatalog` should just work out of box. Users can create Flink meta-objects with DDL, and shoud
+Once configured properly, `HiveCatalog` should just work out of box. Users can create Flink meta-objects with DDL, and should
 see them immediately afterwards.
 
 `HiveCatalog` can be used to handle two kinds of tables: Hive-compatible tables and generic tables. Hive-compatible tables
@@ -387,3 +387,7 @@ Something to note about the type mapping:
 * Hive's `TIMESTAMP` always has precision 9 and doesn't support other precisions. Hive UDFs, on the other hand, can process `TIMESTAMP` values with a precision <= 9.
 * Hive doesn't support Flink's `TIMESTAMP_WITH_TIME_ZONE`, `TIMESTAMP_WITH_LOCAL_TIME_ZONE`, and `MULTISET`
 * Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type yet
+
+## Scala Shell
+
+NOTE: since blink planner is not well supported in Scala Shell at the moment, it's **NOT** recommended to use Hive connector in Scala Shell.

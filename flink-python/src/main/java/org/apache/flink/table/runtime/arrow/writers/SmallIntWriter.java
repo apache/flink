@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.SmallIntVector;
 
@@ -27,18 +28,74 @@ import org.apache.arrow.vector.SmallIntVector;
  * {@link ArrowFieldWriter} for SmallInt.
  */
 @Internal
-public final class SmallIntWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class SmallIntWriter<T> extends ArrowFieldWriter<T> {
 
-	public SmallIntWriter(SmallIntVector smallIntVector) {
-		super(smallIntVector);
+	public static SmallIntWriter<RowData> forRow(SmallIntVector intVector) {
+		return new SmallIntWriterForRow(intVector);
 	}
 
+	public static SmallIntWriter<ArrayData> forArray(SmallIntVector intVector) {
+		return new SmallIntWriterForArray(intVector);
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	private SmallIntWriter(SmallIntVector intVector) {
+		super(intVector);
+	}
+
+	abstract boolean isNullAt(T in, int ordinal);
+
+	abstract short readShort(T in, int ordinal);
+
 	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
+	public void doWrite(T in, int ordinal) {
+		if (isNullAt(in, ordinal)) {
 			((SmallIntVector) getValueVector()).setNull(getCount());
 		} else {
-			((SmallIntVector) getValueVector()).setSafe(getCount(), row.getShort(ordinal));
+			((SmallIntVector) getValueVector()).setSafe(getCount(), readShort(in, ordinal));
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * {@link SmallIntWriter} for {@link RowData} input.
+	 */
+	public static final class SmallIntWriterForRow extends SmallIntWriter<RowData> {
+
+		private SmallIntWriterForRow(SmallIntVector intVector) {
+			super(intVector);
+		}
+
+		@Override
+		boolean isNullAt(RowData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		short readShort(RowData in, int ordinal) {
+			return in.getShort(ordinal);
+		}
+	}
+
+	/**
+	 * {@link SmallIntWriter} for {@link ArrayData} input.
+	 */
+	public static final class SmallIntWriterForArray extends SmallIntWriter<ArrayData> {
+
+		private SmallIntWriterForArray(SmallIntVector intVector) {
+			super(intVector);
+		}
+
+		@Override
+		boolean isNullAt(ArrayData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		short readShort(ArrayData in, int ordinal) {
+			return in.getShort(ordinal);
 		}
 	}
 }

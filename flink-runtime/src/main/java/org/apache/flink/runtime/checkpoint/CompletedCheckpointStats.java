@@ -41,9 +41,6 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	/** Total checkpoint state size over all subtasks. */
 	private final long stateSize;
 
-	/** Buffered bytes during alignment over all subtasks. */
-	private final long alignmentBuffered;
-
 	/** The latest acknowledged subtask stats. */
 	private final SubtaskStateStats latestAcknowledgedSubtask;
 
@@ -63,7 +60,6 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	 * @param taskStats Task stats for each involved operator.
 	 * @param numAcknowledgedSubtasks Number of acknowledged subtasks.
 	 * @param stateSize Total checkpoint state size over all subtasks.
-	 * @param alignmentBuffered Buffered bytes during alignment over all subtasks.
 	 * @param latestAcknowledgedSubtask The latest acknowledged subtask stats.
 	 * @param externalPointer Optional external path if persisted externally.
 	 */
@@ -75,7 +71,6 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 			Map<JobVertexID, TaskStateStats> taskStats,
 			int numAcknowledgedSubtasks,
 			long stateSize,
-			long alignmentBuffered,
 			SubtaskStateStats latestAcknowledgedSubtask,
 			String externalPointer) {
 
@@ -83,7 +78,6 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 		checkArgument(numAcknowledgedSubtasks == totalSubtaskCount, "Did not acknowledge all subtasks.");
 		checkArgument(stateSize >= 0, "Negative state size");
 		this.stateSize = stateSize;
-		this.alignmentBuffered = alignmentBuffered;
 		this.latestAcknowledgedSubtask = checkNotNull(latestAcknowledgedSubtask);
 		this.externalPointer = externalPointer;
 	}
@@ -101,11 +95,6 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	@Override
 	public long getStateSize() {
 		return stateSize;
-	}
-
-	@Override
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
 	}
 
 	@Override

@@ -21,29 +21,32 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
+import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.tests.util.cache.DownloadCache;
+import org.apache.flink.tests.util.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -71,12 +74,15 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	private final DownloadCache downloadCache = DownloadCache.get();
 	private final String kafkaVersion;
 	private Path kafkaDir;
+	@Nullable
+	private Path logBackupDirectory;
 
-	LocalStandaloneKafkaResource(final String kafkaVersion) {
+	LocalStandaloneKafkaResource(final String kafkaVersion, @Nullable Path logBackupDirectory) {
 		OperatingSystemRestriction.forbid(
 			String.format("The %s relies on UNIX utils and shell scripts.", getClass().getSimpleName()),
 			OperatingSystem.WINDOWS);
 		this.kafkaVersion = kafkaVersion;
+		this.logBackupDirectory = logBackupDirectory;
 	}
 
 	private static String getKafkaDownloadUrl(final String kafkaVersion) {
@@ -107,22 +113,18 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			.build());
 
 		LOG.info("Updating ZooKeeper properties");
-		final Path zookeeperPropertiesFile = kafkaDir.resolve(Paths.get("config", "zookeeper.properties"));
-		final List<String> zookeeperPropertiesFileLines = Files.readAllLines(zookeeperPropertiesFile);
-		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(zookeeperPropertiesFile, StandardOpenOption.TRUNCATE_EXISTING), StandardCharsets.UTF_8.name()))) {
-			zookeeperPropertiesFileLines.stream()
-				.map(line -> ZK_DATA_DIR_PATTERN.matcher(line).replaceAll("$1" + kafkaDir.resolve("zookeeper").toAbsolutePath()))
-				.forEachOrdered(pw::println);
-		}
+		FileUtils.replace(
+			kafkaDir.resolve(Paths.get("config", "zookeeper.properties")),
+			ZK_DATA_DIR_PATTERN,
+			matcher -> matcher.replaceAll("$1" + kafkaDir.resolve("zookeeper").toAbsolutePath())
+		);
 
 		LOG.info("Updating Kafka properties");
-		final Path kafkaPropertiesFile = kafkaDir.resolve(Paths.get("config", "server.properties"));
-		final List<String> kafkaPropertiesFileLines = Files.readAllLines(kafkaPropertiesFile);
-		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(kafkaPropertiesFile, StandardOpenOption.TRUNCATE_EXISTING), StandardCharsets.UTF_8.name()))) {
-			kafkaPropertiesFileLines.stream()
-				.map(line -> KAFKA_LOG_DIR_PATTERN.matcher(line).replaceAll("$1" + kafkaDir.resolve("kafka").toAbsolutePath()))
-				.forEachOrdered(pw::println);
-		}
+		FileUtils.replace(
+			kafkaDir.resolve(Paths.get("config", "server.properties")),
+			KAFKA_LOG_DIR_PATTERN,
+			matcher -> matcher.replaceAll("$1" + kafkaDir.resolve("kafka").toAbsolutePath())
+		);
 	}
 
 	private void setupKafkaCluster() throws IOException {
@@ -139,9 +141,18 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			kafkaDir.resolve(Paths.get("config", "server.properties")).toString()
 		);
 
-		while (!isZookeeperRunning(kafkaDir) || !isKafkaRunning(kafkaDir)) {
+		while (!isZookeeperRunning(kafkaDir)) {
 			try {
-				LOG.info("Waiting for kafka & zookeeper to start.");
+				LOG.info("Waiting for ZooKeeper to start.");
+				Thread.sleep(500L);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+		}
+		while (!isKafkaRunning(kafkaDir)) {
+			try {
+				LOG.info("Waiting for Kafka to start.");
 				Thread.sleep(500L);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
@@ -152,6 +163,20 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void afterTestSuccess() {
+		shutdownResource();
+		downloadCache.afterTestSuccess();
+		tmp.delete();
+	}
+
+	@Override
+	public void afterTestFailure() {
+		shutdownResource();
+		backupLogs();
+		downloadCache.afterTestFailure();
+		tmp.delete();
+	}
+
+	private void shutdownResource() {
 		try {
 			AutoClosableProcess.runBlocking(
 				kafkaDir.resolve(Paths.get("bin", "kafka-server-stop.sh")).toString()
@@ -182,8 +207,19 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 		} catch (IOException ioe) {
 			LOG.warn("Error while shutting down zookeeper.", ioe);
 		}
-		downloadCache.afterTestSuccess();
-		tmp.delete();
+	}
+
+	private void backupLogs() {
+		if (logBackupDirectory != null) {
+			final Path targetDirectory = logBackupDirectory.resolve("kafka-" + UUID.randomUUID().toString());
+			try {
+				Files.createDirectories(targetDirectory);
+				TestUtils.copyDirectory(kafkaDir.resolve("logs"), targetDirectory);
+				LOG.info("Backed up logs to {}.", targetDirectory);
+			} catch (IOException e) {
+				LOG.warn("An error has occurred while backing up logs to {}.", targetDirectory, e);
+			}
+		}
 	}
 
 	private static boolean isZookeeperRunning(final Path kafkaDir) {
@@ -199,7 +235,9 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	private static boolean isKafkaRunning(final Path kafkaDir) throws IOException {
 		try {
 			final AtomicBoolean atomicBrokerStarted = new AtomicBoolean(false);
-			queryBrokerStatus(kafkaDir, line -> atomicBrokerStarted.compareAndSet(false, line.contains("dataLength =")));
+			queryBrokerStatus(kafkaDir, line -> {
+				atomicBrokerStarted.compareAndSet(false, line.contains("\"port\":"));
+			});
 			return atomicBrokerStarted.get();
 		} catch (final IOException ioe) {
 			// we get an exception if zookeeper isn't running
@@ -214,7 +252,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 				ZOOKEEPER_ADDRESS,
 				"get",
 				"/brokers/ids/0")
-			.setStderrProcessor(stderrProcessor)
+			.setStdoutProcessor(stderrProcessor)
 			.runBlocking();
 	}
 
@@ -235,14 +273,40 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void sendMessages(String topic, String... messages) throws IOException {
-		try (AutoClosableProcess autoClosableProcess = AutoClosableProcess.runNonBlocking(
-			kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
-			"--broker-list",
-			KAFKA_ADDRESS,
-			"--topic",
-			topic)) {
+		List<String> args = createSendMessageArguments(topic);
+		sendMessagesAndWait(args, messages);
+	}
 
-			try (PrintStream printStream = new PrintStream(autoClosableProcess.getProcess().getOutputStream(), true, StandardCharsets.UTF_8.name())) {
+	@Override
+	public void sendKeyedMessages(String topic, String keySeparator, String... messages) throws IOException {
+		List<String> args = new ArrayList<>(createSendMessageArguments(topic));
+		args.add("--property");
+		args.add("parse.key=true");
+		args.add("--property");
+		args.add("key.separator=" + keySeparator);
+
+		sendMessagesAndWait(args, messages);
+	}
+
+	private List<String> createSendMessageArguments(String topic) {
+		return Arrays.asList(
+				kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
+				"--broker-list",
+				KAFKA_ADDRESS,
+				"--topic",
+				topic);
+	}
+
+	private void sendMessagesAndWait(
+			List<String> kafkaArgs,
+			String... messages) throws IOException {
+		try (AutoClosableProcess autoClosableProcess =
+					AutoClosableProcess.runNonBlocking(kafkaArgs.toArray(new String[0]))) {
+
+			try (PrintStream printStream =
+						new PrintStream(autoClosableProcess
+								.getProcess()
+								.getOutputStream(), true, StandardCharsets.UTF_8.name())) {
 				for (final String message : messages) {
 					printStream.println(message);
 				}
@@ -260,8 +324,9 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	}
 
 	@Override
-	public List<String> readMessage(int maxNumMessages, String groupId, String topic) throws IOException {
-		final List<String> messages = Collections.synchronizedList(new ArrayList<>(maxNumMessages));
+	public List<String> readMessage(int expectedNumMessages, String groupId, String topic) throws IOException {
+		final List<String> messages = Collections.synchronizedList(new ArrayList<>(
+				expectedNumMessages));
 
 		try (final AutoClosableProcess kafka = AutoClosableProcess
 			.create(kafkaDir.resolve(Paths.get("bin", "kafka-console-consumer.sh")).toString(),
@@ -269,7 +334,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 				KAFKA_ADDRESS,
 				"--from-beginning",
 				"--max-messages",
-				String.valueOf(maxNumMessages),
+				String.valueOf(expectedNumMessages),
 				"--topic",
 				topic,
 				"--consumer-property",
@@ -277,15 +342,19 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			.setStdoutProcessor(messages::add)
 			.runNonBlocking()) {
 
-			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
-			while (deadline.hasTimeLeft() && messages.size() < maxNumMessages) {
+			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+			while (deadline.hasTimeLeft() && messages.size() < expectedNumMessages) {
 				try {
-					LOG.info("Waiting for messages. Received {}/{}.", messages.size(), maxNumMessages);
+					LOG.info("Waiting for messages. Received {}/{}.", messages.size(),
+							expectedNumMessages);
 					Thread.sleep(500);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					break;
 				}
+			}
+			if (messages.size() != expectedNumMessages) {
+				throw new IOException("Could not read expected number of messages.");
 			}
 			return messages;
 		}
@@ -307,7 +376,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public int getNumPartitions(String topic) throws IOException {
-		final Pattern partitionCountPattern = Pattern.compile(".*PartitionCount:([0-9]+).*");
+		final Pattern partitionCountPattern = Pattern.compile(".*PartitionCount:\\s*([0-9]+).*");
 		final AtomicReference<Integer> partitionCountFound = new AtomicReference<>(-1);
 		AutoClosableProcess
 			.create(kafkaDir.resolve(Paths.get("bin", "kafka-topics.sh")).toString(),

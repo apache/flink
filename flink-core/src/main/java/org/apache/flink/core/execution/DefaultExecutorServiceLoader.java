@@ -47,16 +47,15 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutorServiceLoader.class);
 
-	private static final ServiceLoader<PipelineExecutorFactory> defaultLoader = ServiceLoader.load(PipelineExecutorFactory.class);
-
-	public static final DefaultExecutorServiceLoader INSTANCE = new DefaultExecutorServiceLoader();
-
 	@Override
 	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
+		final ServiceLoader<PipelineExecutorFactory> loader =
+				ServiceLoader.load(PipelineExecutorFactory.class);
+
 		final List<PipelineExecutorFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<PipelineExecutorFactory> factories = defaultLoader.iterator();
+		final Iterator<PipelineExecutorFactory> factories = loader.iterator();
 		while (factories.hasNext()) {
 			try {
 				final PipelineExecutorFactory factory = factories.next();
@@ -81,16 +80,19 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
 			throw new IllegalStateException("Multiple compatible client factories found for:\n" + configStr + ".");
 		}
 
-		return compatibleFactories.isEmpty() ? null : compatibleFactories.get(0);
+		if (compatibleFactories.isEmpty()) {
+			throw new IllegalStateException("No ExecutorFactory found to execute the application.");
+		}
+
+		return compatibleFactories.get(0);
 	}
 
 	@Override
 	public Stream<String> getExecutorNames() {
-		return StreamSupport.stream(defaultLoader.spliterator(), false)
-				.map(PipelineExecutorFactory::getName);
-	}
+		final ServiceLoader<PipelineExecutorFactory> loader =
+				ServiceLoader.load(PipelineExecutorFactory.class);
 
-	private DefaultExecutorServiceLoader() {
-		// make sure nobody instantiates us explicitly.
+		return StreamSupport.stream(loader.spliterator(), false)
+				.map(PipelineExecutorFactory::getName);
 	}
 }

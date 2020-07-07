@@ -25,11 +25,20 @@ under the License.
 
 #### Flink Application Cluster
 
-Flink Application Cluster 是一个专用的 [Flink Cluster](#flink-cluster)，它仅用于执行单个 [Flink Job](#flink-job)。[Flink Cluster](#flink-cluster)的生命周期与 [Flink Job](#flink-job)的生命周期绑定在一起。以前，Flink Application Cluster 也称为*job mode*的 Flink Cluster。和 [Flink Session Cluster](#flink-session-cluster) 作对比。
+A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that
+only executes [Flink Jobs](#flink-job) from one [Flink
+Application](#flink-application). The lifetime of the [Flink
+Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
+
+#### Flink Job Cluster
+
+A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
+executes a single [Flink Job](#flink-job). The lifetime of the
+[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
 
 #### Flink Cluster
 
-一般情况下，Flink 集群是由一个 [Flink Master](#flink-master) 和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
+一般情况下，Flink 集群是由一个 [Flink JobManager](#flink-jobmanager) 和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
 
 #### Event
 
@@ -47,9 +56,22 @@ Function 是由用户实现的，并封装了 Flink 程序的应用程序逻辑�
 
 Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator) 或者 [Function](#function))的一个具体实例。由于 Apache Flink 主要是用 Java 编写的，所以，这与 Java 中的 *Instance* 或 *Object* 的定义相对应。在 Apache Flink 的上下文中，*parallel instance* 也常用于强调同一 [Operator](#operator) 或者 [Function](#function) 的多个 instance 以并行的方式运行。
 
+#### Flink Application
+
+A Flink application is a Java Application that submits one or multiple [Flink
+Jobs](#flink-job) from the `main()` method (or by some other means). Submitting
+jobs is usually done by calling `execute()` on an execution environment.
+
+The jobs of an application can either be submitted to a long running [Flink
+Session Cluster](#flink-session-cluster), to a dedicated [Flink Application
+Cluster](#flink-application-cluster), or to a [Flink Job
+Cluster](#flink-job-cluster).
+
 #### Flink Job
 
-Flink Job 代表运行时的 Flink 程序。Flink Job 可以提交到长时间运行的 [Flink Session Cluster](#flink-session-cluster)，也可以作为独立的 [Flink Application Cluster](#flink-application-cluster) 启动。
+A Flink Job is the runtime representation of a [logical graph](#logical-graph)
+(also often called dataflow graph) that is created and submitted by calling
+`execute()` in a [Flink Application](#flink-application).
 
 #### JobGraph
 
@@ -57,19 +79,25 @@ Flink Job 代表运行时的 Flink 程序。Flink Job 可以提交到长时间�
 
 #### Flink JobManager
 
-JobManager 是在 [Flink Master](#flink-master) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager。
+Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobMaster](#flink-jobmaster)。 
+
+
+#### Flink JobMaster
+
+JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
 
 #### Logical Graph
 
-Logical Graph 是一种描述流处理程序的高阶逻辑有向图。节点是[Operator](#operator)，边代表输入/输出关系、数据流和数据集中的之一。
+A logical graph is a directed graph where the nodes are  [Operators](#operator)
+and the edges define input/output-relationships of the operators and correspond
+to data streams or data sets. A logical graph is created by submitting jobs
+from a [Flink Application](#flink-application).
+
+Logical graphs are also often referred to as *dataflow graphs*.
 
 #### Managed State
 
 Managed State 描述了已在框架中注册的应用程序的托管状态。对于托管状态，Apache Flink 会负责持久化和重伸缩等事宜。
-
-#### Flink Master
-
-Flink Master 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobManager](#flink-jobmanager)。
 
 #### Operator
 
@@ -97,7 +125,7 @@ Record 是数据集或数据流的组成元素。[Operator](#operator) 和 [Func
 
 #### State Backend
 
-对于流处理程序，[Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager 上的（ TaskManager 的 Java 堆栈或嵌入式 RocksDB），以及它在 checkpoint 时的写入位置（ [Flink Master](#flink-master) 的 Java 堆或者 Filesystem）。
+对于流处理程序，[Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager 上的（ TaskManager 的 Java 堆栈或嵌入式 RocksDB），以及它在 checkpoint 时的写入位置（ [Flink JobManager](#flink-jobmanager) 的 Java 堆或者 Filesystem）。
 
 #### Sub-Task
 

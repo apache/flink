@@ -311,6 +311,9 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Nonnull
 	@Override
 	public State getState() {
+		if (isMailboxThread()) {
+			return state;
+		}
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {

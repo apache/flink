@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -308,7 +308,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	/**
-	 * Extracts a value from a literal. Including planner-specific instances such as {@link Decimal}.
+	 * Extracts a value from a literal. Including planner-specific instances such as {@link DecimalData}.
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T extractValue(ValueLiteralExpression literal, Class<T> clazz) {
@@ -323,8 +323,8 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 			if (possibleDecimal.isPresent()) {
 				return (T) possibleDecimal.get();
 			}
-			if (object instanceof Decimal) {
-				return (T) ((Decimal) object).toBigDecimal();
+			if (object instanceof DecimalData) {
+				return (T) ((DecimalData) object).toBigDecimal();
 			}
 		}
 

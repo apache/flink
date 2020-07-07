@@ -23,6 +23,9 @@ import org.apache.flink.table.types.logical.ArrayType;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * An internal data structure representing data of {@link ArrayType}.
  *
@@ -133,6 +136,31 @@ public final class GenericArrayData implements ArrayData {
 	}
 
 	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		GenericArrayData that = (GenericArrayData) o;
+		return size == that.size &&
+			isPrimitiveArray == that.isPrimitiveArray &&
+			Objects.deepEquals(array, that.array);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = Objects.hash(size, isPrimitiveArray);
+		result = 31 * result + Arrays.deepHashCode(new Object[]{array});
+		return result;
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Read-only accessor methods
+	// ------------------------------------------------------------------------------------------
+
+	@Override
 	public boolean getBoolean(int pos) {
 		return isPrimitiveArray ? ((boolean[]) array)[pos] : (boolean) getObject(pos);
 	}
@@ -210,6 +238,88 @@ public final class GenericArrayData implements ArrayData {
 
 	private Object getObject(int pos) {
 		return ((Object[]) array)[pos];
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Conversion Utilities
+	// ------------------------------------------------------------------------------------------
+
+	private boolean anyNull() {
+		for (Object element : (Object[]) array) {
+			if (element == null) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void checkNoNull() {
+		if (anyNull()) {
+			throw new RuntimeException("Primitive array must not contain a null value.");
+		}
+	}
+
+	@Override
+	public boolean[] toBooleanArray() {
+		if (isPrimitiveArray) {
+			return (boolean[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Boolean[]) array);
+	}
+
+	@Override
+	public byte[] toByteArray() {
+		if (isPrimitiveArray) {
+			return (byte[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Byte[]) array);
+	}
+
+	@Override
+	public short[] toShortArray() {
+		if (isPrimitiveArray) {
+			return (short[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Short[]) array);
+	}
+
+	@Override
+	public int[] toIntArray() {
+		if (isPrimitiveArray) {
+			return (int[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Integer[]) array);
+	}
+
+	@Override
+	public long[] toLongArray() {
+		if (isPrimitiveArray) {
+			return (long[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Long[]) array);
+	}
+
+	@Override
+	public float[] toFloatArray() {
+		if (isPrimitiveArray) {
+			return (float[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Float[]) array);
+	}
+
+	@Override
+	public double[] toDoubleArray() {
+		if (isPrimitiveArray) {
+			return (double[]) array;
+		}
+		checkNoNull();
+		return ArrayUtils.toPrimitive((Double[]) array);
 	}
 }
 

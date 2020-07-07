@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -43,7 +44,7 @@ public class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
 
-	private static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
+	static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
 
 	@SuppressWarnings("deprecation")
 	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
@@ -112,29 +113,36 @@ public class HadoopUtils {
 		return result;
 	}
 
-	public static boolean isCredentialsConfigured(UserGroupInformation ugi, boolean useTicketCache) throws Exception {
-		if (UserGroupInformation.isSecurityEnabled()) {
-			if (useTicketCache && !ugi.hasKerberosCredentials()) {
-				// a delegation token is an adequate substitute in most cases
-				if (!HadoopUtils.hasHDFSDelegationToken()) {
-					LOG.error("Hadoop security is enabled, but current login user has neither Kerberos credentials " +
-						"nor delegation tokens!");
-					return false;
-				} else {
-					LOG.warn("Hadoop security is enabled but current login user does not have Kerberos credentials, " +
-						"use delegation token instead. Flink application will terminate after token expires.");
-				}
+	public static boolean isKerberosSecurityEnabled(UserGroupInformation ugi) {
+		return UserGroupInformation.isSecurityEnabled() && ugi.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS;
+	}
+
+	public static boolean areKerberosCredentialsValid(UserGroupInformation ugi, boolean useTicketCache) {
+		Preconditions.checkState(isKerberosSecurityEnabled(ugi));
+
+		// note: UGI::hasKerberosCredentials inaccurately reports false
+		// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
+		// so we check only in ticket cache scenario.
+		if (useTicketCache && !ugi.hasKerberosCredentials()) {
+			if (hasHDFSDelegationToken(ugi)) {
+				LOG.warn("Hadoop security is enabled but current login user does not have Kerberos credentials, " +
+					"use delegation token instead. Flink application will terminate after token expires.");
+				return true;
+			} else {
+				LOG.error("Hadoop security is enabled, but current login user has neither Kerberos credentials " +
+					"nor delegation tokens!");
+				return false;
 			}
 		}
+
 		return true;
 	}
 
 	/**
-	 * Indicates whether the current user has an HDFS delegation token.
+	 * Indicates whether the user has an HDFS delegation token.
 	 */
-	public static boolean hasHDFSDelegationToken() throws Exception {
-		UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-		Collection<Token<? extends TokenIdentifier>> usrTok = loginUser.getTokens();
+	public static boolean hasHDFSDelegationToken(UserGroupInformation ugi) {
+		Collection<Token<? extends TokenIdentifier>> usrTok = ugi.getTokens();
 		for (Token<? extends TokenIdentifier> token : usrTok) {
 			if (token.getKind().equals(HDFS_DELEGATION_TOKEN_KIND)) {
 				return true;

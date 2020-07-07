@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.{MockPythonTableFunction, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}

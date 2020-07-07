@@ -69,8 +69,11 @@ public class PythonDriverOptionsParserFactoryTest {
 	private void verifyPythonDriverOptionsParsing(final String[] args) throws FlinkParseException {
 		final PythonDriverOptions pythonCommandOptions = commandLineParser.parse(args);
 
-		// verify the parsed python entrypoint module
-		assertEquals("xxx", pythonCommandOptions.getEntryPointModule());
+		if (pythonCommandOptions.getEntryPointScript().isPresent()){
+			assertEquals("xxx.py", pythonCommandOptions.getEntryPointScript().get());
+		} else {
+			assertEquals("xxx", pythonCommandOptions.getEntryPointModule());
+		}
 
 		// verify the python program arguments
 		final List<String> programArgs = pythonCommandOptions.getProgramArgs();

@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.BigIntVector;
 
@@ -27,18 +28,74 @@ import org.apache.arrow.vector.BigIntVector;
  * {@link ArrowFieldWriter} for BigInt.
  */
 @Internal
-public final class BigIntWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class BigIntWriter<T> extends ArrowFieldWriter<T> {
 
-	public BigIntWriter(BigIntVector bigIntVector) {
+	public static BigIntWriter<RowData> forRow(BigIntVector bigIntVector) {
+		return new BigIntWriterForRow(bigIntVector);
+	}
+
+	public static BigIntWriter<ArrayData> forArray(BigIntVector bigIntVector) {
+		return new BigIntWriterForArray(bigIntVector);
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	private BigIntWriter(BigIntVector bigIntVector) {
 		super(bigIntVector);
 	}
 
+	abstract boolean isNullAt(T in, int ordinal);
+
+	abstract long readLong(T in, int ordinal);
+
 	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
+	public void doWrite(T in, int ordinal) {
+		if (isNullAt(in, ordinal)) {
 			((BigIntVector) getValueVector()).setNull(getCount());
 		} else {
-			((BigIntVector) getValueVector()).setSafe(getCount(), row.getLong(ordinal));
+			((BigIntVector) getValueVector()).setSafe(getCount(), readLong(in, ordinal));
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * {@link BigIntWriter} for {@link RowData} input.
+	 */
+	public static final class BigIntWriterForRow extends BigIntWriter<RowData> {
+
+		private BigIntWriterForRow(BigIntVector bigIntVector) {
+			super(bigIntVector);
+		}
+
+		@Override
+		boolean isNullAt(RowData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		long readLong(RowData in, int ordinal) {
+			return in.getLong(ordinal);
+		}
+	}
+
+	/**
+	 * {@link BigIntWriter} for {@link ArrayData} input.
+	 */
+	public static final class BigIntWriterForArray extends BigIntWriter<ArrayData> {
+
+		private BigIntWriterForArray(BigIntVector bigIntVector) {
+			super(bigIntVector);
+		}
+
+		@Override
+		boolean isNullAt(ArrayData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		long readLong(ArrayData in, int ordinal) {
+			return in.getLong(ordinal);
 		}
 	}
 }

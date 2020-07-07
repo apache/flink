@@ -42,25 +42,6 @@ public class ConfigurationUtils {
 	private static final String[] EMPTY = new String[0];
 
 	/**
-	 * Get job manager's heap memory. This method will check the new key
-	 * {@link JobManagerOptions#JOB_MANAGER_HEAP_MEMORY} and
-	 * the old key {@link JobManagerOptions#JOB_MANAGER_HEAP_MEMORY_MB} for backwards compatibility.
-	 *
-	 * @param configuration the configuration object
-	 * @return the memory size of job manager's heap memory.
-	 */
-	public static MemorySize getJobManagerHeapMemory(Configuration configuration) {
-		if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
-			return configuration.get(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
-		} else if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB.key())) {
-			return MemorySize.ofMebiBytes(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB));
-		} else {
-			//use default value
-			return JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue();
-		}
-	}
-
-	/**
 	 * @return extracted {@link MetricOptions#SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL} or {@code Optional.empty()} if
 	 * {@link MetricOptions#SYSTEM_RESOURCE_METRICS} are disabled.
 	 */
@@ -213,7 +194,6 @@ public class ConfigurationUtils {
 
 		checkArgument(configs.containsKey(xmx));
 		checkArgument(configs.containsKey(xms));
-		checkArgument(configs.containsKey(maxDirect));
 		checkArgument(configs.containsKey(maxMetadata));
 
 		return configs;

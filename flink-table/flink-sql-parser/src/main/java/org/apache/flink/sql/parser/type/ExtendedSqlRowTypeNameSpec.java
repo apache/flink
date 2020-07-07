@@ -86,6 +86,10 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 		return comments;
 	}
 
+	public boolean unparseAsStandard() {
+		return unparseAsStandard;
+	}
+
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.print("ROW");

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -92,6 +93,7 @@ import org.junit.rules.ExpectedException;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -108,6 +110,27 @@ public class DataStreamTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
+
+	/**
+	 * Ensure that WatermarkStrategy is easy to use in the API, without superfluous generics.
+	 */
+	@Test
+	public void testErgonomicWatermarkStrategy() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<String> input = env.fromElements("bonjour");
+
+		// as soon as you have a chain of methods the first call needs a generic
+		input.assignTimestampsAndWatermarks(
+				WatermarkStrategy
+						.forBoundedOutOfOrderness(Duration.ofMillis(10)));
+
+		// as soon as you have a chain of methods the first call needs to specify the generic type
+		input.assignTimestampsAndWatermarks(
+				WatermarkStrategy
+						.<String>forBoundedOutOfOrderness(Duration.ofMillis(10))
+						.withTimestampAssigner((event, timestamp) -> 42L));
+	}
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams

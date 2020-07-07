@@ -19,6 +19,7 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.logical.LogicalType;
 
 /**
@@ -30,6 +31,8 @@ import org.apache.flink.table.types.logical.LogicalType;
  *
  * <p>Partially resolved data types that can be resolved to {@link DataType} but require a lookup in
  * a catalog or configuration first. This kind is represented in subclasses of {@link UnresolvedDataType}.
+ *
+ * <p>Note: Use {@link DataTypes} for producing instances of this class.
  *
  * @param <T> kind of data type returned after mutation
  */

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -155,6 +156,17 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	CompletableFuture<Acknowledge> confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
 
 	/**
+	 * Abort a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
+	 * and the checkpoint timestamp.
+	 *
+	 * @param executionAttemptID identifying the task
+	 * @param checkpointId unique id for the checkpoint
+	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+	 * @return Future acknowledge if the checkpoint has been successfully confirmed
+	 */
+	CompletableFuture<Acknowledge> abortCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+
+	/**
 	 * Cancel the given task.
 	 *
 	 * @param executionAttemptID identifying the task
@@ -249,4 +261,12 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 			ExecutionAttemptID task,
 			OperatorID operator,
 			SerializedValue<OperatorEvent> evt);
+
+	/**
+	 * Requests the thread dump from this TaskManager.
+	 *
+	 * @param timeout timeout for the asynchronous operation
+	 * @return the {@link ThreadDumpInfo} for this TaskManager.
+	 */
+	CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
 }

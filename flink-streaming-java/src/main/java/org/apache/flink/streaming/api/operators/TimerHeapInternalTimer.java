@@ -50,7 +50,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N>, 
 	 */
 	private transient int timerHeapIndex;
 
-	TimerHeapInternalTimer(long timestamp, @Nonnull K key, @Nonnull N namespace) {
+	public TimerHeapInternalTimer(long timestamp, @Nonnull K key, @Nonnull N namespace) {
 		this.timestamp = timestamp;
 		this.key = key;
 		this.namespace = namespace;

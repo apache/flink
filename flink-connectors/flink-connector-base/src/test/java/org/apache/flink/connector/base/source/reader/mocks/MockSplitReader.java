@@ -1,19 +1,19 @@
 /*
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.connector.base.source.reader.mocks;
@@ -57,18 +57,10 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
 	@Override
 	public RecordsWithSplitIds<int[]> fetch() throws InterruptedException {
-		try {
-			if (runningThread == null) {
-				runningThread = Thread.currentThread();
-			}
-			return getRecords();
-		} catch (InterruptedException ie) {
-			if (!blockingFetch) {
-				throw new RuntimeException("Caught unexpected interrupted exception.");
-			} else {
-				throw ie;
-			}
+		if (runningThread == null) {
+			runningThread = Thread.currentThread();
 		}
+		return getRecords();
 	}
 
 	@Override
@@ -83,23 +75,31 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
 	@Override
 	public void wakeUp() {
-		if (blockingFetch) {
+		if (blockingFetch && runningThread != null) {
 			runningThread.interrupt();
 		}
 	}
 
-	private RecordsBySplits<int[]> getRecords() throws InterruptedException {
+	private RecordsBySplits<int[]> getRecords() {
 		RecordsBySplits<int[]> records = new RecordsBySplits<>();
-		for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
-			MockSourceSplit split = entry.getValue();
-			for (int i = 0; i < numRecordsPerSplitPerFetch && !split.isFinished(); i++) {
-				int[] record = split.getNext(blockingFetch);
-				if (record != null) {
-					records.add(entry.getKey(), record);
-					if (split.isFinished()) {
-						records.addFinishedSplit(entry.getKey());
+		try {
+			for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
+				MockSourceSplit split = entry.getValue();
+				for (int i = 0; i < numRecordsPerSplitPerFetch && !split.isFinished(); i++) {
+					// This call may throw InterruptedException.
+					int[] record = split.getNext(blockingFetch);
+					if (record != null) {
+						records.add(entry.getKey(), record);
 					}
 				}
+				if (split.isFinished()) {
+					records.addFinishedSplit(entry.getKey());
+				}
+			}
+		} catch (InterruptedException ie) {
+			// Catch the exception and return the records that are already read.
+			if (!blockingFetch) {
+				throw new RuntimeException("Caught unexpected interrupted exception.");
 			}
 		}
 		return records;

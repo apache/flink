@@ -19,9 +19,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.topology.BaseTopology;
 import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.Vertex;
@@ -34,8 +31,6 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Utility for computing pipelined regions.
@@ -43,21 +38,6 @@ import java.util.stream.Collectors;
 public final class PipelinedRegionComputeUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
-
-	public static Set<PipelinedRegion> toPipelinedRegionsSet(
-			final Set<? extends Set<? extends SchedulingExecutionVertex>> distinctRegions) {
-
-		return distinctRegions.stream()
-			.map(toExecutionVertexIdSet())
-			.map(PipelinedRegion::from)
-			.collect(Collectors.toSet());
-	}
-
-	private static Function<Set<? extends SchedulingExecutionVertex>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
-		return failoverVertices -> failoverVertices.stream()
-			.map(SchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-	}
 
 	public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> computePipelinedRegions(
 			final BaseTopology<?, ?, V, R> topology) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.client.SqlClientException;
 
@@ -29,10 +30,17 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
 
 /**
  * Parser for command line options.
@@ -145,6 +153,10 @@ public class CliOptionsParser {
 		options.addOption(OPTION_LIBRARY);
 		options.addOption(OPTION_UPDATE);
 		options.addOption(OPTION_HISTORY);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYREQUIREMENTS_OPTION);
+		options.addOption(PYARCHIVE_OPTION);
+		options.addOption(PYEXEC_OPTION);
 		return options;
 	}
 
@@ -154,6 +166,10 @@ public class CliOptionsParser {
 		options.addOption(OPTION_ENVIRONMENT);
 		options.addOption(OPTION_UPDATE);
 		options.addOption(OPTION_HISTORY);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYREQUIREMENTS_OPTION);
+		options.addOption(PYARCHIVE_OPTION);
+		options.addOption(PYEXEC_OPTION);
 		return options;
 	}
 
@@ -162,6 +178,10 @@ public class CliOptionsParser {
 		options.addOption(OPTION_DEFAULTS);
 		options.addOption(OPTION_JAR);
 		options.addOption(OPTION_LIBRARY);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYREQUIREMENTS_OPTION);
+		options.addOption(PYARCHIVE_OPTION);
+		options.addOption(PYEXEC_OPTION);
 		return options;
 	}
 
@@ -249,7 +269,8 @@ public class CliOptionsParser {
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
 				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
 				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
-				line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt())
+				line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
+				getPythonConfiguration(line)
 			);
 		}
 		catch (ParseException e) {
@@ -269,7 +290,8 @@ public class CliOptionsParser {
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
 				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
 				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
-				line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt())
+				line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
+				getPythonConfiguration(line)
 			);
 		}
 		catch (ParseException e) {
@@ -289,7 +311,8 @@ public class CliOptionsParser {
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
 				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
 				null,
-				null
+				null,
+				getPythonConfiguration(line)
 			);
 		}
 		catch (ParseException e) {
@@ -330,5 +353,19 @@ public class CliOptionsParser {
 			throw new SqlClientException("Session identifier must only consists of 'a-zA-Z0-9_-.'.");
 		}
 		return sessionId;
+	}
+
+	private static Configuration getPythonConfiguration(CommandLine line) {
+		try {
+			Class<?> clazz = Class.forName(
+				"org.apache.flink.python.util.PythonDependencyUtils",
+				true,
+				Thread.currentThread().getContextClassLoader());
+			Method parsePythonDependencyConfiguration =
+				clazz.getMethod("parsePythonDependencyConfiguration", CommandLine.class);
+			return (Configuration) parsePythonDependencyConfiguration.invoke(null, line);
+		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+			throw new SqlClientException("Failed to parse the Python command line options.", e);
+		}
 	}
 }

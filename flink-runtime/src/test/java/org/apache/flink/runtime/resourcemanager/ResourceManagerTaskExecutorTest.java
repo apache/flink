@@ -154,7 +154,6 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		StandaloneResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
-				ResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 				resourceManagerResourceID,
 				highAvailabilityServices,
 				heartbeatServices,

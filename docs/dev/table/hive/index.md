@@ -311,7 +311,7 @@ Take Hive version 2.3.4 for example:
 <div data-lang="Java" markdown="1">
 {% highlight java %}
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -329,7 +329,7 @@ tableEnv.useCatalog("myhive");
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+val settings = EnvironmentSettings.newInstance().inBatchMode().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
@@ -364,8 +364,9 @@ catalogs:
 
 ## DDL
 
-DDL to create Hive tables, views, partitions, functions within Flink will be supported soon.
+It's recommended to use [Hive dialect]({{ site.baseurl }}/dev/table/hive/hive_dialect.html) to execute DDLs to create
+Hive tables, views, partitions, functions within Flink.
 
 ## DML
 
-Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
+Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/hive_read_write.html)

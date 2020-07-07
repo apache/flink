@@ -43,23 +43,25 @@ These options are only necessary for *standalone* application- or session deploy
 
 If you use Flink with [Yarn]({{site.baseurl}}/ops/deployment/yarn_setup.html), [Mesos]({{site.baseurl}}/ops/deployment/mesos.html), or the [*active* Kubernetes integration]({{site.baseurl}}/ops/deployment/native_kubernetes.html), the hostnames and ports are automatically discovered.
 
-  - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the master (JobManager) runs, or to the hostname of the (Kubernetes) service in front of the Flink Master's REST interface.
+  - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
-  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the master (JobManager) runs, or to the hostname of the (Kubernetes internal) service for the Flink master (JobManager). This option is ignored on [setups with high-availability]({{site.baseurl}}/ops/jobmanager_high_availability.html) where the leader election mechanism is used to discover this automatically.
+  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({{site.baseurl}}/ops/jobmanager_high_availability.html) where the leader election mechanism is used to discover this automatically.
 
 **Memory Sizes** 
 
 The default memory sizes support simple streaming/batch applications, but are too low to yield good performance for more complex applications.
 
-  - `jobmanager.heap.size`: Sets the size of the *Flink Master* (JobManager / ResourceManager / Dispatcher) JVM heap.
-  - `taskmanager.memory.process.size`: Total size of the TaskManager process, including everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (network, managed memory, JVM Heap, etc.).
+  - `jobmanager.memory.process.size`: Total size of the *JobManager* (JobMaster / ResourceManager / Dispatcher) process.
+  - `taskmanager.memory.process.size`: Total size of the TaskManager process.
+
+The total sizes include everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (JVM Heap, Off-Heap, for Task Managers also network, managed memory etc.).
 
 These value are configured as memory sizes, for example *1536m* or *2g*.
 
 **Parallelism**
 
   - `taskmanager.numberOfTaskSlots`: The number of slots that a TaskManager offers *(default: 1)*. Each slot can take one task or pipeline.
-    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/runtime.html#task-slots-and-resources) concepts section for details.
+    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/flink-architecture.html#task-slots-and-resources) concepts section for details.
 
      Running more smaller TaskManagers with one slot each is a good starting point and leads to the best isolation between tasks. Dedicating the same resources to fewer larger TaskManagers with more slots can help to increase resource utilization, at the cost of weaker isolation between the tasks (more tasks share the same JVM).
 
@@ -137,7 +139,7 @@ Jobs/applications executing in a batch fashion do not use state backends and che
 
 ### High Availability
 
-High-availability here refers to the ability of the master (JobManager) process to recover from failures.
+High-availability here refers to the ability of the JobManager process to recover from failures.
 
 The JobManager ensures consistency during recovery across TaskManagers. For the JobManager itself to recover consistently, an external service must store a minimal amount of recovery metadata (like "ID of last committed checkpoint"), as well as help to elect and lock which JobManager is the leader (to avoid split-brain situations).
 
@@ -154,7 +156,9 @@ These configuration values control the way that TaskManagers and JobManagers use
 Flink tries to shield users as much as possible from the complexity of configuring the JVM for data-intensive processing.
 In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performane tuning and fixing memory related errors.
 
-For a detailed explanation of how these options interact, see the [documentation on TaskManager memory configuration]({{site.baseurl}}/ops/memory/mem_setup.html).
+For a detailed explanation of how these options interact,
+see the documentation on [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}) and
+[JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %} ) memory configurations.
 
 {% include generated/common_memory_section.html %}
 
@@ -342,15 +346,15 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 
 {% include generated/web_configuration.html %}
 
-### Full Flink Master Options
+### Full JobManager Options
 
-**Master / JobManager**
+**JobManager**
 
 {% include generated/all_jobmanager_section.html %}
 
 **Blob Server**
 
-The Blob Server is a component in the Flink Master / JobManager. It is used for distribution of objects that are too large to be attached to a RPC message and that benefit from caching (like Jar files or large serialized code objects).
+The Blob Server is a component in the JobManager. It is used for distribution of objects that are too large to be attached to a RPC message and that benefit from caching (like Jar files or large serialized code objects).
 
 {% include generated/blob_server_configuration.html %}
 
@@ -386,10 +390,10 @@ Flink does not use Akka for data transport.
 
 # Forwarding Environment Variables
 
-You can configure  environment variables to be set on the Flink Master and TaskManager processes started on Yarn/Mesos.
+You can configure environment variables to be set on the JobManager and TaskManager processes started on Yarn/Mesos.
 
-  - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's master process. 
-   For example for passing LD_LIBRARY_PATH as an env variable to the Master, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+  - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
+   For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
     in the flink-conf.yaml.
 
   - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
@@ -418,6 +422,10 @@ These options may be removed in a future release.
 ----
 
 # Backup
+
+#### Client
+
+{% include generated/client_configuration.html %}
 
 #### Execution
 

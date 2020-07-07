@@ -38,7 +38,7 @@ executes a single [Flink Job](#flink-job). The lifetime of the
 
 #### Flink Cluster
 
-A distributed system consisting of (typically) one [Flink Master](#flink-master) and one or more
+A distributed system consisting of (typically) one [JobManager](#flink-jobmanager) and one or more
 [Flink TaskManager](#flink-taskmanager) processes.
 
 #### Event
@@ -88,9 +88,14 @@ see [Logical Graph](#logical-graph)
 
 #### Flink JobManager
 
-JobManagers are one of the components running in the [Flink Master](#flink-master). A JobManager is
-responsible for supervising the execution of the [Tasks](#task) of a single job. Historically, the
-whole [Flink Master](#flink-master) was called JobManager.
+The JobManager is the orchestrator of a [Flink Cluster](#flink-cluster). It contains three distinct
+components: Flink Resource Manager, Flink Dispatcher and one [Flink JobMaster](#flink-jobmaster)
+per running [Flink Job](#flink-job).
+
+#### Flink JobMaster
+
+JobMasters are one of the components running in the [JobManager](#flink-jobmanager). A JobMaster is
+responsible for supervising the execution of the [Tasks](#task) of a single job.
 
 #### Logical Graph
 
@@ -105,12 +110,6 @@ Logical graphs are also often referred to as *dataflow graphs*.
 
 Managed State describes application state which has been registered with the framework. For
 Managed State, Apache Flink will take care about persistence and rescaling among other things.
-
-#### Flink Master
-
-The Flink Master is the master of a [Flink Cluster](#flink-cluster). It contains three distinct
-components: Flink Resource Manager, Flink Dispatcher and one [Flink JobManager](#flink-jobmanager)
-per running [Flink Job](#flink-job).
 
 #### Operator
 
@@ -155,7 +154,7 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in *session 
 For stream processing programs, the State Backend of a [Flink Job](#flink-job) determines how its
 [state](#managed-state) is stored on each TaskManager (Java Heap of TaskManager or (embedded)
 RocksDB) as well as where it is written upon a checkpoint (Java Heap of
-[Flink Master](#flink-master) or Filesystem).
+[JobManager](#flink-jobmanager) or Filesystem).
 
 #### Sub-Task
 

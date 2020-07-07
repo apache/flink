@@ -60,7 +60,7 @@ public class MailboxExecutorImplTest {
 		this.mailbox = new TaskMailboxImpl();
 		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY, StreamTaskActionExecutor.IMMEDIATE);
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
-		this.mailboxProcessor = new MailboxProcessor(c -> { }, StreamTaskActionExecutor.IMMEDIATE, mailbox, mailboxExecutor);
+		this.mailboxProcessor = new MailboxProcessor(c -> { }, mailbox, StreamTaskActionExecutor.IMMEDIATE);
 	}
 
 	@After

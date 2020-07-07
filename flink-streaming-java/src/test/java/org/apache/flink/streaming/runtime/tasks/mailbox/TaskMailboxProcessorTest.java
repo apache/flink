@@ -29,6 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -267,6 +268,7 @@ public class TaskMailboxProcessorTest {
 		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
 		final int totalSwitches = 2;
 
+		CountDownLatch syncLock = new CountDownLatch(1);
 		MailboxThread mailboxThread = new MailboxThread() {
 			int count = 0;
 
@@ -278,12 +280,14 @@ public class TaskMailboxProcessorTest {
 				if (count == totalSwitches) {
 					controller.allActionsCompleted();
 				}
+				syncLock.countDown();
 			}
 		};
 		mailboxThread.start();
 		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
 		mailboxThread.signalStart();
 
+		syncLock.await();
 		Thread.sleep(10);
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspendedActionRef.get()::resume, "resume");
 		mailboxThread.join();

@@ -34,11 +34,17 @@ import java.util.function.Supplier;
  * <ol>
  * <li>build a snapshot (invokable)</li>
  * <li>report snapshot to the JobManager</li>
+ * <li>action upon checkpoint notification</li>
  * <li>maintain storage locations</li>
  * </ol>
  */
 @Internal
-interface SubtaskCheckpointCoordinator extends Closeable {
+public interface SubtaskCheckpointCoordinator extends Closeable {
+
+	/**
+	 * Initialize new checkpoint.
+	 */
+	void initCheckpoint(long id, CheckpointOptions checkpointOptions);
 
 	ChannelStateWriter getChannelStateWriter();
 
@@ -46,10 +52,37 @@ interface SubtaskCheckpointCoordinator extends Closeable {
 
 	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException;
 
+	/**
+	 * Must be called after {@link #initCheckpoint(long, CheckpointOptions)}.
+	 */
 	void checkpointState(
 		CheckpointMetaData checkpointMetaData,
 		CheckpointOptions checkpointOptions,
 		CheckpointMetrics checkpointMetrics,
 		OperatorChain<?, ?> operatorChain,
 		Supplier<Boolean> isCanceled) throws Exception;
+
+	/**
+	 * Notified on the task side once a distributed checkpoint has been completed.
+	 *
+	 * @param checkpointId The checkpoint id to notify as been completed.
+	 * @param operatorChain The chain of operators executed by the task.
+	 * @param isRunning Whether the task is running.
+	 */
+	void notifyCheckpointComplete(
+		long checkpointId,
+		OperatorChain<?, ?> operatorChain,
+		Supplier<Boolean> isRunning) throws Exception;
+
+	/**
+	 * Notified on the task side once a distributed checkpoint has been aborted.
+	 *
+	 * @param checkpointId The checkpoint id to notify as been completed.
+	 * @param operatorChain The chain of operators executed by the task.
+	 * @param isRunning Whether the task is running.
+	 */
+	void notifyCheckpointAborted(
+		long checkpointId,
+		OperatorChain<?, ?> operatorChain,
+		Supplier<Boolean> isRunning) throws Exception;
 }

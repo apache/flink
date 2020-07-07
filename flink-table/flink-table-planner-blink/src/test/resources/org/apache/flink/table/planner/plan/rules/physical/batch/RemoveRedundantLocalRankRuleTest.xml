@@ -43,7 +43,7 @@ Calc(select=[a])
          +- Exchange(distribution=[hash[a]])
             +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Calc(select=[a, b])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -74,7 +74,7 @@ Calc(select=[a])
          +- Exchange(distribution=[hash[a]])
             +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Calc(select=[a, b])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -107,7 +107,7 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], order
          +- Exchange(distribution=[hash[a]])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[a ASC, b ASC])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

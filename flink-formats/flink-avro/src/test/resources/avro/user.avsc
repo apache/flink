@@ -99,4 +99,13 @@
       {"name": "otherField4", "type": ["null", "float"], "default": null},
       {"name": "otherField5", "type": ["null", "int"], "default": null}
   ]
-}]
+},
+  {"namespace": "org.apache.flink.formats.avro.generated",
+   "type": "record",
+   "name": "JodaTimeRecord",
+   "fields": [
+       {"name": "type_timestamp_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+       {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},
+       {"name": "type_time_millis", "type": {"type": "int", "logicalType": "time-millis"}}
+   ]
+ }]

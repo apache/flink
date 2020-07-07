@@ -23,6 +23,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * {@link CheckpointInProgressRequest} test.
@@ -41,7 +42,11 @@ public class CheckpointInProgressRequestTest {
 		Thread[] threads = new Thread[barrier.getParties()];
 		for (int i = 0; i < barrier.getParties(); i++) {
 			threads[i] = new Thread(() -> {
-				request.cancel(new RuntimeException("test"));
+				try {
+					request.cancel(new RuntimeException("test"));
+				} catch (Exception e) {
+					fail(e.getMessage());
+				}
 				await(barrier);
 			});
 		}

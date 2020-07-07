@@ -25,11 +25,11 @@ import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
  * Flink's boolean, byte, short, int and long ColumnVector.
  */
 public class OrcNoHiveLongVector extends AbstractOrcNoHiveVector implements
-		org.apache.flink.table.dataformat.vector.LongColumnVector,
-		org.apache.flink.table.dataformat.vector.BooleanColumnVector,
-		org.apache.flink.table.dataformat.vector.ByteColumnVector,
-		org.apache.flink.table.dataformat.vector.ShortColumnVector,
-		org.apache.flink.table.dataformat.vector.IntColumnVector {
+		org.apache.flink.table.data.vector.LongColumnVector,
+		org.apache.flink.table.data.vector.BooleanColumnVector,
+		org.apache.flink.table.data.vector.ByteColumnVector,
+		org.apache.flink.table.data.vector.ShortColumnVector,
+		org.apache.flink.table.data.vector.IntColumnVector {
 
 	private LongColumnVector vector;
 

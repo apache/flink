@@ -55,7 +55,6 @@ import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -282,7 +281,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 
 	private static boolean canConvertToTimeAttributeTypeInfo(DataType dataType) {
 		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
-			dataTypeTypeInfoMap.containsKey(dataType) && // checks precision and conversion
+			dataTypeTypeInfoMap.containsKey(dataType.nullable()) && // checks precision and conversion and ignore nullable
 			((TimestampType) dataType.getLogicalType()).getKind() != TimestampKind.REGULAR;
 	}
 
@@ -324,8 +323,8 @@ public final class LegacyTypeInfoDataTypeConverter {
 			.map(RowType.RowField::getName)
 			.toArray(String[]::new);
 
-		final TypeInformation<?>[] fieldTypes = Stream.of(fieldNames)
-			.map(name -> fieldsDataType.getFieldDataTypes().get(name))
+		final TypeInformation<?>[] fieldTypes = fieldsDataType.getChildren()
+			.stream()
 			.map(LegacyTypeInfoDataTypeConverter::toLegacyTypeInfo)
 			.toArray(TypeInformation[]::new);
 

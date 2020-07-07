@@ -25,6 +25,9 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * A data type that does not contain further data types (e.g. {@code INT} or {@code BOOLEAN}).
  *
@@ -60,6 +63,11 @@ public final class AtomicDataType extends DataType {
 		return new AtomicDataType(
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."));
+	}
+
+	@Override
+	public List<DataType> getChildren() {
+		return Collections.emptyList();
 	}
 
 	@Override

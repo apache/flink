@@ -28,6 +28,8 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import akka.dispatch.OnComplete;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1007,6 +1009,7 @@ public class FutureUtils {
 	 * @return the result of completable future,
 	 * or null if it's unfinished or finished exceptionally
 	 */
+	@Nullable
 	public static <T> T getWithoutException(CompletableFuture<T> future) {
 		if (future.isDone() && !future.isCompletedExceptionally()) {
 			try {

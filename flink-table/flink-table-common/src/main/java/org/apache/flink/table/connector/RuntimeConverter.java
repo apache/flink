@@ -43,17 +43,25 @@ public interface RuntimeConverter extends Serializable {
 
 	/**
 	 * Context for conversions during runtime.
-	 *
-	 * <p>Meant for future extensibility. Use {@link Context#empty()} for now.
 	 */
 	interface Context {
 
 		/**
-		 * Empty context.
+		 * Runtime classloader for loading user-defined classes.
 		 */
-		static Context empty() {
+		ClassLoader getClassLoader();
+
+		/**
+		 * Creates a new instance of {@link Context}.
+		 *
+		 * @param classLoader runtime classloader for loading user-defined classes.
+		 */
+		static Context create(ClassLoader classLoader) {
 			return new Context() {
-				// nothing to do
+				@Override
+				public ClassLoader getClassLoader() {
+					return classLoader;
+				}
 			};
 		}
 	}

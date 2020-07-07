@@ -29,9 +29,10 @@ INSERT 语句用来向表中添加行。
 
 ## 执行 INSERT 语句
 
-可以使用 `TableEnvironment` 中的 `sqlUpdate()` 方法执行 INSERT 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 INSERT 语句。`sqlUpdate()` 方法执行 INSERT 语句时时懒执行的，只有当`TableEnvironment.execute(jobName)`被调用时才会被执行。
+单条 INSERT 语句，可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 INSERT 语句。`executeSql()` 方法执行 INSERT 语句时会立即提交一个 Flink 作业，并且返回一个 TableResult 对象，通过该对象可以获取 JobClient 方便的操作提交的作业。
+多条 INSERT 语句，使用 `TableEnvironment` 中的 `createStatementSet` 创建一个 `StatementSet` 对象，然后使用 `StatementSet` 中的 `addInsertSql()` 方法添加多条 INSERT 语句，最后通过 `StatementSet` 中的 `execute()` 方法来执行。
 
-以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 INSERT 语句。
+以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一条 INSERT 语句，或者通过 `StatementSet` 执行多条 INSERT 语句。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -40,12 +41,31 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 // 注册一个 "Orders" 源表，和 "RubberOrders" 结果表
-tEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
-tEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
+tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
+tEnv.executeSql("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
 
-// 运行一个 INSERT 语句，将源表的数据输出到结果表中
-tEnv.sqlUpdate(
+// 运行一条 INSERT 语句，将源表的数据输出到结果表中
+TableResult tableResult1 = tEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+// 通过 TableResult 来获取作业状态
+System.out.println(tableResult1.getJobClient().get().getJobStatus());
+
+//----------------------------------------------------------------------------
+// 注册一个 "GlassOrders" 结果表用于运行多 INSERT 语句
+tEnv.executeSql("CREATE TABLE GlassOrders(product VARCHAR, amount INT) WITH (...)");
+
+// 运行多条 INSERT 语句，将原表数据输出到多个结果表中
+StatementSet stmtSet = tEnv.createStatementSet();
+// `addInsertSql` 方法每次只接收单条 INSERT 语句
+stmtSet.addInsertSql(
+  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+stmtSet.addInsertSql(
+  "INSERT INTO GlassOrders SELECT product, amount FROM Orders WHERE product LIKE '%Glass%'");
+// 执行刚刚添加的所有 INSERT 语句
+TableResult tableResult2 = stmtSet.execute();
+// 通过 TableResult 来获取作业状态
+System.out.println(tableResult1.getJobClient().get().getJobStatus());
+
 {% endhighlight %}
 </div>
 
@@ -55,27 +75,66 @@ val settings = EnvironmentSettings.newInstance()...
 val tEnv = TableEnvironment.create(settings)
 
 // 注册一个 "Orders" 源表，和 "RubberOrders" 结果表
-tEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
-tEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
+tEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
 
 // 运行一个 INSERT 语句，将源表的数据输出到结果表中
-tEnv.sqlUpdate(
+val tableResult1 = tEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+// 通过 TableResult 来获取作业状态
+println(tableResult1.getJobClient().get().getJobStatus())
+
+//----------------------------------------------------------------------------
+// 注册一个 "GlassOrders" 结果表用于运行多 INSERT 语句
+tEnv.executeSql("CREATE TABLE GlassOrders(product VARCHAR, amount INT) WITH (...)");
+
+// 运行多个 INSERT 语句，将原表数据输出到多个结果表中
+val stmtSet = tEnv.createStatementSet()
+// `addInsertSql` 方法每次只接收单条 INSERT 语句
+stmtSet.addInsertSql(
+  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+stmtSet.addInsertSql(
+  "INSERT INTO GlassOrders SELECT product, amount FROM Orders WHERE product LIKE '%Glass%'")
+// 执行刚刚添加的所有 INSERT 语句
+val tableResult2 = stmtSet.execute()
+// 通过 TableResult 来获取作业状态
+println(tableResult1.getJobClient().get().getJobStatus())
+  
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # 注册一个 "Orders" 源表，和 "RubberOrders" 结果表
-table_env.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
-table_env.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+table_env.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
+table_env.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
 
-# 运行一个 INSERT 语句，将源表的数据输出到结果表中
-table_env \
-    .sqlUpdate("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+# 运行一条 INSERT 语句，将源表的数据输出到结果表中
+table_result1 = table_env \
+    .executeSql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+# 通过 TableResult 来获取作业状态
+print(table_result1.get_job_client().get_job_status())
+
+#----------------------------------------------------------------------------
+# 注册一个 "GlassOrders" 结果表用于运行多 INSERT 语句
+table_env.execute_sql("CREATE TABLE GlassOrders(product VARCHAR, amount INT) WITH (...)")
+
+# 运行多条 INSERT 语句，将原表数据输出到多个结果表中
+stmt_set = table_env.create_statement_set()
+# `add_insert_sql` 方法每次只接收单条 INSERT 语句
+stmt_set \
+    .add_insert_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+stmt_set \
+    .add_insert_sql("INSERT INTO GlassOrders SELECT product, amount FROM Orders WHERE product LIKE '%Glass%'")
+# 执行刚刚添加的所有 INSERT 语句
+table_result2 = stmt_set.execute()
+# 通过 TableResult 来获取作业状态
+print(table_result2.get_job_client().get_job_status())
+
+
 {% endhighlight %}
 </div>
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
 
@@ -46,20 +45,13 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
 
 	@Override
 	public PythonDriverOptions createResult(@Nonnull CommandLine commandLine) throws FlinkParseException {
-		String entryPointModule;
+		String entryPointModule = null;
 		String entryPointScript = null;
 
 		if (commandLine.hasOption(PY_OPTION.getOpt()) && commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
 			throw new FlinkParseException("Cannot use options -py and -pym simultaneously.");
 		} else if (commandLine.hasOption(PY_OPTION.getOpt())) {
 			entryPointScript = commandLine.getOptionValue(PY_OPTION.getOpt());
-			Path file = new Path(entryPointScript);
-			String fileName = file.getName();
-			if (fileName.endsWith(".py")) {
-				entryPointModule = fileName.substring(0, fileName.length() - 3);
-			} else {
-				throw new FlinkParseException("The entry point script does not end with \".py\".");
-			}
 		} else if (commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
 			entryPointModule = commandLine.getOptionValue(PYMODULE_OPTION.getOpt());
 		} else {

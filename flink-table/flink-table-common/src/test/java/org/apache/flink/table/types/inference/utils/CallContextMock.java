@@ -70,7 +70,7 @@ public class CallContextMock implements CallContext {
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		return (Optional<T>) argumentValues.get(pos);
+		return (Optional<T>) argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
 	}
 
 	@Override

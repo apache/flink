@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>external-resource.&lt;resource_name&gt;.yarn.config-key</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>If configured, Flink will add this key to the resource profile of container request to Yarn. The value will be set to the value of external-resource.&lt;resource_name&gt;.amount.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.application-attempt-failures-validity-interval</h5></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>
@@ -109,6 +115,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>When a Flink job is submitted to YARN, the JobManager’s host and the number of available processing slots is written into a properties file, so that the Flink client is able to pick those details up. This configuration parameter allows changing the default location of that file (for example for environments sharing a Flink installation between users).</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.provided.lib.dirs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of provided lib directories. They should be pre-uploaded and world-readable. Flink will use them to exclude the local Flink jars(e.g. flink-dist, lib/, plugins/)uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that they doesn't need to be downloaded every time for each application. An example could be hdfs://$namenode_address/path/of/flink/lib</td>
         </tr>
         <tr>
             <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>

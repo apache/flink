@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Tumble
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -78,7 +77,7 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where(s"${(1 to 30).map("b = " + _).mkString(" || ")} && c = 'xx'")
+      .where((1 to 30).map($"b" === _).reduce((ex1, ex2) => ex1 || ex2) && ($"c" === "xx"))
 
     util.verifyPlan(resultTable)
   }
@@ -88,7 +87,7 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where(s"${(1 to 30).map("b != " + _).mkString(" && ")} || c != 'xx'")
+      .where((1 to 30).map($"b" !== _).reduce((ex1, ex2) => ex1 && ex2) || ($"c" !== "xx"))
 
     util.verifyPlan(resultTable)
   }

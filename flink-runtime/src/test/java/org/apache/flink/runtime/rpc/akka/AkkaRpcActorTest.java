@@ -466,6 +466,27 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void resolvesRunningAkkaRpcActor() throws Exception {
+		final String endpointName = "foobar";
+
+		try (RpcEndpoint simpleRpcEndpoint1 = createRpcEndpointWithRandomNameSuffix(endpointName);
+			RpcEndpoint simpleRpcEndpoint2 = createRpcEndpointWithRandomNameSuffix(endpointName)) {
+
+			simpleRpcEndpoint1.closeAsync().join();
+
+			final String wildcardName = AkkaRpcServiceUtils.createWildcardName(endpointName);
+			final String wildcardAddress = AkkaRpcServiceUtils.getLocalRpcUrl(wildcardName);
+			final RpcGateway rpcGateway = akkaRpcService.connect(wildcardAddress, RpcGateway.class).join();
+
+			assertThat(rpcGateway.getAddress(), is(equalTo(simpleRpcEndpoint2.getAddress())));
+		}
+	}
+
+	private RpcEndpoint createRpcEndpointWithRandomNameSuffix(String prefix) {
+		return new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(prefix));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------

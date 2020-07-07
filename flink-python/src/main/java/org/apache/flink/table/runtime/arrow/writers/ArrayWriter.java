@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseArray;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.ListVector;
@@ -29,24 +29,38 @@ import org.apache.arrow.vector.complex.ListVector;
  * {@link ArrowFieldWriter} for Array.
  */
 @Internal
-public final class ArrayWriter<T1 extends TypeGetterSetters, T2 extends TypeGetterSetters> extends ArrowFieldWriter<T1> {
+public abstract class ArrayWriter<T> extends ArrowFieldWriter<T> {
 
-	private final ArrowFieldWriter<T2> elementWriter;
+	public static ArrayWriter<RowData> forRow(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+		return new ArrayWriterForRow(listVector, elementWriter);
+	}
 
-	public ArrayWriter(ListVector listVector, ArrowFieldWriter<T2> elementWriter) {
+	public static ArrayWriter<ArrayData> forArray(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+		return new ArrayWriterForArray(listVector, elementWriter);
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	private final ArrowFieldWriter<ArrayData> elementWriter;
+
+	private ArrayWriter(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
 		super(listVector);
 		this.elementWriter = Preconditions.checkNotNull(elementWriter);
 	}
 
+	abstract boolean isNullAt(T in, int ordinal);
+
+	abstract ArrayData readArray(T in, int ordinal);
+
 	@Override
-	public void doWrite(T1 row, int ordinal) {
-		if (!row.isNullAt(ordinal)) {
+	public void doWrite(T in, int ordinal) {
+		if (!isNullAt(in, ordinal)) {
 			((ListVector) getValueVector()).startNewValue(getCount());
-			BaseArray array = row.getArray(ordinal);
-			for (int i = 0; i < array.numElements(); i++) {
-				elementWriter.write((T2) array, i);
+			ArrayData array = readArray(in, ordinal);
+			for (int i = 0; i < array.size(); i++) {
+				elementWriter.write(array, i);
 			}
-			((ListVector) getValueVector()).endValue(getCount(), array.numElements());
+			((ListVector) getValueVector()).endValue(getCount(), array.size());
 		}
 	}
 
@@ -60,5 +74,47 @@ public final class ArrayWriter<T1 extends TypeGetterSetters, T2 extends TypeGett
 	public void reset() {
 		super.reset();
 		elementWriter.reset();
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * {@link ArrayWriter} for {@link RowData} input.
+	 */
+	public static final class ArrayWriterForRow extends ArrayWriter<RowData> {
+
+		private ArrayWriterForRow(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+			super(listVector, elementWriter);
+		}
+
+		@Override
+		boolean isNullAt(RowData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		ArrayData readArray(RowData in, int ordinal) {
+			return in.getArray(ordinal);
+		}
+	}
+
+	/**
+	 * {@link ArrayWriter} for {@link ArrayData} input.
+	 */
+	public static final class ArrayWriterForArray extends ArrayWriter<ArrayData> {
+
+		private ArrayWriterForArray(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+			super(listVector, elementWriter);
+		}
+
+		@Override
+		boolean isNullAt(ArrayData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		ArrayData readArray(ArrayData in, int ordinal) {
+			return in.getArray(ordinal);
+		}
 	}
 }

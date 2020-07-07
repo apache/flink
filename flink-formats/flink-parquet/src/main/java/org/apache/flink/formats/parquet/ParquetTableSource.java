@@ -86,7 +86,7 @@ import java.util.List;
  *   .schema(messageType)
  *   .build();
  *
- * tEnv.registerTableSource("parquetTable", parquetSrc);
+ * tEnv.registerTableSourceInternal("parquetTable", parquetSrc);
  * Table res = tableEnv.sqlQuery("SELECT * FROM parquetTable");
  * }
  * </pre>

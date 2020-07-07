@@ -49,7 +49,6 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	public StandaloneResourceManager(
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -63,7 +62,6 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			Time rpcTimeout) {
 		super(
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

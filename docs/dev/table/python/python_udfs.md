@@ -132,8 +132,6 @@ multiple scalar values as input parameters. However in contrast to a scalar func
 an arbitrary number of rows as output instead of a single value. The return type of a Python UDTF 
 could be of types Iterable, Iterator or generator.
 
-<span class="label label-info">Note</span> Currently, Python UDTF is supported in old planner both under streaming and batch mode while is only supported under streaming mode in Blink planner.
-
 The following example shows how to define your own Python multi emit function, register it in the 
 TableEnvironment, and call it in a query.
 

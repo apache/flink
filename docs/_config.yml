@@ -27,10 +27,10 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.11-SNAPSHOT"
+version: "1.12-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.11-SNAPSHOT"
+version_title: "1.12-SNAPSHOT"
 # Branch on Github for this version
 github_branch: "master"
 
@@ -56,6 +56,9 @@ stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 
 javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
 pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
+
+statefundocs_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-master
+statefundocs_stable_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-stable
 
 # Flag whether this is a stable version or not. Used for the quickstart page.
 is_stable: false

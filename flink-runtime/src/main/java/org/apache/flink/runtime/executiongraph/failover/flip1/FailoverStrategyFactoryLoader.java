@@ -47,13 +47,7 @@ public final class FailoverStrategyFactoryLoader {
 	public static FailoverStrategy.Factory loadFailoverStrategyFactory(final Configuration config) {
 		checkNotNull(config);
 
-		// the default NG failover strategy is the region failover strategy.
-		// TODO: Remove the overridden default value when removing legacy scheduler
-		//  and change the default value of JobManagerOptions.EXECUTION_FAILOVER_STRATEGY
-		//  to be "region"
-		final String strategyParam = config.getString(
-			JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
-			PIPELINED_REGION_RESTART_STRATEGY_NAME);
+		final String strategyParam = config.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
 
 		switch (strategyParam.toLowerCase()) {
 			case FULL_RESTART_STRATEGY_NAME:

@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -413,7 +414,7 @@ public class RecordWriterTest {
 	public void testIsAvailableOrNot() throws Exception {
 		// setup
 		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
-		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
 			.build();
@@ -430,7 +431,7 @@ public class RecordWriterTest {
 			assertTrue(recordWriter.getAvailableFuture().isDone());
 
 			// request one buffer from the local pool to make it unavailable afterwards
-			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder();
+			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder(0);
 			assertNotNull(bufferBuilder);
 			assertFalse(recordWriter.getAvailableFuture().isDone());
 
@@ -463,7 +464,7 @@ public class RecordWriterTest {
 
 		try {
 			partition.setup();
-			partition.initializeState(stateReader);
+			partition.readRecoveredState(stateReader);
 
 			for (int record: records) {
 				// the record length 4 is also written into buffer for every emit
@@ -484,7 +485,11 @@ public class RecordWriterTest {
 				while ((bufferAndBacklog = view.getNextBuffer()) != null) {
 					Buffer buffer = bufferAndBacklog.buffer();
 					int[] expected = numConsumedBuffers < totalStates ? states : expectedRecordsInBuffer[numConsumedBuffers - totalStates];
-					BufferBuilderAndConsumerTest.assertContent(buffer, partition.getBufferPool(), expected);
+					BufferBuilderAndConsumerTest.assertContent(
+						buffer,
+						partition.getBufferPool()
+							.getSubpartitionBufferRecyclers()[subpartition.getSubPartitionIndex()],
+						expected);
 
 					buffer.recycleBuffer();
 					numConsumedBuffers++;
@@ -503,7 +508,7 @@ public class RecordWriterTest {
 	public void testIdleTime() throws IOException, InterruptedException {
 		// setup
 		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
-		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
 			.build();
@@ -514,23 +519,24 @@ public class RecordWriterTest {
 			resultPartition,
 			new NoOpResultPartitionConsumableNotifier());
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
-		BufferBuilder builder = recordWriter.getBufferBuilder();
+		BufferBuilder builder = recordWriter.requestNewBufferBuilder(0);
+		BufferBuilderTestUtils.fillBufferBuilder(builder, 1).finish();
+		ResultSubpartitionView readView = resultPartition.getSubpartition(0).createReadView(new NoOpBufferAvailablityListener());
+		Buffer buffer = readView.getNextBuffer().buffer();
 
 		// idle time is zero when there is buffer available.
 		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());
 
-		final Object runningLock = new Object();
+		CountDownLatch syncLock = new CountDownLatch(1);
 		AtomicReference<BufferBuilder> asyncRequestResult = new AtomicReference<>();
 		final Thread requestThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
 					// notify that the request thread start to run.
-					synchronized (runningLock) {
-						runningLock.notify();
-					}
+					syncLock.countDown();
 					// wait for buffer.
-					asyncRequestResult.set(recordWriter.getBufferBuilder());
+					asyncRequestResult.set(recordWriter.requestNewBufferBuilder(0));
 				} catch (Exception e) {
 				}
 			}
@@ -538,19 +544,16 @@ public class RecordWriterTest {
 		requestThread.start();
 
 		// wait until request thread start to run.
-		synchronized (runningLock) {
-			runningLock.wait();
-		}
-		Thread.sleep(10);
-		//recycle the buffer
-		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);
+		syncLock.await();
 
+		Thread.sleep(10);
+
+		//recycle the buffer
 		buffer.recycleBuffer();
 		requestThread.join();
 
 		assertThat(recordWriter.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
 		assertNotNull(asyncRequestResult.get());
-
 	}
 
 	private void verifyBroadcastBufferOrEventIndependence(boolean broadcastEvent) throws Exception {
@@ -637,13 +640,13 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder tryGetBufferBuilder() throws IOException {
-			return bufferProvider.requestBufferBuilder();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 
 		@Override
@@ -655,12 +658,12 @@ public class RecordWriterTest {
 	static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		Buffer buffer = buildSingleBuffer(bufferConsumer);
 		if (buffer.isBuffer()) {
-			return new BufferOrEvent(buffer, targetChannel);
+			return new BufferOrEvent(buffer, new InputChannelInfo(0, targetChannel));
 		} else {
 			// is event:
 			AbstractEvent event = EventSerializer.fromBuffer(buffer, RecordWriterTest.class.getClassLoader());
 			buffer.recycleBuffer(); // the buffer is not needed anymore
-			return new BufferOrEvent(event, targetChannel);
+			return new BufferOrEvent(event, new InputChannelInfo(0, targetChannel));
 		}
 	}
 
@@ -675,32 +678,32 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder tryGetBufferBuilder() throws IOException {
-			return bufferProvider.requestBufferBuilder();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 	}
 
-	private static class KeepingPartitionWriter extends MockResultPartitionWriter {
+	static class KeepingPartitionWriter extends MockResultPartitionWriter {
 		private final BufferProvider bufferProvider;
 		private Map<Integer, List<BufferConsumer>> produced = new HashMap<>();
 
-		private KeepingPartitionWriter(BufferProvider bufferProvider) {
+		KeepingPartitionWriter(BufferProvider bufferProvider) {
 			this.bufferProvider = bufferProvider;
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder tryGetBufferBuilder() throws IOException {
-			return bufferProvider.requestBufferBuilder();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 
 		@Override
@@ -709,6 +712,10 @@ public class RecordWriterTest {
 			produced.putIfAbsent(targetChannel, new ArrayList<>());
 			produced.get(targetChannel).add(bufferConsumer);
 			return true;
+		}
+
+		public List<BufferConsumer> getAddedBufferConsumers(int subpartitionIndex) {
+			return produced.get(subpartitionIndex);
 		}
 
 		@Override

@@ -21,8 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.table
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
@@ -317,7 +316,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  @Ignore // TODO support it
   def testAnalyticAggregation(): Unit = {
     val ds = BatchTableEnvUtil.fromElements(tEnv,
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, BigDecimal.ONE),
@@ -333,13 +331,13 @@ class AggregationITCase extends BatchTestBase {
       '_6.varSamp, '_7.varSamp)
     val expected =
       "0,0,0," +
-        "0,0.5,0.5,0.5," +
+        "0,0.5,0.5,0.500000000000000000," +
         "1,1,1," +
-        "1,0.70710677,0.7071067811865476,0.7071067811865476," +
+        "1,0.70710677,0.7071067811865476,0.707106781186547600," +
         "0,0,0," +
-        "0,0.25,0.25,0.25," +
+        "0,0.25,0.25,0.250000000000000000," +
         "1,1,1," +
-        "1,0.5,0.5,0.5"
+        "1,0.5,0.5,0.500000000000000000"
     val results = executeQuery(res)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -373,7 +371,7 @@ class AggregationITCase extends BatchTestBase {
       "1,{1=1}\n" +
         "2,{2=1, 3=1}\n" +
         "3,{4=1, 5=1, 6=1}\n" +
-        "4,{8=1, 9=1, 10=1, 7=1}\n" +
+        "4,{7=1, 8=1, 9=1, 10=1}\n" +
         "5,{11=1, 12=1, 13=1, 14=1, 15=1}\n" +
         "6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}"
     val results = executeQuery(t)

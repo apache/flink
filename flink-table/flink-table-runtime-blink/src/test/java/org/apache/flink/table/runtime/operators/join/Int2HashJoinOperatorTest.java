@@ -26,15 +26,15 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -63,8 +63,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys = 100;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, false, true, numKeys * buildValsPerKey * probeValsPerKey,
 				numKeys, 165);
@@ -78,8 +78,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, false, true, numKeys1 * buildValsPerKey * probeValsPerKey,
 				numKeys1, 165);
@@ -93,8 +93,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, true, true, 280, numKeys2, -1);
 	}
@@ -107,8 +107,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, true, true, 280, numKeys2, -1);
 	}
@@ -120,8 +120,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys = 100;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, false, false, numKeys * buildValsPerKey * probeValsPerKey,
 				numKeys, 165);
@@ -135,8 +135,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 9;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, false, false, numKeys2 * buildValsPerKey * probeValsPerKey,
 				numKeys2, 165);
@@ -150,8 +150,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, true, false,
 				numKeys1 * buildValsPerKey * probeValsPerKey, numKeys2, -1);
@@ -165,8 +165,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, true, false, 280, numKeys2, -1);
 	}
@@ -178,8 +178,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.SEMI;
 		Object operator = newOperator(33 * 32 * 1024, type, false);
@@ -193,8 +193,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.ANTI;
 		Object operator = newOperator(33 * 32 * 1024, type, false);
@@ -208,8 +208,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 9;
 		int buildValsPerKey = 10;
 		int probeValsPerKey = 3;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.BUILD_LEFT_SEMI;
 		Object operator = newOperator(33 * 32 * 1024, type, false);
@@ -223,8 +223,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 9;
 		int buildValsPerKey = 10;
 		int probeValsPerKey = 3;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.BUILD_LEFT_ANTI;
 		Object operator = newOperator(33 * 32 * 1024, type, false);
@@ -232,8 +232,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 	}
 
 	private void buildJoin(
-			MutableObjectIterator<BinaryRow> buildInput,
-			MutableObjectIterator<BinaryRow> probeInput,
+			MutableObjectIterator<BinaryRowData> buildInput,
+			MutableObjectIterator<BinaryRowData> probeInput,
 			boolean leftOut, boolean rightOut, boolean buildLeft,
 			int expectOutSize, int expectOutKeySize, int expectOutVal) throws Exception {
 		HashJoinType type = HashJoinType.of(buildLeft, leftOut, rightOut);
@@ -244,19 +244,19 @@ public class Int2HashJoinOperatorTest implements Serializable {
 	@SuppressWarnings("unchecked")
 	static void joinAndAssert(
 			Object operator,
-			MutableObjectIterator<BinaryRow> input1,
-			MutableObjectIterator<BinaryRow> input2,
+			MutableObjectIterator<BinaryRowData> input1,
+			MutableObjectIterator<BinaryRowData> input2,
 			int expectOutSize,
 			int expectOutKeySize,
 			int expectOutVal,
 			boolean semiJoin) throws Exception {
-		BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(new IntType(), new IntType());
-		BaseRowTypeInfo baseRowType = new BaseRowTypeInfo(
+		RowDataTypeInfo typeInfo = new RowDataTypeInfo(new IntType(), new IntType());
+		RowDataTypeInfo rowDataTypeInfo = new RowDataTypeInfo(
 				new IntType(), new IntType(), new IntType(), new IntType());
-		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
 				TwoInputStreamTask::new,
-				2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, baseRowType);
+				2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, rowDataTypeInfo);
 		testHarness.memorySize = 36 * 1024 * 1024;
 		testHarness.getExecutionConfig().enableObjectReuse();
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -273,8 +273,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
 		Random random = new Random();
 		do {
-			BinaryRow row1 = null;
-			BinaryRow row2 = null;
+			BinaryRowData row1 = null;
+			BinaryRowData row2 = null;
 
 			if (random.nextInt(2) == 0) {
 				row1 = input1.next();
@@ -315,8 +315,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 				HashMap<Integer, Long> map = new HashMap<>(expectOutKeySize);
 
 				for (Object o : actual) {
-					StreamRecord<BaseRow> record = (StreamRecord<BaseRow>) o;
-					BaseRow row = record.getValue();
+					StreamRecord<RowData> record = (StreamRecord<RowData>) o;
+					RowData row = record.getValue();
 					int key = row.getInt(0);
 					int val = row.getInt(1);
 					Long contained = map.get(key);
@@ -341,8 +341,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 				HashMap<Integer, Long> map = new HashMap<>(expectOutKeySize);
 
 				for (Object o : actual) {
-					StreamRecord<BaseRow> record = (StreamRecord<BaseRow>) o;
-					BaseRow row = record.getValue();
+					StreamRecord<RowData> record = (StreamRecord<RowData>) o;
+					RowData row = record.getValue();
 					int key = row.isNullAt(0) ? row.getInt(2) : row.getInt(0);
 
 					int val1 = 0;
@@ -379,13 +379,13 @@ public class Int2HashJoinOperatorTest implements Serializable {
 	/**
 	 * my projection.
 	 */
-	public static final class MyProjection implements Projection<BaseRow, BinaryRow> {
+	public static final class MyProjection implements Projection<RowData, BinaryRowData> {
 
-		BinaryRow innerRow = new BinaryRow(1);
+		BinaryRowData innerRow = new BinaryRowData(1);
 		BinaryRowWriter writer = new BinaryRowWriter(innerRow);
 
 		@Override
-		public BinaryRow apply(BaseRow row) {
+		public BinaryRowData apply(RowData row) {
 			writer.reset();
 			if (row.isNullAt(0)) {
 				writer.setNullAt(0);
@@ -429,7 +429,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 	public static class TrueCondition extends AbstractRichFunction implements JoinCondition {
 
 		@Override
-		public boolean apply(BaseRow in1, BaseRow in2) {
+		public boolean apply(RowData in1, RowData in2) {
 			return true;
 		}
 	}

@@ -179,7 +179,6 @@ public class MesosResourceManagerTest extends TestLogger {
 			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 			super(
 				rpcService,
-				resourceManagerEndpointId,
 				resourceId,
 				highAvailabilityServices,
 				heartbeatServices,
@@ -285,7 +284,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(spec, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
+				1, 0, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
 				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(), false,
 				Collections.<ConstraintEvaluator>emptyList(), "", Option.<String>empty(),
 				Option.<String>empty(), Collections.<String>emptyList());
@@ -339,7 +338,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				highAvailabilityServices = new TestingHighAvailabilityServices();
 				rmLeaderElectionService = new TestingLeaderElectionService();
 				highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-				heartbeatServices = new HeartbeatServices(5L, 5L);
+				heartbeatServices = new HeartbeatServices(Integer.MAX_VALUE, Integer.MAX_VALUE);
 				slotManager = mock(SlotManager.class);
 				slotManagerStarted = new CompletableFuture<>();
 				jobLeaderIdService = new JobLeaderIdService(

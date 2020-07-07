@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,6 +41,7 @@ import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ARCHIVES
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for PythonDependencyUtils.
@@ -190,7 +190,7 @@ public class PythonDependencyUtilsTest {
 				t -> t.f0,
 				t -> t.f1.filePath));
 
-		Assert.assertEquals(expected, actual);
+		assertEquals(expected, actual);
 	}
 
 	private void verifyConfiguration(Configuration expected, Configuration actual) {
@@ -198,6 +198,6 @@ public class PythonDependencyUtilsTest {
 		actual.addAllToProperties(actualProperties);
 		Properties expectedProperties = new Properties();
 		expected.addAllToProperties(expectedProperties);
-		Assert.assertEquals(expectedProperties, actualProperties);
+		assertEquals(expectedProperties, actualProperties);
 	}
 }

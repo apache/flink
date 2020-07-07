@@ -151,6 +151,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
 	private LogicalType resolveType(UnresolvedIdentifier identifier) {
 		assert identifier != null;
+		// TODO validate implementation class of structured types when converting from LogicalType to DataType
 		throw new TableException("User-defined types are not supported yet.");
 	}
 }

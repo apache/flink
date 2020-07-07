@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -27,7 +27,7 @@ import java.io.IOException;
 /**
  * Wrap {@link MutableObjectIterator} to java {@link RowIterator}.
  */
-public class WrappedRowIterator<T extends BaseRow> implements RowIterator<T> {
+public class WrappedRowIterator<T extends RowData> implements RowIterator<T> {
 
 	private final MutableObjectIterator<T> iterator;
 	private final T reuse;

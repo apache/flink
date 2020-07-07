@@ -102,7 +102,7 @@ public class RowArrowReaderWriterTest extends ArrowReaderWriterTestBase<Row> {
 			rowFields.add(new RowType.RowField("f" + i, fieldTypes.get(i)));
 		}
 		rowType = new RowType(rowFields);
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("stdout", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
 	}
 
 	@Override

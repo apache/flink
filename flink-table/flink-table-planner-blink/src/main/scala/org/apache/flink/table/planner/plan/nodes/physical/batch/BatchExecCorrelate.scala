@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
@@ -68,10 +68,10 @@ class BatchExecCorrelate(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val operatorCtx = CodeGeneratorContext(config)
     CorrelateCodeGenerator.generateCorrelateTransformation(
       config,

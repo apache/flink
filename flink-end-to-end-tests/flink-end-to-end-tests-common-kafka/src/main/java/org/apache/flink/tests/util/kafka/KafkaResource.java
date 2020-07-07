@@ -51,6 +51,18 @@ public interface KafkaResource extends ExternalResource {
 	void sendMessages(String topic, String ... messages) throws IOException;
 
 	/**
+	 * Sends the given keyed messages to the given topic. The messages themselves should contain
+	 * the specified {@code keySeparator}.
+	 *
+	 * @param topic topic name
+	 * @param keySeparator the separator used to parse key from value in the messages
+	 * @param messages messages to send
+	 * @throws IOException
+	 */
+	void sendKeyedMessages(
+			String topic, String keySeparator, String ... messages) throws IOException;
+
+	/**
 	 * Returns the kafka bootstrap server addresses.
 	 * @return kafka bootstrap server addresses
 	 */
@@ -63,15 +75,16 @@ public interface KafkaResource extends ExternalResource {
 	InetSocketAddress getZookeeperAddress();
 
 	/**
-	 * Reads up to {@code maxNumMessages} from the given topic.
+	 * Reads {@code expectedNumMessages} from the given topic. If we can't read the expected number
+	 * of messages we throw an exception.
 	 *
-	 * @param maxNumMessages maximum number of messages that should be read
+	 * @param expectedNumMessages expected number of messages that should be read
 	 * @param groupId group id to identify consumer
 	 * @param topic topic name
 	 * @return read messages
 	 * @throws IOException
 	 */
-	List<String> readMessage(int maxNumMessages, String groupId, String topic) throws IOException;
+	List<String> readMessage(int expectedNumMessages, String groupId, String topic) throws IOException;
 
 	/**
 	 * Modifies the number of partitions for the given topic.
@@ -101,7 +114,7 @@ public interface KafkaResource extends ExternalResource {
 	/**
 	 * Returns the configured KafkaResource implementation, or a {@link LocalStandaloneKafkaResource} if none is configured.
 	 *
-	 * @return configured KafkaResource, or {@link LocalStandaloneKafkaResource} is none is configured
+	 * @return configured KafkaResource, or {@link LocalStandaloneKafkaResource} if none is configured
 	 */
 	static KafkaResource get(final String version) {
 		return FactoryUtils.loadAndInvokeFactory(

@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.api.common.time.Time;
+
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -26,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -220,6 +223,29 @@ public class TimeUtils {
 
 		private static String createTimeUnitString(TimeUnit timeUnit) {
 			return timeUnit.name() + ": (" + String.join(" | ", timeUnit.getLabels()) + ")";
+		}
+	}
+
+	/**
+	 * Translates {@link Time} to {@link Duration}.
+	 *
+	 * @param time time to transform into duration
+	 * @return duration equal to the given time
+	 */
+	public static Duration toDuration(Time time) {
+		return Duration.of(time.getSize(), toChronoUnit(time.getUnit()));
+	}
+
+	private static ChronoUnit toChronoUnit(java.util.concurrent.TimeUnit timeUnit) {
+		switch(timeUnit) {
+			case NANOSECONDS: return ChronoUnit.NANOS;
+			case MICROSECONDS: return ChronoUnit.MICROS;
+			case MILLISECONDS: return ChronoUnit.MILLIS;
+			case SECONDS: return ChronoUnit.SECONDS;
+			case MINUTES: return ChronoUnit.MINUTES;
+			case HOURS: return ChronoUnit.HOURS;
+			case DAYS: return ChronoUnit.DAYS;
+			default: throw new IllegalArgumentException(String.format("Unsupported time unit %s.", timeUnit));
 		}
 	}
 }

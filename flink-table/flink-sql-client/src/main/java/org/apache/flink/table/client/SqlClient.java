@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
@@ -36,7 +37,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import static org.apache.flink.table.client.config.entries.ConfigurationEntry.create;
+import static org.apache.flink.table.client.config.entries.ConfigurationEntry.merge;
 
 /**
  * SQL Client for submitting SQL statements. The client can be executed in two
@@ -90,6 +96,7 @@ public class SqlClient {
 
 			// create CLI client with session environment
 			final Environment sessionEnv = readSessionEnvironment(options.getEnvironment());
+			appendPythonConfig(sessionEnv, options.getPythonConfiguration());
 			final SessionContext context;
 			if (options.getSessionId() == null) {
 				context = new SessionContext(DEFAULT_SESSION_ID, sessionEnv);
@@ -164,6 +171,12 @@ public class SqlClient {
 		} catch (IOException e) {
 			throw new SqlClientException("Could not read session environment file at: " + envUrl, e);
 		}
+	}
+
+	private static void appendPythonConfig(Environment env, Configuration pythonConfiguration) {
+		Map<String, Object> pythonConfig = new HashMap<>(pythonConfiguration.toMap());
+		Map<String, Object> combinedConfig = new HashMap<>(merge(env.getConfiguration(), create(pythonConfig)).asMap());
+		env.setConfiguration(combinedConfig);
 	}
 
 	// --------------------------------------------------------------------------------------------

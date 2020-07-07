@@ -51,7 +51,11 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
 		try {
 			dispatchInternal(request);
 		} catch (Exception e) {
-			request.cancel(e);
+			try {
+				request.cancel(e);
+			} catch (Exception ex) {
+				e.addSuppressed(ex);
+			}
 			throw e;
 		}
 	}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -58,6 +59,14 @@ public interface SlotManager extends AutoCloseable {
 	 * and the corresponding value is number of pending workers of that resource spec.
 	 */
 	Map<WorkerResourceSpec, Integer> getRequiredResources();
+
+	ResourceProfile getRegisteredResource();
+
+	ResourceProfile getRegisteredResourceOf(InstanceID instanceID);
+
+	ResourceProfile getFreeResource();
+
+	ResourceProfile getFreeResourceOf(InstanceID instanceID);
 
 	int getNumberPendingSlotRequests();
 
@@ -99,8 +108,9 @@ public interface SlotManager extends AutoCloseable {
 	 *
 	 * @param taskExecutorConnection for the new task manager
 	 * @param initialSlotReport for the new task manager
+	 * @return True if the task manager has not been registered before and is registered successfully; otherwise false
 	 */
-	void registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport);
+	boolean registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport);
 
 	/**
 	 * Unregisters the task manager identified by the given instance id and its associated slots

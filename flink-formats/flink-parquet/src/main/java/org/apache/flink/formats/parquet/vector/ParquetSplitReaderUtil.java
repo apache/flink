@@ -30,20 +30,21 @@ import org.apache.flink.formats.parquet.vector.reader.IntColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.LongColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
-import org.apache.flink.table.dataformat.vector.heap.HeapBooleanVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapByteVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapBytesVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapDoubleVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapFloatVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapIntVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapLongVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapShortVector;
-import org.apache.flink.table.dataformat.vector.heap.HeapTimestampVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.vector.heap.HeapBooleanVector;
+import org.apache.flink.table.data.vector.heap.HeapByteVector;
+import org.apache.flink.table.data.vector.heap.HeapBytesVector;
+import org.apache.flink.table.data.vector.heap.HeapDoubleVector;
+import org.apache.flink.table.data.vector.heap.HeapFloatVector;
+import org.apache.flink.table.data.vector.heap.HeapIntVector;
+import org.apache.flink.table.data.vector.heap.HeapLongVector;
+import org.apache.flink.table.data.vector.heap.HeapShortVector;
+import org.apache.flink.table.data.vector.heap.HeapTimestampVector;
+import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -82,6 +83,7 @@ public class ParquetSplitReaderUtil {
 	 */
 	public static ParquetColumnarRowSplitReader genPartColumnarRowReader(
 			boolean utcTimestamp,
+			boolean caseSensitive,
 			Configuration conf,
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
@@ -111,13 +113,14 @@ public class ParquetSplitReaderUtil {
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
 						createVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						readVectors[i];
+						readVectors[selNonPartNames.indexOf(name)];
 			}
 			return new VectorizedColumnBatch(vectors);
 		};
 
 		return new ParquetColumnarRowSplitReader(
 				utcTimestamp,
+				caseSensitive,
 				conf,
 				Arrays.stream(selParquetFields)
 						.mapToObj(i -> fullFieldTypes[i].getLogicalType())
@@ -192,15 +195,15 @@ public class ParquetSplitReaderUtil {
 				DecimalType decimalType = (DecimalType) type;
 				int precision = decimalType.getPrecision();
 				int scale = decimalType.getScale();
-				Decimal decimal = value == null ? null : Preconditions.checkNotNull(
-						Decimal.fromBigDecimal((BigDecimal) value, precision, scale));
+				DecimalData decimal = value == null ? null : Preconditions.checkNotNull(
+						DecimalData.fromBigDecimal((BigDecimal) value, precision, scale));
 				ColumnVector internalVector;
-				if (Decimal.is32BitDecimal(precision)) {
+				if (DecimalDataUtils.is32BitDecimal(precision)) {
 					internalVector = createVectorFromConstant(
 							new IntType(),
 							decimal == null ? null : (int) decimal.toUnscaledLong(),
 							batchSize);
-				} else if (Decimal.is64BitDecimal(precision)) {
+				} else if (DecimalDataUtils.is64BitDecimal(precision)) {
 					internalVector = createVectorFromConstant(
 							new BigIntType(),
 							decimal == null ? null : decimal.toUnscaledLong(),
@@ -241,7 +244,7 @@ public class ParquetSplitReaderUtil {
 				if (value == null) {
 					tv.fillWithNulls();
 				} else {
-					tv.fill(SqlTimestamp.fromLocalDateTime((LocalDateTime) value));
+					tv.fill(TimestampData.fromLocalDateTime((LocalDateTime) value));
 				}
 				return tv;
 			default:
@@ -355,14 +358,14 @@ public class ParquetSplitReaderUtil {
 				return new HeapTimestampVector(batchSize);
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) fieldType;
-				if (Decimal.is32BitDecimal(decimalType.getPrecision())) {
+				if (DecimalDataUtils.is32BitDecimal(decimalType.getPrecision())) {
 					checkArgument(
 							(typeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY ||
 									typeName == PrimitiveType.PrimitiveTypeName.INT32) &&
 									primitiveType.getOriginalType() == OriginalType.DECIMAL,
 							"Unexpected type: %s", typeName);
 					return new HeapIntVector(batchSize);
-				} else if (Decimal.is64BitDecimal(decimalType.getPrecision())) {
+				} else if (DecimalDataUtils.is64BitDecimal(decimalType.getPrecision())) {
 					checkArgument(
 							(typeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY ||
 									typeName == PrimitiveType.PrimitiveTypeName.INT64) &&

@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream.Committer;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class S3RecoverableWriter implements RecoverableWriter {
 
-	private final FunctionWithException<File, RefCountedFile, IOException> tempFileCreator;
+	private final FunctionWithException<File, RefCountedFileWithStream, IOException> tempFileCreator;
 
 	private final long userDefinedMinPartSize;
 
@@ -62,7 +62,7 @@ public class S3RecoverableWriter implements RecoverableWriter {
 	S3RecoverableWriter(
 			final S3AccessHelper s3AccessHelper,
 			final S3RecoverableMultipartUploadFactory uploadFactory,
-			final FunctionWithException<File, RefCountedFile, IOException> tempFileCreator,
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tempFileCreator,
 			final long userDefinedMinPartSize) {
 
 		this.s3AccessHelper = checkNotNull(s3AccessHelper);
@@ -144,7 +144,7 @@ public class S3RecoverableWriter implements RecoverableWriter {
 
 	public static S3RecoverableWriter writer(
 			final FileSystem fs,
-			final FunctionWithException<File, RefCountedFile, IOException> tempFileCreator,
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tempFileCreator,
 			final S3AccessHelper s3AccessHelper,
 			final Executor uploadThreadPool,
 			final long userDefinedMinPartSize,

@@ -31,6 +31,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -90,6 +91,13 @@ public final class ApiExpressionUtils {
 		} else if (expression instanceof Expression) {
 			return (Expression) expression;
 		} else if (expression instanceof Row) {
+			RowKind kind = ((Row) expression).getKind();
+			if (kind != RowKind.INSERT) {
+				throw new ValidationException(
+					String.format(
+						"Unsupported kind '%s' of a row [%s]. Only rows with 'INSERT' kind are supported when" +
+							" converting to an expression.", kind, expression));
+			}
 			return convertRow((Row) expression);
 		} else if (expression instanceof Map) {
 			return convertJavaMap((Map<?, ?>) expression);

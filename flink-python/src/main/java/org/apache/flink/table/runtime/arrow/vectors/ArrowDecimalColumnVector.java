@@ -19,20 +19,20 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.vector.DecimalColumnVector;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.vector.DecimalColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.DecimalVector;
 
 /**
- * Arrow column vector for Decimal.
+ * Arrow column vector for DecimalData.
  */
 @Internal
 public final class ArrowDecimalColumnVector implements DecimalColumnVector {
 
 	/**
-	 * Container which is used to store the sequence of Decimal values of a column to read.
+	 * Container which is used to store the sequence of DecimalData values of a column to read.
 	 */
 	private final DecimalVector decimalVector;
 
@@ -41,8 +41,8 @@ public final class ArrowDecimalColumnVector implements DecimalColumnVector {
 	}
 
 	@Override
-	public Decimal getDecimal(int i, int precision, int scale) {
-		return Decimal.fromBigDecimal(decimalVector.getObject(i), precision, scale);
+	public DecimalData getDecimal(int i, int precision, int scale) {
+		return DecimalData.fromBigDecimal(decimalVector.getObject(i), precision, scale);
 	}
 
 	@Override

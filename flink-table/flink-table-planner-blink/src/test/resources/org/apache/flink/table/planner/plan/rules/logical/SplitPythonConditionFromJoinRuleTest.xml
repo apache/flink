@@ -36,9 +36,9 @@ FlinkLogicalCalc(select=[a, b, d], where=[=(f0, b)])
 +- FlinkLogicalCalc(select=[a, b, d, pyFunc(a, d) AS f0])
    +- FlinkLogicalJoin(condition=[=($0, $2)], joinType=[inner])
       :- FlinkLogicalCalc(select=[a, b])
-      :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])
-         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
 
     </Resource>
@@ -72,9 +72,9 @@ FlinkLogicalCalc(select=[a, +(d, 1) AS EXPR$1], where=[AND(=(f0, +(a, d)), =(f1,
 +- FlinkLogicalCalc(select=[a, d, pyFunc(a, a) AS f0, pyFunc(a, d) AS f1])
    +- FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
       :- FlinkLogicalCalc(select=[a])
-      :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])
-         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
 
     </Resource>

@@ -39,11 +39,17 @@ public class SqlDropTable extends SqlDrop {
 
 	private SqlIdentifier tableName;
 	private boolean ifExists;
+	private final boolean isTemporary;
 
-	public SqlDropTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
+	public SqlDropTable(
+			SqlParserPos pos,
+			SqlIdentifier tableName,
+			boolean ifExists,
+			boolean isTemporary) {
 		super(OPERATOR, pos, ifExists);
 		this.tableName = tableName;
 		this.ifExists = ifExists;
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -67,9 +73,16 @@ public class SqlDropTable extends SqlDrop {
 		this.ifExists = ifExists;
 	}
 
+	public boolean isTemporary() {
+		return this.isTemporary;
+	}
+
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("DROP");
+		if (isTemporary) {
+			writer.keyword("TEMPORARY");
+		}
 		writer.keyword("TABLE");
 		if (ifExists) {
 			writer.keyword("IF EXISTS");

@@ -49,15 +49,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.is;
+import static org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorTestUtils.createSchedulingRequirements;
+import static org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorTestUtils.findSlotAssignmentByExecutionVertexId;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -89,7 +85,9 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 				.connectConsumerToProducer(consumerId, producerId)
 				.build();
 
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(
+			new TestingStateLocationRetriever(),
+			inputsLocationsRetriever);
 
 		inputsLocationsRetriever.markScheduled(producerId);
 		inputsLocationsRetriever.markScheduled(consumerId);
@@ -107,7 +105,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		inputsLocationsRetriever.assignTaskManagerLocation(producerId);
 
 		assertTrue(consumerSlotAssignment.getLogicalSlotFuture().isDone());
-		assertEquals(0, executionSlotAllocator.getNumberOfPendingSlotAssignments());
+		assertThat(executionSlotAllocator.getPendingSlotAssignments().keySet(), hasSize(0));
 	}
 
 	/**
@@ -121,16 +119,20 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
 		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
 		final CoLocationConstraint coLocationConstraint = new CoLocationGroup().getLocationConstraint(0);
-		final Collection<TaskManagerLocation> taskManagerLocations = Collections.singleton(new LocalTaskManagerLocation());
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
+		final TestingStateLocationRetriever stateLocationRetriever = new TestingStateLocationRetriever();
+		stateLocationRetriever.setStateLocation(executionVertexId, taskManagerLocation);
+
+		final ExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(
+			stateLocationRetriever,
+			new TestingInputsLocationsRetriever.Builder().build());
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Arrays.asList(
 			new ExecutionVertexSchedulingRequirements.Builder()
 				.withExecutionVertexId(executionVertexId)
 				.withPreviousAllocationId(allocationId)
 				.withSlotSharingGroupId(sharingGroupId)
-				.withPreferredLocations(taskManagerLocations)
 				.withPhysicalSlotResourceProfile(physicalSlotResourceProfile)
 				.withTaskResourceProfile(taskResourceProfile)
 				.withCoLocationConstraint(coLocationConstraint)
@@ -149,114 +151,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		assertThat(expectedSlotProfile.getPreviousExecutionGraphAllocations(), contains(allocationId));
 		assertEquals(taskResourceProfile, expectedSlotProfile.getTaskResourceProfile());
 		assertEquals(physicalSlotResourceProfile, expectedSlotProfile.getPhysicalSlotResourceProfile());
-		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocations.toArray()));
-	}
-
-	/**
-	 * Tests that cancels an execution vertex which is not existed.
-	 */
-	@Test
-	public void testCancelNonExistingExecutionVertex() {
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
-
-		ExecutionVertexID inValidExecutionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-		executionSlotAllocator.cancel(inValidExecutionVertexId);
-
-		assertThat(slotProvider.getCancelledSlotRequestIds(), is(empty()));
-	}
-
-	/**
-	 * Tests that cancels a slot request which has already been fulfilled.
-	 */
-	@Test
-	public void testCancelFulfilledSlotRequest() {
-		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
-
-		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-				createSchedulingRequirements(producerId);
-		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
-
-		executionSlotAllocator.cancel(producerId);
-
-		assertThat(slotProvider.getCancelledSlotRequestIds(), is(empty()));
-	}
-
-	/**
-	 * Tests that cancels a slot request which has not been fulfilled.
-	 */
-	@Test
-	public void testCancelUnFulfilledSlotRequest() throws Exception {
-		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
-
-		slotProvider.disableSlotAllocation();
-		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-				createSchedulingRequirements(producerId);
-		Collection<SlotExecutionVertexAssignment> assignments = executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
-
-		executionSlotAllocator.cancel(producerId);
-
-		assertThat(slotProvider.getCancelledSlotRequestIds(), hasSize(1));
-		assertThat(slotProvider.getCancelledSlotRequestIds(), contains(slotProvider.getReceivedSlotRequestIds().toArray()));
-
-		try {
-			assignments.iterator().next().getLogicalSlotFuture().get();
-			fail("Expect a CancellationException but got nothing.");
-		} catch (CancellationException ignored) {
-			// Expected exception
-		}
-	}
-
-	/**
-	 * Tests that all unfulfilled slot requests will be cancelled when stopped.
-	 */
-	@Test
-	public void testStop() throws Exception {
-		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
-
-		slotProvider.disableSlotAllocation();
-		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-				createSchedulingRequirements(executionVertexId);
-		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
-
-		executionSlotAllocator.stop().get();
-
-		assertThat(slotProvider.getCancelledSlotRequestIds(), hasSize(1));
-		assertThat(slotProvider.getCancelledSlotRequestIds(), contains(slotProvider.getReceivedSlotRequestIds().toArray()));
-		assertEquals(0, executionSlotAllocator.getNumberOfPendingSlotAssignments());
-	}
-
-	/**
-	 * Tests that all prior allocation ids are computed by union all previous allocation ids in scheduling requirements.
-	 */
-	@Test
-	public void testComputeAllPriorAllocationIds() {
-		List<AllocationID> expectAllocationIds = Arrays.asList(new AllocationID(), new AllocationID());
-		List<ExecutionVertexSchedulingRequirements> testSchedulingRequirements = Arrays.asList(
-				new ExecutionVertexSchedulingRequirements.Builder().
-						withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 0)).
-						withPreviousAllocationId(expectAllocationIds.get(0)).
-						build(),
-				new ExecutionVertexSchedulingRequirements.Builder().
-						withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 1)).
-						withPreviousAllocationId(expectAllocationIds.get(0)).
-						build(),
-				new ExecutionVertexSchedulingRequirements.Builder().
-						withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 2)).
-						withPreviousAllocationId(expectAllocationIds.get(1)).
-						build(),
-				new ExecutionVertexSchedulingRequirements.Builder().
-						withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 3)).
-						build()
-		);
-
-		Set<AllocationID> allPriorAllocationIds = DefaultExecutionSlotAllocator.computeAllPriorAllocationIds(testSchedulingRequirements);
-		assertThat(allPriorAllocationIds, containsInAnyOrder(expectAllocationIds.toArray()));
+		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocation));
 	}
 
 	@Test
@@ -278,38 +173,45 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		}
 	}
 
-	private DefaultExecutionSlotAllocator createExecutionSlotAllocator() {
-		return createExecutionSlotAllocator(new TestingInputsLocationsRetriever.Builder().build());
+	@Test
+	public void testSlotAssignmentIsProperlyRegistered() {
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
+
+		final ExecutionVertexID executionVertexID = new ExecutionVertexID(new JobVertexID(), 0);
+		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
+			createSchedulingRequirements(executionVertexID);
+
+		slotProvider.disableSlotAllocation();
+		final Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
+			executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+
+		final SlotExecutionVertexAssignment slotAssignment = slotExecutionVertexAssignments.iterator().next();
+
+		assertThat(executionSlotAllocator.getPendingSlotAssignments().values(), contains(slotAssignment));
+
+		executionSlotAllocator.cancel(executionVertexID);
+
+		assertThat(executionSlotAllocator.getPendingSlotAssignments().keySet(), hasSize(0));
+
+		final SlotRequestId slotRequestId = slotProvider.slotAllocationRequests.get(0).f0;
+		assertThat(slotProvider.getCancelledSlotRequestIds(), contains(slotRequestId));
 	}
 
-	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(InputsLocationsRetriever inputsLocationsRetriever) {
+	private DefaultExecutionSlotAllocator createExecutionSlotAllocator() {
+		return createExecutionSlotAllocator(
+			new TestingStateLocationRetriever(),
+			new TestingInputsLocationsRetriever.Builder().build());
+	}
+
+	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(
+			final StateLocationRetriever stateLocationRetriever,
+			final InputsLocationsRetriever inputsLocationsRetriever) {
 		return new DefaultExecutionSlotAllocator(
 			SlotProviderStrategy.from(
 				ScheduleMode.EAGER,
 				slotProvider,
 				Time.seconds(10)),
-			inputsLocationsRetriever);
-	}
-
-	private List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(ExecutionVertexID... executionVertexIds) {
-		List<ExecutionVertexSchedulingRequirements> schedulingRequirements = new ArrayList<>(executionVertexIds.length);
-
-		for (ExecutionVertexID executionVertexId : executionVertexIds) {
-			schedulingRequirements.add(new ExecutionVertexSchedulingRequirements.Builder()
-					.withExecutionVertexId(executionVertexId).build());
-		}
-		return schedulingRequirements;
-	}
-
-	private SlotExecutionVertexAssignment findSlotAssignmentByExecutionVertexId(
-			ExecutionVertexID executionVertexId,
-			Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments) {
-		return slotExecutionVertexAssignments.stream()
-				.filter(slotExecutionVertexAssignment -> slotExecutionVertexAssignment.getExecutionVertexId().equals(executionVertexId))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException(String.format(
-						"SlotExecutionVertexAssignment with execution vertex id %s not found",
-						executionVertexId)));
+			new DefaultPreferredLocationsRetriever(stateLocationRetriever, inputsLocationsRetriever));
 	}
 
 	private static class AllocationToggableSlotProvider implements SlotProvider {
@@ -347,18 +249,12 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 			return Collections.unmodifiableList(slotAllocationRequests);
 		}
 
-		public List<SlotRequestId> getReceivedSlotRequestIds() {
-			return slotAllocationRequests.stream()
-					.map(requestTuple -> requestTuple.f0)
-					.collect(Collectors.toList());
-		}
-
-		public List<SlotRequestId> getCancelledSlotRequestIds() {
-			return Collections.unmodifiableList(cancelledSlotRequestIds);
-		}
-
 		public void disableSlotAllocation() {
 			slotAllocationDisabled = true;
+		}
+
+		List<SlotRequestId> getCancelledSlotRequestIds() {
+			return cancelledSlotRequestIds;
 		}
 	}
 }

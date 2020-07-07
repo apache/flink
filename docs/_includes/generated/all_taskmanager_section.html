@@ -88,6 +88,12 @@
             <td>Defines the timeout for the TaskManager registration. If the duration is exceeded without a successful registration, then the TaskManager terminates.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.resource-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.rpc.port</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>String</td>

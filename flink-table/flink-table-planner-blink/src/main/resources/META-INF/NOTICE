@@ -11,14 +11,11 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
 - com.jayway.jsonpath:json-path:2.4.0
-- joda-time:joda-time:2.5
-- net.minidev:json-smart:jar:2.3
-- net.minidev:accessors-smart:jar:1.2
-- org.ow2.asm:asm:jar:5.0.4
 - org.apache.calcite:calcite-core:1.22.0
 - org.apache.calcite:calcite-linq4j:1.22.0
 - org.apache.calcite.avatica:avatica-core:1.16.0
 - commons-codec:commons-codec:1.10
+- commons-io:commons-io:2.4
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details

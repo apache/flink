@@ -43,7 +43,7 @@ To use this connector, add the following dependency to your project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
 
 ## Installing Apache Cassandra
 There are multiple ways to bring up a Cassandra instance on local machine:
@@ -111,7 +111,7 @@ More details on [checkpoints docs]({{ site.baseurl }}/dev/stream/state/checkpoin
 
 ## Examples
 
-The Cassandra sinks currently support both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use case of those streaming data type, please refer to [Supported Data Types]({{ site.baseurl }}/dev/api_concepts.html). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for Pojo and Tuple data types respectively.
+The Cassandra sinks currently support both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use case of those streaming data type, please refer to [Supported Data Types]({% link dev/types_serialization.md %}#supported-data-types). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for Pojo and Tuple data types respectively.
 
 In all these examples, we assumed the associated Keyspace `example` and Table `wordcount` have been created.
 

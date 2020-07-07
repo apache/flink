@@ -83,7 +83,7 @@ class ExecutionMode(object):
         elif j_execution_mode == JExecutionMode.BATCH_FORCED:
             return ExecutionMode.BATCH_FORCED
         else:
-            raise Exception("Unsupported java exection mode: %s" % j_execution_mode)
+            raise Exception("Unsupported java execution mode: %s" % j_execution_mode)
 
     @staticmethod
     def _to_j_execution_mode(execution_mode):

@@ -20,12 +20,13 @@ package org.apache.flink.table.tpcds;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.sinks.CsvTableSink;
@@ -92,7 +93,7 @@ public class TpcdsTestProgram {
 
 			//register sink table
 			String sinkTableName = QUERY_PREFIX + queryId + "_sinkTable";
-			tableEnvironment.registerTableSink(sinkTableName,
+			((TableEnvironmentInternal) tableEnvironment).registerTableSinkInternal(sinkTableName,
 					new CsvTableSink(
 						sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
 						COL_DELIMITER,
@@ -101,8 +102,11 @@ public class TpcdsTestProgram {
 						resultTable.getSchema().getFieldNames(),
 						resultTable.getSchema().getFieldDataTypes()
 					));
-			tableEnvironment.insertInto(resultTable, sinkTableName);
-			tableEnvironment.execute(queryName);
+			TableResult tableResult = resultTable.executeInsert(sinkTableName);
+			// wait job finish
+			tableResult.getJobClient().get()
+					.getJobExecutionResult(Thread.currentThread().getContextClassLoader())
+					.get();
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
 		}
 	}
@@ -123,8 +127,6 @@ public class TpcdsTestProgram {
 		TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
 		//config Optimizer parameters
-		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
 		tEnv.getConfig().getConfiguration()
 				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
 		tEnv.getConfig().getConfiguration()

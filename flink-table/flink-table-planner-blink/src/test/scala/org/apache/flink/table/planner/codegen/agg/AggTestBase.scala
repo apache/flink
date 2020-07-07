@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
@@ -45,12 +45,12 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
   private val tEnv = if (isBatchMode) {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     // use impl class instead of interface class to avoid
     // "Static methods in interface require -target:jvm-1.8"
     TableEnvironmentImpl.create(settings)
   } else {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     StreamTableEnvironment.create(env, settings)
   }
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]

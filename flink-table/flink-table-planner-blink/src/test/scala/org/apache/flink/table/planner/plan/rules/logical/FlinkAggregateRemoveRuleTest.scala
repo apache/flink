@@ -19,10 +19,9 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCalc, FlinkLogicalExpand, FlinkLogicalJoin, FlinkLogicalSink, FlinkLogicalTableSourceScan, FlinkLogicalValues}
+import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -30,7 +29,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.{FilterCalcMergeRule, FilterToCalcRule, ProjectCalcMergeRule, ProjectToCalcRule, ReduceExpressionsRule}
+import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
@@ -75,8 +74,8 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
           FlinkLogicalJoin.CONVERTER,
           FlinkLogicalValues.CONVERTER,
           FlinkLogicalExpand.CONVERTER,
-          FlinkLogicalTableSourceScan.CONVERTER,
-          FlinkLogicalSink.CONVERTER))
+          FlinkLogicalLegacyTableSourceScan.CONVERTER,
+          FlinkLogicalLegacySink.CONVERTER))
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())
     util.replaceBatchProgram(programs)

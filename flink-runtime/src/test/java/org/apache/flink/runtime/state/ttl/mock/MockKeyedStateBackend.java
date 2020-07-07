@@ -167,6 +167,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		// noop
+	}
+
+	@Override
 	public <N> Stream<K> getKeys(String state, N namespace) {
 		return stateValues.get(state).entrySet().stream()
 			.filter(e -> e.getValue().containsKey(namespace))

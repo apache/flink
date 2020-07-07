@@ -22,15 +22,15 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
 /**
  * The factory of {@link WatermarkAssignerOperator}.
  */
-public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFactory<BaseRow>
-	implements OneInputStreamOperatorFactory<BaseRow, BaseRow> {
+public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFactory<RowData>
+	implements OneInputStreamOperatorFactory<RowData, RowData> {
 
 	private static final long serialVersionUID = 1L;
 

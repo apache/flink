@@ -19,15 +19,17 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -234,7 +236,7 @@ public class PendingCheckpoint {
 	 */
 	public boolean canBeSubsumed() {
 		// If the checkpoint is forced, it cannot be subsumed.
-		return !props.forceCheckpoint();
+		return !props.isSavepoint();
 	}
 
 	CheckpointProperties getProps() {
@@ -371,31 +373,31 @@ public class PendingCheckpoint {
 				acknowledgedTasks.add(executionAttemptId);
 			}
 
-			List<OperatorID> operatorIDs = vertex.getJobVertex().getOperatorIDs();
+			List<OperatorIDPair> operatorIDs = vertex.getJobVertex().getOperatorIDs();
 			int subtaskIndex = vertex.getParallelSubtaskIndex();
 			long ackTimestamp = System.currentTimeMillis();
 
 			long stateSize = 0L;
 
 			if (operatorSubtaskStates != null) {
-				for (OperatorID operatorID : operatorIDs) {
+				for (OperatorIDPair operatorID : operatorIDs) {
 
 					OperatorSubtaskState operatorSubtaskState =
-						operatorSubtaskStates.getSubtaskStateByOperatorID(operatorID);
+						operatorSubtaskStates.getSubtaskStateByOperatorID(operatorID.getGeneratedOperatorID());
 
 					// if no real operatorSubtaskState was reported, we insert an empty state
 					if (operatorSubtaskState == null) {
 						operatorSubtaskState = new OperatorSubtaskState();
 					}
 
-					OperatorState operatorState = operatorStates.get(operatorID);
+					OperatorState operatorState = operatorStates.get(operatorID.getGeneratedOperatorID());
 
 					if (operatorState == null) {
 						operatorState = new OperatorState(
-							operatorID,
+							operatorID.getGeneratedOperatorID(),
 							vertex.getTotalNumberOfParallelSubtasks(),
 							vertex.getMaxParallelism());
-						operatorStates.put(operatorID, operatorState);
+						operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
 					}
 
 					operatorState.putState(subtaskIndex, operatorSubtaskState);
@@ -419,7 +421,6 @@ public class PendingCheckpoint {
 					stateSize,
 					metrics.getSyncDurationMillis(),
 					metrics.getAsyncDurationMillis(),
-					metrics.getBytesBufferedInAlignment(),
 					alignmentDurationMillis,
 					checkpointStartDelayMillis);
 
@@ -431,8 +432,8 @@ public class PendingCheckpoint {
 	}
 
 	public TaskAcknowledgeResult acknowledgeCoordinatorState(
-			OperatorCoordinatorCheckpointContext coordinatorInfo,
-			@Nullable StreamStateHandle stateHandle) {
+			OperatorInfo coordinatorInfo,
+			@Nullable ByteStreamStateHandle stateHandle) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -506,8 +507,8 @@ public class PendingCheckpoint {
 	}
 
 	private void assertAbortSubsumedForced(CheckpointFailureReason reason) {
-		if (props.forceCheckpoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
-			throw new IllegalStateException("Bug: forced checkpoints must never be subsumed, " +
+		if (props.isSavepoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
+			throw new IllegalStateException("Bug: savepoints must never be subsumed, " +
 				"the abort reason is : " + reason.message());
 		}
 	}

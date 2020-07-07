@@ -167,7 +167,7 @@ public class JobMasterBuilder {
 			onCompletionActions,
 			fatalErrorHandler,
 			JobMasterBuilder.class.getClassLoader(),
-			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration, jobManagerSharedServices.getRestartStrategyFactory()),
+			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
 			shuffleMaster,
 			partitionTrackerFactory);
 	}

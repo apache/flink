@@ -69,8 +69,6 @@ public class Constants {
 
 	public static final String ENV_FLINK_CLASSPATH = "FLINK_CLASSPATH";
 
-	public static final String ENV_FLINK_POD_NAME = "_FLINK_POD_NAME";
-
 	public static final String ENV_FLINK_POD_IP_ADDRESS = "_POD_IP_ADDRESS";
 
 	public static final String POD_IP_FIELD_PATH = "status.podIP";
@@ -78,4 +76,6 @@ public class Constants {
 	public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
 
 	public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
+
+	public static final String RESTART_POLICY_OF_NEVER = "Never";
 }

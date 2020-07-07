@@ -291,6 +291,7 @@ public abstract class KafkaTableSourceBase implements
 				kafkaConsumer.setStartFromTimestamp(startupTimestampMillis);
 				break;
 		}
+		kafkaConsumer.setCommitOffsetsOnCheckpoints(properties.getProperty("group.id") != null);
 		return kafkaConsumer;
 	}
 

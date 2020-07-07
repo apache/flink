@@ -31,13 +31,19 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
+
+import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class contains utility methods for the {@link YarnSessionClusterEntrypoint} and
@@ -111,5 +117,19 @@ public class YarnEntrypointUtils {
 
 		log.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 			currentUser.getShortUserName(), yarnClientUsername);
+	}
+
+	public static Optional<File> getUsrLibDir(final Configuration configuration) {
+		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
+				.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final Optional<File> userLibDir = tryFindUserLibDirectory();
+
+		checkState(
+				userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
+				"The %s is set to %s. But the usrlib directory does not exist.",
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+				YarnConfigOptions.UserJarInclusion.DISABLED);
+
+		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir : Optional.empty();
 	}
 }

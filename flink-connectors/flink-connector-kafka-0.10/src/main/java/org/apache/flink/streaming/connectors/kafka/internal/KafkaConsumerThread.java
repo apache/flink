@@ -67,7 +67,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to the KafkaConsumer calls that change signature.
  */
 @Internal
-public class KafkaConsumerThread extends Thread {
+public class KafkaConsumerThread<T> extends Thread {
 
 	/** Logger for this consumer. */
 	private final Logger log;
@@ -82,7 +82,7 @@ public class KafkaConsumerThread extends Thread {
 	private final Properties kafkaProperties;
 
 	/** The queue of unassigned partitions that we need to assign to the Kafka consumer. */
-	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue;
+	private final ClosableBlockingQueue<KafkaTopicPartitionState<T, TopicPartition>> unassignedPartitionsQueue;
 
 	/** The maximum number of milliseconds to wait for a fetch batch. */
 	private final long pollTimeout;
@@ -128,7 +128,7 @@ public class KafkaConsumerThread extends Thread {
 			Logger log,
 			Handover handover,
 			Properties kafkaProperties,
-			ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
+			ClosableBlockingQueue<KafkaTopicPartitionState<T, TopicPartition>> unassignedPartitionsQueue,
 			String threadName,
 			long pollTimeout,
 			boolean useMetrics,
@@ -214,7 +214,7 @@ public class KafkaConsumerThread extends Thread {
 			// reused variable to hold found unassigned new partitions.
 			// found partitions are not carried across loops using this variable;
 			// they are carried across via re-adding them to the unassigned partitions queue
-			List<KafkaTopicPartitionState<TopicPartition>> newPartitions;
+			List<KafkaTopicPartitionState<T, TopicPartition>> newPartitions;
 
 			// main fetch loop
 			while (running) {
@@ -391,7 +391,7 @@ public class KafkaConsumerThread extends Thread {
 	 * <p>This method is exposed for testing purposes.
 	 */
 	@VisibleForTesting
-	void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
+	void reassignPartitions(List<KafkaTopicPartitionState<T, TopicPartition>> newPartitions) throws Exception {
 		if (newPartitions.size() == 0) {
 			return;
 		}
@@ -433,7 +433,7 @@ public class KafkaConsumerThread extends Thread {
 			//       been replaced with actual offset values yet, or
 			//   (3) the partition was newly discovered after startup;
 			// replace those with actual offsets, according to what the sentinel value represent.
-			for (KafkaTopicPartitionState<TopicPartition> newPartitionState : newPartitions) {
+			for (KafkaTopicPartitionState<T, TopicPartition> newPartitionState : newPartitions) {
 				if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET) {
 					consumerTmp.seekToBeginning(Collections.singletonList(newPartitionState.getKafkaPartitionHandle()));
 					newPartitionState.setOffset(consumerTmp.position(newPartitionState.getKafkaPartitionHandle()) - 1);
@@ -472,7 +472,7 @@ public class KafkaConsumerThread extends Thread {
 				hasBufferedWakeup = false;
 
 				// re-add all new partitions back to the unassigned partitions queue to be picked up again
-				for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+				for (KafkaTopicPartitionState<T, TopicPartition> newPartition : newPartitions) {
 					unassignedPartitionsQueue.add(newPartition);
 				}
 
@@ -545,9 +545,9 @@ public class KafkaConsumerThread extends Thread {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static List<TopicPartition> convertKafkaPartitions(List<KafkaTopicPartitionState<TopicPartition>> partitions) {
+	private static <T> List<TopicPartition> convertKafkaPartitions(List<KafkaTopicPartitionState<T, TopicPartition>> partitions) {
 		ArrayList<TopicPartition> result = new ArrayList<>(partitions.size());
-		for (KafkaTopicPartitionState<TopicPartition> p : partitions) {
+		for (KafkaTopicPartitionState<T, TopicPartition> p : partitions) {
 			result.add(p.getKafkaPartitionHandle());
 		}
 		return result;

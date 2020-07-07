@@ -24,16 +24,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-`TODO: add introduction`
-
 * This will be replaced by the TOC
 {:toc}
 
-## Latency & Completeness
+## Introduction
 
-`TODO: add these two sections`
+Timely steam processing is an extension of [stateful stream processing]({% link
+concepts/stateful-stream-processing.md %}) in which time plays some role in the
+computation. Among other things, this is the case when you do time series
+analysis, when doing aggregations based on certain time periods (typically
+called windows), or when you do event processing where the time when an event
+occured is important.
 
-### Latency vs. Completeness in Batch & Stream Processing
+In the following sections we will highlight some of the topics that you should
+consider when working with timely Flink Applications.
 
 {% top %}
 
@@ -183,7 +187,7 @@ evaluation of event time windows.
 For this reason, streaming programs may explicitly expect some *late* elements.
 Late elements are elements that arrive after the system's event time clock (as
 signaled by the watermarks) has already passed the time of the late element's
-timestamp. See [Allowed Lateness]({{ site.baseurl }}{% link
+timestamp. See [Allowed Lateness]({% link
 dev/stream/operators/windows.md %}#allowed-lateness) for more information on
 how to work with late elements in event time windows.
 
@@ -204,8 +208,7 @@ overlap), and *session windows* (punctuated by a gap of inactivity).
 
 Please check out this [blog
 post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) for
-additional examples of windows or take a look a [window documentation]({{
-site.baseurl }}{% link dev/stream/operators/windows.md %}) of the DataStream
-API.
+additional examples of windows or take a look a [window documentation]({% link
+dev/stream/operators/windows.md %}) of the DataStream API.
 
 {% top %}

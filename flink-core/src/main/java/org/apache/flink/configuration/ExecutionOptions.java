@@ -55,19 +55,4 @@ public class ExecutionOptions {
 						"throughput")
 				)
 				.build());
-
-	public static final ConfigOption<Duration> EMBEDDED_RPC_TIMEOUT =
-		ConfigOptions.key("execution.embedded-rpc-timeout")
-			.durationType()
-			.defaultValue(Duration.ofMillis(60 * 60 * 1000))
-			.withDescription("The rpc timeout (in ms) when executing applications in \"Application Mode\". " +
-					"This affects all rpc's available through the Job Client and job submission.");
-
-	public static final ConfigOption<Duration> EMBEDDED_RPC_RETRY_PERIOD =
-		ConfigOptions.key("execution.embedded-rpc-retry-period")
-			.durationType()
-			.defaultValue(Duration.ofMillis(2000))
-			.withDescription("The retry period (in ms) between consecutive attempts to get the job status " +
-					"when executing applications in \"Application Mode\".");
-
 }

@@ -47,6 +47,7 @@ public class SlotManagerConfiguration {
 	private final SlotMatchingStrategy slotMatchingStrategy;
 	private final WorkerResourceSpec defaultWorkerResourceSpec;
 	private final int numSlotsPerWorker;
+	private final int maxSlotNum;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
@@ -55,15 +56,19 @@ public class SlotManagerConfiguration {
 			boolean waitResultConsumedBeforeRelease,
 			SlotMatchingStrategy slotMatchingStrategy,
 			WorkerResourceSpec defaultWorkerResourceSpec,
-			int numSlotsPerWorker) {
+			int numSlotsPerWorker,
+			int maxSlotNum) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
-		this.slotMatchingStrategy = slotMatchingStrategy;
-		this.defaultWorkerResourceSpec = defaultWorkerResourceSpec;
+		this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+		this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
+		Preconditions.checkState(numSlotsPerWorker > 0);
+		Preconditions.checkState(maxSlotNum > 0);
 		this.numSlotsPerWorker = numSlotsPerWorker;
+		this.maxSlotNum = maxSlotNum;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -94,6 +99,10 @@ public class SlotManagerConfiguration {
 		return numSlotsPerWorker;
 	}
 
+	public int getMaxSlotNum() {
+		return maxSlotNum;
+	}
+
 	public static SlotManagerConfiguration fromConfiguration(
 			Configuration configuration,
 			WorkerResourceSpec defaultWorkerResourceSpec) throws ConfigurationException {
@@ -119,6 +128,8 @@ public class SlotManagerConfiguration {
 
 		int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
+		int maxSlotNum = configuration.getInteger(ResourceManagerOptions.MAX_SLOT_NUM);
+
 		return new SlotManagerConfiguration(
 			rpcTimeout,
 			slotRequestTimeout,
@@ -126,7 +137,8 @@ public class SlotManagerConfiguration {
 			waitResultConsumedBeforeRelease,
 			slotMatchingStrategy,
 			defaultWorkerResourceSpec,
-			numSlotsPerWorker);
+			numSlotsPerWorker,
+			maxSlotNum);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {

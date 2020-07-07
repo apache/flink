@@ -23,11 +23,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -45,7 +45,6 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.CoreMatchers;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
@@ -58,6 +57,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -687,8 +687,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		try (SlotManager slotManager = createSlotManagerBuilder()
 			.setSlotRequestTimeout(Time.milliseconds(allocationTimeout))
 			.build()) {
 
@@ -816,8 +815,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final ScheduledExecutor mainThreadExecutor = TestingUtils.defaultScheduledExecutor();
 
-		final SlotManagerImpl slotManager = SlotManagerBuilder
-			.newBuilder()
+		final SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setScheduledExecutor(mainThreadExecutor)
 			.build();
 
@@ -908,8 +906,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (final SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		try (final SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setTaskManagerTimeout(Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))
 			.build()) {
 
@@ -977,12 +974,9 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotStatus slotStatus = createEmptySlotStatus(new SlotID(resourceID, 0), ResourceProfile.fromResources(1.0, 1));
 		final SlotReport initialSlotReport = new SlotReport(slotStatus);
 
-		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		try (final SlotManager slotManager = createSlotManagerBuilder()
 			.setTaskManagerTimeout(taskManagerTimeout)
-			.build()) {
-
-			slotManager.start(resourceManagerId, Executors.directExecutor(), resourceActions);
+			.buildAndStartWithDirectExec(resourceManagerId, resourceActions)) {
 
 			slotManager.registerTaskManager(taskExecutorConnection, initialSlotReport);
 
@@ -1012,9 +1006,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskManagerId, taskExecutorGateway);
 
-		try (final SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder().build()) {
-
-			slotManager.start(ResourceManagerId.generate(), Executors.directExecutor(), resourceActions);
+		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
 
 			// initially report a single slot as free
 			final SlotID slotId = new SlotID(taskManagerId, 0);
@@ -1305,12 +1297,14 @@ public class SlotManagerImplTest extends TestLogger {
 	}
 
 	private SlotManagerImpl createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions, int numSlotsPerWorker) {
-		SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setNumSlotsPerWorker(numSlotsPerWorker)
-			.build();
-		slotManager.start(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions);
 		return slotManager;
+	}
+
+	private SlotManagerBuilder createSlotManagerBuilder() {
+		return SlotManagerBuilder.newBuilder().setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC);
 	}
 
 	/**
@@ -1489,7 +1483,7 @@ public class SlotManagerImplTest extends TestLogger {
 			slotManager.registerTaskManager(taskExecutorConnection, slotReport);
 			slotManager.unregisterTaskManager(taskExecutorConnection.getInstanceID(), failureCause);
 
-			assertThat(allocationFailureCause.get(), CoreMatchers.containsCause(failureCause));
+			assertThat(allocationFailureCause.get(), FlinkMatchers.containsCause(failureCause));
 		}
 	}
 
@@ -1507,13 +1501,9 @@ public class SlotManagerImplTest extends TestLogger {
 	 */
 	@Test
 	public void testSpreadOutSlotAllocationStrategy() throws Exception {
-		try (SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
+		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setSlotMatchingStrategy(LeastUtilizationSlotMatchingStrategy.INSTANCE)
-			.build()) {
-			slotManager.start(
-				ResourceManagerId.generate(),
-				Executors.directExecutor(),
-				new TestingResourceActionsBuilder().build());
+			.buildAndStartWithDirectExec(ResourceManagerId.generate(), new TestingResourceActionsBuilder().build())) {
 
 			final List<CompletableFuture<JobID>> requestSlotFutures = new ArrayList<>();
 
@@ -1537,6 +1527,83 @@ public class SlotManagerImplTest extends TestLogger {
 			final Set<JobID> jobIds = new HashSet<>(FutureUtils.combineAll(requestSlotFutures).get(10L, TimeUnit.SECONDS));
 			assertThat(jobIds, hasSize(1));
 			assertThat(jobIds, containsInAnyOrder(jobId));
+		}
+	}
+
+	/**
+	 * Test that the slot manager respect the max limitation of the number of slots when allocate new resource.
+	 */
+	@Test
+	public void testMaxSlotLimitAllocateResource() throws Exception {
+		final int numberSlots = 1;
+		final int maxSlotNum = 1;
+
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final JobID jobId = new JobID();
+
+		final AtomicInteger resourceRequests = new AtomicInteger(0);
+		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setAllocateResourceFunction(
+				ignored -> {
+					resourceRequests.incrementAndGet();
+					return true;
+				})
+			.build();
+
+		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
+			.setNumSlotsPerWorker(numberSlots)
+			.setMaxSlotNum(maxSlotNum)
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
+
+			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(createSlotRequest(jobId)));
+			assertThat(resourceRequests.get(), is(1));
+
+			// The second slot request should not try to allocate a new resource because of the max limitation.
+			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(createSlotRequest(jobId)));
+			assertThat(resourceRequests.get(), is(1));
+		}
+	}
+
+	/**
+	 * Test that the slot manager release resource when the number of slots exceed max limit when new TaskExecutor registered.
+	 */
+	@Test
+	public void testMaxSlotLimitRegisterResource() throws Exception {
+		final int numberSlots = 1;
+		final int maxSlotNum = 1;
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+
+		final CompletableFuture<InstanceID> releasedResourceFuture = new CompletableFuture<>();
+		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setReleaseResourceConsumer((instanceID, e) -> releasedResourceFuture.complete(instanceID))
+			.build();
+
+		final TaskExecutorGateway taskExecutorGateway1 = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		final TaskExecutorGateway taskExecutorGateway2 = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		final ResourceID resourceId1 = ResourceID.generate();
+		final ResourceID resourceId2 = ResourceID.generate();
+		final TaskExecutorConnection taskManagerConnection1 = new TaskExecutorConnection(resourceId1, taskExecutorGateway1);
+		final TaskExecutorConnection taskManagerConnection2 = new TaskExecutorConnection(resourceId2, taskExecutorGateway2);
+
+		final SlotID slotId1 = new SlotID(resourceId1, 0);
+		final SlotID slotId2 = new SlotID(resourceId1, 0);
+		final SlotStatus slotStatus1 = new SlotStatus(slotId1, ResourceProfile.UNKNOWN);
+		final SlotStatus slotStatus2 = new SlotStatus(slotId2, ResourceProfile.UNKNOWN);
+		final SlotReport slotReport1 = new SlotReport(Collections.singletonList(slotStatus1));
+		final SlotReport slotReport2 = new SlotReport(Collections.singletonList(slotStatus2));
+
+		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
+			.setNumSlotsPerWorker(numberSlots)
+			.setMaxSlotNum(maxSlotNum)
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
+			slotManager.registerTaskManager(taskManagerConnection1, slotReport1);
+			slotManager.registerTaskManager(taskManagerConnection2, slotReport2);
+
+			assertThat("The number registered slots does not equal the expected number.", slotManager.getNumberRegisteredSlots(), is(1));
+			assertNotNull(slotManager.getSlot(slotId1));
+
+			// The second registered task manager should be released.
+			assertThat(releasedResourceFuture.get(), is(equalTo(taskManagerConnection2.getInstanceID())));
 		}
 	}
 

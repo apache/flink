@@ -39,14 +39,16 @@ public interface FlatAggregateTable {
 	 *
 	 * <pre>
 	 * {@code
-	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
 	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
 	 *   tab.groupBy("key")
 	 *     .flatAggregate("tableAggFunc(a, b) as (x, y, z)")
 	 *     .select("key, x, y, z")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #select(Expression...)}
 	 */
+	@Deprecated
 	Table select(String fields);
 
 	/**
@@ -56,14 +58,26 @@ public interface FlatAggregateTable {
 	 * <p><b>Note</b>: You have to close the flatAggregate with a select statement. And the select
 	 * statement does not support aggregate functions.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
+	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+	 *   tab.groupBy($("key"))
+	 *     .flatAggregate(call("tableAggFunc", $("a"), $("b")).as("x", "y", "z"))
+	 *     .select($("key"), $("x"), $("y"), $("z"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   val tableAggFunc = new MyTableAggregateFunction
-	 *   tab.groupBy('key)
-	 *     .flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
-	 *     .select('key, 'x, 'y, 'z)
+	 *   val tableAggFunc: TableAggregateFunction = new MyTableAggregateFunction
+	 *   tab.groupBy($"key")
+	 *     .flatAggregate(tableAggFunc($"a", $"b") as ("x", "y", "z"))
+	 *     .select($"key", $"x", $"y", $"z")
 	 * }
 	 * </pre>
 	 */

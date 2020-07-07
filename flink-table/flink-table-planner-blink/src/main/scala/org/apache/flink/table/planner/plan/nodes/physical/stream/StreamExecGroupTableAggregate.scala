@@ -17,24 +17,26 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import java.util
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils, KeySelectorUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -50,7 +52,7 @@ class StreamExecGroupTableAggregate(
     val aggCalls: Seq[AggregateCall])
   extends SingleRel(cluster, traitSet, inputRel)
     with StreamPhysicalRel
-    with StreamExecNode[BaseRow] {
+    with StreamExecNode[RowData] {
 
   val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
     this,
@@ -96,7 +98,7 @@ class StreamExecGroupTableAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
 
     val tableConfig = planner.getTableConfig
 
@@ -107,7 +109,7 @@ class StreamExecGroupTableAggregate(
     }
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
     val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
@@ -142,18 +144,18 @@ class StreamExecGroupTableAggregate(
       accTypes,
       inputCountIndex,
       generateUpdateBefore)
-    val operator = new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](aggFunction)
+    val operator = new KeyedProcessOperator[RowData, RowData, RowData](aggFunction)
 
-    val selector = KeySelectorUtil.getBaseRowSelector(
+    val selector = KeySelectorUtil.getRowDataSelector(
       grouping,
-      BaseRowTypeInfo.of(inputRowType))
+      RowDataTypeInfo.of(inputRowType))
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
       "GroupTableAggregate",
       operator,
-      BaseRowTypeInfo.of(outRowType),
+      RowDataTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

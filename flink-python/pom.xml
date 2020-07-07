@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -271,7 +271,6 @@ under the License.
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
 								<delete dir="${project.basedir}/build"/>
-								<delete dir="${project.basedir}/dist"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
 							</target>
 						</configuration>
@@ -435,6 +434,20 @@ under the License.
 							</includes>
 							<outputDirectory>
 								${project.build.directory}/func2
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testJavaDDL</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/PythonFunctionFactoryTest.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/javaDDL
 							</outputDirectory>
 						</configuration>
 					</execution>

@@ -22,8 +22,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader.ColumnBatchGenerator;
 import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
@@ -134,7 +134,7 @@ public class OrcSplitReaderUtil {
 	/**
 	 * See {@code org.apache.flink.table.catalog.hive.util.HiveTypeUtil}.
 	 */
-	static TypeDescription logicalTypeToOrcType(LogicalType type) {
+	public static TypeDescription logicalTypeToOrcType(LogicalType type) {
 		type = type.copy(true);
 		switch (type.getTypeRoot()) {
 			case CHAR:

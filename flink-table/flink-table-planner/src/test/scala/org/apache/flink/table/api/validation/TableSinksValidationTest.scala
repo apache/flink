@@ -20,11 +20,12 @@ package org.apache.flink.table.api.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, Types, ValidationException}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{TableException, Types, ValidationException, _}
 import org.apache.flink.table.runtime.stream.table.TestAppendSink
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
 
 class TableSinksValidationTest extends TableTestBase {
@@ -34,7 +35,8 @@ class TableSinksValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
-    util.tableEnv.registerTableSink("testSink", new TestAppendSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
@@ -50,7 +52,7 @@ class TableSinksValidationTest extends TableTestBase {
     val fieldNames = Array("a", "b", "c")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
     // table name already registered
-    util.tableEnv.registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "TargetTable",
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }
@@ -63,7 +65,7 @@ class TableSinksValidationTest extends TableTestBase {
     val fieldNames = Array("a", "b", "c")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
 
-    util.tableEnv.registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "TargetTable",
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
@@ -44,20 +44,20 @@ public interface AggsHandleFunctionBase extends Function {
 	 * Accumulates the input values to the accumulators.
 	 * @param input input values bundled in a row
 	 */
-	void accumulate(BaseRow input) throws Exception;
+	void accumulate(RowData input) throws Exception;
 
 	/**
 	 * Retracts the input values from the accumulators.
 	 * @param input input values bundled in a row
 	 */
-	void retract(BaseRow input) throws Exception;
+	void retract(RowData input) throws Exception;
 
 	/**
 	 * Merges the other accumulators into current accumulators.
 	 *
 	 * @param accumulators The other row of accumulators
 	 */
-	void merge(BaseRow accumulators) throws Exception;
+	void merge(RowData accumulators) throws Exception;
 
 	/**
 	 * Set the current accumulators (saved in a row) which contains the current aggregated results.
@@ -66,7 +66,7 @@ public interface AggsHandleFunctionBase extends Function {
 	 *
 	 * @param accumulators current accumulators
 	 */
-	void setAccumulators(BaseRow accumulators) throws Exception;
+	void setAccumulators(RowData accumulators) throws Exception;
 
 	/**
 	 * Resets all the accumulators.
@@ -78,14 +78,14 @@ public interface AggsHandleFunctionBase extends Function {
 	 * aggregated results.
 	 * @return the current accumulators
 	 */
-	BaseRow getAccumulators() throws Exception;
+	RowData getAccumulators() throws Exception;
 
 	/**
 	 * Initializes the accumulators and save them to a accumulators row.
 	 *
 	 * @return a row of accumulators which contains the aggregated results
 	 */
-	BaseRow createAccumulators() throws Exception;
+	RowData createAccumulators() throws Exception;
 
 	/**
 	 * Cleanup for the retired accumulators state.

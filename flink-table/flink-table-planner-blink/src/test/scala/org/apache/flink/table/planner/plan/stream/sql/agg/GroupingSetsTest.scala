@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
@@ -28,7 +27,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 import java.sql.Date
-
 
 class GroupingSetsTest extends TableTestBase {
 

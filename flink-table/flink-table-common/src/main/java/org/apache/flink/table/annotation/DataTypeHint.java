@@ -45,6 +45,9 @@ import java.lang.annotation.Target;
  * <p>{@code @DataTypeHint(value = "TIMESTAMP(3)", bridgedTo = java.sql.Timestamp.class)} defines a TIMESTAMP
  * data type of millisecond precision with an explicit conversion class.
  *
+ * <p>{@code @DataTypeHint(value = "RAW", bridgedTo = MyCustomClass.class)} defines a RAW data type with
+ * Flink's default serializer for class {@code MyCustomClass}.
+ *
  * <p>{@code @DataTypeHint(value = "RAW", rawSerializer = MyCustomSerializer.class)} defines a RAW data type
  * with a custom serializer class.
  *
@@ -84,9 +87,10 @@ public @interface DataTypeHint {
 	 * data types. For example, {@code INT} for an integer data type or {@code DECIMAL(12, 5)} for decimal
 	 * data type with precision 12 and scale 5.
 	 *
-	 * <p>Use an unparameterized {@code RAW} string for explicitly declaring an opaque data type. For
-	 * Flink's default RAW serializer, use {@code @DataTypeHint("RAW")}. For a custom RAW serializer,
-	 * use {@code @DataTypeHint(value = "RAW", rawSerializer = MyCustomSerializer.class)}.
+	 * <p>Use an unparameterized {@code RAW} string for explicitly declaring an opaque data type without
+	 * entering a full type string. For Flink's default RAW serializer, use {@code @DataTypeHint("RAW")}
+	 * or more specific {@code @DataTypeHint(value = "RAW", bridgedTo = MyCustomClass.class)}. For a custom
+	 * RAW serializer, use {@code @DataTypeHint(value = "RAW", rawSerializer = MyCustomSerializer.class)}.
 	 *
 	 * <p>By default, the empty string represents an undefined data type which means that it will be
 	 * derived automatically.

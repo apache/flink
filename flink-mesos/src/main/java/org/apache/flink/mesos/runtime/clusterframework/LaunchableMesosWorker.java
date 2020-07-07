@@ -142,7 +142,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public double getNetworkMbps() {
-			return 0.0;
+			return params.network();
 		}
 
 		@Override
@@ -229,6 +229,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			taskInfo.addAllResources(allocation.takeScalar("disk", taskRequest.getDisk(), roles));
 		}
 
+		if (taskRequest.getNetworkMbps() > 0.0) {
+			taskInfo.addAllResources(allocation.takeScalar("network", taskRequest.getNetworkMbps(), roles));
+		}
+
 		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
 		final Protos.Environment.Builder env = cmd.getEnvironmentBuilder();
 		final StringBuilder jvmArgs = new StringBuilder();
@@ -273,8 +277,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			env.addVariables(variable(entry.getKey(), entry.getValue()));
 		}
 
-		// propagate the Mesos task ID to the TM
-		env.addVariables(variable(MesosConfigKeys.ENV_FLINK_CONTAINER_ID, taskInfo.getTaskId().getValue()));
+		// set the ResourceID of TM to the Mesos task
+		dynamicProperties.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, taskInfo.getTaskId().getValue());
 
 		// finalize the memory parameters
 		jvmArgs.append(" ").append(ProcessMemoryUtils.generateJvmParametersStr(tmParams.getTaskExecutorProcessSpec()));

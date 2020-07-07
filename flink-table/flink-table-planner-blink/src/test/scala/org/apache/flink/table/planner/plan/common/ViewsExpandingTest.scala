@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogView, CatalogViewImpl, ObjectPath}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil, TableTestUtilBase}
 

@@ -22,10 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -42,6 +40,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -157,32 +156,6 @@ public class StreamingRuntimeContextTest {
 	}
 
 	@Test
-	public void testFoldingStateInstantiation() throws Exception {
-
-		final ExecutionConfig config = new ExecutionConfig();
-		config.registerKryoType(Path.class);
-
-		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
-
-		StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
-
-		@SuppressWarnings("unchecked")
-		FoldFunction<String, TaskInfo> folder = (FoldFunction<String, TaskInfo>) mock(FoldFunction.class);
-
-		FoldingStateDescriptor<String, TaskInfo> descr =
-				new FoldingStateDescriptor<>("name", null, folder, TaskInfo.class);
-
-		context.getFoldingState(descr);
-
-		FoldingStateDescriptor<?, ?> descrIntercepted = (FoldingStateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
-
-		// check that the Path class is really registered, i.e., the execution config was applied
-		assertTrue(serializer instanceof KryoSerializer);
-		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
-	}
-
-	@Test
 	public void testListStateInstantiation() throws Exception {
 
 		final ExecutionConfig config = new ExecutionConfig();
@@ -290,7 +263,8 @@ public class StreamingRuntimeContextTest {
 			operator.getMetricGroup(),
 			operator.getOperatorID(),
 			operator.getProcessingTimeService(),
-			operator.getKeyedStateStore());
+			operator.getKeyedStateStore(),
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES);
 	}
 
 	@SuppressWarnings("unchecked")

@@ -24,6 +24,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* This will be replaced by the TOC
+{:toc}
+
+## What is State?
+
 While many operations in a dataflow simply look at one individual *event at a
 time* (for example an event parser), some operations remember information
 across multiple events (for example window operators). These operations are
@@ -47,25 +52,12 @@ and [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.md %}).
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
 
-[Queryable state]({{ site.baseurl }}{% link dev/stream/state/queryable_state.md
+[Queryable state]({% link dev/stream/state/queryable_state.md
 %}) allows you to access state from outside of Flink during runtime.
 
 When working with state, it might also be useful to read about [Flink's state
-backends]({{ site.baseurl }}{% link ops/state/state_backends.md %}). Flink
+backends]({% link ops/state/state_backends.md %}). Flink
 provides different state backends that specify how and where state is stored.
-
-* This will be replaced by the TOC
-{:toc}
-
-## What is State?
-
-`TODO: expand this section`
-
-{% top %}
-
-## State in Stream & Batch Processing
-
-`TODO: What is this section about? Do we even need it?`
 
 {% top %}
 
@@ -115,15 +107,15 @@ streams are reset to the point of the state snapshot. Any records that are
 processed as part of the restarted parallel dataflow are guaranteed to not have
 affected the previously checkpointed state.
 
-{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({{
-site.baseurl }}{% link dev/stream/state/checkpointing.md %}) for details on how
-to enable and configure checkpointing.
+{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({%
+link dev/stream/state/checkpointing.md %}) for details on how to enable and
+configure checkpointing.
 
 {% info Note %} For this mechanism to realize its full guarantees, the data
 stream source (such as message queue or broker) needs to be able to rewind the
 stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has
 this ability and Flink's connector to Kafka exploits this. See [Fault
-Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}{% link
+Tolerance Guarantees of Data Sources and Sinks]({% link
 dev/connectors/guarantees.md %}) for more information about the guarantees
 provided by Flink's connectors.
 
@@ -148,6 +140,8 @@ Keep in mind that everything to do with checkpointing can be done
 asynchronously. The checkpoint barriers don't travel in lock step and
 operations can asynchronously snapshot their state.
 
+Since Flink 1.11, checkpoints can be taken with or without alignment. In this 
+section, we describe aligned checkpoints first.
 
 #### Barriers
 
@@ -197,14 +191,16 @@ streams on the snapshot barriers. The figure above illustrates this:
     received the barrier *n* from the other inputs as well. Otherwise, it would
     mix records that belong to snapshot *n* and with records that belong to
     snapshot *n+1*.
-  - Streams that report barrier *n* are temporarily set aside. Records that are
-    received from these streams are not processed, but put into an input
-    buffer.
   - Once the last stream has received barrier *n*, the operator emits all
     pending outgoing records, and then emits snapshot *n* barriers itself.
-  - After that, it resumes processing records from all input streams,
+  - It snapshots the state and resumes processing records from all input streams,
     processing records from the input buffers before processing the records
     from the streams.
+  - Finally, the operator writes the state asynchronously to the state backend.
+  
+Note that the alignment is needed for all operators with multiple inputs and for 
+operators after a shuffle when they consume output streams of multiple upstream 
+subtasks.
 
 #### Snapshotting Operator State
 
@@ -214,7 +210,7 @@ snapshots as well.
 Operators snapshot their state at the point in time when they have received all
 snapshot barriers from their input streams, and before emitting the barriers to
 their output streams. At that point, all updates to the state from records
-before the barriers will have been made, and no updates that depend on records
+before the barriers have been made, and no updates that depend on records
 from after the barriers have been applied. Because the state of a snapshot may
 be large, it is stored in a configurable *[state backend]({{ site.baseurl }}{%
 link ops/state/state_backends.md %})*. By default, this is the JobManager's
@@ -247,15 +243,55 @@ If state was snapshotted incrementally, the operators start with the state of
 the latest full snapshot and then apply a series of incremental snapshot
 updates to that state.
 
-See [Restart Strategies]({{ site.baseurl }}{% link dev/task_failure_recovery.md
+See [Restart Strategies]({% link dev/task_failure_recovery.md
 %}#restart-strategies) for more information.
+
+### Unaligned Checkpointing
+
+Starting with Flink 1.11, checkpointing can also be performed unaligned.
+The basic idea is that checkpoints can overtake all in-flight data as long as 
+the in-flight data becomes part of the operator state.
+
+Note that this approach is actually closer to the [Chandy-Lamport algorithm
+](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf), but
+Flink still inserts the barrier in the sources to avoid overloading the
+checkpoint coordinator.
+
+<div style="text-align: center">
+  <img src="{% link fig/stream_unaligning.svg %}" alt="Unaligned checkpointing" style="width:100%; padding-top:10px; padding-bottom:10px;" />
+</div>
+
+The figure depicts how an operator handles unaligned checkpoint barriers:
+
+- The operator reacts on the first barrier that is stored in its input buffers.
+- It immediately forwards the barrier to the downstream operator by adding it 
+  to the end of the output buffers.
+- The operator marks all overtaken records to be stored asynchronously and 
+  creates a snapshot of its own state.
+ 
+Consequently, the operator only briefly stops the processing of input to mark
+the buffers, forwards the barrier, and creates the snapshot of the other state.
+  
+Unaligned checkpointing ensures that barriers are arriving at the sink as fast 
+as possible. It's especially suited for applications with at least one slow 
+moving data path, where alignment times can reach hours. However, since it's
+adding additional I/O pressure, it doesn't help when the I/O to the state 
+backends is the bottleneck. See the more in-depth discussion in 
+[ops]({% link ops/state/checkpoints.md %}#unaligned-checkpoints)
+for other limitations.
+
+Note that savepoints will always be aligned.
+
+#### Unaligned Recovery
+
+Operators first recover the in-flight data before starting processing any data
+from upstream operators in unaligned checkpointing. Aside from that, it 
+performs the same steps as during [recovery of aligned checkpoints](#recovery).
 
 ### State Backends
 
-`TODO: expand this section`
-
 The exact data structures in which the key/values indexes are stored depends on
-the chosen [state backend]({{ site.baseurl }}{% link
+the chosen [state backend]({% link
 ops/state/state_backends.md %}). One state backend stores data in an in-memory
 hash map, another state backend uses [RocksDB](http://rocksdb.org) as the
 key/value store.  In addition to defining the data structure that holds the
@@ -270,13 +306,11 @@ logic.
 
 ### Savepoints
 
-`TODO: expand this section`
-
 All programs that use checkpointing can resume execution from a **savepoint**.
 Savepoints allow both updating your programs and your Flink cluster without
 losing any state.
 
-[Savepoints]({{ site.baseurl }}{% link ops/state/savepoints.md %}) are
+[Savepoints]({% link ops/state/savepoints.md %}) are
 **manually triggered checkpoints**, which take a snapshot of the program and
 write it out to a state backend. They rely on the regular checkpointing
 mechanism for this.
@@ -312,10 +346,6 @@ give *exactly once* guarantees even in *at least once* mode.
 
 {% top %}
 
-## End-to-end Exactly-Once Programs
-
-`TODO: add`
-
 ## State and Fault Tolerance in Batch Programs
 
 Flink executes [batch programs](../dev/batch/index.html) as a special case of
@@ -335,6 +365,6 @@ programs, with minor exceptions:
 
   - The DataSet API introduces special synchronized (superstep-based)
     iterations, which are only possible on bounded streams. For details, check
-    out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
+    out the [iteration docs]({% link dev/batch/iterations.md %}).
 
 {% top %}

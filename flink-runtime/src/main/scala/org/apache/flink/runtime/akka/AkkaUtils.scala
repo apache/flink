@@ -793,10 +793,6 @@ object AkkaUtils {
     TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
   }
 
-  def getClientTimeout(config: Configuration): time.Duration = {
-    TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
-  }
-
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains
     * the port and the host under which the actor system is reachable
     *

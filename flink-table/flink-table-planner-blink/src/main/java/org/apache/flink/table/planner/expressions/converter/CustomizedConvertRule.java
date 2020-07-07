@@ -34,9 +34,6 @@ import org.apache.flink.table.planner.functions.InternalFunctionDefinitions;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
@@ -78,8 +75,6 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.NOT_BETWEEN, CustomizedConvertRule::convertNotBetween);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.REPLACE, CustomizedConvertRule::convertReplace);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.PLUS, CustomizedConvertRule::convertPlus);
-		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.CEIL, CustomizedConvertRule::convertCeil);
-		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.FLOOR, CustomizedConvertRule::convertFloor);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS, CustomizedConvertRule::convertTemporalOverlaps);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.TIMESTAMP_DIFF, CustomizedConvertRule::convertTimestampDiff);
 		DEFINITION_RULE_MAP.put(BuiltInFunctionDefinitions.ARRAY, CustomizedConvertRule::convertArray);
@@ -100,11 +95,12 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 
 	private static RexNode convertCast(CallExpression call, ConvertContext context) {
 		checkArgumentNumber(call, 2);
-		RexNode child = context.toRexNode(call.getChildren().get(0));
-		TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
+		final RexNode child = context.toRexNode(call.getChildren().get(0));
+		final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
+		final RelDataType targetRelDataType = context.getTypeFactory()
+			.createFieldTypeFromLogicalType(targetType.getOutputDataType().getLogicalType());
 		return context.getRelBuilder().getRexBuilder().makeAbstractCast(
-			context.getTypeFactory().createFieldTypeFromLogicalType(
-				type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+			targetRelDataType,
 			child);
 	}
 
@@ -143,54 +139,30 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 			context.getRelBuilder().call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, expr, upperBound));
 	}
 
-	private static RexNode convertCeil(CallExpression call, ConvertContext context) {
-		checkArgumentNumber(call, 1, 2);
-		List<Expression> children = call.getChildren();
-		List<RexNode> childrenRexNode = toRexNodes(context, children);
-		if (children.size() == 1) {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.CEIL, childrenRexNode);
-		} else {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.CEIL, childrenRexNode.get(1), childrenRexNode.get(0));
-		}
-	}
-
-	private static RexNode convertFloor(CallExpression call, ConvertContext context) {
-		checkArgumentNumber(call, 1, 2);
-		List<Expression> children = call.getChildren();
-		List<RexNode> childrenRexNode = toRexNodes(context, children);
-		if (children.size() == 1) {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.FLOOR, childrenRexNode);
-		} else {
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.FLOOR, childrenRexNode.get(1), childrenRexNode.get(0));
-		}
-	}
-
 	private static RexNode convertArray(CallExpression call, ConvertContext context) {
-		// TODO get type from CallExpression directly until introduce type inference on Expression
 		List<RexNode> childrenRexNode = toRexNodes(context, call.getChildren());
-		ArrayType arrayType = new ArrayType(toLogicalType(childrenRexNode.get(0).getType()));
-		RelDataType relDataType = context.getTypeFactory().createFieldTypeFromLogicalType(arrayType);
-		return context.getRelBuilder().getRexBuilder().makeCall(relDataType, FlinkSqlOperatorTable.ARRAY_VALUE_CONSTRUCTOR, childrenRexNode);
+		RelDataType relDataType = context.getTypeFactory()
+			.createFieldTypeFromLogicalType(call.getOutputDataType().getLogicalType());
+		return context.getRelBuilder()
+			.getRexBuilder()
+			.makeCall(relDataType, FlinkSqlOperatorTable.ARRAY_VALUE_CONSTRUCTOR, childrenRexNode);
 	}
 
 	private static RexNode convertMap(CallExpression call, ConvertContext context) {
-		// TODO get type from CallExpression directly until introduce type inference on Expression
 		List<Expression> children = call.getChildren();
 		checkArgument(call, !children.isEmpty() && children.size() % 2 == 0);
 		List<RexNode> childrenRexNode = toRexNodes(context, children);
-		RelDataType keyType = childrenRexNode.get(0).getType();
-		RelDataType valueType = childrenRexNode.get(childrenRexNode.size() - 1).getType();
-		RelDataType mapType = context.getTypeFactory().createMapType(keyType, valueType);
-		return context.getRelBuilder().getRexBuilder().makeCall(mapType, FlinkSqlOperatorTable.MAP_VALUE_CONSTRUCTOR, childrenRexNode);
+		RelDataType mapType = context.getTypeFactory()
+			.createFieldTypeFromLogicalType(call.getOutputDataType().getLogicalType());
+		return context.getRelBuilder()
+			.getRexBuilder()
+			.makeCall(mapType, FlinkSqlOperatorTable.MAP_VALUE_CONSTRUCTOR, childrenRexNode);
 	}
 
 	private static RexNode convertRow(CallExpression call, ConvertContext context) {
-		// TODO get type from CallExpression directly until introduce type inference on Expression
 		List<RexNode> childrenRexNode = toRexNodes(context, call.getChildren());
-		LogicalType[] childTypes = childrenRexNode.stream().map(rexNode -> toLogicalType(rexNode.getType()))
-			.toArray(LogicalType[]::new);
-		RowType rowType = RowType.of(childTypes);
-		RelDataType relDataType = context.getTypeFactory().createFieldTypeFromLogicalType(rowType);
+		RelDataType relDataType = context.getTypeFactory()
+			.createFieldTypeFromLogicalType(call.getOutputDataType().getLogicalType());
 		return context.getRelBuilder().getRexBuilder().makeCall(relDataType, FlinkSqlOperatorTable.ROW, childrenRexNode);
 	}
 

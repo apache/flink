@@ -96,10 +96,10 @@ public class KafkaConsumerThreadTest {
 
 		// setup latch so the test waits until testThread is blocked on getBatchBlocking method
 		final MultiShotLatch getBatchBlockingInvoked = new MultiShotLatch();
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
-			new ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>>() {
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
+			new ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>>() {
 				@Override
-				public List<KafkaTopicPartitionState<TopicPartition>> getBatchBlocking() throws InterruptedException {
+				public List<KafkaTopicPartitionState<Object, TopicPartition>> getBatchBlocking() throws InterruptedException {
 					getBatchBlockingInvoked.trigger();
 					return super.getBatchBlocking();
 				}
@@ -129,15 +129,15 @@ public class KafkaConsumerThreadTest {
 
 		// -------- new partitions with defined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		newPartition1.setOffset(23L);
 
-		KafkaTopicPartitionState<TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		newPartition2.setOffset(31L);
 
-		final List<KafkaTopicPartitionState<TopicPartition>> newPartitions = new ArrayList<>(2);
+		final List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions = new ArrayList<>(2);
 		newPartitions.add(newPartition1);
 		newPartitions.add(newPartition2);
 
@@ -155,10 +155,10 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			unassignedPartitionsQueue.add(newPartition);
 		}
 
@@ -175,7 +175,7 @@ public class KafkaConsumerThreadTest {
 
 		assertEquals(newPartitions.size(), mockConsumerAssignmentsAndPositions.size());
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			assertTrue(mockConsumerAssignmentsAndPositions.containsKey(newPartition.getKafkaPartitionHandle()));
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
@@ -202,15 +202,15 @@ public class KafkaConsumerThreadTest {
 
 		// -------- new partitions with undefined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		newPartition1.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		KafkaTopicPartitionState<TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		newPartition2.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		final List<KafkaTopicPartitionState<TopicPartition>> newPartitions = new ArrayList<>(2);
+		final List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions = new ArrayList<>(2);
 		newPartitions.add(newPartition1);
 		newPartitions.add(newPartition2);
 
@@ -233,10 +233,10 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			unassignedPartitionsQueue.add(newPartition);
 		}
 
@@ -257,7 +257,7 @@ public class KafkaConsumerThreadTest {
 
 		assertEquals(newPartitions.size(), mockConsumerAssignmentsAndPositions.size());
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			assertTrue(mockConsumerAssignmentsAndPositions.containsKey(newPartition.getKafkaPartitionHandle()));
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
@@ -284,25 +284,25 @@ public class KafkaConsumerThreadTest {
 
 		// -------- old partitions --------
 
-		KafkaTopicPartitionState<TopicPartition> oldPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> oldPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		oldPartition1.setOffset(23L);
 
-		KafkaTopicPartitionState<TopicPartition> oldPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> oldPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		oldPartition2.setOffset(32L);
 
-		List<KafkaTopicPartitionState<TopicPartition>> oldPartitions = new ArrayList<>(2);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> oldPartitions = new ArrayList<>(2);
 		oldPartitions.add(oldPartition1);
 		oldPartitions.add(oldPartition2);
 
 		// -------- new partitions with defined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 2), new TopicPartition(testTopic, 2));
 		newPartition.setOffset(29L);
 
-		List<KafkaTopicPartitionState<TopicPartition>> totalPartitions = new ArrayList<>(3);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> totalPartitions = new ArrayList<>(3);
 		totalPartitions.add(oldPartition1);
 		totalPartitions.add(oldPartition2);
 		totalPartitions.add(newPartition);
@@ -311,7 +311,7 @@ public class KafkaConsumerThreadTest {
 
 		// has initial assignments
 		final Map<TopicPartition, Long> mockConsumerAssignmentsAndPositions = new HashMap<>();
-		for (KafkaTopicPartitionState<TopicPartition> oldPartition : oldPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> oldPartition : oldPartitions) {
 			mockConsumerAssignmentsAndPositions.put(oldPartition.getKafkaPartitionHandle(), oldPartition.getOffset() + 1);
 		}
 
@@ -324,7 +324,7 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
 		unassignedPartitionsQueue.add(newPartition);
@@ -343,7 +343,7 @@ public class KafkaConsumerThreadTest {
 		assertEquals(totalPartitions.size(), mockConsumerAssignmentsAndPositions.size());
 
 		// old partitions should be re-seeked to their previous positions
-		for (KafkaTopicPartitionState<TopicPartition> partition : totalPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> partition : totalPartitions) {
 			assertTrue(mockConsumerAssignmentsAndPositions.containsKey(partition.getKafkaPartitionHandle()));
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
@@ -370,25 +370,25 @@ public class KafkaConsumerThreadTest {
 
 		// -------- old partitions --------
 
-		KafkaTopicPartitionState<TopicPartition> oldPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> oldPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		oldPartition1.setOffset(23L);
 
-		KafkaTopicPartitionState<TopicPartition> oldPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> oldPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		oldPartition2.setOffset(32L);
 
-		List<KafkaTopicPartitionState<TopicPartition>> oldPartitions = new ArrayList<>(2);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> oldPartitions = new ArrayList<>(2);
 		oldPartitions.add(oldPartition1);
 		oldPartitions.add(oldPartition2);
 
 		// -------- new partitions with undefined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 2), new TopicPartition(testTopic, 2));
 		newPartition.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		List<KafkaTopicPartitionState<TopicPartition>> totalPartitions = new ArrayList<>(3);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> totalPartitions = new ArrayList<>(3);
 		totalPartitions.add(oldPartition1);
 		totalPartitions.add(oldPartition2);
 		totalPartitions.add(newPartition);
@@ -397,7 +397,7 @@ public class KafkaConsumerThreadTest {
 
 		// has initial assignments
 		final Map<TopicPartition, Long> mockConsumerAssignmentsAndPositions = new HashMap<>();
-		for (KafkaTopicPartitionState<TopicPartition> oldPartition : oldPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> oldPartition : oldPartitions) {
 			mockConsumerAssignmentsAndPositions.put(oldPartition.getKafkaPartitionHandle(), oldPartition.getOffset() + 1);
 		}
 
@@ -414,7 +414,7 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
 		unassignedPartitionsQueue.add(newPartition);
@@ -436,7 +436,7 @@ public class KafkaConsumerThreadTest {
 		assertEquals(totalPartitions.size(), mockConsumerAssignmentsAndPositions.size());
 
 		// old partitions should be re-seeked to their previous positions
-		for (KafkaTopicPartitionState<TopicPartition> partition : totalPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> partition : totalPartitions) {
 			assertTrue(mockConsumerAssignmentsAndPositions.containsKey(partition.getKafkaPartitionHandle()));
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
@@ -466,21 +466,21 @@ public class KafkaConsumerThreadTest {
 
 		// -------- old partitions --------
 
-		KafkaTopicPartitionState<TopicPartition> oldPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> oldPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		oldPartition1.setOffset(23L);
 
-		KafkaTopicPartitionState<TopicPartition> oldPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> oldPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		oldPartition2.setOffset(32L);
 
-		List<KafkaTopicPartitionState<TopicPartition>> oldPartitions = new ArrayList<>(2);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> oldPartitions = new ArrayList<>(2);
 		oldPartitions.add(oldPartition1);
 		oldPartitions.add(oldPartition2);
 
 		// -------- new partitions with defined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 2), new TopicPartition(testTopic, 2));
 		newPartition.setOffset(29L);
 
@@ -488,7 +488,7 @@ public class KafkaConsumerThreadTest {
 
 		// initial assignments
 		final Map<TopicPartition, Long> mockConsumerAssignmentsToPositions = new LinkedHashMap<>();
-		for (KafkaTopicPartitionState<TopicPartition> oldPartition : oldPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> oldPartition : oldPartitions) {
 			mockConsumerAssignmentsToPositions.put(oldPartition.getKafkaPartitionHandle(), oldPartition.getOffset() + 1);
 		}
 
@@ -501,7 +501,7 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
 		unassignedPartitionsQueue.add(newPartition);
@@ -525,7 +525,7 @@ public class KafkaConsumerThreadTest {
 
 		assertEquals(oldPartitions.size(), mockConsumerAssignmentsToPositions.size());
 
-		for (KafkaTopicPartitionState<TopicPartition> oldPartition : oldPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> oldPartition : oldPartitions) {
 			assertTrue(mockConsumerAssignmentsToPositions.containsKey(oldPartition.getKafkaPartitionHandle()));
 			assertEquals(
 					oldPartition.getOffset() + 1,
@@ -554,15 +554,15 @@ public class KafkaConsumerThreadTest {
 
 		// -------- new partitions with defined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		newPartition1.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		KafkaTopicPartitionState<TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		newPartition2.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		List<KafkaTopicPartitionState<TopicPartition>> newPartitions = new ArrayList<>(2);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions = new ArrayList<>(2);
 		newPartitions.add(newPartition1);
 		newPartitions.add(newPartition2);
 
@@ -585,10 +585,10 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			unassignedPartitionsQueue.add(newPartition);
 		}
 
@@ -634,15 +634,15 @@ public class KafkaConsumerThreadTest {
 
 		// -------- new partitions with defined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		newPartition1.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		KafkaTopicPartitionState<TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition2 = new KafkaTopicPartitionState<>(
 			new KafkaTopicPartition(testTopic, 1), new TopicPartition(testTopic, 1));
 		newPartition2.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		List<KafkaTopicPartitionState<TopicPartition>> newPartitions = new ArrayList<>(2);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions = new ArrayList<>(2);
 		newPartitions.add(newPartition1);
 		newPartitions.add(newPartition2);
 
@@ -669,10 +669,10 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 			new ClosableBlockingQueue<>();
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			unassignedPartitionsQueue.add(newPartition);
 		}
 
@@ -700,7 +700,7 @@ public class KafkaConsumerThreadTest {
 
 		assertEquals(newPartitions.size(), mockConsumerAssignmentsAndPositions.size());
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			assertTrue(mockConsumerAssignmentsAndPositions.containsKey(newPartition.getKafkaPartitionHandle()));
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
@@ -742,17 +742,17 @@ public class KafkaConsumerThreadTest {
 
 		// -------- new partitions with defined offsets --------
 
-		KafkaTopicPartitionState<TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
+		KafkaTopicPartitionState<Object, TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
 				new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		newPartition1.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
-		List<KafkaTopicPartitionState<TopicPartition>> newPartitions = new ArrayList<>(1);
+		List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions = new ArrayList<>(1);
 		newPartitions.add(newPartition1);
 
-		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
 				new ClosableBlockingQueue<>();
 
-		for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
+		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			unassignedPartitionsQueue.add(newPartition);
 		}
 
@@ -808,7 +808,7 @@ public class KafkaConsumerThreadTest {
 	 * partition reassignment, so that tests are eligible to setup various conditions before the reassignment happens
 	 * and inspect reassignment results after it is completed.
 	 */
-	private static class TestKafkaConsumerThread extends KafkaConsumerThread {
+	private static class TestKafkaConsumerThread extends KafkaConsumerThread<Object> {
 
 		private final Consumer<byte[], byte[]> mockConsumer;
 		private final MultiShotLatch preReassignmentLatch = new MultiShotLatch();
@@ -818,7 +818,7 @@ public class KafkaConsumerThreadTest {
 
 		public TestKafkaConsumerThread(
 				Consumer<byte[], byte[]> mockConsumer,
-				ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
+				ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue,
 				Handover handover) {
 
 			super(
@@ -858,7 +858,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
+		void reassignPartitions(List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions) throws Exception {
 			// triggers blocking calls on waitPartitionReassignmentInvoked()
 			preReassignmentLatch.trigger();
 
@@ -1103,7 +1103,7 @@ public class KafkaConsumerThreadTest {
 
 		public TestKafkaConsumerThreadRateLimit(Logger log,
 				Handover handover, Properties kafkaProperties,
-				ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
+				ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue,
 				String threadName, long pollTimeout,
 				boolean useMetrics, MetricGroup consumerMetricGroup,
 				MetricGroup subtaskMetricGroup,

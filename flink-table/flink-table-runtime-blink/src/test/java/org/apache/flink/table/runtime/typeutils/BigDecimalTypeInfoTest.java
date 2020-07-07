@@ -20,9 +20,6 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 /**
  * Test for {@link BigDecimalTypeInfo}.
  */
@@ -35,17 +32,5 @@ public class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTy
 				new BigDecimalTypeInfo(17, 0),
 				new BigDecimalTypeInfo(25, 21)
 		};
-	}
-
-	@Test
-	public void testEquality() {
-
-		BigDecimalTypeInfo ta = new BigDecimalTypeInfo(10, 1);
-		BigDecimalTypeInfo tb = new BigDecimalTypeInfo(10, 1);
-		BigDecimalTypeInfo tx = new BigDecimalTypeInfo(10, 5);
-
-		Assert.assertEquals(ta, tb);
-		Assert.assertEquals(ta.hashCode(), tb.hashCode());
-		Assert.assertNotEquals(ta, tx);
 	}
 }

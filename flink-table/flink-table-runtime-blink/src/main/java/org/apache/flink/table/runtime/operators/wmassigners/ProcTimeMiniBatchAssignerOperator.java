@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 /**
  * A stream operator that emits mini-batch marker in a given period.
@@ -40,8 +40,8 @@ import org.apache.flink.table.dataformat.BaseRow;
  * this operator generates watermarks by itself using processing time, but the other forwards
  * watermarks from upstream.
  */
-public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<BaseRow>
-	implements OneInputStreamOperator<BaseRow, BaseRow>, ProcessingTimeCallback {
+public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<RowData>
+	implements OneInputStreamOperator<RowData, RowData>, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
 
@@ -68,7 +68,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ba
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement(StreamRecord<RowData> element) throws Exception {
 		long now = getProcessingTimeService().getCurrentProcessingTime();
 		long currentBatch = now - now % intervalMs;
 		if (currentBatch > currentWatermark) {

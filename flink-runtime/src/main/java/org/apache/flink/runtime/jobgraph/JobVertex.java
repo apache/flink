@@ -23,6 +23,7 @@ import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -55,14 +56,15 @@ public class JobVertex implements java.io.Serializable {
 	/** The ID of the vertex. */
 	private final JobVertexID id;
 
-	/** The alternative IDs of the vertex. */
-	private final ArrayList<JobVertexID> idAlternatives = new ArrayList<>();
-
-	/** The IDs of all operators contained in this vertex. */
-	private final ArrayList<OperatorID> operatorIDs = new ArrayList<>();
-
-	/** The alternative IDs of all operators contained in this vertex. */
-	private final ArrayList<OperatorID> operatorIdsAlternatives = new ArrayList<>();
+	/** The IDs of all operators contained in this vertex.
+	 *
+	 * <p>The ID pairs are stored depth-first post-order; for the forking chain below the ID's would be stored as [D, E, B, C, A].
+	 *  A - B - D
+	 *   \    \
+	 *    C    E
+	 * This is the same order that operators are stored in the {@code StreamTask}.
+	 */
+	private final List<OperatorIDPair> operatorIDs;
 
 	/** List of produced data sets, one per writer. */
 	private final ArrayList<IntermediateDataSet> results = new ArrayList<>();
@@ -143,9 +145,8 @@ public class JobVertex implements java.io.Serializable {
 	public JobVertex(String name, JobVertexID id) {
 		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = id == null ? new JobVertexID() : id;
-		// the id lists must have the same size
-		this.operatorIDs.add(OperatorID.fromJobVertexID(this.id));
-		this.operatorIdsAlternatives.add(null);
+		OperatorIDPair operatorIDPair = OperatorIDPair.generatedIDOnly(OperatorID.fromJobVertexID(this.id));
+		this.operatorIDs = Collections.singletonList(operatorIDPair);
 	}
 
 	/**
@@ -153,17 +154,12 @@ public class JobVertex implements java.io.Serializable {
 	 *
 	 * @param name The name of the new job vertex.
 	 * @param primaryId The id of the job vertex.
-	 * @param alternativeIds The alternative ids of the job vertex.
-	 * @param operatorIds The ids of all operators contained in this job vertex.
-	 * @param alternativeOperatorIds The alternative ids of all operators contained in this job vertex-
+	 * @param operatorIDPairs The operator ID pairs of the job vertex.
 	 */
-	public JobVertex(String name, JobVertexID primaryId, List<JobVertexID> alternativeIds, List<OperatorID> operatorIds, List<OperatorID> alternativeOperatorIds) {
-		Preconditions.checkArgument(operatorIds.size() == alternativeOperatorIds.size());
+	public JobVertex(String name, JobVertexID primaryId, List<OperatorIDPair> operatorIDPairs) {
 		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = primaryId == null ? new JobVertexID() : primaryId;
-		this.idAlternatives.addAll(alternativeIds);
-		this.operatorIDs.addAll(operatorIds);
-		this.operatorIdsAlternatives.addAll(alternativeOperatorIds);
+		this.operatorIDs = Collections.unmodifiableList(operatorIDPairs);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -175,15 +171,6 @@ public class JobVertex implements java.io.Serializable {
 	 */
 	public JobVertexID getID() {
 		return this.id;
-	}
-
-	/**
-	 * Returns a list of all alternative IDs of this job vertex.
-	 *
-	 * @return List of all alternative IDs for this job vertex
-	 */
-	public List<JobVertexID> getIdAlternatives() {
-		return idAlternatives;
 	}
 
 	/**
@@ -222,12 +209,8 @@ public class JobVertex implements java.io.Serializable {
 		return this.inputs.size();
 	}
 
-	public List<OperatorID> getOperatorIDs() {
+	public List<OperatorIDPair> getOperatorIDs() {
 		return operatorIDs;
-	}
-
-	public List<OperatorID> getUserDefinedOperatorIDs() {
-		return operatorIdsAlternatives;
 	}
 
 	/**

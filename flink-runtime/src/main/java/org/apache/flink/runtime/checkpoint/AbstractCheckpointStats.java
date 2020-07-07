@@ -89,15 +89,6 @@ public abstract class AbstractCheckpointStats implements Serializable {
 	public abstract long getStateSize();
 
 	/**
-	 * Returns the total buffered bytes during alignment over all subtasks.
-	 *
-	 * <p>Can return <code>-1</code> if the runtime did not report this.
-	 *
-	 * @return Total buffered bytes during alignment over all subtasks.
-	 */
-	public abstract long getAlignmentBuffered();
-
-	/**
 	 * Returns the latest acknowledged subtask stats or <code>null</code> if
 	 * none was acknowledged yet.
 	 *

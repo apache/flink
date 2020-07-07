@@ -74,7 +74,7 @@ import java.util.List;
  *   .forOrcSchema("struct<col1:boolean,col2:tinyint,col3:smallint,col4:int>")
  *   .build();
  *
- * tEnv.registerTableSource("orcTable", orcSrc);
+ * tEnv.registerTableSourceInternal("orcTable", orcSrc);
  * Table res = tableEnv.sqlQuery("SELECT * FROM orcTable");
  * }
  * </pre>

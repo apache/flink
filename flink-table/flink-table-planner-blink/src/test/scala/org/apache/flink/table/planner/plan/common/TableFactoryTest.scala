@@ -20,12 +20,14 @@ package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.factories.TableFactory
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.plan.utils.TestContextTableFactory
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Test}
+import org.junit.{Assert, Before, Test}
 
 import java.util.Optional
 
@@ -33,6 +35,12 @@ import java.util.Optional
 class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
 
   private val util = if (isBatch) batchTestUtil() else streamTestUtil()
+
+  @Before
+  def before(): Unit = {
+    // we should clean the data to avoid serialization exception due to dirty data
+    TestCollectionTableFactory.reset()
+  }
 
   @Test
   def testTableSourceSinkFactory(): Unit = {
@@ -53,7 +61,9 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b varchar,
         |  c as a + 1
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '/to/my/path1',
+        |  'format.type' = 'csv'
         |)
       """.stripMargin
     val sinkDDL =
@@ -63,7 +73,9 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b as c - 1,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '/to/my/path2',
+        |  'format.type' = 'csv'
         |)
       """.stripMargin
     val query =
@@ -71,11 +83,10 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |insert into t2
         |select t1.a, t1.c from t1
       """.stripMargin
-    util.tableEnv.sqlUpdate(sourceDDL)
-    util.tableEnv.sqlUpdate(sinkDDL)
-    util.tableEnv.sqlUpdate(query)
+    util.tableEnv.executeSql(sourceDDL)
+    util.tableEnv.executeSql(sinkDDL)
 
-    util.tableEnv.explain(false)
+    util.tableEnv.explainSql(query)
     Assert.assertTrue(factory.hasInvokedSource)
     Assert.assertTrue(factory.hasInvokedSink)
   }

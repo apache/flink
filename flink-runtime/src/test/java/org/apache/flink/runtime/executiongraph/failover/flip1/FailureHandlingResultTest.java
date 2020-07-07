@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.HashSet;
@@ -45,7 +46,7 @@ public class FailureHandlingResultTest extends TestLogger {
 		Set<ExecutionVertexID> tasks = new HashSet<>();
 		tasks.add(new ExecutionVertexID(new JobVertexID(), 0));
 		long delay = 1234;
-		FailureHandlingResult result = FailureHandlingResult.restartable(tasks, delay);
+		FailureHandlingResult result = FailureHandlingResult.restartable(tasks, delay, false);
 
 		assertTrue(result.canRestart());
 		assertEquals(delay, result.getRestartDelayMS());
@@ -65,7 +66,7 @@ public class FailureHandlingResultTest extends TestLogger {
 	public void testRestartingSuppressedFailureHandlingResult() {
 		// create a FailureHandlingResult with error
 		Throwable error = new Exception("test error");
-		FailureHandlingResult result = FailureHandlingResult.unrecoverable(error);
+		FailureHandlingResult result = FailureHandlingResult.unrecoverable(error, false);
 
 		assertFalse(result.canRestart());
 		assertEquals(error, result.getError());

@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.api.Table
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.SortTestUtils.{sortExpectedly, tupleDataSetStrings}
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.test.util.TestBaseUtils

@@ -37,6 +37,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
@@ -125,6 +126,11 @@ public class CheckpointMessagesTest {
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {
 			return null;
+		}
+
+		@Override
+		public Optional<byte[]> asBytesIfInMemory() {
+			return Optional.empty();
 		}
 	}
 }
