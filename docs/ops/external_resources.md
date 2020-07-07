@@ -158,7 +158,7 @@ Each `ExternalResourceInfo` contains one or more properties with keys representi
 You could get all valid keys by `ExternalResourceInfo#getKeys`.
 
 <div class="alert alert-info">
-     <strong>Note:</strong> Currently, the information returned by `RuntimeContext#getExternalResourceInfos` is available to all the operators.
+     <strong>Note:</strong> Currently, the information returned by RuntimeContext#getExternalResourceInfos is available to all the operators.
 </div>
 
 # Implement a plugin for your custom resource type
