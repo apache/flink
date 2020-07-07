@@ -38,16 +38,20 @@ public class DefaultExecutionDeploymentReconciler implements ExecutionDeployment
 
 	@Override
 	public void reconcileExecutionDeployments(ResourceID taskExecutorHost, ExecutionDeploymentReport executionDeploymentReport, Set<ExecutionAttemptID> expectedDeployedExecutions) {
-		final Set<ExecutionAttemptID> executions = new HashSet<>(expectedDeployedExecutions);
+		final Set<ExecutionAttemptID> unknownExecutions = new HashSet<>();
+		final Set<ExecutionAttemptID> expectedExecutions = new HashSet<>(expectedDeployedExecutions);
 
 		for (ExecutionAttemptID executionAttemptID : executionDeploymentReport.getExecutions()) {
-			boolean isTracked = executions.remove(executionAttemptID);
+			boolean isTracked = expectedExecutions.remove(executionAttemptID);
 			if (!isTracked) {
-				handler.onUnknownDeploymentOf(executionAttemptID, taskExecutorHost);
+				unknownExecutions.add(executionAttemptID);
 			}
 		}
-		for (ExecutionAttemptID execution : executions) {
-			handler.onMissingDeploymentOf(execution, taskExecutorHost);
+		if (!unknownExecutions.isEmpty()) {
+			handler.onUnknownDeploymentsOf(unknownExecutions, taskExecutorHost);
+		}
+		if (!expectedExecutions.isEmpty()) {
+			handler.onMissingDeploymentsOf(expectedExecutions, taskExecutorHost);
 		}
 	}
 }

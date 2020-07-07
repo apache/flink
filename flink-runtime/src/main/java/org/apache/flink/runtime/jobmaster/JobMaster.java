@@ -234,23 +234,28 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME), null);
 
 		final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler = new ExecutionDeploymentReconciliationHandler() {
+
 			@Override
-			public void onMissingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
-				log.debug("Failing deployment {} due to no longer being deployed.", executionAttemptId);
-				schedulerNG.updateTaskExecutionState(new TaskExecutionState(
-					jobGraph.getJobID(),
-					executionAttemptId,
-					ExecutionState.FAILED,
-					new FlinkException(String.format("Execution %s is unexpectedly no longer running on task executor %s.", executionAttemptId, host))
-				));
+			public void onMissingDeploymentsOf(Collection<ExecutionAttemptID> executionAttemptIds, ResourceID host) {
+				log.debug("Failing deployments {} due to no longer being deployed.", executionAttemptIds);
+				for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
+					schedulerNG.updateTaskExecutionState(new TaskExecutionState(
+						jobGraph.getJobID(),
+						executionAttemptId,
+						ExecutionState.FAILED,
+						new FlinkException(String.format("Execution %s is unexpectedly no longer running on task executor %s.", executionAttemptId, host))
+					));
+				}
 			}
 
 			@Override
-			public void onUnknownDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
-				log.debug("Canceling left-over deployment {} on task executor {}.", executionAttemptId, host);
-				Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(host);
-				if (taskManagerInfo != null) {
-					taskManagerInfo.f1.cancelTask(executionAttemptId, rpcTimeout);
+			public void onUnknownDeploymentsOf(Collection<ExecutionAttemptID> executionAttemptIds, ResourceID host) {
+				log.debug("Canceling left-over deployments {} on task executor {}.", executionAttemptIds, host);
+				for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
+					Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(host);
+					if (taskManagerInfo != null) {
+						taskManagerInfo.f1.cancelTask(executionAttemptId, rpcTimeout);
+					}
 				}
 			}
 		};

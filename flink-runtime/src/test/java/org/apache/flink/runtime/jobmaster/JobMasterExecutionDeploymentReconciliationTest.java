@@ -46,7 +46,6 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -86,11 +85,6 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		haServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
-	}
-
-	@AfterClass
-	public static void shutdownClass() throws ExecutionException, InterruptedException {
-		RPC_SERVICE_RESOURCE.getTestingRpcService().stopService().get();
 	}
 
 	@Test

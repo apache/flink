@@ -20,23 +20,25 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
+import java.util.Collection;
+
 /**
  * Interface for triggering actions in case of state mismatches.
  */
 public interface ExecutionDeploymentReconciliationHandler {
 	/**
-	 * Called if an execution is expected to be hosted on a task executor, but isn't.
+	 * Called if some executions are expected to be hosted on a task executor, but aren't.
 	 *
-	 * @param executionAttemptId id of te missing deployment
+	 * @param executionAttemptIds ids of the missing deployments
 	 * @param hostingTaskExecutor expected hosting task executor
 	 */
-	void onMissingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor);
+	void onMissingDeploymentsOf(Collection<ExecutionAttemptID> executionAttemptIds, ResourceID hostingTaskExecutor);
 
 	/**
-	 * Called if an execution is hosted on a task executor, but we don't expect it.
+	 * Called if some executions are hosted on a task executor, but we don't expect them.
 	 *
-	 * @param executionAttemptId id of the unknown execution
+	 * @param executionAttemptIds ids of the unknown executions
 	 * @param hostingTaskExecutor hosting task executor
 	 */
-	void onUnknownDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor);
+	void onUnknownDeploymentsOf(Collection<ExecutionAttemptID> executionAttemptIds, ResourceID hostingTaskExecutor);
 }

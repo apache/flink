@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
@@ -25,13 +24,15 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
+import static org.apache.flink.runtime.clusterframework.types.ResourceID.generate;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -40,95 +41,99 @@ import static org.junit.Assert.assertThat;
 public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
 
 	@Test
-	public void testMatchingDeployments() throws Exception {
-		runTest((reconciler, missingFuture, unknownFuture) -> {
-			ResourceID resourceId = ResourceID.generate();
-			ExecutionAttemptID attemptId = new ExecutionAttemptID();
-
-			reconciler.reconcileExecutionDeployments(
-				resourceId,
-				new ExecutionDeploymentReport(Collections.singleton(attemptId)),
-				Collections.singleton(attemptId));
-
-			assertFalse(missingFuture.isDone());
-			assertFalse(unknownFuture.isDone());
-		});
-	}
-
-	@Test
-	public void testMissingDeployments() throws Exception {
-		runTest((reconciler, missingFuture, unknownFuture) -> {
-			ResourceID resourceId = ResourceID.generate();
-			ExecutionAttemptID attemptId = new ExecutionAttemptID();
-
-			reconciler.reconcileExecutionDeployments(
-				resourceId,
-				new ExecutionDeploymentReport(Collections.emptySet()),
-				Collections.singleton(attemptId));
-
-			assertFalse(unknownFuture.isDone());
-			assertThat(missingFuture.get(), is(Tuple2.of(attemptId, resourceId)));
-		});
-	}
-
-	@Test
-	public void testUnknownDeployments() throws Exception {
-		runTest((reconciler, missingFuture, unknownFuture) -> {
-			ResourceID resourceId = ResourceID.generate();
-			ExecutionAttemptID attemptId = new ExecutionAttemptID();
-
-			reconciler.reconcileExecutionDeployments(
-				resourceId,
-				new ExecutionDeploymentReport(Collections.singleton(attemptId)),
-				Collections.emptySet());
-
-			assertFalse(missingFuture.isDone());
-			assertThat(unknownFuture.get(), is(Tuple2.of(attemptId, resourceId)));
-		});
-	}
-
-	@Test
-	public void testMissingAndUnknownDeployments() throws Exception {
-		runTest((reconciler, missingFuture, unknownFuture) -> {
-			ResourceID resourceId = ResourceID.generate();
-			ExecutionAttemptID unknownId = new ExecutionAttemptID();
-			ExecutionAttemptID missingId = new ExecutionAttemptID();
-			ExecutionAttemptID matchingId = new ExecutionAttemptID();
-
-			reconciler.reconcileExecutionDeployments(
-				resourceId,
-				new ExecutionDeploymentReport(new HashSet<>(Arrays.asList(unknownId, matchingId))),
-				new HashSet<>(Arrays.asList(missingId, matchingId)));
-
-			assertThat(missingFuture.get(), is(missingId));
-			assertThat(unknownFuture.get(), is(Tuple2.of(unknownId, resourceId)));
-		});
-	}
-
-	private static void runTest(TestRun test) throws Exception {
-		CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> missingFuture = new CompletableFuture<>();
-		CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> unknownFuture = new CompletableFuture<>();
-
-		ExecutionDeploymentReconciliationHandler handler = new ExecutionDeploymentReconciliationHandler() {
-			@Override
-			public void onMissingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor) {
-				missingFuture.complete(Tuple2.of(executionAttemptId, hostingTaskExecutor));
-			}
-
-			@Override
-			public void onUnknownDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID hostingTaskExecutor) {
-				unknownFuture.complete(Tuple2.of(executionAttemptId, hostingTaskExecutor));
-			}
-		};
+	public void testMatchingDeployments() {
+		TestingExecutionDeploymentReconciliationHandler handler = new TestingExecutionDeploymentReconciliationHandler();
 
 		DefaultExecutionDeploymentReconciler reconciler = new DefaultExecutionDeploymentReconciler(handler);
 
-		test.run(reconciler, missingFuture, unknownFuture);
+		ResourceID resourceId = generate();
+		ExecutionAttemptID attemptId = new ExecutionAttemptID();
+
+		reconciler.reconcileExecutionDeployments(
+			resourceId,
+			new ExecutionDeploymentReport(Collections.singleton(attemptId)),
+			Collections.singleton(attemptId));
+
+		assertThat(handler.getMissingExecutions(), empty());
+		assertThat(handler.getUnknownExecutions(), empty());
 	}
 
-	@FunctionalInterface
-	private interface TestRun {
-		void run(ExecutionDeploymentReconciler reconciler, CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> missingFuture, CompletableFuture<Tuple2<ExecutionAttemptID, ResourceID>> unknownFuture) throws Exception;
+	@Test
+	public void testMissingDeployments() {
+		TestingExecutionDeploymentReconciliationHandler handler = new TestingExecutionDeploymentReconciliationHandler();
+
+		DefaultExecutionDeploymentReconciler reconciler = new DefaultExecutionDeploymentReconciler(handler);
+
+		ResourceID resourceId = generate();
+		ExecutionAttemptID attemptId = new ExecutionAttemptID();
+
+		reconciler.reconcileExecutionDeployments(
+			resourceId,
+			new ExecutionDeploymentReport(Collections.emptySet()),
+			Collections.singleton(attemptId));
+
+		assertThat(handler.getUnknownExecutions(), empty());
+		assertThat(handler.getMissingExecutions(), hasItem(attemptId));
 	}
 
+	@Test
+	public void testUnknownDeployments() {
+		TestingExecutionDeploymentReconciliationHandler handler = new TestingExecutionDeploymentReconciliationHandler();
+
+		DefaultExecutionDeploymentReconciler reconciler = new DefaultExecutionDeploymentReconciler(handler);
+
+		ResourceID resourceId = generate();
+		ExecutionAttemptID attemptId = new ExecutionAttemptID();
+
+		reconciler.reconcileExecutionDeployments(
+			resourceId,
+			new ExecutionDeploymentReport(Collections.singleton(attemptId)),
+			Collections.emptySet());
+
+		assertThat(handler.getMissingExecutions(), empty());
+		assertThat(handler.getUnknownExecutions(), hasItem(attemptId));
+	}
+
+	@Test
+	public void testMissingAndUnknownDeployments() {
+		TestingExecutionDeploymentReconciliationHandler handler = new TestingExecutionDeploymentReconciliationHandler();
+
+		DefaultExecutionDeploymentReconciler reconciler = new DefaultExecutionDeploymentReconciler(handler);
+
+		ResourceID resourceId = generate();
+		ExecutionAttemptID unknownId = new ExecutionAttemptID();
+		ExecutionAttemptID missingId = new ExecutionAttemptID();
+		ExecutionAttemptID matchingId = new ExecutionAttemptID();
+
+		reconciler.reconcileExecutionDeployments(
+			resourceId,
+			new ExecutionDeploymentReport(new HashSet<>(Arrays.asList(unknownId, matchingId))),
+			new HashSet<>(Arrays.asList(missingId, matchingId)));
+
+		assertThat(handler.getMissingExecutions(), hasItem(missingId));
+		assertThat(handler.getUnknownExecutions(), hasItem(unknownId));
+	}
+
+	private static class TestingExecutionDeploymentReconciliationHandler implements ExecutionDeploymentReconciliationHandler {
+		private final Collection<ExecutionAttemptID> missingExecutions = new ArrayList<>();
+		private final Collection<ExecutionAttemptID> unknownExecutions = new ArrayList<>();
+
+		@Override
+		public void onMissingDeploymentsOf(Collection<ExecutionAttemptID> executionAttemptIds, ResourceID hostingTaskExecutor) {
+			missingExecutions.addAll(executionAttemptIds);
+		}
+
+		@Override
+		public void onUnknownDeploymentsOf(Collection<ExecutionAttemptID> executionAttemptIds, ResourceID hostingTaskExecutor) {
+			unknownExecutions.addAll(executionAttemptIds);
+		}
+
+		public Collection<ExecutionAttemptID> getMissingExecutions() {
+			return missingExecutions;
+		}
+
+		public Collection<ExecutionAttemptID> getUnknownExecutions() {
+			return unknownExecutions;
+		}
+	}
 }

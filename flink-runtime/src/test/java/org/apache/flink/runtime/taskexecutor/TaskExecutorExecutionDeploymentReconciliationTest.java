@@ -266,24 +266,14 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
 		assertTrue(slotStatusOptional.isPresent());
 
-		while (true) {
-			try {
-				taskExecutorGateway.requestSlot(
-					slotStatusOptional.get().getSlotID(),
-					jobId,
-					allocationId,
-					ResourceProfile.ZERO,
-					jobMasterAddress,
-					resourceManagerGateway.getFencingToken(),
-					timeout
-				).get();
-				break;
-			} catch (Exception e) {
-				// the proper establishment of the RM connection is tracked
-				// asynchronously, so we have to poll here until it went through
-				// until then, slot requests will fail with an exception
-				Thread.sleep(50);
-			}
-		}
+		taskExecutorGateway.requestSlot(
+			slotStatusOptional.get().getSlotID(),
+			jobId,
+			allocationId,
+			ResourceProfile.ZERO,
+			jobMasterAddress,
+			resourceManagerGateway.getFencingToken(),
+			timeout
+		).get();
 	}
 }
