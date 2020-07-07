@@ -59,8 +59,6 @@ perl -pi -e "s#^is_stable: .*#is_stable: true#" ${config_yml}
 
 perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${RELEASE_VERSION}\"#" ../flink-python/pyflink/version.py
 
-NEW_VERSION=$RELEASE_VERSION ./releasing/update_japicmp_configuration.sh
-
 git commit -am "Update for ${RELEASE_VERSION}"
 
 echo "Done. Don't forget to push the branch."
