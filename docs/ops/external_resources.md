@@ -82,7 +82,7 @@ corresponds to the name listed in the **external resource list**:
 
   - **Config key in Kubernetes** (`external-resource.<resource_name>.kubernetes.config-key`): *optional*. If configured,
   external resource framework will add `resources.limits.<config-key>` and `resources.requests.<config-key>` to the main
-  container spec of TaskExecutor and set the value to the value of `external-resource.<resource_name>.amount`.
+  container spec of TaskManager and set the value to the value of `external-resource.<resource_name>.amount`.
 
   - **Driver Factory** (`external-resource.<resource_name>.driver-factory.class`): *optional*. Defines the factory class
   name for the external resource identified by **\<resource_name\>**. If configured, the factory will be used to instantiate
