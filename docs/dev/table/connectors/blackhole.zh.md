@@ -1,5 +1,5 @@
 ---
-title: "BlackHole SQL Connector"
+title: "BlackHole SQL 连接器"
 nav-title: BlackHole
 nav-parent_id: sql-connectors
 nav-pos: 12
@@ -29,16 +29,16 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The BlackHole connector allows for swallowing all input records. It is designed for:
+BlackHole 连接器允许接收所有输入记录。它被设计用于：
 
-- high performance testing.
-- UDF to output, not substantive sink.
+- 高性能测试。
+- UDF 输出，而不是实质性 sink。
 
-Just like /dev/null device on Unix-like operating systems.
+就像类 Unix 操作系统上的 /dev/null。
 
-The BlackHole connector is built-in.
+BlackHole 连接器是内置的。
 
-How to create a BlackHole table
+如何创建 BlackHole 表
 ----------------
 
 <div class="codetabs" markdown="1">
@@ -56,7 +56,7 @@ CREATE TABLE blackhole_table (
 </div>
 </div>
 
-Alternatively, it may be based on an existing schema using the [LIKE Clause]({% link dev/table/sql/create.zh.md %}#create-table).
+或者，可以基于现有模式使用 [LIKE 子句]({% link dev/table/sql/create.zh.md %}#create-table) 创建。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -67,26 +67,26 @@ LIKE source_table (EXCLUDING ALL)
 </div>
 </div>
 
-Connector Options
+连接器选项
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-center" style="width: 9%">是否必要</th>
+        <th class="text-center" style="width: 7%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 50%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>connector</h5></td>
-      <td>required</td>
+      <td>必要</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be 'blackhole'.</td>
+      <td>指定需要使用的连接器，此处应为‘blackhole’。</td>
     </tr>
     </tbody>
 </table>
