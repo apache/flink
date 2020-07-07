@@ -20,13 +20,11 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.table.PythonTableFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
@@ -34,11 +32,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
-import java.io.IOException;
-import java.util.Map;
 
 /**
  * The Python {@link TableFunction} operator for the legacy planner.
@@ -63,6 +58,11 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	 */
 	private transient TypeSerializer<Row> udtfOutputTypeSerializer;
 
+	/**
+	 * The TypeSerializer for udtf input elements.
+	 */
+	private transient TypeSerializer<Row> udtfInputTypeSerializer;
+
 	public PythonTableFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
@@ -83,37 +83,38 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 				TypeConversions.fromLogicalToDataType(inputType)));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
 		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+		udtfInputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
 	}
 
 	@Override
-	public void emitResults() throws IOException {
-		CRow input = null;
+	@SuppressWarnings("ConstantConditions")
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+		CRow input = forwardedInputQueue.poll();
 		byte[] rawUdtfResult;
-		boolean lastIsFinishResult = true;
-		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			if (input == null) {
-				input = forwardedInputQueue.poll();
-			}
-			boolean isFinishResult = isFinishResult(rawUdtfResult);
-			if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
-				input = forwardedInputQueue.poll();
-			} else if (input != null) {
-				if (!isFinishResult) {
-					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-					Row udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
-					cRowWrapper.setChange(input.change());
-					cRowWrapper.collect(Row.join(input.row(), udtfResult));
-				} else {
-					Row udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
-					for (int i = 0; i < udtfResult.getArity(); i++) {
-						udtfResult.setField(0, null);
-					}
-					cRowWrapper.collect(Row.join(input.row(), udtfResult));
-					input = forwardedInputQueue.poll();
+		int length;
+		boolean isFinishResult;
+		boolean hasJoined = false;
+		Row udtfResult;
+		do {
+			rawUdtfResult = resultTuple.f0;
+			length = resultTuple.f1;
+			isFinishResult = isFinishResult(rawUdtfResult, length);
+			if (!isFinishResult) {
+				bais.setBuffer(rawUdtfResult, 0, length);
+				udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+				cRowWrapper.setChange(input.change());
+				cRowWrapper.collect(Row.join(input.row(), udtfResult));
+				resultTuple = pythonFunctionRunner.pollResult();
+				hasJoined = true;
+			} else if (joinType == JoinRelType.LEFT && !hasJoined) {
+				udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
+				for (int i = 0; i < udtfResult.getArity(); i++) {
+					udtfResult.setField(0, null);
 				}
+				cRowWrapper.setChange(input.change());
+				cRowWrapper.collect(Row.join(input.row(), udtfResult));
 			}
-			lastIsFinishResult = isFinishResult;
-		}
+		} while (!isFinishResult);
 	}
 
 	@Override
@@ -130,18 +131,9 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	}
 
 	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager,
-		Map<String, String> jobOptions) {
-		return new PythonTableFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			tableFunction,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
+	public void processElementInternal(CRow value) throws Exception {
+		udtfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
+		baos.reset();
 	}
 }

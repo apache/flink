@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.runners.python;
+package org.apache.flink.table.runtime.runners.python.beam;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.AbstractPythonFunctionRunner;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import com.google.protobuf.ByteString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -43,7 +38,6 @@ import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -57,12 +51,10 @@ import java.util.Map;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 /**
- * Abstract {@link PythonFunctionRunner} used to execute Python stateless functions..
- *
- * @param <IN>  Type of the input elements.
+ * A {@link BeamPythonFunctionRunner} used to execute Python stateless functions.
  */
 @Internal
-public abstract class AbstractPythonStatelessFunctionRunner<IN> extends AbstractPythonFunctionRunner<IN> {
+public class BeamPythonStatelessFunctionRunner extends BeamPythonFunctionRunner {
 
 	private static final String INPUT_ID = "input";
 	private static final String OUTPUT_ID = "output";
@@ -78,21 +70,27 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 	private static final String WINDOW_STRATEGY = "windowing_strategy";
 
 	private final String functionUrn;
+	private final FlinkFnApi.UserDefinedFunctions userDefinedFunctions;
+
+	private final String coderUrn;
 
 	private final RowType inputType;
 	private final RowType outputType;
 
-	public AbstractPythonStatelessFunctionRunner(
+	public BeamPythonStatelessFunctionRunner(
 		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
 		String functionUrn,
+		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
+		String coderUrn,
 		Map<String, String> jobOptions,
 		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported(), jobOptions, flinkMetricContainer);
-		this.functionUrn = functionUrn;
+		super(taskName, environmentManager, StateRequestHandler.unsupported(), jobOptions, flinkMetricContainer);
+		this.functionUrn = Preconditions.checkNotNull(functionUrn);
+		this.coderUrn = Preconditions.checkNotNull(coderUrn);
+		this.userDefinedFunctions = Preconditions.checkNotNull(userDefinedFunctions);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 	}
@@ -122,7 +120,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 							.setUrn(functionUrn)
 							.setPayload(
 								org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-									getUserDefinedFunctionsProto().toByteArray()))
+									userDefinedFunctions.toByteArray()))
 							.build())
 						.putInputs(MAIN_INPUT_NAME, INPUT_ID)
 						.putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID)
@@ -158,24 +156,6 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
-	public FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
-		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
-		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
-		for (Object input : pythonFunctionInfo.getInputs()) {
-			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
-				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
-			if (input instanceof PythonFunctionInfo) {
-				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
-			} else if (input instanceof Integer) {
-				inputProto.setInputOffset((Integer) input);
-			} else {
-				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
-			}
-			builder.addInputs(inputProto);
-		}
-		return builder.build();
-	}
-
 	private RunnerApi.WireCoderSetting createValueOnlyWireCoderSetting() throws IOException {
 		WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
 		Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
@@ -188,20 +168,6 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			.setPayload(
 				org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
 			.build();
-	}
-
-	/**
-	 * Gets the logical type of the input elements of the Python user-defined functions.
-	 */
-	public RowType getInputType() {
-		return inputType;
-	}
-
-	/**
-	 * Gets the logical type of the execution results of the Python user-defined functions.
-	 */
-	public RowType getOutputType() {
-		return outputType;
 	}
 
 	/**
@@ -222,7 +188,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 		return RunnerApi.Coder.newBuilder()
 			.setSpec(
 				RunnerApi.FunctionSpec.newBuilder()
-					.setUrn(getInputOutputCoderUrn())
+					.setUrn(coderUrn)
 					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
 						toProtoType(rowType).getRowSchema().toByteArray()))
 					.build())
@@ -232,8 +198,6 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 	private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
 		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
 	}
-
-	public abstract String getInputOutputCoderUrn();
 
 	/**
 	 * Gets the proto representation of the window coder.
@@ -246,10 +210,4 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 					.build())
 			.build();
 	}
-
-	/**
-	 * Gets the proto representation of the Python user-defined functions to be executed.
-	 */
-	@VisibleForTesting
-	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 }

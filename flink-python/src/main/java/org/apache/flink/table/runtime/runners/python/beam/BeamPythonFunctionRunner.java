@@ -16,18 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python;
+package org.apache.flink.table.runtime.runners.python.beam;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.python.PythonConfig;
+import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.ProcessPythonEnvironment;
+import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -44,27 +47,26 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * An base class for {@link PythonFunctionRunner}.
- *
- * @param <IN> Type of the input elements.
+ * An base class for {@link PythonFunctionRunner} based on beam.
  */
 @Internal
-public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunctionRunner<IN> {
+public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
+	protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
+
+	private transient boolean bundleStarted;
 
 	private static final String MAIN_INPUT_ID = "input";
 
 	private final String taskName;
-
-	/**
-	 * The Python function execution result receiver.
-	 */
-	protected final FnDataReceiver<byte[]> resultReceiver;
 
 	/**
 	 * The Python execution environment manager.
@@ -75,6 +77,11 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	 * The options used to configure the Python worker process.
 	 */
 	private final Map<String, String> jobOptions;
+
+	/**
+	 * The Python function execution result tuple.
+	 */
+	protected final Tuple2<byte[], Integer> resultTuple;
 
 	/**
 	 * The bundle factory which has all job-scoped information and can be used to create a {@link StageBundleFactory}.
@@ -106,44 +113,39 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	private transient RemoteBundle remoteBundle;
 
 	/**
+	 * The Python function execution result receiver.
+	 */
+	protected transient LinkedBlockingQueue<byte[]> resultBuffer;
+
+	/**
 	 * The receiver which forwards the input elements to a remote environment for processing.
 	 */
 	protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
 
 	/**
-	 * Reusable OutputStream used to holding the serialized input elements.
-	 */
-	protected transient ByteArrayOutputStreamWithPos baos;
-
-	/**
-	 * OutputStream Wrapper.
-	 */
-	protected transient DataOutputViewStreamWrapper baosWrapper;
-
-	/**
 	 * The flinkMetricContainer will be set to null if metric is configured to be turned off.
 	 */
-	@Nullable protected FlinkMetricContainer flinkMetricContainer;
+	@Nullable
+	private FlinkMetricContainer flinkMetricContainer;
 
-	public AbstractPythonFunctionRunner(
+	public BeamPythonFunctionRunner(
 		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager environmentManager,
 		StateRequestHandler stateRequestHandler,
 		Map<String, String> jobOptions,
 		@Nullable FlinkMetricContainer flinkMetricContainer) {
 		this.taskName = Preconditions.checkNotNull(taskName);
-		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
 		this.stateRequestHandler = Preconditions.checkNotNull(stateRequestHandler);
 		this.jobOptions = Preconditions.checkNotNull(jobOptions);
 		this.flinkMetricContainer = flinkMetricContainer;
+		this.resultTuple = new Tuple2<>();
 	}
 
 	@Override
-	public void open() throws Exception {
-		baos = new ByteArrayOutputStreamWithPos();
-		baosWrapper = new DataOutputViewStreamWrapper(baos);
+	public void open(PythonConfig config) throws Exception {
+		this.bundleStarted = false;
+		this.resultBuffer = new LinkedBlockingQueue<>();
 
 		// The creation of stageBundleFactory depends on the initialized environment manager.
 		environmentManager.open();
@@ -163,6 +165,108 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 		jobBundleFactory = createJobBundleFactory(pipelineOptions);
 		stageBundleFactory = createStageBundleFactory();
 		progressHandler = getProgressHandler(flinkMetricContainer);
+	}
+
+	@Override
+	public void close() throws Exception {
+		try {
+			if (jobBundleFactory != null) {
+				jobBundleFactory.close();
+			}
+		} finally {
+			jobBundleFactory = null;
+		}
+
+		environmentManager.close();
+	}
+
+	@Override
+	public void process(byte[] data) throws Exception {
+		checkInvokeStartBundle();
+		mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(data));
+	}
+
+	@Override
+	public Tuple2<byte[], Integer> pollResult() throws Exception {
+		byte[] result = resultBuffer.poll();
+		if (result == null) {
+			return null;
+		} else {
+			this.resultTuple.f0 = result;
+			this.resultTuple.f1 = result.length;
+			return this.resultTuple;
+		}
+	}
+
+	@Override
+	public void flush() throws Exception {
+		if (bundleStarted) {
+			finishBundle();
+			bundleStarted = false;
+		}
+	}
+
+	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
+		return DefaultJobBundleFactory.create(
+			JobInfo.create(taskName, taskName, environmentManager.createRetrievalToken(), pipelineOptions));
+	}
+
+	/**
+	 * Creates a specification which specifies the portability Python execution environment.
+	 * It's used by Beam's portability framework to creates the actual Python execution environment.
+	 */
+	RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
+		PythonEnvironment environment = environmentManager.createEnvironment();
+		if (environment instanceof ProcessPythonEnvironment) {
+			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
+			return Environments.createProcessEnvironment(
+				"",
+				"",
+				processEnvironment.getCommand(),
+				processEnvironment.getEnv());
+		}
+		throw new RuntimeException("Currently only ProcessPythonEnvironment is supported.");
+	}
+
+	protected void startBundle() {
+		try {
+			remoteBundle = stageBundleFactory.getBundle(createOutputReceiverFactory(), stateRequestHandler, progressHandler);
+			mainInputReceiver =
+				Preconditions.checkNotNull(
+					remoteBundle.getInputReceivers().get(MAIN_INPUT_ID),
+					"Failed to retrieve main input receiver.");
+		} catch (Throwable t) {
+			throw new RuntimeException("Failed to start remote bundle", t);
+		}
+	}
+
+	/**
+	 * Creates a {@link ExecutableStage} which contains the Python user-defined functions to be executed
+	 * and all the other information needed to execute them, such as the execution environment, the input
+	 * and output coder, etc.
+	 */
+	public abstract ExecutableStage createExecutableStage() throws Exception;
+
+	private void finishBundle() {
+		try {
+			remoteBundle.close();
+		} catch (Throwable t) {
+			throw new RuntimeException("Failed to close remote bundle", t);
+		} finally {
+			remoteBundle = null;
+		}
+	}
+
+	private OutputReceiverFactory createOutputReceiverFactory() {
+		return new OutputReceiverFactory() {
+
+			// the input value type is always byte array
+			@SuppressWarnings("unchecked")
+			@Override
+			public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
+				return input -> resultBuffer.add(input.getValue());
+			}
+		};
 	}
 
 	/**
@@ -198,63 +302,14 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 		}
 	}
 
-	@Override
-	public void close() throws Exception {
-		try {
-			if (jobBundleFactory != null) {
-				jobBundleFactory.close();
-			}
-		} finally {
-			jobBundleFactory = null;
-		}
-
-		environmentManager.close();
-	}
-
-	@Override
-	public void startBundle() {
-		try {
-			remoteBundle = stageBundleFactory.getBundle(createOutputReceiverFactory(), stateRequestHandler, progressHandler);
-			mainInputReceiver =
-				Preconditions.checkNotNull(
-					remoteBundle.getInputReceivers().get(MAIN_INPUT_ID),
-					"Failed to retrieve main input receiver.");
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to start remote bundle", t);
-		}
-	}
-
-	@Override
-	public void finishBundle() throws Exception {
-		try {
-			remoteBundle.close();
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to close remote bundle", t);
-		} finally {
-			remoteBundle = null;
-		}
-	}
-
-	@VisibleForTesting
-	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
-		return DefaultJobBundleFactory.create(
-			JobInfo.create(taskName, taskName, environmentManager.createRetrievalToken(), pipelineOptions));
-	}
-
 	/**
-	 * Creates a specification which specifies the portability Python execution environment.
-	 * It's used by Beam's portability framework to creates the actual Python execution environment.
+	 * Checks whether to invoke startBundle.
 	 */
-	protected RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
-		return environmentManager.createEnvironment();
+	private void checkInvokeStartBundle() throws Exception {
+		if (!bundleStarted) {
+			startBundle();
+			bundleStarted = true;
+		}
 	}
 
-	/**
-	 * Creates a {@link ExecutableStage} which contains the Python user-defined functions to be executed
-	 * and all the other information needed to execute them, such as the execution environment, the input
-	 * and output coder, etc.
-	 */
-	public abstract ExecutableStage createExecutableStage() throws Exception;
-
-	public abstract OutputReceiverFactory createOutputReceiverFactory();
 }
