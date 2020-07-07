@@ -19,6 +19,10 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.ExceptionUtils;
@@ -67,9 +71,6 @@ public class MailboxProcessor implements Closeable {
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	protected final MailboxDefaultAction mailboxDefaultAction;
 
-	/** A pre-created instance of mailbox executor that executes all mails. */
-	private final MailboxExecutor mainMailboxExecutor;
-
 	/** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
 	private boolean mailboxLoopRunning;
 
@@ -81,6 +82,8 @@ public class MailboxProcessor implements Closeable {
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
 	private final StreamTaskActionExecutor actionExecutor;
+
+	private Meter idleTime = new MeterView(new SimpleCounter());
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
@@ -96,27 +99,15 @@ public class MailboxProcessor implements Closeable {
 			MailboxDefaultAction mailboxDefaultAction,
 			TaskMailbox mailbox,
 			StreamTaskActionExecutor actionExecutor) {
-		this(mailboxDefaultAction, actionExecutor, mailbox, new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor));
-	}
-
-	public MailboxProcessor(
-			MailboxDefaultAction mailboxDefaultAction,
-			StreamTaskActionExecutor actionExecutor,
-			TaskMailbox mailbox,
-			MailboxExecutor mainMailboxExecutor) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailbox = Preconditions.checkNotNull(mailbox);
-		this.mainMailboxExecutor = Preconditions.checkNotNull(mainMailboxExecutor);
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
 	}
 
-	/**
-	 * Returns a pre-created executor service that executes all mails.
-	 */
 	public MailboxExecutor getMainMailboxExecutor() {
-		return mainMailboxExecutor;
+		return new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor);
 	}
 
 	/**
@@ -125,7 +116,11 @@ public class MailboxProcessor implements Closeable {
 	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
+		return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
+	}
+
+	public void initMetric(TaskMetricGroup metricGroup) {
+		idleTime = metricGroup.getIOMetricGroup().getIdleTimeMsPerSecond();
 	}
 
 	/**
@@ -200,6 +195,15 @@ public class MailboxProcessor implements Closeable {
 	}
 
 	/**
+	 * Check if the current thread is the mailbox thread.
+	 *
+	 * @return only true if called from the mailbox thread.
+	 */
+	public boolean isMailboxThread() {
+		return mailbox.isMailboxThread();
+	}
+
+	/**
 	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending mails.
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
@@ -269,7 +273,13 @@ public class MailboxProcessor implements Closeable {
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			mailbox.take(MIN_PRIORITY).run();
+			maybeMail = mailbox.tryTake(MIN_PRIORITY);
+			if (!maybeMail.isPresent()) {
+				long start = System.currentTimeMillis();
+				maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
+				idleTime.markEvent(System.currentTimeMillis() - start);
+			}
+			maybeMail.get().run();
 		}
 
 		return isMailboxLoopRunning();
@@ -299,6 +309,16 @@ public class MailboxProcessor implements Closeable {
 	@VisibleForTesting
 	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTime() {
+		return idleTime;
+	}
+
+	@VisibleForTesting
+	public boolean hasMail() {
+		return mailbox.hasMail();
 	}
 
 	/**

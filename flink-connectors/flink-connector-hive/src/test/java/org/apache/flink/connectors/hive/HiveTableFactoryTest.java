@@ -86,7 +86,10 @@ public class HiveTableFactoryTest {
 				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
 		assertTrue(tableSource instanceof StreamTableSource);
 		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+				table,
+				new Configuration(),
+				true));
 		assertTrue(tableSink instanceof StreamTableSink);
 	}
 
@@ -98,6 +101,7 @@ public class HiveTableFactoryTest {
 			.build();
 
 		Map<String, String> properties = new HashMap<>();
+		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");
@@ -107,7 +111,10 @@ public class HiveTableFactoryTest {
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
 		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+				table,
+				new Configuration(),
+				true));
 		assertTrue(tableSink instanceof HiveTableSink);
 		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
 				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));

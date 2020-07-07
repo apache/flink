@@ -30,6 +30,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.LinkedHashMap;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -73,7 +74,8 @@ public class AvroKryoClassloadingTest {
 		final ClassLoader userAppClassLoader = FlinkUserCodeClassLoaders.childFirst(
 				new URL[] { avroLocation, kryoLocation },
 				parentClassLoader,
-				CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"));
+				CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
+			NOOP_EXCEPTION_HANDLER);
 
 		final Class<?> userLoadedAvroClass = Class.forName(avroClass.getName(), false, userAppClassLoader);
 		assertNotEquals(avroClass, userLoadedAvroClass);

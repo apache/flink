@@ -69,6 +69,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
 			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
 		}
+		builder.setMetricEnabled(flinkMetricContainer != null);
 		return builder.build();
 	}
 }

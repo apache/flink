@@ -49,7 +49,7 @@ import java.util.Map;
  */
 public class KubernetesJobManagerFactory {
 
-	public static KubernetesJobManagerSpecification createJobManagerComponent(
+	public static KubernetesJobManagerSpecification buildKubernetesJobManagerSpecification(
 			KubernetesJobManagerParameters kubernetesJobManagerParameters) throws IOException {
 		FlinkPod flinkPod = new FlinkPod.Builder().build();
 		List<HasMetadata> accompanyingResources = new ArrayList<>();

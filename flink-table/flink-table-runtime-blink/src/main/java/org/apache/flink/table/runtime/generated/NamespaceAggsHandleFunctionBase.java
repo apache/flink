@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 
 /**
@@ -42,40 +42,40 @@ public interface NamespaceAggsHandleFunctionBase<N> extends Function {
 	 * aggregated results.
 	 * @param accumulators current accumulators
 	 */
-	void setAccumulators(N namespace, BaseRow accumulators) throws Exception;
+	void setAccumulators(N namespace, RowData accumulators) throws Exception;
 
 	/**
 	 * Accumulates the input values to the accumulators.
 	 * @param inputRow input values bundled in a row
 	 */
-	void accumulate(BaseRow inputRow) throws Exception;
+	void accumulate(RowData inputRow) throws Exception;
 
 	/**
 	 * Retracts the input values from the accumulators.
 	 * @param inputRow input values bundled in a row
 	 */
-	void retract(BaseRow inputRow) throws Exception;
+	void retract(RowData inputRow) throws Exception;
 
 	/**
 	 * Merges the other accumulators into current accumulators.
 	 *
 	 * @param otherAcc The other row of accumulators
 	 */
-	void merge(N namespace, BaseRow otherAcc) throws Exception;
+	void merge(N namespace, RowData otherAcc) throws Exception;
 
 	/**
 	 * Initializes the accumulators and save them to a accumulators row.
 	 *
 	 * @return a row of accumulators which contains the aggregated results
 	 */
-	BaseRow createAccumulators() throws Exception;
+	RowData createAccumulators() throws Exception;
 
 	/**
 	 * Gets the current accumulators (saved in a row) which contains the current
 	 * aggregated results.
 	 * @return the current accumulators
 	 */
-	BaseRow getAccumulators() throws Exception;
+	RowData getAccumulators() throws Exception;
 
 	/**
 	 * Cleanup for the retired accumulators state.

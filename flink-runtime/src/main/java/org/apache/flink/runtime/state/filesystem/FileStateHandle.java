@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,10 +38,10 @@ public class FileStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = 350284443258002355L;
 
-	/** The path to the file in the filesystem, fully describing the file system */
+	/** The path to the file in the filesystem, fully describing the file system. */
 	private final Path filePath;
 
-	/** The size of the state in the file */
+	/** The size of the state in the file. */
 	private final long stateSize;
 
 	/**
@@ -66,6 +67,11 @@ public class FileStateHandle implements StreamStateHandle {
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return getFileSystem().open(filePath);
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return Optional.empty();
 	}
 
 	/**

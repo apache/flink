@@ -118,9 +118,10 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 			switch (inputGateAssignment[i]) {
 				case 1: {
 					inputGates[i] = new StreamTestSingleInputGate<>(
-							numInputChannelsPerGate,
-							bufferSize,
-							inputSerializer1);
+						numInputChannelsPerGate,
+						i,
+						inputSerializer1,
+						bufferSize);
 
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
@@ -134,9 +135,10 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 				}
 				case 2: {
 					inputGates[i] = new StreamTestSingleInputGate<>(
-							numInputChannelsPerGate,
-							bufferSize,
-							inputSerializer2);
+						numInputChannelsPerGate,
+						i,
+						inputSerializer2,
+						bufferSize);
 
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,

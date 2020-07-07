@@ -54,7 +54,6 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_OFFSET = "offset";
 	public static final String CONNECTOR_STARTUP_TIMESTAMP_MILLIS = "connector.startup-timestamp-millis";
 	public static final String CONNECTOR_PROPERTIES = "connector.properties";
-	public static final String CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT = "connector.properties.zookeeper.connect";
 	public static final String CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER = "connector.properties.bootstrap.servers";
 	public static final String CONNECTOR_PROPERTIES_GROUP_ID = "connector.properties.group.id";
 	public static final String CONNECTOR_PROPERTIES_KEY = "key";
@@ -136,11 +135,9 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateKafkaProperties(DescriptorProperties properties) {
-		if (properties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT)
-			|| properties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
+		if (properties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
 			|| properties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID)) {
 
-			properties.validateString(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT, false);
 			properties.validateString(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER, false);
 			properties.validateString(CONNECTOR_PROPERTIES_GROUP_ID, true);
 
@@ -235,8 +232,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	}
 
 	public static boolean hasConciseKafkaProperties(DescriptorProperties descriptorProperties) {
-		return descriptorProperties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT) ||
-			descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER) ||
+		return descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER) ||
 			descriptorProperties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID);
 	}
 }

@@ -24,9 +24,9 @@ under the License.
 
 ## 通过 HiveModule 使用 Hive 内置函数
 
-`HiveModule` 为 Flink SQL 和 Table API 用户提供了 Hive 内置函数，作为 Flink 系统（内置）函数。
+在 Flink SQL 和 Table API 中，可以通过系统内置的 `HiveModule` 来使用 Hive 内置函数，
 
-有关详细信息，请参阅 [HiveModule]({{ site.baseurl }}/zh/dev/table/modules.html#hivemodule).
+详细信息，请参考 [HiveModule]({{ site.baseurl }}/zh/dev/table/modules.html#hivemodule)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -58,13 +58,14 @@ modules:
 </div>
 </div>
 
-* 注意，旧版本中的某些 Hive 内置函数具有[线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。我们建议用户对自己的 Hive 来打补丁修复它们。
+* 请注意旧版本的部分 Hive 内置函数存在[线程安全问题](https://issues.apache.org/jira/browse/HIVE-16183)。
+我们建议用户及时通过补丁修正 Hive 中的这些问题。
 
-## Hive 用户定义函数（User Defined Functions）
+## Hive 用户自定义函数(User Defined Functions)
 
-用户可以在 Flink 中使用其现有的 Hive 用户定义函数。
+在 Flink 中用户可以使用 Hive 里已经存在的 UDF 函数。
 
-支持的UDF类型包括：
+支持的 UDF 类型包括：
 
 - UDF
 - GenericUDF
@@ -72,21 +73,22 @@ modules:
 - UDAF
 - GenericUDAFResolver2
 
-在查询计划和执行时，Hive 的 UDF 和 GenericUDF 会自动转换为 Flink 的 ScalarFunction，Hive 的 GenericUDTF 会自动转换为 Flink 的 TableFunction，Hive 的 UDAF 和 GenericUDAFResolver2 会转换为 Flink 的 AggregateFunction。
+在进行查询规划和执行时，Hive UDF 和 GenericUDF 函数会自动转换成 Flink 中的 ScalarFunction，GenericUDTF 会被自动转换成 Flink 中的
+ TableFunction，UDAF 和 GenericUDAFResolver2 则转换成 Flink 聚合函数(AggregateFunction).
 
-要使用 Hive 用户定义函数，用户必须
+想要使用 Hive UDF 函数，需要如下几步：
 
-- 设置由 Hive Metastore 支持的 HiveCatalog，其中包含该函数，且作为会话（session）的当前 catalog
-- 在 Flink 的 classpath 中设置一个包含该函数的 jar 文件
-- 使用 Blink planner
+- 通过 Hive Metastore 将带有 UDF 的 HiveCatalog 设置为当前会话的 catalog 后端。
+- 将带有 UDF 的 jar 包放入 Flink classpath 中，并在代码中引入。
+- 使用 Blink planner。
 
-## 使用 Hive 用户定义函数
+## 使用 Hive UDF
 
 假设我们在 Hive Metastore 中注册了以下 Hive 函数：
 
 {% highlight java %}
 /**
- * Test simple udf. Registered under name 'myudf'
+ * 注册为 'myudf' 的简单 UDF 测试类. 
  */
 public class TestHiveSimpleUDF extends UDF {
 
@@ -100,7 +102,7 @@ public class TestHiveSimpleUDF extends UDF {
 }
 
 /**
- * Test generic udf. Registered under name 'mygenericudf'
+ * 注册为 'mygenericudf' 的普通 UDF 测试类
  */
 public class TestHiveGenericUDF extends GenericUDF {
 
@@ -133,7 +135,7 @@ public class TestHiveGenericUDF extends GenericUDF {
 }
 
 /**
- * Test split udtf. Registered under name 'mygenericudtf'
+ * 注册为 'mygenericudtf' 的字符串分割 UDF 测试类
  */
 public class TestHiveUDTF extends GenericUDTF {
 
@@ -168,7 +170,7 @@ public class TestHiveUDTF extends GenericUDTF {
 
 {% endhighlight %}
 
-在 Hive CLI 中，我们可以看到它们已注册：
+在 Hive CLI 中，可以查询到已经注册的 UDF 函数:
 
 {% highlight bash %}
 hive> show functions;
@@ -180,7 +182,8 @@ myudtf
 
 {% endhighlight %}
 
-然后，用户可以在 SQL 中以如下方式使用它们：
+此时，用户如果想使用这些 UDF，在 SQL 中就可以这样写：
+
 
 {% highlight bash %}
 

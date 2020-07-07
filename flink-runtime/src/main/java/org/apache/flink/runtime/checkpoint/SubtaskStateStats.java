@@ -53,9 +53,6 @@ public class SubtaskStateStats implements Serializable {
 	/** Checkpoint duration at the operator (async part) in milliseconds. */
 	private final long asyncCheckpointDuration;
 
-	/** Number of buffered bytes during alignment. */
-	private final long alignmentBuffered;
-
 	/** Alignment duration in milliseconds. */
 	private final long alignmentDuration;
 
@@ -68,7 +65,6 @@ public class SubtaskStateStats implements Serializable {
 			long stateSize,
 			long syncCheckpointDuration,
 			long asyncCheckpointDuration,
-			long alignmentBuffered,
 			long alignmentDuration,
 			long checkpointStartDelay) {
 
@@ -79,7 +75,6 @@ public class SubtaskStateStats implements Serializable {
 		this.ackTimestamp = ackTimestamp;
 		this.syncCheckpointDuration = syncCheckpointDuration;
 		this.asyncCheckpointDuration = asyncCheckpointDuration;
-		this.alignmentBuffered = alignmentBuffered;
 		this.alignmentDuration = alignmentDuration;
 		this.checkpointStartDelay = checkpointStartDelay;
 	}
@@ -134,14 +129,6 @@ public class SubtaskStateStats implements Serializable {
 	 */
 	public long getAsyncCheckpointDuration() {
 		return asyncCheckpointDuration;
-	}
-
-	/**
-	 * @return Number of bytes buffered during stream alignment (for exactly-once only) or
-	 * <code>-1</code> if the runtime did not report this.
-	 */
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
 	}
 
 	/**

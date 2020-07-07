@@ -23,4 +23,5 @@ package org.apache.flink.tests.util.flink;
 public enum JarLocation {
 	LIB,
 	OPT,
+	PLUGINS
 }

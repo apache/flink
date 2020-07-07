@@ -144,7 +144,7 @@ public abstract class BoundedDataTestBase {
 	@Test
 	public void testGetSizeSingleRegion() throws Exception {
 		try (BoundedData bd = createBoundedData()) {
-			testGetSize(bd);
+			testGetSize(bd, 60_787, 76_687);
 		}
 	}
 
@@ -154,14 +154,13 @@ public abstract class BoundedDataTestBase {
 			return;
 		}
 
-		try (BoundedData bd = createBoundedDataWithRegion(100_000)) {
-			testGetSize(bd);
+		int pageSize = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
+		try (BoundedData bd = createBoundedDataWithRegion(pageSize)) {
+			testGetSize(bd, pageSize / 3, pageSize - BufferReaderWriterUtil.HEADER_LENGTH);
 		}
 	}
 
-	private static void testGetSize(BoundedData bd) throws Exception {
-		final int bufferSize1 = 60_787;
-		final int bufferSize2 = 76_687;
+	private static void testGetSize(BoundedData bd, int bufferSize1, int bufferSize2) throws Exception {
 		final int expectedSize1 = bufferSize1 + BufferReaderWriterUtil.HEADER_LENGTH;
 		final int expectedSizeFinal = bufferSize1 + bufferSize2 + 2 * BufferReaderWriterUtil.HEADER_LENGTH;
 

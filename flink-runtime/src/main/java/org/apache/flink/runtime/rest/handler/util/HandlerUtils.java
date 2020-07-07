@@ -23,6 +23,7 @@ import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -30,25 +31,36 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.Future;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.GenericFutureListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.StringWriter;
+import java.nio.channels.FileChannel;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
@@ -225,6 +237,74 @@ public class HandlerUtils {
 		}
 
 		return toCompletableFuture(lastContentFuture);
+	}
+
+	public static void transferFile(ChannelHandlerContext ctx, File file, HttpRequest httpRequest) throws FlinkException {
+		final RandomAccessFile randomAccessFile;
+
+		try {
+			randomAccessFile = new RandomAccessFile(file, "r");
+		} catch (FileNotFoundException e) {
+			throw new FlinkException("Can not find file " + file + ".", e);
+		}
+
+		try {
+
+			final long fileLength = randomAccessFile.length();
+			final FileChannel fileChannel = randomAccessFile.getChannel();
+
+			try {
+				HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+				response.headers().set(CONTENT_TYPE, "text/plain");
+
+				if (HttpHeaders.isKeepAlive(httpRequest)) {
+					response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+				}
+				HttpHeaders.setContentLength(response, fileLength);
+
+				// write the initial line and the header.
+				ctx.write(response);
+
+				// write the content.
+				final ChannelFuture lastContentFuture;
+				final GenericFutureListener<Future<? super Void>> completionListener = future -> {
+					fileChannel.close();
+					randomAccessFile.close();
+				};
+
+				if (ctx.pipeline().get(SslHandler.class) == null) {
+					ctx.write(
+						new DefaultFileRegion(fileChannel, 0, fileLength), ctx.newProgressivePromise())
+						.addListener(completionListener);
+					lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+
+				} else {
+					lastContentFuture = ctx
+						.writeAndFlush(
+							new HttpChunkedInput(new ChunkedFile(randomAccessFile, 0, fileLength, 8192)),
+							ctx.newProgressivePromise())
+						.addListener(completionListener);
+
+					// HttpChunkedInput will write the end marker (LastHttpContent) for us.
+				}
+
+				// close the connection, if no keep-alive is needed
+				if (!HttpHeaders.isKeepAlive(httpRequest)) {
+					lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+				}
+			} catch (IOException ex) {
+				fileChannel.close();
+				throw ex;
+			}
+		} catch (IOException ioe) {
+			try {
+				randomAccessFile.close();
+			} catch (IOException e) {
+				throw new FlinkException("Close file or channel error.", e);
+			}
+
+			throw new FlinkException("Could not transfer file " + file + " to the client.", ioe);
+		}
 	}
 
 	private static CompletableFuture<Void> toCompletableFuture(final ChannelFuture channelFuture) {

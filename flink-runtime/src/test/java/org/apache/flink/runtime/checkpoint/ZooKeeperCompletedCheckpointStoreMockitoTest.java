@@ -232,7 +232,7 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 				2L,
 				new HashMap<>(),
 				null,
-				CheckpointProperties.forSavepoint(),
+				CheckpointProperties.forSavepoint(true),
 				new TestCompletedCheckpointStorageLocation())));
 
 		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle1, "/foobar1"));

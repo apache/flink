@@ -21,7 +21,8 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
@@ -32,8 +33,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import java.net.InetAddress;
+
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -84,6 +89,38 @@ public class TaskManagerRunnerTest extends TestLogger {
 		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
 	}
 
+	@Test
+	public void testGenerateTaskManagerResourceIDWithConfig() throws Exception {
+		final Configuration configuration = createConfiguration();
+		final String resourceID = "test";
+		configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceID);
+		final String taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1);
+
+		assertThat(taskManagerResourceID, equalTo(resourceID));
+	}
+
+	@Test
+	public void testGenerateTaskManagerResourceIDWithRemoteRpcService() throws Exception {
+		final Configuration configuration = createConfiguration();
+		final String rpcAddress = "flink";
+		final int rpcPort = 9090;
+		final String taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort);
+
+		assertThat(taskManagerResourceID, notNullValue());
+		assertThat(taskManagerResourceID, containsString(rpcAddress + ":" + rpcPort));
+	}
+
+	@Test
+	public void testGenerateTaskManagerResourceIDWithLocalRpcService() throws Exception {
+		final Configuration configuration = createConfiguration();
+		final String rpcAddress = "";
+		final int rpcPort = -1;
+		final String taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort);
+
+		assertThat(taskManagerResourceID, notNullValue());
+		assertThat(taskManagerResourceID, containsString(InetAddress.getLocalHost().getHostName()));
+	}
+
 	private static Configuration createConfiguration() {
 		final Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
@@ -92,7 +129,8 @@ public class TaskManagerRunnerTest extends TestLogger {
 	}
 
 	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration) throws Exception {
-		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate());
+		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, pluginManager);
 		taskManagerRunner.start();
 		return taskManagerRunner;
 	}

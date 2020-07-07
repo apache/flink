@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -32,14 +33,17 @@ public class CreateTempSystemFunctionOperation implements CreateOperation {
 	private final String functionName;
 	private String functionClass;
 	private boolean ignoreIfExists;
+	private FunctionLanguage functionLanguage;
 
 	public CreateTempSystemFunctionOperation(
 		String functionName,
 		String functionClass,
-		boolean ignoreIfExists) {
+		boolean ignoreIfExists,
+		FunctionLanguage functionLanguage) {
 		this.functionName = functionName;
 		this.functionClass = functionClass;
 		this.ignoreIfExists = ignoreIfExists;
+		this.functionLanguage = functionLanguage;
 	}
 
 	public String getFunctionName() {
@@ -54,12 +58,17 @@ public class CreateTempSystemFunctionOperation implements CreateOperation {
 		return this.ignoreIfExists;
 	}
 
+	public FunctionLanguage getFunctionLanguage() {
+		return this.functionLanguage;
+	}
+
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("functionName", functionName);
 		params.put("functionClass", functionClass);
 		params.put("ignoreIfExists", ignoreIfExists);
+		params.put("functionLanguage", functionLanguage);
 
 		return OperationUtils.formatWithChildren(
 			"CREATE TEMPORARY SYSTEM FUNCTION",

@@ -20,7 +20,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -110,11 +112,16 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		if (inputSelectionHandler.areAllInputsSelected()) {
-			return isAnyInputAvailable();
-		} else {
-			throw new UnsupportedOperationException();
+		if (inputSelectionHandler.isAnyInputAvailable() || inputSelectionHandler.areAllInputsFinished()) {
+			return AVAILABLE;
 		}
+		final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
+		for (int i = 0; i < inputProcessors.length; i++) {
+			if (!inputSelectionHandler.isInputFinished(i) && inputSelectionHandler.isInputSelected(i)) {
+				inputProcessors[i].networkInput.getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
+			}
+		}
+		return anyInputAvailable;
 	}
 
 	@Override
@@ -171,6 +178,17 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		}
 	}
 
+	@Override
+	public CompletableFuture<Void> prepareSnapshot(
+			ChannelStateWriter channelStateWriter,
+			long checkpointId) throws IOException {
+		CompletableFuture<?>[] inputFutures = new CompletableFuture[inputProcessors.length];
+		for (int index = 0; index < inputFutures.length; index++) {
+			inputFutures[index] = inputProcessors[index].prepareSnapshot(channelStateWriter, checkpointId);
+		}
+		return CompletableFuture.allOf(inputFutures);
+	}
+
 	private int selectNextReadingInputIndex() {
 		if (!inputSelectionHandler.isAnyInputAvailable()) {
 			fullCheckAndSetAvailable();
@@ -200,19 +218,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 				inputSelectionHandler.setAvailableInput(i);
 			}
 		}
-	}
-
-	private CompletableFuture<?> isAnyInputAvailable() {
-		if (inputSelectionHandler.isAnyInputAvailable() || inputSelectionHandler.areAllInputsFinished()) {
-			return AVAILABLE;
-		}
-		final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
-		for (int i = 0; i < inputProcessors.length; i++) {
-			if (!inputSelectionHandler.isInputFinished(i)) {
-				inputProcessors[i].networkInput.getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
-			}
-		}
-		return anyInputAvailable;
 	}
 
 	private int getInputId(int inputIndex) {
@@ -245,6 +250,12 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		public void close() throws IOException {
 			networkInput.close();
+		}
+
+		public CompletableFuture<?> prepareSnapshot(
+				ChannelStateWriter channelStateWriter,
+				long checkpointId) throws IOException {
+			return networkInput.prepareSnapshot(channelStateWriter, checkpointId);
 		}
 	}
 

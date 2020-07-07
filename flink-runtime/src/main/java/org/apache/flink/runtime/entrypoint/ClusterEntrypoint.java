@@ -30,6 +30,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -56,8 +57,8 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -159,13 +160,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
-
-			configureFileSystems(configuration);
+			PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+			configureFileSystems(configuration, pluginManager);
 
 			SecurityContext securityContext = installSecurityContext(configuration);
 
 			securityContext.runSecured((Callable<Void>) () -> {
-				runCluster(configuration);
+				runCluster(configuration, pluginManager);
 
 				return null;
 			});
@@ -188,9 +189,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		}
 	}
 
-	private void configureFileSystems(Configuration configuration) {
+	private void configureFileSystems(Configuration configuration, PluginManager pluginManager) {
 		LOG.info("Install default filesystem.");
-		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
+		FileSystem.initialize(configuration, pluginManager);
 	}
 
 	private SecurityContext installSecurityContext(Configuration configuration) throws Exception {
@@ -201,9 +202,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		return SecurityUtils.getInstalledContext();
 	}
 
-	private void runCluster(Configuration configuration) throws Exception {
+	private void runCluster(Configuration configuration, PluginManager pluginManager) throws Exception {
 		synchronized (lock) {
-			initializeServices(configuration);
+
+			initializeServices(configuration, pluginManager);
 
 			// write host information into configuration
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
@@ -242,7 +244,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		}
 	}
 
-	protected void initializeServices(Configuration configuration) throws Exception {
+	protected void initializeServices(Configuration configuration, PluginManager pluginManager) throws Exception {
 
 		LOG.info("Initializing cluster services.");
 
@@ -259,15 +261,15 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
 			ioExecutor = Executors.newFixedThreadPool(
-				Hardware.getNumberCPUCores(),
+				ClusterEntrypointUtils.getPoolSize(configuration),
 				new ExecutorThreadFactory("cluster-io"));
 			haServices = createHaServices(configuration, ioExecutor);
 			blobServer = new BlobServer(configuration, haServices.createBlobStore());
 			blobServer.start();
 			heartbeatServices = createHeartbeatServices(configuration);
-			metricRegistry = createMetricRegistry(configuration);
+			metricRegistry = createMetricRegistry(configuration, pluginManager);
 
-			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, commonRpcService.getAddress());
+			final RpcService metricQueryServiceRpcService = MetricUtils.startRemoteMetricsRpcService(configuration, commonRpcService.getAddress());
 			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 			final String hostname = RpcUtils.getHostname(commonRpcService);
@@ -308,10 +310,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		return HeartbeatServices.fromConfiguration(configuration);
 	}
 
-	protected MetricRegistryImpl createMetricRegistry(Configuration configuration) {
+	protected MetricRegistryImpl createMetricRegistry(Configuration configuration, PluginManager pluginManager) {
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.fromConfiguration(configuration),
-			ReporterSetup.fromConfiguration(configuration));
+			ReporterSetup.fromConfiguration(configuration, pluginManager));
 	}
 
 	@Override
@@ -384,7 +386,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@Override
 	public void onFatalError(Throwable exception) {
-		LOG.error("Fatal error occurred in the cluster entrypoint.", exception);
+		Throwable enrichedException = ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
+		LOG.error("Fatal error occurred in the cluster entrypoint.", enrichedException);
 
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}

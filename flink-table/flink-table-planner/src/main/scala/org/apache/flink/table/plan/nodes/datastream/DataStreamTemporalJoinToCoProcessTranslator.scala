@@ -23,7 +23,7 @@ import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, ValidationException}
+import org.apache.flink.table.api.{TableConfig, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.codegen.GeneratedFunction
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
@@ -61,7 +61,6 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
 
   override protected def createJoinOperator(
       joinType: JoinRelType,
-      queryConfig: StreamQueryConfig,
       joinFunction: GeneratedFunction[FlatJoinFunction[Row, Row, Row], Row])
     : TwoInputStreamOperator[CRow, CRow, CRow] = {
 
@@ -73,7 +72,8 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
             rightSchema.typeInfo,
             joinFunction.name,
             joinFunction.code,
-            queryConfig,
+            config.getMinIdleStateRetentionTime,
+            config.getMaxIdleStateRetentionTime,
             leftTimeAttributeInputReference,
             rightTimeAttributeInputReference.get)
         }
@@ -83,7 +83,8 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
             rightSchema.typeInfo,
             joinFunction.name,
             joinFunction.code,
-            queryConfig)
+            config.getMinIdleStateRetentionTime,
+            config.getMaxIdleStateRetentionTime)
         }
       case _ =>
        throw new ValidationException(

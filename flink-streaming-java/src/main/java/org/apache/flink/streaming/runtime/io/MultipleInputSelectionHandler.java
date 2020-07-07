@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 
@@ -37,7 +38,7 @@ public class MultipleInputSelectionHandler {
 	public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE;
 
 	@Nullable
-	private final InputSelectable inputSelector;
+	private final InputSelectable inputSelectable;
 
 	private InputSelection inputSelection = InputSelection.ALL;
 
@@ -49,7 +50,7 @@ public class MultipleInputSelectionHandler {
 
 	public MultipleInputSelectionHandler(@Nullable InputSelectable inputSelectable, int inputCount) {
 		checkSupportedInputCount(inputCount);
-		this.inputSelector = inputSelectable;
+		this.inputSelectable = inputSelectable;
 		this.allSelectedMask = (1 << inputCount) - 1;
 		this.availableInputsMask = allSelectedMask;
 		this.notFinishedInputsMask = allSelectedMask;
@@ -98,10 +99,10 @@ public class MultipleInputSelectionHandler {
 	}
 
 	void nextSelection() {
-		if (inputSelector == null) {
+		if (inputSelectable == null) {
 			inputSelection = InputSelection.ALL;
 		} else {
-			inputSelection = inputSelector.nextSelection();
+			inputSelection = inputSelectable.nextSelection();
 		}
 	}
 
@@ -112,7 +113,7 @@ public class MultipleInputSelectionHandler {
 	}
 
 	boolean shouldSetAvailableForAnotherInput() {
-		return availableInputsMask != allSelectedMask && inputSelection.areAllInputsSelected();
+		return (inputSelection.getInputMask() & allSelectedMask & ~availableInputsMask) != 0;
 	}
 
 	void setAvailableInput(int inputIndex) {

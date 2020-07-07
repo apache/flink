@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -38,7 +38,93 @@ under the License.
 	<properties>
 		<hiverunner.version>4.0.0</hiverunner.version>
 		<reflections.version>0.9.8</reflections.version>
+		<derby.version>10.10.2.0</derby.version>
 	</properties>
+
+	<!-- Overwrite hadoop dependency management from flink-parent to use locally defined Hadoop version -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${hivemetastore.hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${hivemetastore.hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-mapreduce-client-core</artifactId>
+				<version>${hivemetastore.hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-yarn-common</artifactId>
+				<version>${hivemetastore.hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-yarn-client</artifactId>
+				<version>${hivemetastore.hadoop.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 
@@ -76,6 +162,12 @@ under the License.
 			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-bulk_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- format dependencies -->
@@ -125,12 +217,16 @@ under the License.
 			thus override the default hadoop version from 2.4.1 to 2.7.5
 		-->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-			<version>${hivemetastore.hadoop.version}-${flink.shaded.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<scope>provided</scope>
+		</dependency>
 		<!-- Hive dependencies -->
 		<!-- Note: Hive published jars do not have proper dependencies declared.
 		We need to push for HIVE-16391 (https://issues.apache.org/jira/browse/HIVE-16391) to resolve this problem. -->
@@ -284,6 +380,10 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.derby</groupId>
+					<artifactId>derby</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -740,6 +840,14 @@ under the License.
 			<scope>test</scope>
         </dependency>
 
+		<!-- The derby we use suffers some security vulnerabilities. Explicitly set it to test scope here. -->
+		<dependency>
+			<groupId>org.apache.derby</groupId>
+			<artifactId>derby</artifactId>
+			<version>${derby.version}</version>
+			<scope>test</scope>
+		</dependency>
+
     </dependencies>
 
 	<build>
@@ -788,6 +896,7 @@ under the License.
 									<include>org.apache.flink:flink-orc-nohive_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-parquet_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-hadoop-bulk_${scala.binary.version}</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>
 									<include>org.apache.parquet:parquet-column</include>
@@ -798,17 +907,41 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
-									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.shaded.fs.hdfs</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.util</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.formats.parquet</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.formats.parquet</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.parquet</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.parquet</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.shaded.parquet</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>shaded.parquet</pattern>
-									<shadedPattern>org.apache.flink.reshaded.parquet</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.reshaded.parquet</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:flink-orc_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-parquet_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
@@ -824,12 +957,13 @@ under the License.
 				<hive.version>1.0.1</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
+				<derby.version>10.10.1.1</derby.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -851,12 +985,13 @@ under the License.
 				<hive.version>1.1.0</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
+				<derby.version>10.11.1.1</derby.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -882,7 +1017,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -918,7 +1053,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
+					<version>${hive.connector.orc.version}</version>
 					<exclusions>
 						<exclusion>
 							<groupId>org.apache.hadoop</groupId>
@@ -932,7 +1067,57 @@ under the License.
 			<id>hive-3.1.1</id>
 			<properties>
 				<hive.version>3.1.1</hive.version>
+				<derby.version>10.14.1.0</derby.version>
 			</properties>
+
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.hive</groupId>
+						<artifactId>hive-metastore</artifactId>
+						<version>${hive.version}</version>
+						<scope>provided</scope>
+						<exclusions>
+							<exclusion>
+								<!-- Override arrow netty dependency -->
+								<groupId>io.netty</groupId>
+								<artifactId>netty-buffer</artifactId>
+							</exclusion>
+							<exclusion>
+								<!-- Override arrow netty dependency -->
+								<groupId>io.netty</groupId>
+								<artifactId>netty-common</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+
+			<dependencies>
+				<dependency>
+					<!-- Bump arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-buffer</artifactId>
+					<version>4.1.44.Final</version>
+					<scope>provided</scope>
+				</dependency>
+
+				<dependency>
+					<!-- Bump arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+					<version>4.1.44.Final</version>
+					<scope>provided</scope>
+				</dependency>
+
+				<!-- Required by orc tests -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+					<version>${hivemetastore.hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
 
 		</profile>
 		<profile>

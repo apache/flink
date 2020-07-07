@@ -113,8 +113,8 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 		final Path cacheFile;
 		if (cachedFile.isPresent()) {
-			log.info("Using cached version of {}.", url);
 			cacheFile = cachedFile.get();
+			log.info("Using cached version of {} from {}", url, cacheFile.toAbsolutePath());
 		} else {
 			final Path scopedDownloadDir = downloadsDir.resolve(String.valueOf(url.hashCode()));
 			Files.createDirectories(scopedDownloadDir);

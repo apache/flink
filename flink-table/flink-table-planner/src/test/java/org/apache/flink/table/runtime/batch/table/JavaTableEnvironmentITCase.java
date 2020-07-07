@@ -32,7 +32,7 @@ import org.apache.flink.table.api.PlannerConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.calcite.CalciteConfigBuilder;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase;
@@ -80,7 +80,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
 		// Must fail. Table is empty
-		tableEnv.registerTable("", t);
+		tableEnv.createTemporaryView("", t);
 	}
 
 	@Test(expected = ValidationException.class)
@@ -91,7 +91,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
 		// Must fail. Table is empty
-		tableEnv.registerTable("     ", t);
+		tableEnv.createTemporaryView("     ", t);
 	}
 
 	@Test
@@ -101,8 +101,8 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet(tableName, ds);
-		Table t = tableEnv.scan(tableName);
+		tableEnv.createTemporaryView(tableName, ds);
+		Table t = tableEnv.from(tableName);
 
 		Table result = t.select($("f0"), $("f1"));
 
@@ -121,8 +121,8 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet(tableName, ds, "a, b, c");
-		Table t = tableEnv.scan(tableName);
+		tableEnv.createTemporaryView(tableName, ds, $("a"), $("b"), $("c"));
+		Table t = tableEnv.from(tableName);
 
 		Table result = t.select($("a"), $("b"), $("c"));
 
@@ -144,11 +144,11 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet("MyTable", ds);
+		tableEnv.createTemporaryView("MyTable", ds);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 =
 				CollectionDataSets.getSmall5TupleDataSet(env);
 		// Must fail. Name is already used for different table.
-		tableEnv.registerDataSet("MyTable", ds2);
+		tableEnv.createTemporaryView("MyTable", ds2);
 	}
 
 	@Test(expected = TableException.class)
@@ -157,7 +157,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail. No table registered under that name.
-		tableEnv.scan("nonRegisteredTable");
+		tableEnv.from("nonRegisteredTable");
 	}
 
 	@Test
@@ -168,7 +168,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
-		tableEnv.registerTable(tableName, t);
+		tableEnv.createTemporaryView(tableName, t);
 		Table result = tableEnv.scan(tableName).select($("f0"), $("f1")).filter($("f0").isGreater(7));
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
@@ -187,7 +187,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table t = tableEnv1.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
 		// Must fail. Table is bound to different TableEnvironment.
-		tableEnv2.registerTable("MyTable", t);
+		tableEnv2.createTemporaryView("MyTable", t);
 	}
 
 	@Test
@@ -196,7 +196,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		Table table = tableEnv
-			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
+			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("c"))
 			.select($("a"), $("b"), $("c"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
@@ -216,7 +216,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-		Table table = tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "f2");
+		Table table = tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("f2"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -236,7 +236,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		Table table = tableEnv
-			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
+			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("c"))
 			.select($("a"), $("b"), $("c"));
 
 		TypeInformation<?> ti = new TupleTypeInfo<Tuple3<Integer, Long, String>>(
@@ -268,7 +268,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		data.add(new Tuple4<>("Test me", 4, 3.33, "Hello world"));
 
 		Table table = tableEnv
-			.fromDataSet(env.fromCollection(data), "q, w, e, r")
+			.fromDataSet(env.fromCollection(data), $("q"), $("w"), $("e"), $("r"))
 			.select($("q").as("a"), $("w").as("b"), $("e").as("c"), $("r").as("d"));
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
@@ -289,11 +289,11 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
-				"department AS a, " +
-				"age AS b, " +
-				"salary AS c, " +
-				"name AS d," +
-				"roles as e")
+				$("department").as("a"),
+				$("age").as("b"),
+				$("salary").as("c"),
+				$("name").as("d"),
+				$("roles").as("e"))
 			.select($("a"), $("b"), $("c"), $("d"), $("e"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
@@ -321,8 +321,8 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 					data,
 					TypeInformation.of(new TypeHint<Either<String, Integer>>() { })
 				),
-				"either")
-			.select("either");
+				$("either"))
+			.select($("either"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -344,7 +344,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR", new Integer[] {1, 2, 3}));
 
 		Table table = tableEnv
-			.fromDataSet(env.fromCollection(data), "name AS d")
+			.fromDataSet(env.fromCollection(data), $("name").as("d"))
 			.select($("d"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
@@ -368,10 +368,10 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
-				"department AS a, " +
-				"age AS b, " +
-				"salary AS c, " +
-				"name AS d")
+				$("department").as("a"),
+				$("age").as("b"),
+				$("salary").as("c"),
+				$("name").as("d"))
 			.select($("a"), $("b"), $("c"), $("d"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
@@ -395,11 +395,11 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
-				"department AS a, " +
-				"age AS b, " +
-				"salary AS c, " +
-				"name AS d," +
-				"roles AS e")
+				$("department").as("a"),
+				$("age").as("b"),
+				$("salary").as("c"),
+				$("name").as("d"),
+				$("roles").as("e"))
 			.select($("a"), $("b"), $("c"), $("d"), $("e"));
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
@@ -423,10 +423,10 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
-				"department AS a, " +
-				"age AS b, " +
-				"salary AS c, " +
-				"name AS d")
+				$("department").as("a"),
+				$("age").as("b"),
+				$("salary").as("c"),
+				$("name").as("d"))
 			.select($("a"), $("b"), $("c"), $("d"));
 
 		DataSet<PrivateSmallPojo2> ds = tableEnv.toDataSet(table, PrivateSmallPojo2.class);
@@ -454,10 +454,10 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
-				"name AS a, " +
-				"age AS b, " +
-				"generic AS c, " +
-				"generic2 AS d")
+				$("name").as("a"),
+				$("age").as("b"),
+				$("generic").as("c"),
+				$("generic2").as("d"))
 			.select($("a"), $("b"), $("c"), $("c").as("c2"), $("d"))
 			.select($("a"), $("b"), $("c"), $("c").isEqual($("c2")), $("d"));
 
@@ -467,6 +467,19 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Peter,28,{},true,[]\n" +
 			"Anna,56,{test1=test1},true,[]\n" +
 			"Lucy,42,{abc=cde},true,[]\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testFromValues() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+
+		Table table = tableEnv.fromValues(1L, 2L, 3L)
+			.select($("*"));
+
+		List<Row> results = tableEnv.toDataSet(table, Row.class).collect();
+		String expected = "1\n2\n3\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -495,7 +508,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
 
 		// Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
-		tableEnv.fromDataSet(dataSet, "nullField");
+		tableEnv.fromDataSet(dataSet, $("nullField"));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -504,7 +517,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail. Too many field names specified.
-		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("c"), $("d"));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -513,7 +526,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail. Specified field names are not unique.
-		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("b"));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -522,7 +535,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail. as() does only allow field name expressions
-		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a").plus(1), $("b"), $("c"));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -531,7 +544,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail. as() does only allow field name expressions
-		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b,  c");
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a").as("foo"), $("b"), $("c"));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -540,7 +553,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail since class is not static
-		tableEnv.fromDataSet(env.fromElements(new MyNonStatic()), "name");
+		tableEnv.fromDataSet(env.fromElements(new MyNonStatic()), $("name"));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -549,7 +562,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		// Must fail since class is not static
-		Table t = tableEnv.fromDataSet(env.fromElements(1, 2, 3), "number");
+		Table t = tableEnv.fromDataSet(env.fromElements(1, 2, 3), $("number"));
 		tableEnv.toDataSet(t, MyNonStatic.class);
 	}
 

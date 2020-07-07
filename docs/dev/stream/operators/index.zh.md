@@ -100,7 +100,7 @@ dataStream.filter(new FilterFunction<Integer>() {
         <tr>
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
-            <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">specify keys</a>.</p>
+            <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">specify keys</a>.</p>
             <p>
             This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
 {% highlight java %}
@@ -449,18 +449,6 @@ DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
             </p>
           </td>
         </tr>
-        <tr>
-          <td><strong>Extract Timestamps</strong><br>DataStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Extracts timestamps from records in order to work with windows
-                that use event time semantics. See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
-{% highlight java %}
-stream.assignTimestamps (new TimeStampExtractor() {...});
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
   </tbody>
 </table>
 
@@ -512,7 +500,7 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keys</a> on how to specify keys.
             This transformation returns a KeyedStream.</p>
 {% highlight scala %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -762,19 +750,6 @@ initialStream.iterate {
     (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
   }
 }
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Extract Timestamps</strong><br>DataStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Extracts timestamps from records in order to work with windows
-                that use event time semantics.
-                See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
-{% highlight scala %}
-stream.assignTimestamps { timestampExtractor }
 {% endhighlight %}
             </p>
           </td>

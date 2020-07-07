@@ -19,17 +19,16 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironmentTest._
-import org.apache.flink.table.api.Types._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{ROWTIME_INDICATOR => ROWTIME}
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.tuple.{Tuple3 => JTuple3}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.UnitTypeInfo
+import org.apache.flink.table.api.TableEnvironmentTest._
+import org.apache.flink.table.api.Types._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME, ROWTIME_INDICATOR => ROWTIME}
+import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

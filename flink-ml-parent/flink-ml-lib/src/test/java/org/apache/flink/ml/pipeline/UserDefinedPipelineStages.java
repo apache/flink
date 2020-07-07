@@ -21,8 +21,12 @@ package org.apache.flink.ml.pipeline;
 import org.apache.flink.ml.api.core.Transformer;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.params.shared.colname.HasSelectedCols;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.expressions.Expression;
+
+import java.util.Arrays;
 
 /**
  * Util class for testing {@link org.apache.flink.ml.api.core.PipelineStage}.
@@ -43,7 +47,7 @@ public class UserDefinedPipelineStages {
 
 		@Override
 		public Table transform(TableEnvironment tEnv, Table input) {
-			return input.select(String.join(", ", this.getSelectedCols()));
+			return input.select(Arrays.stream(this.getSelectedCols()).map(Expressions::$).toArray(Expression[]::new));
 		}
 
 		@Override

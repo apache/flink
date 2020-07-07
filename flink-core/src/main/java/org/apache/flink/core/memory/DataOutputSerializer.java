@@ -157,8 +157,8 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
 
 	@Override
 	public void write(MemorySegment segment, int off, int len) throws IOException {
-		if (len < 0 || off > segment.size() - len) {
-			throw new ArrayIndexOutOfBoundsException();
+		if (len < 0 || off < 0 || off > segment.size() - len) {
+			throw new IndexOutOfBoundsException(String.format("offset: %d, length: %d, size: %d", off, len, segment.size()));
 		}
 		if (this.position > this.buffer.length - len) {
 			resize(len);

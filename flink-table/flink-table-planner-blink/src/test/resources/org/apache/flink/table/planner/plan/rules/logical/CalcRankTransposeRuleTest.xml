@@ -44,7 +44,7 @@ LogicalProject(category=[$0], max_price=[$2], rank_num=[$3])
 FlinkLogicalCalc(select=[category, max_price, w0$o0])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0])
    +- FlinkLogicalAggregate(group=[{0, 1}], max_price=[MAX($2)])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
 ]]>
     </Resource>
   </TestCase>
@@ -211,7 +211,7 @@ FlinkLogicalCalc(select=[category, max_price, w0$o0])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0])
    +- FlinkLogicalCalc(select=[category, shopId, max_price])
       +- FlinkLogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
-         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
+         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
 ]]>
     </Resource>
   </TestCase>
@@ -244,7 +244,7 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[$3])
 FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0])
 +- FlinkLogicalCalc(select=[category, shopId, max_price])
    +- FlinkLogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
 ]]>
     </Resource>
   </TestCase>

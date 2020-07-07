@@ -31,6 +31,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
+import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
@@ -172,6 +173,13 @@ public class AWSUtil {
 						configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
 						.withExternalId(configProps.getProperty(AWSConfigConstants.externalId(configPrefix)))
 						.withStsClient(baseCredentials)
+						.build();
+
+			case WEB_IDENTITY_TOKEN:
+				return WebIdentityTokenCredentialsProvider.builder()
+						.roleArn(configProps.getProperty(AWSConfigConstants.roleArn(configPrefix), null))
+						.roleSessionName(configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix), null))
+						.webIdentityTokenFile(configProps.getProperty(AWSConfigConstants.webIdentityTokenFile(configPrefix), null))
 						.build();
 
 			default:

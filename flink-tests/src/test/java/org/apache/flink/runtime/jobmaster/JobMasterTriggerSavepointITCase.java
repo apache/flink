@@ -111,6 +111,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 				true,
 				false,
+				false,
 				0),
 			null));
 
@@ -248,6 +249,11 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
 		@Override
 		public Future<Void> notifyCheckpointCompleteAsync(final long checkpointId) {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
 			return CompletableFuture.completedFuture(null);
 		}
 	}

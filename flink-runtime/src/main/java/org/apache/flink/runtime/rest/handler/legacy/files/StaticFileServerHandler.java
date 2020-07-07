@@ -135,10 +135,6 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		// make sure we request the "index.html" in case there is a directory request
 		if (routedRequest.getPath().endsWith("/")) {
 			requestPath = routedRequest.getPath() + "index.html";
-		}
-		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
-			requestPath = "";
 		} else {
 			requestPath = routedRequest.getPath();
 		}
@@ -245,11 +241,8 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			setContentTypeHeader(response, file);
+			setDateAndCacheHeaders(response, file);
 
-			// since the log and out files are rapidly changing, we don't want to browser to cache them
-			if (!(requestPath.contains("log") || requestPath.contains("out"))) {
-				setDateAndCacheHeaders(response, file);
-			}
 			if (HttpHeaders.isKeepAlive(request)) {
 				response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 			}

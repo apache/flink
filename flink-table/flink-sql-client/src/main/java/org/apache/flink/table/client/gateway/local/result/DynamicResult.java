@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.table.client.gateway.local.ProgramDeployer;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
@@ -37,9 +37,9 @@ public interface DynamicResult<C> extends Result<C> {
 	boolean isMaterialized();
 
 	/**
-	 * Starts the table program using the given deployer and monitors it's execution.
+	 * Starts retrieving the result using the given {@link JobClient} and monitors it's execution.
 	 */
-	void startRetrieval(ProgramDeployer deployer);
+	void startRetrieval(JobClient jobClient);
 
 	/**
 	 * Returns the table sink required by this result type.

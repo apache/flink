@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -86,7 +87,8 @@ public class JarHandlers {
 			JarRunHeaders.getInstance(),
 			jarDir,
 			new Configuration(),
-			executor);
+			executor,
+			() -> new DetachedApplicationRunner(true));
 
 		deleteHandler = new JarDeleteHandler(
 			gatewayRetriever,

@@ -327,7 +327,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			// make releaseMemory calls always fail:
 			numBuffersToRecycle -> {
 				throw new TestIOException();
-		});
+		}, 0, Integer.MAX_VALUE);
 
 		try {
 			// take all but one buffer
@@ -366,7 +366,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
 			numBuffersToRecycle -> {
 				throw new TestIOException();
-		});
+		}, 0, Integer.MAX_VALUE);
 
 		try {
 

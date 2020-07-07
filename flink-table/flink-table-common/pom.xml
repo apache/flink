@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -49,6 +49,15 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-asm-7</artifactId>
 			<!-- managed version -->
+		</dependency>
+
+		<!-- Tools to unify display format for different languages -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>65.1</version>
+			<!-- set provided here, and will package it into planner jar -->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

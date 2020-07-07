@@ -143,8 +143,10 @@ public class TaskManagerOptions {
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
 	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
+	 *
+	 * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> INITIAL_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.initial-backoff")
 			.durationType()
@@ -155,8 +157,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The maximum registration backoff between two consecutive registration attempts.
+	 *
+	 * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> REGISTRATION_MAX_BACKOFF =
 		key("taskmanager.registration.max-backoff")
 			.durationType()
@@ -167,8 +171,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The backoff after a registration has been refused by the job manager before retrying to connect.
+	 *
+	 * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> REFUSED_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.refused-backoff")
 			.durationType()
@@ -250,6 +256,18 @@ public class TaskManagerOptions {
 					text("\"name\" - uses hostname as binding address"),
 					text("\"ip\" - uses host's ip address as binding address"))
 				.build());
+
+	/**
+	 * The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the RpcAddress:RpcPort and a 6-character
+	 * random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID =
+		key("taskmanager.resource-id")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "
+				+ "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.");
 
 	// ------------------------------------------------------------------------
 	//  Resource Options
@@ -525,22 +543,6 @@ public class TaskManagerOptions {
 			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
 			.withDescription("Time we wait for the timers in milliseconds to finish all pending timer threads" +
 				" when the stream task is cancelled.");
-
-	/**
-	 * The maximum number of bytes that a checkpoint alignment may buffer.
-	 * If the checkpoint alignment buffers more than the configured amount of
-	 * data, the checkpoint is aborted (skipped).
-	 *
-	 * <p>The default value of {@code -1} indicates that there is no limit.
-	 */
-	@Documentation.ExcludeFromDocumentation("With flow control, there is no alignment spilling any more")
-	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
-			key("task.checkpoint.alignment.max-size")
-			.longType()
-			.defaultValue(-1L)
-			.withDescription("The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint" +
-				" alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped)." +
-				" A value of -1 indicates that there is no limit.");
 
 	// ------------------------------------------------------------------------
 

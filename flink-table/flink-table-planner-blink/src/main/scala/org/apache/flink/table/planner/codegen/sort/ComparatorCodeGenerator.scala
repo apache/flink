@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen.sort
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils}
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
@@ -70,7 +70,7 @@ object ComparatorCodeGenerator {
         }
 
         @Override
-        public int compare($BASE_ROW o1, $BASE_ROW o2) {
+        public int compare($ROW_DATA o1, $ROW_DATA o2) {
           $compareCode
           return 0;
         }

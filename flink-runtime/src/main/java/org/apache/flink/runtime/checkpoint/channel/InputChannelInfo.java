@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Identifies {@link org.apache.flink.runtime.io.network.partition.consumer.InputChannel} in a given subtask.
@@ -44,5 +45,27 @@ public class InputChannelInfo implements Serializable {
 
 	public int getInputChannelIdx() {
 		return inputChannelIdx;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final InputChannelInfo that = (InputChannelInfo) o;
+		return gateIdx == that.gateIdx && inputChannelIdx == that.inputChannelIdx;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(gateIdx, inputChannelIdx);
+	}
+
+	@Override
+	public String toString() {
+		return "InputChannelInfo{" + "gateIdx=" + gateIdx + ", inputChannelIdx=" + inputChannelIdx + '}';
 	}
 }

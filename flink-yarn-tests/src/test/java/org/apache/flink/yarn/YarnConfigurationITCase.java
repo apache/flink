@@ -25,7 +25,8 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -57,7 +58,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -83,14 +84,12 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			final YarnClient yarnClient = getYarnClient();
 			final Configuration configuration = new Configuration(flinkConfiguration);
 
-			// disable heap cutoff min
-			configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
-
 			final int slotsPerTaskManager = 3;
 			configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+			final int masterMemory = 768;
+			configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(masterMemory));
 
 			final TaskExecutorProcessSpec tmResourceSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-			final int masterMemory = 64;
 			final int taskManagerMemory = tmResourceSpec.getTotalProcessMemorySize().getMebiBytes();
 
 			final YarnConfiguration yarnConfiguration = getYarnConfiguration();
@@ -103,7 +102,6 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-			clusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
 
 			final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
 

@@ -20,14 +20,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -41,7 +39,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for the {@link JarRunHandler} and  {@link JarPlanHandler}.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class JarHandlerTest extends TestLogger {
 
 	private static final String JAR_NAME = "output-test-program.jar";
@@ -49,22 +46,12 @@ public class JarHandlerTest extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
 
-	enum Type {
-		PLAN,
-		RUN
-	}
-
 	@Test
 	public void testPlanJar() throws Exception {
-		runTest(Type.PLAN, "hello out!", "hello err!");
+		runTest("hello out!", "hello err!");
 	}
 
-	@Test
-	public void testRunJar() throws Exception {
-		runTest(Type.RUN, "(none)", "(none)");
-	}
-
-	private static void runTest(Type type, String expectedCapturedStdOut, String expectedCapturedStdErr) throws Exception {
+	private static void runTest(String expectedCapturedStdOut, String expectedCapturedStdErr) throws Exception {
 		final TestingDispatcherGateway restfulGateway = new TestingDispatcherGateway.Builder().build();
 
 		final JarHandlers handlers = new JarHandlers(TMP.newFolder().toPath(), restfulGateway);
@@ -76,13 +63,7 @@ public class JarHandlerTest extends TestLogger {
 		final String storedJarName = Paths.get(storedJarPath).getFileName().toString();
 
 		try {
-			switch (type) {
-				case RUN:
-					JarHandlers.runJar(handlers.runHandler, storedJarName, restfulGateway);
-					break;
-				case PLAN:
-					JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
-			}
+			JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
 			Assert.fail("Should have failed with an exception.");
 		} catch (Exception e) {
 			Optional<ProgramInvocationException> expected = ExceptionUtils.findThrowable(e, ProgramInvocationException.class);

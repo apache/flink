@@ -148,8 +148,8 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent event) throws IOException {
-		recordWriter.broadcastEvent(event);
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+		recordWriter.broadcastEvent(event, isPriorityEvent);
 	}
 
 	public void flush() throws IOException {

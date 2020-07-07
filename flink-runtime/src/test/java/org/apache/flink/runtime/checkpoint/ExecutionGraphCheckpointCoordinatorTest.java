@@ -146,6 +146,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			.setAllocationTimeout(timeout)
 			.build();
 
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100,
 			100,
@@ -153,6 +155,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
+			false,
 			false,
 			0);
 
@@ -166,8 +169,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 				store,
 				new MemoryStateBackend(),
 				CheckpointStatsTrackerTest.createTestTracker());
-
-		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		return executionGraph;
 	}

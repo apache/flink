@@ -19,46 +19,15 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
-import org.apache.flink.table.planner.plan.nodes.physical.stream._
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.sinks.UpsertStreamTableSink
-
-import org.apache.calcite.plan.hep.HepRelVertex
-import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.rel.{RelNode, RelVisitor}
 
 import scala.collection.JavaConversions._
 
 object UpdatingPlanChecker {
 
-  /** Validates that the plan produces only append changes. */
-  def isAppendOnly(plan: RelNode): Boolean = {
-    val appendOnlyValidator = new AppendOnlyValidator
-    appendOnlyValidator.go(plan)
-
-    appendOnlyValidator.isAppendOnly
-  }
-
-  private class AppendOnlyValidator extends RelVisitor {
-
-    var isAppendOnly = true
-
-    override def visit(node: RelNode, ordinal: Int, parent: RelNode): Unit = {
-      node match {
-        case s: StreamPhysicalRel if s.producesUpdates || s.producesRetractions =>
-          isAppendOnly = false
-        case hep: HepRelVertex =>
-          visit(hep.getCurrentRel, ordinal, parent)   //remove wrapper node
-        case rs: RelSubset =>
-          visit(rs.getOriginal, ordinal, parent)      //remove wrapper node
-        case _ =>
-          super.visit(node, ordinal, parent)
-      }
-    }
-  }
-
   def getUniqueKeyForUpsertSink(
-      sinkNode: Sink,
+      sinkNode: LegacySink,
       planner: PlannerBase,
       sink: UpsertStreamTableSink[_]): Option[Array[String]] = {
     // extract unique key fields

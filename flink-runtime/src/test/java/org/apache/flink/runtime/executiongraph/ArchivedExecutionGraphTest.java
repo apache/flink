@@ -103,6 +103,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			.setJobGraph(jobGraph)
 			.build();
 
+		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
 		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
 		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
@@ -121,6 +123,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
 			false,
+			false,
 			0);
 
 		runtimeGraph.enableCheckpointing(
@@ -135,8 +138,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			statsTracker);
 
 		runtimeGraph.setJsonPlan("{}");
-
-		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
 	}

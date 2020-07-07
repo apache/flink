@@ -22,9 +22,9 @@ import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
@@ -35,10 +35,10 @@ import java.util.List;
 /**
  * Key-Value style record merger for sort.
  */
-public class BinaryKVExternalMerger extends AbstractBinaryExternalMerger<Tuple2<BinaryRow, BinaryRow>> {
+public class BinaryKVExternalMerger extends AbstractBinaryExternalMerger<Tuple2<BinaryRowData, BinaryRowData>> {
 
-	private final BinaryRowSerializer keySerializer;
-	private final BinaryRowSerializer valueSerializer;
+	private final BinaryRowDataSerializer keySerializer;
+	private final BinaryRowDataSerializer valueSerializer;
 	private final RecordComparator comparator;
 
 	public BinaryKVExternalMerger(
@@ -46,8 +46,8 @@ public class BinaryKVExternalMerger extends AbstractBinaryExternalMerger<Tuple2<
 			int pageSize,
 			int maxFanIn,
 			SpillChannelManager channelManager,
-			BinaryRowSerializer keySerializer,
-			BinaryRowSerializer valueSerializer,
+			BinaryRowDataSerializer keySerializer,
+			BinaryRowDataSerializer valueSerializer,
 			RecordComparator comparator,
 			boolean compressionEnable,
 			BlockCompressionFactory compressionCodecFactory,
@@ -59,8 +59,8 @@ public class BinaryKVExternalMerger extends AbstractBinaryExternalMerger<Tuple2<
 	}
 
 	@Override
-	protected List<Tuple2<BinaryRow, BinaryRow>> mergeReusedEntries(int size) {
-		ArrayList<Tuple2<BinaryRow, BinaryRow>> reused = new ArrayList<>(size);
+	protected List<Tuple2<BinaryRowData, BinaryRowData>> mergeReusedEntries(int size) {
+		ArrayList<Tuple2<BinaryRowData, BinaryRowData>> reused = new ArrayList<>(size);
 		for (int i = 0; i < size; i++) {
 			reused.add(
 					new Tuple2<>(keySerializer.createInstance(), valueSerializer.createInstance()));
@@ -69,23 +69,23 @@ public class BinaryKVExternalMerger extends AbstractBinaryExternalMerger<Tuple2<
 	}
 
 	@Override
-	protected MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> channelReaderInputViewIterator(
+	protected MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> channelReaderInputViewIterator(
 			AbstractChannelReaderInputView inView) {
 		return new ChannelReaderKVInputViewIterator<>(
 				inView, null, keySerializer.duplicate(), valueSerializer.duplicate());
 	}
 
 	@Override
-	protected Comparator<Tuple2<BinaryRow, BinaryRow>> mergeComparator() {
+	protected Comparator<Tuple2<BinaryRowData, BinaryRowData>> mergeComparator() {
 		return (o1, o2) -> comparator.compare(o1.f0, o2.f0);
 	}
 
 	@Override
 	protected void writeMergingOutput(
-			MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> mergeIterator,
+			MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> mergeIterator,
 			AbstractPagedOutputView output) throws IOException {
 		// read the merged stream and write the data back
-		Tuple2<BinaryRow, BinaryRow> kv = new Tuple2<>(
+		Tuple2<BinaryRowData, BinaryRowData> kv = new Tuple2<>(
 				keySerializer.createInstance(), valueSerializer.createInstance());
 		while ((kv = mergeIterator.next(kv)) != null) {
 			keySerializer.serialize(kv.f0, output);

@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -80,6 +80,55 @@ under the License.
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>transport</artifactId>
 			<version>${elasticsearch.version}</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-buffer</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-codec</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-codec-http</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-common</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-handler</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-resolver</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump elasticsearch netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-transport</artifactId>
+			<version>4.1.44.Final</version>
 		</dependency>
 
 		<!-- test dependencies -->

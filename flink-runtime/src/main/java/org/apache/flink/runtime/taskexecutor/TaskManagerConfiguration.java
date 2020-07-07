@@ -23,12 +23,10 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
@@ -62,17 +60,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	private final Time maxRegistrationDuration;
 
-	private final Time initialRegistrationPause;
-	private final Time maxRegistrationPause;
-	private final Time refusedRegistrationPause;
-
 	private final UnmodifiableConfiguration configuration;
 
 	private final boolean exitJvmOnOutOfMemory;
-
-	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
-
-	private final String[] alwaysParentFirstLoaderPatterns;
 
 	@Nullable
 	private final String taskManagerLogPath;
@@ -83,6 +73,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	private final String taskManagerLogDir;
 
+	private final String taskManagerExternalAddress;
+
 	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
 	public TaskManagerConfiguration(
@@ -92,16 +84,12 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			String[] tmpDirectories,
 			Time timeout,
 			@Nullable Time maxRegistrationDuration,
-			Time initialRegistrationPause,
-			Time maxRegistrationPause,
-			Time refusedRegistrationPause,
 			Configuration configuration,
 			boolean exitJvmOnOutOfMemory,
-			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
-			String[] alwaysParentFirstLoaderPatterns,
 			@Nullable String taskManagerLogPath,
 			@Nullable String taskManagerStdoutPath,
 			@Nullable String taskManagerLogDir,
+			String taskManagerExternalAddress,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
 		this.numberSlots = numberSlots;
@@ -110,16 +98,12 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
-		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
-		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
-		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
-		this.classLoaderResolveOrder = classLoaderResolveOrder;
-		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 		this.taskManagerLogPath = taskManagerLogPath;
 		this.taskManagerStdoutPath = taskManagerStdoutPath;
 		this.taskManagerLogDir = taskManagerLogDir;
+		this.taskManagerExternalAddress = taskManagerExternalAddress;
 		this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
 	}
 
@@ -144,19 +128,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return maxRegistrationDuration;
 	}
 
-	public Time getInitialRegistrationPause() {
-		return initialRegistrationPause;
-	}
-
-	@Nullable
-	public Time getMaxRegistrationPause() {
-		return maxRegistrationPause;
-	}
-
-	public Time getRefusedRegistrationPause() {
-		return refusedRegistrationPause;
-	}
-
 	@Override
 	public Configuration getConfiguration() {
 		return configuration;
@@ -170,14 +141,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Override
 	public boolean shouldExitJvmOnOutOfMemoryError() {
 		return exitJvmOnOutOfMemory;
-	}
-
-	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
-		return classLoaderResolveOrder;
-	}
-
-	public String[] getAlwaysParentFirstLoaderPatterns() {
-		return alwaysParentFirstLoaderPatterns;
 	}
 
 	@Nullable
@@ -195,6 +158,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return taskManagerLogDir;
 	}
 
+	@Override
+	public String getTaskManagerExternalAddress() {
+		return taskManagerExternalAddress;
+	}
+
 	public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
 		return retryingRegistrationConfiguration;
 	}
@@ -205,7 +173,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public static TaskManagerConfiguration fromConfiguration(
 			Configuration configuration,
-			TaskExecutorResourceSpec taskExecutorResourceSpec) {
+			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			String externalAddress) {
 		int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		if (numberSlots == -1) {
@@ -223,7 +192,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 					"'.Use formats like '50 s' or '1 min' to specify the timeout.");
 		}
 
-		LOG.info("Messages have a max timeout of " + timeout);
+		LOG.debug("Messages have a max timeout of " + timeout);
 
 		Time finiteRegistrationDuration;
 		try {
@@ -235,39 +204,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			finiteRegistrationDuration = null;
 		}
 
-		final Time initialRegistrationPause;
-		try {
-			Duration pause = configuration.get(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF);
-			initialRegistrationPause = Time.milliseconds(pause.toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
-		}
-
-		final Time maxRegistrationPause;
-		try {
-			Duration pause = configuration.get(TaskManagerOptions.REGISTRATION_MAX_BACKOFF);
-			maxRegistrationPause = Time.milliseconds(pause.toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
-		}
-
-		final Time refusedRegistrationPause;
-		try {
-			Duration pause = configuration.get(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF);
-			refusedRegistrationPause = Time.milliseconds(pause.toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
-		}
-
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
-
-		final String classLoaderResolveOrder =
-			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-
-		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
 
 		final String taskManagerLogPath = configuration.getString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
 		final String taskManagerStdoutPath;
@@ -296,16 +233,12 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			tmpDirPaths,
 			timeout,
 			finiteRegistrationDuration,
-			initialRegistrationPause,
-			maxRegistrationPause,
-			refusedRegistrationPause,
 			configuration,
 			exitOnOom,
-			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
-			alwaysParentFirstLoaderPatterns,
 			taskManagerLogPath,
 			taskManagerStdoutPath,
 			taskManagerLogDir,
+			externalAddress,
 			retryingRegistrationConfiguration);
 	}
 }

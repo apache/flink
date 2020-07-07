@@ -20,11 +20,12 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.Expressions.$
+import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class SetOperatorsTest extends TableTestBase {
@@ -64,16 +65,16 @@ class SetOperatorsTest extends TableTestBase {
             unaryNode(
               "DataSetCalc",
               batchTableNode(table1),
-              term("select", "b_long AS b_long3", "true AS $f0"),
+              term("select", "b_long", "true AS $f0"),
               term("where", "IS NOT NULL(b_long)")
             ),
-            term("groupBy", "b_long3"),
-            term("select", "b_long3", "MIN($f0) AS $f1")
+            term("groupBy", "b_long"),
+            term("select", "b_long", "MIN($f0) AS $f1")
           ),
-          term("select", "b_long3")
+          term("select", "b_long")
         ),
-        term("where", "=(a_long, b_long3)"),
-        term("join", "a_long", "a_int", "a_string", "b_long3"),
+        term("where", "=(a_long, b_long)"),
+        term("join", "a_long", "a_int", "a_string", "b_long"),
         term("joinType", "InnerJoin")
       ),
       term("select", "a_int", "a_string")
@@ -251,7 +252,7 @@ class SetOperatorsTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    val table = util.addJavaTable(typeInfo, "A", "a, b")
+    val table = util.addJavaTable(typeInfo, "A", $("a"), $("b"))
 
     val expected = binaryNode(
       "DataSetUnion",

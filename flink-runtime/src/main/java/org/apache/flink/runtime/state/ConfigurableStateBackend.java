@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 
 /**
  * An interface for state backends that pick up additional parameters from a configuration.
@@ -44,5 +44,5 @@ public interface ConfigurableStateBackend {
 	 *
 	 * @throws IllegalConfigurationException Thrown if the configuration contained invalid entries.
 	 */
-	StateBackend configure(Configuration config, ClassLoader classLoader) throws IllegalConfigurationException;
+	StateBackend configure(ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException;
 }

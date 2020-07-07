@@ -26,5 +26,5 @@ import org.apache.flink.runtime.topology.Topology;
  * Represents a logical topology, i.e. {@link JobGraph}.
  */
 public interface LogicalTopology<V extends LogicalVertex<V, R>, R extends LogicalResult<V, R>>
-	extends Topology<JobVertexID, IntermediateDataSetID, V, R> {
+	extends Topology<JobVertexID, IntermediateDataSetID, V, R, LogicalPipelinedRegion<V, R>> {
 }

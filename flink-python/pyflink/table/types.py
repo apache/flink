@@ -27,9 +27,9 @@ from copy import copy
 from functools import reduce
 from threading import RLock
 
-from py4j.java_gateway import JavaClass, JavaObject, get_java_class
+from py4j.java_gateway import get_java_class
 
-from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['DataTypes', 'UserDefinedType', 'Row']
@@ -827,7 +827,7 @@ def _from_java_interval_type(j_interval_type):
     :return: :class:`YearMonthIntervalType` or :class:`DayTimeIntervalType`.
     """
     gateway = get_gateway()
-    if _is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
+    if is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
         resolution = j_interval_type.getResolution()
         precision = j_interval_type.getYearPrecision()
 
@@ -1178,6 +1178,14 @@ class RowType(DataType):
         ['f1']
         """
         return list(self.names)
+
+    def field_types(self):
+        """
+        Returns all field types in a list.
+
+        .. versionadded:: 1.11.0
+        """
+        return list([f.data_type for f in self.fields])
 
     def need_conversion(self):
         # We need convert Row()/namedtuple into tuple()
@@ -1719,7 +1727,10 @@ def _to_java_type(data_type):
     elif isinstance(data_type, UserDefinedType):
         if data_type.java_udt():
             return gateway.jvm.org.apache.flink.util.InstantiationUtil.instantiate(
-                gateway.jvm.Class.forName(data_type.java_udt()))
+                gateway.jvm.Class.forName(
+                    data_type.java_udt(),
+                    True,
+                    gateway.jvm.Thread.currentThread().getContextClassLoader()))
         else:
             return _to_java_type(data_type.sql_type())
 
@@ -1727,29 +1738,10 @@ def _to_java_type(data_type):
         raise TypeError("Not supported type: %s" % repr(data_type))
 
 
-def _is_instance_of(java_data_type, java_class):
-    gateway = get_gateway()
-    if isinstance(java_class, str):
-        param = java_class
-    elif isinstance(java_class, JavaClass):
-        param = get_java_class(java_class)
-    elif isinstance(java_class, JavaObject):
-        if not _is_instance_of(java_class, gateway.jvm.Class):
-            param = java_class.getClass()
-        else:
-            param = java_class
-    else:
-        raise TypeError(
-            "java_class must be a string, a JavaClass, or a JavaObject")
-
-    return gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
-        param, java_data_type)
-
-
 def _from_java_type(j_data_type):
     gateway = get_gateway()
 
-    if _is_instance_of(j_data_type, gateway.jvm.TypeInformation):
+    if is_instance_of(j_data_type, gateway.jvm.TypeInformation):
         # input is TypeInformation
         LegacyTypeInfoDataTypeConverter = \
             gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -1759,50 +1751,50 @@ def _from_java_type(j_data_type):
         java_data_type = j_data_type
 
     # Atomic Type with parameters.
-    if _is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
+    if is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
         logical_type = java_data_type.getLogicalType()
-        if _is_instance_of(logical_type, gateway.jvm.CharType):
+        if is_instance_of(logical_type, gateway.jvm.CharType):
             data_type = DataTypes.CHAR(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.VarCharType):
+        elif is_instance_of(logical_type, gateway.jvm.VarCharType):
             data_type = DataTypes.VARCHAR(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BinaryType):
+        elif is_instance_of(logical_type, gateway.jvm.BinaryType):
             data_type = DataTypes.BINARY(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.VarBinaryType):
+        elif is_instance_of(logical_type, gateway.jvm.VarBinaryType):
             data_type = DataTypes.VARBINARY(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DecimalType):
+        elif is_instance_of(logical_type, gateway.jvm.DecimalType):
             data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
                                           logical_type.getScale(),
                                           logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DateType):
+        elif is_instance_of(logical_type, gateway.jvm.DateType):
             data_type = DataTypes.DATE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimeType):
+        elif is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.TimestampType):
             data_type = DataTypes.TIMESTAMP(precision=3, nullable=logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BooleanType):
+        elif is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TinyIntType):
+        elif is_instance_of(logical_type, gateway.jvm.TinyIntType):
             data_type = DataTypes.TINYINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.SmallIntType):
+        elif is_instance_of(logical_type, gateway.jvm.SmallIntType):
             data_type = DataTypes.SMALLINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.IntType):
+        elif is_instance_of(logical_type, gateway.jvm.IntType):
             data_type = DataTypes.INT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BigIntType):
+        elif is_instance_of(logical_type, gateway.jvm.BigIntType):
             data_type = DataTypes.BIGINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.FloatType):
+        elif is_instance_of(logical_type, gateway.jvm.FloatType):
             data_type = DataTypes.FLOAT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DoubleType):
+        elif is_instance_of(logical_type, gateway.jvm.DoubleType):
             data_type = DataTypes.DOUBLE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
             raise \
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
-        elif _is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
             data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
-                _is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
+        elif is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
+                is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
             data_type = _from_java_interval_type(logical_type)
-        elif _is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
+        elif is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
             type_info = logical_type.getTypeInformation()
             BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
                 BasicArrayTypeInfo
@@ -1810,7 +1802,7 @@ def _from_java_type(j_data_type):
             if type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
                 data_type = DataTypes.ARRAY(DataTypes.STRING())
             elif type_info == BasicTypeInfo.BIG_DEC_TYPE_INFO:
-                data_type = DataTypes.DECIMAL(10, 0)
+                data_type = DataTypes.DECIMAL(38, 18)
             elif type_info.getClass() == \
                 get_java_class(gateway.jvm.org.apache.flink.table.runtime.typeutils
                                .BigDecimalTypeInfo):
@@ -1825,12 +1817,12 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Array Type, MultiSet Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
         logical_type = java_data_type.getLogicalType()
         element_type = java_data_type.getElementDataType()
-        if _is_instance_of(logical_type, gateway.jvm.ArrayType):
+        if is_instance_of(logical_type, gateway.jvm.ArrayType):
             data_type = DataTypes.ARRAY(_from_java_type(element_type), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.MultisetType):
+        elif is_instance_of(logical_type, gateway.jvm.MultisetType):
             data_type = DataTypes.MULTISET(_from_java_type(element_type),
                                            logical_type.isNullable())
         else:
@@ -1839,11 +1831,11 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Map Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
         logical_type = java_data_type.getLogicalType()
         key_type = java_data_type.getKeyDataType()
         value_type = java_data_type.getValueDataType()
-        if _is_instance_of(logical_type, gateway.jvm.MapType):
+        if is_instance_of(logical_type, gateway.jvm.MapType):
             data_type = DataTypes.MAP(
                 _from_java_type(key_type),
                 _from_java_type(value_type),
@@ -1854,13 +1846,12 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Row Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
         logical_type = java_data_type.getLogicalType()
-        field_data_types = java_data_type.getFieldDataTypes()
-        if _is_instance_of(logical_type, gateway.jvm.RowType):
-            fields = [DataTypes.FIELD(item,
-                                      _from_java_type(
-                                          field_data_types[item])) for item in field_data_types]
+        field_data_types = java_data_type.getChildren()
+        if is_instance_of(logical_type, gateway.jvm.RowType):
+            fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[idx]))
+                      for idx, name in enumerate(logical_type.getFieldNames())]
             data_type = DataTypes.ROW(fields, logical_type.isNullable())
         else:
             raise TypeError("Unsupported row data type: %s" % j_data_type)
@@ -2280,6 +2271,138 @@ def _create_type_verifier(data_type, name=None):
             verify_value(obj)
 
     return verify
+
+
+def create_arrow_schema(field_names, field_types):
+    """
+    Create an Arrow schema with the specified filed names and types.
+    """
+    import pyarrow as pa
+    fields = [pa.field(field_name, to_arrow_type(field_type), field_type._nullable)
+              for field_name, field_type in zip(field_names, field_types)]
+    return pa.schema(fields)
+
+
+def from_arrow_type(arrow_type, nullable=True):
+    """
+    Convert Arrow type to Flink data type.
+    """
+    from pyarrow import types
+    if types.is_boolean(arrow_type):
+        return BooleanType(nullable)
+    elif types.is_int8(arrow_type):
+        return TinyIntType(nullable)
+    elif types.is_int16(arrow_type):
+        return SmallIntType(nullable)
+    elif types.is_int32(arrow_type):
+        return IntType(nullable)
+    elif types.is_int64(arrow_type):
+        return BigIntType(nullable)
+    elif types.is_float32(arrow_type):
+        return FloatType(nullable)
+    elif types.is_float64(arrow_type):
+        return DoubleType(nullable)
+    elif types.is_decimal(arrow_type):
+        return DecimalType(arrow_type.precision, arrow_type.scale, nullable)
+    elif types.is_string(arrow_type):
+        return VarCharType(0x7fffffff, nullable)
+    elif types.is_fixed_size_binary(arrow_type):
+        return BinaryType(arrow_type.byte_width, nullable)
+    elif types.is_binary(arrow_type):
+        return VarBinaryType(0x7fffffff, nullable)
+    elif types.is_date32(arrow_type):
+        return DateType(nullable)
+    elif types.is_time32(arrow_type):
+        if str(arrow_type) == 'time32[s]':
+            return TimeType(0, nullable)
+        else:
+            return TimeType(3, nullable)
+    elif types.is_time64(arrow_type):
+        if str(arrow_type) == 'time64[us]':
+            return TimeType(6, nullable)
+        else:
+            return TimeType(9, nullable)
+    elif types.is_timestamp(arrow_type):
+        if arrow_type.unit == 's':
+            return TimestampType(0, nullable)
+        elif arrow_type.unit == 'ms':
+            return TimestampType(3, nullable)
+        elif arrow_type.unit == 'us':
+            return TimestampType(6, nullable)
+        else:
+            return TimestampType(9, nullable)
+    elif types.is_list(arrow_type):
+        return ArrayType(from_arrow_type(arrow_type.value_type), nullable)
+    elif types.is_struct(arrow_type):
+        if any(types.is_struct(field.type) for field in arrow_type):
+            raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
+                            str(arrow_type))
+        return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
+                        for field in arrow_type])
+    else:
+        raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
+
+
+def to_arrow_type(data_type):
+    """
+    Converts the specified Flink data type to pyarrow data type.
+    """
+    import pyarrow as pa
+    if type(data_type) == TinyIntType:
+        return pa.int8()
+    elif type(data_type) == SmallIntType:
+        return pa.int16()
+    elif type(data_type) == IntType:
+        return pa.int32()
+    elif type(data_type) == BigIntType:
+        return pa.int64()
+    elif type(data_type) == BooleanType:
+        return pa.bool_()
+    elif type(data_type) == FloatType:
+        return pa.float32()
+    elif type(data_type) == DoubleType:
+        return pa.float64()
+    elif type(data_type) == VarCharType:
+        return pa.utf8()
+    elif type(data_type) == VarBinaryType:
+        return pa.binary()
+    elif type(data_type) == DecimalType:
+        return pa.decimal128(data_type.precision, data_type.scale)
+    elif type(data_type) == DateType:
+        return pa.date32()
+    elif type(data_type) == TimeType:
+        if data_type.precision == 0:
+            return pa.time32('s')
+        elif 1 <= data_type.precision <= 3:
+            return pa.time32('ms')
+        elif 4 <= data_type.precision <= 6:
+            return pa.time64('us')
+        else:
+            return pa.time64('ns')
+    elif type(data_type) in [LocalZonedTimestampType, TimestampType]:
+        if data_type.precision == 0:
+            return pa.timestamp('s')
+        elif 1 <= data_type.precision <= 3:
+            return pa.timestamp('ms')
+        elif 4 <= data_type.precision <= 6:
+            return pa.timestamp('us')
+        else:
+            return pa.timestamp('ns')
+    elif type(data_type) == ArrayType:
+        if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
+            raise ValueError("%s is not supported to be used as the element type of ArrayType." %
+                             data_type.element_type)
+        return pa.list_(to_arrow_type(data_type.element_type))
+    elif type(data_type) == RowType:
+        for field in data_type:
+            if type(field.data_type) in [LocalZonedTimestampType, RowType]:
+                raise TypeError("%s is not supported to be used as the field type of RowType" %
+                                field.data_type)
+        fields = [pa.field(field.name, to_arrow_type(field.data_type), field.data_type._nullable)
+                  for field in data_type]
+        return pa.struct(fields)
+    else:
+        raise ValueError("field_type %s is not supported." % data_type)
 
 
 class DataTypes(object):

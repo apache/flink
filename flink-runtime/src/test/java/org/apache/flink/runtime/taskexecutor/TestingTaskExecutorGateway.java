@@ -32,6 +32,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -39,7 +40,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
@@ -85,7 +87,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer;
 
+	private final Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer;
+
 	private final TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler;
+
+	private final Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier;
 
 	TestingTaskExecutorGateway(
 			String address,
@@ -100,7 +106,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
 			Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
 			TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer,
-			TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler) {
+			Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer,
+			TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler,
+			Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier) {
 
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
@@ -114,7 +122,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		this.cancelTaskFunction = cancelTaskFunction;
 		this.canBeReleasedSupplier = canBeReleasedSupplier;
 		this.releaseOrPromotePartitionsConsumer = releaseOrPromotePartitionsConsumer;
+		this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
 		this.operatorEventHandler = operatorEventHandler;
+		this.requestThreadDumpSupplier = requestThreadDumpSupplier;
 	}
 
 	@Override
@@ -143,12 +153,23 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
+	public CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, Time timeout) {
+		releaseClusterPartitionsConsumer.accept(dataSetsToRelease);
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	@Override
 	public CompletableFuture<Acknowledge> triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointID, long checkpointTimestamp, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> abortCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -208,6 +229,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			OperatorID operator,
 			SerializedValue<OperatorEvent> evt) {
 		return operatorEventHandler.apply(task, operator, evt);
+	}
+
+	@Override
+	public CompletableFuture<ThreadDumpInfo> requestThreadDump(Time timeout) {
+		return requestThreadDumpSupplier.get();
 	}
 
 	@Override

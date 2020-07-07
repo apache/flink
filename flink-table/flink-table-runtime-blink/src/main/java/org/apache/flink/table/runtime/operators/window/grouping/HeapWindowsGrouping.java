@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.window.grouping;
 
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.RowIterator;
 
 import java.io.IOException;
@@ -32,13 +32,13 @@ import java.util.LinkedList;
  */
 public class HeapWindowsGrouping extends WindowsGrouping {
 
-	private LinkedList<BinaryRow> buffer;
+	private LinkedList<BinaryRowData> buffer;
 
 	private final int maxSizeLimit;
 
 	private int evictLimitIndex;
 
-	private Iterator<BinaryRow> iterator;
+	private Iterator<BinaryRowData> iterator;
 
 	public HeapWindowsGrouping(int maxSizeLimit, long windowSize, long slideSize, int timeIndex, boolean isDate) {
 		this(maxSizeLimit, 0L, windowSize, slideSize, timeIndex, isDate);
@@ -68,7 +68,7 @@ public class HeapWindowsGrouping extends WindowsGrouping {
 	}
 
 	@Override
-	protected void addIntoBuffer(BinaryRow input) throws IOException {
+	protected void addIntoBuffer(BinaryRowData input) throws IOException {
 		if (buffer.size() >= maxSizeLimit) {
 			throw new IOException("HeapWindowsGrouping out of memory, element size limit " + maxSizeLimit);
 		}
@@ -76,7 +76,7 @@ public class HeapWindowsGrouping extends WindowsGrouping {
 	}
 
 	@Override
-	protected RowIterator<BinaryRow> newBufferIterator(int startIndex) {
+	protected RowIterator<BinaryRowData> newBufferIterator(int startIndex) {
 		iterator = buffer.subList(startIndex - evictLimitIndex, buffer.size()).iterator();
 		return new BufferIterator(iterator);
 	}
@@ -86,11 +86,11 @@ public class HeapWindowsGrouping extends WindowsGrouping {
 		buffer = null;
 	}
 
-	private final class BufferIterator implements RowIterator<BinaryRow> {
-		private final Iterator<BinaryRow> iterator;
-		private BinaryRow next;
+	private final class BufferIterator implements RowIterator<BinaryRowData> {
+		private final Iterator<BinaryRowData> iterator;
+		private BinaryRowData next;
 
-		BufferIterator(Iterator<BinaryRow> iterator) {
+		BufferIterator(Iterator<BinaryRowData> iterator) {
 			this.iterator = iterator;
 		}
 
@@ -106,7 +106,7 @@ public class HeapWindowsGrouping extends WindowsGrouping {
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			return next;
 		}
 	}

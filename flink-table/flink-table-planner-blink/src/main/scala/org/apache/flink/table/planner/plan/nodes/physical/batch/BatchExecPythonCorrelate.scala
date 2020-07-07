@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
@@ -27,6 +27,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 
 /**
   * Batch physical RelNode for [[Correlate]] (Python user defined table function).
@@ -68,15 +69,20 @@ class BatchExecPythonCorrelate(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    createPythonOneInputTransformation(
+      .asInstanceOf[Transformation[RowData]]
+    val ret = createPythonOneInputTransformation(
       inputTransformation,
       scan,
       "BatchExecPythonCorrelate",
       outputRowType,
-      getConfig(planner.getTableConfig),
+      getConfig(planner.getExecEnv, planner.getTableConfig),
       joinType)
+    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+      ExecNode.setManagedMemoryWeight(
+        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
+    }
+    ret
   }
 }

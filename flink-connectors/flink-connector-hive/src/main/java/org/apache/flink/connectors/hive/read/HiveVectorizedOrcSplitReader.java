@@ -22,7 +22,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
 import org.apache.flink.orc.OrcSplitReaderUtil;
 import org.apache.flink.orc.nohive.OrcNoHiveSplitReaderUtil;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
@@ -34,7 +34,7 @@ import org.apache.hadoop.mapred.JobConf;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import static org.apache.flink.table.dataformat.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
 /**
  * Orc {@link SplitReader} to read files using {@link OrcColumnarRowSplitReader}.
@@ -90,12 +90,17 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
 	}
 
 	@Override
+	public void seekToRow(long rowCount, RowData reuse) throws IOException {
+		this.reader.seekToRow(rowCount);
+	}
+
+	@Override
 	public boolean reachedEnd() throws IOException {
 		return this.reader.reachedEnd();
 	}
 
 	@Override
-	public BaseRow nextRecord(BaseRow reuse) {
+	public RowData nextRecord(RowData reuse) {
 		return this.reader.nextRecord(reuse);
 	}
 

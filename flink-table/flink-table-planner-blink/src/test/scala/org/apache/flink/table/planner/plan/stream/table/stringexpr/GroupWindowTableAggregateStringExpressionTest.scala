@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
+
 import org.junit.Test
 
 class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {

@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.BitVector;
 
@@ -27,20 +28,76 @@ import org.apache.arrow.vector.BitVector;
  * {@link ArrowFieldWriter} for Boolean.
  */
 @Internal
-public final class BooleanWriter extends ArrowFieldWriter<Row> {
+public abstract class BooleanWriter<T> extends ArrowFieldWriter<T> {
 
-	public BooleanWriter(BitVector bitVector) {
+	public static BooleanWriter<RowData> forRow(BitVector bitVector) {
+		return new BooleanWriterForRow(bitVector);
+	}
+
+	public static BooleanWriter<ArrayData> forArray(BitVector bitVector) {
+		return new BooleanWriterForArray(bitVector);
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	private BooleanWriter(BitVector bitVector) {
 		super(bitVector);
 	}
 
+	abstract boolean isNullAt(T in, int ordinal);
+
+	abstract boolean readBoolean(T in, int ordinal);
+
 	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
+	public void doWrite(T in, int ordinal) {
+		if (isNullAt(in, ordinal)) {
 			((BitVector) getValueVector()).setNull(getCount());
-		} else if ((boolean) value.getField(ordinal)) {
+		} else if (readBoolean(in, ordinal)) {
 			((BitVector) getValueVector()).setSafe(getCount(), 1);
 		} else {
 			((BitVector) getValueVector()).setSafe(getCount(), 0);
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * {@link BooleanWriter} for {@link RowData} input.
+	 */
+	public static final class BooleanWriterForRow extends BooleanWriter<RowData> {
+
+		private BooleanWriterForRow(BitVector bitVector) {
+			super(bitVector);
+		}
+
+		@Override
+		boolean isNullAt(RowData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		boolean readBoolean(RowData in, int ordinal) {
+			return in.getBoolean(ordinal);
+		}
+	}
+
+	/**
+	 * {@link BooleanWriter} for {@link ArrayData} input.
+	 */
+	public static final class BooleanWriterForArray extends BooleanWriter<ArrayData> {
+
+		private BooleanWriterForArray(BitVector bitVector) {
+			super(bitVector);
+		}
+
+		@Override
+		boolean isNullAt(ArrayData in, int ordinal) {
+			return in.isNullAt(ordinal);
+		}
+
+		@Override
+		boolean readBoolean(ArrayData in, int ordinal) {
+			return in.getBoolean(ordinal);
 		}
 	}
 }

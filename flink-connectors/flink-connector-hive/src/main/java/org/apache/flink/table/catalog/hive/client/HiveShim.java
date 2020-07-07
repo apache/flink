@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -34,6 +37,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.io.Writable;
@@ -140,8 +144,13 @@ public interface HiveShim extends Serializable {
 	/**
 	 * Get Hive's FileSinkOperator.RecordWriter.
 	 */
-	FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, String outputFormatClzName,
+	FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, Class outputFormatClz,
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath);
+
+	/**
+	 * For a given OutputFormat class, get the corresponding {@link HiveOutputFormat} class.
+	 */
+	Class getHiveOutputFormatClass(Class outputFormatClz);
 
 	/**
 	 * Get Hive table schema from deserializer.
@@ -193,4 +202,16 @@ public interface HiveShim extends Serializable {
 	 * Converts a Hive primitive java object to corresponding Writable object.
 	 */
 	@Nullable Writable hivePrimitiveToWritable(@Nullable Object value);
+
+	/**
+	 * Creates a table with PK and NOT NULL constraints.
+	 */
+	void createTableWithConstraints(IMetaStoreClient client, Table table, Configuration conf,
+			UniqueConstraint pk, List<Byte> pkTraits, List<String> notNullCols, List<Byte> nnTraits);
+
+	/**
+	 * Create orc {@link BulkWriter.Factory} for different hive versions.
+	 */
+	BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
+			Configuration conf, String schema, LogicalType[] fieldTypes);
 }

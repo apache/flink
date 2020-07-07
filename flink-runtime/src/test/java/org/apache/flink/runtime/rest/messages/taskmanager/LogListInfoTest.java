@@ -19,6 +19,8 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 

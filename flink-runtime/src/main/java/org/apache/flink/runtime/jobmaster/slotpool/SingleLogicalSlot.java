@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -70,17 +71,33 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 	// LogicalSlot.Payload of this slot
 	private volatile Payload payload;
 
+	/** Whether this logical slot will be occupied indefinitely. */
+	private boolean willBeOccupiedIndefinitely;
+
+	@VisibleForTesting
+	public SingleLogicalSlot(
+		SlotRequestId slotRequestId,
+		SlotContext slotContext,
+		@Nullable SlotSharingGroupId slotSharingGroupId,
+		Locality locality,
+		SlotOwner slotOwner) {
+
+		this(slotRequestId, slotContext, slotSharingGroupId, locality, slotOwner, true);
+	}
+
 	public SingleLogicalSlot(
 			SlotRequestId slotRequestId,
 			SlotContext slotContext,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
 			Locality locality,
-			SlotOwner slotOwner) {
+			SlotOwner slotOwner,
+			boolean willBeOccupiedIndefinitely) {
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 		this.slotContext = Preconditions.checkNotNull(slotContext);
 		this.slotSharingGroupId = slotSharingGroupId;
 		this.locality = Preconditions.checkNotNull(locality);
 		this.slotOwner = Preconditions.checkNotNull(slotOwner);
+		this.willBeOccupiedIndefinitely = willBeOccupiedIndefinitely;
 		this.releaseFuture = new CompletableFuture<>();
 
 		this.state = State.ALIVE;
@@ -149,6 +166,28 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 		return slotSharingGroupId;
 	}
 
+	public static SingleLogicalSlot allocateFromPhysicalSlot(
+			final SlotRequestId slotRequestId,
+			final PhysicalSlot physicalSlot,
+			final Locality locality,
+			final SlotOwner slotOwner,
+			final boolean slotWillBeOccupiedIndefinitely) {
+
+		final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
+			slotRequestId,
+			physicalSlot,
+			null,
+			locality,
+			slotOwner,
+			slotWillBeOccupiedIndefinitely);
+
+		if (physicalSlot.tryAssignPayload(singleTaskSlot)) {
+			return singleTaskSlot;
+		} else {
+			throw new IllegalStateException("BUG: Unexpected physical slot payload assignment failure!");
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// AllocatedSlot.Payload implementation
 	// -------------------------------------------------------------------------
@@ -166,6 +205,11 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 		}
 		markReleased();
 		releaseFuture.complete(null);
+	}
+
+	@Override
+	public boolean willOccupySlotIndefinitely() {
+		return willBeOccupiedIndefinitely;
 	}
 
 	private void signalPayloadRelease(Throwable cause) {

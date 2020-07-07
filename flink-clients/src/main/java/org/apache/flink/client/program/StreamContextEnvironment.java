@@ -24,17 +24,23 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
@@ -46,16 +52,47 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
+	private final boolean suppressSysout;
+
+	private final boolean enforceSingleJobExecution;
+
+	private int jobCounter;
+
 	public StreamContextEnvironment(
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.suppressSysout = suppressSysout;
+		this.enforceSingleJobExecution = enforceSingleJobExecution;
+
+		this.jobCounter = 0;
 	}
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		JobClient jobClient = executeAsync(streamGraph);
+		final JobClient jobClient = executeAsync(streamGraph);
+		final List<JobListener> jobListeners = getJobListeners();
+
+		try {
+			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(jobExecutionResult, null));
+			return jobExecutionResult;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t)));
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
+	}
+
+	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+		checkNotNull(jobClient);
 
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
@@ -87,11 +124,21 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+		validateAllowedExecution();
 		final JobClient jobClient = super.executeAsync(streamGraph);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
 		return jobClient;
+	}
+
+	private void validateAllowedExecution() {
+		if (enforceSingleJobExecution && jobCounter > 0) {
+			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
+		}
+		jobCounter++;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -99,11 +146,15 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public static void setAsContext(
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		StreamExecutionEnvironmentFactory factory = () -> new StreamContextEnvironment(
 			executorServiceLoader,
 			configuration,
-			userCodeClassLoader);
+			userCodeClassLoader,
+			enforceSingleJobExecution,
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 

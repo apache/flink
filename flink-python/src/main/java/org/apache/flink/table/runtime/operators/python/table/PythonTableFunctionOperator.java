@@ -79,8 +79,8 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
 		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(
-			new RowTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(
-				TypeConversions.fromLogicalToDataType(inputType))));
+			(RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
+				TypeConversions.fromLogicalToDataType(inputType)));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
 		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}

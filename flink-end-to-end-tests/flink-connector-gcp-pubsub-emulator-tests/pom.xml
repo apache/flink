@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -82,7 +82,12 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-test-utils-junit</artifactId>
+			<scope>test</scope>
+        </dependency>
+    </dependencies>
 
 	<!-- ONLY run the tests when explicitly told to do so  -->
 	<properties>
@@ -93,9 +98,9 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.12.4</version>
 				<configuration>
 					<skipTests>${skipTests}</skipTests>
+					<forkCount>1</forkCount> <!-- Enforce single test execution -->
 				</configuration>
 				<executions>
 					<execution>

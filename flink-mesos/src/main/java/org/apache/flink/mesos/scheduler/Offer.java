@@ -62,6 +62,10 @@ public class Offer implements VirtualMachineLease {
 	private final List<Range> portRanges;
 
 	public Offer(Protos.Offer offer) {
+		this(offer, "network");
+	}
+
+	public Offer(Protos.Offer offer, String networkResourceName) {
 		this.offer = checkNotNull(offer);
 		this.hostname = offer.getHostname();
 		this.vmID = offer.getSlaveId().getValue();
@@ -98,7 +102,7 @@ public class Offer implements VirtualMachineLease {
 
 		this.cpuCores = aggregatedScalarResourceMap.remove("cpus");
 		this.memoryMB = aggregatedScalarResourceMap.remove("mem");
-		this.networkMbps = aggregatedScalarResourceMap.remove("network");
+		this.networkMbps = aggregatedScalarResourceMap.remove(networkResourceName);
 		this.diskMB = aggregatedScalarResourceMap.remove("disk");
 		this.aggregatedScalarResourceMap = Collections.unmodifiableMap(aggregatedScalarResourceMap);
 		this.portRanges = Collections.unmodifiableList(aggregateRangesResource(rangesResourceMap, "ports"));

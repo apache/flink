@@ -16,6 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.metrics.metricbase import MetricGroup
+from pyflink.metrics.metricbase import MetricGroup, Metric, Counter, Meter, Distribution
 
-__all__ = ["MetricGroup"]
+__all__ = ["MetricGroup", "Metric", "Counter", "Meter", "Distribution"]

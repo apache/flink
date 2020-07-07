@@ -31,6 +31,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -38,7 +39,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
+import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -115,6 +117,15 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote);
 
 	/**
+	 * Releases all cluster partitions belong to any of the given data sets.
+	 *
+	 * @param dataSetsToRelease data sets for which all cluster partitions should be released
+	 * @param timeout for the partitions release operation
+	 * @return Future acknowledge that the request was received
+	 */
+	CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
+
+	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID
 	 * and the checkpoint timestamp.
 	 *
@@ -143,6 +154,17 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 * @return Future acknowledge if the checkpoint has been successfully confirmed
 	 */
 	CompletableFuture<Acknowledge> confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+
+	/**
+	 * Abort a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
+	 * and the checkpoint timestamp.
+	 *
+	 * @param executionAttemptID identifying the task
+	 * @param checkpointId unique id for the checkpoint
+	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+	 * @return Future acknowledge if the checkpoint has been successfully confirmed
+	 */
+	CompletableFuture<Acknowledge> abortCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
 
 	/**
 	 * Cancel the given task.
@@ -239,4 +261,12 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 			ExecutionAttemptID task,
 			OperatorID operator,
 			SerializedValue<OperatorEvent> evt);
+
+	/**
+	 * Requests the thread dump from this TaskManager.
+	 *
+	 * @param timeout timeout for the asynchronous operation
+	 * @return the {@link ThreadDumpInfo} for this TaskManager.
+	 */
+	CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
 }

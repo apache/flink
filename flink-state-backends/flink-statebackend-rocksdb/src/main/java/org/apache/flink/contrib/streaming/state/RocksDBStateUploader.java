@@ -81,7 +81,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 			if (throwable instanceof IOException) {
 				throw (IOException) throwable;
 			} else {
-				throw new FlinkRuntimeException("Failed to download data for state handles.", e);
+				throw new FlinkRuntimeException("Failed to upload data for state handles.", e);
 			}
 		}
 

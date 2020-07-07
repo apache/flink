@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -61,12 +62,15 @@ public class CatalogTableStatisticsConverter {
 		return new TableStats(rowCount, columnStatsMap);
 	}
 
-	private static Map<String, ColumnStats> convertToColumnStatsMap(
+	@VisibleForTesting
+	public static Map<String, ColumnStats> convertToColumnStatsMap(
 			Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData) {
 		Map<String, ColumnStats> columnStatsMap = new HashMap<>();
 		for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : columnStatisticsData.entrySet()) {
-			ColumnStats columnStats = convertToColumnStats(entry.getValue());
-			columnStatsMap.put(entry.getKey(), columnStats);
+			if (entry.getValue() != null) {
+				ColumnStats columnStats = convertToColumnStats(entry.getValue());
+				columnStatsMap.put(entry.getKey(), columnStats);
+			}
 		}
 		return columnStatsMap;
 	}

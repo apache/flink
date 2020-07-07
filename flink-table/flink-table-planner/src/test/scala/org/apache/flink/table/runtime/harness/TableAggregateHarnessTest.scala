@@ -21,8 +21,9 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.utils.{Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
@@ -45,9 +46,11 @@ class TableAggregateHarnessTest extends HarnessTestBase {
 
   @Test
   def testTableAggregate(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, tableConfig)
+    val tEnv = StreamTableEnvironmentImpl.create(
+      env,
+      EnvironmentSettings.newInstance().useOldPlanner().build(),
+      tableConfig)
 
     val top3 = new Top3WithMapView
     tEnv.registerFunction("top3", top3)
@@ -109,9 +112,11 @@ class TableAggregateHarnessTest extends HarnessTestBase {
 
   @Test
   def testTableAggregateEmitRetractValueIncrementally(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, tableConfig)
+    val tEnv = StreamTableEnvironmentImpl.create(
+      env,
+      EnvironmentSettings.newInstance().useOldPlanner().build(),
+      tableConfig)
 
     val top3 = new Top3WithEmitRetractValue
     val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
@@ -162,9 +167,11 @@ class TableAggregateHarnessTest extends HarnessTestBase {
 
   @Test
   def testTableAggregateWithRetractInput(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, tableConfig)
+    val tEnv = StreamTableEnvironmentImpl.create(
+      env,
+      EnvironmentSettings.newInstance().useOldPlanner().build(),
+      tableConfig)
 
     val top3 = new Top3WithMapView
     tEnv.registerFunction("top3", top3)

@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.BooleanLastValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.ByteLastValueAggFunction;
@@ -31,7 +32,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunctio
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.ShortLastValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.StringLastValueAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -65,7 +66,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRow> getAggregator() {
+		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
 			return new ByteLastValueAggFunction();
 		}
 	}
@@ -82,7 +83,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRow> getAggregator() {
+		protected AggregateFunction<Short, GenericRowData> getAggregator() {
 			return new ShortLastValueAggFunction();
 		}
 	}
@@ -99,7 +100,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRow> getAggregator() {
+		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
 			return new IntLastValueAggFunction();
 		}
 	}
@@ -116,7 +117,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRow> getAggregator() {
+		protected AggregateFunction<Long, GenericRowData> getAggregator() {
 			return new LongLastValueAggFunction();
 		}
 	}
@@ -133,7 +134,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRow> getAggregator() {
+		protected AggregateFunction<Float, GenericRowData> getAggregator() {
 			return new FloatLastValueAggFunction();
 		}
 	}
@@ -150,7 +151,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRow> getAggregator() {
+		protected AggregateFunction<Double, GenericRowData> getAggregator() {
 			return new DoubleLastValueAggFunction();
 		}
 	}
@@ -206,7 +207,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRow> getAggregator() {
+		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
 			return new BooleanLastValueAggFunction();
 		}
 	}
@@ -215,24 +216,24 @@ public final class LastValueAggFunctionWithoutOrderTest {
 	 * Test for DecimalLastValueAggFunction.
 	 */
 	public static final class DecimalLastValueAggFunctionWithoutOrderTest extends
-			LastValueAggFunctionWithoutOrderTestBase<Decimal> {
+			LastValueAggFunctionWithoutOrderTestBase<DecimalData> {
 
 		private int precision = 20;
 		private int scale = 6;
 
 		@Override
-		protected List<List<Decimal>> getInputValueSets() {
+		protected List<List<DecimalData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							Decimal.castFrom("1", precision, scale),
-							Decimal.castFrom("1000.000001", precision, scale),
-							Decimal.castFrom("-1", precision, scale),
-							Decimal.castFrom("-999.998999", precision, scale),
+							DecimalDataUtils.castFrom("1", precision, scale),
+							DecimalDataUtils.castFrom("1000.000001", precision, scale),
+							DecimalDataUtils.castFrom("-1", precision, scale),
+							DecimalDataUtils.castFrom("-999.998999", precision, scale),
 							null,
-							Decimal.castFrom("0", precision, scale),
-							Decimal.castFrom("-999.999", precision, scale),
+							DecimalDataUtils.castFrom("0", precision, scale),
+							DecimalDataUtils.castFrom("-999.999", precision, scale),
 							null,
-							Decimal.castFrom("999.999", precision, scale)
+							DecimalDataUtils.castFrom("999.999", precision, scale)
 					),
 					Arrays.asList(
 							null,
@@ -243,23 +244,23 @@ public final class LastValueAggFunctionWithoutOrderTest {
 					),
 					Arrays.asList(
 							null,
-							Decimal.castFrom("0", precision, scale)
+							DecimalDataUtils.castFrom("0", precision, scale)
 					)
 			);
 		}
 
 		@Override
-		protected List<Decimal> getExpectedResults() {
+		protected List<DecimalData> getExpectedResults() {
 			return Arrays.asList(
-					Decimal.castFrom("999.999", precision, scale),
+					DecimalDataUtils.castFrom("999.999", precision, scale),
 					null,
-					Decimal.castFrom("0", precision, scale)
+					DecimalDataUtils.castFrom("0", precision, scale)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Decimal, GenericRow> getAggregator() {
-			return new DecimalLastValueAggFunction(DecimalTypeInfo.of(precision, scale));
+		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+			return new DecimalLastValueAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
 
@@ -267,19 +268,19 @@ public final class LastValueAggFunctionWithoutOrderTest {
 	 * Test for StringLastValueAggFunction.
 	 */
 	public static final class StringLastValueAggFunctionWithoutOrderTest extends
-			LastValueAggFunctionWithoutOrderTestBase<BinaryString> {
+			LastValueAggFunctionWithoutOrderTestBase<StringData> {
 
 		@Override
-		protected List<List<BinaryString>> getInputValueSets() {
+		protected List<List<StringData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							BinaryString.fromString("abc"),
-							BinaryString.fromString("def"),
-							BinaryString.fromString("ghi"),
+							StringData.fromString("abc"),
+							StringData.fromString("def"),
+							StringData.fromString("ghi"),
 							null,
-							BinaryString.fromString("jkl"),
+							StringData.fromString("jkl"),
 							null,
-							BinaryString.fromString("zzz")
+							StringData.fromString("zzz")
 					),
 					Arrays.asList(
 							null,
@@ -287,29 +288,29 @@ public final class LastValueAggFunctionWithoutOrderTest {
 					),
 					Arrays.asList(
 							null,
-							BinaryString.fromString("a"),
+							StringData.fromString("a"),
 							null
 					),
 					Arrays.asList(
-							BinaryString.fromString("x"),
+							StringData.fromString("x"),
 							null,
-							BinaryString.fromString("e")
+							StringData.fromString("e")
 					)
 			);
 		}
 
 		@Override
-		protected List<BinaryString> getExpectedResults() {
+		protected List<StringData> getExpectedResults() {
 			return Arrays.asList(
-					BinaryString.fromString("zzz"),
+					StringData.fromString("zzz"),
 					null,
-					BinaryString.fromString("a"),
-					BinaryString.fromString("e")
+					StringData.fromString("a"),
+					StringData.fromString("e")
 			);
 		}
 
 		@Override
-		protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
+		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
 			return new StringLastValueAggFunction();
 		}
 	}
@@ -323,11 +324,11 @@ public final class LastValueAggFunctionWithoutOrderTest {
 	 * The base test class for LastValueAggFunction without order.
 	 */
 	public abstract static class LastValueAggFunctionWithoutOrderTestBase<T>
-		extends AggFunctionTestBase<T, GenericRow> {
+		extends AggFunctionTestBase<T, GenericRowData> {
 
 		@Override
 		protected Class<?> getAccClass() {
-			return GenericRow.class;
+			return GenericRowData.class;
 		}
 	}
 

@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -86,5 +87,20 @@ public class ExceptionUtilsTest extends TestLogger {
 		final Throwable strippedException = ExceptionUtils.stripException(expectedException, RuntimeException.class);
 
 		assertThat(strippedException, is(equalTo(expectedException)));
+	}
+
+	@Test
+	public void testTryEnrichTaskExecutorErrorCanHandleNullValue() {
+		assertThat(ExceptionUtils.tryEnrichOutOfMemoryError(null, "", ""), is(nullValue()));
+	}
+
+	@Test
+	public void testIsMetaspaceOutOfMemoryErrorCanHandleNullValue() {
+		assertFalse(ExceptionUtils.isMetaspaceOutOfMemoryError(null));
+	}
+
+	@Test
+	public void testIsDirectOutOfMemoryErrorCanHandleNullValue() {
+		assertFalse(ExceptionUtils.isDirectOutOfMemoryError(null));
 	}
 }

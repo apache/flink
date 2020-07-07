@@ -19,24 +19,32 @@
 package org.apache.flink.runtime.topology;
 
 /**
- * Base topology for all logical and execution topologies.
- * A topology consists of {@link Vertex} and {@link Result}.
+ * Extends the {@link BaseTopology} by pipelined regions.
  */
 public interface Topology<VID extends VertexID, RID extends ResultID,
-	V extends Vertex<VID, RID, V, R>, R extends Result<VID, RID, V, R>> {
+	V extends Vertex<VID, RID, V, R>, R extends Result<VID, RID, V, R>,
+	PR extends PipelinedRegion<VID, RID, V, R>>
+	extends BaseTopology<VID, RID, V, R> {
 
 	/**
-	 * Returns an iterable over all vertices, topologically sorted.
+	 * Returns all pipelined regions in this topology.
 	 *
-	 * @return topologically sorted iterable over all vertices
+	 * @return Iterable over pipelined regions in this topology
 	 */
-	Iterable<V> getVertices();
+	default Iterable<? extends PR> getAllPipelinedRegions() {
+		throw new UnsupportedOperationException();
+	}
 
 	/**
-	 * Returns whether the topology contains co-location constraints.
-	 * Co-location constraints are currently used for iterations.
+	 * The pipelined region for a specified vertex.
 	 *
-	 * @return whether the topology contains co-location constraints
+	 * @param vertexId the vertex id identifying the vertex for which the
+	 *                 pipelined region should be returned
+	 * @return the pipelined region of the vertex
+	 * @throws IllegalArgumentException if there is no vertex in this topology
+	 *                                  with the specified vertex id
 	 */
-	boolean containsCoLocationConstraints();
+	default PR getPipelinedRegionOfVertex(VID vertexId) {
+		throw new UnsupportedOperationException();
+	}
 }

@@ -133,19 +133,6 @@ public final class Documentation {
 	}
 
 	/**
-	 * Annotation used on config option fields to exclude the config option from documentation.
-	 */
-	@Target(ElementType.FIELD)
-	@Retention(RetentionPolicy.RUNTIME)
-	@Internal
-	public @interface ExcludeFromDocumentation {
-		/**
-		 * The optional reason why the config option is excluded from documentation.
-		 */
-		String value() default "";
-	}
-
-	/**
 	 * Annotation used on config option fields or options class to mark them as a suffix-option; i.e., a config option
 	 * where the key is only a suffix, with the prefix being danymically provided at runtime.
 	 */
@@ -153,6 +140,19 @@ public final class Documentation {
 	@Retention(RetentionPolicy.RUNTIME)
 	@Internal
 	public @interface SuffixOption {
+	}
+
+	/**
+	 * Annotation used on config option fields or REST API message headers to exclude it from documentation.
+	 */
+	@Target({ElementType.FIELD, ElementType.TYPE})
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface ExcludeFromDocumentation {
+		/**
+		 * The optional reason why it is excluded from documentation.
+		 */
+		String value() default "";
 	}
 
 	private Documentation(){

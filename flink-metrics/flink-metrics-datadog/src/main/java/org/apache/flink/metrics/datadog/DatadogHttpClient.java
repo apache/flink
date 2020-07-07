@@ -42,8 +42,8 @@ import java.util.concurrent.TimeUnit;
 public class DatadogHttpClient {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpClient.class);
 
-	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.com/api/v1/series?api_key=%s";
-	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
+	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.%s/api/v1/series?api_key=%s";
+	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.%s/api/v1/validate?api_key=%s";
 	private static final MediaType MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
 	private static final int TIMEOUT = 3;
 	private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -56,7 +56,7 @@ public class DatadogHttpClient {
 	private final String proxyHost;
 	private final int proxyPort;
 
-	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, boolean validateApiKey) {
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, DataCenter dataCenter, boolean validateApiKey) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
@@ -73,8 +73,9 @@ public class DatadogHttpClient {
 			.proxy(proxy)
 			.build();
 
-		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
-		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
+		seriesUrl = String.format(SERIES_URL_FORMAT, dataCenter.getDomain(), apiKey);
+		validateUrl = String.format(VALIDATE_URL_FORMAT, dataCenter.getDomain(), apiKey);
+
 		if (validateApiKey) {
 			validateApiKey();
 		}

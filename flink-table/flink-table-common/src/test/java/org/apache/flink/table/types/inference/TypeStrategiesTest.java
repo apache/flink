@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -42,10 +43,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
+import static org.apache.flink.table.types.inference.TypeStrategies.STRING_CONCAT;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
-import static org.apache.flink.util.CoreMatchers.containsCause;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
+import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 /**
@@ -54,7 +58,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 @RunWith(Parameterized.class)
 public class TypeStrategiesTest {
 
-	@Parameters
+	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
 			// missing strategy with arbitrary argument
@@ -108,9 +112,131 @@ public class TypeStrategiesTest {
 
 			// invalid return type
 			TestSpec
-				.forStrategy(TypeStrategies.explicit(DataTypes.NULL()))
+				.forStrategy(explicit(DataTypes.NULL()))
 				.inputTypes()
-				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received.")
+				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received."),
+
+			TestSpec
+				.forStrategy(
+					"First type strategy",
+					TypeStrategies.first((callContext) -> Optional.empty(), explicit(DataTypes.INT())))
+				.inputTypes()
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec
+				.forStrategy(
+					"Match root type strategy",
+					TypeStrategies.matchFamily(0, LogicalTypeFamily.NUMERIC))
+				.inputTypes(DataTypes.INT())
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec
+				.forStrategy(
+					"Invalid match root type strategy",
+					TypeStrategies.matchFamily(0, LogicalTypeFamily.NUMERIC))
+				.inputTypes(DataTypes.BOOLEAN())
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
+
+			TestSpec.forStrategy(
+					"Infer a row type",
+					TypeStrategies.ROW)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
+				.expectDataType(DataTypes.ROW(
+					DataTypes.FIELD("f0", DataTypes.BIGINT()),
+					DataTypes.FIELD("f1", DataTypes.STRING())).notNull()
+				),
+
+			TestSpec
+				.forStrategy(
+					"Infer an array type",
+					TypeStrategies.ARRAY)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
+				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT()).notNull()),
+
+			TestSpec.
+				forStrategy(
+					"Infer a map type",
+					TypeStrategies.MAP)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Cascading to nullable type",
+					nullable(explicit(DataTypes.BOOLEAN().notNull())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+				.expectDataType(DataTypes.BOOLEAN().nullable()),
+
+			TestSpec
+				.forStrategy(
+					"Cascading to not null type",
+					nullable(explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
+				.expectDataType(DataTypes.BOOLEAN().notNull()),
+
+			TestSpec.forStrategy(
+					"Cascading to not null type but only consider first argument",
+					nullable(ConstantArgumentCount.to(0), explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+				.expectDataType(DataTypes.BOOLEAN().notNull()),
+
+			TestSpec.forStrategy(
+					"Cascading to null type but only consider first two argument",
+					nullable(ConstantArgumentCount.to(1), explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+				.expectDataType(DataTypes.BOOLEAN().nullable()),
+
+			TestSpec.forStrategy(
+					"Cascading to not null type but only consider the second and third argument",
+					nullable(ConstantArgumentCount.between(1, 2), explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().nullable(), DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
+				.expectDataType(DataTypes.BOOLEAN().notNull()),
+
+			TestSpec.forStrategy(
+					"Find a common type",
+					TypeStrategies.COMMON)
+				.inputTypes(DataTypes.INT(), DataTypes.TINYINT().notNull(), DataTypes.DECIMAL(20, 10))
+				.expectDataType(DataTypes.DECIMAL(20, 10)),
+
+			TestSpec
+				.forStrategy(
+					"Find a decimal sum",
+					TypeStrategies.DECIMAL_PLUS)
+				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
+				.expectDataType(DataTypes.DECIMAL(6, 4).notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Find a decimal quotient",
+					TypeStrategies.DECIMAL_DIVIDE)
+				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
+				.expectDataType(DataTypes.DECIMAL(11, 8).notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Find a decimal product",
+					TypeStrategies.DECIMAL_TIMES)
+				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
+				.expectDataType(DataTypes.DECIMAL(8, 6).notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Find a decimal modulo",
+					TypeStrategies.DECIMAL_MOD)
+				.inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
+				.expectDataType(DataTypes.DECIMAL(5, 4).notNull()),
+
+			TestSpec.forStrategy(
+					"Convert to varying string",
+					varyingString(explicit(DataTypes.CHAR(12).notNull())))
+				.inputTypes(DataTypes.CHAR(12).notNull())
+				.expectDataType(DataTypes.VARCHAR(12).notNull()),
+
+			TestSpec.forStrategy(
+					"Concat two strings",
+					STRING_CONCAT)
+				.inputTypes(DataTypes.CHAR(12).notNull(), DataTypes.VARCHAR(12))
+				.expectDataType(DataTypes.VARCHAR(24))
 		);
 	}
 
@@ -154,6 +280,8 @@ public class TypeStrategiesTest {
 
 	private static class TestSpec {
 
+		private @Nullable final String description;
+
 		private final TypeStrategy strategy;
 
 		private List<DataType> inputTypes;
@@ -162,12 +290,17 @@ public class TypeStrategiesTest {
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(TypeStrategy strategy) {
+		private TestSpec(@Nullable String description, TypeStrategy strategy) {
+			this.description = description;
 			this.strategy = strategy;
 		}
 
 		static TestSpec forStrategy(TypeStrategy strategy) {
-			return new TestSpec(strategy);
+			return new TestSpec(null, strategy);
+		}
+
+		static TestSpec forStrategy(String description, TypeStrategy strategy) {
+			return new TestSpec(description, strategy);
 		}
 
 		TestSpec inputTypes(DataType... dataTypes) {
@@ -184,6 +317,11 @@ public class TypeStrategiesTest {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
 		}
+
+		@Override
+		public String toString() {
+			return description != null ? description : "";
+		}
 	}
 
 	private static TypeStrategy createMappingTypeStrategy() {
@@ -192,12 +330,12 @@ public class TypeStrategiesTest {
 			InputTypeStrategies.sequence(
 				InputTypeStrategies.explicit(DataTypes.INT()),
 				InputTypeStrategies.explicit(DataTypes.STRING())),
-			TypeStrategies.explicit(DataTypes.BOOLEAN().bridgedTo(boolean.class)));
+			explicit(DataTypes.BOOLEAN().bridgedTo(boolean.class)));
 		mappings.put(
 			InputTypeStrategies.sequence(
 				InputTypeStrategies.explicit(DataTypes.INT()),
 				InputTypeStrategies.explicit(DataTypes.BOOLEAN())),
-			TypeStrategies.explicit(DataTypes.STRING()));
+			explicit(DataTypes.STRING()));
 		return TypeStrategies.mapping(mappings);
 	}
 }

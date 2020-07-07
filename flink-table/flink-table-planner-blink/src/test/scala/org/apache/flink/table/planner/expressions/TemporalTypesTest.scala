@@ -18,24 +18,20 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.TimeIntervalUnit
-import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.planner.utils.DateTimeTestUtil
-import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-import org.apache.flink.types.Row
-
-import org.junit.Test
-
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId, ZoneOffset}
 import java.util.{Locale, TimeZone}
-import org.apache.flink.table.runtime.typeutils.{LegacyInstantTypeInfo, LegacyLocalDateTimeTypeInfo}
+
+import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.TimeIntervalUnit
+import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.planner.utils.DateTimeTestUtil
+import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.planner.{JInt, JLong}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.types.Row
+import org.junit.Test
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -43,41 +39,34 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTimePointLiterals(): Unit = {
     testAllApis(
       "1990-10-14".toDate,
-      "'1990-10-14'.toDate",
       "DATE '1990-10-14'",
       "1990-10-14")
 
     testTableApi(
       localDate2Literal(localDate("2040-09-11")),
-      "'2040-09-11'.toDate",
       "2040-09-11")
 
     testAllApis(
       "1500-04-30".cast(DataTypes.DATE),
-      "'1500-04-30'.cast(SQL_DATE)",
       "CAST('1500-04-30' AS DATE)",
       "1500-04-30")
 
     testAllApis(
       "15:45:59".toTime,
-      "'15:45:59'.toTime",
       "TIME '15:45:59'",
       "15:45:59")
 
     testTableApi(
       localTime2Literal(DateTimeTestUtil.localTime("00:00:00")),
-      "'00:00:00'.toTime",
       "00:00:00")
 
     testAllApis(
       "1:30:00".cast(DataTypes.TIME),
-      "'1:30:00'.cast(SQL_TIME)",
       "CAST('1:30:00' AS TIME)",
       "01:30:00")
 
     testAllApis(
       "1990-10-14 23:00:00.123".toTimestamp,
-      "'1990-10-14 23:00:00.123'.toTimestamp",
       "TIMESTAMP '1990-10-14 23:00:00.123'",
       "1990-10-14 23:00:00.123")
 
@@ -87,7 +76,6 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       "1500-04-30 12:00:00".cast(DataTypes.TIMESTAMP(3)),
-      "'1500-04-30 12:00:00'.cast(SQL_TIMESTAMP)",
       "CAST('1500-04-30 12:00:00' AS TIMESTAMP(3))",
       "1500-04-30 12:00:00.000")
 
@@ -118,51 +106,47 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi(
       "CAST('1999-9-10 05:20:10.123456' AS TIMESTAMP)",
-      "1999-09-10 05:20:10.123456"
-    )
+      "1999-09-10 05:20:10.123456")
+
+    testSqlApi(
+      "CAST('1999-9-10' AS TIMESTAMP)",
+      "1999-09-10 00:00:00.000000")
   }
 
   @Test
   def testTimeIntervalLiterals(): Unit = {
     testAllApis(
       1.year,
-      "1.year",
       "INTERVAL '1' YEAR",
       "+1-00")
 
     testAllApis(
       1.month,
-      "1.month",
       "INTERVAL '1' MONTH",
       "+0-01")
 
     testAllApis(
       12.days,
-      "12.days",
       "INTERVAL '12' DAY",
       "+12 00:00:00.000")
 
     testAllApis(
       1.hour,
-      "1.hour",
       "INTERVAL '1' HOUR",
       "+0 01:00:00.000")
 
     testAllApis(
       3.minutes,
-      "3.minutes",
       "INTERVAL '3' MINUTE",
       "+0 00:03:00.000")
 
     testAllApis(
       3.seconds,
-      "3.seconds",
       "INTERVAL '3' SECOND",
       "+0 00:00:03.000")
 
     testAllApis(
       3.millis,
-      "3.millis",
       "INTERVAL '0.003' SECOND",
       "+0 00:00:00.003")
   }
@@ -172,18 +156,15 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f0,
       "f0",
-      "f0",
       "1990-10-14")
 
     testAllApis(
       'f1,
       "f1",
-      "f1",
       "10:20:45")
 
     testAllApis(
       'f2,
-      "f2",
       "f2",
       "1990-10-14 10:20:45.123")
   }
@@ -193,12 +174,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f9,
       "f9",
-      "f9",
       "+2-00")
 
     testAllApis(
       'f10,
-      "f10",
       "f10",
       "+0 00:00:12.000")
   }
@@ -207,68 +186,28 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTimePointCasting(): Unit = {
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)),
-      "f0.cast(SQL_TIMESTAMP)",
       "CAST(f0 AS TIMESTAMP(3))",
       "1990-10-14 00:00:00.000")
 
     testAllApis(
       'f1.cast(DataTypes.TIMESTAMP(3)),
-      "f1.cast(SQL_TIMESTAMP)",
       "CAST(f1 AS TIMESTAMP(3))",
       "1970-01-01 10:20:45.000")
 
     testAllApis(
       'f2.cast(DataTypes.DATE),
-      "f2.cast(SQL_DATE)",
       "CAST(f2 AS DATE)",
       "1990-10-14")
 
     testAllApis(
       'f2.cast(DataTypes.TIME),
-      "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
 
     testAllApis(
       'f2.cast(DataTypes.TIME),
-      "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
-
-    testTableApi(
-      'f7.cast(DataTypes.DATE),
-      "f7.cast(SQL_DATE)",
-      "2002-11-09")
-
-    testTableApi(
-      'f7.cast(DataTypes.DATE).cast(DataTypes.INT),
-      "f7.cast(SQL_DATE).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f7.cast(DataTypes.TIME),
-      "f7.cast(SQL_TIME)",
-      "00:00:12")
-
-    testTableApi(
-      'f7.cast(DataTypes.TIME).cast(DataTypes.INT),
-      "f7.cast(SQL_TIME).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f15.cast(DataTypes.TIMESTAMP(3)),
-      "f15.cast(SQL_TIMESTAMP)",
-      "2016-06-27 07:23:33.000")
-
-    testTableApi(
-      'f15.toTimestamp,
-      "f15.toTimestamp",
-      "2016-06-27 07:23:33.000")
-
-    testTableApi(
-      'f8.cast(DataTypes.TIMESTAMP(3)).cast(DataTypes.BIGINT()),
-      "f8.cast(SQL_TIMESTAMP).cast(LONG)",
-      "1467012213000")
 
     testSqlApi(
       "CAST(CAST('123' as DECIMAL(5, 2)) AS TIMESTAMP)",
@@ -327,12 +266,10 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTimeIntervalCasting(): Unit = {
     testTableApi(
       'f7.cast(DataTypes.INTERVAL(DataTypes.MONTH)),
-      "f7.cast(INTERVAL_MONTHS)",
       "+1000-00")
 
     testTableApi(
       'f8.cast(DataTypes.INTERVAL(DataTypes.MINUTE())),
-      "f8.cast(INTERVAL_MILLIS)",
       "+16979 07:23:33.000")
   }
 
@@ -341,31 +278,26 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f0 < 'f3,
       "f0 < f3",
-      "f0 < f3",
       "false")
 
     testAllApis(
       'f0 < 'f4,
-      "f0 < f4",
       "f0 < f4",
       "true")
 
     testAllApis(
       'f1 < 'f5,
       "f1 < f5",
-      "f1 < f5",
       "false")
 
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)) !== 'f2,
-      "f0.cast(SQL_TIMESTAMP) !== f2",
-      "CAST(f0 AS TIMESTAMP(3)) <> f2",
+      "CAST(f0 AS TIMESTAMP(9)) <> f2",
       "true")
 
     testAllApis(
-      'f0.cast(DataTypes.TIMESTAMP(3)) === 'f6,
-      "f0.cast(SQL_TIMESTAMP) === f6",
-      "CAST(f0 AS TIMESTAMP(3)) = f6",
+      'f0.cast(DataTypes.TIMESTAMP(9)) === 'f6,
+      "CAST(f0 AS TIMESTAMP(9)) = f6",
       "true")
   }
 
@@ -376,13 +308,11 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       12.months < 24.months,
-      "12.months < 24.months",
       "INTERVAL '12' MONTH < INTERVAL '24' MONTH",
       "true")
 
     testAllApis(
       8.years === 8.years,
-      "8.years === 8.years",
       "INTERVAL '8' YEAR = INTERVAL '8' YEAR",
       "true")
 
@@ -390,13 +320,11 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       8.millis > 10.millis,
-      "8.millis > 10.millis",
       "INTERVAL '0.008' SECOND > INTERVAL '0.010' SECOND",
       "false")
 
     testAllApis(
       8.millis === 8.millis,
-      "8.millis === 8.millis",
       "INTERVAL '0.008' SECOND = INTERVAL '0.008' SECOND",
       "true")
 
@@ -404,19 +332,16 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       8.years + 10.months,
-      "8.years + 10.months",
       "INTERVAL '8' YEAR + INTERVAL '10' MONTH",
       "+8-10")
 
     testAllApis(
       2.years - 12.months,
-      "2.years - 12.months",
       "INTERVAL '2' YEAR - INTERVAL '12' MONTH",
       "+1-00")
 
     testAllApis(
       -2.years,
-      "-2.years",
       "-INTERVAL '2' YEAR",
       "-2-00")
 
@@ -424,19 +349,16 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       8.hours + 10.minutes + 12.seconds + 5.millis,
-      "8.hours + 10.minutes + 12.seconds + 5.millis",
       "INTERVAL '8' HOUR + INTERVAL '10' MINUTE + INTERVAL '12.005' SECOND",
       "+0 08:10:12.005")
 
     testAllApis(
       1.minute - 10.seconds,
-      "1.minute - 10.seconds",
       "INTERVAL '1' MINUTE - INTERVAL '10' SECOND",
       "+0 00:00:50.000")
 
     testAllApis(
       -10.seconds,
-      "-10.seconds",
       "-INTERVAL '10' SECOND",
       "-0 00:00:10.000")
 
@@ -445,28 +367,24 @@ class TemporalTypesTest extends ExpressionTestBase {
     // interval millis
     testAllApis(
       'f0 + 2.days,
-      "f0 + 2.days",
       "f0 + INTERVAL '2' DAY",
       "1990-10-16")
 
     // interval millis
     testAllApis(
       30.days + 'f0,
-      "30.days + f0",
       "INTERVAL '30' DAY + f0",
       "1990-11-13")
 
     // interval months
     testAllApis(
       'f0 + 2.months,
-      "f0 + 2.months",
       "f0 + INTERVAL '2' MONTH",
       "1990-12-14")
 
     // interval months
     testAllApis(
       2.months + 'f0,
-      "2.months + f0",
       "INTERVAL '2' MONTH + f0",
       "1990-12-14")
 
@@ -475,14 +393,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     // interval millis
     testAllApis(
       'f1 + 12.hours,
-      "f1 + 12.hours",
       "f1 + INTERVAL '12' HOUR",
       "22:20:45")
 
     // interval millis
     testAllApis(
       12.hours + 'f1,
-      "12.hours + f1",
       "INTERVAL '12' HOUR + f1",
       "22:20:45")
 
@@ -491,28 +407,24 @@ class TemporalTypesTest extends ExpressionTestBase {
     // interval millis
     testAllApis(
       'f2 + 10.days + 4.millis,
-      "f2 + 10.days + 4.millis",
       "f2 + INTERVAL '10 00:00:00.004' DAY TO SECOND",
       "1990-10-24 10:20:45.127")
 
     // interval millis
     testAllApis(
       10.days + 'f2 + 4.millis,
-      "10.days + f2 + 4.millis",
       "INTERVAL '10 00:00:00.004' DAY TO SECOND + f2",
       "1990-10-24 10:20:45.127")
 
     // interval months
     testAllApis(
       'f2 + 10.years,
-      "f2 + 10.years",
       "f2 + INTERVAL '10' YEAR",
       "2000-10-14 10:20:45.123")
 
     // interval months
     testAllApis(
       10.years + 'f2,
-      "10.years + f2",
       "INTERVAL '10' YEAR + f2",
       "2000-10-14 10:20:45.123")
 
@@ -521,28 +433,24 @@ class TemporalTypesTest extends ExpressionTestBase {
     // interval millis
     testAllApis(
       'f0 - 2.days,
-      "f0 - 2.days",
       "f0 - INTERVAL '2' DAY",
       "1990-10-12")
 
     // interval millis
     testAllApis(
       -30.days + 'f0,
-      "-30.days + f0",
       "INTERVAL '-30' DAY + f0",
       "1990-09-14")
 
     // interval months
     testAllApis(
       'f0 - 2.months,
-      "f0 - 2.months",
       "f0 - INTERVAL '2' MONTH",
       "1990-08-14")
 
     // interval months
     testAllApis(
       -2.months + 'f0,
-      "-2.months + f0",
       "-INTERVAL '2' MONTH + f0",
       "1990-08-14")
 
@@ -551,14 +459,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     // interval millis
     testAllApis(
       'f1 - 12.hours,
-      "f1 - 12.hours",
       "f1 - INTERVAL '12' HOUR",
       "22:20:45")
 
     // interval millis
     testAllApis(
       -12.hours + 'f1,
-      "-12.hours + f1",
       "INTERVAL '-12' HOUR + f1",
       "22:20:45")
 
@@ -567,68 +473,60 @@ class TemporalTypesTest extends ExpressionTestBase {
     // interval millis
     testAllApis(
       'f2 - 10.days - 4.millis,
-      "f2 - 10.days - 4.millis",
       "f2 - INTERVAL '10 00:00:00.004' DAY TO SECOND",
       "1990-10-04 10:20:45.119")
 
     // interval millis
     testAllApis(
       -10.days + 'f2 - 4.millis,
-      "-10.days + f2 - 4.millis",
       "INTERVAL '-10 00:00:00.004' DAY TO SECOND + f2",
       "1990-10-04 10:20:45.119")
 
     // interval months
     testAllApis(
       'f2 - 10.years,
-      "f2 - 10.years",
       "f2 - INTERVAL '10' YEAR",
       "1980-10-14 10:20:45.123")
 
     // interval months
     testAllApis(
       -10.years + 'f2,
-      "-10.years + f2",
       "INTERVAL '-10' YEAR + f2",
       "1980-10-14 10:20:45.123")
 
     // casting
 
     testAllApis(
-      -'f9.cast(DataTypes.INTERVAL(DataTypes.MONTH)),
-      "-f9.cast(INTERVAL_MONTHS)",
-      "-CAST(f9 AS INTERVAL YEAR)",
+      // TODO fix after FLIP-51
+      -'f9.cast(DataTypes.INTERVAL(DataTypes.MONTH).bridgedTo(classOf[JInt])),
+      "-CAST(f9 AS INTERVAL MONTH)",
       "-2-00")
 
     testAllApis(
-      -'f10.cast(DataTypes.INTERVAL(DataTypes.MINUTE())),
-      "-f10.cast(INTERVAL_MILLIS)",
-      "-CAST(f10 AS INTERVAL SECOND)",
+      // TODO fix after FLIP-51
+      -'f10.cast(DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(classOf[JLong])),
+      "-CAST(f10 AS INTERVAL SECOND(3))",
       "-0 00:00:12.000")
 
     // addition/subtraction of interval millis and interval months
 
     testAllApis(
       'f0 + 2.days + 1.month,
-      "f0 + 2.days + 1.month",
       "f0 + INTERVAL '2' DAY + INTERVAL '1' MONTH",
       "1990-11-16")
 
     testAllApis(
       'f0 - 2.days - 1.month,
-      "f0 - 2.days - 1.month",
       "f0 - INTERVAL '2' DAY - INTERVAL '1' MONTH",
       "1990-09-12")
 
     testAllApis(
       'f2 + 2.days + 1.month,
-      "f2 + 2.days + 1.month",
       "f2 + INTERVAL '2' DAY + INTERVAL '1' MONTH",
       "1990-11-16 10:20:45.123")
 
     testAllApis(
       'f2 - 2.days - 1.month,
-      "f2 - 2.days - 1.month",
       "f2 - INTERVAL '2' DAY - INTERVAL '1' MONTH",
       "1990-09-12 10:20:45.123")
   }
@@ -638,35 +536,30 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f11,
       "f11",
-      "f11",
       "null"
     )
     testAllApis(
       'f12,
-      "f12",
       "f12",
       "null"
     )
     testAllApis(
       'f13,
       "f13",
-      "f13",
       "null"
     )
   }
 
   @Test
-  def testTemporalNullValues() = {
+  def testTemporalNullValues(): Unit = {
     testAllApis(
       'f13.extract(TimeIntervalUnit.HOUR),
-      "f13.extract(HOUR)",
       "extract(HOUR FROM f13)",
       "null"
     )
 
     testAllApis(
       'f13.floor(TimeIntervalUnit.HOUR),
-      "f13.floor(HOUR)",
       "FLOOR(f13 TO HOUR)",
       "null"
     )
@@ -1122,6 +1015,19 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi("TO_TIMESTAMP('abc')", "null")
 
+    // TO_TIMESTAMP should complement YEAR/MONTH/DAY/HOUR/MINUTE/SECOND/NANO_OF_SECOND
+    testSqlApi(
+      "TO_TIMESTAMP('2000020210', 'yyyyMMddHH')",
+      "2000-02-02 10:00:00.000")
+
+    testSqlApi(
+      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
+      "2000-02-02 00:59:59.1234567")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1234567', 'SSSSSSS')",
+      "1970-01-01 00:00:00.1234567")
+
     // CAST between two TIMESTAMPs
     testSqlApi(
       "CAST(TIMESTAMP '1970-01-01 00:00:00.123456789' AS TIMESTAMP(6))",
@@ -1216,6 +1122,22 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   }
 
+  @Test
+  def testTimestampDiff(): Unit = {
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2020-03-01 00:00:00')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2016-08-01 00:00:00')",
+      "-37")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2020-03-01')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2016-08-01')",
+      "-37")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
@@ -1249,39 +1171,40 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(22, 3)
     testData.setField(23, localDateTime("1970-01-01 00:00:00.123456789")
       .atZone(config.getLocalTimeZone).toInstant)
-    testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789"))
+    testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789")
+      .atZone(config.getLocalTimeZone).toInstant)
     testData.setField(25, localDateTime("1970-01-01 00:00:00.123456789").toInstant(ZoneOffset.UTC))
     testData
   }
 
-  override def typeInfo: RowTypeInfo = {
-    new RowTypeInfo(
-      /* 0 */  Types.LOCAL_DATE,
-      /* 1 */  Types.LOCAL_TIME,
-      /* 2 */  Types.LOCAL_DATE_TIME,
-      /* 3 */  Types.LOCAL_DATE,
-      /* 4 */  Types.LOCAL_DATE,
-      /* 5 */  Types.LOCAL_TIME,
-      /* 6 */  Types.LOCAL_DATE_TIME,
-      /* 7 */  Types.INT,
-      /* 8 */  Types.LONG,
-      /* 9 */  TimeIntervalTypeInfo.INTERVAL_MONTHS,
-      /* 10 */ TimeIntervalTypeInfo.INTERVAL_MILLIS,
-      /* 11 */ Types.LOCAL_DATE,
-      /* 12 */ Types.LOCAL_TIME,
-      /* 13 */ Types.LOCAL_DATE_TIME,
-      /* 14 */ Types.STRING,
-      /* 15 */ Types.LONG,
-      /* 16 */ Types.INSTANT,
-      /* 17 */ Types.INSTANT,
-      /* 18 */ Types.INSTANT,
-      /* 19 */ Types.INSTANT,
-      /* 20 */ Types.INSTANT,
-      /* 21 */ Types.LONG,
-      /* 22 */ Types.INT,
-      /* 23 */ new LegacyInstantTypeInfo(9),
-      /* 24 */ new LegacyLocalDateTimeTypeInfo(9),
-      /* 25 */ Types.INSTANT
-    )
-  }
+  override def testDataType: DataType = DataTypes.ROW(
+    DataTypes.FIELD("f0", DataTypes.DATE()),
+    DataTypes.FIELD("f1", DataTypes.TIME(0)),
+    DataTypes.FIELD("f2", DataTypes.TIMESTAMP(3)),
+    DataTypes.FIELD("f3", DataTypes.DATE()),
+    DataTypes.FIELD("f4", DataTypes.DATE()),
+    DataTypes.FIELD("f5", DataTypes.TIME(0)),
+    DataTypes.FIELD("f6", DataTypes.TIMESTAMP(9)),
+    DataTypes.FIELD("f7", DataTypes.INT()),
+    DataTypes.FIELD("f8", DataTypes.BIGINT()),
+    DataTypes.FIELD("f9", DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(classOf[JInt])),
+    DataTypes.FIELD("f10", DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(classOf[JLong])),
+    DataTypes.FIELD("f11", DataTypes.DATE()),
+    DataTypes.FIELD("f12", DataTypes.TIME(0)),
+    DataTypes.FIELD("f13", DataTypes.TIMESTAMP(9)),
+    DataTypes.FIELD("f14", DataTypes.STRING()),
+    DataTypes.FIELD("f15", DataTypes.BIGINT()),
+    DataTypes.FIELD("f16", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f17", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+    DataTypes.FIELD("f18", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f19", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f20", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f21", DataTypes.BIGINT()),
+    DataTypes.FIELD("f22", DataTypes.INT()),
+    DataTypes.FIELD("f23", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f24", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f25", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))
+  )
+
+  override def containsLegacyTypes: Boolean = false
 }

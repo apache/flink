@@ -20,9 +20,8 @@ package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.batch.table.CalcTest.{MyHashCode, TestCaseClass, WC, giveMeCaseClass}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
@@ -202,7 +201,7 @@ class CalcTest extends TableTestBase {
 
     util.tableEnv.registerFunction("hashCode", MyHashCode)
 
-    val resultTable = sourceTable.select("hashCode(c), b")
+    val resultTable = sourceTable.select(call("hashCode", $"c"), $"b")
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -351,7 +350,7 @@ class CalcTest extends TableTestBase {
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS EXPR$0")
         ),
-        term("select", "word, EXPR$0 AS frequency"),
+        term("select", "word, EXPR$0"),
         term("where", "=(EXPR$0, 2)")
       )
 

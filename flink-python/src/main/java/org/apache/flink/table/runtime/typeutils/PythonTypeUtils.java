@@ -32,14 +32,14 @@ import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseMapSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalDataSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.MapDataSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
@@ -106,7 +106,7 @@ public final class PythonTypeUtils {
 	 * The specified bigDecimal may be rounded to have the specified scale and then
 	 * the specified precision is checked. If precision overflow, it will return `null`.
 	 *
-	 * <p>Note: The implementation refers to {@link Decimal#fromBigDecimal}.
+	 * <p>Note: The implementation refers to {@link DecimalData#fromBigDecimal}.
 	 */
 	public static BigDecimal fromBigDecimal(BigDecimal bigDecimal, int precision, int scale) {
 		if (bigDecimal.scale() != scale || bigDecimal.precision() > precision) {
@@ -140,6 +140,26 @@ public final class PythonTypeUtils {
 	public static int dateToInternal(java.sql.Date date) {
 		long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
 		return (int) (ts / MILLIS_PER_DAY);
+	}
+
+	/**
+	 * Converts the internal representation of a SQL TIMESTAMP (long) to the Java
+	 * type used for UDF parameters ({@link java.sql.Timestamp}).
+	 *
+	 * <p>Note: The implementation refers to {@link SqlDateTimeUtils#internalToTimestamp}.
+	 */
+	public static java.sql.Timestamp internalToTimestamp(long v) {
+		return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));
+	}
+
+	/** Converts the Java type used for UDF parameters of SQL TIMESTAMP type
+	 * ({@link java.sql.Timestamp}) to internal representation (long).
+	 *
+	 * <p>Note: The implementation refers to {@link SqlDateTimeUtils#timestampToInternal}.
+	 */
+	public static long timestampToInternal(java.sql.Timestamp ts) {
+		long time = ts.getTime();
+		return time + LOCAL_TZ.getOffset(time);
 	}
 
 	/**
@@ -272,7 +292,7 @@ public final class PythonTypeUtils {
 				.stream()
 				.map(f -> f.getType().accept(this))
 				.toArray(TypeSerializer[]::new);
-			return new RowSerializer(fieldTypeSerializers);
+			return new RowSerializer(fieldTypeSerializers, true);
 		}
 
 		@Override
@@ -296,17 +316,17 @@ public final class PythonTypeUtils {
 				.stream()
 				.map(f -> f.getType().accept(this))
 				.toArray(TypeSerializer[]::new);
-			return new BaseRowSerializer(rowType.getChildren().toArray(new LogicalType[0]), fieldTypeSerializers);
+			return new RowDataSerializer(rowType.getChildren().toArray(new LogicalType[0]), fieldTypeSerializers);
 		}
 
 		@Override
 		public TypeSerializer visit(VarCharType varCharType) {
-			return BinaryStringSerializer.INSTANCE;
+			return StringDataSerializer.INSTANCE;
 		}
 
 		@Override
 		public TypeSerializer visit(CharType charType) {
-			return BinaryStringSerializer.INSTANCE;
+			return StringDataSerializer.INSTANCE;
 		}
 
 		@Override
@@ -321,18 +341,18 @@ public final class PythonTypeUtils {
 
 		@Override
 		public TypeSerializer visit(TimestampType timestampType) {
-			return new SqlTimestampSerializer(timestampType.getPrecision());
+			return new TimestampDataSerializer(timestampType.getPrecision());
 		}
 
 		@Override
 		public TypeSerializer visit(LocalZonedTimestampType localZonedTimestampType) {
-			return new SqlTimestampSerializer(localZonedTimestampType.getPrecision());
+			return new TimestampDataSerializer(localZonedTimestampType.getPrecision());
 		}
 
 		public TypeSerializer visit(ArrayType arrayType) {
 			LogicalType elementType = arrayType.getElementType();
 			TypeSerializer elementTypeSerializer = elementType.accept(this);
-			return new BaseArraySerializer(elementType, elementTypeSerializer);
+			return new ArrayDataSerializer(elementType, elementTypeSerializer);
 		}
 
 		@Override
@@ -341,12 +361,12 @@ public final class PythonTypeUtils {
 			LogicalType valueType = mapType.getValueType();
 			TypeSerializer<?> keyTypeSerializer = keyType.accept(this);
 			TypeSerializer<?> valueTypeSerializer = valueType.accept(this);
-			return new BaseMapSerializer(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
+			return new MapDataSerializer(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
 		}
 
 		@Override
 		public TypeSerializer visit(DecimalType decimalType) {
-			return new DecimalSerializer(decimalType.getPrecision(), decimalType.getScale());
+			return new DecimalDataSerializer(decimalType.getPrecision(), decimalType.getScale());
 		}
 	}
 

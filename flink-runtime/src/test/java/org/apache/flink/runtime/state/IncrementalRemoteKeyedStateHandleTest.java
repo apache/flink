@@ -264,7 +264,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
 			1L,
 			placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
 			placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
-			spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd)));
+			spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)));
 	}
 
 	private static Map<StateHandleID, StreamStateHandle> placeSpies(

@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
+from pyflink.util.utils import add_jars_to_context_class_loader
 
 
 class Configuration:
@@ -67,6 +68,11 @@ class Configuration:
         :param value: The value of the key/value pair to be added.
         :type value: str
         """
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        if key in [jars_key, classpaths_key]:
+            add_jars_to_context_class_loader(value.split(";"))
         self._j_configuration.setString(key, value)
 
     def get_integer(self, key, default_value):

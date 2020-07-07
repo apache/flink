@@ -28,33 +28,53 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
-import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryStringSerializer;
-import org.apache.flink.table.runtime.typeutils.DecimalSerializer;
-import org.apache.flink.table.runtime.typeutils.SqlTimestampSerializer;
+import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
+import org.apache.flink.table.runtime.typeutils.DecimalDataSerializer;
+import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
+import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
+import org.apache.flink.table.runtime.typeutils.TimestampDataSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 
 /**
  * {@link TypeSerializer} of {@link LogicalType} for internal sql engine execution data formats.
  */
 public class InternalSerializers {
 
+	/**
+	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
+	 */
+	public static TypeSerializer<?> create(LogicalType type) {
+		return create(type, new ExecutionConfig());
+	}
+
+	/**
+	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
+	 */
 	public static TypeSerializer create(LogicalType type, ExecutionConfig config) {
+		// ordered by type root definition
 		switch (type.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+				return StringDataSerializer.INSTANCE;
 			case BOOLEAN:
 				return BooleanSerializer.INSTANCE;
+			case BINARY:
+			case VARBINARY:
+				return BytePrimitiveArraySerializer.INSTANCE;
+			case DECIMAL:
+				return new DecimalDataSerializer(getPrecision(type), getScale(type));
 			case TINYINT:
 				return ByteSerializer.INSTANCE;
 			case SMALLINT:
@@ -67,40 +87,40 @@ public class InternalSerializers {
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
 				return LongSerializer.INSTANCE;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				TimestampType timestampType = (TimestampType) type;
-				return new SqlTimestampSerializer(timestampType.getPrecision());
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
-				return new SqlTimestampSerializer(lzTs.getPrecision());
 			case FLOAT:
 				return FloatSerializer.INSTANCE;
 			case DOUBLE:
 				return DoubleSerializer.INSTANCE;
-			case CHAR:
-			case VARCHAR:
-				return BinaryStringSerializer.INSTANCE;
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) type;
-				return new DecimalSerializer(decimalType.getPrecision(), decimalType.getScale());
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return new TimestampDataSerializer(getPrecision(type));
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException();
 			case ARRAY:
-				return new BaseArraySerializer(((ArrayType) type).getElementType(), config);
+				return new ArrayDataSerializer(((ArrayType) type).getElementType(), config);
+			case MULTISET:
+				return new MapDataSerializer(((MultisetType) type).getElementType(), new IntType(false), config);
 			case MAP:
 				MapType mapType = (MapType) type;
-				return new BaseMapSerializer(mapType.getKeyType(), mapType.getValueType(), config);
-			case MULTISET:
-				return new BaseMapSerializer(((MultisetType) type).getElementType(), new IntType(), config);
+				return new MapDataSerializer(mapType.getKeyType(), mapType.getValueType(), config);
 			case ROW:
-				RowType rowType = (RowType) type;
-				return new BaseRowSerializer(config, rowType);
-			case BINARY:
-			case VARBINARY:
-				return BytePrimitiveArraySerializer.INSTANCE;
+			case STRUCTURED_TYPE:
+				return new RowDataSerializer(config, type.getChildren().toArray(new LogicalType[0]));
+			case DISTINCT_TYPE:
+				return create(((DistinctType) type).getSourceType(), config);
 			case RAW:
-				return new BinaryGenericSerializer(
-						((TypeInformationRawType) type).getTypeInformation().createSerializer(config));
+				if (type instanceof RawType) {
+					final RawType<?> rawType = (RawType<?>) type;
+					return new RawValueDataSerializer<>(rawType.getTypeSerializer());
+				}
+				return new RawValueDataSerializer<>(
+					((TypeInformationRawType<?>) type).getTypeInformation().createSerializer(config));
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
 			default:
-				throw new RuntimeException("Not support type: " + type);
+				throw new UnsupportedOperationException(
+					"Unsupported type '" + type + "' to get internal serializer");
 		}
 	}
 }

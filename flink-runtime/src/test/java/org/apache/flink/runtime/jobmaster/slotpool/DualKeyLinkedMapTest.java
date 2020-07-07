@@ -29,6 +29,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -56,5 +58,61 @@ public class DualKeyLinkedMapTest extends TestLogger {
 
 		assertThat(dualKeyMap.keySetA(), Matchers.equalTo(keys.stream().map(t -> t.f0).collect(Collectors.toSet())));
 		assertThat(dualKeyMap.keySetB(), Matchers.equalTo(keys.stream().map(t -> t.f1).collect(Collectors.toSet())));
+	}
+
+	@Test
+	public void ensuresOneToOneMappingBetweenKeysSamePrimaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String secondValue = "barfoo";
+		map.put(1, 1, "foobar");
+		map.put(1, 2, secondValue);
+
+		assertThat(map.getValueByKeyB(1), nullValue());
+		assertThat(map.getValueByKeyA(1), is(secondValue));
+		assertThat(map.getValueByKeyB(2), is(secondValue));
+	}
+
+	@Test
+	public void ensuresOneToOneMappingBetweenKeysSameSecondaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String secondValue = "barfoo";
+		map.put(1, 1, "foobar");
+		map.put(2, 1, secondValue);
+
+		assertThat(map.getValueByKeyA(1), nullValue());
+		assertThat(map.getValueByKeyB(1), is(secondValue));
+		assertThat(map.getValueByKeyA(2), is(secondValue));
+	}
+
+	@Test
+	public void testPrimaryKeyOrderIsNotAffectedIfReInsertedWithSameSecondaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String value1 = "1";
+		map.put(1, 1, value1);
+		final String value2 = "2";
+		map.put(2, 2, value2);
+
+		final String value3 = "3";
+		map.put(1, 1, value3);
+		assertThat(map.keySetA().iterator().next(), is(1));
+		assertThat(map.values().iterator().next(), is(value3));
+	}
+
+	@Test
+	public void testPrimaryKeyOrderIsNotAffectedIfReInsertedWithDifferentSecondaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String value1 = "1";
+		map.put(1, 1, value1);
+		final String value2 = "2";
+		map.put(2, 2, value2);
+
+		final String value3 = "3";
+		map.put(1, 3, value3);
+		assertThat(map.keySetA().iterator().next(), is(1));
+		assertThat(map.values().iterator().next(), is(value3));
 	}
 }

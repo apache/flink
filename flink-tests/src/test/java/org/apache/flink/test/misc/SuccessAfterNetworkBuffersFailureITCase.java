@@ -35,12 +35,10 @@ import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
@@ -51,7 +49,6 @@ import static org.junit.Assert.fail;
  * This test validates that task slots in co-location constraints are properly
  * freed in the presence of failures.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	private static final int PARALLELISM = 16;

@@ -25,13 +25,13 @@ import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
-import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -322,24 +322,24 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	/**
 	 * Built-in Big Decimal Max with retraction aggregate function.
 	 */
-	public static class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Decimal> {
+	public static class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction<DecimalData> {
 		private static final long serialVersionUID = 5301860581297042635L;
-		private DecimalTypeInfo decimalType;
+		private DecimalDataTypeInfo decimalType;
 
-		public DecimalMaxWithRetractAggFunction(DecimalTypeInfo decimalType) {
+		public DecimalMaxWithRetractAggFunction(DecimalDataTypeInfo decimalType) {
 			this.decimalType = decimalType;
 		}
 
-		public void accumulate(MaxWithRetractAccumulator<Decimal> acc, Decimal value) throws Exception {
+		public void accumulate(MaxWithRetractAccumulator<DecimalData> acc, DecimalData value) throws Exception {
 			super.accumulate(acc, value);
 		}
 
-		public void retract(MaxWithRetractAccumulator<Decimal> acc, Decimal value) throws Exception {
+		public void retract(MaxWithRetractAccumulator<DecimalData> acc, DecimalData value) throws Exception {
 			super.retract(acc, value);
 		}
 
 		@Override
-		protected TypeInformation<Decimal> getValueTypeInfo() {
+		protected TypeInformation<DecimalData> getValueTypeInfo() {
 			return decimalType;
 		}
 	}
@@ -347,28 +347,28 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	/**
 	 * Built-in String Max with retraction aggregate function.
 	 */
-	public static class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction<BinaryString> {
+	public static class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction<StringData> {
 
 		private static final long serialVersionUID = 787528574867514796L;
 
-		public void accumulate(MaxWithRetractAccumulator<BinaryString> acc, BinaryString value) throws Exception {
+		public void accumulate(MaxWithRetractAccumulator<StringData> acc, StringData value) throws Exception {
 			super.accumulate(acc, value);
 		}
 
-		public void retract(MaxWithRetractAccumulator<BinaryString> acc, BinaryString value) throws Exception {
+		public void retract(MaxWithRetractAccumulator<StringData> acc, StringData value) throws Exception {
 			super.retract(acc, value);
 		}
 
 		@Override
-		protected TypeInformation<BinaryString> getValueTypeInfo() {
-			return BinaryStringTypeInfo.INSTANCE;
+		protected TypeInformation<StringData> getValueTypeInfo() {
+			return StringDataTypeInfo.INSTANCE;
 		}
 	}
 
 	/**
 	 * Built-in Timestamp Max with retraction aggregate function.
 	 */
-	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<SqlTimestamp> {
+	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<TimestampData> {
 
 		private static final long serialVersionUID = -7096481949093142944L;
 
@@ -378,17 +378,17 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 			this.precision = precision;
 		}
 
-		public void accumulate(MaxWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
+		public void accumulate(MaxWithRetractAccumulator<TimestampData> acc, TimestampData value) throws Exception {
 			super.accumulate(acc, value);
 		}
 
-		public void retract(MaxWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
+		public void retract(MaxWithRetractAccumulator<TimestampData> acc, TimestampData value) throws Exception {
 			super.retract(acc, value);
 		}
 
 		@Override
-		protected TypeInformation<SqlTimestamp> getValueTypeInfo() {
-			return new SqlTimestampTypeInfo(precision);
+		protected TypeInformation<TimestampData> getValueTypeInfo() {
+			return new TimestampDataTypeInfo(precision);
 		}
 	}
 

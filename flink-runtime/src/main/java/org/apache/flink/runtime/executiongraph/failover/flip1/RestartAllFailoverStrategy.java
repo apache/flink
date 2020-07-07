@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.util.IterableUtils;
 
 import java.util.Set;
@@ -30,9 +32,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class RestartAllFailoverStrategy implements FailoverStrategy {
 
-	private final FailoverTopology<?, ?> topology;
+	private final SchedulingTopology topology;
 
-	public RestartAllFailoverStrategy(final FailoverTopology<?, ?> topology) {
+	public RestartAllFailoverStrategy(final SchedulingTopology topology) {
 		this.topology = checkNotNull(topology);
 	}
 
@@ -46,7 +48,7 @@ public class RestartAllFailoverStrategy implements FailoverStrategy {
 	@Override
 	public Set<ExecutionVertexID> getTasksNeedingRestart(ExecutionVertexID executionVertexId, Throwable cause) {
 		return IterableUtils.toStream(topology.getVertices())
-			.map(FailoverVertex::getId)
+			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 	}
 
@@ -57,7 +59,7 @@ public class RestartAllFailoverStrategy implements FailoverStrategy {
 
 		@Override
 		public FailoverStrategy create(
-				final FailoverTopology<?, ?> topology,
+				final SchedulingTopology topology,
 				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
 			return new RestartAllFailoverStrategy(topology);

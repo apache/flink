@@ -40,6 +40,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testutils.CancelableInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -58,7 +59,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Test for the (failure handling of the) delivery of Operator Events.
  */
-public class TaskExecutorOperatorEventHandlingTest {
+public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
 
 	private MetricRegistryImpl metricRegistry;
 

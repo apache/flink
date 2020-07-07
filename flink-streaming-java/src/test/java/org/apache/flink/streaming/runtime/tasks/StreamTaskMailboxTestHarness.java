@@ -18,14 +18,12 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 
-import java.util.Collections;
 import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -41,7 +39,7 @@ import static org.junit.Assert.assertTrue;
 public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 	protected final StreamTask<OUT, ?> streamTask;
 	protected final StreamMockEnvironment streamMockEnvironment;
-	protected TestTaskStateManager taskStateManager;
+	protected final TestTaskStateManager taskStateManager;
 	protected final Queue<Object> outputList;
 	protected final StreamTestSingleInputGate[] inputGates;
 	protected final boolean[] inputGateEnded;
@@ -51,11 +49,10 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 	StreamTaskMailboxTestHarness(
 			StreamTask<OUT, ?> streamTask,
 			Queue<Object> outputList,
-			LocalRecoveryConfig localRecoveryConfig,
 			StreamTestSingleInputGate[] inputGates,
 			StreamMockEnvironment streamMockEnvironment) {
 		this.streamTask = checkNotNull(streamTask);
-		this.taskStateManager = new TestTaskStateManager(checkNotNull(localRecoveryConfig));
+		this.taskStateManager = (TestTaskStateManager) streamMockEnvironment.getTaskStateManager();
 		this.inputGates = checkNotNull(inputGates);
 		this.outputList = checkNotNull(outputList);
 		this.streamMockEnvironment = checkNotNull(streamMockEnvironment);
@@ -64,12 +61,6 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
 	public TestTaskStateManager getTaskStateManager() {
 		return taskStateManager;
-	}
-
-	public void setTaskStateSnapshot(long checkpointId, TaskStateSnapshot taskStateSnapshot) {
-		taskStateManager.setReportedCheckpointId(checkpointId);
-		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
-			Collections.singletonMap(checkpointId, taskStateSnapshot));
 	}
 
 	public StreamTask<OUT, ?> getStreamTask() {
@@ -121,9 +112,16 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 	}
 
 	public void process() throws Exception {
-		while (streamTask.inputProcessor.isAvailable() && streamTask.mailboxProcessor.isMailboxLoopRunning()) {
-			streamTask.runMailboxStep();
+		while (processSingleStep()) {
 		}
+	}
+
+	public boolean processSingleStep() throws Exception {
+		if (streamTask.inputProcessor.isAvailable() && streamTask.mailboxProcessor.isMailboxLoopRunning()) {
+			streamTask.runMailboxStep();
+			return true;
+		}
+		return false;
 	}
 
 	public void endInput() {
@@ -162,6 +160,10 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
 	public void setAutoProcess(boolean autoProcess) {
 		this.autoProcess = autoProcess;
+	}
+
+	public TestCheckpointResponder getCheckpointResponder() {
+		return (TestCheckpointResponder) taskStateManager.getCheckpointResponder();
 	}
 }
 

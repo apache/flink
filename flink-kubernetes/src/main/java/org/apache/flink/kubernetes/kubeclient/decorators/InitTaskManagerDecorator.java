@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesToleration;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -34,7 +35,6 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_NAME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -58,7 +58,12 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 				.withAnnotations(kubernetesTaskManagerParameters.getAnnotations())
 				.endMetadata()
 			.editOrNewSpec()
+				.withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
 				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
+				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
+				.withTolerations(kubernetesTaskManagerParameters.getTolerations().stream()
+					.map(e -> KubernetesToleration.fromMap(e).getInternalResource())
+					.collect(Collectors.toList()))
 				.endSpec()
 			.build();
 
@@ -73,7 +78,8 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 	private Container decorateMainContainer(Container container) {
 		final ResourceRequirements resourceRequirements = KubernetesUtils.getResourceRequirements(
 				kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
-				kubernetesTaskManagerParameters.getTaskManagerCPU());
+				kubernetesTaskManagerParameters.getTaskManagerCPU(),
+				kubernetesTaskManagerParameters.getTaskManagerExternalResources());
 
 		return new ContainerBuilder(container)
 				.withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())
@@ -85,10 +91,6 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 					.withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
 					.build())
 				.withEnv(getCustomizedEnvs())
-				.addNewEnv()
-					.withName(ENV_FLINK_POD_NAME)
-					.withValue(kubernetesTaskManagerParameters.getPodName())
-					.endEnv()
 				.build();
 	}
 

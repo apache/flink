@@ -42,6 +42,6 @@ public class LocalExecutorFactory implements PipelineExecutorFactory {
 
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
-		return new LocalExecutor();
+		return LocalExecutor.create(configuration);
 	}
 }

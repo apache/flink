@@ -30,7 +30,7 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
@@ -108,9 +108,7 @@ class DataStreamWindowJoin(
       getExpressionString)
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     val config = planner.getConfig
 
@@ -121,8 +119,8 @@ class DataStreamWindowJoin(
         "Windowed stream join does not support updates.")
     }
 
-    val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
-    val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+    val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(planner)
+    val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(planner)
 
     // get the equi-keys and other conditions
     val joinInfo = JoinInfo.of(leftNode, rightNode, joinCondition)

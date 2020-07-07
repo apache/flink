@@ -91,7 +91,7 @@ import java.util.concurrent.CompletableFuture;
  *     "status": {
  *         "id": "COMPLETED"
  *     },
- *     "savepoint": {
+ *     "operation": {
  *         "location": "/tmp/savepoint-d9813b-8a68e674325b"
  *     }
  * }

@@ -27,7 +27,8 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.BlobServerResource;
@@ -321,8 +322,9 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			try {
 				final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 				Configuration cfg = parameterTool.getConfiguration();
+				final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(cfg);
 
-				TaskManagerRunner.runTaskManager(cfg, ResourceID.generate());
+				TaskManagerRunner.runTaskManager(cfg, pluginManager);
 			}
 			catch (Throwable t) {
 				LOG.error("Failed to start TaskManager process", t);

@@ -25,14 +25,15 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SortedMapTypeInfo;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -49,7 +50,9 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- * The function could handle retract stream. Input stream could only contain acc, delete or retract record.
+ * A TopN function could handle updating stream.
+ *
+ * <p>Input stream can contain any change kind: INSERT, DELETE, UPDATE_BEFORE and UPDATE_AFTER.
  */
 public class RetractableTopNFunction extends AbstractTopNFunction {
 
@@ -61,36 +64,36 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	private static final String STATE_CLEARED_WARN_MSG = "The state is cleared because of state ttl. " +
 			"This will result in incorrect result. You can increase the state ttl to avoid this.";
 
-	private final BaseRowTypeInfo sortKeyType;
+	private final RowDataTypeInfo sortKeyType;
 
 	// flag to skip records with non-exist error instead to fail, true by default.
 	private final boolean lenient = true;
 
 	// a map state stores mapping from sort key to records list
-	private transient MapState<BaseRow, List<BaseRow>> dataState;
+	private transient MapState<RowData, List<RowData>> dataState;
 
 	// a sorted map stores mapping from sort key to records count
-	private transient ValueState<SortedMap<BaseRow, Long>> treeMap;
+	private transient ValueState<SortedMap<RowData, Long>> treeMap;
 
-	// The util to compare two BaseRow equals to each other.
+	// The util to compare two RowData equals to each other.
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private RecordEqualiser equaliser;
 
-	private Comparator<BaseRow> serializableComparator;
+	private Comparator<RowData> serializableComparator;
 
 	public RetractableTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
-			BaseRowTypeInfo inputRowType,
+			RowDataTypeInfo inputRowType,
 			GeneratedRecordComparator generatedRecordComparator,
-			BaseRowKeySelector sortKeySelector,
+			RowDataKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
 			GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
-				rankRange, generateRetraction, outputRankNumber);
+				rankRange, generateUpdateBefore, outputRankNumber);
 		this.sortKeyType = sortKeySelector.getProducedType();
 		this.serializableComparator = new ComparatorWrapper(generatedRecordComparator);
 		this.generatedEqualiser = generatedEqualiser;
@@ -104,29 +107,31 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		generatedEqualiser = null;
 
-		ListTypeInfo<BaseRow> valueTypeInfo = new ListTypeInfo<>(inputRowType);
-		MapStateDescriptor<BaseRow, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<>(
+		ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
+		MapStateDescriptor<RowData, List<RowData>> mapStateDescriptor = new MapStateDescriptor<>(
 				"data-state", sortKeyType, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		ValueStateDescriptor<SortedMap<BaseRow, Long>> valueStateDescriptor = new ValueStateDescriptor<>(
+		ValueStateDescriptor<SortedMap<RowData, Long>> valueStateDescriptor = new ValueStateDescriptor<>(
 				"sorted-map",
 				new SortedMapTypeInfo<>(sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, serializableComparator));
 		treeMap = getRuntimeContext().getState(valueStateDescriptor);
 	}
 
 	@Override
-	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
+	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
 		long currentTime = ctx.timerService().currentProcessingTime();
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, currentTime);
 		initRankEnd(input);
-		SortedMap<BaseRow, Long> sortedMap = treeMap.value();
+		SortedMap<RowData, Long> sortedMap = treeMap.value();
 		if (sortedMap == null) {
 			sortedMap = new TreeMap<>(sortKeyComparator);
 		}
-		BaseRow sortKey = sortKeySelector.getKey(input);
-		if (BaseRowUtil.isAccumulateMsg(input)) {
+		RowData sortKey = sortKeySelector.getKey(input);
+		boolean isAccumulate = RowDataUtil.isAccumulateMsg(input);
+		input.setRowKind(RowKind.INSERT); // erase row kind for further state accessing
+		if (isAccumulate) {
 			// update sortedMap
 			if (sortedMap.containsKey(sortKey)) {
 				sortedMap.put(sortKey, sortedMap.get(sortKey) + 1);
@@ -143,7 +148,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				emitRecordsWithoutRowNumber(sortedMap, sortKey, input, out);
 			}
 			// update data state
-			List<BaseRow> inputs = dataState.get(sortKey);
+			List<RowData> inputs = dataState.get(sortKey);
 			if (inputs == null) {
 				// the sort key is never seen
 				inputs = new ArrayList<>();
@@ -176,8 +181,8 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
 					}
 				} else {
-					throw new RuntimeException("Can not retract a non-existent record: ${inputBaseRow.toString}. " +
-							"This should never happen.");
+					throw new RuntimeException(
+						"Can not retract a non-existent record. This should never happen.");
 				}
 			}
 
@@ -186,7 +191,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	}
 
 	@Override
-	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) throws Exception {
 		if (stateCleaningEnabled) {
 			cleanupState(dataState, treeMap);
 		}
@@ -195,20 +200,21 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	// ------------- ROW_NUMBER-------------------------------
 
 	private void emitRecordsWithRowNumber(
-			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
-		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
-		long curRank = 0L;
+		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
+		long currentRank = 0L;
+		RowData currentRow = null;
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
-			Map.Entry<BaseRow, Long> entry = iterator.next();
-			BaseRow key = entry.getKey();
+		while (iterator.hasNext() && isInRankEnd(currentRank)) {
+			Map.Entry<RowData, Long> entry = iterator.next();
+			RowData key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
-				curRank += entry.getValue();
-				collect(out, inputRow, curRank);
+				currentRank += entry.getValue();
+				currentRow = inputRow;
 				findsSortKey = true;
 			} else if (findsSortKey) {
-				List<BaseRow> inputs = dataState.get(key);
+				List<RowData> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
 					if (lenient) {
@@ -218,31 +224,36 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					}
 				} else {
 					int i = 0;
-					while (i < inputs.size() && isInRankEnd(curRank)) {
-						curRank += 1;
-						BaseRow prevRow = inputs.get(i);
-						retract(out, prevRow, curRank - 1);
-						collect(out, prevRow, curRank);
+					while (i < inputs.size() && isInRankEnd(currentRank)) {
+						RowData prevRow = inputs.get(i);
+						collectUpdateBefore(out, prevRow, currentRank);
+						collectUpdateAfter(out, currentRow, currentRank);
+						currentRow = prevRow;
+						currentRank += 1;
 						i++;
 					}
 				}
 			} else {
-				curRank += entry.getValue();
+				currentRank += entry.getValue();
 			}
+		}
+		if (isInRankEnd(currentRank)) {
+			// there is no enough elements in Top-N, emit INSERT message for the new record.
+			collectInsert(out, currentRow, currentRank);
 		}
 	}
 
 	private void emitRecordsWithoutRowNumber(
-			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
-		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
+		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
 		long curRank = 0L;
 		boolean findsSortKey = false;
-		BaseRow toCollect = null;
-		BaseRow toDelete = null;
+		RowData toCollect = null;
+		RowData toDelete = null;
 		while (iterator.hasNext() && isInRankEnd(curRank)) {
-			Map.Entry<BaseRow, Long> entry = iterator.next();
-			BaseRow key = entry.getKey();
+			Map.Entry<RowData, Long> entry = iterator.next();
+			RowData key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
 				curRank += entry.getValue();
 				if (isInRankRange(curRank)) {
@@ -250,7 +261,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				}
 				findsSortKey = true;
 			} else if (findsSortKey) {
-				List<BaseRow> inputs = dataState.get(key);
+				List<RowData> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
 					if (lenient) {
@@ -276,24 +287,25 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			}
 		}
 		if (toDelete != null) {
-			delete(out, toDelete);
+			collectDelete(out, toDelete);
 		}
 		if (toCollect != null) {
-			collect(out, inputRow);
+			collectInsert(out, inputRow);
 		}
 	}
 
 	private void retractRecordWithRowNumber(
-			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
-		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
-		long curRank = 0L;
+		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
+		long currentRank = 0L;
+		RowData prevRow = null;
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
-			Map.Entry<BaseRow, Long> entry = iterator.next();
-			BaseRow key = entry.getKey();
+		while (iterator.hasNext() && isInRankEnd(currentRank)) {
+			Map.Entry<RowData, Long> entry = iterator.next();
+			RowData key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
-				List<BaseRow> inputs = dataState.get(key);
+				List<RowData> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
 					if (lenient) {
@@ -302,19 +314,20 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
 					}
 				} else {
-					Iterator<BaseRow> inputIter = inputs.iterator();
-					while (inputIter.hasNext() && isInRankEnd(curRank)) {
-						curRank += 1;
-						BaseRow prevRow = inputIter.next();
-						if (!findsSortKey && equaliser.equalsWithoutHeader(prevRow, inputRow)) {
-							delete(out, prevRow, curRank);
-							curRank -= 1;
+					Iterator<RowData> inputIter = inputs.iterator();
+					while (inputIter.hasNext() && isInRankEnd(currentRank)) {
+						RowData currentRow = inputIter.next();
+						if (!findsSortKey && equaliser.equals(currentRow, inputRow)) {
+							prevRow = currentRow;
 							findsSortKey = true;
 							inputIter.remove();
 						} else if (findsSortKey) {
-							retract(out, prevRow, curRank + 1);
-							collect(out, prevRow, curRank);
+							collectUpdateBefore(out, prevRow, currentRank);
+							collectUpdateAfter(out, currentRow, currentRank);
+							prevRow = currentRow;
 						}
+						currentRank += 1;
+
 					}
 					if (inputs.isEmpty()) {
 						dataState.remove(key);
@@ -323,32 +336,37 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					}
 				}
 			} else if (findsSortKey) {
-				List<BaseRow> inputs = dataState.get(key);
+				List<RowData> inputs = dataState.get(key);
 				int i = 0;
-				while (i < inputs.size() && isInRankEnd(curRank)) {
-					curRank += 1;
-					BaseRow prevRow = inputs.get(i);
-					retract(out, prevRow, curRank + 1);
-					collect(out, prevRow, curRank);
+				while (i < inputs.size() && isInRankEnd(currentRank)) {
+					RowData currentRow = inputs.get(i);
+					collectUpdateBefore(out, prevRow, currentRank);
+					collectUpdateAfter(out, currentRow, currentRank);
+					prevRow = currentRow;
+					currentRank += 1;
 					i++;
 				}
 			} else {
-				curRank += entry.getValue();
+				currentRank += entry.getValue();
 			}
+		}
+		if (isInRankEnd(currentRank)) {
+			// there is no enough elements in Top-N, emit DELETE message for the retract record.
+			collectDelete(out, prevRow, currentRank);
 		}
 	}
 
 	private void retractRecordWithoutRowNumber(
-			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
-		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
+		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
 		long curRank = 0L;
 		boolean findsSortKey = false;
 		while (iterator.hasNext() && isInRankEnd(curRank)) {
-			Map.Entry<BaseRow, Long> entry = iterator.next();
-			BaseRow key = entry.getKey();
+			Map.Entry<RowData, Long> entry = iterator.next();
+			RowData key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
-				List<BaseRow> inputs = dataState.get(key);
+				List<RowData> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
 					if (lenient) {
@@ -357,18 +375,18 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
 					}
 				} else {
-					Iterator<BaseRow> inputIter = inputs.iterator();
+					Iterator<RowData> inputIter = inputs.iterator();
 					while (inputIter.hasNext() && isInRankEnd(curRank)) {
 						curRank += 1;
-						BaseRow prevRow = inputIter.next();
-						if (!findsSortKey && equaliser.equalsWithoutHeader(prevRow, inputRow)) {
-							delete(out, prevRow, curRank);
+						RowData prevRow = inputIter.next();
+						if (!findsSortKey && equaliser.equals(prevRow, inputRow)) {
+							collectDelete(out, prevRow, curRank);
 							curRank -= 1;
 							findsSortKey = true;
 							inputIter.remove();
 						} else if (findsSortKey) {
 							if (curRank == rankEnd) {
-								collect(out, prevRow, curRank);
+								collectInsert(out, prevRow, curRank);
 								break;
 							}
 						}
@@ -388,9 +406,9 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					curRank = rankOfLastRecord;
 				} else {
 					int index = Long.valueOf(rankEnd - curRank - 1).intValue();
-					List<BaseRow> inputs = dataState.get(key);
-					BaseRow toAdd = inputs.get(index);
-					collect(out, toAdd);
+					List<RowData> inputs = dataState.get(key);
+					RowData toAdd = inputs.get(index);
+					collectInsert(out, toAdd);
 					break;
 				}
 			} else {
@@ -405,11 +423,11 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	 * instance is serializable, and a RecordComparator instance could be restored based on the deserialized
 	 * ComparatorWrapper instance.
 	 */
-	private static class ComparatorWrapper implements Comparator<BaseRow>, Serializable {
+	private static class ComparatorWrapper implements Comparator<RowData>, Serializable {
 
 		private static final long serialVersionUID = 4386377835781068140L;
 
-		private transient Comparator<BaseRow> comparator;
+		private transient Comparator<RowData> comparator;
 		private GeneratedRecordComparator generatedRecordComparator;
 
 		private ComparatorWrapper(GeneratedRecordComparator generatedRecordComparator) {
@@ -417,7 +435,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		}
 
 		@Override
-		public int compare(BaseRow o1, BaseRow o2) {
+		public int compare(RowData o1, RowData o2) {
 			if (comparator == null) {
 				comparator = generatedRecordComparator.newInstance(Thread.currentThread().getContextClassLoader());
 			}

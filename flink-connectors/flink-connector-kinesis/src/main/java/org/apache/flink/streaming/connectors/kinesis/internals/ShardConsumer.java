@@ -95,7 +95,8 @@ public class ShardConsumer<T> implements Runnable {
 						StreamShardHandle subscribedShard,
 						SequenceNumber lastSequenceNum,
 						KinesisProxyInterface kinesis,
-						ShardMetricsReporter shardMetricsReporter) {
+						ShardMetricsReporter shardMetricsReporter,
+						KinesisDeserializationSchema<T> shardDeserializer) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
@@ -107,7 +108,7 @@ public class ShardConsumer<T> implements Runnable {
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
 			"Should not start a ShardConsumer if the shard has already been completely read.");
 
-		this.deserializer = fetcherRef.getClonedDeserializationSchema();
+		this.deserializer = shardDeserializer;
 
 		Properties consumerConfig = fetcherRef.getConsumerConfiguration();
 		this.kinesis = kinesis;

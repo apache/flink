@@ -32,7 +32,7 @@ import java.util.Collections;
  *
  * @param <IN> Type of the input elements.
  */
-public abstract class AbstractPythonScalarFunctionRunnerTest<IN>  {
+public abstract class AbstractPythonScalarFunctionRunnerTest<IN> {
 
 	protected AbstractPythonScalarFunctionRunner<IN> createSingleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {

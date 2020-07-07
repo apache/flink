@@ -22,6 +22,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType;
 
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
@@ -47,11 +48,12 @@ public class RocksDBOptions {
 	 * Choice of timer service implementation.
 	 */
 	@Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
-	public static final ConfigOption<String> TIMER_SERVICE_FACTORY = ConfigOptions
+	public static final ConfigOption<PriorityQueueStateType> TIMER_SERVICE_FACTORY = ConfigOptions
 		.key("state.backend.rocksdb.timer-service.factory")
-		.defaultValue(ROCKSDB.name())
+		.enumType(PriorityQueueStateType.class)
+		.defaultValue(ROCKSDB)
 		.withDescription(String.format("This determines the factory for timer service state implementation. Options " +
-			"are either %s (heap-based, default) or %s for an implementation based on RocksDB .",
+			"are either %s (heap-based) or %s for an implementation based on RocksDB.",
 			HEAP.name(), ROCKSDB.name()));
 
 	/**
@@ -64,19 +66,6 @@ public class RocksDBOptions {
 		.withDescription("The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
 
 	/**
-	 * This determines if compaction filter to cleanup state with TTL is enabled.
-	 *
-	 * @deprecated the option will be removed in the future and should only be used
-	 * when experiencing serious performance degradations.
-	 */
-	@Deprecated
-	public static final ConfigOption<Boolean> TTL_COMPACT_FILTER_ENABLED = ConfigOptions
-		.key("state.backend.rocksdb.ttl.compaction.filter.enabled")
-		.defaultValue(true)
-		.withDescription("This determines if compaction filter to cleanup state with TTL is enabled for backend. " +
-			"Note: User can still decide in state TTL configuration in state descriptor " +
-			"whether the filter is active for particular state or not.");
-	/**
 	 * The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community.
 	 */
 	@Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
@@ -85,7 +74,7 @@ public class RocksDBOptions {
 		.defaultValue(DEFAULT.name())
 		.withDescription(String.format("The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. " +
 			"Current supported candidate predefined-options are %s, %s, %s or %s. Note that user customized options and options " +
-			"from the OptionsFactory are applied on top of these predefined ones.",
+			"from the RocksDBOptionsFactory are applied on top of these predefined ones.",
 			DEFAULT.name(), SPINNING_DISK_OPTIMIZED.name(), SPINNING_DISK_OPTIMIZED_HIGH_MEM.name(), FLASH_SSD_OPTIMIZED.name()));
 
 	/**

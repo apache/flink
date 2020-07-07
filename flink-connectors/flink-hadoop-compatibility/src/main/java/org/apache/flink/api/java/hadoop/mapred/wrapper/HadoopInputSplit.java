@@ -86,6 +86,10 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		return hadoopInputSplit;
 	}
 
+	public JobConf getJobConf() {
+		return jobConf;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Serialization
 	// ------------------------------------------------------------------------

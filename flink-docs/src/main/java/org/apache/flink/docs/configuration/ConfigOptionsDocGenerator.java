@@ -77,7 +77,8 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state"),
 		new OptionsClassLocation("flink-table/flink-table-api-java", "org.apache.flink.table.api.config"),
 		new OptionsClassLocation("flink-python", "org.apache.flink.python"),
-		new OptionsClassLocation("flink-kubernetes", "org.apache.flink.kubernetes.configuration")
+		new OptionsClassLocation("flink-kubernetes", "org.apache.flink.kubernetes.configuration"),
+		new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli")
 	};
 
 	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(

@@ -41,6 +41,10 @@ public class UnregisteredMetricGroups {
 		return new UnregisteredResourceManagerMetricGroup();
 	}
 
+	public static SlotManagerMetricGroup createUnregisteredSlotManagerMetricGroup() {
+		return new UnregisteredSlotManagerMetricGroup();
+	}
+
 	public static JobManagerMetricGroup createUnregisteredJobManagerMetricGroup() {
 		return new UnregisteredJobManagerMetricGroup();
 	}
@@ -83,6 +87,17 @@ public class UnregisteredMetricGroups {
 		private static final String UNREGISTERED_HOST = "UnregisteredHost";
 
 		UnregisteredResourceManagerMetricGroup() {
+			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+		}
+	}
+
+	/**
+	 * A safe drop-in replacement for {@link SlotManagerMetricGroup SlotManagerMetricGroups}.
+	 */
+	public static class UnregisteredSlotManagerMetricGroup extends SlotManagerMetricGroup {
+		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+
+		UnregisteredSlotManagerMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
 		}
 	}

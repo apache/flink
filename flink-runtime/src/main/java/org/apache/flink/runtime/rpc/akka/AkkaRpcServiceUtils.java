@@ -57,6 +57,8 @@ public class AkkaRpcServiceUtils {
 	private static final String AKKA_TCP = "akka.tcp";
 	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
 
+	static final String SUPERVISOR_NAME = "rpc";
+
 	private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
 		"akka {remote {netty.tcp {maximum-frame-size = %s}}}";
 
@@ -156,8 +158,6 @@ public class AkkaRpcServiceUtils {
 		checkNotNull(endpointName, "endpointName is null");
 		checkArgument(isValidClientPort(port), "port must be in [1, 65535]");
 
-		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
-
 		if (addressResolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
 			// Fail fast if the hostname cannot be resolved
 			//noinspection ResultOfMethodCallIgnored
@@ -166,7 +166,46 @@ public class AkkaRpcServiceUtils {
 
 		final String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port);
 
-		return String.format("%s://flink@%s/user/%s", protocolPrefix, hostPort, endpointName);
+		return internalRpcUrl(endpointName, Optional.of(new RemoteAddressInformation(hostPort, akkaProtocol)));
+	}
+
+	public static String getLocalRpcUrl(String endpointName) {
+		return internalRpcUrl(endpointName, Optional.empty());
+	}
+
+	private static final class RemoteAddressInformation {
+		private final String hostnameAndPort;
+		private final AkkaProtocol akkaProtocol;
+
+		private RemoteAddressInformation(String hostnameAndPort, AkkaProtocol akkaProtocol) {
+			this.hostnameAndPort = hostnameAndPort;
+			this.akkaProtocol = akkaProtocol;
+		}
+
+		private String getHostnameAndPort() {
+			return hostnameAndPort;
+		}
+
+		private AkkaProtocol getAkkaProtocol() {
+			return akkaProtocol;
+		}
+	}
+
+	private static String internalRpcUrl(String endpointName, Optional<RemoteAddressInformation> remoteAddressInformation) {
+		final String protocolPrefix = remoteAddressInformation.map(rai -> akkaProtocolToString(rai.getAkkaProtocol())).orElse("akka");
+		final Optional<String> optionalHostnameAndPort = remoteAddressInformation.map(RemoteAddressInformation::getHostnameAndPort);
+
+		final StringBuilder url = new StringBuilder(String.format("%s://flink", protocolPrefix));
+		optionalHostnameAndPort.ifPresent(hostPort -> url.append("@").append(hostPort));
+
+		url.append("/user/").append(SUPERVISOR_NAME).append("/").append(endpointName);
+
+		// protocolPrefix://flink[@hostname:port]/user/rpc/endpointName
+		return url.toString();
+	}
+
+	private static String akkaProtocolToString(AkkaProtocol akkaProtocol) {
+		return akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
 	}
 
 	/**
@@ -194,6 +233,16 @@ public class AkkaRpcServiceUtils {
 		} while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
 
 		return prefix + '_' + nameOffset;
+	}
+
+	/**
+	 * Creates a wildcard name symmetric to {@link #createRandomName(String)}.
+	 *
+	 * @param prefix prefix of the wildcard name
+	 * @return wildcard name starting with the prefix
+	 */
+	public static String createWildcardName(String prefix) {
+		return prefix + "_*";
 	}
 
 	// ------------------------------------------------------------------------

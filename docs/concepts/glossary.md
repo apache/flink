@@ -25,15 +25,20 @@ under the License.
 
 #### Flink Application Cluster
 
-A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
+A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that
+only executes [Flink Jobs](#flink-job) from one [Flink
+Application](#flink-application). The lifetime of the [Flink
+Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
+
+#### Flink Job Cluster
+
+A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
 executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job. Formerly
-Flink Application Clusters were also known as Flink Clusters in *job mode*. Compare to
-[Flink Session Cluster](#flink-session-cluster).
+[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
 
 #### Flink Cluster
 
-A distributed system consisting of (typically) one [Flink Master](#flink-master) and one or more
+A distributed system consisting of (typically) one [JobManager](#flink-jobmanager) and one or more
 [Flink TaskManager](#flink-taskmanager) processes.
 
 #### Event
@@ -60,11 +65,22 @@ Java, this corresponds to the definition of *Instance* or *Object* in Java. In t
 Flink, the term *parallel instance* is also frequently used to emphasize that multiple instances of
 the same [Operator](#operator) or [Function](#function) type are running in parallel.
 
+#### Flink Application
+
+A Flink application is a Java Application that submits one or multiple [Flink
+Jobs](#flink-job) from the `main()` method (or by some other means). Submitting
+jobs is usually done by calling `execute()` on an execution environment.
+
+The jobs of an application can either be submitted to a long running [Flink
+Session Cluster](#flink-session-cluster), to a dedicated [Flink Application
+Cluster](#flink-application-cluster), or to a [Flink Job
+Cluster](#flink-job-cluster).
+
 #### Flink Job
 
-A Flink Job is the runtime representation of a Flink program. A Flink Job can either be submitted
-to a long running [Flink Session Cluster](#flink-session-cluster) or it can be started as a
-self-contained [Flink Application Cluster](#flink-application-cluster).
+A Flink Job is the runtime representation of a [logical graph](#logical-graph)
+(also often called dataflow graph) that is created and submitted by calling
+`execute()` in a [Flink Application](#flink-application).
 
 #### JobGraph
 
@@ -72,26 +88,28 @@ see [Logical Graph](#logical-graph)
 
 #### Flink JobManager
 
-JobManagers are one of the components running in the [Flink Master](#flink-master). A JobManager is
-responsible for supervising the execution of the [Tasks](#task) of a single job. Historically, the
-whole [Flink Master](#flink-master) was called JobManager.
+The JobManager is the orchestrator of a [Flink Cluster](#flink-cluster). It contains three distinct
+components: Flink Resource Manager, Flink Dispatcher and one [Flink JobMaster](#flink-jobmaster)
+per running [Flink Job](#flink-job).
+
+#### Flink JobMaster
+
+JobMasters are one of the components running in the [JobManager](#flink-jobmanager). A JobMaster is
+responsible for supervising the execution of the [Tasks](#task) of a single job.
 
 #### Logical Graph
 
-A logical graph is a directed graph describing the high-level logic of a stream processing program.
-The nodes are [Operators](#operator) and the edges indicate input/output-relationships of the 
-operators and correspond to data streams or data sets.
+A logical graph is a directed graph where the nodes are  [Operators](#operator)
+and the edges define input/output-relationships of the operators and correspond
+to data streams or data sets. A logical graph is created by submitting jobs
+from a [Flink Application](#flink-application).
+
+Logical graphs are also often referred to as *dataflow graphs*.
 
 #### Managed State
 
 Managed State describes application state which has been registered with the framework. For
 Managed State, Apache Flink will take care about persistence and rescaling among other things.
-
-#### Flink Master
-
-The Flink Master is the master of a [Flink Cluster](#flink-cluster). It contains three distinct
-components: Flink Resource Manager, Flink Dispatcher and one [Flink JobManager](#flink-jobmanager)
-per running [Flink Job](#flink-job).
 
 #### Operator
 
@@ -136,7 +154,7 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in *session 
 For stream processing programs, the State Backend of a [Flink Job](#flink-job) determines how its
 [state](#managed-state) is stored on each TaskManager (Java Heap of TaskManager or (embedded)
 RocksDB) as well as where it is written upon a checkpoint (Java Heap of
-[Flink Master](#flink-master) or Filesystem).
+[JobManager](#flink-jobmanager) or Filesystem).
 
 #### Sub-Task
 

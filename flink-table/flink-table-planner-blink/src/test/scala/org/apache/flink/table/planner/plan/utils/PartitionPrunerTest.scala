@@ -31,6 +31,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 import java.math.BigDecimal
+import java.time.{ZoneId, ZoneOffset}
 import java.util.{List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
@@ -176,6 +177,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     ).asJava
 
     val config = new TableConfig
+    config.setLocalTimeZone(ZoneOffset.ofHours(0))
     val prunedPartitions = PartitionPruner.prunePartitions(
       config,
       partitionFieldNames,

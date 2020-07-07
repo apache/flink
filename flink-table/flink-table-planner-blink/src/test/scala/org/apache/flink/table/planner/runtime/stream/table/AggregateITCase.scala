@@ -21,8 +21,9 @@ package org.apache.flink.table.planner.runtime.stream.table
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -307,9 +308,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val tableSink = new TestingUpsertTableSink(Array(0)).configure(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
 
-    tEnv.registerTableSink("testSink", tableSink)
-    tEnv.insertInto("testSink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
+    execInsertTableAndWaitResult(t, "testSink")
 
     val expected = List("A,1", "B,2", "C,3")
     assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)

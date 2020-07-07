@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
@@ -42,12 +41,10 @@ import java.util.function.BiConsumer;
  */
 public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
-	private final String name;
 	private final Object checkpointLock;
 	private final StreamConfig config;
 	private final ExecutionConfig executionConfig;
 	private StreamTaskStateInitializer streamTaskStateInitializer;
-	private final CloseableRegistry closableRegistry;
 	private final StreamStatusMaintainer streamStatusMaintainer;
 	private final CheckpointStorageWorkerView checkpointStorage;
 	private final ProcessingTimeService processingTimeService;
@@ -55,12 +52,10 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 
 	public MockStreamTask(
 		Environment environment,
-		String name,
 		Object checkpointLock,
 		StreamConfig config,
 		ExecutionConfig executionConfig,
 		StreamTaskStateInitializer streamTaskStateInitializer,
-		CloseableRegistry closableRegistry,
 		StreamStatusMaintainer streamStatusMaintainer,
 		CheckpointStorageWorkerView checkpointStorage,
 		TimerService timerService,
@@ -70,12 +65,10 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		StreamInputProcessor inputProcessor) throws Exception {
 
 		super(environment, timerService, FatalExitExceptionHandler.INSTANCE, taskActionExecutor, taskMailbox);
-		this.name = name;
 		this.checkpointLock = checkpointLock;
 		this.config = config;
 		this.executionConfig = executionConfig;
 		this.streamTaskStateInitializer = streamTaskStateInitializer;
-		this.closableRegistry = closableRegistry;
 		this.streamStatusMaintainer = streamStatusMaintainer;
 		this.checkpointStorage = checkpointStorage;
 		this.processingTimeService = timerService;
@@ -90,11 +83,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 	@Override
 	protected void cleanup() {
 		mailboxProcessor.allActionsCompleted();
-	}
-
-	@Override
-	public String getName() {
-		return name;
 	}
 
 	/**
@@ -112,11 +100,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 	}
 
 	@Override
-	public Environment getEnvironment() {
-		return super.getEnvironment();
-	}
-
-	@Override
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
 	}
@@ -128,11 +111,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 
 	public void setStreamTaskStateInitializer(StreamTaskStateInitializer streamTaskStateInitializer) {
 		this.streamTaskStateInitializer = streamTaskStateInitializer;
-	}
-
-	@Override
-	public CloseableRegistry getCancelables() {
-		return closableRegistry;
 	}
 
 	@Override

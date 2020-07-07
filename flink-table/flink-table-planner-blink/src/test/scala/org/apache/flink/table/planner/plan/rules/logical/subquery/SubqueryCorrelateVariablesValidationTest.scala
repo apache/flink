@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 
 import org.junit.Test
 

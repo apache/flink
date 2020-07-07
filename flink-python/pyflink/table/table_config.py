@@ -18,10 +18,9 @@
 
 from py4j.compat import long
 
-from pyflink.common import Configuration
-from pyflink.common.dependency_manager import DependencyManager
+from pyflink.common.configuration import Configuration
 from pyflink.java_gateway import get_gateway
-from pyflink.table import SqlDialect
+from pyflink.table.sql_dialect import SqlDialect
 
 __all__ = ['TableConfig']
 
@@ -313,7 +312,8 @@ class TableConfig(object):
 
         .. versionadded:: 1.10.0
         """
-        self.get_configuration().set_string(DependencyManager.PYTHON_EXEC, python_exec)
+        jvm = get_gateway().jvm
+        self.get_configuration().set_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
     def get_python_executable(self):
         """
@@ -325,7 +325,8 @@ class TableConfig(object):
 
         .. versionadded:: 1.10.0
         """
-        return self.get_configuration().get_string(DependencyManager.PYTHON_EXEC, None)
+        jvm = get_gateway().jvm
+        return self.get_configuration().get_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
 
     @staticmethod
     def get_default():

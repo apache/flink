@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.env.PythonDependencyInfo;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
@@ -64,5 +68,14 @@ public final class PythonTestUtils {
 				NoOpMetricRegistry.INSTANCE,
 				new MetricGroupTest.DummyAbstractMetricGroup(NoOpMetricRegistry.INSTANCE),
 				"root"));
+	}
+
+	public static PythonEnvironmentManager createTestEnvironmentManager() {
+		Map<String, String> env = new HashMap<>();
+		env.put(PythonEnvironmentManagerUtils.PYFLINK_UDF_RUNNER_DIR, "");
+		return new ProcessPythonEnvironmentManager(
+			new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
+			new String[] {System.getProperty("java.io.tmpdir")},
+			env);
 	}
 }

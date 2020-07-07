@@ -86,6 +86,16 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	 */
 	private final InFlightRequestTracker inFlightRequestTracker;
 
+	/**
+	 * CompletableFuture object that ensures calls to {@link #closeAsync()} idempotent.
+	 */
+	private CompletableFuture<Void> terminationFuture;
+
+	/**
+	 * Lock object to prevent concurrent calls to {@link #closeAsync()}.
+	 */
+	private final Object lock = new Object();
+
 	protected AbstractHandler(
 			@Nonnull GatewayRetriever<? extends T> leaderRetriever,
 			@Nonnull Time timeout,
@@ -221,7 +231,14 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 	@Override
 	public final CompletableFuture<Void> closeAsync() {
-		return FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
+		synchronized (lock) {
+			if (terminationFuture == null) {
+				this.terminationFuture = FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
+			} else {
+				log.warn("The handler instance for {} had already been closed, but another attempt at closing it was made.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
+			}
+			return this.terminationFuture;
+		}
 	}
 
 	protected CompletableFuture<Void> closeHandlerAsync() {

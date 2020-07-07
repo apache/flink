@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.testutils;
 
+import org.junit.Assert;
+
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +30,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.concurrent.Callable;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * This class contains reusable utility methods for unit tests.
@@ -160,5 +167,18 @@ public class CommonTestUtils {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Checks whether an exception with a message occurs when running a piece of code.
+	 */
+	public static void assertThrows(String msg, Class<? extends Exception> expected, Callable<?> code) {
+		try {
+			Object result = code.call();
+			Assert.fail("Previous method call should have failed but it returned: " + result);
+		} catch (Exception e) {
+			assertThat(e, instanceOf(expected));
+			assertThat(e.getMessage(), containsString(msg));
+		}
 	}
 }

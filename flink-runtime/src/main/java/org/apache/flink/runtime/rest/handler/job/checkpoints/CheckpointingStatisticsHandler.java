@@ -107,7 +107,7 @@ public class CheckpointingStatisticsHandler extends AbstractExecutionGraphHandle
 			final CheckpointingStatistics.Summary summary = new CheckpointingStatistics.Summary(
 				MinMaxAvgStatistics.valueOf(checkpointStatsSummary.getStateSizeStats()),
 				MinMaxAvgStatistics.valueOf(checkpointStatsSummary.getEndToEndDurationStats()),
-				MinMaxAvgStatistics.valueOf(checkpointStatsSummary.getAlignmentBufferedStats()));
+				new MinMaxAvgStatistics(0, 0, 0));
 
 			final CheckpointStatsHistory checkpointStatsHistory = checkpointStatsSnapshot.getHistory();
 

@@ -25,6 +25,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingResultPartition;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -58,23 +61,21 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	 * Each vertex is in an individual region.
 	 */
 	@Test
-	public void testRegionFailoverForRegionInternalErrors() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testRegionFailoverForRegionInternalErrors() {
+		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v5 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v6 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
 
-		topologyBuilder.connect(v1, v4, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v1, v5, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v2, v4, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v2, v5, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v3, v6, ResultPartitionType.BLOCKING);
-
-		TestFailoverTopology topology = topologyBuilder.build();
+		topology.connect(v1, v4, ResultPartitionType.BLOCKING);
+		topology.connect(v1, v5, ResultPartitionType.BLOCKING);
+		topology.connect(v2, v4, ResultPartitionType.BLOCKING);
+		topology.connect(v2, v5, ResultPartitionType.BLOCKING);
+		topology.connect(v3, v6, ResultPartitionType.BLOCKING);
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
@@ -139,28 +140,26 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	 */
 	@Test
 	public void testRegionFailoverForDataConsumptionErrors() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v5 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v6 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
 
-		topologyBuilder.connect(v1, v4, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v1, v5, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v2, v4, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v2, v5, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v3, v6, ResultPartitionType.BLOCKING);
-
-		TestFailoverTopology topology = topologyBuilder.build();
+		topology.connect(v1, v4, ResultPartitionType.BLOCKING);
+		topology.connect(v1, v5, ResultPartitionType.BLOCKING);
+		topology.connect(v2, v4, ResultPartitionType.BLOCKING);
+		topology.connect(v2, v5, ResultPartitionType.BLOCKING);
+		topology.connect(v3, v6, ResultPartitionType.BLOCKING);
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		// when v4 fails to consume data from v1, {v1,v4,v5} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
-		Iterator<TestFailoverTopology.TestFailoverResultPartition> v4InputEdgeIterator = v4.getConsumedResults().iterator();
+		Iterator<TestingSchedulingResultPartition> v4InputEdgeIterator = v4.getConsumedResults().iterator();
 		expectedResult.add(v1.getId());
 		expectedResult.add(v4.getId());
 		expectedResult.add(v5.getId());
@@ -186,7 +185,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 
 		// when v5 fails to consume data from v1, {v1,v4,v5} should be restarted
 		expectedResult.clear();
-		Iterator<TestFailoverTopology.TestFailoverResultPartition> v5InputEdgeIterator = v5.getConsumedResults().iterator();
+		Iterator<TestingSchedulingResultPartition> v5InputEdgeIterator = v5.getConsumedResults().iterator();
 		expectedResult.add(v1.getId());
 		expectedResult.add(v4.getId());
 		expectedResult.add(v5.getId());
@@ -212,7 +211,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 
 		// when v6 fails to consume data from v3, {v3,v6} should be restarted
 		expectedResult.clear();
-		Iterator<TestFailoverTopology.TestFailoverResultPartition> v6InputEdgeIterator = v6.getConsumedResults().iterator();
+		Iterator<TestingSchedulingResultPartition> v6InputEdgeIterator = v6.getConsumedResults().iterator();
 		expectedResult.add(v3.getId());
 		expectedResult.add(v6.getId());
 		assertEquals(expectedResult,
@@ -240,16 +239,14 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	 */
 	@Test
 	public void testRegionFailoverForVariousResultPartitionAvailabilityCombinations() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
 
-		topologyBuilder.connect(v1, v3, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v2, v3, ResultPartitionType.BLOCKING);
-
-		TestFailoverTopology topology = topologyBuilder.build();
+		topology.connect(v1, v3, ResultPartitionType.BLOCKING);
+		topology.connect(v2, v3, ResultPartitionType.BLOCKING);
 
 		TestResultPartitionAvailabilityChecker availabilityChecker = new TestResultPartitionAvailabilityChecker();
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology, availabilityChecker);
@@ -355,22 +352,20 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	 */
 	@Test
 	public void testRegionFailoverForMultipleVerticesRegions() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v5 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v6 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
 
-		topologyBuilder.connect(v1, v2, ResultPartitionType.PIPELINED);
-		topologyBuilder.connect(v2, v3, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v3, v4, ResultPartitionType.PIPELINED);
-		topologyBuilder.connect(v4, v5, ResultPartitionType.BLOCKING);
-		topologyBuilder.connect(v5, v6, ResultPartitionType.PIPELINED);
-
-		TestFailoverTopology topology = topologyBuilder.build();
+		topology.connect(v1, v2, ResultPartitionType.PIPELINED);
+		topology.connect(v2, v3, ResultPartitionType.BLOCKING);
+		topology.connect(v3, v4, ResultPartitionType.PIPELINED);
+		topology.connect(v4, v5, ResultPartitionType.BLOCKING);
+		topology.connect(v5, v6, ResultPartitionType.PIPELINED);
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 

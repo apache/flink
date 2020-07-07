@@ -69,7 +69,7 @@ public interface MetricReporter {
 	void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group);
 
 	/**
-	 * Called when a {@link Metric} was should be removed.
+	 * Called when a {@link Metric} was removed.
 	 *
 	 * @param metric      the metric that should be removed
 	 * @param metricName  the name of the metric

@@ -89,7 +89,7 @@ public enum FlinkSqlConformance implements SqlConformance {
 
 	@Override
 	public boolean isPercentRemainderAllowed() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -146,10 +146,13 @@ public enum FlinkSqlConformance implements SqlConformance {
 		return false;
 	}
 
-	/**
-	 * Whether to allow "create table T(i int, j int) partitioned by (i)" grammar.
-	 */
-	public boolean allowCreatePartitionedTable() {
-		return this == FlinkSqlConformance.HIVE;
+	@Override
+	public boolean allowPluralTimeUnits() {
+		return false;
+	}
+
+	@Override
+	public boolean allowQualifyingCommonColumn() {
+		return true;
 	}
 }

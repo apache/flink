@@ -35,7 +35,7 @@ import java.util.concurrent.Executor;
 public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 	private final DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory;
 
-	private DefaultDispatcherRunnerFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
+	public DefaultDispatcherRunnerFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
 		this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
 	}
 

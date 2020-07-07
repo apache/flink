@@ -27,7 +27,6 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -37,8 +36,6 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
  * Configuration object for the {@link MiniCluster}.
  */
 public class MiniClusterConfiguration {
-
-	static final String SCHEDULER_TYPE_KEY = JobManagerOptions.SCHEDULER.key();
 
 	private final UnmodifiableConfiguration configuration;
 
@@ -66,16 +63,7 @@ public class MiniClusterConfiguration {
 	}
 
 	private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
-		String schedulerType = System.getProperty(SCHEDULER_TYPE_KEY);
-		if (StringUtils.isNullOrWhitespaceOnly(schedulerType)) {
-			schedulerType = JobManagerOptions.SCHEDULER.defaultValue();
-		}
-
 		final Configuration modifiedConfig = new Configuration(configuration);
-
-		if (!modifiedConfig.contains(JobManagerOptions.SCHEDULER)) {
-			modifiedConfig.setString(JobManagerOptions.SCHEDULER, schedulerType);
-		}
 
 		TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
 

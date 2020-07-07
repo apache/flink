@@ -18,16 +18,17 @@
 
 package org.apache.flink.table.api.batch.table
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.Expressions.$
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class SetOperatorsTest extends TableTestBase {
 
@@ -37,7 +38,7 @@ class SetOperatorsTest extends TableTestBase {
     val t = util.addTable[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
 
     val elements = t.where('b === "two").select('a).as("a1")
-    val in = t.select("*").where('c.in(elements))
+    val in = t.select($"*").where('c.in(elements))
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -115,7 +116,7 @@ class SetOperatorsTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    val t = util.addJavaTable(typeInfo, "A", "a, b")
+    val t = util.addJavaTable(typeInfo, "A", $("a"), $("b"))
 
     val in = t.select('a).unionAll(t.select('b))
 

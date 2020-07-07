@@ -18,8 +18,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -183,13 +183,13 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 	 */
 	public static RocksDBMemoryConfiguration fromOtherAndConfiguration(
 			RocksDBMemoryConfiguration other,
-			Configuration config) {
+			ReadableConfig config) {
 
 		final RocksDBMemoryConfiguration newConfig = new RocksDBMemoryConfiguration();
 
 		newConfig.useManagedMemory = other.useManagedMemory != null
 				? other.useManagedMemory
-				: config.getBoolean(RocksDBOptions.USE_MANAGED_MEMORY);
+				: config.get(RocksDBOptions.USE_MANAGED_MEMORY);
 
 		newConfig.fixedMemoryPerSlot = other.fixedMemoryPerSlot != null
 				? other.fixedMemoryPerSlot
@@ -197,11 +197,11 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 
 		newConfig.writeBufferRatio = other.writeBufferRatio != null
 				? other.writeBufferRatio
-				: config.getDouble(RocksDBOptions.WRITE_BUFFER_RATIO);
+				: config.get(RocksDBOptions.WRITE_BUFFER_RATIO);
 
 		newConfig.highPriorityPoolRatio = other.highPriorityPoolRatio != null
 			? other.highPriorityPoolRatio
-			: config.getDouble(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO);
+			: config.get(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO);
 
 		return newConfig;
 	}

@@ -33,10 +33,8 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -420,27 +418,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.addSink(new DiscardingSink<>());
 
 		env.getStreamGraph().getJobGraph();
-	}
-
-	@Test
-	public void testUserProvidedHashing() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-
-		List<String> userHashes = Arrays.asList("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-
-		env.addSource(new NoOpSourceFunction(), "src").setUidHash(userHashes.get(0))
-				.map(new NoOpMapFunction())
-				.filter(new NoOpFilterFunction())
-				.keyBy(new NoOpKeySelector())
-				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash(userHashes.get(1));
-
-		StreamGraph streamGraph = env.getStreamGraph();
-		int idx = 1;
-		for (JobVertex jobVertex : streamGraph.getJobGraph().getVertices()) {
-			List<JobVertexID> idAlternatives = jobVertex.getIdAlternatives();
-			Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
-			--idx;
-		}
 	}
 
 	@Test

@@ -20,7 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -186,109 +186,109 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an
 	 * external configuration.
 	 */
-	public static RocksDBNativeMetricOptions fromConfig(Configuration config) {
+	public static RocksDBNativeMetricOptions fromConfig(ReadableConfig config) {
 		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
-		if (config.getBoolean(MONITOR_NUM_IMMUTABLE_MEM_TABLES)) {
+		if (config.get(MONITOR_NUM_IMMUTABLE_MEM_TABLES)) {
 			options.enableNumImmutableMemTable();
 		}
 
-		if (config.getBoolean(MONITOR_MEM_TABLE_FLUSH_PENDING)) {
+		if (config.get(MONITOR_MEM_TABLE_FLUSH_PENDING)) {
 			options.enableMemTableFlushPending();
 		}
 
-		if (config.getBoolean(TRACK_COMPACTION_PENDING)) {
+		if (config.get(TRACK_COMPACTION_PENDING)) {
 			options.enableCompactionPending();
 		}
 
-		if (config.getBoolean(MONITOR_BACKGROUND_ERRORS)) {
+		if (config.get(MONITOR_BACKGROUND_ERRORS)) {
 			options.enableBackgroundErrors();
 		}
 
-		if (config.getBoolean(MONITOR_CUR_SIZE_ACTIVE_MEM_TABLE)) {
+		if (config.get(MONITOR_CUR_SIZE_ACTIVE_MEM_TABLE)) {
 			options.enableCurSizeActiveMemTable();
 		}
 
-		if (config.getBoolean(MONITOR_CUR_SIZE_ALL_MEM_TABLE)) {
+		if (config.get(MONITOR_CUR_SIZE_ALL_MEM_TABLE)) {
 			options.enableCurSizeAllMemTables();
 		}
 
-		if (config.getBoolean(MONITOR_SIZE_ALL_MEM_TABLES)) {
+		if (config.get(MONITOR_SIZE_ALL_MEM_TABLES)) {
 			options.enableSizeAllMemTables();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_ENTRIES_ACTIVE_MEM_TABLE)) {
+		if (config.get(MONITOR_NUM_ENTRIES_ACTIVE_MEM_TABLE)) {
 			options.enableNumEntriesActiveMemTable();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_ENTRIES_IMM_MEM_TABLES)) {
+		if (config.get(MONITOR_NUM_ENTRIES_IMM_MEM_TABLES)) {
 			options.enableNumEntriesImmMemTables();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_DELETES_ACTIVE_MEM_TABLE)) {
+		if (config.get(MONITOR_NUM_DELETES_ACTIVE_MEM_TABLE)) {
 			options.enableNumDeletesActiveMemTable();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_DELETES_IMM_MEM_TABLE)) {
+		if (config.get(MONITOR_NUM_DELETES_IMM_MEM_TABLE)) {
 			options.enableNumDeletesImmMemTables();
 		}
 
-		if (config.getBoolean(ESTIMATE_NUM_KEYS)) {
+		if (config.get(ESTIMATE_NUM_KEYS)) {
 			options.enableEstimateNumKeys();
 		}
 
-		if (config.getBoolean(ESTIMATE_TABLE_READERS_MEM)) {
+		if (config.get(ESTIMATE_TABLE_READERS_MEM)) {
 			options.enableEstimateTableReadersMem();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_SNAPSHOTS)) {
+		if (config.get(MONITOR_NUM_SNAPSHOTS)) {
 			options.enableNumSnapshots();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_LIVE_VERSIONS)) {
+		if (config.get(MONITOR_NUM_LIVE_VERSIONS)) {
 			options.enableNumLiveVersions();
 		}
 
-		if (config.getBoolean(ESTIMATE_LIVE_DATA_SIZE)) {
+		if (config.get(ESTIMATE_LIVE_DATA_SIZE)) {
 			options.enableEstimateLiveDataSize();
 		}
 
-		if (config.getBoolean(MONITOR_TOTAL_SST_FILES_SIZE)) {
+		if (config.get(MONITOR_TOTAL_SST_FILES_SIZE)) {
 			options.enableTotalSstFilesSize();
 		}
 
-		if (config.getBoolean(ESTIMATE_PENDING_COMPACTION_BYTES)) {
+		if (config.get(ESTIMATE_PENDING_COMPACTION_BYTES)) {
 			options.enableEstimatePendingCompactionBytes();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_RUNNING_COMPACTIONS)) {
+		if (config.get(MONITOR_NUM_RUNNING_COMPACTIONS)) {
 			options.enableNumRunningCompactions();
 		}
 
-		if (config.getBoolean(MONITOR_NUM_RUNNING_FLUSHES)) {
+		if (config.get(MONITOR_NUM_RUNNING_FLUSHES)) {
 			options.enableNumRunningFlushes();
 		}
 
-		if (config.getBoolean(MONITOR_ACTUAL_DELAYED_WRITE_RATE)) {
+		if (config.get(MONITOR_ACTUAL_DELAYED_WRITE_RATE)) {
 			options.enableActualDelayedWriteRate();
 		}
 
-		if (config.getBoolean(IS_WRITE_STOPPED)) {
+		if (config.get(IS_WRITE_STOPPED)) {
 			options.enableIsWriteStopped();
 		}
 
-		if (config.getBoolean(BLOCK_CACHE_CAPACITY)) {
+		if (config.get(BLOCK_CACHE_CAPACITY)) {
 			options.enableBlockCacheCapacity();
 		}
 
-		if (config.getBoolean(BLOCK_CACHE_USAGE)) {
+		if (config.get(BLOCK_CACHE_USAGE)) {
 			options.enableBlockCacheUsage();
 		}
 
-		if (config.getBoolean(BLOCK_CACHE_PINNED_USAGE)) {
+		if (config.get(BLOCK_CACHE_PINNED_USAGE)) {
 			options.enableBlockCachePinnedUsage();
 		}
 
-		options.setColumnFamilyAsVariable(config.getBoolean(COLUMN_FAMILY_AS_VARIABLE));
+		options.setColumnFamilyAsVariable(config.get(COLUMN_FAMILY_AS_VARIABLE));
 
 		return options;
 	}

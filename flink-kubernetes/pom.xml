@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>4.5.2</kubernetes.client.version>
+		<kubernetes.client.version>4.9.2</kubernetes.client.version>
 	</properties>
 
 	<!-- Set dependency version for transitive dependencies -->
@@ -128,6 +128,7 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
+									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:okio</include>
 									<include>org.yaml:*</include>

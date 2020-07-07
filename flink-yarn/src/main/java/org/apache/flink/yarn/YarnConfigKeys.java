@@ -33,7 +33,7 @@ public class YarnConfigKeys {
 
 	public static final String ENV_FLINK_CLASSPATH = "_FLINK_CLASSPATH";
 
-	public static final String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
+	public static final String FLINK_DIST_JAR = "_FLINK_DIST_JAR"; // the Flink jar resource location (in HDFS).
 	public static final String FLINK_YARN_FILES = "_FLINK_YARN_FILES"; // the root directory for all yarn application files
 
 	public static final String REMOTE_KEYTAB_PATH = "_REMOTE_KEYTAB_PATH";
@@ -44,6 +44,8 @@ public class YarnConfigKeys {
 
 	public static final String ENV_KRB5_PATH = "_KRB5_PATH";
 	public static final String ENV_YARN_SITE_XML_PATH = "_YARN_SITE_XML_PATH";
+
+	public static final String LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR = ";";
 
 	// ------------------------------------------------------------------------
 

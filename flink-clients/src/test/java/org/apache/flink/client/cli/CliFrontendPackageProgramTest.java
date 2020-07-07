@@ -118,7 +118,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = new String[] {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -141,7 +141,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = new String[] {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -164,7 +164,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -192,7 +192,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(arguments[4], programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -212,7 +212,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] arguments = {"/some/none/existing/path"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(arguments[0], programOptions.getJarFilePath());
 		assertArrayEquals(new String[0], programOptions.getProgramArgs());
@@ -272,7 +272,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			String[] reducedArguments = { "true", "arg1", "arg2" };
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 			assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 			assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -301,7 +301,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
 
 			// we expect this to fail with a "ClassNotFoundException"
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, 666, true);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, c, 666, true);
 			FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 			fail("Should have failed with a ClassNotFoundException");
 		}

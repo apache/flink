@@ -166,7 +166,7 @@ public class ExecutionEntry extends ConfigEntry {
 		}
 
 		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-			.orElse(EXECUTION_PLANNER_VALUE_OLD);
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
 
 		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
 			builder.useOldPlanner();
@@ -191,7 +191,7 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public boolean isStreamingPlanner() {
 		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-			.orElse(EXECUTION_PLANNER_VALUE_OLD);
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
 
 		// Blink planner is a streaming planner
 		if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
@@ -207,7 +207,7 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public boolean isBatchPlanner() {
 		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-			.orElse(EXECUTION_PLANNER_VALUE_OLD);
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
 
 		// Blink planner is not a batch planner
 		if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
@@ -219,6 +219,15 @@ public class ExecutionEntry extends ConfigEntry {
 		}
 
 		return false;
+	}
+
+	public boolean isBlinkPlanner() {
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			return false;
+		}
+		return true;
 	}
 
 	public TimeCharacteristic getTimeCharacteristic() {

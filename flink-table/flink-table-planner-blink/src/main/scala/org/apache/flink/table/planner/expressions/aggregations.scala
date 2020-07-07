@@ -37,7 +37,7 @@ abstract sealed class Aggregation extends PlannerExpression {
 
 /**
  * Wrapper for call expressions resolved already in the API with the new type inference stack.
- * Separate from [[ApiResolvedCallExpression]] because others' expressions validation logic
+ * Separate from [[ApiResolvedExpression]] because others' expressions validation logic
  * check for the [[Aggregation]] trait.
  */
 case class ApiResolvedAggregateCallExpression(

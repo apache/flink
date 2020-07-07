@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.ListAggWithRetractAggFunction.ListAggWithRetractAccumulator;
 
@@ -30,47 +30,47 @@ import java.util.List;
  * Test case for built-in LISTAGG with retraction aggregate function.
  */
 public final class ListAggWithRetractAggFunctionTest
-	extends AggFunctionTestBase<BinaryString, ListAggWithRetractAccumulator> {
+	extends AggFunctionTestBase<StringData, ListAggWithRetractAccumulator> {
 
 	@Override
-	protected List<List<BinaryString>> getInputValueSets() {
+	protected List<List<StringData>> getInputValueSets() {
 		return Arrays.asList(
 				Arrays.asList(
-						BinaryString.fromString("a"),
-						BinaryString.fromString("b"),
+						StringData.fromString("a"),
+						StringData.fromString("b"),
 						null,
-						BinaryString.fromString("c"),
+						StringData.fromString("c"),
 						null,
-						BinaryString.fromString("d"),
-						BinaryString.fromString("e"),
+						StringData.fromString("d"),
+						StringData.fromString("e"),
 						null,
-						BinaryString.fromString("f")),
+						StringData.fromString("f")),
 				Arrays.asList(null, null, null, null, null, null),
-				Arrays.asList(null, BinaryString.fromString("a"))
+				Arrays.asList(null, StringData.fromString("a"))
 		);
 	}
 
 	@Override
-	protected List<BinaryString> getExpectedResults() {
+	protected List<StringData> getExpectedResults() {
 		return Arrays.asList(
-				BinaryString.fromString("a,b,c,d,e,f"),
+				StringData.fromString("a,b,c,d,e,f"),
 				null,
-				BinaryString.fromString("a"));
+				StringData.fromString("a"));
 	}
 
 	@Override
-	protected AggregateFunction<BinaryString, ListAggWithRetractAccumulator> getAggregator() {
+	protected AggregateFunction<StringData, ListAggWithRetractAccumulator> getAggregator() {
 		return new ListAggWithRetractAggFunction();
 	}
 
 	@Override
 	protected Method getAccumulateFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("accumulate", getAccClass(), BinaryString.class);
+		return getAggregator().getClass().getMethod("accumulate", getAccClass(), StringData.class);
 	}
 
 	@Override
 	protected Method getRetractFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("retract", getAccClass(), BinaryString.class);
+		return getAggregator().getClass().getMethod("retract", getAccClass(), StringData.class);
 	}
 
 	@Override

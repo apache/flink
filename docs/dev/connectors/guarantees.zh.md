@@ -23,14 +23,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink's fault tolerance mechanism recovers programs in the presence of failures and
-continues to execute them. Such failures include machine hardware failures, network failures,
-transient program failures, etc.
+当程序出现错误的时候，Flink 的容错机制能恢复并继续运行程序。这种错误包括机器硬件故障、网络故障、瞬态程序故障等等。
 
-Flink can guarantee exactly-once state updates to user-defined state only when the source participates in the
-snapshotting mechanism. The following table lists the state update guarantees of Flink coupled with the bundled connectors.
+只有当 source 参与了快照机制的时候，Flink 才能保证对自定义状态的精确一次更新。下表列举了 Flink 与其自带连接器的状态更新的保证。
 
-Please read the documentation of each connector to understand the details of the fault tolerance guarantees.
+请阅读各个连接器的文档来了解容错保证的细节。
 
 <table class="table table-bordered">
   <thead>
@@ -43,50 +40,48 @@ Please read the documentation of each connector to understand the details of the
    <tbody>
         <tr>
             <td>Apache Kafka</td>
-            <td>exactly once</td>
-            <td>Use the appropriate Kafka connector for your version</td>
+            <td>精确一次</td>
+            <td>根据你的版本用恰当的 Kafka 连接器</td>
         </tr>
         <tr>
             <td>AWS Kinesis Streams</td>
-            <td>exactly once</td>
+            <td>精确一次</td>
             <td></td>
         </tr>
         <tr>
             <td>RabbitMQ</td>
-            <td>at most once (v 0.10) / exactly once (v 1.0) </td>
+            <td>至多一次 (v 0.10) / 精确一次 (v 1.0) </td>
             <td></td>
         </tr>
         <tr>
             <td>Twitter Streaming API</td>
-            <td>at most once</td>
+            <td>至多一次</td>
             <td></td>
         </tr>
         <tr>
             <td>Google PubSub</td>
-            <td>at least once</td>
+            <td>至少一次</td>
             <td></td>
         </tr>
         <tr>
             <td>Collections</td>
-            <td>exactly once</td>
+            <td>精确一次</td>
             <td></td>
         </tr>
         <tr>
             <td>Files</td>
-            <td>exactly once</td>
+            <td>精确一次</td>
             <td></td>
         </tr>
         <tr>
             <td>Sockets</td>
-            <td>at most once</td>
+            <td>至多一次</td>
             <td></td>
         </tr>
   </tbody>
 </table>
 
-To guarantee end-to-end exactly-once record delivery (in addition to exactly-once state semantics), the data sink needs
-to take part in the checkpointing mechanism. The following table lists the delivery guarantees (assuming exactly-once
-state updates) of Flink coupled with bundled sinks:
+为了保证端到端精确一次的数据交付（在精确一次的状态语义上更进一步），sink需要参与 checkpointing 机制。下表列举了 Flink 与其自带 sink 的交付保证（假设精确一次状态更新）。
 
 <table class="table table-bordered">
   <thead>
@@ -99,47 +94,47 @@ state updates) of Flink coupled with bundled sinks:
   <tbody>
     <tr>
         <td>HDFS BucketingSink</td>
-        <td>exactly once</td>
-        <td>Implementation depends on Hadoop version</td>
+        <td>精确一次</td>
+        <td>实现方法取决于 Hadoop 的版本</td>
     </tr>
     <tr>
         <td>Elasticsearch</td>
-        <td>at least once</td>
+        <td>至少一次</td>
         <td></td>
     </tr>
     <tr>
         <td>Kafka producer</td>
-        <td>at least once / exactly once</td>
-        <td>exactly once with transactional producers (v 0.11+)</td>
+        <td>至少一次 / 精确一次</td>
+        <td>当使用事务生产者时，保证精确一次 (v 0.11+)</td>
     </tr>
     <tr>
         <td>Cassandra sink</td>
-        <td>at least once / exactly once</td>
-        <td>exactly once only for idempotent updates</td>
+        <td>至少一次 / 精确一次</td>
+        <td>只有当更新是幂等时，保证精确一次</td>
     </tr>
     <tr>
         <td>AWS Kinesis Streams</td>
-        <td>at least once</td>
+        <td>至少一次</td>
         <td></td>
     </tr>
     <tr>
         <td>File sinks</td>
-        <td>exactly once</td>
+        <td>精确一次</td>
         <td></td>
     </tr>
     <tr>
         <td>Socket sinks</td>
-        <td>at least once</td>
+        <td>至少一次</td>
         <td></td>
     </tr>
     <tr>
         <td>Standard output</td>
-        <td>at least once</td>
+        <td>至少一次</td>
         <td></td>
     </tr>
     <tr>
         <td>Redis sink</td>
-        <td>at least once</td>
+        <td>至少一次</td>
         <td></td>
     </tr>
   </tbody>

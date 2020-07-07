@@ -18,15 +18,14 @@
 
 package org.apache.flink.sql.parser.dml;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlProperty;
-import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlInsertKeyword;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlTableRef;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.NlsString;
@@ -35,10 +34,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /** A {@link SqlInsert} that have some extension functions like partition, overwrite. **/
-public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
+public class RichSqlInsert extends SqlInsert {
 	private final SqlNodeList staticPartitions;
 
 	private final SqlNodeList extendedKeywords;
+
+	private final SqlNode targetTableID;
+
+	private final SqlNodeList tableHints;
 
 	public RichSqlInsert(SqlParserPos pos,
 			SqlNodeList keywords,
@@ -50,6 +53,14 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 		super(pos, keywords, targetTable, source, columnList);
 		this.extendedKeywords = extendedKeywords;
 		this.staticPartitions = staticPartitions;
+		if (targetTable instanceof SqlTableRef) {
+			SqlTableRef tableRef = (SqlTableRef) targetTable;
+			this.targetTableID = tableRef.operand(0);
+			this.tableHints = tableRef.operand(1);
+		} else {
+			this.targetTableID = targetTable;
+			this.tableHints = SqlNodeList.EMPTY;
+		}
 	}
 
 	/**
@@ -82,6 +93,16 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 			ret.put(sqlProperty.getKey().getSimple(), value);
 		}
 		return ret;
+	}
+
+	/** Returns the target table identifier. */
+	public SqlNode getTargetTableID() {
+		return targetTableID;
+	}
+
+	/** Returns the table hints as list of {@code SqlNode} for current insert node. */
+	public SqlNodeList getTableHints() {
+		return this.tableHints;
 	}
 
 	@Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
@@ -139,10 +160,5 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 			}
 		}
 		return null;
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-		// no-op
 	}
 }

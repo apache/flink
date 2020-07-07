@@ -20,7 +20,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
+import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -39,6 +44,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /**
  * Tests for the parameter handling of the {@link JarRunHandler}.
@@ -64,7 +72,22 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 			JarRunHeaders.getInstance(),
 			jarDir,
 			new Configuration(),
-			executor);
+			executor,
+			ConfigurationVerifyingDetachedApplicationRunner::new);
+	}
+
+	private static class ConfigurationVerifyingDetachedApplicationRunner extends DetachedApplicationRunner {
+
+		public ConfigurationVerifyingDetachedApplicationRunner() {
+			super(true);
+		}
+
+		@Override
+		public List<JobID> run(DispatcherGateway dispatcherGateway, PackagedProgram program, Configuration configuration) {
+			assertFalse(configuration.get(DeploymentOptions.ATTACHED));
+			assertEquals(EmbeddedExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+			return super.run(dispatcherGateway, program, configuration);
+		}
 	}
 
 	@Override
@@ -143,7 +166,7 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 	JobGraph validateDefaultGraph() {
 		JobGraph jobGraph = super.validateDefaultGraph();
 		final SavepointRestoreSettings savepointRestoreSettings = jobGraph.getSavepointRestoreSettings();
-		Assert.assertFalse(savepointRestoreSettings.allowNonRestoredState());
+		assertFalse(savepointRestoreSettings.allowNonRestoredState());
 		Assert.assertNull(savepointRestoreSettings.getRestorePath());
 		return jobGraph;
 	}
@@ -153,7 +176,7 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 		JobGraph jobGraph = super.validateGraph();
 		final SavepointRestoreSettings savepointRestoreSettings = jobGraph.getSavepointRestoreSettings();
 		Assert.assertTrue(savepointRestoreSettings.allowNonRestoredState());
-		Assert.assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
+		assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
 		return jobGraph;
 	}
 }

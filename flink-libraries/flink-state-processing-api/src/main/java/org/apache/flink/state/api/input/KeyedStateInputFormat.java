@@ -69,6 +69,8 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 	private final StateBackend stateBackend;
 
+	private final Configuration configuration;
+
 	private final StateReaderOperator<?, K, N, OUT> operator;
 
 	private transient CloseableRegistry registry;
@@ -82,17 +84,24 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 	 *
 	 * @param operatorState The state to be queried.
 	 * @param stateBackend  The state backed used to snapshot the operator.
+	 * @param configuration The underlying Flink configuration used to configure the state backend.
 	 */
 	public KeyedStateInputFormat(
 		OperatorState operatorState,
 		StateBackend stateBackend,
+		Configuration configuration,
 		StateReaderOperator<?, K, N, OUT> operator) {
 		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
+		Preconditions.checkNotNull(configuration, "The configuration cannot be null");
 		Preconditions.checkNotNull(operator, "The operator cannot be null");
 
 		this.operatorState = operatorState;
 		this.stateBackend = stateBackend;
+		// Eagerly deep copy the configuration object
+		// otherwise there will be undefined behavior
+		// when executing pipelines with multiple input formats
+		this.configuration = new Configuration(configuration);
 		this.operator = operator;
 	}
 
@@ -138,6 +147,7 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 		final Environment environment = new SavepointEnvironment
 			.Builder(getRuntimeContext(), split.getNumKeyGroups())
+			.setConfiguration(configuration)
 			.setSubtaskIndex(split.getSplitNumber())
 			.setPrioritizedOperatorSubtaskState(split.getPrioritizedOperatorSubtaskState())
 			.build();

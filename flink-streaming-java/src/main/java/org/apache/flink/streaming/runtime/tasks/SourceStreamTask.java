@@ -89,7 +89,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					// TODO - we need to see how to derive those. We should probably not encode this in the
 					// TODO -   source's trigger message, but do a handshake in this task between the trigger
 					// TODO -   message from the master, and the source's trigger notification
-					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
+					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation(
+						configuration.isExactlyOnceCheckpointMode(), configuration.isUnalignedCheckpointsEnabled());
 					final long timestamp = System.currentTimeMillis();
 
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -180,14 +181,6 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void declineCheckpoint(long checkpointId) {
 		if (!externallyInducedCheckpoints) {
 			super.declineCheckpoint(checkpointId);
-		}
-	}
-
-	@Override
-	protected void handleCheckpointException(Exception exception) {
-		// For externally induced checkpoints, the exception would be passed via triggerCheckpointAsync future.
-		if (!externallyInducedCheckpoints) {
-			super.handleCheckpointException(exception);
 		}
 	}
 

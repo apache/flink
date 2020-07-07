@@ -28,7 +28,7 @@ under the License.
 
 从 Flink 1.9 开始，Table & SQL API 开始启用一种新的类型系统作为长期解决方案，用来保持 API 稳定性和 SQL 标准的兼容性。
 
-重新设计类型系统是一项涉及几乎所有的面向用户接口的重大工作。因此，它的引入跨越多个版本，社区的目标是在 Flink 1.10 完成这项工作。
+重新设计类型系统是一项涉及几乎所有的面向用户接口的重大工作。因此，它的引入跨越多个版本，社区的目标是在 Flink 1.12 完成这项工作。
 
 同时由于为 Table 编程添加了新的 Planner 详见（[FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)）, 并不是每种 Planner 都支持所有的数据类型。此外,Planner 对于数据类型的精度和参数化支持也可能是不完整的。
 
@@ -112,7 +112,7 @@ DataType t = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(int[].class);
 // 而是使用 java.sql.Timestamp
 val t: DataType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[java.sql.Timestamp]);
 
-// 告诉运行时不要产生或者消费装箱的整数数组 
+// 告诉运行时不要产生或者消费装箱的整数数组
 // 而是使用基本数据类型的整数数组
 val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[Array[Int]]);
 {% endhighlight %}
@@ -184,23 +184,22 @@ Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Informat
 | `DOUBLE` | |
 | `DATE` | |
 | `TIME` | 支持的精度仅为 `0`。 |
-| `TIMESTAMP` | 支持的精度仅为 `3`。 |
-| `TIMESTAMP WITH LOCAL TIME ZONE` | 支持的精度仅为 `3`。 |
+| `TIMESTAMP` | |
+| `TIMESTAMP WITH LOCAL TIME ZONE` | |
 | `INTERVAL` | 仅支持 `MONTH` 和 `SECOND(3)` 区间。 |
 | `ARRAY` | |
 | `MULTISET` | |
 | `MAP` | |
 | `ROW` | |
 | `RAW` | |
+| stuctured types | 暂只能在用户自定义函数里使用。 |
 
 局限性
 -----------
 
 **Java 表达式字符串**：Table API 中的 Java 表达式字符串，例如 `table.select("field.cast(STRING)")`，尚未被更新到新的类型系统中，使用[旧的 Planner 章节](#旧的-planner)中声明的字符串来表示。
 
-**连接器描述符和 SQL 客户端**：描述符字符串的表示形式尚未更新到新的类型系统。使用在[连接到外部系统章节](./connect.html#type-strings)中声明的字符串表示。
-
-**用户自定义函数**：用户自定义函数尚不能声明数据类型。
+**用户自定义函数**：用户自定义聚合函数尚不能声明数据类型，标量函数和表函数充分支持数据类型。
 
 数据类型列表
 ------------------
@@ -236,10 +235,11 @@ DataTypes.CHAR(n)
 
 **JVM 类型**
 
-| Java 类型          | 输入 | 输出 | 备注                 |
-|:-------------------|:-----:|:------:|:------------------------|
-|`java.lang.String`  | X     | X      | *缺省*               |
-|`byte[]`            | X     | X      | 假设使用 UTF-8 编码。 |
+| Java 类型                               | 输入  | 输出   | 备注                 |
+|:----------------------------------------|:-----:|:------:|:------------------------|
+|`java.lang.String`                       | X     | X      | *缺省*               |
+|`byte[]`                                 | X     | X      | 假设使用 UTF-8 编码。 |
+|`org.apache.flink.table.data.StringData` | X     | X      | 内部数据结构。 |
 
 #### `VARCHAR` / `STRING`
 
@@ -274,10 +274,11 @@ DataTypes.STRING()
 
 **JVM 类型**
 
-| Java 类型          | 输入 | 输出 | 备注                 |
-|:-------------------|:-----:|:------:|:------------------------|
-|`java.lang.String`  | X     | X      | *缺省*               |
-|`byte[]`            | X     | X      | 假设使用 UTF-8 编码。 |
+| Java 类型                               | 输入  | 输出   | 备注                 |
+|:----------------------------------------|:-----:|:------:|:------------------------|
+|`java.lang.String`                       | X     | X      | *缺省*               |
+|`byte[]`                                 | X     | X      | 假设使用 UTF-8 编码。 |
+|`org.apache.flink.table.data.StringData` | X     | X      | 内部数据结构。 |
 
 ### 二进制字符串
 
@@ -389,9 +390,10 @@ DataTypes.DECIMAL(p, s)
 
 **JVM 类型**
 
-| Java 类型             | 输入 | 输出 | 备注                 |
-|:----------------------|:-----:|:------:|:------------------------|
-|`java.math.BigDecimal` | X     | X      | *缺省*               |
+| Java 类型                                | 输入  | 输出   | 备注                 |
+|:-----------------------------------------|:-----:|:------:|:------------------------|
+|`java.math.BigDecimal`                    | X     | X      | *缺省*               |
+|`org.apache.flink.table.data.DecimalData` | X     | X      | 内部数据结构。 |
 
 #### `TINYINT`
 
@@ -690,12 +692,13 @@ DataTypes.TIMESTAMP(p)
 
 | Java 类型                | 输入 | 输出 | 备注                                             |
 |:-------------------------|:-----:|:------:|:----------------------------------------------------|
-|`java.time.LocalDateTime` | X     | X      | *缺省*                                           |
-|`java.sql.Timestamp`      | X     | X      |                                                     |
+|`java.time.LocalDateTime`                   | X     | X      | *缺省*                            |
+|`java.sql.Timestamp`                        | X     | X      |                                   |
+|`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。                      |
 
 #### `TIMESTAMP WITH TIME ZONE`
 
-*带有*时区的时间戳数据类型，由 `year-month-day hour:minute:second[.fractional] zone` 组成，精度达到纳秒，范围从 `0000-01-01 00:00:00.000000000 +14:59` 到 
+*带有*时区的时间戳数据类型，由 `year-month-day hour:minute:second[.fractional] zone` 组成，精度达到纳秒，范围从 `0000-01-01 00:00:00.000000000 +14:59` 到
 `9999-12-31 23:59:59.999999999 -14:59`。
 
 与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`），语义上更接近于 `java.time.OffsetDateTime`。
@@ -732,7 +735,7 @@ DataTypes.TIMESTAMP_WITH_TIME_ZONE(p)
 
 #### `TIMESTAMP WITH LOCAL TIME ZONE`
 
-*带有本地*时区的时间戳数据类型，由 `year-month-day hour:minute:second[.fractional] zone` 组成，精度达到纳秒，范围从 `0000-01-01 00:00:00.000000000 +14:59` 到 
+*带有本地*时区的时间戳数据类型，由 `year-month-day hour:minute:second[.fractional] zone` 组成，精度达到纳秒，范围从 `0000-01-01 00:00:00.000000000 +14:59` 到
 `9999-12-31 23:59:59.999999999 -14:59`。
 
 不支持闰秒（`23:59:60` 和 `23:59:61`），语义上更接近于 `java.time.OffsetDateTime`。
@@ -764,13 +767,14 @@ DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 
 **JVM 类型**
 
-| Java 类型          |输入 |输出 |备注                                           |
-|:-------------------|:-----:|:------:|:--------------------------------------------------|
-|`java.time.Instant` | X     | X      | *缺省*                                         |
-|`java.lang.Integer` | X     | X      | 描述从 Epoch 算起的秒数。      |
-|`int`               | X     | (X)    | 描述从 Epoch 算起的秒数。<br>仅当类型不可为空时才输出。 |
-|`java.lang.Long`    | X     | X      | 描述从 Epoch 算起的毫秒数。 |
-|`long`              | X     | (X)    | 描述从 Epoch 算起的毫秒数。<br>仅当类型不可为空时才输出。 |
+| Java 类型                                  |输入 |输出 |备注                                           |
+|:-------------------------------------------|:-----:|:------:|:--------------------------------------------------|
+|`java.time.Instant`                         | X     | X      | *缺省*                                         |
+|`java.lang.Integer`                         | X     | X      | 描述从 Epoch 算起的秒数。      |
+|`int`                                       | X     | (X)    | 描述从 Epoch 算起的秒数。<br>仅当类型不可为空时才输出。 |
+|`java.lang.Long`                            | X     | X      | 描述从 Epoch 算起的毫秒数。                          |
+|`long`                                      | X     | (X)    | 描述从 Epoch 算起的毫秒数。<br>仅当类型不可为空时才输出 |
+|`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。                                       |
 
 #### `INTERVAL YEAR TO MONTH`
 
@@ -922,9 +926,12 @@ DataTypes.ARRAY(t)
 
 **JVM 类型**
 
-| Java 类型 | 输入 | 输出 | 备注                           |
-|:----------|:-----:|:------:|:----------------------------------|
-|*t*`[]`    | (X)   | (X)    | 依赖于子类型。 *缺省* |
+| Java 类型                              | 输入  | 输出   | 备注                              |
+|:---------------------------------------|:-----:|:------:|:----------------------------------|
+|*t*`[]`                                 | (X)   | (X)    | 依赖于子类型。 *缺省*             |
+| `java.util.List<t>`                    | X     | X      |                                   |
+| `java.util.List<t>` 的*子类型*          | X     |        |                                   |
+|`org.apache.flink.table.data.ArrayData` | X     | X      | 内部数据结构。                    |
 
 #### `MAP`
 
@@ -956,10 +963,11 @@ DataTypes.MAP(kt, vt)
 
 **JVM 类型**
 
-| Java 类型                             | 输入 | 输出 | 备注   |
-|:--------------------------------------|:-----:|:------:|:----------|
-| `java.util.Map<kt, vt>`               | X     | X      | *缺省* |
-| `java.util.Map<kt, vt>` 的*子类型* | X     |        |           |
+| Java 类型                             | 输入  | 输出   | 备注           |
+|:--------------------------------------|:-----:|:------:|:---------------|
+| `java.util.Map<kt, vt>`               | X     | X      | *缺省*         |
+| `java.util.Map<kt, vt>` 的*子类型*    | X     |        |                |
+|`org.apache.flink.table.data.MapData`  | X     | X      | 内部数据结构。 |
 
 #### `MULTISET`
 
@@ -992,10 +1000,11 @@ DataTypes.MULTISET(t)
 
 **JVM 类型**
 
-| Java 类型                            | 输入 | 输出 | 备注                                                  |
-|:-------------------------------------|:-----:|:------:|:---------------------------------------------------------|
-|`java.util.Map<t, java.lang.Integer>` | X     | X      | 将每个值可多重地分配给一个整数 *缺省* |
-|`java.util.Map<kt, java.lang.Integer>` 的*子类型*| X     |        | 将每个值可多重地分配给一个整数 |
+| Java 类型                                        | 输入  | 输出   | 备注                                                  |
+|:-------------------------------------------------|:-----:|:------:|:------------------------------------------------------|
+|`java.util.Map<t, java.lang.Integer>`             | X     | X      | 将每个值可多重地分配给一个整数 *缺省*                 |
+| `java.util.Map<t, java.lang.Integer>` 的*子类型* | X     |        |                                                       |
+|`org.apache.flink.table.data.MapData`             | X     | X      | 内部数据结构。                                        |
 
 #### `ROW`
 
@@ -1036,9 +1045,96 @@ DataTypes.ROW(DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...)
 
 **JVM 类型**
 
-| Java 类型                   | 输入 | 输出 | 备注                 |
-|:----------------------------|:-----:|:------:|:------------------------|
-|`org.apache.flink.types.Row` | X     | X      | *缺省*               |
+| Java 类型                            | 输入  | 输出   | 备注                    |
+|:-------------------------------------|:-----:|:------:|:------------------------|
+|`org.apache.flink.types.Row`          | X     | X      | *缺省*                  |
+|`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。          |
+
+### 用户自定义数据类型
+
+<span class="label label-danger">注意</span> 还未完全支持用户自定义数据类型，当前（从 Flink 1.11 开始）它们仅可作为函数参数和返回值的未注册的结构化类型。
+
+结构化类型类似于面向对象编程语言中的对象，可包含零个、一个或多个属性，每个属性都包含一个名称和一个类型。
+
+有两种结构化类型：
+
+- 存储在 catalog 并由 _catatlog 标识符_ 标识的类型（例如 `cat.db.MyType`），等价于 SQL 标准定义里的结构化类型。
+
+- 由 _实现类_ 标识，通常以反射方式匿名定义的未注册类型（例如 `com.myorg.model.MyType`）。当写代码定义表时，这些功能很有用。它们使你能够重用现有的JVM类，而无需重复手动定义数据类型。
+
+#### 可注册的结构化类型
+
+当前尚不支持，因此无法在 catalog 里保存或在 `CREATE TABLE` DDL 语句里引用它们。
+
+#### 未注册的结构化类型
+
+可以从常规 POJOs（Plain Old Java Objects）自动反射式提取出未注册的结构化类型。
+
+结构化类型的实现类必须满足以下要求：
+- 可被全局访问到，即必须声明为 `public`、`static`，不能用 `abstract`；
+- 提供无参默认构造器，或可设置所有成员变量的构造器；
+- 可访问类的所有成员变量，比如使用 `public` 声明成员变量，或遵循通用代码规范写 getter 比如 `getField()`、`isField()`、`field()`；
+- 可设置类的所有成员变量，比如使用 `public` 声明成员变量，定义可设置所有成员变量的构造器，或遵循通用代码规范写 setter 比如 `setField(...)`、`field(...)`；
+- 所有成员变量都要映射到某个数据类型，比如使用反射式提取进行隐式映射，或用 `@DataTypeHint` [注解](#data-type-annotations) 显式映射；
+- 忽略 `static` 或 `transient` 修饰的成员变量；
+
+只要字段不（递归地）指向自己，反射式提取支持字段的任意嵌套。
+
+成员变量（比如 `public int age;`）的类型必须包含在本文为每种数据类型定义的受支持的 JVM 类型列表里（例如，`java.lang.Integer` 或 `int` 对应 `INT`）。
+
+对于某些类，需要有注解才能将类映射到数据类型（例如， `@DataTypeHint("DECIMAL(10, 2)")` 为 `java.math.BigDecimal` 分配固定的精度和小数位）。
+
+**声明**
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+class User {
+
+    // extract fields automatically
+    public int age;
+    public String name;
+
+    // enrich the extraction with precision information
+    public @DataTypeHint("DECIMAL(10, 2)") BigDecimal totalBalance;
+
+    // enrich the extraction with forcing using RAW types
+    public @DataTypeHint("RAW") Class<?> modelClass;
+}
+
+DataTypes.of(User.class);
+{% endhighlight %}
+</div>
+
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+case class User(
+
+    // extract fields automatically
+    age: Int,
+    name: String,
+
+    // enrich the extraction with precision information
+    @DataTypeHint("DECIMAL(10, 2)") totalBalance: java.math.BigDecimal,
+
+    // enrich the extraction with forcing using a RAW type
+    @DataTypeHint("RAW") modelClass: Class[_]
+)
+
+DataTypes.of(classOf[User])
+{% endhighlight %}
+</div>
+
+</div>
+
+**JVM 类型**
+
+| Java 类型                            | 输入  | 输出   | 备注                                                  |
+|:-------------------------------------|:-----:|:------:|:------------------------------------------------------|
+|*类型*                               | X     | X      | 原始类或子类（用于输入）或超类（用于输出）*缺省*      |
+|`org.apache.flink.types.Row`          | X     | X      | 代表一行数据的结构化类型。                            |
+|`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。                                        |
 
 ### 其他数据类型
 
@@ -1070,6 +1166,44 @@ DataTypes.BOOLEAN()
 |:-------------------|:-----:|:------:|:-------------------------------------|
 |`java.lang.Boolean` | X     | X      | *缺省*                            |
 |`boolean`           | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+#### `RAW`
+
+任意序列化类型的数据类型。此类型对于 Flink Table 来讲是一个黑盒子，仅在跟外部交互时被反序列化。
+
+Raw 类型是 SQL 标准的扩展。
+
+**声明**
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="SQL" markdown="1">
+{% highlight text %}
+RAW('class', 'snapshot')
+{% endhighlight %}
+</div>
+
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+DataTypes.RAW(class, serializer)
+
+DataTypes.RAW(class)
+{% endhighlight %}
+</div>
+
+</div>
+
+此类型用 `RAW('class', 'snapshot')` 声明，其中 `class` 是原始类，`snapshot` 是 Base64 编码的序列化的 `TypeSerializerSnapshot`。通常，类型字符串不是直接声明的，而是在持久化类型时生成的。
+
+在 API 中，可以通过直接提供 `Class` + `TypeSerializer` 或通过传递 `TypeInformation` 并让框架从那里提取 `Class` + `TypeSerializer` 来声明 `RAW` 类型。
+
+**JVM 类型**
+
+| Java 类型                                 | 输入  | 输出   | 备注                                                |
+|:------------------------------------------|:-----:|:------:|:----------------------------------------------------|
+|*类型*                                     | X     | X      | 原始类或子类（用于输入）或超类（用于输出）。 *缺省* |
+|`byte[]`                                   |       | X      |                                                     |
+|`org.apache.flink.table.data.RawValueData` | X     | X      | 内部数据结构。                                      |
 
 #### `NULL`
 
@@ -1106,41 +1240,111 @@ DataTypes.NULL()
 |`java.lang.Object` | X     | X      | *缺省*                            |
 |*任何类型*        |       | (X)    | 任何非基本数据类型              |
 
-#### `RAW`
+数据类型注解
+---------------------
 
-任意序列化类型的数据类型。此类型是 Table 编程环境中的黑箱，仅在边缘反序列化。
+Flink API 经常尝试使用反射自动从类信息中提取数据类型，以避免重复的手动定义模式工作。然而以反射方式提取数据类型并不总是成功的，因为可能会丢失逻辑信息。因此，可能有必要在类或字段声明附近添加额外信息以支持提取逻辑。
 
-Raw 类型是 SQL 标准的扩展。
+下表列出了可以隐式映射到数据类型而无需额外信息的类：
 
-**声明**
+| 类                          | 数据类型                            |
+|:----------------------------|:------------------------------------|
+| `java.lang.String`          | `STRING`                            |
+| `java.lang.Boolean`         | `BOOLEAN`                           |
+| `boolean`                   | `BOOLEAN NOT NULL`                  |
+| `java.lang.Byte`            | `TINYINT`                           |
+| `byte`                      | `TINYINT NOT NULL`                  |
+| `java.lang.Short`           | `SMALLINT`                          |
+| `short`                     | `SMALLINT NOT NULL`                 |
+| `java.lang.Integer`         | `INT`                               |
+| `int`                       | `INT NOT NULL`                      |
+| `java.lang.Long`            | `BIGINT`                            |
+| `long`                      | `BIGINT NOT NULL`                   |
+| `java.lang.Float`           | `FLOAT`                             |
+| `float`                     | `FLOAT NOT NULL`                    |
+| `java.lang.Double`          | `DOUBLE`                            |
+| `double`                    | `DOUBLE NOT NULL`                   |
+| `java.sql.Date`             | `DATE`                              |
+| `java.time.LocalDate`       | `DATE`                              |
+| `java.sql.Time`             | `TIME(0)`                           |
+| `java.time.LocalTime`       | `TIME(9)`                           |
+| `java.sql.Timestamp`        | `TIMESTAMP(9)`                      |
+| `java.time.LocalDateTime`   | `TIMESTAMP(9)`                      |
+| `java.time.OffsetDateTime`  | `TIMESTAMP(9) WITH TIME ZONE`       |
+| `java.time.Instant`         | `TIMESTAMP(9) WITH LOCAL TIME ZONE` |
+| `java.time.Duration`        | `INVERVAL SECOND(9)`                |
+| `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
+| `byte[]`                    | `BYTES`                             |
+| `T[]`                       | `ARRAY<T>`                          |
+| `java.lang.Map<K, V>`       | `MAP<K, V>`                         |
+| structured type `T`         | anonymous structured type `T`       |
+
+
+本文提到的其他 JVM 桥接类都需要 `@DataTypeHint` 注解。
+
+_数据类型提示_ 可以参数化或替换函数参数和返回值、结构化类或结构化类字段的默认提取逻辑，实现者可以通过声明 `@DataTypeHint` 注解来选择默认提取逻辑应修改的程度。
+
+`@DataTypeHint` 注解提供了一组可选的提示参数，以下示例显示了其中一些参数，可以在注解类的文档中找到更多信息。
 
 <div class="codetabs" markdown="1">
 
-<div data-lang="SQL" markdown="1">
-{% highlight text %}
-RAW('class', 'snapshot')
-{% endhighlight %}
-</div>
-
-<div data-lang="Java/Scala" markdown="1">
+<div data-lang="Java" markdown="1">
 {% highlight java %}
-DataTypes.RAW(class, serializer)
+import org.apache.flink.table.annotation.DataTypeHint;
 
-DataTypes.RAW(typeInfo)
+class User {
+
+    // defines an INT data type with a default conversion class `java.lang.Integer`
+    public @DataTypeHint("INT") Object o;
+
+    // defines a TIMESTAMP data type of millisecond precision with an explicit conversion class
+    public @DataTypeHint(value = "TIMESTAMP(3)", bridgedTo = java.sql.Timestamp.class) Object o;
+
+    // enrich the extraction with forcing using a RAW type
+    public @DataTypeHint("RAW") Class<?> modelClass;
+
+    // defines that all occurrences of java.math.BigDecimal (also in nested fields) will be
+    // extracted as DECIMAL(12, 2)
+    public @DataTypeHint(defaultDecimalPrecision = 12, defaultDecimalScale = 2) AccountStatement stmt;
+
+    // defines that whenever a type cannot be mapped to a data type, instead of throwing
+    // an exception, always treat it as a RAW type
+    public @DataTypeHint(allowRawGlobally = HintFlag.TRUE) ComplexModel model;
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="Scala" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.annotation.DataTypeHint
+
+class User {
+
+    // defines an INT data type with a default conversion class `java.lang.Integer`
+    @DataTypeHint("INT")
+    var o: AnyRef
+
+    // defines a TIMESTAMP data type of millisecond precision with an explicit conversion class
+    @DataTypeHint(value = "TIMESTAMP(3)", bridgedTo = java.sql.Timestamp.class)
+    var o: AnyRef
+
+    // enrich the extraction with forcing using a RAW type
+    @DataTypeHint("RAW")
+    var modelClass: Class[_]
+
+    // defines that all occurrences of java.math.BigDecimal (also in nested fields) will be
+    // extracted as DECIMAL(12, 2)
+    @DataTypeHint(defaultDecimalPrecision = 12, defaultDecimalScale = 2)
+    var stmt: AccountStatement
+
+    // defines that whenever a type cannot be mapped to a data type, instead of throwing
+    // an exception, always treat it as a RAW type
+    @DataTypeHint(allowRawGlobally = HintFlag.TRUE)
+    var model: ComplexModel
+}
 {% endhighlight %}
 </div>
 
 </div>
-
-此类型用 `RAW('class', 'snapshot')` 声明，其中 `class` 是原始类，`snapshot` 是 Base64 编码的序列化的 `TypeSerializerSnapshot`。通常，类型字符串不是直接声明的，而是在保留类型时生成的。
-
-在 API 中，可以通过直接提供 `Class` + `TypeSerializer` 或通过传递 `TypeInformation` 并让框架从那里提取 `Class` + `TypeSerializer` 来声明 `RAW` 类型。
-
-**JVM 类型**
-
-| Java 类型         | 输入 | 输出 | 备注                              |
-|:------------------|:-----:|:------:|:-------------------------------------------|
-|*类型*            | X     | X      | 原始类或子类（用于输入）或超类（用于输出）。 *缺省* |
-|`byte[]`           |       | X      |                                      |
 
 {% top %}

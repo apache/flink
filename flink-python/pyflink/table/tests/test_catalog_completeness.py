@@ -43,6 +43,7 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCa
         return {
             'open',
             'close',
+            'getFactory',
             'getTableFactory',
             'getFunctionDefinitionFactory',
             'listPartitionsByFilter'}

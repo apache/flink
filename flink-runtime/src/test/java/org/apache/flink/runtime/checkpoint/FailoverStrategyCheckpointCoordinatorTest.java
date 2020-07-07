@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -41,7 +39,6 @@ import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -50,21 +47,16 @@ import static org.powermock.api.mockito.PowerMockito.when;
  * Tests for the interaction between the {@link FailoverStrategy} and the {@link CheckpointCoordinator}.
  */
 public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
-
-	private ManuallyTriggeredScheduledExecutor timer;
-
-	private ManuallyTriggeredScheduledExecutor mainThreadExecutor;
+	private ManuallyTriggeredScheduledExecutor manualThreadExecutor;
 
 	@Before
 	public void setUp() {
-		timer = new ManuallyTriggeredScheduledExecutor();
-		mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+		manualThreadExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
 	/**
 	 * Tests that {@link CheckpointCoordinator#abortPendingCheckpoints(CheckpointException)}
-	 * called by {@link AdaptedRestartPipelinedRegionStrategyNG} could handle
-	 * the {@code currentPeriodicTrigger} null situation well.
+	 * called on job failover could handle the {@code currentPeriodicTrigger} null case well.
 	 */
 	@Test
 	public void testAbortPendingCheckpointsWithTriggerValidation() {
@@ -78,6 +70,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
 			false,
+			false,
 			0);
 		CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinator(
 			new JobID(),
@@ -90,38 +83,32 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			timer,
+			manualThreadExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			mock(CheckpointFailureManager.class));
 
-		checkpointCoordinator.start(
-			new ComponentMainThreadExecutorServiceAdapter(
-				mainThreadExecutor,
-				Thread.currentThread()));
-
-			// switch current execution's state to running to allow checkpoint could be triggered.
+		// switch current execution's state to running to allow checkpoint could be triggered.
 		mockExecutionRunning(executionVertex);
 
 		checkpointCoordinator.startCheckpointScheduler();
 		assertTrue(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
 		// only trigger the periodic scheduling
 		// we can't trigger all scheduled task, because there is also a cancellation scheduled
-		timer.triggerPeriodicScheduledTasks();
-		mainThreadExecutor.triggerAll();
+		manualThreadExecutor.triggerPeriodicScheduledTasks();
+		manualThreadExecutor.triggerAll();
 		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
 		for (int i = 1; i < maxConcurrentCheckpoints; i++) {
-			checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), false);
-			mainThreadExecutor.triggerAll();
+			checkpointCoordinator.triggerCheckpoint(false);
+			manualThreadExecutor.triggerAll();
 			assertEquals(i + 1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 			assertTrue(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
 		}
 
 		// as we only support limited concurrent checkpoints, after checkpoint triggered more than the limits,
 		// the currentPeriodicTrigger would been assigned as null.
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), false);
-		mainThreadExecutor.triggerAll();
-		assertFalse(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
+		checkpointCoordinator.triggerCheckpoint(false);
+		manualThreadExecutor.triggerAll();
 		assertEquals(maxConcurrentCheckpoints, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
 		checkpointCoordinator.abortPendingCheckpoints(

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.Elasticsearch;
@@ -80,7 +82,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
-			createTestSinkOptions());
+			createTestSinkOptions(),
+			IndexGeneratorFactory.createIndexGenerator(INDEX, schema));
 
 		// construct table sink using descriptors and table sink factory
 		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
@@ -106,7 +109,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
-			createTestSinkOptions());
+			createTestSinkOptions(),
+			IndexGeneratorFactory.createIndexGenerator(INDEX, schema));
 
 		// construct table sink using descriptors and table sink factory
 		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
@@ -197,7 +201,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 		SerializationSchema<Row> serializationSchema,
 		XContentType contentType,
 		ActionRequestFailureHandler failureHandler,
-		Map<SinkOption, String> sinkOptions);
+		Map<SinkOption, String> sinkOptions,
+		IndexGenerator indexGenerator);
 
 	// --------------------------------------------------------------------------------------------
 	// Helper classes

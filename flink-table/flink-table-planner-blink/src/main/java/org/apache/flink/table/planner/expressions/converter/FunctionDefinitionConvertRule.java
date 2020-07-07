@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -38,13 +40,18 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
 	public Optional<RexNode> convert(
 			CallExpression call,
 			ConvertContext context) {
-		TypeInference typeInference = call.getFunctionDefinition().getTypeInference(context.getDataTypeFactory());
+		FunctionDefinition functionDefinition = call.getFunctionDefinition();
 
+		if (functionDefinition instanceof BuiltInFunctionDefinition) {
+			return Optional.empty();
+		}
+
+		TypeInference typeInference = functionDefinition.getTypeInference(context.getDataTypeFactory());
 		if (typeInference.getOutputTypeStrategy() == TypeStrategies.MISSING) {
 			return Optional.empty();
 		}
 
-		switch (call.getFunctionDefinition().getKind()) {
+		switch (functionDefinition.getKind()) {
 			case SCALAR:
 			case TABLE:
 				List<RexNode> args = call.getChildren().stream().map(context::toRexNode).collect(Collectors.toList());
@@ -54,7 +61,7 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
 					context.getTypeFactory(),
 					SqlKind.OTHER_FUNCTION,
 					call.getFunctionIdentifier().orElse(null),
-					call.getFunctionDefinition(),
+					functionDefinition,
 					typeInference);
 
 				return Optional.of(context.getRelBuilder().call(sqlFunction, args));

@@ -54,7 +54,7 @@ The *MemoryStateBackend* holds data internally as objects on the Java heap. Key/
 that store the values, triggers, etc.
 
 Upon checkpoints, this state backend will snapshot the state and send it as part of the checkpoint acknowledgement messages to the
-JobManager (master), which stores it on its heap as well.
+JobManager, which stores it on its heap as well.
 
 The MemoryStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is currently enabled 
 by default. To disable this feature, users can instantiate a `MemoryStateBackend` with the corresponding boolean flag in the constructor set to `false`(this should only used for debug), e.g.:
@@ -74,7 +74,7 @@ The MemoryStateBackend is encouraged for:
   - Local development and debugging
   - Jobs that do hold little state, such as jobs that consist only of record-at-a-time functions (Map, FlatMap, Filter, ...). The Kafka Consumer requires very little state.
 
-It is also recommended to set [managed memory](../memory/mem_setup.html#managed-memory) to zero.
+It is also recommended to set [managed memory](../memory/mem_setup_tm.html#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### The FsStateBackend
@@ -94,7 +94,7 @@ The FsStateBackend is encouraged for:
   - Jobs with large state, long windows, large key/value states.
   - All high-availability setups.
 
-It is also recommended to set [managed memory](../memory/mem_setup.html#managed-memory) to zero.
+It is also recommended to set [managed memory](../memory/mem_setup_tm.html#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### The RocksDBStateBackend
@@ -213,6 +213,9 @@ While we encourage the use of incremental checkpoints for large state, you need 
   - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
   - You can alternatively configure this directly in the code (overrides the config default): `RocksDBStateBackend backend = new RocksDBStateBackend(checkpointDirURI, true);`
 
+Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
+delta checkpointed data size of that checkpoint instead of full state size.
+
 ### Memory Management
 
 Flink aims to control the total process memory consumption to make sure that the Flink TaskManagers have a well-behaved memory footprint. That means staying within the limits enforced by the environment (Docker/Kubernetes, Yarn, etc) to not get killed for consuming too much memory, but also to not under-utilize memory (unnecessary spilling to disk, wasted caching opportunities, reduced performance).
@@ -240,7 +243,7 @@ For advanced tuning, Flink also provides two parameters to control the division 
   Moreover, the L0 level filter and index are pinned into the cache by default to mitigate performance problems,
   more details please refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
 
-<span class="label label-info">Note</span> When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`OptionsFactory`](#passing-options-factory-to-rocksdb).
+<span class="label label-info">Note</span> When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb).
 
 <span class="label label-info">Note</span> *Expert Mode*: To control memory manually, you can set `state.backend.rocksdb.memory.managed` to `false` and configure RocksDB via [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb). Alternatively, you can use the above mentioned cache/buffer-manager mechanism, but set the memory size to a fixed amount independent of Flink's managed memory size (`state.backend.rocksdb.memory.fixed-per-slot` option). Note that in both cases, users need to ensure on their own that enough memory is available outside the JVM for RocksDB.
 
@@ -283,7 +286,7 @@ The default value for this option is `DEFAULT` which translates to `PredefinedOp
 
 To manually control RocksDB's options, you need to configure an `RocksDBOptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
-There are two ways to pass an OptionsFactory to the RocksDB State Backend:
+There are two ways to pass a RocksDBOptionsFactory to the RocksDB State Backend:
 
   - Configure options factory class name in the `flink-conf.yaml` via `state.backend.rocksdb.options-factory`.
   
@@ -299,7 +302,7 @@ allocating more memory than configured.
 
 **Reading Column Family Options from flink-conf.yaml**
 
-When an `OptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
+When a `RocksDBOptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
 
 The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({{ site.baseurl }}/ops/config.html#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
 
@@ -328,7 +331,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 
     @Override
-    public OptionsFactory configure(Configuration configuration) {
+    public RocksDBOptionsFactory configure(Configuration configuration) {
         this.blockCacheSize =
             configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
         return this;

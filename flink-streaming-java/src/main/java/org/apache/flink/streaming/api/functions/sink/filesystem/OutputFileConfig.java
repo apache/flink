@@ -47,14 +47,14 @@ public class OutputFileConfig implements Serializable {
 	/**
 	 * The prefix for the part name.
 	 */
-	String getPartPrefix() {
+	public String getPartPrefix() {
 		return partPrefix;
 	}
 
 	/**
 	 * The suffix for the part name.
 	 */
-	String getPartSuffix() {
+	public String getPartSuffix() {
 		return partSuffix;
 	}
 

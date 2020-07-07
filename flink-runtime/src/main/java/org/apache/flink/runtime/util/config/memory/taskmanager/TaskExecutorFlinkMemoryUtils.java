@@ -35,6 +35,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * {@link FlinkMemoryUtils} for Task Executor.
+ *
+ * <p>The required fine-grained components are {@link TaskManagerOptions#TASK_HEAP_MEMORY} and
+ * {@link TaskManagerOptions#MANAGED_MEMORY_SIZE}.
  */
 public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecutorFlinkMemory> {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorFlinkMemoryUtils.class);
@@ -160,11 +163,11 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
 		return ProcessMemoryUtils.deriveWithInverseFraction("network memory", base, getNetworkMemoryRangeFraction(config));
 	}
 
-	private static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
+	public static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
 		return ProcessMemoryUtils.getMemorySizeFromConfig(config, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY);
 	}
 
-	private static MemorySize getFrameworkOffHeapMemorySize(final Configuration config) {
+	public static MemorySize getFrameworkOffHeapMemorySize(final Configuration config) {
 		return ProcessMemoryUtils.getMemorySizeFromConfig(config, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY);
 	}
 

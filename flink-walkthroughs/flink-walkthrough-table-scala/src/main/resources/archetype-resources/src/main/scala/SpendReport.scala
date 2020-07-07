@@ -19,7 +19,8 @@
 package ${package}
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.walkthrough.common.table._
 
 object SpendReport {
@@ -27,8 +28,10 @@ object SpendReport {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
-    tEnv.registerTableSource("transactions", new BoundedTransactionTableSource)
-    tEnv.registerTableSink("spend_report", new SpendReportTableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "transactions", new BoundedTransactionTableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "spend_report", new SpendReportTableSink)
 
     val truncateDateToHour = new TruncateDateToHour
 
@@ -36,6 +39,6 @@ object SpendReport {
       .scan("transactions")
       .insertInto("spend_report")
 
-    env.execute("Spend Report")
+    tEnv.execute("Spend Report")
   }
 }

@@ -52,8 +52,12 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 	private final T reuse;
 
-	public IteratorWrappingTestSingleInputGate(int bufferSize, Class<T> recordType, MutableObjectIterator<T> iterator) throws IOException, InterruptedException {
-		super(1, false);
+	public IteratorWrappingTestSingleInputGate(
+			int bufferSize,
+			int gateIndex,
+			MutableObjectIterator<T> iterator,
+			Class<T> recordType) throws IOException, InterruptedException {
+		super(1, gateIndex, false);
 
 		this.bufferSize = bufferSize;
 		this.reuse = InstantiationUtil.instantiate(recordType);
@@ -95,7 +99,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 		inputChannel.addBufferAndAvailability(answer);
 
-		inputGate.setInputChannel(inputChannel);
+		inputGate.setInputChannels(inputChannel);
 
 		return this;
 	}

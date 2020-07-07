@@ -132,8 +132,7 @@ class DataStreamMatch(
   }
 
   override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig)
+      planner: StreamPlanner)
     : DataStream[CRow] = {
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(getInput)
@@ -143,7 +142,7 @@ class DataStreamMatch(
 
     val crowInput: DataStream[CRow] = getInput
       .asInstanceOf[DataStreamRel]
-      .translateToPlan(planner, queryConfig)
+      .translateToPlan(planner)
 
     if (inputIsAccRetract) {
       throw new TableException(

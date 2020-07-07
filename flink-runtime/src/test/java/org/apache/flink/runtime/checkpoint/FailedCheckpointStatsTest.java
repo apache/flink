@@ -53,7 +53,6 @@ public class FailedCheckpointStatsTest {
 			taskStats,
 			0,
 			0,
-			0,
 			failureTimestamp,
 			null,
 			null);
@@ -79,7 +78,6 @@ public class FailedCheckpointStatsTest {
 			taskStats,
 			3,
 			190890123,
-			0,
 			failureTimestamp,
 			null,
 			new NotSerializableException("message"));

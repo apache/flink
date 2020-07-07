@@ -89,11 +89,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 		return getBuffer().isBuffer();
 	}
 
-	@Override
-	public void tagAsEvent() {
-		throw new ReadOnlyBufferException();
-	}
-
 	/**
 	 * Returns the underlying memory segment.
 	 *
@@ -221,6 +216,16 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	@Override
 	public void setCompressed(boolean isCompressed) {
 		this.isCompressed = isCompressed;
+	}
+
+	@Override
+	public DataType getDataType() {
+		return getBuffer().getDataType();
+	}
+
+	@Override
+	public void setDataType(DataType dataType) {
+		throw new ReadOnlyBufferException();
 	}
 
 	private Buffer getBuffer() {

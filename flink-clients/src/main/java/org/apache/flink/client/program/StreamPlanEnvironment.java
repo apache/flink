@@ -19,6 +19,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
@@ -37,7 +38,8 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		return pipeline;
 	}
 
-	public StreamPlanEnvironment(int parallelism) {
+	public StreamPlanEnvironment(Configuration configuration, ClassLoader userClassLoader, int parallelism) {
+		super(configuration, userClassLoader);
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		}

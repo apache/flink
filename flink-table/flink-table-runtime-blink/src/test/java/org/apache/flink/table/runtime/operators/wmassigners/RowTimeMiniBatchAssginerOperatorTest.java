@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
@@ -40,35 +40,35 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 	@Test
 	public void testRowTimeWatermarkAssigner() throws Exception {
 		final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(5);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
 		testHarness.processWatermark(new Watermark(2));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(3L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 		testHarness.processWatermark(new Watermark(3));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(5L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
 		testHarness.processWatermark(new Watermark(4));
 		testHarness.processWatermark(new Watermark(5));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(7L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
 		testHarness.processWatermark(new Watermark(6));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(11L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(11L)));
 		testHarness.processWatermark(new Watermark(10));
 		testHarness.processWatermark(new Watermark(12));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(16L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(16L)));
 		testHarness.processWatermark(new Watermark(15));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(17L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(17L)));
 		testHarness.processWatermark(new Watermark(16));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(20L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(20L)));
 		testHarness.processWatermark(new Watermark(19));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(22L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(22L)));
 		testHarness.processWatermark(new Watermark(20));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(24L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(24L)));
 		testHarness.processWatermark(new Watermark(21));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(25L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(25L)));
 
 		testHarness.close();
 
@@ -89,13 +89,13 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 	@Test
 	public void testEndWatermarkIsForwarded() throws Exception {
 		final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(50);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
 		testHarness.processWatermark(new Watermark(2));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(50L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(50L)));
 		// send end watermark
 		testHarness.processWatermark(Watermark.MAX_WATERMARK);
 

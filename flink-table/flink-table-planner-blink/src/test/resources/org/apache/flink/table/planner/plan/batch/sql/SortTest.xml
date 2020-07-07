@@ -31,7 +31,7 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-firs
       <![CDATA[
 Sort(orderBy=[a DESC, b ASC])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -50,7 +50,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
       <![CDATA[
 Sort(orderBy=[a DESC])
 +- Exchange(distribution=[range[a DESC]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -69,7 +69,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
       <![CDATA[
 Sort(orderBy=[a DESC])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -88,7 +88,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
       <![CDATA[
 Sort(orderBy=[a DESC])
 +- Exchange(distribution=[range[a DESC]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -108,7 +108,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
 SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

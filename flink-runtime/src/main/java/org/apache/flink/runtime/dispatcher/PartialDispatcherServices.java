@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Partial {@link DispatcherServices} services container which needs to
@@ -61,7 +62,7 @@ public class PartialDispatcherServices {
 	@Nonnull
 	private final HistoryServerArchivist historyServerArchivist;
 
-	@Nonnull
+	@Nullable
 	private final String metricQueryServiceAddress;
 
 	public PartialDispatcherServices(
@@ -74,7 +75,7 @@ public class PartialDispatcherServices {
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nonnull String metricQueryServiceAddress) {
+			@Nullable String metricQueryServiceAddress) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -132,7 +133,7 @@ public class PartialDispatcherServices {
 		return historyServerArchivist;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getMetricQueryServiceAddress() {
 		return metricQueryServiceAddress;
 	}

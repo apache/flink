@@ -18,8 +18,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -31,8 +41,20 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 
 /**
  * Tests to verify state assignment operation.
@@ -47,12 +69,12 @@ public class StateAssignmentOperationTest extends TestLogger {
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap1 = new HashMap<>(1);
 		metaInfoMap1.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[30]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null));
+		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(1);
 		metaInfoMap2.put("t-2", new OperatorStateHandle.StateMetaInfo(new long[]{0, 15}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[40]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null));
+		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
 
 		verifyOneKindPartitionableStateRescale(operatorState, operatorID);
 	}
@@ -66,12 +88,12 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap1.put("t-3", new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.UNION));
 		metaInfoMap1.put("t-4", new OperatorStateHandle.StateMetaInfo(new long[]{22, 44}, OperatorStateHandle.Mode.UNION));
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[50]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null));
+		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(1);
 		metaInfoMap2.put("t-3", new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.UNION));
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[20]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null));
+		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
 
 		verifyOneKindPartitionableStateRescale(operatorState, operatorID);
 	}
@@ -85,13 +107,13 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap1.put("t-5", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.BROADCAST));
 		metaInfoMap1.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.BROADCAST));
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[60]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null));
+		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(2);
 		metaInfoMap2.put("t-5", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.BROADCAST));
 		metaInfoMap2.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.BROADCAST));
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[60]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null));
+		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
 
 		verifyOneKindPartitionableStateRescale(operatorState, operatorID);
 	}
@@ -113,7 +135,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap1.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{101, 123, 127}, OperatorStateHandle.Mode.BROADCAST));
 
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[130]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null));
+		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(3);
 		metaInfoMap2.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.UNION));
@@ -122,7 +144,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap2.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{57, 79, 83}, OperatorStateHandle.Mode.BROADCAST));
 
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[86]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null));
+		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
 
 		// rescale up case, parallelism 2 --> 3
 		verifyCombinedPartitionableStateRescale(operatorState, operatorID, 2, 3);
@@ -148,18 +170,13 @@ public class StateAssignmentOperationTest extends TestLogger {
 		Map<String, Integer> stateInfoCounts
 	) {
 		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates =
-			new HashMap<>(newParallelism);
-
-		final Map<OperatorInstanceID, List<OperatorStateHandle>> newRawOperatorStates =
-			new HashMap<>(newParallelism);
-
-		StateAssignmentOperation.reDistributePartitionableStates(
-			Collections.singletonList(operatorState),
-			newParallelism,
-			Collections.singletonList(operatorID),
-			newManagedOperatorStates,
-			newRawOperatorStates
-		);
+			StateAssignmentOperation.reDistributePartitionableStates(
+				Collections.singletonList(operatorState),
+				newParallelism,
+				Collections.singletonList(OperatorIDPair.generatedIDOnly(operatorID)),
+				OperatorSubtaskState::getManagedOperatorState,
+				RoundRobinOperatorStateRepartitioner.INSTANCE
+			);
 
 		// Verify the repartitioned managed operator states per sub-task.
 		for (List<OperatorStateHandle> operatorStateHandles : newManagedOperatorStates.values()) {
@@ -282,6 +299,102 @@ public class StateAssignmentOperationTest extends TestLogger {
 		Assert.assertEquals(newParallelism, stateInfoCounts.get("t-4").intValue());
 		Assert.assertEquals(newParallelism, stateInfoCounts.get("t-5").intValue());
 		Assert.assertEquals(newParallelism, stateInfoCounts.get("t-6").intValue());
+	}
+
+	/**
+	 * Check that channel and operator states are assigned to the same tasks on recovery.
+	 */
+	@Test
+	public void testChannelStateAssignmentStability() throws JobException, JobExecutionException {
+		int numOperators = 10; // note: each operator is places into a separate vertex
+		int numSubTasks = 100;
+
+		Set<OperatorID> operatorIds = buildOperatorIds(numOperators);
+		Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, numSubTasks);
+		Map<OperatorID, ExecutionJobVertex> vertices = buildVertices(operatorIds, numSubTasks);
+
+		new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false).assignStates();
+
+		for (OperatorID operatorId : operatorIds) {
+			for (int subtaskIdx = 0; subtaskIdx < numSubTasks; subtaskIdx++) {
+				Assert.assertEquals(
+					states.get(operatorId).getState(subtaskIdx),
+					getAssignedState(vertices.get(operatorId), operatorId, subtaskIdx));
+			}
+		}
+	}
+
+	@Test
+	public void assigningStatesShouldWorkWithUserDefinedOperatorIdsAsWell() throws JobException, JobExecutionException {
+		int numSubTasks = 1;
+		OperatorID operatorId = new OperatorID();
+		OperatorID userDefinedOperatorId = new OperatorID();
+		Set<OperatorID> operatorIds = Collections.singleton(userDefinedOperatorId);
+
+		ExecutionJobVertex executionJobVertex = buildExecutionJobVertex(operatorId, userDefinedOperatorId, 1);
+		Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, numSubTasks);
+
+		new StateAssignmentOperation(0, Collections.singleton(executionJobVertex), states, false).assignStates();
+
+		Assert.assertEquals(states.get(userDefinedOperatorId).getState(0), getAssignedState(executionJobVertex, operatorId, 0));
+	}
+
+	private Set<OperatorID> buildOperatorIds(int operators) {
+		Set<OperatorID> set = new HashSet<>();
+		for (int j = 0; j < operators; j++) {
+			set.add(new OperatorID());
+		}
+		return set;
+	}
+
+	private Map<OperatorID, OperatorState> buildOperatorStates(Set<OperatorID> operators, int numSubTasks) {
+		Random random = new Random();
+		return operators.stream().collect(Collectors.toMap(Function.identity(), operatorID -> {
+			OperatorState state = new OperatorState(operatorID, numSubTasks, numSubTasks);
+			for (int i = 0; i < numSubTasks; i++) {
+				state.putState(i, new OperatorSubtaskState(
+					new StateObjectCollection<>(asList(createNewOperatorStateHandle(10, random), createNewOperatorStateHandle(10, random))),
+					new StateObjectCollection<>(asList(createNewOperatorStateHandle(10, random), createNewOperatorStateHandle(10, random))),
+					StateObjectCollection.singleton(createNewKeyedStateHandle(KeyGroupRange.of(i, i))),
+					StateObjectCollection.singleton(createNewKeyedStateHandle(KeyGroupRange.of(i, i))),
+					new StateObjectCollection<>(asList(createNewInputChannelStateHandle(10, random), createNewInputChannelStateHandle(10, random))),
+					new StateObjectCollection<>(asList(createNewResultSubpartitionStateHandle(10, random), createNewResultSubpartitionStateHandle(10, random)))));
+			}
+			return state;
+		}));
+	}
+
+	private Map<OperatorID, ExecutionJobVertex> buildVertices(Set<OperatorID> operators, int parallelism) {
+		return operators.stream()
+			.collect(Collectors.toMap(Function.identity(), operatorID -> {
+				try {
+					return buildExecutionJobVertex(operatorID, parallelism);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			}));
+	}
+
+	private ExecutionJobVertex buildExecutionJobVertex(OperatorID operatorID, int parallelism) throws JobException, JobExecutionException {
+		return buildExecutionJobVertex(operatorID, operatorID, parallelism);
+	}
+
+	private ExecutionJobVertex buildExecutionJobVertex(OperatorID operatorID, OperatorID userDefinedOperatorId, int parallelism) throws JobException, JobExecutionException {
+		ExecutionGraph graph = TestingExecutionGraphBuilder.newBuilder().build();
+		JobVertex jobVertex = new JobVertex(
+			operatorID.toHexString(),
+			new JobVertexID(),
+			singletonList(OperatorIDPair.of(operatorID, userDefinedOperatorId)));
+		return new ExecutionJobVertex(graph, jobVertex, parallelism, 1, Time.seconds(1), 1L, 1L);
+	}
+
+	private OperatorSubtaskState getAssignedState(ExecutionJobVertex executionJobVertex, OperatorID operatorId, int subtaskIdx) {
+		return executionJobVertex
+				.getTaskVertices()[subtaskIdx]
+				.getCurrentExecutionAttempt()
+				.getTaskRestore()
+				.getTaskStateSnapshot()
+				.getSubtaskStateByOperatorID(operatorId);
 	}
 
 }

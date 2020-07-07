@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesToleration;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -35,6 +36,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -65,6 +67,10 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
 			.editOrNewSpec()
 				.withServiceAccountName(kubernetesJobManagerParameters.getServiceAccount())
 				.withImagePullSecrets(kubernetesJobManagerParameters.getImagePullSecrets())
+				.withNodeSelector(kubernetesJobManagerParameters.getNodeSelector())
+				.withTolerations(kubernetesJobManagerParameters.getTolerations().stream()
+					.map(e -> KubernetesToleration.fromMap(e).getInternalResource())
+					.collect(Collectors.toList()))
 				.endSpec()
 			.build();
 
@@ -79,7 +85,8 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
 	private Container decorateMainContainer(Container container) {
 		final ResourceRequirements requirements = KubernetesUtils.getResourceRequirements(
 				kubernetesJobManagerParameters.getJobManagerMemoryMB(),
-				kubernetesJobManagerParameters.getJobManagerCPU());
+				kubernetesJobManagerParameters.getJobManagerCPU(),
+				Collections.emptyMap());
 
 		return new ContainerBuilder(container)
 				.withName(kubernetesJobManagerParameters.getJobManagerMainContainerName())

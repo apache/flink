@@ -1,4 +1,3 @@
-package org.apache.flink.runtime.state;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,11 +15,30 @@ package org.apache.flink.runtime.state;
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.state;
+
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+
+import java.util.List;
 
 /**
  * {@link StateObject Handle} to a {@link org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} state.
  */
-public interface ResultSubpartitionStateHandle extends StateObject {
-	ResultSubpartitionInfo getResultSubpartitionInfo();
+@Internal
+public class ResultSubpartitionStateHandle extends AbstractChannelStateHandle<ResultSubpartitionInfo> {
+
+	private static final long serialVersionUID = 1L;
+
+	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, StateContentMetaInfo contentMetaInfo) {
+		this(info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+	}
+
+	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset) {
+		this(info, delegate, offset, delegate.getStateSize());
+	}
+
+	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset, long size) {
+		super(delegate, offset, info, size);
+	}
 }

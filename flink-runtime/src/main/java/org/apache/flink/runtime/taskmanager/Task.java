@@ -28,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -74,11 +75,13 @@ import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.WrappingRuntimeException;
@@ -192,6 +195,9 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	private final TaskEventDispatcher taskEventDispatcher;
 
+	/** Information provider for external resources. */
+	private final ExternalResourceInfoProvider externalResourceInfoProvider;
+
 	/** The manager for state of operators running in this task/slot. */
 	private final TaskStateManager taskStateManager;
 
@@ -200,7 +206,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
 
-	private final InputGate[] inputGates;
+	private final IndexedInputGate[] inputGates;
 
 	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
@@ -217,11 +223,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	/** GlobalAggregateManager used to update aggregates on the JobMaster. */
 	private final GlobalAggregateManager aggregateManager;
 
-	/** The BLOB cache, from which the task can request BLOB files. */
-	private final BlobCacheService blobService;
-
 	/** The library cache, from which the task can request its class loader. */
-	private final LibraryCacheManager libraryCache;
+	private final LibraryCacheManager.ClassLoaderHandle classLoaderHandle;
 
 	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
@@ -296,14 +299,14 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		KvStateService kvStateService,
 		BroadcastVariableManager bcVarManager,
 		TaskEventDispatcher taskEventDispatcher,
+		ExternalResourceInfoProvider externalResourceInfoProvider,
 		TaskStateManager taskStateManager,
 		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
 		CheckpointResponder checkpointResponder,
 		TaskOperatorEventGateway operatorCoordinatorEventGateway,
 		GlobalAggregateManager aggregateManager,
-		BlobCacheService blobService,
-		LibraryCacheManager libraryCache,
+		LibraryCacheManager.ClassLoaderHandle classLoaderHandle,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
 		@Nonnull TaskMetricGroup metricGroup,
@@ -354,9 +357,9 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		this.operatorCoordinatorEventGateway = Preconditions.checkNotNull(operatorCoordinatorEventGateway);
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
+		this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 
-		this.blobService = Preconditions.checkNotNull(blobService);
-		this.libraryCache = Preconditions.checkNotNull(libraryCache);
+		this.classLoaderHandle = Preconditions.checkNotNull(classLoaderHandle);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
@@ -386,14 +389,15 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			resultPartitionConsumableNotifier);
 
 		// consumed intermediate result partitions
-		final InputGate[] gates = shuffleEnvironment.createInputGates(
-			taskShuffleContext,
-			this,
-			inputGateDeploymentDescriptors).toArray(new InputGate[] {});
+		final IndexedInputGate[] gates = shuffleEnvironment.createInputGates(
+				taskShuffleContext,
+				this,
+				inputGateDeploymentDescriptors)
+			.toArray(new IndexedInputGate[0]);
 
-		this.inputGates = new InputGate[gates.length];
+		this.inputGates = new IndexedInputGate[gates.length];
 		int counter = 0;
-		for (InputGate gate : gates) {
+		for (IndexedInputGate gate : gates) {
 			inputGates[counter++] = new InputGateWithMetrics(gate, metrics.getIOMetricGroup().getNumBytesInCounter());
 		}
 
@@ -595,10 +599,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// ----------------------------
 
 			// activate safety net for task thread
-			LOG.info("Creating FileSystem stream leak safety net for task {}", this);
+			LOG.debug("Creating FileSystem stream leak safety net for task {}", this);
 			FileSystemSafetyNet.initializeSafetyNetForThread();
-
-			blobService.getPermanentBlobService().registerJob(jobId);
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
@@ -685,7 +687,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				operatorCoordinatorEventGateway,
 				taskManagerConfig,
 				metrics,
-				this);
+				this,
+				externalResourceInfoProvider);
 
 			// Make sure the user code classloader is accessible thread-locally.
 			// We are setting the correct context class loader before instantiating the invokable
@@ -752,7 +755,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// an exception was thrown as a side effect of cancelling
 			// ----------------------------------------------------------------
 
-			t = ExceptionUtils.enrichTaskManagerOutOfMemoryError(t);
+			t = TaskManagerExceptionUtils.tryEnrichTaskManagerError(t);
 
 			try {
 				// check if the exception is unrecoverable
@@ -823,20 +826,18 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				this.invokable = null;
 
 				// free the network resources
-				releaseNetworkResources();
+				releaseResources();
 
 				// free memory resources
 				if (invokable != null) {
 					memoryManager.releaseAll(invokable);
 				}
 
-				// remove all of the tasks library resources
-				libraryCache.unregisterTask(jobId, executionId);
+				// remove all of the tasks resources
 				fileCache.releaseJob(jobId, executionId);
-				blobService.getPermanentBlobService().releaseJob(jobId);
 
 				// close and de-activate safety net for task thread
-				LOG.info("Ensuring all FileSystem streams are closed for task {}", this);
+				LOG.debug("Ensuring all FileSystem streams are closed for task {}", this);
 				FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 
 				notifyFinalState();
@@ -862,7 +863,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	@VisibleForTesting
 	public static void setupPartitionsAndGates(
-		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException, InterruptedException {
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
 
 		for (ResultPartitionWriter partition : producedPartitions) {
 			partition.setup();
@@ -876,10 +877,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	}
 
 	/**
-	 * Releases network resources before task exits. We should also fail the partition to release if the task
+	 * Releases resources before task exits. We should also fail the partition to release if the task
 	 * has failed, is canceled, or is being canceled at the moment.
 	 */
-	private void releaseNetworkResources() {
+	private void releaseResources() {
 		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
 
 		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
@@ -890,6 +891,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		}
 
 		closeNetworkResources();
+		try {
+			taskStateManager.close();
+		} catch (Exception e) {
+			LOG.error("Failed to close task state manager for task {}.", taskNameWithSubtask, e);
+		}
 	}
 
 	/**
@@ -920,15 +926,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		libraryCache.registerTask(jobId, executionId, requiredJarFiles, requiredClasspaths);
+		final ClassLoader userCodeClassLoader = classLoaderHandle.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Getting user code class loader for task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);
 
-		ClassLoader userCodeClassLoader = libraryCache.getClassLoader(jobId);
-		if (userCodeClassLoader == null) {
-			throw new Exception("No user code classloader available.");
-		}
 		return userCodeClassLoader;
 	}
 
@@ -1057,7 +1059,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 						// case the canceling could not continue
 
 						// The canceller calls cancel and interrupts the executing thread once
-						Runnable canceler = new TaskCanceler(LOG, this :: closeNetworkResources, invokable, executingThread, taskNameWithSubtask);
+						Runnable canceler = new TaskCanceler(LOG, this::closeNetworkResources, invokable, executingThread, taskNameWithSubtask);
 
 						Thread cancelThread = new Thread(
 								executingThread.getThreadGroup(),
@@ -1092,8 +1094,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 							Runnable cancelWatchdog = new TaskCancelerWatchDog(
 									executingThread,
 									taskManagerActions,
-									taskCancellationTimeout,
-									LOG);
+									taskCancellationTimeout);
 
 							Thread watchDogThread = new Thread(
 									executingThread.getThreadGroup(),
@@ -1215,6 +1216,34 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
+		}
+	}
+
+	@Override
+	public void notifyCheckpointAborted(final long checkpointID) {
+		final AbstractInvokable invokable = this.invokable;
+
+		if (executionState == ExecutionState.RUNNING && invokable != null) {
+			try {
+				invokable.notifyCheckpointAbortAsync(checkpointID);
+			}
+			catch (RejectedExecutionException ex) {
+				// This may happen if the mailbox is closed. It means that the task is shutting down, so we just ignore it.
+				LOG.debug(
+					"Notify checkpoint abort {} for {} ({}) was rejected by the mailbox",
+					checkpointID, taskNameWithSubtask, executionId);
+			}
+			catch (Throwable t) {
+				if (getExecutionState() == ExecutionState.RUNNING) {
+					// fail task if checkpoint aborted notification failed.
+					failExternally(new RuntimeException(
+						"Error while aborting checkpoint",
+						t));
+				}
+			}
+		}
+		else {
+			LOG.info("Ignoring checkpoint aborted notification for non-running task {}.", taskNameWithSubtask);
 		}
 	}
 
@@ -1500,9 +1529,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	 */
 	private static class TaskCancelerWatchDog implements Runnable {
 
-		/** The logger to report on the fatal condition. */
-		private final Logger log;
-
 		/** The executing task thread that we wait for to terminate. */
 		private final Thread executerThread;
 
@@ -1515,12 +1541,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		TaskCancelerWatchDog(
 				Thread executerThread,
 				TaskManagerActions taskManager,
-				long timeoutMillis,
-				Logger log) {
+				long timeoutMillis) {
 
 			checkArgument(timeoutMillis > 0);
 
-			this.log = log;
 			this.executerThread = executerThread;
 			this.taskManager = taskManager;
 			this.timeoutMillis = timeoutMillis;
@@ -1545,13 +1569,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 				if (executerThread.isAlive()) {
 					String msg = "Task did not exit gracefully within " + (timeoutMillis / 1000) + " + seconds.";
-					log.error(msg);
-					taskManager.notifyFatalError(msg, null);
+					taskManager.notifyFatalError(msg, new FlinkRuntimeException(msg));
 				}
 			}
 			catch (Throwable t) {
-				ExceptionUtils.rethrowIfFatalError(t);
-				log.error("Error in Task Cancellation Watch Dog", t);
+				throw new FlinkRuntimeException("Error in Task Cancellation Watch Dog", t);
 			}
 		}
 	}

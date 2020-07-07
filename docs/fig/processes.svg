@@ -233,7 +233,7 @@ under the License.
          y="460.43439"
          id="text3067"
          xml:space="preserve"
-         style="font-size:17.55437279px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana">Flink Master</text>
+         style="font-size:17.55437279px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana">JobManager</text>
       <text
          x="1006.6214"
          y="17.8258"

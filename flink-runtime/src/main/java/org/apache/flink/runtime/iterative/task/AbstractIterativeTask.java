@@ -32,6 +32,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
@@ -183,8 +184,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	@Override
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
+
 		return new IterativeRuntimeUdfContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics, env.getExternalResourceInfoProvider());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -375,8 +377,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
 		public IterativeRuntimeUdfContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulatorMap, MetricGroup metrics) {
-			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap, metrics);
+											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulatorMap,
+											MetricGroup metrics, ExternalResourceInfoProvider externalResourceInfoProvider) {
+			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap, metrics, externalResourceInfoProvider);
 		}
 
 		@Override

@@ -125,15 +125,15 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
 		return getFlinkMemory().getFrameworkOffHeap();
 	}
 
-	MemorySize getTaskHeapSize() {
+	public MemorySize getTaskHeapSize() {
 		return getFlinkMemory().getTaskHeap();
 	}
 
-	MemorySize getTaskOffHeapSize() {
+	public MemorySize getTaskOffHeapSize() {
 		return getFlinkMemory().getTaskOffHeap();
 	}
 
-	MemorySize getNetworkMemSize() {
+	public MemorySize getNetworkMemSize() {
 		return getFlinkMemory().getNetwork();
 	}
 

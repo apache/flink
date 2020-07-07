@@ -31,6 +31,7 @@ import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 
 /**
@@ -89,6 +90,11 @@ public abstract class QueryOperationDefaultVisitor<T> implements QueryOperationV
 	@Override
 	public T visit(CatalogQueryOperation catalogTable) {
 		return defaultMethod(catalogTable);
+	}
+
+	@Override
+	public T visit(ValuesQueryOperation values) {
+		return defaultMethod(values);
 	}
 
 	@Override

@@ -18,17 +18,18 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
+import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
-import org.apache.flink.table.sinks.TableSink
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.RelOptTable.ToRelContext
 import org.apache.calcite.plan.{Contexts, RelOptCluster, RelOptTable}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.RelFactories._
 import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex._
@@ -58,7 +59,6 @@ object FlinkLogicalRelFactories {
   val FLINK_LOGICAL_TABLE_SCAN_FACTORY = new TableScanFactoryImpl
   val FLINK_LOGICAL_EXPAND_FACTORY = new ExpandFactoryImpl
   val FLINK_LOGICAL_RANK_FACTORY = new RankFactoryImpl
-  val FLINK_LOGICAL_SINK_FACTORY = new SinkFactoryImpl
 
   /** A [[RelBuilderFactory]] that creates a [[RelBuilder]] that will
     * create logical relational expressions for everything. */
@@ -73,8 +73,7 @@ object FlinkLogicalRelFactories {
       FLINK_LOGICAL_VALUES_FACTORY,
       FLINK_LOGICAL_TABLE_SCAN_FACTORY,
       FLINK_LOGICAL_EXPAND_FACTORY,
-      FLINK_LOGICAL_RANK_FACTORY,
-      FLINK_LOGICAL_SINK_FACTORY))
+      FLINK_LOGICAL_RANK_FACTORY))
 
   /**
     * Implementation of [[ProjectFactory]] that returns a [[FlinkLogicalCalc]].
@@ -82,6 +81,7 @@ object FlinkLogicalRelFactories {
   class ProjectFactoryImpl extends ProjectFactory {
     def createProject(
         input: RelNode,
+        hints: util.List[RelHint],
         childExprs: util.List[_ <: RexNode],
         fieldNames: util.List[String]): RelNode = {
       val rexBuilder = input.getCluster.getRexBuilder
@@ -134,6 +134,7 @@ object FlinkLogicalRelFactories {
   class AggregateFactoryImpl extends AggregateFactory {
     def createAggregate(
         input: RelNode,
+        hints: util.List[RelHint],
         groupSet: ImmutableBitSet,
         groupSets: ImmutableList[ImmutableBitSet],
         aggCalls: util.List[AggregateCall]): RelNode = {
@@ -168,6 +169,7 @@ object FlinkLogicalRelFactories {
     def createJoin(
         left: RelNode,
         right: RelNode,
+        hints: util.List[RelHint],
         condition: RexNode,
         variablesSet: util.Set[CorrelationId],
         joinType: JoinRelType,
@@ -205,17 +207,21 @@ object FlinkLogicalRelFactories {
 
   /**
     * Implementation of [[TableScanFactory]] that returns a
-    * [[FlinkLogicalTableSourceScan]] or [[FlinkLogicalDataStreamTableScan]].
+    * [[FlinkLogicalLegacyTableSourceScan]] or [[FlinkLogicalDataStreamTableScan]].
     */
   class TableScanFactoryImpl extends TableScanFactory {
-    def createScan(cluster: RelOptCluster, table: RelOptTable): RelNode = {
-      val tableScan = LogicalTableScan.create(cluster, table)
+    def createScan(toRelContext: ToRelContext, table: RelOptTable): RelNode = {
+      val cluster = toRelContext.getCluster
+      val hints = toRelContext.getTableHints
+      val tableScan = LogicalTableScan.create(cluster, table, hints)
       tableScan match {
-        case s: LogicalTableScan if FlinkLogicalTableSourceScan.isTableSourceScan(s) =>
-          FlinkLogicalTableSourceScan.create(cluster,
+        case s: LogicalTableScan if FlinkLogicalLegacyTableSourceScan.isTableSourceScan(s) =>
+          FlinkLogicalLegacyTableSourceScan.create(
+            cluster,
             s.getTable.asInstanceOf[FlinkPreparingTableBase])
         case s: LogicalTableScan if FlinkLogicalDataStreamTableScan.isDataStreamTableScan(s) =>
-          FlinkLogicalDataStreamTableScan.create(cluster,
+          FlinkLogicalDataStreamTableScan.create(
+            cluster,
             s.getTable.asInstanceOf[FlinkPreparingTableBase])
       }
     }
@@ -252,17 +258,4 @@ object FlinkLogicalRelFactories {
         rankNumberType, outputRankNumber)
     }
   }
-
-  /**
-    * Implementation of [[FlinkRelFactories.SinkFactory]] that returns a [[FlinkLogicalSink]].
-    */
-  class SinkFactoryImpl extends SinkFactory {
-    def createSink(
-        input: RelNode,
-        sink: TableSink[_],
-        sinkName: String): RelNode = {
-      FlinkLogicalSink.create(input, sink, sinkName)
-    }
-  }
-
 }

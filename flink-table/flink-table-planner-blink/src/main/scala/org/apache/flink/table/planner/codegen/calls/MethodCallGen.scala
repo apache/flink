@@ -34,7 +34,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
     generateCallIfArgsNotNull(ctx, returnType, operands, !method.getReturnType.isPrimitive) {
       originalTerms => {
         val terms = originalTerms.zip(method.getParameterTypes).map { case (term, clazz) =>
-          // convert the BinaryString parameter to String if the method parameter accept String
+          // convert the StringData parameter to String if the method parameter accept String
           if (clazz == classOf[String]) {
             s"$term.toString()"
           } else {
@@ -46,7 +46,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
         val call = if (terms.length + 1 == method.getParameterCount &&
           method.getParameterTypes()(terms.length) == classOf[TimeZone]) {
           // insert the zoneID parameters for timestamp functions
-          val timeZone = ctx.addReusableTimeZone()
+          val timeZone = ctx.addReusableSessionTimeZone()
           s"""
              |${qualifyMethod(method)}(${terms.mkString(", ")}, $timeZone)
            """.stripMargin
@@ -56,7 +56,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
            """.stripMargin
         }
 
-        // convert String to BinaryString if the return type is String
+        // convert String to StringData if the return type is String
         if (method.getReturnType == classOf[String]) {
           s"$BINARY_STRING.fromString($call)"
         } else {

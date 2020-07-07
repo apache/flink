@@ -24,6 +24,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -39,6 +40,7 @@ public class CheckpointFailureManager {
 	private final FailJobCallback failureCallback;
 	private final AtomicInteger continuousFailureCounter;
 	private final Set<Long> countedCheckpointIds;
+	private long lastSucceededCheckpointId = Long.MIN_VALUE;
 
 	public CheckpointFailureManager(int tolerableCpFailureNumber, FailJobCallback failureCallback) {
 		checkArgument(tolerableCpFailureNumber >= 0,
@@ -60,11 +62,7 @@ public class CheckpointFailureManager {
 	 *                      latest generated checkpoint id as a special flag.
 	 */
 	public void handleJobLevelCheckpointException(CheckpointException exception, long checkpointId) {
-		checkFailureCounter(exception, checkpointId);
-		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
-			clearCount();
-			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
-		}
+		handleCheckpointException(exception, checkpointId, failureCallback::failJob);
 	}
 
 	/**
@@ -81,10 +79,16 @@ public class CheckpointFailureManager {
 			CheckpointException exception,
 			long checkpointId,
 			ExecutionAttemptID executionAttemptID) {
-		checkFailureCounter(exception, checkpointId);
-		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
-			clearCount();
-			failureCallback.failJobDueToTaskFailure(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."), executionAttemptID);
+		handleCheckpointException(exception, checkpointId, e -> failureCallback.failJobDueToTaskFailure(e, executionAttemptID));
+	}
+
+	private void handleCheckpointException(CheckpointException exception, long checkpointId, Consumer<FlinkRuntimeException> errorHandler) {
+		if (checkpointId > lastSucceededCheckpointId) {
+			checkFailureCounter(exception, checkpointId);
+			if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
+				clearCount();
+				errorHandler.accept(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
+			}
 		}
 	}
 
@@ -99,6 +103,7 @@ public class CheckpointFailureManager {
 		switch (reason) {
 			case PERIODIC_SCHEDULER_SHUTDOWN:
 			case TOO_MANY_CONCURRENT_CHECKPOINTS:
+			case TOO_MANY_CHECKPOINT_REQUESTS:
 			case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
 			case NOT_ALL_REQUIRED_TASKS_RUNNING:
 			case CHECKPOINT_SUBSUMED:
@@ -108,6 +113,7 @@ public class CheckpointFailureManager {
 			case JOB_FAILOVER_REGION:
 			//for compatibility purposes with user job behavior
 			case CHECKPOINT_DECLINED_TASK_NOT_READY:
+			case CHECKPOINT_DECLINED_TASK_CLOSING:
 			case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
 			case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
 			case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
@@ -115,15 +121,16 @@ public class CheckpointFailureManager {
 			case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
 			case EXCEPTION:
-			case CHECKPOINT_EXPIRED:
 			case TASK_FAILURE:
 			case TASK_CHECKPOINT_FAILURE:
+			case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
 			case TRIGGER_CHECKPOINT_FAILURE:
 			case FINALIZE_CHECKPOINT_FAILURE:
 				//ignore
 				break;
 
 			case CHECKPOINT_DECLINED:
+			case CHECKPOINT_EXPIRED:
 				//we should make sure one checkpoint only be counted once
 				if (countedCheckpointIds.add(checkpointId)) {
 					continuousFailureCounter.incrementAndGet();
@@ -142,8 +149,11 @@ public class CheckpointFailureManager {
 	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
 	 *                     checkpoint id sequence.
 	 */
-	public void handleCheckpointSuccess(@SuppressWarnings("unused") long checkpointId) {
-		clearCount();
+	public void handleCheckpointSuccess(long checkpointId) {
+		if (checkpointId > lastSucceededCheckpointId) {
+			lastSucceededCheckpointId = checkpointId;
+			clearCount();
+		}
 	}
 
 	private void clearCount() {

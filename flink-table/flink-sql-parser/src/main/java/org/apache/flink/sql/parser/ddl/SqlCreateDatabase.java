@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -43,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * CREATE Database DDL sql call.
  */
-public class SqlCreateDatabase extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateDatabase extends SqlCreate {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE DATABASE", SqlKind.OTHER_DDL);
 
@@ -93,11 +90,6 @@ public class SqlCreateDatabase extends SqlCreate implements ExtendedSqlNode {
 	}
 
 	@Override
-	public void validate() throws SqlValidateException {
-
-	}
-
-	@Override
 	public void unparse(
 			SqlWriter writer,
 			int leftPrec,
@@ -126,7 +118,7 @@ public class SqlCreateDatabase extends SqlCreate implements ExtendedSqlNode {
 		}
 	}
 
-	private void printIndent(SqlWriter writer) {
+	protected void printIndent(SqlWriter writer) {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");

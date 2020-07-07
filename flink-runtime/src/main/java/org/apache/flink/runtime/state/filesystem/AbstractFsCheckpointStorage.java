@@ -210,7 +210,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 *                     the pointer points to a location that does not seem to be a checkpoint/savepoint.
 	 */
 	@Internal
-	public static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
+	public static FsCompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
 		checkNotNull(checkpointPointer, "checkpointPointer");
 		checkArgument(!checkpointPointer.isEmpty(), "empty checkpoint pointer");
 

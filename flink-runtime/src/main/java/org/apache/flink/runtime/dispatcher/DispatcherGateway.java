@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -77,4 +78,8 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	 */
 	@Override
 	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+
+	default CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus applicationStatus) {
+		return shutDownCluster();
+	}
 }

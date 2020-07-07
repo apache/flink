@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.utils.BackPressuringExecutor;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
@@ -43,7 +43,7 @@ final class S3RecoverableMultipartUploadFactory {
 
 	private final S3AccessHelper s3AccessHelper;
 
-	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileSupplier;
+	private final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileSupplier;
 
 	private final int maxConcurrentUploadsPerStream;
 
@@ -54,7 +54,7 @@ final class S3RecoverableMultipartUploadFactory {
 			final S3AccessHelper s3AccessHelper,
 			final int maxConcurrentUploadsPerStream,
 			final Executor executor,
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileSupplier) {
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileSupplier) {
 
 		this.fs = Preconditions.checkNotNull(fs);
 		this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
@@ -92,7 +92,7 @@ final class S3RecoverableMultipartUploadFactory {
 		}
 
 		// download the file (simple way)
-		final RefCountedFile refCountedFile = tmpFileSupplier.apply(null);
+		final RefCountedFileWithStream refCountedFile = tmpFileSupplier.apply(null);
 		final File file = refCountedFile.getFile();
 		final long numBytes = s3AccessHelper.getObject(objectKey, file);
 

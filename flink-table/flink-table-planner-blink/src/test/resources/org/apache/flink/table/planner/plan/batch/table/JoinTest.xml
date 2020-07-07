@@ -32,10 +32,10 @@ Calc(select=[Merger$(c, Merger$(c, f)) AS c1], where=[>=(Merger$(c, Merger$(c, f
 +- HashJoin(joinType=[LeftOuterJoin], where=[=(b, e)], select=[b, c, e, f], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[e, f])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -54,10 +54,10 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[FullOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -76,9 +76,9 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[FullOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -97,10 +97,10 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[FullOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -119,10 +119,10 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -141,9 +141,9 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -162,10 +162,10 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -183,10 +183,10 @@ LogicalProject(c=[$2], g=[$6])
       <![CDATA[
 NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c, g], build=[right])
 :- Calc(select=[c])
-:  +- TableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[g], where=[=(d, f)])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -206,9 +206,9 @@ Calc(select=[c, g])
 +- NestedLoopJoin(joinType=[InnerJoin], where=[<(a, d)], select=[a, c, d, g], build=[left])
    :- Exchange(distribution=[broadcast])
    :  +- Calc(select=[a, c])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Calc(select=[d, g])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -227,10 +227,10 @@ Calc(select=[b, x])
 +- HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], build=[right])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[x, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -249,9 +249,9 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -270,10 +270,10 @@ Calc(select=[b, y])
 +- HashJoin(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -289,9 +289,9 @@ LogicalJoin(condition=[AND(=($1, $4), =(org$apache$flink$table$planner$plan$batc
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(Merger$(a, d), 10))], select=[a, b, c, d, e, f], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
-   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

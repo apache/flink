@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
+import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
 import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
@@ -402,8 +402,7 @@ class RexNodeToExpressionConverter(
         literal.getValue
     }
 
-    Some(valueLiteral(literalValue,
-      fromLogicalTypeToDataType(literalType)))
+    Some(valueLiteral(literalValue, fromLogicalTypeToDataType(literalType).notNull()))
   }
 
   override def visitCall(rexCall: RexCall): Option[ResolvedExpression] = {

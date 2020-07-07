@@ -71,6 +71,10 @@ public class FailureMapper<T> extends RichMapFunction<T, T> implements Checkpoin
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
 	private boolean isReachedFailureThreshold() {
 		return numProcessedRecords >= numProcessedRecordsFailureThreshold
 			&& numCompleteCheckpoints >= numCompleteCheckpointsFailureThreshold

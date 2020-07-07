@@ -40,6 +40,10 @@ abstract class CommonIntermediateTableScan(
 
   val intermediateTable: IntermediateRelTable = getTable.unwrap(classOf[IntermediateRelTable])
 
+  override def getRelDetailedDescription: String = {
+    intermediateTable.relNode.asInstanceOf[FlinkRelNode].getRelDetailedDescription
+  }
+
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val rowCnt = mq.getRowCount(this)
     val rowSize = mq.getAverageRowSize(this)

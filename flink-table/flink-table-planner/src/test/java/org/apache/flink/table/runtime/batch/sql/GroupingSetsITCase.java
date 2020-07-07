@@ -25,7 +25,7 @@ import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -61,7 +61,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 		tableEnv = BatchTableEnvironment.create(env, new TableConfig());
 
 		DataSet<Tuple3<Integer, Long, String>> dataSet = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet(TABLE_NAME, dataSet);
+		tableEnv.createTemporaryView(TABLE_NAME, dataSet);
 
 		MapOperator<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> dataSetWithNulls =
 			dataSet.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
@@ -74,7 +74,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 					return value;
 				}
 			});
-		tableEnv.registerDataSet(TABLE_WITH_NULLS_NAME, dataSetWithNulls);
+		tableEnv.createTemporaryView(TABLE_WITH_NULLS_NAME, dataSetWithNulls);
 	}
 
 	@Test
@@ -89,33 +89,33 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 				" GROUP BY GROUPING SETS (f1, f2, ())";
 
 		String expected =
-			"1,null,1,1,1,0,1,0,2,1\n" +
-			"6,null,18,1,1,0,1,0,2,6\n" +
-			"2,null,2,1,1,0,1,0,2,2\n" +
-			"4,null,8,1,1,0,1,0,2,4\n" +
-			"5,null,13,1,1,0,1,0,2,5\n" +
-			"3,null,5,1,1,0,1,0,2,3\n" +
-			"null,Comment#11,17,2,0,1,0,1,1,1\n" +
-			"null,Comment#8,14,2,0,1,0,1,1,1\n" +
-			"null,Comment#2,8,2,0,1,0,1,1,1\n" +
-			"null,Comment#1,7,2,0,1,0,1,1,1\n" +
-			"null,Comment#14,20,2,0,1,0,1,1,1\n" +
-			"null,Comment#7,13,2,0,1,0,1,1,1\n" +
-			"null,Comment#6,12,2,0,1,0,1,1,1\n" +
-			"null,Comment#3,9,2,0,1,0,1,1,1\n" +
-			"null,Comment#12,18,2,0,1,0,1,1,1\n" +
-			"null,Comment#5,11,2,0,1,0,1,1,1\n" +
-			"null,Comment#15,21,2,0,1,0,1,1,1\n" +
-			"null,Comment#4,10,2,0,1,0,1,1,1\n" +
-			"null,Hi,1,2,0,1,0,1,1,1\n" +
-			"null,Comment#10,16,2,0,1,0,1,1,1\n" +
-			"null,Hello world,3,2,0,1,0,1,1,1\n" +
-			"null,I am fine.,5,2,0,1,0,1,1,1\n" +
-			"null,Hello world, how are you?,4,2,0,1,0,1,1,1\n" +
-			"null,Comment#9,15,2,0,1,0,1,1,1\n" +
-			"null,Comment#13,19,2,0,1,0,1,1,1\n" +
-			"null,Luke Skywalker,6,2,0,1,0,1,1,1\n" +
-			"null,Hello,2,2,0,1,0,1,1,1\n" +
+			"1,null,1,0,1,0,1,0,2,1\n" +
+			"2,null,2,0,1,0,1,0,2,2\n" +
+			"3,null,5,0,1,0,1,0,2,3\n" +
+			"4,null,8,0,1,0,1,0,2,4\n" +
+			"5,null,13,0,1,0,1,0,2,5\n" +
+			"6,null,18,0,1,0,1,0,2,6\n" +
+			"null,Comment#1,7,0,0,1,0,1,1,1\n" +
+			"null,Comment#10,16,0,0,1,0,1,1,1\n" +
+			"null,Comment#11,17,0,0,1,0,1,1,1\n" +
+			"null,Comment#12,18,0,0,1,0,1,1,1\n" +
+			"null,Comment#13,19,0,0,1,0,1,1,1\n" +
+			"null,Comment#14,20,0,0,1,0,1,1,1\n" +
+			"null,Comment#15,21,0,0,1,0,1,1,1\n" +
+			"null,Comment#2,8,0,0,1,0,1,1,1\n" +
+			"null,Comment#3,9,0,0,1,0,1,1,1\n" +
+			"null,Comment#4,10,0,0,1,0,1,1,1\n" +
+			"null,Comment#5,11,0,0,1,0,1,1,1\n" +
+			"null,Comment#6,12,0,0,1,0,1,1,1\n" +
+			"null,Comment#7,13,0,0,1,0,1,1,1\n" +
+			"null,Comment#8,14,0,0,1,0,1,1,1\n" +
+			"null,Comment#9,15,0,0,1,0,1,1,1\n" +
+			"null,Hello world, how are you?,4,0,0,1,0,1,1,1\n" +
+			"null,Hello world,3,0,0,1,0,1,1,1\n" +
+			"null,Hello,2,0,0,1,0,1,1,1\n" +
+			"null,Hi,1,0,0,1,0,1,1,1\n" +
+			"null,I am fine.,5,0,0,1,0,1,1,1\n" +
+			"null,Luke Skywalker,6,0,0,1,0,1,1,1\n" +
 			"null,null,11,0,0,0,0,0,0,21";
 
 		checkSql(query, expected);
@@ -128,14 +128,27 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 				" GROUP BY GROUPING SETS (f1, f2)";
 
 		String expected =
-			"6,null,18,1\n5,null,13,1\n4,null,8,1\n3,null,5,1\n2,null,2,1\n1,null,1,1\n" +
-				"null,Luke Skywalker,6,2\nnull,I am fine.,5,2\nnull,Hi,1,2\n" +
-				"null,null,3,2\nnull,Hello,2,2\nnull,Comment#9,15,2\nnull,Comment#8,14,2\n" +
-				"null,Comment#7,13,2\nnull,Comment#6,12,2\nnull,Comment#5,11,2\n" +
-				"null,Comment#4,10,2\nnull,Comment#3,9,2\nnull,Comment#2,8,2\n" +
-				"null,Comment#15,21,2\nnull,Comment#14,20,2\nnull,Comment#13,19,2\n" +
-				"null,Comment#12,18,2\nnull,Comment#11,17,2\nnull,Comment#10,16,2\n" +
-				"null,Comment#1,7,2";
+			"1,Hi,1,0\n" +
+			"2,Hello,2,0\n" +
+			"2,null,3,0\n" +
+			"3,I am fine.,5,0\n" +
+			"3,Luke Skywalker,6,0\n" +
+			"3,null,4,0\n" +
+			"4,Comment#1,7,0\n" +
+			"4,Comment#2,8,0\n" +
+			"4,Comment#3,9,0\n" +
+			"4,Comment#4,10,0\n" +
+			"5,Comment#5,11,0\n" +
+			"5,Comment#6,12,0\n" +
+			"5,Comment#7,13,0\n" +
+			"5,Comment#8,14,0\n" +
+			"5,Comment#9,15,0\n" +
+			"6,Comment#10,16,0\n" +
+			"6,Comment#11,17,0\n" +
+			"6,Comment#12,18,0\n" +
+			"6,Comment#13,19,0\n" +
+			"6,Comment#14,20,0\n" +
+			"6,Comment#15,21,0";
 
 		checkSql(query, expected);
 	}

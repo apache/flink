@@ -28,9 +28,9 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
-import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -61,27 +61,32 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
 	private KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
 		flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TASK_MANAGER_MEMORY + "m"));
 		flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
 
 		customizedEnvs.forEach((k, v) ->
 			flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));
+	}
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		final TaskExecutorProcessSpec taskExecutorProcessSpec =
 			TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
 		final ContaineredTaskManagerParameters containeredTaskManagerParameters =
-			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec,
-				flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS));
+			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 
 		this.kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(flinkConfig,
 			POD_NAME,
-			TASK_MANAGER_MEMORY,
 			DYNAMIC_PROPERTIES,
-			containeredTaskManagerParameters);
+			containeredTaskManagerParameters,
+			Collections.emptyMap());
 	}
 
 	@Test

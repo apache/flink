@@ -58,14 +58,40 @@ mvn clean install -DskipTests -Dfast
 
 ## 构建PyFlink
 
-如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink的Jar包，如[构建Flink](#build-flink)中所述。
-之后，进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
+#### 先决条件
+
+1. 构建Flink
+
+    如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink工程，如[构建Flink](#build-flink)中所述。
+
+2. Python的版本为3.5, 3.6 或者 3.7.
+
+    ```shell
+    $ python --version
+    # the version printed here must be 3.5, 3.6 or 3.7
+    ```
+
+3. 构建PyFlink的Cython扩展模块（可选的）
+
+    为了构建PyFlink的Cython扩展模块，您需要C编译器。在不同操作系统上安装C编译器的方式略有不同：
+
+    * **Linux** Linux操作系统通常预装有GCC。否则，您需要手动安装。例如，您可以在Ubuntu或Debian上使用命令`sudo apt-get install build-essential`安装。
+
+    * **Mac OS X** 要在Mac OS X上安装GCC，您需要下载并安装 [Xcode命令行工具](https://developer.apple.com/downloads/index.action)，该工具可在Apple的开发人员页面中找到。
+
+    您还需要使用以下命令安装依赖项：
+
+    ```shell
+    $ python -m pip install -r flink-python/dev/dev-requirements.txt
+    ```
+
+#### 安装
+
+进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
 
 {% highlight bash %}
 cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
-
-<span class="label label-info">注意事项</span> 构建PyFlink需要Python3.5及以上的版本.
 
 构建好的源码发布包和wheel包位于`./flink-python/dist/`目录下。它们均可使用pip安装,比如:
 

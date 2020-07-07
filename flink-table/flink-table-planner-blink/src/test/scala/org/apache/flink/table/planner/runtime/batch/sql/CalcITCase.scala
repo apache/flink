@@ -28,21 +28,23 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter}
-import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
+import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
+import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit._
+
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, ZoneId}
@@ -64,7 +66,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStar(): Unit = {
     checkResult(
-      "SELECT * FROM Table3",
+      "SELECT * FROM Table3 where a is not null",
       data3)
   }
 
@@ -649,7 +651,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testRowTypeWithDecimal(): Unit = {
-    val d = Decimal.castFrom(2.0002, 5, 4).toBigDecimal
+    val d = DecimalDataUtils.castFrom(2.0002, 5, 4).toBigDecimal
     checkResult(
       "SELECT ROW(CAST(2.0002 AS DECIMAL(5, 4)), a, c) FROM SmallTable3",
       Seq(
@@ -738,10 +740,10 @@ class CalcITCase extends BatchTestBase {
         "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24.001')")
     val result = executeQuery(table)
 
-    val baseRow = result.head.getField(0).asInstanceOf[Row]
-    assertEquals(data.head.getField(0), baseRow.getField(0))
-    assertEquals(data.head.getField(1), baseRow.getField(1))
-    assertEquals(data.head.getField(2), baseRow.getField(2))
+    val nestedRow = result.head.getField(0).asInstanceOf[Row]
+    assertEquals(data.head.getField(0), nestedRow.getField(0))
+    assertEquals(data.head.getField(1), nestedRow.getField(1))
+    assertEquals(data.head.getField(2), nestedRow.getField(2))
 
     val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
     assertEquals(12, arr(0))
@@ -1031,7 +1033,7 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = SqlTimestamp.fromLocalDateTime(
+    val ts1 = TimestampData.fromLocalDateTime(
       result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
@@ -1244,4 +1246,68 @@ class CalcITCase extends BatchTestBase {
       Seq(row(1), row(111), row(15), row(34), row(5), row(65), row(null))
     )
   }
+
+  @Test
+  def testSimpleProject(): Unit = {
+    val myTableDataId = TestValuesTableFactory.registerData(TestData.smallData3)
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  a int,
+         |  b bigint,
+         |  c string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      "select a, c from SimpleTable",
+      Seq(row(1, "Hi"), row(2, "Hello"), row(3, "Hello world"))
+    )
+  }
+
+  @Test
+  def testNestedProject(): Unit = {
+    val data = Seq(
+      row(1, row(row("HI", 11), row(111, true)), row("hi", 1111), "tom"),
+      row(2, row(row("HELLO", 22), row(222, false)), row("hello", 2222), "mary"),
+      row(3, row(row("HELLO WORLD", 33), row(333, true)), row("hello world", 3333), "benji")
+    )
+    val myTableDataId = TestValuesTableFactory.registerData(data)
+    val ddl =
+      s"""
+         |CREATE TABLE NestedTable (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
+         |  nested row<name string, `value` int>,
+         |  name string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'false',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      """
+        |select id,
+        |    deepNested.nested1.name AS nestedName,
+        |    nested.`value` AS nestedValue,
+        |    deepNested.nested2.flag AS nestedFlag,
+        |    deepNested.nested2.num AS nestedNum
+        |from NestedTable
+        |""".stripMargin,
+      Seq(row(1, "HI", 1111, true, 111),
+        row(2, "HELLO", 2222, false, 222),
+        row(3, "HELLO WORLD", 3333, true, 333))
+    )
+  }
+
 }

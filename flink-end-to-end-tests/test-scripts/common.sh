@@ -55,6 +55,15 @@ REST_PROTOCOL="http"
 CURL_SSL_ARGS=""
 source "${TEST_INFRA_DIR}/common_ssl.sh"
 
+function set_hadoop_classpath {
+  YARN_CLASSPATH_LOCATION="${TEST_INFRA_DIR}/../../flink-yarn-tests/target/yarn.classpath";
+  if [ ! -f $YARN_CLASSPATH_LOCATION ]; then
+    echo "File '$YARN_CLASSPATH_LOCATION' does not exist."
+    exit 1
+  fi
+  export HADOOP_CLASSPATH=`cat $YARN_CLASSPATH_LOCATION`
+}
+
 function print_mem_use_osx {
     declare -a mem_types=("active" "inactive" "wired down")
     used=""
@@ -167,7 +176,7 @@ function create_ha_config() {
 
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
-    jobmanager.heap.size: 1024m
+    jobmanager.memory.process.size: 1024m
     taskmanager.memory.process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
@@ -352,10 +361,13 @@ function check_logs_for_errors {
       | grep -v "Error while loading kafka-version.properties :null" \
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
+      | grep -v "HeapDumpOnOutOfMemoryError" \
+      | grep -v "error_prone_annotations" \
+      | grep -v "Error sending fetch request" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
-    echo "Found error in log files:"
-    cat $FLINK_DIR/log/*
+    echo "Found error in log files; printing first 500 lines; see full logs for details:"
+    find $FLINK_DIR/log/ -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No errors in log files."
@@ -390,8 +402,8 @@ function check_logs_for_exceptions {
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
-    echo "Found exception in log files:"
-    cat $FLINK_DIR/log/*
+    echo "Found exception in log files; printing first 500 lines; see full logs for details:"
+    find $FLINK_DIR/log/ -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No exceptions in log files."
@@ -401,17 +413,19 @@ function check_logs_for_exceptions {
 function check_logs_for_non_empty_out_files {
   echo "Checking for non-empty .out files..."
   # exclude reflective access warnings as these are expected (and currently unavoidable) on Java 9
+  # exclude message about JAVA_TOOL_OPTIONS being set (https://bugs.openjdk.java.net/browse/JDK-8039152)
   if grep -ri -v \
     -e "WARNING: An illegal reflective access" \
     -e "WARNING: Illegal reflective access"\
     -e "WARNING: Please consider reporting"\
     -e "WARNING: Use --illegal-access"\
     -e "WARNING: All illegal access"\
+    -e "Picked up JAVA_TOOL_OPTIONS"\
     $FLINK_DIR/log/*.out\
    | grep "." \
    > /dev/null; then
-    echo "Found non-empty .out files:"
-    cat $FLINK_DIR/log/*.out
+    echo "Found non-empty .out files; printing first 500 lines; see full logs for details:"
+    find $FLINK_DIR/log/ -name '*.out' -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No non-empty .out files."
@@ -583,8 +597,7 @@ function kill_random_taskmanager {
 
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
-  add_optional_lib "metrics-slf4j"
-  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
@@ -731,7 +744,8 @@ function wait_for_restart_to_complete {
     local expected_num_restarts=$((current_num_restarts + 1))
 
     echo "Waiting for restart to happen"
-    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
+    while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
+        echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
         current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
         if [[ -z ${current_num_restarts} ]]; then
@@ -786,3 +800,32 @@ function extract_job_id_from_job_submission_return() {
     echo "$JOB_ID"
 }
 
+
+#
+# NOTE: This function requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
+#
+kill_test_watchdog() {
+    local watchdog_pid=`cat $TEST_DATA_DIR/job_watchdog.pid`
+    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
+    kill $watchdog_pid
+}
+
+run_test_with_timeout() {
+  local TEST_TIMEOUT_SECONDS=$1
+  shift
+  local TEST_COMMAND=$@
+
+  on_exit kill_test_watchdog
+
+  (
+      cmdpid=$BASHPID
+      (sleep $TEST_TIMEOUT_SECONDS # set a timeout for this test
+      echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
+      echo "Printing Flink logs and killing it:"
+      cat ${FLINK_DIR}/log/*
+      kill "$cmdpid") & watchdog_pid=$!
+      echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
+      # invoke
+      $TEST_COMMAND
+  )
+}

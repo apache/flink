@@ -19,8 +19,9 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import java.util.List;
@@ -76,34 +77,6 @@ public interface Executor {
 	void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException;
 
 	/**
-	 * Add a new view to the given session.
-	 *
-	 * @param sessionId to identify the session.
-	 * @param name      of the view.
-	 * @param query     to represent the view.
-	 * @throws SqlExecutionException
-	 */
-	void addView(String sessionId, String name, String query) throws SqlExecutionException;
-
-	/**
-	 * Remove the view with given name for the given session.
-	 *
-	 * @param sessionId to identify the session.
-	 * @param name      of the view.
-	 * @throws SqlExecutionException
-	 */
-	void removeView(String sessionId, String name) throws SqlExecutionException;
-
-	/**
-	 * Lists all registered views for the given session.
-	 *
-	 * @param sessionId to identify the session.
-	 * @return list of view in the given session.
-	 * @throws SqlExecutionException
-	 */
-	Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException;
-
-	/**
 	 * Lists all registered catalogs.
 	 */
 	List<String> listCatalogs(String sessionid) throws SqlExecutionException;
@@ -134,6 +107,11 @@ public interface Executor {
 	List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException;
 
 	/**
+	 * Executes a SQL statement.
+	 */
+	TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
+
+	/**
 	 * Lists all functions known to the executor.
 	 */
 	List<String> listFunctions(String sessionId) throws SqlExecutionException;
@@ -160,9 +138,9 @@ public interface Executor {
 	TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException;
 
 	/**
-	 * Returns a string-based explanation about AST and execution plan of the given statement.
+	 * Returns a sql parser instance.
 	 */
-	String explainStatement(String sessionId, String statement) throws SqlExecutionException;
+	Parser getSqlParser(String sessionId);
 
 	/**
 	 * Returns a list of completion hints for the given statement at the given position.

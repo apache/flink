@@ -18,6 +18,7 @@
 import datetime
 
 import pytz
+import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
@@ -30,6 +31,8 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
 class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
+        # test metric disabled.
+        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'false')
         # test lambda function
         self.t_env.register_function(
             "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
@@ -238,6 +241,7 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual, ["2", "6", "3"])
 
     def test_open(self):
+        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
         self.t_env.register_function(
             "subtract", udf(Subtract(), DataTypes.BIGINT(), DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
@@ -472,6 +476,20 @@ class UserDefinedFunctionTests(object):
                             "{1=flink, 2=pyflink},1000000000000000000.050000000000000000,"
                             "1000000000000000000.059999999999999999"])
 
+    def test_create_and_drop_function(self):
+        t_env = self.t_env
+
+        t_env.create_temporary_system_function(
+            "add_one_func", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+        t_env.create_temporary_function(
+            "subtract_one_func", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+        self.assert_equals(t_env.list_user_defined_functions(),
+                           ['add_one_func', 'subtract_one_func'])
+
+        t_env.drop_temporary_system_function("add_one_func")
+        t_env.drop_temporary_function("subtract_one_func")
+        self.assert_equals(t_env.list_user_defined_functions(), [])
+
 
 # decide whether two floats are equal
 def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
@@ -613,15 +631,19 @@ class SubtractOne(ScalarFunction):
         return i - 1
 
 
-class Subtract(ScalarFunction):
-
-    def __init__(self):
-        self.subtracted_value = 0
+class Subtract(ScalarFunction, unittest.TestCase):
 
     def open(self, function_context):
         self.subtracted_value = 1
+        mg = function_context.get_metric_group()
+        self.counter = mg.add_group("key", "value").counter("my_counter")
+        self.counter_sum = 0
 
     def eval(self, i):
+        # counter
+        self.counter.inc(i)
+        self.counter_sum += i
+        self.assertEqual(self.counter_sum, self.counter.get_count())
         return i - self.subtracted_value
 
 

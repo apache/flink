@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{buildInData, buildInType}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -474,16 +474,6 @@ class MiscITCase extends BatchTestBase {
       "select count(*) from Table1 left outer join Table2 on Table1.f0=Table2.f0 " +
         "where Table2.f0 IS NOT NULL OR Table1.f1 not in ('a!')",
       Seq(Tuple1(3))
-    )
-  }
-
-  @Ignore // TODO: allows 123L="123"
-  @Test
-  def testCompareLongAndString(): Unit = {
-    checkQuery(
-      Seq((123L, "123"), (19157170390056973L, "19157170390056971")),
-      "select f0=f1 from Table1",
-      Seq(Tuple1(true), Tuple1(false))
     )
   }
 

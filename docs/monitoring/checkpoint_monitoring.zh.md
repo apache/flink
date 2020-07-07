@@ -61,7 +61,7 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 - **Trigger Time**: The time when the checkpoint was triggered at the JobManager.
 - **Latest Acknowledgement**: The time when the latest acknowledged for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
 - **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
-- **State Size**: The state size over all acknowledged subtasks.
+- **Checkpointed Data Size**: The state size over all acknowledged subtasks.
 - **Buffered During Alignment**: The number of bytes buffered during alignment over all acknowledged subtasks. This is only > 0 if a stream alignment takes place during checkpointing. If the checkpointing mode is `AT_LEAST_ONCE` this will always be zero as at least once mode does not require stream alignment.
 
 #### History Size Configuration
@@ -75,7 +75,7 @@ web.checkpoints.history: 15
 
 ### Summary Tab
 
-The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, State Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
+The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, Checkpointed Data Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
 
 <center>
   <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary">

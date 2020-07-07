@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -37,8 +42,6 @@ public class StateHandleDummyUtil {
 	 */
 	public static OperatorStateHandle createNewOperatorStateHandle(int numNamedStates, Random random) {
 		Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetaData = new HashMap<>(numNamedStates);
-		byte[] streamData = new byte[numNamedStates * 4];
-		random.nextBytes(streamData);
 		long off = 0;
 		for (int i = 0; i < numNamedStates; ++i) {
 			long[] offsets = new long[4];
@@ -49,9 +52,13 @@ public class StateHandleDummyUtil {
 				new OperatorStateHandle.StateMetaInfo(offsets, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 			operatorStateMetaData.put(String.valueOf(UUID.randomUUID()), metaInfo);
 		}
-		ByteStreamStateHandle byteStreamStateHandle =
-			new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
-		return new OperatorStreamStateHandle(operatorStateMetaData, byteStreamStateHandle);
+		return new OperatorStreamStateHandle(operatorStateMetaData, createStreamStateHandle(numNamedStates, random));
+	}
+
+	private static ByteStreamStateHandle createStreamStateHandle(int numNamedStates, Random random) {
+		byte[] streamData = new byte[numNamedStates * 4];
+		random.nextBytes(streamData);
+		return new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
 	}
 
 	/**
@@ -70,10 +77,7 @@ public class StateHandleDummyUtil {
 			return null;
 		}
 
-		ByteStreamStateHandle stateHandle = (ByteStreamStateHandle) original.getDelegateStateHandle();
-		ByteStreamStateHandle stateHandleCopy = new ByteStreamStateHandle(
-			String.valueOf(stateHandle.getHandleName()),
-			stateHandle.getData().clone());
+		ByteStreamStateHandle stateHandleCopy = cloneByteStreamStateHandle((ByteStreamStateHandle) original.getDelegateStateHandle());
 		Map<String, OperatorStateHandle.StateMetaInfo> offsets = original.getStateNameToPartitionOffsets();
 		Map<String, OperatorStateHandle.StateMetaInfo> offsetsCopy = new HashMap<>(offsets.size());
 
@@ -98,6 +102,52 @@ public class StateHandleDummyUtil {
 		KeyGroupRange keyGroupRange = original.getKeyGroupRange();
 		return new DummyKeyedStateHandle(
 			new KeyGroupRange(keyGroupRange.getStartKeyGroup(), keyGroupRange.getEndKeyGroup()));
+	}
+
+	public static InputChannelStateHandle deepDummyCopy(InputChannelStateHandle original) {
+		if (original == null) {
+			return null;
+		}
+		return new InputChannelStateHandle(
+			new InputChannelInfo(original.getInfo().getGateIdx(), original.getInfo().getInputChannelIdx()),
+			cloneByteStreamStateHandle((ByteStreamStateHandle) original.getDelegate()),
+			new ArrayList<>(original.getOffsets()));
+	}
+
+	public static ResultSubpartitionStateHandle deepDummyCopy(ResultSubpartitionStateHandle original) {
+		if (original == null) {
+			return null;
+		}
+		return new ResultSubpartitionStateHandle(
+			new ResultSubpartitionInfo(original.getInfo().getPartitionIdx(), original.getInfo().getSubPartitionIdx()),
+			cloneByteStreamStateHandle((ByteStreamStateHandle) original.getDelegate()),
+			new ArrayList<>(original.getOffsets()));
+	}
+
+	private static ByteStreamStateHandle cloneByteStreamStateHandle(ByteStreamStateHandle delegate) {
+		return new ByteStreamStateHandle(String.valueOf(delegate.getHandleName()), delegate.getData().clone());
+	}
+
+	public static InputChannelStateHandle createNewInputChannelStateHandle(int numNamedStates, Random random) {
+		return new InputChannelStateHandle(
+			new InputChannelInfo(random.nextInt(), random.nextInt()),
+			createStreamStateHandle(numNamedStates, random),
+			genOffsets(numNamedStates, random));
+	}
+
+	public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(int i, Random random) {
+		return new ResultSubpartitionStateHandle(
+			new ResultSubpartitionInfo(random.nextInt(), random.nextInt()),
+			createStreamStateHandle(i, random),
+			genOffsets(i, random));
+	}
+
+	private static ArrayList<Long> genOffsets(int size, Random random) {
+		final ArrayList<Long> offsets = new ArrayList<>();
+		for (int i = 0; i < size; i++) {
+			offsets.add(random.nextLong());
+		}
+		return offsets;
 	}
 
 	/**

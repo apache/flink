@@ -110,6 +110,14 @@ public class CoreOptions {
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
 			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key() + "\".");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
+	public static final ConfigOption<Boolean> FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM = ConfigOptions
+		.key("classloader.fail-on-metaspace-oom-error")
+		.booleanType()
+		.defaultValue(true)
+		.withDescription("Fail Flink JVM processes if 'OutOfMemoryError: Metaspace' is " +
+			"thrown while trying to load a user code class.");
+
 	public static String[] getParentFirstLoaderPatterns(Configuration config) {
 		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
 		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
@@ -160,23 +168,33 @@ public class CoreOptions {
 
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of all Flink processes with.").build());
 
 	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.jobmanager")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the JobManager with.").build());
 
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the TaskManager with.").build());
 
 	public static final ConfigOption<String> FLINK_HS_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.historyserver")
+		.stringType()
 		.defaultValue("")
 		.withDescription(Description.builder().text("Java options to start the JVM of the HistoryServer with.").build());
+
+	public static final ConfigOption<String> FLINK_CLI_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.client")
+		.stringType()
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the Flink Client with.").build());
 
 	/**
 	 * This options is here only for documentation generation, it is only
@@ -232,6 +250,17 @@ public class CoreOptions {
 		.noDefaultValue()
 		.withDescription("Path to yarn configuration directory. It is required to run flink on YARN. You can also" +
 			" set it via environment variable.");
+
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_HBASE_CONF_DIR = ConfigOptions
+		.key("env.hbase.conf.dir")
+		.noDefaultValue()
+		.withDescription("Path to hbase configuration directory. It is required to read HBASE configuration." +
+			" You can also set it via environment variable.");
 
 	// ------------------------------------------------------------------------
 	//  generic io

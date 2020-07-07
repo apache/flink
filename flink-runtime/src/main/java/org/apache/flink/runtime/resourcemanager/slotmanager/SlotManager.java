@@ -25,18 +25,20 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
  * The slot manager is responsible for maintaining a view on all registered task manager slots,
- * their allocation and all pending slot requests. Whenever a new slot is registered or and
+ * their allocation and all pending slot requests. Whenever a new slot is registered or an
  * allocated slot is freed, then it tries to fulfill another pending slot request. Whenever there
  * are not enough slots available the slot manager will notify the resource manager about it via
- * {@link ResourceActions#allocateResource(ResourceProfile)}.
+ * {@link ResourceActions#allocateResource(WorkerResourceSpec)}.
  *
  * <p>In order to free resources and avoid resource leaks, idling task managers (task managers whose
  * slots are currently not used) and pending slot requests time out triggering their release and
@@ -51,7 +53,20 @@ public interface SlotManager extends AutoCloseable {
 
 	int getNumberFreeSlotsOf(InstanceID instanceId);
 
-	int getNumberPendingTaskManagerSlots();
+	/**
+	 * Get number of workers SlotManager requested from {@link ResourceActions} that are not yet fulfilled.
+	 * @return a map whose key set is all the unique resource specs of the pending workers,
+	 * and the corresponding value is number of pending workers of that resource spec.
+	 */
+	Map<WorkerResourceSpec, Integer> getRequiredResources();
+
+	ResourceProfile getRegisteredResource();
+
+	ResourceProfile getRegisteredResourceOf(InstanceID instanceID);
+
+	ResourceProfile getFreeResource();
+
+	ResourceProfile getFreeResourceOf(InstanceID instanceID);
 
 	int getNumberPendingSlotRequests();
 
@@ -93,8 +108,9 @@ public interface SlotManager extends AutoCloseable {
 	 *
 	 * @param taskExecutorConnection for the new task manager
 	 * @param initialSlotReport for the new task manager
+	 * @return True if the task manager has not been registered before and is registered successfully; otherwise false
 	 */
-	void registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport);
+	boolean registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport);
 
 	/**
 	 * Unregisters the task manager identified by the given instance id and its associated slots

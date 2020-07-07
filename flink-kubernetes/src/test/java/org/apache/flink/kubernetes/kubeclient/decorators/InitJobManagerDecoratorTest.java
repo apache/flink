@@ -32,7 +32,8 @@ import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import org.junit.Before;
+import io.fabric8.kubernetes.api.model.Toleration;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -60,16 +61,28 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 			put("a2", "v2");
 		}
 	};
+	private static final String TOLERATION_STRING = "key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+		"KEY:key2,operator:Exists,Effect:NoExecute,tolerationSeconds:6000";
+	private static final List<Toleration> TOLERATION = Arrays.asList(
+		new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
+		new Toleration("NoExecute", "key2", "Exists", 6000L, null));
 
 	private Pod resultPod;
 	private Container resultMainContainer;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
+		this.flinkConfig.setString(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+	}
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		final InitJobManagerDecorator initJobManagerDecorator =
 			new InitJobManagerDecorator(this.kubernetesJobManagerParameters);
@@ -101,11 +114,11 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 
 		final Map<String, Quantity> requests = resourceRequirements.getRequests();
 		assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
-		assertEquals(JOB_MANAGER_MEMORY + "Mi", requests.get("memory").getAmount());
+		assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
 
 		final Map<String, Quantity> limits = resourceRequirements.getLimits();
 		assertEquals(Double.toString(JOB_MANAGER_CPU), limits.get("cpu").getAmount());
-		assertEquals(JOB_MANAGER_MEMORY + "Mi", limits.get("memory").getAmount());
+		assertEquals(String.valueOf(JOB_MANAGER_MEMORY), limits.get("memory").getAmount());
 	}
 
 	@Test
@@ -168,5 +181,15 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 			.collect(Collectors.toList());
 
 		assertEquals(IMAGE_PULL_SECRETS, resultSecrets);
+	}
+
+	@Test
+	public void testNodeSelector() {
+		assertThat(this.resultPod.getSpec().getNodeSelector(), is(equalTo(nodeSelector)));
+	}
+
+	@Test
+	public void testPodTolerations() {
+		assertThat(this.resultPod.getSpec().getTolerations(), Matchers.containsInAnyOrder(TOLERATION.toArray()));
 	}
 }

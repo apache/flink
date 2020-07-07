@@ -179,6 +179,13 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long abortedCheckpointId) {
+		synchronized (materializedSstFiles) {
+			materializedSstFiles.keySet().remove(abortedCheckpointId);
+		}
+	}
+
 	@Nonnull
 	private SnapshotDirectory prepareLocalSnapshotDirectory(long checkpointId) throws IOException {
 

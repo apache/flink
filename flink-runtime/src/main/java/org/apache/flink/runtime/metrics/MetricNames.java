@@ -71,4 +71,6 @@ public class MetricNames {
 	public static String currentInputWatermarkName(int index) {
 		return String.format(IO_CURRENT_INPUT_WATERMARK_PATERN, index);
 	}
+
+	public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
 }

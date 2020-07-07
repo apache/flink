@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.runtime.generated.Projection
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType}
-
 import org.junit.{Assert, Test}
 
 import scala.util.Random
@@ -42,8 +42,8 @@ class ProjectionCodeGeneratorTest {
       RowType.of(new IntType(), new BigIntType()),
       RowType.of(new BigIntType(), new IntType()),
       Array(1, 0)
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, BinaryRow]]
-    val row: BinaryRow = projection.apply(GenericRow.of(ji(5), jl(8)))
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+    val row: BinaryRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
     Assert.assertEquals(5, row.getInt(1))
     Assert.assertEquals(8, row.getLong(0))
   }
@@ -56,9 +56,9 @@ class ProjectionCodeGeneratorTest {
       RowType.of(new IntType(), new BigIntType()),
       RowType.of(new BigIntType(), new IntType()),
       Array(1, 0),
-      outClass = classOf[GenericRow]
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, GenericRow]]
-    val row: GenericRow = projection.apply(GenericRow.of(ji(5), jl(8)))
+      outClass = classOf[GenericRowData]
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, GenericRowData]]
+    val row: GenericRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
     Assert.assertEquals(5, row.getInt(1))
     Assert.assertEquals(8, row.getLong(0))
   }
@@ -72,9 +72,9 @@ class ProjectionCodeGeneratorTest {
       rowType,
       rowType,
       (0 until 100).toArray
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, BinaryRow]]
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
     val rnd = new Random()
-    val input = GenericRow.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
+    val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
     for (i <- 0 until 100) {
       Assert.assertEquals(input.getInt(i), row.getInt(i))
@@ -90,10 +90,10 @@ class ProjectionCodeGeneratorTest {
       rowType,
       rowType,
       (0 until 100).toArray,
-      outClass = classOf[GenericRow]
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, GenericRow]]
+      outClass = classOf[GenericRowData]
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, GenericRowData]]
     val rnd = new Random()
-    val input = GenericRow.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
+    val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
     for (i <- 0 until 100) {
       Assert.assertEquals(input.getInt(i), row.getInt(i))

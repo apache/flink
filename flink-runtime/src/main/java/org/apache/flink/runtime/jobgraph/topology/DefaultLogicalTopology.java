@@ -102,12 +102,12 @@ public class DefaultLogicalTopology implements LogicalTopology<DefaultLogicalVer
 			.orElseThrow(() -> new IllegalArgumentException("can not find result: " + resultId));
 	}
 
-	public Set<LogicalPipelinedRegion> getLogicalPipelinedRegions() {
+	public Set<DefaultLogicalPipelinedRegion> getLogicalPipelinedRegions() {
 		final Set<Set<DefaultLogicalVertex>> regionsRaw = PipelinedRegionComputeUtil.computePipelinedRegions(this);
 
-		final Set<LogicalPipelinedRegion> regions = new HashSet<>();
+		final Set<DefaultLogicalPipelinedRegion> regions = new HashSet<>();
 		for (Set<DefaultLogicalVertex> regionVertices : regionsRaw) {
-			regions.add(new LogicalPipelinedRegion(regionVertices));
+			regions.add(new DefaultLogicalPipelinedRegion(regionVertices));
 		}
 		return regions;
 	}

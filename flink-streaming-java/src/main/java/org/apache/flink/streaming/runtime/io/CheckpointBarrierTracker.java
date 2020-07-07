@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -75,28 +76,18 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		this.pendingCheckpoints = new ArrayDeque<>();
 	}
 
-	@Override
-	public void releaseBlocksAndResetBarriers() {
-	}
-
-	@Override
-	public boolean isBlocked(int channelIndex) {
-		return false;
-	}
-
-	@Override
-	public boolean processBarrier(CheckpointBarrier receivedBarrier, int channelIndex, long bufferedBytes) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
-			notifyCheckpoint(receivedBarrier, 0, 0);
-			return false;
+			notifyCheckpoint(receivedBarrier, 0);
+			return;
 		}
 
 		// general path for multiple input channels
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Received barrier for checkpoint {} from channel {}", barrierId, channelIndex);
+			LOG.debug("Received barrier for checkpoint {} from channel {}", barrierId, channelInfo);
 		}
 
 		// find the checkpoint barrier in the queue of pending barriers
@@ -128,7 +119,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 						LOG.debug("Received all barriers for checkpoint {}", barrierId);
 					}
 
-					notifyCheckpoint(receivedBarrier, 0, 0);
+					notifyCheckpoint(receivedBarrier, 0);
 				}
 			}
 		}
@@ -148,11 +139,10 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 				}
 			}
 		}
-		return false;
 	}
 
 	@Override
-	public boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
+	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
 		final long checkpointId = cancelBarrier.getCheckpointId();
 
 		if (LOG.isDebugEnabled()) {
@@ -162,7 +152,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
 			notifyAbortOnCancellationBarrier(checkpointId);
-			return false;
+			return;
 		}
 
 		// -- general path for multiple input channels --
@@ -206,11 +196,10 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		} else {
 			// trailing cancellation barrier which was already cancelled
 		}
-		return false;
 	}
 
 	@Override
-	public boolean processEndOfPartition() throws Exception {
+	public void processEndOfPartition() throws Exception {
 		while (!pendingCheckpoints.isEmpty()) {
 			CheckpointBarrierCount barrierCount = pendingCheckpoints.removeFirst();
 			if (barrierCount.markAborted()) {
@@ -218,20 +207,14 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 					new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
 			}
 		}
-		return false;
 	}
 
 	public long getLatestCheckpointId() {
 		return pendingCheckpoints.isEmpty() ? -1 : pendingCheckpoints.peekLast().checkpointId();
 	}
 
-	public long getAlignmentDurationNanos() {
-		return 0;
-	}
-
-	@Override
-	public void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception {
-		throw new UnsupportedOperationException("This should never happened as this class doesn't block any data");
+	public boolean isCheckpointPending() {
+		return !pendingCheckpoints.isEmpty();
 	}
 
 	/**

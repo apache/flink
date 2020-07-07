@@ -22,11 +22,11 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.runtime.operators.sort.IndexedSortable;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 
 	// put/compare/swap normalized key
 	private final NormalizedKeyComputer normalizedKeyComputer;
-	protected final BinaryRowSerializer serializer;
+	protected final BinaryRowDataSerializer serializer;
 
 	// if normalized key not fully determines, need compare record.
 	private final RecordComparator comparator;
@@ -63,10 +63,10 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 	private final boolean useNormKeyUninverted;
 
 	// for serialized comparison
-	protected final BinaryRowSerializer serializer1;
-	private final BinaryRowSerializer serializer2;
-	protected final BinaryRow row1;
-	private final BinaryRow row2;
+	protected final BinaryRowDataSerializer serializer1;
+	private final BinaryRowDataSerializer serializer2;
+	protected final BinaryRowData row1;
+	private final BinaryRowData row2;
 
 	// runtime variables
 	protected int currentSortIndexOffset;
@@ -74,7 +74,7 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 
 	public BinaryIndexedSortable(
 			NormalizedKeyComputer normalizedKeyComputer,
-			BinaryRowSerializer serializer,
+			BinaryRowDataSerializer serializer,
 			RecordComparator comparator,
 			ArrayList<MemorySegment> recordBufferSegments,
 			MemorySegmentPool memorySegmentPool) {
@@ -100,8 +100,8 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 		this.indexEntriesPerSegment = segmentSize / this.indexEntrySize;
 		this.lastIndexEntryOffset = (this.indexEntriesPerSegment - 1) * this.indexEntrySize;
 
-		this.serializer1 = (BinaryRowSerializer) serializer.duplicate();
-		this.serializer2 = (BinaryRowSerializer) serializer.duplicate();
+		this.serializer1 = (BinaryRowDataSerializer) serializer.duplicate();
+		this.serializer2 = (BinaryRowDataSerializer) serializer.duplicate();
 		this.row1 = this.serializer1.createInstance();
 		this.row2 = this.serializer2.createInstance();
 
@@ -135,7 +135,7 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 	/**
 	 * Write of index and normalizedKey.
 	 */
-	protected void writeIndexAndNormalizedKey(BaseRow record, long currOffset) {
+	protected void writeIndexAndNormalizedKey(RowData record, long currOffset) {
 		// add the pointer and the normalized key
 		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset, currOffset);
 

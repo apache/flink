@@ -39,9 +39,9 @@ import java.util.stream.Collectors;
  * Current default implementation of {@link OperatorStateRepartitioner} that redistributes state in round robin fashion.
  */
 @Internal
-public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepartitioner {
+public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepartitioner<OperatorStateHandle> {
 
-	public static final OperatorStateRepartitioner INSTANCE = new RoundRobinOperatorStateRepartitioner();
+	public static final OperatorStateRepartitioner<OperatorStateHandle> INSTANCE = new RoundRobinOperatorStateRepartitioner();
 	private static final boolean OPTIMIZE_MEMORY_USE = false;
 
 	@Override

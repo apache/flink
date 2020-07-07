@@ -35,6 +35,10 @@ public class DSeries {
 		series = new ArrayList<>();
 	}
 
+	public DSeries(List<DMetric> series) {
+		this.series = series;
+	}
+
 	public void addGauge(DGauge gauge) {
 		series.add(gauge);
 	}

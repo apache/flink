@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.util.ArrayList;
@@ -40,15 +40,15 @@ import java.util.concurrent.Executor;
 final class OperatorCoordinatorCheckpoints {
 
 	public static CompletableFuture<CoordinatorSnapshot> triggerCoordinatorCheckpoint(
-			final OperatorCoordinatorCheckpointContext coordinatorInfo,
+			final OperatorCoordinatorCheckpointContext coordinatorContext,
 			final long checkpointId) throws Exception {
 
-		final CompletableFuture<byte[]> checkpointFuture =
-				coordinatorInfo.coordinator().checkpointCoordinator(checkpointId);
+		final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+		coordinatorContext.checkpointCoordinator(checkpointId, checkpointFuture);
 
 		return checkpointFuture.thenApply(
 				(state) -> new CoordinatorSnapshot(
-						coordinatorInfo, new ByteStreamStateHandle(coordinatorInfo.operatorId().toString(), state))
+						coordinatorContext, new ByteStreamStateHandle(coordinatorContext.operatorId().toString(), state))
 		);
 	}
 
@@ -59,7 +59,8 @@ final class OperatorCoordinatorCheckpoints {
 		final Collection<CompletableFuture<CoordinatorSnapshot>> individualSnapshots = new ArrayList<>(coordinators.size());
 
 		for (final OperatorCoordinatorCheckpointContext coordinator : coordinators) {
-			individualSnapshots.add(triggerCoordinatorCheckpoint(coordinator, checkpointId));
+			final CompletableFuture<CoordinatorSnapshot> checkpointFuture = triggerCoordinatorCheckpoint(coordinator, checkpointId);
+			individualSnapshots.add(checkpointFuture);
 		}
 
 		return FutureUtils.combineAll(individualSnapshots).thenApply(AllCoordinatorSnapshots::new);
@@ -106,8 +107,14 @@ final class OperatorCoordinatorCheckpoints {
 				checkpoint.acknowledgeCoordinatorState(snapshot.coordinator, snapshot.state);
 
 			if (result != PendingCheckpoint.TaskAcknowledgeResult.SUCCESS) {
-				throw new CheckpointException("Coordinator state not acknowledged successfully: " + result,
-					CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE);
+				final String errorMessage = "Coordinator state not acknowledged successfully: " + result;
+				final Throwable error = checkpoint.isDiscarded() ? checkpoint.getFailureCause() : null;
+
+				if (error != null) {
+					throw new CheckpointException(errorMessage, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, error);
+				} else {
+					throw new CheckpointException(errorMessage, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE);
+				}
 			}
 		}
 	}
@@ -129,14 +136,10 @@ final class OperatorCoordinatorCheckpoints {
 
 	static final class CoordinatorSnapshot {
 
-		final OperatorCoordinatorCheckpointContext coordinator;
-		final StreamStateHandle state;
+		final OperatorInfo coordinator;
+		final ByteStreamStateHandle state;
 
-		CoordinatorSnapshot(OperatorCoordinatorCheckpointContext coordinator, StreamStateHandle state) {
-			// if this is not true any more, we need more elaborate dispose/cleanup handling
-			// see comment above the class.
-			assert state instanceof ByteStreamStateHandle;
-
+		CoordinatorSnapshot(OperatorInfo coordinator, ByteStreamStateHandle state) {
 			this.coordinator = coordinator;
 			this.state = state;
 		}

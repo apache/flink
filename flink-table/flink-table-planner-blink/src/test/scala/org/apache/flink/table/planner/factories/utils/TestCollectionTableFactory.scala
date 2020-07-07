@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.{CollectionInputFormat, LocalCollectionOutputFormat}
+import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
@@ -32,14 +33,17 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
 import java.io.IOException
 import java.util
 import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
+
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 
 import scala.collection.JavaConversions._
 
@@ -126,25 +130,26 @@ object TestCollectionTableFactory {
       with StreamTableSource[Row]
       with LookupableTableSource[Row] {
 
-    private val rowType: TypeInformation[Row] = schema.toRowType
+    private val dataType = schema.toRowDataType
+    private val typeInfo = fromDataTypeToTypeInfo(dataType).asInstanceOf[TypeInformation[Row]]
 
     override def isBounded: Boolean = bounded
 
     def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
       execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
         SOURCE_DATA,
-        rowType.createSerializer(new ExecutionConfig)),
-        rowType)
+        typeInfo.createSerializer(new ExecutionConfig)),
+        typeInfo)
     }
 
     override def getDataStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[Row] = {
       streamEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
         SOURCE_DATA,
-        rowType.createSerializer(new ExecutionConfig)),
-        rowType)
+        typeInfo.createSerializer(new ExecutionConfig)),
+        typeInfo)
     }
 
-    override def getProducedDataType: DataType = schema.toRowDataType
+    override def getProducedDataType: DataType = dataType
 
     override def getTableSchema: TableSchema = {
       schema
@@ -165,7 +170,7 @@ object TestCollectionTableFactory {
   class CollectionTableSink(val schema: TableSchema)
     extends BatchTableSink[Row]
       with AppendStreamTableSink[Row] {
-    override def emitDataSet(dataSet: DataSet[Row]): Unit = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet.output(new LocalCollectionOutputFormat[Row](RESULT)).setParallelism(1)
     }
 
@@ -174,7 +179,9 @@ object TestCollectionTableFactory {
     override def getTableSchema: TableSchema = schema
 
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(schema.toRowType)).setParallelism(1)
+      val dataType = schema.toRowDataType
+      val typeInfo = fromDataTypeToTypeInfo(dataType).asInstanceOf[TypeInformation[Row]]
+      dataStream.addSink(new UnsafeMemorySinkFunction(typeInfo)).setParallelism(1)
     }
 
     override def configure(fieldNames: Array[String],

@@ -28,6 +28,7 @@ import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -324,19 +325,34 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		@Override
 		public boolean isArgumentLiteral(int pos) {
-			return getArgument(pos) instanceof ValueLiteralExpression;
+			final ResolvedExpression arg = getArgument(pos);
+			return arg instanceof ValueLiteralExpression || arg instanceof TypeLiteralExpression;
 		}
 
 		@Override
 		public boolean isArgumentNull(int pos) {
 			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
+			final ResolvedExpression arg = getArgument(pos);
+			// special case for type literals in Table API only
+			if (arg instanceof TypeLiteralExpression) {
+				return false;
+			}
 			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
 			return literal.isNull();
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
 			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
+			final ResolvedExpression arg = getArgument(pos);
+			// special case for type literals in Table API only
+			if (arg instanceof TypeLiteralExpression) {
+				if (!DataType.class.isAssignableFrom(clazz)) {
+					return Optional.empty();
+				}
+				return Optional.of((T) arg.getOutputDataType());
+			}
 			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
 			return literal.getValueAs(clazz);
 		}
