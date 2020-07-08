@@ -42,7 +42,7 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			String semantic) {
+			KafkaSemantic semantic) {
 		super(
 				consumedDataType,
 				topic,
@@ -58,13 +58,13 @@ public class KafkaDynamicSink extends KafkaDynamicSinkBase {
 			Properties properties,
 			SerializationSchema<RowData> serializationSchema,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			String semantic) {
+			KafkaSemantic semantic) {
 		return new FlinkKafkaProducer<>(
 				topic,
 				serializationSchema,
 				properties,
 				partitioner.orElse(null),
-				FlinkKafkaProducer.Semantic.valueOf(semantic),
+				FlinkKafkaProducer.Semantic.valueOf(semantic.toString()),
 				FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
 	}
 

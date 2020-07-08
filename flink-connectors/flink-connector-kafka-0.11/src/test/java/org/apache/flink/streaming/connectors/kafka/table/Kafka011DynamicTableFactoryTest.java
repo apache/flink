@@ -83,7 +83,7 @@ public class Kafka011DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			String semantic) {
+			KafkaSemantic semantic) {
 		return new Kafka011DynamicSink(
 				consumedDataType,
 				topic,

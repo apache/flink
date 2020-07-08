@@ -63,7 +63,7 @@ public class KafkaDynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			String semantic) {
+			KafkaSemantic semantic) {
 		return new KafkaDynamicSink(
 				consumedDataType,
 				topic,

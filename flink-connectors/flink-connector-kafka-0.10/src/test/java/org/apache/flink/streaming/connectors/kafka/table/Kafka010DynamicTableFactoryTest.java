@@ -29,7 +29,6 @@ import org.apache.flink.streaming.connectors.kafka.Kafka010TableSourceSinkFactor
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -37,10 +36,14 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
@@ -88,7 +91,7 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			String semantic) {
+			KafkaSemantic semantic) {
 		// we only support "at-least-semantic" for kafka-0.10 connector.
 		// if users use `sink.semantic` to select behaviour for kafka-0.10 connector,
 		// he/she will get validation error of unsupported option.
@@ -98,7 +101,7 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 				properties,
 				partitioner,
 				encodingFormat,
-				"AT_LEAST_ONCE");
+				KafkaSemantic.AT_LEAST_ONCE);
 	}
 
 	@Override
@@ -122,12 +125,18 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			});
 		final CatalogTable sinkTable = createKafkaSinkCatalogTable(modifiedOptions);
 
-		thrown.expect(ValidationException.class);
-		FactoryUtil.createTableSink(
-			null,
-			objectIdentifier,
-			sinkTable,
-			new Configuration(),
-			Thread.currentThread().getContextClassLoader());
+		try {
+			FactoryUtil.createTableSink(
+				null,
+				objectIdentifier,
+				sinkTable,
+				new Configuration(),
+				Thread.currentThread().getContextClassLoader());
+			fail("Connector 'kafka-0.10' doesn't support 'sink.semantic'");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "Unsupported options:\n\nsink.semantic")
+				.isPresent());
+		}
 	}
 }

@@ -29,17 +29,12 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_GROUP_ID;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_MODE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_PARTITIONER;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_SEMANTIC;
 
 /**
  * Factory for creating configured instances of {@link Kafka010DynamicSource}.
@@ -75,7 +70,7 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			String semantic) {
+			KafkaSemantic semantic) {
 
 		return new Kafka010DynamicSink(
 			consumedDataType,
@@ -93,12 +88,8 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 
 	@Override
 	public Set<ConfigOption<?>> optionalOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(PROPS_GROUP_ID);
-		options.add(SCAN_STARTUP_MODE);
-		options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
-		options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
-		options.add(SINK_PARTITIONER);
+		final Set<ConfigOption<?>> options = super.optionalOptions();
+		options.remove(SINK_SEMANTIC);
 		return options;
 	}
 }

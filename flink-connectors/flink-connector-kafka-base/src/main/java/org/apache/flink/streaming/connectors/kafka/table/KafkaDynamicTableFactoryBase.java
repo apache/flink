@@ -43,20 +43,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_BOOTSTRAP_SERVERS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_GROUP_ID;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_MODE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_PARTITIONER;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_SEMANTIC;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getFlinkKafkaPartitioner;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getStartupOptions;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.transformSemantic;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableOptions;
-
 /**
  * Factory for creating configured instances of
  * {@link KafkaDynamicSourceBase} and {@link KafkaDynamicSinkBase}.
@@ -71,21 +57,21 @@ public abstract class KafkaDynamicTableFactoryBase implements
 
 		ReadableConfig tableOptions = helper.getOptions();
 
-		String topic = tableOptions.get(TOPIC);
+		String topic = tableOptions.get(KafkaOptions.TOPIC);
 		DecodingFormat<DeserializationSchema<RowData>> decodingFormat = helper.discoverDecodingFormat(
 				DeserializationFormatFactory.class,
 				FactoryUtil.FORMAT);
 		// Validate the option data type.
 		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
 		// Validate the option values.
-		validateTableOptions(tableOptions);
+		KafkaOptions.validateTableOptions(tableOptions);
 
 		DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-		final KafkaOptions.StartupOptions startupOptions = getStartupOptions(tableOptions, topic);
+		final KafkaOptions.StartupOptions startupOptions = KafkaOptions.getStartupOptions(tableOptions, topic);
 		return createKafkaTableSource(
 				producedDataType,
 				topic,
-				getKafkaProperties(context.getCatalogTable().getOptions()),
+				KafkaOptions.getKafkaProperties(context.getCatalogTable().getOptions()),
 				decodingFormat,
 				startupOptions.startupMode,
 				startupOptions.specificOffsets,
@@ -98,24 +84,24 @@ public abstract class KafkaDynamicTableFactoryBase implements
 
 		ReadableConfig tableOptions = helper.getOptions();
 
-		String topic = tableOptions.get(TOPIC);
+		String topic = tableOptions.get(KafkaOptions.TOPIC);
 		EncodingFormat<SerializationSchema<RowData>> encodingFormat = helper.discoverEncodingFormat(
 				SerializationFormatFactory.class,
 				FactoryUtil.FORMAT);
-		String semantic = tableOptions.get(SINK_SEMANTIC);
+		String semantic = tableOptions.get(KafkaOptions.SINK_SEMANTIC);
 		// Validate the option data type.
 		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
 		// Validate the option values.
-		validateTableOptions(tableOptions);
+		KafkaOptions.validateTableOptions(tableOptions);
 
 		DataType consumedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 		return createKafkaTableSink(
 				consumedDataType,
 				topic,
-				getKafkaProperties(context.getCatalogTable().getOptions()),
-				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
+				KafkaOptions.getKafkaProperties(context.getCatalogTable().getOptions()),
+				KafkaOptions.getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
 				encodingFormat,
-				transformSemantic(semantic));
+				KafkaOptions.getSinkSemantic(semantic));
 	}
 
 	/**
@@ -153,26 +139,26 @@ public abstract class KafkaDynamicTableFactoryBase implements
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			String semantic);
+			KafkaSemantic semantic);
 
 	@Override
 	public Set<ConfigOption<?>> requiredOptions() {
 		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(TOPIC);
+		options.add(KafkaOptions.TOPIC);
 		options.add(FactoryUtil.FORMAT);
-		options.add(PROPS_BOOTSTRAP_SERVERS);
+		options.add(KafkaOptions.PROPS_BOOTSTRAP_SERVERS);
 		return options;
 	}
 
 	@Override
 	public Set<ConfigOption<?>> optionalOptions() {
 		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(PROPS_GROUP_ID);
-		options.add(SCAN_STARTUP_MODE);
-		options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
-		options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
-		options.add(SINK_PARTITIONER);
-		options.add(SINK_SEMANTIC);
+		options.add(KafkaOptions.PROPS_GROUP_ID);
+		options.add(KafkaOptions.SCAN_STARTUP_MODE);
+		options.add(KafkaOptions.SCAN_STARTUP_SPECIFIC_OFFSETS);
+		options.add(KafkaOptions.SCAN_STARTUP_TIMESTAMP_MILLIS);
+		options.add(KafkaOptions.SINK_PARTITIONER);
+		options.add(KafkaOptions.SINK_SEMANTIC);
 		return options;
 	}
 }
