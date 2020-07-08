@@ -20,9 +20,9 @@ package org.apache.flink.python.env.beam;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.python.env.Environment;
 import org.apache.flink.python.env.ProcessEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
+import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.python.util.ZipUtils;
@@ -166,7 +166,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	}
 
 	@Override
-	public Environment createEnvironment() throws IOException {
+	public PythonEnvironment createEnvironment() throws IOException {
 		Map<String, String> env = constructEnvironmentVariables();
 
 		if (dependencyInfo.getRequirementsFilePath().isPresent()) {

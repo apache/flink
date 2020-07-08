@@ -97,7 +97,7 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 				udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
 				cRowWrapper.setChange(input.change());
 				cRowWrapper.collect(Row.join(input.row(), udtfResult));
-				resultTuple = pythonFunctionRunner.receive();
+				resultTuple = pythonFunctionRunner.pollResult();
 				hasJoined = true;
 			} else if (joinType == JoinRelType.LEFT && !hasJoined) {
 				udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());

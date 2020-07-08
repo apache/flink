@@ -45,11 +45,19 @@ public interface PythonFunctionRunner {
 	void process(byte[] data) throws Exception;
 
 	/**
-	 * Retrieves and removes the Python function result.
+	 * Retrieves the Python function result.
 	 *
 	 * @return the head of he Python function result buffer, or {@code null} if the result buffer is empty.
 	 * f0 means the byte array buffer which stores the Python function result.
 	 * f1 means the length of the Python function result byte array.
 	 */
-	Tuple2<byte[], Integer> receive() throws Exception;
+	Tuple2<byte[], Integer> pollResult() throws Exception;
+
+	/**
+	 * Forces to finish the processing of the current bundle of elements. It will flush
+	 * the data cached in the data buffer for processing and retrieves the state mutations (if exists)
+	 * made by the Python function. The call blocks until all of the outputs produced by this
+	 * bundle have been received.
+	 */
+	void flush() throws Exception;
 }

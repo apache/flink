@@ -85,6 +85,7 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 		if (currentBatchCount >= maxArrowBatchSize) {
 			invokeCurrentBatch();
 		}
+		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 

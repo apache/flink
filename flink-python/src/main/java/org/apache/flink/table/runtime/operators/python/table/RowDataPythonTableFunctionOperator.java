@@ -141,7 +141,7 @@ public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunct
 				bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
 				RowData udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
 				rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
-				resultTuple = pythonFunctionRunner.receive();
+				resultTuple = pythonFunctionRunner.pollResult();
 				hasJoined = true;
 			} else if (joinType == JoinRelType.LEFT && !hasJoined) {
 				GenericRowData udtfResult = new GenericRowData(userDefinedFunctionOutputType.getFieldCount());

@@ -27,12 +27,16 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 /**
  * A BeamPythonStatelessFunctionRunner runner that just return the input elements as the execution results.
  */
 public class PassThroughPythonScalarFunctionRunner extends BeamPythonStatelessFunctionRunner {
+
+	private final List<byte[]> buffer;
 
 	public PassThroughPythonScalarFunctionRunner(
 		String taskName,
@@ -45,12 +49,20 @@ public class PassThroughPythonScalarFunctionRunner extends BeamPythonStatelessFu
 		Map<String, String> jobOptions,
 		FlinkMetricContainer flinkMetricContainer) {
 		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions, coderUrn, jobOptions, flinkMetricContainer);
+		this.buffer = new LinkedList<>();
 	}
 
 	@Override
 	protected void startBundle() {
 		super.startBundle();
-		this.mainInputReceiver = input -> this.resultBuffer.add(input.getValue());
+		this.mainInputReceiver = input -> buffer.add(input.getValue());
+	}
+
+	@Override
+	public void flush() throws Exception {
+		super.flush();
+		resultBuffer.addAll(buffer);
+		buffer.clear();
 	}
 
 	@Override

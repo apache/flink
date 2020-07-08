@@ -27,6 +27,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,6 +38,8 @@ import java.util.Map;
 public class PassThroughPythonTableFunctionRunner extends BeamPythonStatelessFunctionRunner {
 
 	private int num = 0;
+
+	private final List<byte[]> buffer;
 
 	public PassThroughPythonTableFunctionRunner(
 		String taskName,
@@ -47,6 +51,7 @@ public class PassThroughPythonTableFunctionRunner extends BeamPythonStatelessFun
 		String coderUrn, Map<String, String> jobOptions,
 		FlinkMetricContainer flinkMetricContainer) {
 		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions, coderUrn, jobOptions, flinkMetricContainer);
+		this.buffer = new LinkedList<>();
 	}
 
 	@Override
@@ -55,10 +60,17 @@ public class PassThroughPythonTableFunctionRunner extends BeamPythonStatelessFun
 		this.mainInputReceiver = input -> {
 			this.num++;
 			if (num != 6 && num != 8) {
-				this.resultBuffer.add(input.getValue());
+				this.buffer.add(input.getValue());
 			}
-			this.resultBuffer.add(new byte[]{0});
+			this.buffer.add(new byte[]{0});
 		};
+	}
+
+	@Override
+	public void flush() throws Exception {
+		super.flush();
+		resultBuffer.addAll(buffer);
+		buffer.clear();
 	}
 
 	@Override

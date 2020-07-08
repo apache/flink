@@ -85,6 +85,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 		if (currentBatchCount >= maxArrowBatchSize) {
 			invokeCurrentBatch();
 		}
+		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 

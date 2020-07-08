@@ -20,10 +20,10 @@ package org.apache.flink.table.runtime.runners.python.beam;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.python.AsyncPythonFunctionRunner;
 import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.env.Environment;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.ProcessEnvironment;
+import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.util.Preconditions;
@@ -56,10 +56,10 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * An base class for {@link AsyncPythonFunctionRunner} based on beam.
+ * An base class for {@link PythonFunctionRunner} based on beam.
  */
 @Internal
-public abstract class BeamPythonFunctionRunner implements AsyncPythonFunctionRunner {
+public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
 
 	private transient boolean bundleStarted;
@@ -187,7 +187,7 @@ public abstract class BeamPythonFunctionRunner implements AsyncPythonFunctionRun
 	}
 
 	@Override
-	public Tuple2<byte[], Integer> receive() throws Exception {
+	public Tuple2<byte[], Integer> pollResult() throws Exception {
 		byte[] result = resultBuffer.poll();
 		if (result == null) {
 			return null;
@@ -216,7 +216,7 @@ public abstract class BeamPythonFunctionRunner implements AsyncPythonFunctionRun
 	 * It's used by Beam's portability framework to creates the actual Python execution environment.
 	 */
 	protected RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
-		Environment environment = environmentManager.createEnvironment();
+		PythonEnvironment environment = environmentManager.createEnvironment();
 		if (environment instanceof ProcessEnvironment) {
 			ProcessEnvironment processEnvironment = (ProcessEnvironment) environment;
 			return Environments.createProcessEnvironment(

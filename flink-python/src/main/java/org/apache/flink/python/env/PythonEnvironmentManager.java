@@ -23,7 +23,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 
 
 /**
- * The base interface of python environment manager which is used to create the Environment object and the
+ * The base interface of python environment manager which is used to create the PythonEnvironment object and the
  * RetrievalToken.
  */
 @Internal
@@ -35,12 +35,12 @@ public interface PythonEnvironmentManager extends AutoCloseable {
 	void open() throws Exception;
 
 	/**
-	 * Creates the Environment object used in {@link PythonFunctionRunner}.
+	 * Creates the PythonEnvironment object used in {@link PythonFunctionRunner}.
 	 *
-	 * @return The Environment object which represents the environment(process, docker, etc) the python worker would run
+	 * @return The PythonEnvironment object which represents the environment(process, docker, etc) the python worker would run
 	 *         in.
 	 */
-	Environment createEnvironment() throws Exception;
+	PythonEnvironment createEnvironment() throws Exception;
 
 	/**
 	 * Creates the RetrievalToken used in {@link PythonFunctionRunner}. It contains a list of files

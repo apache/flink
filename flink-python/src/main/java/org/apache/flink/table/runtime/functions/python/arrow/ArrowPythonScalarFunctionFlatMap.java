@@ -90,6 +90,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 		if (currentBatchCount >= maxArrowBatchSize) {
 			invokeCurrentBatch();
 		}
+		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 

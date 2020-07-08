@@ -31,7 +31,6 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.AsyncPythonFunctionRunner;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -173,11 +172,6 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	 */
 	protected transient DataOutputViewStreamWrapper baosWrapper;
 
-	/**
-	 * Flag indicating whether the PythonFunctionRunner is a AsyncPythonFunctionRunner.
-	 */
-	protected transient boolean isAsyncPythonFunctionRunner;
-
 	public AbstractPythonStatelessFunctionFlatMap(
 		Configuration config,
 		RowType inputType,
@@ -233,9 +227,6 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 
 		this.pythonFunctionRunner = createPythonFunctionRunner();
 		this.pythonFunctionRunner.open(config);
-		if (this.pythonFunctionRunner instanceof AsyncPythonFunctionRunner) {
-			this.isAsyncPythonFunctionRunner = true;
-		}
 	}
 
 	@Override
@@ -246,6 +237,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		inputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
+		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 
@@ -259,9 +251,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	@Override
 	public void close() throws Exception {
 		try {
-			if (this.isAsyncPythonFunctionRunner) {
-				invokeFinishBundle();
-			}
+			invokeFinishBundle();
 
 			if (pythonFunctionRunner != null) {
 				pythonFunctionRunner.close();
@@ -345,20 +335,15 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	}
 
 	protected void emitResults() throws Exception {
-		if (this.isAsyncPythonFunctionRunner) {
-			checkInvokeFinishBundleByCount();
-		} else {
-			resultTuple = pythonFunctionRunner.receive();
+		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
 			emitResult();
 		}
 	}
 
 	protected void invokeFinishBundle() throws Exception {
-		((AsyncPythonFunctionRunner) pythonFunctionRunner).flush();
+		pythonFunctionRunner.flush();
 		elementCount = 0;
-		while ((resultTuple = pythonFunctionRunner.receive()) != null) {
-			emitResult();
-		}
+		emitResults();
 	}
 
 	private PythonFunctionRunner createPythonFunctionRunner() throws IOException {

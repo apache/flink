@@ -82,6 +82,16 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	private final Map<String, String> jobOptions;
 
 	/**
+	 * OutputStream Wrapper.
+	 */
+	private transient DataOutputViewStreamWrapper baosWrapper;
+
+	/**
+	 * The TypeSerializer for input elements.
+	 */
+	private transient TypeSerializer<UDFIN> inputTypeSerializer;
+
+	/**
 	 * The user-defined function input logical type.
 	 */
 	protected transient RowType userDefinedFunctionInputType;
@@ -110,16 +120,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 * Reusable OutputStream used to holding the serialized input elements.
 	 */
 	protected transient ByteArrayOutputStreamWithPos baos;
-
-	/**
-	 * OutputStream Wrapper.
-	 */
-	protected transient DataOutputViewStreamWrapper baosWrapper;
-
-	/**
-	 * The TypeSerializer for input elements.
-	 */
-	protected transient TypeSerializer<UDFIN> inputTypeSerializer;
 
 	public AbstractStatelessFunctionOperator(
 		Configuration config,
@@ -154,6 +154,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		bufferInput(value);
 		inputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
+		checkInvokeFinishBundleByCount();
 		emitResults();
 		baos.reset();
 	}
@@ -170,15 +171,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 			getInputOutputCoderUrn(),
 			jobOptions,
 			getFlinkMetricContainer());
-	}
-
-	protected void emitResults() throws Exception {
-		if (this.isAsyncPythonFunctionRunner) {
-			checkInvokeFinishBundleByCount();
-		} else {
-			resultTuple = pythonFunctionRunner.receive();
-			emitResult();
-		}
 	}
 
 	protected FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {

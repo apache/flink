@@ -23,10 +23,10 @@ import org.apache.flink.annotation.Internal;
 import java.util.Map;
 
 /**
- * A {@link Environment} for executing UDFs in Process.
+ * A {@link PythonEnvironment} for executing UDFs in Process.
  */
 @Internal
-public class ProcessEnvironment implements Environment {
+public class ProcessEnvironment implements PythonEnvironment {
 	private final String command;
 	private final Map<String, String> env;
 

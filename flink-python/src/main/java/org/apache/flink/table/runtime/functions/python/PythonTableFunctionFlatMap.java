@@ -110,7 +110,7 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 				bais.setBuffer(rawUdtfResult, 0, length);
 				udtfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
 				this.resultCollector.collect(Row.join(input, udtfResult));
-				resultTuple = pythonFunctionRunner.receive();
+				resultTuple = pythonFunctionRunner.pollResult();
 				hasJoined = true;
 			} else if (joinType == JoinRelType.LEFT && !hasJoined) {
 				udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());

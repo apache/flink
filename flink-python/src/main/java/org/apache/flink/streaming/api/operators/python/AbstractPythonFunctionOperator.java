@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.python.AsyncPythonFunctionRunner;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -57,11 +56,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
 	 */
 	protected transient PythonFunctionRunner pythonFunctionRunner;
-
-	/**
-	 * Flag indicating whether the PythonFunctionRunner is a AsyncPythonFunctionRunner.
-	 */
-	protected transient boolean isAsyncPythonFunctionRunner;
 
 	/**
 	 * The Python function execution result tuple.
@@ -145,22 +139,17 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 
 			this.pythonFunctionRunner = createPythonFunctionRunner();
 			this.pythonFunctionRunner.open(config);
-			if (this.pythonFunctionRunner instanceof AsyncPythonFunctionRunner) {
-				this.isAsyncPythonFunctionRunner = true;
-			}
 
 			this.elementCount = 0;
 			this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
 			// Schedule timer to check timeout of finish bundle.
 			long bundleCheckPeriod = Math.max(this.maxBundleTimeMills, 1);
-			if (this.isAsyncPythonFunctionRunner) {
-				this.checkFinishBundleTimer =
-					getProcessingTimeService()
-						.scheduleAtFixedRate(
-							// ProcessingTimeService callbacks are executed under the checkpointing lock
-							timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
-			}
+			this.checkFinishBundleTimer =
+				getProcessingTimeService()
+					.scheduleAtFixedRate(
+						// ProcessingTimeService callbacks are executed under the checkpointing lock
+						timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
 		} finally {
 			super.open();
 		}
@@ -169,9 +158,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	@Override
 	public void close() throws Exception {
 		try {
-			if (this.isAsyncPythonFunctionRunner) {
-				invokeFinishBundle();
-			}
+			invokeFinishBundle();
 		} finally {
 			super.close();
 		}
@@ -199,17 +186,13 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 
 	@Override
 	public void endInput() throws Exception {
-		if (this.isAsyncPythonFunctionRunner) {
-			invokeFinishBundle();
-		}
+		invokeFinishBundle();
 	}
 
 	@Override
 	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
 		try {
-			if (this.isAsyncPythonFunctionRunner) {
-				invokeFinishBundle();
-			}
+			invokeFinishBundle();
 		} finally {
 			super.prepareSnapshotPreBarrier(checkpointId);
 		}
@@ -240,29 +223,25 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		// Approach 1) is the easiest and gives better latency, yet 2)
 		// gives better throughput due to the bundle not getting cut on
 		// every watermark. So we have implemented 2) below.
-		if (this.isAsyncPythonFunctionRunner) {
-			if (mark.getTimestamp() == Long.MAX_VALUE) {
-				invokeFinishBundle();
-				super.processWatermark(mark);
-			} else if (elementCount == 0) {
-				// forward the watermark immediately if the bundle is already finished.
-				super.processWatermark(mark);
-			} else {
-				// It is not safe to advance the output watermark yet, so add a hold on the current
-				// output watermark.
-				bundleFinishedCallback =
-					() -> {
-						try {
-							// at this point the bundle is finished, allow the watermark to pass
-							super.processWatermark(mark);
-						} catch (Exception e) {
-							throw new RuntimeException(
-								"Failed to process watermark after finished bundle.", e);
-						}
-					};
-			}
-		} else {
+		if (mark.getTimestamp() == Long.MAX_VALUE) {
+			invokeFinishBundle();
 			super.processWatermark(mark);
+		} else if (elementCount == 0) {
+			// forward the watermark immediately if the bundle is already finished.
+			super.processWatermark(mark);
+		} else {
+			// It is not safe to advance the output watermark yet, so add a hold on the current
+			// output watermark.
+			bundleFinishedCallback =
+				() -> {
+					try {
+						// at this point the bundle is finished, allow the watermark to pass
+						super.processWatermark(mark);
+					} catch (Exception e) {
+						throw new RuntimeException(
+							"Failed to process watermark after finished bundle.", e);
+					}
+				};
 		}
 	}
 
@@ -307,6 +286,12 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		}
 	}
 
+	protected void emitResults() throws Exception {
+		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
+			emitResult();
+		}
+	}
+
 	/**
 	 * Checks whether to invoke finishBundle by elements count. Called in processElement.
 	 */
@@ -328,11 +313,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	}
 
 	protected void invokeFinishBundle() throws Exception {
-		((AsyncPythonFunctionRunner) pythonFunctionRunner).flush();
+		pythonFunctionRunner.flush();
 		elementCount = 0;
-		while ((resultTuple = pythonFunctionRunner.receive()) != null) {
-			emitResult();
-		}
+		emitResults();
 		lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 		// callback only after current bundle was fully finalized
 		if (bundleFinishedCallback != null) {

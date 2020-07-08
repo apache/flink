@@ -24,5 +24,5 @@ import org.apache.flink.annotation.Internal;
  * The base interface of python environment for executing UDFs.
  */
 @Internal
-public interface Environment {
+public interface PythonEnvironment {
 }
