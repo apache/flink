@@ -126,7 +126,10 @@ class PythonBootTests(PyFlinkTestCase):
         fn_execution_dir = os.path.join(pyflink_dir, "fn_execution")
         os.mkdir(fn_execution_dir)
         open(os.path.join(fn_execution_dir, "__init__.py"), 'a').close()
-        with open(os.path.join(fn_execution_dir, "boot.py"), "w") as f:
+        beam_dir = os.path.join(fn_execution_dir, "beam")
+        os.mkdir(beam_dir)
+        open(os.path.join(beam_dir, "__init__.py"), 'a').close()
+        with open(os.path.join(beam_dir, "beam_boot.py"), "w") as f:
             f.write("import os\nwith open(r'%s', 'w') as f:\n    f.write(os.getcwd())" %
                     output_file)
 
