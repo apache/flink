@@ -117,6 +117,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 				isRunning = false;
 			}
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
 		subscriber.close();
 	}
 
@@ -223,13 +227,12 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	 * @param <OUT> The type of objects which will be read
 	 */
 	public static class PubSubSourceBuilder<OUT> implements ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
-		private PubSubDeserializationSchema<OUT> deserializationSchema;
+		private final PubSubDeserializationSchema<OUT> deserializationSchema;
 		private String projectName;
 		private String subscriptionName;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private Credentials credentials;
-		private int maxMessageToAcknowledge = 10000;
 		private int messagePerSecondRateLimit = 100000;
 
 		private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {

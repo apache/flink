@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub.emulator;
 
-import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.pubsub.v1.MessageReceiver;
@@ -32,11 +31,11 @@ import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
-import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.Topic;
+import com.google.pubsub.v1.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +64,7 @@ public class PubsubHelper {
 		if (topicClient == null) {
 			TopicAdminSettings topicAdminSettings = TopicAdminSettings.newBuilder()
 				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(NoCredentialsProvider.create())
+				.setCredentialsProvider(EmulatorCredentialsProvider.create())
 				.build();
 			topicClient = TopicAdminClient.create(topicAdminSettings);
 		}
@@ -74,17 +73,17 @@ public class PubsubHelper {
 
 	public Topic createTopic(String project, String topic) throws IOException {
 		deleteTopic(project, topic);
-		ProjectTopicName topicName = ProjectTopicName.of(project, topic);
+		TopicName topicName = TopicName.of(project, topic);
 		TopicAdminClient adminClient = getTopicAdminClient();
 		LOG.info("CreateTopic {}", topicName);
 		return adminClient.createTopic(topicName);
 	}
 
 	public void deleteTopic(String project, String topic) throws IOException {
-		deleteTopic(ProjectTopicName.of(project, topic));
+		deleteTopic(TopicName.of(project, topic));
 	}
 
-	public void deleteTopic(ProjectTopicName topicName) throws IOException {
+	public void deleteTopic(TopicName topicName) throws IOException {
 		TopicAdminClient adminClient = getTopicAdminClient();
 		try {
 			adminClient.getTopic(topicName);
@@ -110,7 +109,7 @@ public class PubsubHelper {
 				SubscriptionAdminSettings
 					.newBuilder()
 					.setTransportChannelProvider(channelProvider)
-					.setCredentialsProvider(NoCredentialsProvider.create())
+					.setCredentialsProvider(EmulatorCredentialsProvider.create())
 					.build();
 			subscriptionAdminClient = SubscriptionAdminClient.create(subscriptionAdminSettings);
 		}
@@ -125,7 +124,7 @@ public class PubsubHelper {
 
 		deleteSubscription(subscriptionName);
 
-		ProjectTopicName topicName = ProjectTopicName.of(topicProject, topic);
+		TopicName topicName = TopicName.of(topicProject, topic);
 
 		PushConfig pushConfig = PushConfig.getDefaultInstance();
 
@@ -161,14 +160,13 @@ public class PubsubHelper {
 		SubscriberStubSettings subscriberStubSettings =
 			SubscriberStubSettings.newBuilder()
 				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(NoCredentialsProvider.create())
+				.setCredentialsProvider(EmulatorCredentialsProvider.create())
 				.build();
 		try (SubscriberStub subscriber = GrpcSubscriberStub.create(subscriberStubSettings)) {
 			String subscriptionName = ProjectSubscriptionName.format(projectId, subscriptionId);
 			PullRequest pullRequest =
 				PullRequest.newBuilder()
 					.setMaxMessages(maxNumberOfMessages)
-					.setReturnImmediately(false)
 					.setSubscription(subscriptionName)
 					.build();
 
@@ -200,7 +198,7 @@ public class PubsubHelper {
 			Subscriber
 				.newBuilder(subscriptionName, messageReceiver)
 				.setChannelProvider(channelProvider)
-				.setCredentialsProvider(NoCredentialsProvider.create())
+				.setCredentialsProvider(EmulatorCredentialsProvider.create())
 				.build();
 		subscriber.startAsync();
 		return subscriber;
@@ -208,9 +206,9 @@ public class PubsubHelper {
 
 	public Publisher createPublisher(String project, String topic) throws IOException {
 		return Publisher
-			.newBuilder(ProjectTopicName.of(project, topic))
+			.newBuilder(TopicName.of(project, topic))
 			.setChannelProvider(channelProvider)
-			.setCredentialsProvider(NoCredentialsProvider.create())
+			.setCredentialsProvider(EmulatorCredentialsProvider.create())
 			.build();
 	}
 
