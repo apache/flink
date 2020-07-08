@@ -82,8 +82,6 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 </div>
 </div>
 
-<a name="processing-time"></a>
-
 处理时间
 ---------------
 
