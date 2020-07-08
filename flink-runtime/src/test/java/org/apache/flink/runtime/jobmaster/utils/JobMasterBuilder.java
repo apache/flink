@@ -29,6 +29,10 @@ import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTrack
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentReconciler;
+import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentReconciler;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
@@ -80,6 +84,9 @@ public class JobMasterBuilder {
 
 	private FatalErrorHandler fatalErrorHandler = error -> {
 	};
+
+	private ExecutionDeploymentTracker executionDeploymentTracker = new DefaultExecutionDeploymentTracker();
+	private ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory = DefaultExecutionDeploymentReconciler::new;
 
 	public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
 		TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices();
@@ -150,6 +157,16 @@ public class JobMasterBuilder {
 		return this;
 	}
 
+	public JobMasterBuilder withExecutionDeploymentTracker(ExecutionDeploymentTracker executionDeploymentTracker) {
+		this.executionDeploymentTracker = executionDeploymentTracker;
+		return this;
+	}
+
+	public JobMasterBuilder withExecutionDeploymentReconcilerFactory(ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory) {
+		this.executionDeploymentReconcilerFactory = executionDeploymentReconcilerFactory;
+		return this;
+	}
+
 	public JobMaster createJobMaster() throws Exception {
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
@@ -169,7 +186,9 @@ public class JobMasterBuilder {
 			JobMasterBuilder.class.getClassLoader(),
 			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
 			shuffleMaster,
-			partitionTrackerFactory);
+			partitionTrackerFactory,
+			executionDeploymentTracker,
+			executionDeploymentReconcilerFactory);
 	}
 
 	/**
