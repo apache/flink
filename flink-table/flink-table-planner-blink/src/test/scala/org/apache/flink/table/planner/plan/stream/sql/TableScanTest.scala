@@ -21,9 +21,8 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.{MockedFilterPushDownTableSource, MockedLookupTableSource}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -371,24 +370,6 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    util.verifyPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
-  def testUnsupportedAbilityInterface(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE src (
-         |  ts TIMESTAMP(3),
-         |  a INT,
-         |  b DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'table-source-class' = '${classOf[MockedFilterPushDownTableSource].getName}'
-         |)
-      """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage("DynamicTableSource with SupportsFilterPushDown ability is not supported")
     util.verifyPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
   }
 

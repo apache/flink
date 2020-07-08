@@ -494,7 +494,7 @@ class TestLegacyProjectableTableSourceFactory extends StreamTableSourceFactory[R
   * @param filterPredicates The predicates that should be used to filter.
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
-class TestFilterableTableSource(
+class TestLegacyFilterableTableSource(
     override val isBounded: Boolean,
     schema: TableSchema,
     data: Seq[Row],
@@ -533,7 +533,7 @@ class TestFilterableTableSource(
       }
     }
 
-    new TestFilterableTableSource(
+    new TestLegacyFilterableTableSource(
       isBounded,
       schema,
       data,
@@ -631,7 +631,7 @@ class TestFilterableTableSource(
   override def getTableSchema: TableSchema = schema
 }
 
-object TestFilterableTableSource {
+object TestLegacyFilterableTableSource {
   val defaultFilterableFields = Set("amount")
 
   val defaultSchema: TableSchema = TableSchema.builder()
@@ -678,8 +678,8 @@ object TestFilterableTableSource {
   }
 }
 
-/** Table source factory to find and create [[TestFilterableTableSource]]. */
-class TestFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
+/** Table source factory to find and create [[TestLegacyFilterableTableSource]]. */
+class TestLegacyFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(properties: JMap[String, String])
     : StreamTableSource[Row] = {
     val descriptorProps = new DescriptorProperties()
@@ -690,16 +690,16 @@ class TestFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
     val rows = if (serializedRows != null) {
       EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
     } else {
-      TestFilterableTableSource.defaultRows
+      TestLegacyFilterableTableSource.defaultRows
     }
     val serializedFilterableFields =
       descriptorProps.getOptionalString("filterable-fields").orElse(null)
     val filterableFields = if (serializedFilterableFields != null) {
       EncodingUtils.decodeStringToObject(serializedFilterableFields, classOf[List[String]]).toSet
     } else {
-      TestFilterableTableSource.defaultFilterableFields
+      TestLegacyFilterableTableSource.defaultFilterableFields
     }
-    new TestFilterableTableSource(isBounded, schema, rows, filterableFields)
+    new TestLegacyFilterableTableSource(isBounded, schema, rows, filterableFields)
   }
 
   override def requiredContext(): JMap[String, String] = {

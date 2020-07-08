@@ -38,9 +38,9 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
-      TestFilterableTableSource.defaultSchema,
+      TestLegacyFilterableTableSource.defaultSchema,
       "FilterableTable")
 
     TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "PartitionableTable", false)
@@ -414,7 +414,7 @@ class LegacyTableSourceTest extends TableTestBase {
     row.setField(2, DateTimeTestUtil.localTime("14:23:02"))
     row.setField(3, DateTimeTestUtil.localDateTime("2017-01-24 12:45:01.234"))
 
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
       schema,
       "FilterableTable1",
