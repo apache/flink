@@ -38,12 +38,13 @@ except ImportError:
 class CodersTest(unittest.TestCase):
 
     def check_coder(self, coder, *values):
+        coder_impl = coder.get_impl()
         for v in values:
             if isinstance(v, float):
                 from pyflink.table.tests.test_udf import float_equal
-                assert float_equal(v, coder.decode(coder.encode(v)), 1e-6)
+                assert float_equal(v, coder_impl.decode(coder_impl.encode(v)), 1e-6)
             else:
-                self.assertEqual(v, coder.decode(coder.encode(v)))
+                self.assertEqual(v, coder_impl.decode(coder_impl.encode(v)))
 
     # decide whether two floats are equal
     @staticmethod
@@ -137,7 +138,7 @@ class CodersTest(unittest.TestCase):
     def test_flatten_row_coder(self):
         field_coder = BigIntCoder()
         field_count = 10
-        coder = FlattenRowCoder([field_coder for _ in range(field_count)])
+        coder = FlattenRowCoder([field_coder for _ in range(field_count)]).get_impl()
         v = [[None if i % 2 == 0 else i for i in range(field_count)]]
         generator_result = coder.decode(coder.encode(v))
         result = []

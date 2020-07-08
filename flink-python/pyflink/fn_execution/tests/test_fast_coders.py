@@ -20,10 +20,9 @@
 import logging
 import unittest
 
-from pyflink.fn_execution import coder_impl
-
 try:
     from pyflink.fn_execution import fast_coder_impl
+    from pyflink.fn_execution.beam import beam_slow_coder_impl as coder_impl
 
     have_cython = True
 except ImportError:
@@ -35,18 +34,19 @@ class CodersTest(unittest.TestCase):
 
     def check_cython_coder(self, python_field_coders, cython_field_coders, data):
         from apache_beam.coders.coder_impl import create_InputStream, create_OutputStream
-        from pyflink.fn_execution.fast_coder_impl import InputStreamAndFunctionWrapper
+        from pyflink.fn_execution.beam.beam_stream import BeamInputStream, BeamOutputStream
         py_flatten_row_coder = coder_impl.FlattenRowCoderImpl(python_field_coders)
         internal = py_flatten_row_coder.encode(data)
-        input_stream = create_InputStream(internal)
-        output_stream = create_OutputStream()
+        beam_input_stream = create_InputStream(internal)
+        input_stream = BeamInputStream(beam_input_stream, beam_input_stream.size())
+        beam_output_stream = create_OutputStream()
         cy_flatten_row_coder = fast_coder_impl.FlattenRowCoderImpl(cython_field_coders)
-        value = cy_flatten_row_coder.decode_from_stream(input_stream, False)
-        wrapper_func_input_element = InputStreamAndFunctionWrapper(
-            lambda v: [v[i] for i in range(len(v))], value)
-        cy_flatten_row_coder.encode_to_stream(wrapper_func_input_element, output_stream, False)
+        value = cy_flatten_row_coder.decode(input_stream)
+        output_stream = BeamOutputStream(beam_output_stream)
+        cy_flatten_row_coder.encode(value, output_stream)
+        output_stream.flush()
         generator_result = py_flatten_row_coder.decode_from_stream(create_InputStream(
-            output_stream.get()), False)
+            beam_output_stream.get()), False)
         result = []
         for item in generator_result:
             result.append(item)

@@ -19,11 +19,14 @@
 cimport libc.stdint
 
 from apache_beam.runners.worker.operations cimport Operation
-from apache_beam.coders.coder_impl cimport StreamCoderImpl, CoderImpl, OutputStream, InputStream
+from apache_beam.coders.coder_impl cimport StreamCoderImpl
+
+from pyflink.fn_execution.fast_coder_impl cimport BaseCoderImpl
 
 cdef class StatelessFunctionOperation(Operation):
     cdef Operation consumer
     cdef StreamCoderImpl _value_coder_impl
+    cdef BaseCoderImpl _output_coder
     cdef dict variable_dict
     cdef list user_defined_funcs
     cdef libc.stdint.int32_t _func_num

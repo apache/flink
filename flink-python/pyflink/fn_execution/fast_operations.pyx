@@ -25,8 +25,9 @@ import cloudpickle
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operation_specs
 from apache_beam.utils.windowed_value cimport WindowedValue
-from pyflink.fn_execution.fast_coder_impl cimport InputStreamAndFunctionWrapper
 
+from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
+from pyflink.fn_execution.beam.beam_coder_impl cimport InputStreamWrapper
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.serializers import PickleSerializer
@@ -45,13 +46,13 @@ cdef class StatelessFunctionOperation(Operation):
     def __init__(self, name, spec, counter_factory, sampler, consumers):
         super(StatelessFunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
-        self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()
-        value_coder = self._value_coder_impl._value_coder
-        from pyflink.fn_execution.coder_impl import ArrowCoderImpl
-        if isinstance(value_coder, ArrowCoderImpl):
+        self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
+        from pyflink.fn_execution.beam.beam_slow_coder_impl import ArrowCoderImpl
+        if isinstance(self._value_coder_impl, ArrowCoderImpl):
             self._is_python_coder = True
         else:
             self._is_python_coder = False
+            self._output_coder = self._value_coder_impl._value_coder
 
         self.variable_dict = {}
         self.user_defined_funcs = []
@@ -80,15 +81,25 @@ cdef class StatelessFunctionOperation(Operation):
                 user_defined_func.close()
 
     cpdef process(self, WindowedValue o):
-        cdef InputStreamAndFunctionWrapper wrapper
+        cdef InputStreamWrapper input_stream_wrapper
+        cdef BeamInputStream input_stream
+        cdef BaseCoderImpl input_coder
+        cdef BeamOutputStream output_stream
         with self.scoped_process_state:
-            output_stream = self.consumer.output_stream
             if self._is_python_coder:
-                self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
+                self._value_coder_impl.encode_to_stream(
+                    self.func(o.value), self.consumer.output_stream, True)
+                self.consumer.output_stream.maybe_flush()
             else:
-                wrapper = InputStreamAndFunctionWrapper(self.func, o.value)
-                self._value_coder_impl.encode_to_stream(wrapper, output_stream, True)
-            output_stream.maybe_flush()
+                input_stream_wrapper = o.value
+                input_stream = input_stream_wrapper._input_stream
+                input_coder = input_stream_wrapper._value_coder
+                output_stream = BeamOutputStream(self.consumer.output_stream)
+                while input_stream.available():
+                    input_data = input_coder.decode(input_stream)
+                    result = self.func(input_data)
+                    self._output_coder.encode(result, output_stream)
+                output_stream.flush()
 
     def progress_metrics(self):
         metrics = super(StatelessFunctionOperation, self).progress_metrics()

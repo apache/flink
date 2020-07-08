@@ -42,7 +42,6 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -154,11 +153,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
 		// one operator has one Python SDK harness
 		portableOptions.setSdkWorkerParallelism(1);
-		ExperimentalOptions experimentalOptions = portableOptions.as(ExperimentalOptions.class);
-		for (Map.Entry<String, String> entry : jobOptions.entrySet()) {
-			ExperimentalOptions.addExperiment(experimentalOptions,
-				String.join("=", entry.getKey(), entry.getValue()));
-		}
 
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
@@ -219,11 +213,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		PythonEnvironment environment = environmentManager.createEnvironment();
 		if (environment instanceof ProcessPythonEnvironment) {
 			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
+			Map<String, String> env = processEnvironment.getEnv();
+			env.putAll(jobOptions);
 			return Environments.createProcessEnvironment(
 				"",
 				"",
 				processEnvironment.getCommand(),
-				processEnvironment.getEnv());
+				env);
 		}
 		throw new RuntimeException("Currently only ProcessPythonEnvironment is supported.");
 	}
