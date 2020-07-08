@@ -116,8 +116,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
@@ -317,7 +317,9 @@ public class JobMasterTest extends TestLogger {
 				JobMasterTest.class.getClassLoader(),
 				schedulerNGFactory,
 				NettyShuffleMaster.INSTANCE,
-				NoOpJobMasterPartitionTracker.FACTORY) {
+				NoOpJobMasterPartitionTracker.FACTORY,
+				new DefaultExecutionDeploymentTracker(),
+				DefaultExecutionDeploymentReconciler::new) {
 				@Override
 				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
 					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
@@ -1667,7 +1669,9 @@ public class JobMasterTest extends TestLogger {
 			JobMasterTest.class.getClassLoader(),
 			schedulerNGFactory,
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.FACTORY) {
+			NoOpJobMasterPartitionTracker.FACTORY,
+			new DefaultExecutionDeploymentTracker(),
+			DefaultExecutionDeploymentReconciler::new) {
 
 			@Override
 			public CompletableFuture<String> triggerSavepoint(
@@ -1910,7 +1914,7 @@ public class JobMasterTest extends TestLogger {
 					jmResourceId,
 					localTaskManagerLocation.getResourceID()),
 			(jobMasterGateway, taskManagerResourceId) -> (resourceId, ignored) -> {
-				jobMasterGateway.heartbeatFromTaskManager(taskManagerResourceId, new AccumulatorReport(Collections.emptyList()));
+				jobMasterGateway.heartbeatFromTaskManager(taskManagerResourceId, TaskExecutorToJobManagerHeartbeatPayload.empty());
 			}
 		);
 	}

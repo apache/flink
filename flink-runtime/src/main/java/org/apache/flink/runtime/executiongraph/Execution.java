@@ -753,8 +753,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				.thenCompose(Function.identity())
 				.whenCompleteAsync(
 					(ack, failure) -> {
-						// only respond to the failure case
-						if (failure != null) {
+						if (failure == null) {
+							vertex.notifyDeployment(this);
+						} else {
 							if (failure instanceof TimeoutException) {
 								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 

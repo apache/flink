@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -511,7 +512,8 @@ public class SchedulerTestingUtils {
 				restartBackoffTimeStrategy,
 				executionVertexOperations,
 				executionVertexVersioner,
-				executionSlotAllocatorFactory);
+				executionSlotAllocatorFactory,
+				new DefaultExecutionDeploymentTracker());
 		}
 	}
 }

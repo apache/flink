@@ -181,7 +181,7 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
 		testAction.accept(resourceManagerGateway, taskManagerId1, taskManagerId2);
 	}
 
-	private void registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, ResourceID taskExecutorId, String taskExecutorAddress) throws Exception {
+	public static void registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, ResourceID taskExecutorId, String taskExecutorAddress) throws Exception {
 		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 			taskExecutorAddress,
 			taskExecutorId,
