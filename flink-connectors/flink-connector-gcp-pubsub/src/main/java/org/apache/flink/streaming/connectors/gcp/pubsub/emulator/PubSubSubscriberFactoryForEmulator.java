@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.gcp.pubsub;
+package org.apache.flink.streaming.connectors.gcp.pubsub.emulator;
 
+import org.apache.flink.streaming.connectors.gcp.pubsub.BlockingGrpcPubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
@@ -57,7 +58,6 @@ public class PubSubSubscriberFactoryForEmulator implements PubSubSubscriberFacto
 
 		PullRequest pullRequest = PullRequest.newBuilder()
 											.setMaxMessages(maxMessagesPerPull)
-											.setReturnImmediately(false)
 											.setSubscription(projectSubscriptionName)
 											.build();
 		SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(managedChannel);

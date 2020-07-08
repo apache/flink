@@ -65,7 +65,7 @@ public class AcknowledgeOnCheckpoint<ACKID extends Serializable> implements Chec
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+	public void notifyCheckpointComplete(long checkpointId) {
 		//get all acknowledgeIds of this and earlier checkpoints
 		List<ACKID> idsToAcknowledge = acknowledgeIdsPerCheckpoint
 			.stream()
@@ -87,7 +87,7 @@ public class AcknowledgeOnCheckpoint<ACKID extends Serializable> implements Chec
 	}
 
 	@Override
-	public List<AcknowledgeIdsForCheckpoint<ACKID>> snapshotState(long checkpointId, long timestamp) throws Exception {
+	public List<AcknowledgeIdsForCheckpoint<ACKID>> snapshotState(long checkpointId, long timestamp) {
 		acknowledgeIdsPerCheckpoint.add(new AcknowledgeIdsForCheckpoint<>(checkpointId, acknowledgeIdsForPendingCheckpoint));
 		acknowledgeIdsForPendingCheckpoint = new ArrayList<>();
 
@@ -95,7 +95,7 @@ public class AcknowledgeOnCheckpoint<ACKID extends Serializable> implements Chec
 	}
 
 	@Override
-	public void restoreState(List<AcknowledgeIdsForCheckpoint<ACKID>> state) throws Exception {
+	public void restoreState(List<AcknowledgeIdsForCheckpoint<ACKID>> state) {
 		outstandingAcknowledgements = new AtomicInteger(numberOfAcknowledgementIds(state));
 		acknowledgeIdsPerCheckpoint = state;
 	}

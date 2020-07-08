@@ -126,7 +126,7 @@ SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withProjectName("my-fake-project")
                                                 .withSubscriptionName("subscription")
                                                 .withHostAndPortForEmulator(hostAndPort)
-                                                .build()
+                                                .build();
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.addSource(pubsubSource)

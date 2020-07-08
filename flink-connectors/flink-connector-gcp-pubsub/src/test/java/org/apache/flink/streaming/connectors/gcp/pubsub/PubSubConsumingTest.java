@@ -32,7 +32,6 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -134,7 +133,7 @@ public class PubSubConsumingTest {
 		PubSubSource<String> pubSubSource = PubSubSource.newBuilder()
 			.withDeserializationSchema(new SimpleStringSchema() {
 				@Override
-				public void deserialize(byte[] message, Collector<String> out) throws IOException {
+				public void deserialize(byte[] message, Collector<String> out) {
 					String[] records = super.deserialize(message).split(",");
 					for (String record : records) {
 						out.collect(record);
@@ -234,7 +233,7 @@ public class PubSubConsumingTest {
 		}
 
 		@Override
-		public void close() throws Exception {
+		public void close() {
 
 		}
 

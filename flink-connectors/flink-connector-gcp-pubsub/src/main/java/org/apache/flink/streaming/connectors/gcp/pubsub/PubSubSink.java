@@ -24,25 +24,28 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredentials;
+import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredentialsProvider;
 import org.apache.flink.util.Preconditions;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannel;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.TopicName;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -97,17 +100,31 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		serializationSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 
 		Publisher.Builder builder = Publisher
-			.newBuilder(ProjectTopicName.of(projectName, topicName))
+			.newBuilder(TopicName.of(projectName, topicName))
 			.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
 
+		// Having the host and port for the emulator means we are in a testing scenario.
 		if (hostAndPortForEmulator != null) {
 			managedChannel = ManagedChannelBuilder
 				.forTarget(hostAndPortForEmulator)
-				.usePlaintext(true) // This is 'Ok' because this is ONLY used for testing.
+				.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
 				.build();
 			channel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
 			builder.setChannelProvider(FixedTransportChannelProvider.create(channel))
-					.setCredentialsProvider(NoCredentialsProvider.create());
+					.setCredentialsProvider(EmulatorCredentialsProvider.create())
+					// In test scenarios we are limiting the Retry settings.
+					// The values here are based on the default settings with lower attempts and timeouts.
+					.setRetrySettings(
+						RetrySettings.newBuilder()
+							.setMaxAttempts(10)
+							.setTotalTimeout(Duration.ofSeconds(10))
+							.setInitialRetryDelay(Duration.ofMillis(100))
+							.setRetryDelayMultiplier(1.3)
+							.setMaxRetryDelay(Duration.ofSeconds(5))
+							.setInitialRpcTimeout(Duration.ofSeconds(5))
+							.setRpcTimeoutMultiplier(1)
+							.setMaxRpcTimeout(Duration.ofSeconds(10))
+							.build());
 		}
 
 		publisher = builder.build();
@@ -157,7 +174,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	}
 
 	@Override
-	public void invoke(IN message, SinkFunction.Context context) throws Exception {
+	public void invoke(IN message, SinkFunction.Context context) {
 		PubsubMessage pubsubMessage = PubsubMessage
 			.newBuilder()
 			.setData(ByteString.copyFrom(serializationSchema.serialize(message)))
@@ -206,7 +223,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	}
 
 	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
+	public void initializeState(FunctionInitializationContext context) {
 	}
 
 	/**
@@ -273,7 +290,13 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		 */
 		public PubSubSink<IN> build() throws IOException {
 			if (credentials == null) {
-				credentials = defaultCredentialsProviderBuilder().build().getCredentials();
+				if (hostAndPort == null) {
+					// No hostAndPort is the normal scenario so we use the default credentials.
+					credentials = defaultCredentialsProviderBuilder().build().getCredentials();
+				} else {
+					// With hostAndPort the PubSub emulator is used so we do not have credentials.
+					credentials = EmulatorCredentials.getInstance();
+				}
 			}
 			return new PubSubSink<>(credentials, serializationSchema, projectName, topicName, hostAndPort);
 		}

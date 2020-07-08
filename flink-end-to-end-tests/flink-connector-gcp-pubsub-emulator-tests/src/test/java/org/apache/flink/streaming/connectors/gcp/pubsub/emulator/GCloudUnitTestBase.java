@@ -64,7 +64,7 @@ public class GCloudUnitTestBase extends TestLogger implements Serializable {
 			//noinspection deprecation
 			channel = ManagedChannelBuilder
 				.forTarget(getPubSubHostPort())
-				.usePlaintext(true)
+				.usePlaintext()
 				.build();
 			channelProvider = FixedTransportChannelProvider
 				.create(GrpcTransportChannel.create(channel));

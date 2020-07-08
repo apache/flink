@@ -40,7 +40,7 @@ public class AcknowledgeOnCheckpointTest {
 	private final Acknowledger<String> mockedAcknowledger = mock(Acknowledger.class);
 
 	@Test
-	public void testRestoreStateAndSnapshot() throws Exception {
+	public void testRestoreStateAndSnapshot() {
 		List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
 		input.add(new AcknowledgeIdsForCheckpoint<>(0, asList("idsFor0", "moreIdsFor0")));
 		input.add(new AcknowledgeIdsForCheckpoint<>(1, asList("idsFor1", "moreIdsFor1")));
@@ -60,7 +60,7 @@ public class AcknowledgeOnCheckpointTest {
 	}
 
 	@Test
-	public void testAddAcknowledgeIdOnEmptyState() throws Exception {
+	public void testAddAcknowledgeIdOnEmptyState() {
 		AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint = new AcknowledgeOnCheckpoint<>(mockedAcknowledger);
 
 		acknowledgeOnCheckpoint.addAcknowledgeId("ackId");
@@ -74,7 +74,7 @@ public class AcknowledgeOnCheckpointTest {
 	}
 
 	@Test
-	public void testAddAcknowledgeIdOnExistingState() throws Exception {
+	public void testAddAcknowledgeIdOnExistingState() {
 		List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
 		input.add(new AcknowledgeIdsForCheckpoint<>(0, asList("idsFor0", "moreIdsFor0")));
 		input.add(new AcknowledgeIdsForCheckpoint<>(1, asList("idsFor1", "moreIdsFor1")));
@@ -96,7 +96,7 @@ public class AcknowledgeOnCheckpointTest {
 	}
 
 	@Test
-	public void testAddMultipleAcknowledgeIds() throws Exception {
+	public void testAddMultipleAcknowledgeIds() {
 		AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint = new AcknowledgeOnCheckpoint<>(mockedAcknowledger);
 
 		acknowledgeOnCheckpoint.addAcknowledgeId("ackId");
@@ -111,7 +111,7 @@ public class AcknowledgeOnCheckpointTest {
 	}
 
 	@Test
-	public void testAcknowledgeIdsForCheckpoint() throws Exception {
+	public void testAcknowledgeIdsForCheckpoint() {
 		List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
 		input.add(new AcknowledgeIdsForCheckpoint<>(0, asList("idsFor0", "moreIdsFor0")));
 		input.add(new AcknowledgeIdsForCheckpoint<>(1, asList("idsFor1", "moreIdsFor1")));
@@ -134,7 +134,7 @@ public class AcknowledgeOnCheckpointTest {
 	}
 
 	@Test
-	public void testNumberOfOutstandingAcknowledgementsOnEmptyState() throws Exception {
+	public void testNumberOfOutstandingAcknowledgementsOnEmptyState() {
 		AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint = new AcknowledgeOnCheckpoint<>(mockedAcknowledger);
 		assertThat(acknowledgeOnCheckpoint.numberOfOutstandingAcknowledgements(), is(0));
 	}

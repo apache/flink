@@ -19,8 +19,8 @@ package org.apache.flink.streaming.examples.gcp.pubsub;
 
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.TopicName;
 
 import java.math.BigInteger;
 
@@ -44,7 +44,7 @@ class PubSubPublisher {
 	void publish(int amountOfMessages) {
 		Publisher publisher = null;
 		try {
-			publisher = Publisher.newBuilder(ProjectTopicName.of(projectName, topicName)).build();
+			publisher = Publisher.newBuilder(TopicName.of(projectName, topicName)).build();
 			for (int i = 0; i < amountOfMessages; i++) {
 				ByteString messageData = ByteString.copyFrom(BigInteger.valueOf(i).toByteArray());
 				PubsubMessage message = PubsubMessage.newBuilder().setData(messageData).build();
