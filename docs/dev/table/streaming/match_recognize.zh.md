@@ -163,9 +163,9 @@ FROM Ticker
 
 `DEFINE` 子句指定 `PRICE_DOWN` 和 `PRICE_UP` 事件需要满足的条件。尽管不存在 `START_ROW` 模式变量，但它具有一个始终被评估为 `TRUE` 隐式条件。
 
-模式变量 `PRICE_DOWN` 定义为价格小于满足 `PRICE_DOWN` 条件的最后一行价格的行。对于初始情况或没有满足 `PRICE_DOWN` 条件的最后一行时，该行的价格应小于该模式中前一行（由 `START_ROW` 引用）的价格。
+模式变量 `PRICE_DOWN` 定义为价格小于满足 `PRICE_DOWN` 条件的最后一行。对于初始情况或没有满足 `PRICE_DOWN` 条件的最后一行时，该行的价格应小于该模式中前一行（由 `START_ROW` 引用）的价格。
 
-模变变量 `PRICE_UP` 定义为价格大于满足 `PRICE_DOWN` 条件的最后一行价格的行。
+模变变量 `PRICE_UP` 定义为价格大于满足 `PRICE_DOWN` 条件的最后一行。
 
 此查询为股票价格持续下跌的每个期间生成摘要行。
 
@@ -383,7 +383,7 @@ DEFINE
 
 <span class="label label-info">注意</span> 通常鼓励使用 `WITHIN` 子句，因为它有助于 Flink 进行有效的内存管理。一旦达到阈值，即可修剪基础状态。
 
-<span class="label label-danger">注意</span> 然而，`WITHIN` 子句不是 SQL 标准的一部分。处理时间约束的方法已被提议将来可能会改变。
+<span class="label label-danger">注意</span> 然而，`WITHIN` 子句不是 SQL 标准的一部分。时间约束处理的方法已被提议将来可能会改变。
 
 下面的示例查询说明了 `WITHIN` 子句的用法：
 
