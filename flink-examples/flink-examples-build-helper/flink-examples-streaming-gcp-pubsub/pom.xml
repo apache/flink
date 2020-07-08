@@ -32,6 +32,23 @@ under the License.
 	<name>flink-examples-streaming-gcp-pubsub</name>
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- NOTE: Without this building the software will fail with                    -->
+			<!--    Failed to resolve dependencies for one or more projects in the reactor. -->
+			<!--    Reason: The artifact has no valid ranges                                -->
+			<!--    [ERROR]   io.grpc:grpc-api:jar:1.28.1                                   -->
+			<dependency>
+				<!-- This is the way we get a consistent set of versions of the Google tools -->
+				<groupId>com.google.cloud</groupId>
+				<artifactId>libraries-bom</artifactId>
+				<version>8.0.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

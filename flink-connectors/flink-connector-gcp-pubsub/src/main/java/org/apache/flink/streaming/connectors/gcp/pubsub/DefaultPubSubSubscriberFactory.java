@@ -56,7 +56,6 @@ class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
 
 		PullRequest pullRequest = PullRequest.newBuilder()
 								.setMaxMessages(maxMessagesPerPull)
-								.setReturnImmediately(false)
 								.setSubscription(projectSubscriptionName)
 								.build();
 		SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(channel)
