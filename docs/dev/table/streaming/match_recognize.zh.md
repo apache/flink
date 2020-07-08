@@ -30,8 +30,8 @@ under the License.
 `MATCH_RECOGNIZE` 子句启用以下任务：
 * 使用 `PARTITION BY` 和 `ORDER BY` 子句对数据进行逻辑分区和排序。
 * 使用 `PATTERN` 子句定义要查找的行的模式。这些模式使用类似于正则表达式的语法。
-* 行模式变量的逻辑组件在 `DEFINE` 子句中指定。
-* measures 是指在 `MEASURES` 子句中定义的表达式，这些表达式可用在 SQL 查询中的其他部分。
+* 在 `DEFINE` 子句中指定行模式变量的逻辑组合。
+* measures 是指在 `MEASURES` 子句中定义的表达式，这些表达式可用于 SQL 查询中的其他部分。
 
 下面的示例演示了基本模式识别的语法：
 
@@ -169,7 +169,7 @@ FROM Ticker
 
 此查询为股票价格持续下跌的每个期间生成摘要行。
 
-输出行的确切表示在查询的 `MEASURES` 部分中定义。输出行数由 `ONE ROW PER MATCH` 输出方式定义。
+在查询的 `MEASURES` 子句部分定义确切的输出行信息。输出行数由 `ONE ROW PER MATCH` 输出方式定义。
 
 {% highlight text %}
  symbol       start_tstamp       bottom_tstamp         end_tstamp
@@ -206,7 +206,7 @@ Define & Measures
 
 `DEFINE` 和 `MEASURES` 关键字与简单 SQL 查询中的 `WHERE` 和 `SELECT` 子句具有相近的含义。
 
-`MEASURES` 子句定义匹配模式的输出中要包含哪些内容。它可以投影列并定义表达式进行计算。产生的行数取决于 [output mode](#output-mode) 设置。
+`MEASURES` 子句定义匹配模式的输出中要包含哪些内容。它可以投影列并定义表达式进行计算。产生的行数取决于[输出方式](#output-mode)设置。
 
 `DEFINE` 子句指定行必须满足的条件才能被分类到相应的 [pattern variable](#defining-a-pattern)。如果没有为模式变量定义条件，则将使用对每一行的计算结果为 `true` 的默认条件。
 
@@ -216,7 +216,7 @@ Define & Measures
 
 Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({% link dev/table/functions/systemFunctions.zh.md %})和[用户自定义函数]({% link dev/table/functions/udfs.zh.md %})。
 
-Aggregate functions 应用于映射到匹配项的行的每个子集。为了了解如何评估这些子集，请查看 [event stream navigation](#pattern-navigation) 部分。
+对相应匹配项的行子集可以使用 Aggregate functions。请查看 [event stream navigation](#pattern-navigation) 部分以了解如何计算这些子集。
 
 下面这个示例的任务是找出股票平均价格没有低于某个阈值的最长时间段。它展示了 `MATCH_RECOGNIZE` 在聚合中的可表达性。可以使用以下查询执行此任务：
 
@@ -375,7 +375,7 @@ DEFINE
 
 ### 时间约束
 
-特别是对于流的使用场景，通常需要在给定的时间内完成模式。这要求限制 Flink 必须在内部保持的总体状态大小，即使在贪婪的量词的情况下也是如此。
+特别是对于流的使用场景，通常需要在给定的时间内完成模式。这要求限制住 Flink 在内部必须保持的状态总体大小（即已经过期的状态就不需要再维护了），即使在贪婪的量词的情况下也是如此。
 
 因此，Flink SQL 支持附加的（非标准 SQL）`WITHIN` 子句来定义模式的时间约束。子句可以在 `PATTERN` 子句之后定义，并以毫秒为间隔进行解析。
 
@@ -442,7 +442,7 @@ symbol         dropTime         dropDiff
 输出方式
 -----------
 
-_output mode_ 描述每个找到的匹配项应该输出多少行。SQL 标准描述了两种方式：
+_输出方式_ 描述每个找到的匹配项应该输出多少行。SQL 标准描述了两种方式：
 - `ALL ROWS PER MATCH`
 - `ONE ROW PER MATCH`
 
