@@ -650,7 +650,7 @@ class RankTest extends TableTestBase {
         |)
       """.stripMargin)
     util.tableEnv.executeSql("create view src_view as select *, " +
-      "ROW_NUMBER_WINDOW() OVER (PARTITION BY name ORDER BY age DESC) as row_num from src")
+      "ROW_NUMBER() OVER (PARTITION BY name ORDER BY age DESC) as row_num from src")
     util.verifyPlan("select name, age, row_num from src_view where row_num <= 3")
   }
 
