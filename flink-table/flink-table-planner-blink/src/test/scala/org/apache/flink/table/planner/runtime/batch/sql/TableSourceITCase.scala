@@ -49,8 +49,7 @@ class TableSourceITCase extends BatchTestBase {
         |""".stripMargin)
 
     val filterableTableDataId = TestValuesTableFactory.registerData(
-      TestFilterableTableSource.defaultRows)
-    // TODO: [FLINK-17425] support filter pushdown for TestValuesTableSource
+      TestLegacyFilterableTableSource.defaultRows)
     tEnv.executeSql(
       s"""
          |CREATE TABLE FilterableTable (
@@ -61,6 +60,7 @@ class TableSourceITCase extends BatchTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$filterableTableDataId',
+         |  'filterable-fields' = 'amount',
          |  'bounded' = 'true'
          |)
          |""".stripMargin)
@@ -152,22 +152,22 @@ class TableSourceITCase extends BatchTestBase {
   @Test
   def testTableSourceWithFilterable(): Unit = {
     checkResult(
-      "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9",
+      "SELECT id, amount, name FROM FilterableTable WHERE amount > 4 AND price < 9",
       Seq(
-        row(5, "Record_5"),
-        row(6, "Record_6"),
-        row(7, "Record_7"),
-        row(8, "Record_8"))
+        row(5, 5, "Record_5"),
+        row(6, 6, "Record_6"),
+        row(7, 7, "Record_7"),
+        row(8, 8, "Record_8"))
     )
   }
 
   @Test
   def testTableSourceWithFunctionFilterable(): Unit = {
     checkResult(
-      "SELECT id, name FROM FilterableTable " +
+      "SELECT id, amount, name FROM FilterableTable " +
         "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
       Seq(
-        row(5, "Record_5"))
+        row(5, 5, "Record_5"))
     )
   }
 

@@ -23,7 +23,7 @@ import org.apache.calcite.tools.RuleSets
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestFilterableTableSource}
+import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestLegacyFilterableTableSource}
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
 
@@ -31,7 +31,7 @@ import org.junit.{Before, Test}
   * Test for [[PushFilterIntoLegacyTableSourceScanRule]].
   */
 class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
-  private val util = batchTestUtil()
+  protected val util = batchTestUtil()
 
   @Before
   def setup(): Unit = {
@@ -48,9 +48,9 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
     )
 
     // name: STRING, id: LONG, amount: INT, price: DOUBLE
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
-      TestFilterableTableSource.defaultSchema,
+      TestLegacyFilterableTableSource.defaultSchema,
       "MyTable",
       isBounded = true)
     val ddl =
@@ -156,7 +156,7 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       .build()
 
     val data = List(Row.of("foo", "bar"))
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
       schema,
       "MTable",

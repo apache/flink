@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.factories;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -41,11 +42,17 @@ import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
@@ -55,11 +62,13 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Retra
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -72,11 +81,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import scala.Tuple2;
 import scala.collection.Seq;
 
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -150,12 +163,17 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	 */
 	private static RowKind parseRowKind(String rowKindShortString) {
 		switch (rowKindShortString) {
-			case "+I": return RowKind.INSERT;
-			case "-U": return RowKind.UPDATE_BEFORE;
-			case "+U": return RowKind.UPDATE_AFTER;
-			case "-D": return RowKind.DELETE;
-			default: throw new IllegalArgumentException(
-				"Unsupported RowKind string: " + rowKindShortString);
+			case "+I":
+				return RowKind.INSERT;
+			case "-U":
+				return RowKind.UPDATE_BEFORE;
+			case "+U":
+				return RowKind.UPDATE_AFTER;
+			case "-D":
+				return RowKind.DELETE;
+			default:
+				throw new IllegalArgumentException(
+					"Unsupported RowKind string: " + rowKindShortString);
 		}
 	}
 
@@ -198,7 +216,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.stringType()
 		.defaultValue("DEFAULT"); // class path which implements DynamicTableSource
 
-	private static final ConfigOption<String> LOOKUP_FUNCTION_CLASS  = ConfigOptions
+	private static final ConfigOption<String> LOOKUP_FUNCTION_CLASS = ConfigOptions
 		.key("lookup-function-class")
 		.stringType()
 		.noDefaultValue();
@@ -223,6 +241,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.booleanType()
 		.defaultValue(false);
 
+	private static final ConfigOption<List<String>> FILTERABLE_FIELDS = ConfigOptions
+		.key("filterable-fields")
+		.stringType()
+		.asList()
+		.noDefaultValue();
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -240,6 +264,10 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
+		Optional<List<String>> fields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
+
+		Set<String> filterableFields = new HashSet<>();
+		fields.ifPresent(elements -> filterableFields.addAll(elements));
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
@@ -253,7 +281,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
-				null);
+				null,
+				null,
+				filterableFields);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -300,7 +330,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_INSERT_ONLY,
 			RUNTIME_SINK,
 			SINK_EXPECTED_MESSAGES_NUM,
-			NESTED_PROJECTION_SUPPORTED));
+			NESTED_PROJECTION_SUPPORTED,
+			FILTERABLE_FIELDS));
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -333,7 +364,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
@@ -341,20 +372,26 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final String runtimeSource;
 		private final Collection<Row> data;
 		private final boolean isAsync;
-		private final @Nullable String lookupFunctionClass;
+		private final @Nullable
+		String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
-		private @Nullable int[] projectedFields;
+		private @Nullable
+		int[] projectedFields;
+		private List<ResolvedExpression> filterPredicates;
+		private Set<String> filterableFields;
 
 		private TestValuesTableSource(
-				TableSchema physicalSchema,
-				ChangelogMode changelogMode,
-				boolean bounded,
-				String runtimeSource,
-				Collection<Row> data,
-				boolean isAsync,
-				@Nullable String lookupFunctionClass,
-				boolean nestedProjectionSupported,
-				int[] projectedFields) {
+			TableSchema physicalSchema,
+			ChangelogMode changelogMode,
+			boolean bounded,
+			String runtimeSource,
+			Collection<Row> data,
+			boolean isAsync,
+			@Nullable String lookupFunctionClass,
+			boolean nestedProjectionSupported,
+			int[] projectedFields,
+			List<ResolvedExpression> filterPredicates,
+			Set<String> filterableFields) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -364,6 +401,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.lookupFunctionClass = lookupFunctionClass;
 			this.nestedProjectionSupported = nestedProjectionSupported;
 			this.projectedFields = projectedFields;
+			this.filterPredicates = filterPredicates;
+			this.filterableFields = filterableFields;
 		}
 
 		@Override
@@ -450,6 +489,127 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		@Override
+		public Result applyFilters(List<ResolvedExpression> filters) {
+			List<ResolvedExpression> acceptedFilters = new ArrayList<>();
+			List<ResolvedExpression> remainingFilters = new ArrayList<>();
+			for (ResolvedExpression expr : filters) {
+				if (shouldPushDown(expr)) {
+					acceptedFilters.add(expr);
+				} else {
+					remainingFilters.add(expr);
+				}
+			}
+			this.filterPredicates = acceptedFilters;
+			return Result.of(acceptedFilters, remainingFilters);
+		}
+
+		private Boolean shouldPushDown(Expression expr) {
+			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
+				return shouldPushDownUnaryExpression(expr.getChildren().get(0))
+					&& shouldPushDownUnaryExpression(expr.getChildren().get(1));
+			}
+			return false;
+		}
+
+		private boolean shouldPushDownUnaryExpression(Expression expr) {
+			if (expr instanceof FieldReferenceExpression) {
+				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
+					return true;
+				}
+			}
+
+			if (expr instanceof ValueLiteralExpression) {
+				return true;
+			}
+
+			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
+				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
+					|| ((CallExpression) expr).getFunctionDefinition().equals(BuiltInFunctionDefinitions.LOWER)) {
+					return shouldPushDownUnaryExpression(expr.getChildren().get(0));
+				}
+			}
+			// other resolved expressions return false
+			return false;
+		}
+
+		private Boolean applyPredicatesToRow(Row row) {
+			if (filterPredicates == null) {
+				return true;
+			}
+			for (ResolvedExpression expr : filterPredicates) {
+				if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
+					if (!binaryFilterApplies((CallExpression) expr, row)) {
+						return false;
+					}
+				} else {
+					throw new RuntimeException(expr + " not supported!");
+				}
+			}
+			return true;
+		}
+
+		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
+			List<Expression> children = binExpr.getChildren();
+			Preconditions.checkArgument(children.size() == 2);
+			Tuple2<Comparable, Comparable> tuple2 = extractValues(binExpr, row);
+			Comparable lhsValue = tuple2._1;
+			Comparable rhsValue = tuple2._2;
+			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
+
+			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) > 0;
+			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) < 0;
+			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) >= 0;
+			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) <= 0;
+			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) == 0;
+			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) != 0;
+			} else {
+				return false;
+			}
+		}
+
+		private Tuple2<Comparable, Comparable> extractValues(CallExpression binExpr, Row row) {
+			List<Expression> children = binExpr.getChildren();
+			Preconditions.checkArgument(children.size() == 2);
+			return new Tuple2(getValue(children.get(0), row), getValue(children.get(1), row));
+		}
+
+		private Comparable getValue(Expression expr, Row row) {
+			if (expr instanceof ValueLiteralExpression) {
+				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
+				if (value.isPresent()) {
+					return (Comparable) value.get();
+				} else {
+					return null;
+				}
+			}
+
+			if (expr instanceof FieldReferenceExpression) {
+				RowTypeInfo rowTypeInfo = new RowTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(physicalSchema.getFieldDataTypes()), physicalSchema.getFieldNames());
+				int idx = rowTypeInfo.getFieldIndex(((FieldReferenceExpression) expr).getName());
+				return (Comparable) row.getField(idx);
+			}
+
+			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
+				Comparable child = getValue(expr.getChildren().get(0), row);
+				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
+				if (functionDefinition.equals(UPPER)) {
+					return child.toString().toUpperCase();
+				} else if (functionDefinition.equals(LOWER)) {
+					return child.toString().toLowerCase();
+				} else {
+					throw new RuntimeException(expr + " not supported!");
+				}
+			}
+			throw new RuntimeException(expr + " not supported!");
+		}
+
+		@Override
 		public DynamicTableSource copy() {
 			return new TestValuesTableSource(
 				physicalSchema,
@@ -460,7 +620,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
-				projectedFields);
+				projectedFields,
+				filterPredicates,
+				filterableFields);
 		}
 
 		@Override
@@ -468,26 +630,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return "TestValues";
 		}
 
-		private static Collection<RowData> convertToRowData(
-				Collection<Row> data,
-				int[] projectedFields,
-				DataStructureConverter converter) {
+		private Collection<RowData> convertToRowData(
+			Collection<Row> data,
+			int[] projectedFields,
+			DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Row value : data) {
-				Row projectedRow;
-				if (projectedFields == null) {
-					projectedRow = value;
-				} else {
-					Object[] newValues = new Object[projectedFields.length];
-					for (int i = 0; i < projectedFields.length; ++i) {
-						newValues[i] = value.getField(projectedFields[i]);
+				if (applyPredicatesToRow(value)) {
+					Row projectedRow;
+					if (projectedFields == null) {
+						projectedRow = value;
+					} else {
+						Object[] newValues = new Object[projectedFields.length];
+						for (int i = 0; i < projectedFields.length; ++i) {
+							newValues[i] = value.getField(projectedFields[i]);
+						}
+						projectedRow = Row.of(newValues);
 					}
-					projectedRow = Row.of(newValues);
-				}
-				RowData rowData = (RowData) converter.toInternal(projectedRow);
-				if (rowData != null) {
-					rowData.setRowKind(value.getKind());
-					result.add(rowData);
+					RowData rowData = (RowData) converter.toInternal(projectedRow);
+					if (rowData != null) {
+						rowData.setRowKind(value.getKind());
+						result.add(rowData);
+					}
 				}
 			}
 			return result;
@@ -562,11 +726,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final int expectedNum;
 
 		private TestValuesTableSink(
-				TableSchema schema,
-				String tableName,
-				boolean isInsertOnly,
-				String runtimeSink,
-				int expectedNum) {
+			TableSchema schema,
+			String tableName,
+			boolean isInsertOnly,
+			String runtimeSink,
+			int expectedNum) {
 			this.schema = schema;
 			this.tableName = tableName;
 			this.isInsertOnly = isInsertOnly;
