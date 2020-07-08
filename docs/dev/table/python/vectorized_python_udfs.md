@@ -54,6 +54,9 @@ def add(i, j):
 
 table_env = BatchTableEnvironment.create(env)
 
+# configure the python worker to use the managed memory budget of the task slot
+table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+
 # register the vectorized Python scalar function
 table_env.register_function("add", add)
 

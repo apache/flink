@@ -48,6 +48,9 @@ class HashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
+# configure the python worker to use the managed memory budget of the task slot
+table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+
 # register the Python function
 table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
@@ -75,6 +78,9 @@ public class HashCode extends ScalarFunction {
 '''
 
 table_env = BatchTableEnvironment.create(env)
+
+# configure the python worker to use the managed memory budget of the task slot
+table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
 
 # register the Java function
 table_env.register_java_function("hash_code", "my.java.function.HashCode")
@@ -145,6 +151,9 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
+# configure the python worker to use the managed memory budget of the task slot
+table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+
 # register the Python Table Function
 table_env.register_function("split", udtf(Split(), DataTypes.STRING(), [DataTypes.STRING(), DataTypes.INT()]))
 
@@ -181,6 +190,9 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
+
+# configure the python worker to use the managed memory budget of the task slot
+table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
 
 # Register the java function.
 table_env.register_java_function("split", "my.java.function.Split")
