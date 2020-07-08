@@ -26,7 +26,7 @@ Join 在批数据处理中是比较常见且广为人知的运算，一般用于
 
 因而，Flink 提供了几种基于 Table API 和 SQL 的 Join 方法。
 
-欲获取更多关于 Join 语法的细节，请参考 [Table API]({%link dev/table/sql/tableApi.zh.md %}#joins) 和 [SQL]({%link dev/table/sql/queries.zh.md %}#joins) 中的 Join 章节。
+欲获取更多关于 Join 语法的细节，请参考 [Table API]({%link dev/table/tableApi.zh.md %}#joins) 和 [SQL]({%link dev/table/sql/queries.zh.md %}#joins) 中的 Join 章节。
 
 * This will be replaced by the TOC
 {:toc}
