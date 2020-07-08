@@ -102,7 +102,7 @@ public class KubernetesSessionCli {
 			final FlinkKubeClient kubeClient = KubeClientFactory.fromConfiguration(configuration);
 
 			// Retrieve or create a session cluster.
-			if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {
+			if (kubeClient.getRestService(clusterId).isPresent()) {
 				clusterClient = kubernetesClusterDescriptor.retrieve(clusterId).getClusterClient();
 			} else {
 				clusterClient = kubernetesClusterDescriptor
