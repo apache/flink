@@ -38,12 +38,12 @@ import java.util.Properties;
 public class Kafka010DynamicSink extends KafkaDynamicSinkBase {
 
 	public Kafka010DynamicSink(
-		DataType consumedDataType,
-		String topic,
-		Properties properties,
-		Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-		EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-		KafkaSemantic semantic) {
+			DataType consumedDataType,
+			String topic,
+			Properties properties,
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSemantic semantic) {
 		super(
 			consumedDataType,
 			topic,
