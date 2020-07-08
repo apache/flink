@@ -153,7 +153,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			FunctionIdentifier identifier,
 			FunctionDefinition definition) {
 
-		if (!verifyFunctionKind(category, definition)) {
+		if (!verifyFunctionKind(category, identifier, definition)) {
 			return Optional.empty();
 		}
 
@@ -196,16 +196,23 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 	@SuppressWarnings("RedundantIfStatement")
 	private boolean verifyFunctionKind(
 			@Nullable SqlFunctionCategory category,
+			FunctionIdentifier identifier,
 			FunctionDefinition definition) {
 
 		// it would be nice to give a more meaningful exception when a scalar function is used instead
 		// of a table function and vice versa, but we can do that only once FLIP-51 is implemented
 
-		if (definition.getKind() == FunctionKind.SCALAR &&
-				(category == SqlFunctionCategory.USER_DEFINED_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+		if (definition.getKind() == FunctionKind.SCALAR) {
+			if (category != null && category.isTableFunction()) {
+				throw new ValidationException(
+					String.format(
+						"Function '%s' cannot be used as a table function.",
+						identifier.asSummaryString()
+					)
+				);
+			}
 			return true;
-		} else if (definition.getKind() == FunctionKind.TABLE &&
-				(category == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+		} else if (definition.getKind() == FunctionKind.TABLE) {
 			return true;
 		}
 
