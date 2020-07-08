@@ -207,6 +207,10 @@ Regular JVM method calling semantics apply. Therefore, it is possible to:
 - use object inheritance such as `eval(Object)` that takes both `LocalDateTime` and `Integer`,
 - and combinations of the above such as `eval(Object...)` that takes all kinds of arguments.
 
+If you intend to implement functions in Scala, please add the `scala.annotation.varargs` annotation in
+case of variable arguments. Furthermore, it is recommended to use boxed primitives (e.g. `java.lang.Integer`
+instead of `Int`) to support `NULL`.
+
 The following snippets shows an example of an overloaded function:
 
 <div class="codetabs" markdown="1">
@@ -240,6 +244,8 @@ public static class SumFunction extends ScalarFunction {
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.table.functions.ScalarFunction
+import java.lang.Integer
+import java.lang.Double
 import scala.annotation.varargs
 
 // function with overloaded evaluation methods
@@ -280,7 +286,7 @@ If more advanced type inference logic is required, an implementer can explicitly
 
 The automatic type inference inspects the function's class and evaluation methods to derive data types for the arguments and result of a function. `@DataTypeHint` and `@FunctionHint` annotations support the automatic extraction.
 
-For a full list of classes that can be implicitly mapped to a data type, see the [data type section]({% link dev/table/types.md %}#data-type-annotations).
+For a full list of classes that can be implicitly mapped to a data type, see the [data type extraction section]({% link dev/table/types.md %}#data-type-extraction).
 
 **`@DataTypeHint`**
 
