@@ -1262,7 +1262,10 @@ class AggregateITCase(
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val columnNumber = 500
+    tEnv.getConfig.setMaxGeneratedCodeLength(2048)
+
+    // 50 can make sure all generated methods of [Namespace]AggsHandleFunction is longer than 2048
+    val columnNumber = 50
 
     val selectList = Stream.range(3, columnNumber)
       .map(i => s"SUM(CASE WHEN a IS NOT NULL AND a > $i THEN 0 WHEN a < 0 THEN 0 ELSE $i END)")
