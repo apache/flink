@@ -18,29 +18,22 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-<<<<<<< HEAD
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.utils.TestLimitableTableSource
+import org.apache.flink.table.planner.utils.TestLegacyLimitableTableSource
+
 import org.junit._
 
-class LimitITCase extends BatchTestBase {
+class LegacyLimitITCase extends BatchTestBase {
 
   @Before
-=======
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
-
-class LimitITCase extends LegacyLimitITCase {
->>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
   override def before(): Unit = {
-    BatchTestBase.configForMiniCluster(conf)
+    super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-<<<<<<< HEAD
-    TestLimitableTableSource.createTemporaryTable(
+    TestLegacyLimitableTableSource.createTemporaryTable(
       tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
   }
 
@@ -107,6 +100,13 @@ class LimitITCase extends LegacyLimitITCase {
       5)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testTableLimitWithLimitTable(): Unit = {
+    Assert.assertEquals(
+      executeQuery(tEnv.from("LimitTable").fetch(5)).size,
+      5)
+  }
+
   @Test
   def testLessThanOffset(): Unit = {
     checkSize(
@@ -119,23 +119,5 @@ class LimitITCase extends LegacyLimitITCase {
     checkSize(
       "SELECT * FROM LimitTable OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY",
       19)
-=======
-//    TestLimitableTableSource.createTemporaryTable(
-//      tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
-    val myTableDataId = TestValuesTableFactory.registerData(TestData.data3)
-    val ddl =
-      s"""
-         |CREATE TABLE LimitTable (
-         |  a int,
-         |  b bigint,
-         |  c string
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId',
-         |  'bounded' = 'true'
-         |)
-       """.stripMargin
-    tEnv.executeSql(ddl)
->>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
   }
 }

@@ -39,6 +39,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.CallExpression;
@@ -277,8 +278,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				lookupFunctionClass,
 				nestedProjectionSupported,
 				null,
+<<<<<<< HEAD
 				null,
 				filterableFieldsSet);
+=======
+				Long.MAX_VALUE);
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -359,7 +364,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
+<<<<<<< HEAD
 	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown {
+=======
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsLimitPushDown {
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
@@ -370,8 +379,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
+<<<<<<< HEAD
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
+=======
+		private long limit;
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
@@ -383,8 +396,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
 				int[] projectedFields,
+<<<<<<< HEAD
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields) {
+=======
+				long limit) {
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -394,8 +411,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.lookupFunctionClass = lookupFunctionClass;
 			this.nestedProjectionSupported = nestedProjectionSupported;
 			this.projectedFields = projectedFields;
+<<<<<<< HEAD
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
+=======
+			this.limit = limit;
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 		}
 
 		@Override
@@ -609,8 +630,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				lookupFunctionClass,
 				nestedProjectionSupported,
 				projectedFields,
+<<<<<<< HEAD
 				filterPredicates,
 				filterableFields);
+=======
+				limit);
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 		}
 
 		@Override
@@ -624,6 +649,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Row value : data) {
+<<<<<<< HEAD
 				if (isRetainedAfterApplyingFilterPredicates(value)) {
 					Row projectedRow;
 					if (projectedFields == null) {
@@ -639,10 +665,27 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					if (rowData != null) {
 						rowData.setRowKind(value.getKind());
 						result.add(rowData);
+=======
+				if (result.size() >= limit) {
+					return result;
+				}
+				Row projectedRow;
+				if (projectedFields == null) {
+					projectedRow = value;
+				} else {
+					Object[] newValues = new Object[projectedFields.length];
+					for (int i = 0; i < projectedFields.length; ++i) {
+						newValues[i] = value.getField(projectedFields[i]);
+>>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
 					}
 				}
 			}
 			return result;
+		}
+
+		@Override
+		public void applyLimit(long limit) {
+			this.limit = limit;
 		}
 	}
 

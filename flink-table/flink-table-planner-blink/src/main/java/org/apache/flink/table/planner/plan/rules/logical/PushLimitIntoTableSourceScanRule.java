@@ -32,7 +32,9 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexLiteral;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.stream.Stream;
 
 /**
  * Planner rule that tries to push limit into a [[FlinkLogicalTableSourceScan]].
@@ -61,7 +63,7 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 		boolean onlyLimit = sort.getCollation().getFieldCollations().isEmpty() && sort.fetch != null;
 		if (onlyLimit) {
 			TableSourceTable tableSourceTable = call.rel(1).getTable().unwrap(TableSourceTable.class);
-			if (tableSourceTable != null && tableSourceTable.tableSource() instanceof SupportsLimitPushDown) {
+			if (tableSourceTable != null && tableSourceTable.tableSource() instanceof SupportsLimitPushDown  && tableSourceTable.extraDigests().length == 0) {
 				return true;
 			}
 		}
@@ -103,6 +105,16 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 			.tableStats(newTableStats)
 			.build();
 
+		//Update extraDigests
+		String[] oldExtraDigests = tableSourceTable.extraDigests();
+		String[] newExtraDigests = null;
+		if (limit > 0) {
+			String extraDigests = "limit=[" + limit + "]";
+			newExtraDigests = Stream.concat(Arrays.stream(oldExtraDigests), Arrays.stream(new String[]{extraDigests})).toArray(String[]::new);
+		} else {
+			newExtraDigests = oldExtraDigests;
+		}
+
 		return new TableSourceTable(
 			tableSourceTable.getRelOptSchema(),
 			tableSourceTable.tableIdentifier(),
@@ -112,7 +124,7 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 			tableSourceTable.isStreamingMode(),
 			tableSourceTable.catalogTable(),
 			tableSourceTable.dynamicOptions(),
-			tableSourceTable.extraDigests()
+			newExtraDigests
 		);
 	}
 }
