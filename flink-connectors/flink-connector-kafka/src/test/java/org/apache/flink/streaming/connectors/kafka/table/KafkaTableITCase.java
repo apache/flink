@@ -58,8 +58,10 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
 	@Test
 	public void testKafkaDebeziumChangelogSource() throws Exception {
-		if (isLegacyConnector) {
-			// skip tests for legacy connector, because changelog source is only supported in new connector
+		if (isLegacyConnector || !JSON_FORMAT.equals(format)) {
+			// skip tests for legacy connector, because changelog source is only supported in new connector,
+			// we only test for JSON_FORMAT to only run one time for this test,
+			// actually this case doesn't test JSON/CSV/AVRO formats, only works for debezium format
 			return;
 		}
 		final String topic = "changelog_topic";
