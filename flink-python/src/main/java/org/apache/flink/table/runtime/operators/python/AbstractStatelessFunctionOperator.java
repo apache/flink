@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -193,7 +192,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	/**
 	 * Gets the proto representation of the Python user-defined functions to be executed.
 	 */
-	@VisibleForTesting
 	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
 	public abstract String getInputOutputCoderUrn();

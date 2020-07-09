@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
@@ -40,10 +39,6 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 	private static final long serialVersionUID = 1L;
 
 	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
-
-	static {
-		ArrowUtils.checkArrowUsable();
-	}
 
 	/**
 	 * The current number of elements to be included in an arrow batch.
@@ -110,7 +105,7 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 		for (int i = 0; i < rowCount; i++) {
 			RowData input = forwardedInputQueue.poll();
 			reuseJoinedRow.setRowKind(input.getRowKind());
-			rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.index(i)));
+			rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
 		}
 	}
 
@@ -121,7 +116,7 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 
 	@Override
 	public void processElementInternal(RowData value) throws Exception {
-		arrowSerializer.dump(getFunctionInput(value));
+		arrowSerializer.write(getFunctionInput(value));
 		currentBatchCount++;
 		if (currentBatchCount >= maxArrowBatchSize) {
 			invokeCurrentBatch();

@@ -24,7 +24,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.arrow.serializers.RowArrowSerializer;
 import org.apache.flink.table.runtime.functions.python.AbstractPythonScalarFunctionFlatMap;
@@ -43,10 +42,6 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 	private static final long serialVersionUID = 1L;
 
 	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
-
-	static {
-		ArrowUtils.checkArrowUsable();
-	}
 
 	/**
 	 * The current number of elements to be included in an arrow batch.
@@ -98,7 +93,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 		bais.setBuffer(udfResult, 0, length);
 		int rowCount = arrowSerializer.load();
 		for (int i = 0; i < rowCount; i++) {
-			resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowSerializer.index(i)));
+			resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowSerializer.read(i)));
 		}
 	}
 
@@ -109,7 +104,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 
 	@Override
 	public void processElementInternal(Row value) throws Exception {
-		arrowSerializer.dump(getFunctionInput(value));
+		arrowSerializer.write(getFunctionInput(value));
 		currentBatchCount++;
 		if (currentBatchCount >= maxArrowBatchSize) {
 			invokeCurrentBatch();

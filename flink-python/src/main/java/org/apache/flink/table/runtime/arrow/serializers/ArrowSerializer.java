@@ -41,6 +41,10 @@ import java.io.OutputStream;
 @Internal
 public abstract class ArrowSerializer<T> {
 
+	static {
+		ArrowUtils.checkArrowUsable();
+	}
+
 	/**
 	 * The input RowType.
 	 */
@@ -109,11 +113,11 @@ public abstract class ArrowSerializer<T> {
 		return root.getRowCount();
 	}
 
-	public T index(int i) {
+	public T read(int i) {
 		return arrowReader.read(i);
 	}
 
-	public void dump(T element) {
+	public void write(T element) {
 		arrowWriter.write(element);
 	}
 
