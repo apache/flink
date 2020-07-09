@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.typeutils.AvroFactory;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
@@ -144,7 +145,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
 			SpecificData specificData = new SpecificData(cl);
 			this.datumReader = new SpecificDatumReader<>(specificData);
-			this.reader = specificData.getSchema(recordClazz);
+			this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
 		} else {
 			this.reader = new Schema.Parser().parse(schemaString);
 			GenericData genericData = new GenericData(cl);
