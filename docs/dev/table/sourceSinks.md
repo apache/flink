@@ -60,7 +60,7 @@ The filled arrows show how objects are transformed to other objects from one sta
 the translation process.
 
 <div style="text-align: center">
-  <img width="90%" src="{% link fig/table_connectors.svg %}" alt="Translation of table connectors" />
+  <img width="90%" src="{% link /fig/table_connectors.svg %}" alt="Translation of table connectors" />
 </div>
 
 ### Metadata
@@ -621,7 +621,7 @@ public class ChangelogCsvDeserializer implements DeserializationSchema<RowData> 
 
   @Override
   public void open(InitializationContext context) {
-    // converters must be opened
+    // converters must be open
     converter.open(Context.create(ChangelogCsvDeserializer.class.getClassLoader()));
   }
 

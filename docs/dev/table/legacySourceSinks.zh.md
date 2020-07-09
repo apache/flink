@@ -20,13 +20,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment]({% link dev/table/common.md %}#register-a-tablesource) it can be accessed by [Table API]({% link dev/table/tableApi.md %}) or [SQL]({% link dev/table/sql/queries.md %}) queries.
+A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment]({% link dev/table/common.zh.md %}#register-a-tablesource) it can be accessed by [Table API]({% link dev/table/tableApi.zh.md %}) or [SQL]({% link dev/table/sql/queries.zh.md %}) queries.
 
-A `TableSink` [emits a Table]({% link dev/table/common.md %}#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
+A `TableSink` [emits a Table]({% link dev/table/common.zh.md %}#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
 
-A `TableFactory` allows for separating the declaration of a connection to an external system from the actual implementation. A table factory creates configured instances of table sources and sinks from normalized, string-based properties. The properties can be generated programmatically using a `Descriptor` or via YAML configuration files for the [SQL Client]({% link dev/table/sqlClient.md %}).
+A `TableFactory` allows for separating the declaration of a connection to an external system from the actual implementation. A table factory creates configured instances of table sources and sinks from normalized, string-based properties. The properties can be generated programmatically using a `Descriptor` or via YAML configuration files for the [SQL Client]({% link dev/table/sqlClient.zh.md %}).
 
-Have a look at the [common concepts and API]({% link dev/table/common.md %}) page for details how to [register a TableSource]({% link dev/table/common.md %}#register-a-tablesource) and how to [emit a Table through a TableSink]({% link dev/table/common.md %}#emit-a-table). See the [built-in sources, sinks, and formats]({% link dev/table/connect.md %}) page for examples how to use factories.
+Have a look at the [common concepts and API]({% link dev/table/common.zh.md %}) page for details how to [register a TableSource]({% link dev/table/common.zh.md %}#register-a-tablesource) and how to [emit a Table through a TableSink]({% link dev/table/common.zh.md %}#emit-a-table). See the [built-in sources, sinks, and formats]({% link dev/table/connect.zh.md %}) page for examples how to use factories.
 
 * This will be replaced by the TOC
 {:toc}
@@ -69,7 +69,7 @@ TableSource[T] {
 </div>
 </div>
 
-* `getTableSchema()`: Returns the schema of the produced table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `DataType` (see [Table API types]({% link dev/table/types.md %}) and [SQL types]({% link dev/table/sql/index.md %}#data-types)). Note that the returned `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSource`.
+* `getTableSchema()`: Returns the schema of the produced table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `DataType` (see [Table API types]({% link dev/table/types.zh.md %}) and [SQL types]({% link dev/table/sql/index.zh.md %}#data-types)). Note that the returned `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSource`.
 
 * `getReturnType()`: Returns the physical type of the `DataStream` (`StreamTableSource`) or `DataSet` (`BatchTableSource`) and the records that are produced by the `TableSource`.
 
@@ -103,7 +103,7 @@ BatchTableSource[T] extends TableSource[T] {
 </div>
 </div>
 
-* `getDataSet(execEnv)`: Returns a `DataSet` with the data of the table. The type of the `DataSet` must be identical to the return type defined by the `TableSource.getReturnType()` method. The `DataSet` can by created using a regular [data source]({% link dev/batch/index.md %}#data-sources) of the DataSet API. Commonly, a `BatchTableSource` is implemented by wrapping a `InputFormat` or [batch connector]({% link dev/batch/connectors.md %}).
+* `getDataSet(execEnv)`: Returns a `DataSet` with the data of the table. The type of the `DataSet` must be identical to the return type defined by the `TableSource.getReturnType()` method. The `DataSet` can by created using a regular [data source]({% link dev/batch/index.zh.md %}#data-sources) of the DataSet API. Commonly, a `BatchTableSource` is implemented by wrapping a `InputFormat` or [batch connector]({% link dev/batch/connectors.zh.md %}).
 
 {% top %}
 
@@ -131,19 +131,19 @@ StreamTableSource[T] extends TableSource[T] {
 </div>
 </div>
 
-* `getDataStream(execEnv)`: Returns a `DataStream` with the data of the table. The type of the `DataStream` must be identical to the return type defined by the `TableSource.getReturnType()` method. The `DataStream` can by created using a regular [data source]({% link dev/datastream_api.md %}#data-sources) of the DataStream API. Commonly, a `StreamTableSource` is implemented by wrapping a `SourceFunction` or a [stream connector]({% link dev/connectors/index.md %}).
+* `getDataStream(execEnv)`: Returns a `DataStream` with the data of the table. The type of the `DataStream` must be identical to the return type defined by the `TableSource.getReturnType()` method. The `DataStream` can by created using a regular [data source]({% link dev/datastream_api.zh.md %}#data-sources) of the DataStream API. Commonly, a `StreamTableSource` is implemented by wrapping a `SourceFunction` or a [stream connector]({% link dev/connectors/index.zh.md %}).
 
 {% top %}
 
 ### Defining a TableSource with Time Attributes
 
-Time-based operations of streaming [Table API]({% link dev/table/tableApi.md %}#group-windows) and [SQL]({% link dev/table/sql/queries.md %}#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes]({% link dev/table/streaming/time_attributes.md %}).
+Time-based operations of streaming [Table API]({% link dev/table/tableApi.zh.md %}#group-windows) and [SQL]({% link dev/table/sql/queries.zh.md %}#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes]({% link dev/table/streaming/time_attributes.zh.md %}).
 
 A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
 
 #### Defining a Processing Time Attribute
 
-[Processing time attributes]({% link dev/table/streaming/time_attributes.md %}#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
+[Processing time attributes]({% link dev/table/streaming/time_attributes.zh.md %}#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -171,7 +171,7 @@ DefinedProctimeAttribute {
 
 #### Defining a Rowtime Attribute
 
-[Rowtime attributes]({% link dev/table/streaming/time_attributes.md %}#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
+[Rowtime attributes]({% link dev/table/streaming/time_attributes.zh.md %}#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
 
 A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
 
@@ -332,7 +332,7 @@ FilterableTableSource[T] {
 
 <span class="label label-danger">Attention</span> This is an experimental feature. The interface may be changed in future versions. It's only supported in Blink planner.
 
-The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax]({% link dev/table/streaming/joins.md %}).
+The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax]({% link dev/table/streaming/joins.zh.md %}).
 
 The interface looks as follows:
 
@@ -365,7 +365,7 @@ LookupableTableSource[T] extends TableSource[T] {
 </div>
 
 * `getLookupFunction(lookupkeys)`: Returns a `TableFunction` which used to lookup the matched row(s) via lookup keys. The lookupkeys are the field names of `LookupableTableSource` in the join equal conditions. The eval method parameters of the returned `TableFunction`'s should be in the order which `lookupkeys` defined. It is recommended to define the parameters in varargs (e.g. `eval(Object... lookupkeys)` to match all the cases). The return type of the `TableFunction` must be identical to the return type defined by the `TableSource.getReturnType()` method.
-* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O]({% link dev/stream/operators/asyncio.md %}). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
+* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O]({% link dev/stream/operators/asyncio.zh.md %}). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
 * `isAsyncEnabled()`: Returns true if async lookup is enabled. It requires `getAsyncLookupFunction(lookupkeys)` is implemented if `isAsyncEnabled` returns true.
 
 {% top %}
@@ -710,7 +710,7 @@ connector.debug=true
 
 ### Use a TableFactory in the Table & SQL API
 
-For a type-safe, programmatic approach with explanatory Scaladoc/Javadoc, the Table & SQL API offers descriptors in `org.apache.flink.table.descriptors` that translate into string-based properties. See the [built-in descriptors]({% link dev/table/connect.md %}) for sources, sinks, and formats as a reference.
+For a type-safe, programmatic approach with explanatory Scaladoc/Javadoc, the Table & SQL API offers descriptors in `org.apache.flink.table.descriptors` that translate into string-based properties. See the [built-in descriptors]({% link dev/table/connect.zh.md %}) for sources, sinks, and formats as a reference.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
