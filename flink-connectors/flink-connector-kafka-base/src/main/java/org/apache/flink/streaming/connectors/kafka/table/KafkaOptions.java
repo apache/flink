@@ -39,9 +39,9 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaSemantic.AT_LEAST_ONCE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaSemantic.EXACTLY_ONCE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaSemantic.NONE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.AT_LEAST_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.EXACTLY_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.NONE;
 
 /** Option utils for Kafka table source sink. */
 public class KafkaOptions {
@@ -226,7 +226,7 @@ public class KafkaOptions {
 	// Utilities
 	// --------------------------------------------------------------------------------------------
 
-	public static KafkaSemantic getSinkSemantic(String semantic){
+	public static KafkaSinkSemantic getSinkSemantic(String semantic){
 		switch (semantic){
 			case SINK_SEMANTIC_VALUE_EXACTLY_ONCE:
 				return EXACTLY_ONCE;

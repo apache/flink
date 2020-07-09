@@ -212,7 +212,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				KAFKA_PROPERTIES,
 				Optional.of(new FlinkFixedPartitioner<>()),
 				encodingFormat,
-				KafkaSemantic.EXACTLY_ONCE
+				KafkaSinkSemantic.EXACTLY_ONCE
 			);
 		assertEquals(expectedSink, actualSink);
 
@@ -447,6 +447,6 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			KafkaSemantic semantic
+			KafkaSinkSemantic semantic
 	);
 }

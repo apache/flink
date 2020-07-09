@@ -91,7 +91,7 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			KafkaSemantic semantic) {
+			KafkaSinkSemantic semantic) {
 		// we only support "at-least-semantic" for kafka-0.10 connector.
 		// if users use `sink.semantic` to select behaviour for kafka-0.10 connector,
 		// he/she will get validation error of unsupported option.
@@ -101,7 +101,7 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 				properties,
 				partitioner,
 				encodingFormat,
-				KafkaSemantic.AT_LEAST_ONCE);
+				KafkaSinkSemantic.AT_LEAST_ONCE);
 	}
 
 	@Override

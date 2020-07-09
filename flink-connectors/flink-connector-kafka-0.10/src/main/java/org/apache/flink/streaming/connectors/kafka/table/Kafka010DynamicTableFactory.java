@@ -70,7 +70,7 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			KafkaSemantic semantic) {
+			KafkaSinkSemantic semantic) {
 
 		return new Kafka010DynamicSink(
 			consumedDataType,
@@ -89,6 +89,7 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 	@Override
 	public Set<ConfigOption<?>> optionalOptions() {
 		final Set<ConfigOption<?>> options = super.optionalOptions();
+		// Connector kafka-0.10 only supports "at-least-once"
 		options.remove(SINK_SEMANTIC);
 		return options;
 	}

@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Internal;
  * Kafka sink semantic Enum.
  * */
 @Internal
-public enum KafkaSemantic {
+public enum KafkaSinkSemantic {
 	/**
 	 * Semantic.EXACTLY_ONCE the Flink producer will write all messages in a Kafka transaction that will be
 	 * committed to Kafka on a checkpoint.

@@ -43,7 +43,7 @@ public class Kafka010DynamicSink extends KafkaDynamicSinkBase {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			KafkaSemantic semantic) {
+			KafkaSinkSemantic semantic) {
 		super(
 			consumedDataType,
 			topic,
@@ -59,7 +59,7 @@ public class Kafka010DynamicSink extends KafkaDynamicSinkBase {
 			Properties properties,
 			SerializationSchema<RowData> serializationSchema,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			KafkaSemantic semantic) {
+			KafkaSinkSemantic semantic) {
 		return new FlinkKafkaProducer010<>(
 			topic,
 			serializationSchema,

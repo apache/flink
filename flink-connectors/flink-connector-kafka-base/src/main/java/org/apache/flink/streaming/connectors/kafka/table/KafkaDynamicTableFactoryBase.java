@@ -155,7 +155,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
-			KafkaSemantic semantic);
+			KafkaSinkSemantic semantic);
 
 	@Override
 	public Set<ConfigOption<?>> requiredOptions() {
