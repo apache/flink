@@ -218,9 +218,9 @@ With Flink's checkpointing enabled, the `kafka` and `kafka-0.11` connectors can 
 
 Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.semantic` option:
 
- * `NONE`: Flink will not guarantee anything. Produced records can be lost or they can be duplicated.
- * `AT_LEAST_ONCE` (default setting): This guarantees that no records will be lost (although they can be duplicated).
- * `EXACTLY_ONCE`: Kafka transactions will be used to provide exactly-once semantic. Whenever you write
+ * `none`: Flink will not guarantee anything. Produced records can be lost or they can be duplicated.
+ * `at-least-once` (default setting): This guarantees that no records will be lost (although they can be duplicated).
+ * `exactly-once`: Kafka transactions will be used to provide exactly-once semantic. Whenever you write
  to Kafka using transactions, do not forget about setting desired `isolation.level` (`read_committed`
  or `read_uncommitted` - the latter one is the default value) for any application consuming records
  from Kafka.
