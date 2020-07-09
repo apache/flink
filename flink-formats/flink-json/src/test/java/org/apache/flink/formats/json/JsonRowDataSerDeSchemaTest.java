@@ -67,6 +67,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZON
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
@@ -418,7 +419,7 @@ public class JsonRowDataSerDeSchemaTest {
 
 		try {
 			failingSchema.deserialize(spec.json.getBytes());
-			Assert.fail("expecting exception " + spec.errorMessage);
+			fail("expecting exception " + spec.errorMessage);
 		} catch (Throwable t) {
 			assertEquals(t.getMessage(), spec.errorMessage);
 		}
@@ -540,7 +541,7 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"row\":{\"id\":\"abc\"}}")
 			.rowType(ROW(FIELD("row", ROW(FIELD("id", BOOLEAN())))))
-			.expect(Row.of(Row.of(false))),
+			.expect(Row.of(Row.of(Boolean.FALSE))),
 
 		TestSpec
 			.json("{\"array\":[123, \"abc\"]}")
@@ -552,12 +553,12 @@ public class JsonRowDataSerDeSchemaTest {
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.rowType(ROW(FIELD("map", MAP(STRING(), INT()))))
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12+0800\"}")
