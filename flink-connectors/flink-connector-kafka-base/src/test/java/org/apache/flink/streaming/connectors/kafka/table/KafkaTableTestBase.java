@@ -46,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 @RunWith(Parameterized.class)
 public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 
-	protected static final String JSON_FORMAT = "json";
+	private static final String JSON_FORMAT = "json";
 	private static final String AVRO_FORMAT = "avro";
 	private static final String CSV_FORMAT = "csv";
 
