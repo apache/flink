@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type to be serialized.
  */
 @Internal
-final class AvroFactory<T> {
+public final class AvroFactory<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AvroFactory.class);
 
@@ -138,7 +138,7 @@ final class AvroFactory<T> {
 	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this either via {@link
 	 * SpecificData} or by instantiating a record and extracting the schema from the instance.
 	 */
-	static <T> Schema extractAvroSpecificSchema(
+	public static <T> Schema extractAvroSpecificSchema(
 			Class<T> type,
 			SpecificData specificData) {
 		Optional<Schema> newSchemaOptional = tryExtractAvroSchemaViaInstance(type);
