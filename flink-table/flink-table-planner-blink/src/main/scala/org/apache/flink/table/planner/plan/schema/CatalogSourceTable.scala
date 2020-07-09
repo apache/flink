@@ -201,7 +201,6 @@ class CatalogSourceTable[T](
     // throw exception if unsupported ability interface is implemented
     val unsupportedAbilities = List(
       classOf[SupportsFilterPushDown],
-      classOf[SupportsLimitPushDown],
       classOf[SupportsPartitionPushDown],
       classOf[SupportsComputedColumnPushDown],
       classOf[SupportsWatermarkPushDown])

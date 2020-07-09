@@ -39,6 +39,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -253,7 +254,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
-				null);
+				null,
+				Long.MAX_VALUE);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -333,7 +335,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsLimitPushDown {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
@@ -344,6 +346,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
+		private long limit;
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
@@ -354,7 +357,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				boolean isAsync,
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
-				int[] projectedFields) {
+				int[] projectedFields,
+				long limit) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -364,6 +368,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.lookupFunctionClass = lookupFunctionClass;
 			this.nestedProjectionSupported = nestedProjectionSupported;
 			this.projectedFields = projectedFields;
+			this.limit = limit;
 		}
 
 		@Override
@@ -460,7 +465,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
-				projectedFields);
+				projectedFields,
+				limit);
 		}
 
 		@Override
@@ -468,12 +474,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return "TestValues";
 		}
 
-		private static Collection<RowData> convertToRowData(
+		private Collection<RowData> convertToRowData(
 				Collection<Row> data,
 				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Row value : data) {
+				if (result.size() >= limit) {
+					return result;
+				}
 				Row projectedRow;
 				if (projectedFields == null) {
 					projectedRow = value;
@@ -491,6 +500,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				}
 			}
 			return result;
+		}
+
+		@Override
+		public void applyLimit(long limit) {
+			this.limit = limit;
 		}
 	}
 
