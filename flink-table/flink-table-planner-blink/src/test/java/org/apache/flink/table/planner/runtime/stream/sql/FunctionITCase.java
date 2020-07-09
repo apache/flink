@@ -857,7 +857,7 @@ public class FunctionITCase extends StreamingTestBase {
 				e,
 				hasMessage(
 					containsString(
-						"Currently, only table functions can emit rows.")));
+						"SQL validation failed. Function 'MD5' cannot be used as a table function.")));
 		}
 	}
 
