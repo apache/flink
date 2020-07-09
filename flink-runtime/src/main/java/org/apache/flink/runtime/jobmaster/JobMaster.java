@@ -254,7 +254,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
 					Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(host);
 					if (taskManagerInfo != null) {
-						taskManagerInfo.f1.cancelTask(executionAttemptId, rpcTimeout);
+						//taskManagerInfo.f1.cancelTask(executionAttemptId, rpcTimeout);
 					}
 				}
 			}
