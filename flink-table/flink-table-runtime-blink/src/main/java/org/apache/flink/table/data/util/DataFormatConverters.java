@@ -45,10 +45,10 @@ import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
@@ -1111,7 +1111,7 @@ public class DataFormatConverters {
 			this.elementType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(elementType);
 			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
 			this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
-			this.eleSer = InternalSerializers.create(this.elementType, new ExecutionConfig());
+			this.eleSer = InternalSerializers.create(this.elementType);
 			this.isEleIndentity = elementConverter instanceof IdentityConverter;
 		}
 
@@ -1238,8 +1238,8 @@ public class DataFormatConverters {
 			this.valueComponentClass = valueTypeInfo.getConversionClass();
 			this.isKeyValueIndentity = keyConverter instanceof IdentityConverter &&
 					valueConverter instanceof IdentityConverter;
-			this.keySer = InternalSerializers.create(this.keyType, new ExecutionConfig());
-			this.valueSer = InternalSerializers.create(this.valueType, new ExecutionConfig());
+			this.keySer = InternalSerializers.create(this.keyType);
+			this.valueSer = InternalSerializers.create(this.valueType);
 		}
 
 		@Override

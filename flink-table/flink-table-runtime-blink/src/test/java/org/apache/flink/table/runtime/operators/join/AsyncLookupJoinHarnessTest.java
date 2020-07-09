@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -75,7 +74,6 @@ public class AsyncLookupJoinHarnessTest {
 	private static final int ASYNC_TIMEOUT_MS = 3000;
 
 	private final TypeSerializer<RowData> inSerializer = new RowDataSerializer(
-		new ExecutionConfig(),
 		new IntType(),
 		new VarCharType(VarCharType.MAX_LENGTH));
 

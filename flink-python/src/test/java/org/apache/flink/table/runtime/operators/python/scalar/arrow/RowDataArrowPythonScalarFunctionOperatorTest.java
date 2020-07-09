@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -93,7 +92,7 @@ public class RowDataArrowPythonScalarFunctionOperatorTest
 
 	@Override
 	public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
-		return new RowDataSerializer(new ExecutionConfig(), rowType);
+		return new RowDataSerializer(rowType);
 	}
 
 	private static class PassThroughRowDataArrowPythonScalarFunctionOperator extends RowDataArrowPythonScalarFunctionOperator {

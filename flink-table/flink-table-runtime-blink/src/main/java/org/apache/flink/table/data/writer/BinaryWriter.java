@@ -26,8 +26,8 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -210,21 +210,21 @@ public interface BinaryWriter {
 			case TIMESTAMP_WITH_TIME_ZONE:
 				throw new UnsupportedOperationException();
 			case ARRAY:
-				final ArrayDataSerializer arraySerializer = (ArrayDataSerializer) InternalSerializers.create(elementType);
-				return (writer, pos, value) -> writer.writeArray(pos, (ArrayData) value, arraySerializer);
+				final TypeSerializer<ArrayData> arraySerializer = InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeArray(pos, (ArrayData) value, (ArrayDataSerializer) arraySerializer);
 			case MULTISET:
 			case MAP:
-				final MapDataSerializer mapSerializer = (MapDataSerializer) InternalSerializers.create(elementType);
-				return (writer, pos, value) -> writer.writeMap(pos, (MapData) value, mapSerializer);
+				final TypeSerializer<MapData> mapSerializer = InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeMap(pos, (MapData) value, (MapDataSerializer) mapSerializer);
 			case ROW:
 			case STRUCTURED_TYPE:
-				final RowDataSerializer rowSerializer = (RowDataSerializer) InternalSerializers.create(elementType);
-				return (writer, pos, value) -> writer.writeRow(pos, (RowData) value, rowSerializer);
+				final TypeSerializer<RowData> rowSerializer = InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeRow(pos, (RowData) value, (RowDataSerializer) rowSerializer);
 			case DISTINCT_TYPE:
 				return createValueSetter(((DistinctType) elementType).getSourceType());
 			case RAW:
-				final RawValueDataSerializer<?> rawSerializer = (RawValueDataSerializer<?>) InternalSerializers.create(elementType);
-				return (writer, pos, value) -> writer.writeRawValue(pos, (RawValueData<?>) value, rawSerializer);
+				final TypeSerializer<?> rawSerializer = InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeRawValue(pos, (RawValueData<?>) value, (RawValueDataSerializer<?>) rawSerializer);
 			case NULL:
 			case SYMBOL:
 			case UNRESOLVED:

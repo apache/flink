@@ -18,34 +18,18 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.ColumnarArrayData;
 import org.apache.flink.table.data.GenericArrayData;
-import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.vector.heap.HeapBytesVector;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.junit.Test;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-
-import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObj;
-import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObjSerializer;
-import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.snapshotAndReconfigure;
-import static org.junit.Assert.assertEquals;
 
 /**
  * A test for the {@link ArrayDataSerializer}.
@@ -77,51 +61,9 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
 		));
 	}
 
-	@Test
-	public void testExecutionConfigWithKryo() throws Exception {
-		// serialize base array
-		ExecutionConfig config = new ExecutionConfig();
-		config.enableForceKryo();
-		config.registerTypeWithKryoSerializer(MyObj.class, new MyObjSerializer());
-		final ArrayDataSerializer serializer = createSerializerWithConfig(config);
-
-		MyObj inputObj = new MyObj(114514, 1919810);
-		ArrayData inputArray = new GenericArrayData(new RawValueData[] {
-			RawValueData.fromObject(inputObj)
-		});
-
-		byte[] serialized;
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			serializer.serialize(inputArray, new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
-
-		// deserialize base array using restored serializer
-		final ArrayDataSerializer restoreSerializer =
-			(ArrayDataSerializer) snapshotAndReconfigure(serializer, () -> createSerializerWithConfig(config));
-
-		ArrayData outputArray;
-		try (ByteArrayInputStream in = new ByteArrayInputStream(serialized)) {
-			outputArray = restoreSerializer.deserialize(new DataInputViewStreamWrapper(in));
-		}
-
-		TypeSerializer restoreEleSer = restoreSerializer.getEleSer();
-		assertEquals(serializer.getEleSer(), restoreEleSer);
-
-		MyObj outputObj = outputArray
-			.<MyObj>getRawValue(0)
-			.toObject(new KryoSerializer<>(MyObj.class, config));
-		assertEquals(inputObj, outputObj);
-	}
-
-	private ArrayDataSerializer createSerializerWithConfig(ExecutionConfig config) {
-		return new ArrayDataSerializer(
-			DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType(), config);
-	}
-
 	@Override
 	protected ArrayDataSerializer createSerializer() {
-		return new ArrayDataSerializer(DataTypes.STRING().getLogicalType(), new ExecutionConfig());
+		return new ArrayDataSerializer(DataTypes.STRING().getLogicalType());
 	}
 
 	@Override

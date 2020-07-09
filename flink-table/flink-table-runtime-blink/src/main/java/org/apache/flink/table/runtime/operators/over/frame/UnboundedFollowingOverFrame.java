@@ -65,7 +65,7 @@ public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
 		this.aggsHandleFunction = null;
-		this.valueSer = new RowDataSerializer(ctx.getRuntimeContext().getExecutionConfig(), valueType);
+		this.valueSer = new RowDataSerializer(valueType);
 	}
 
 	@Override

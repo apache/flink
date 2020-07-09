@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
-import org.apache.flink.table.runtime.types.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -141,9 +141,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = ctx.getRuntimeContext().getState(accDesc);
 
-		//noinspection unchecked
-		inputRowSerializer = (TypeSerializer) InternalSerializers.create(
-				inputType, ctx.getRuntimeContext().getExecutionConfig());
+		inputRowSerializer = InternalSerializers.create(inputType);
 
 		resultRow = new JoinedRowData();
 	}
