@@ -29,7 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-container_${scala.binary.version}</artifactId>
-	<name>flink-container</name>
+	<name>Flink : Container</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

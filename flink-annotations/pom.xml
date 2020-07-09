@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-annotations</artifactId>
-	<name>flink-annotations</name>
+	<name>Flink : Annotations</name>
 
 	<packaging>jar</packaging>
 

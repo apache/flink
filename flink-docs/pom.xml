@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-docs</artifactId>
-	<name>flink-docs</name>
+	<name>Flink : Docs</name>
 
 	<dependencies>
 		<dependency>

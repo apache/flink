@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-gelly_${scala.binary.version}</artifactId>
-	<name>flink-gelly</name>
+	<name>Flink : Libraries : Gelly </name>
 
 	<packaging>jar</packaging>
 

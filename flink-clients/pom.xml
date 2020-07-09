@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-clients_${scala.binary.version}</artifactId>
-	<name>flink-clients</name>
+	<name>Flink : Clients</name>
 
 	<packaging>jar</packaging>
 
