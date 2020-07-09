@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
@@ -66,9 +65,8 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
-		ExecutionConfig conf = ctx.getRuntimeContext().getExecutionConfig();
-		this.inputSer = new RowDataSerializer(conf, inputType);
-		this.valueSer = new RowDataSerializer(conf, valueType);
+		this.inputSer = new RowDataSerializer(inputType);
+		this.valueSer = new RowDataSerializer(valueType);
 
 		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
 		processor = aggsHandleFunction.newInstance(cl);

@@ -205,7 +205,7 @@ public class RowDataTypeInfo extends TupleTypeInfoBase<RowData> {
 
 	@Override
 	public RowDataSerializer createSerializer(ExecutionConfig config) {
-		return new RowDataSerializer(config, logicalTypes);
+		return new RowDataSerializer(logicalTypes);
 	}
 
 	public LogicalType[] getLogicalTypes() {

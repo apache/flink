@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -59,7 +58,6 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 public class LookupJoinHarnessTest {
 
 	private final TypeSerializer<RowData> inSerializer = new RowDataSerializer(
-		new ExecutionConfig(),
 			new IntType(),
 			new VarCharType(VarCharType.MAX_LENGTH));
 
