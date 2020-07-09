@@ -20,16 +20,16 @@ package org.apache.flink.table.runtime.functions.python.arrow;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
+import org.apache.flink.table.runtime.arrow.serializers.RowArrowSerializer;
 import org.apache.flink.table.runtime.functions.python.AbstractPythonScalarFunctionFlatMap;
-import org.apache.flink.table.runtime.typeutils.serializers.python.ArrowSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.RowArrowSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 
@@ -81,20 +81,6 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 	}
 
 	@Override
-	public void flatMap(Row value, Collector<Row> out) throws Exception {
-		this.resultCollector = out;
-		bufferInput(value);
-
-		arrowSerializer.dump(getFunctionInput(value));
-		currentBatchCount++;
-		if (currentBatchCount >= maxArrowBatchSize) {
-			invokeCurrentBatch();
-		}
-		checkInvokeFinishBundleByCount();
-		emitResults();
-	}
-
-	@Override
 	public void close() throws Exception {
 		invokeCurrentBatch();
 		try {
@@ -106,7 +92,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResult() throws IOException {
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
 		byte[] udfResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		bais.setBuffer(udfResult, 0, length);
@@ -122,6 +108,15 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 	}
 
 	@Override
+	public void processElementInternal(Row value) throws Exception {
+		arrowSerializer.dump(getFunctionInput(value));
+		currentBatchCount++;
+		if (currentBatchCount >= maxArrowBatchSize) {
+			invokeCurrentBatch();
+		}
+	}
+
+	@Override
 	protected void invokeFinishBundle() throws Exception {
 		invokeCurrentBatch();
 		super.invokeFinishBundle();
@@ -132,6 +127,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
 			arrowSerializer.finishCurrentBatch();
 			currentBatchCount = 0;
 			pythonFunctionRunner.process(baos.toByteArray());
+			checkInvokeFinishBundleByCount();
 			baos.reset();
 		}
 	}

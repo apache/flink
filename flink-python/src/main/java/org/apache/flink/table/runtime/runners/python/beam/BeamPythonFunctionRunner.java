@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.ProcessEnvironment;
+import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
@@ -215,17 +215,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * Creates a specification which specifies the portability Python execution environment.
 	 * It's used by Beam's portability framework to creates the actual Python execution environment.
 	 */
-	protected RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
+	RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
 		PythonEnvironment environment = environmentManager.createEnvironment();
-		if (environment instanceof ProcessEnvironment) {
-			ProcessEnvironment processEnvironment = (ProcessEnvironment) environment;
+		if (environment instanceof ProcessPythonEnvironment) {
+			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
 			return Environments.createProcessEnvironment(
 				"",
 				"",
 				processEnvironment.getCommand(),
 				processEnvironment.getEnv());
 		}
-		throw new RuntimeException("Currently only ProcessEnvironment is supported.");
+		throw new RuntimeException("Currently only ProcessPythonEnvironment is supported.");
 	}
 
 	protected void startBundle() {

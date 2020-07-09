@@ -107,7 +107,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 	/**
 	 * The received udtf execution result is a finish message when it is a byte with value 0x00.
 	 */
-	protected boolean isFinishResult(byte[] rawUdtfResult, int length) {
+	boolean isFinishResult(byte[] rawUdtfResult, int length) {
 		return length == 1 && rawUdtfResult[0] == 0x00;
 	}
 }

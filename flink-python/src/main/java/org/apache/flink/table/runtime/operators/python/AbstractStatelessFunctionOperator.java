@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -82,16 +81,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	private final Map<String, String> jobOptions;
 
 	/**
-	 * OutputStream Wrapper.
-	 */
-	private transient DataOutputViewStreamWrapper baosWrapper;
-
-	/**
-	 * The TypeSerializer for input elements.
-	 */
-	private transient TypeSerializer<UDFIN> inputTypeSerializer;
-
-	/**
 	 * The user-defined function input logical type.
 	 */
 	protected transient RowType userDefinedFunctionInputType;
@@ -121,6 +110,11 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 */
 	protected transient ByteArrayOutputStreamWithPos baos;
 
+	/**
+	 * OutputStream Wrapper.
+	 */
+	protected transient DataOutputViewStreamWrapper baosWrapper;
+
 	public AbstractStatelessFunctionOperator(
 		Configuration config,
 		RowType inputType,
@@ -144,7 +138,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		baisWrapper = new DataInputViewStreamWrapper(bais);
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
-		inputTypeSerializer = getInputTypeSerializer();
 		super.open();
 	}
 
@@ -152,11 +145,9 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
 		bufferInput(value);
-		inputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
-		pythonFunctionRunner.process(baos.toByteArray());
+		processElementInternal(value);
 		checkInvokeFinishBundleByCount();
 		emitResults();
-		baos.reset();
 	}
 
 	@Override
@@ -200,11 +191,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	public abstract UDFIN getFunctionInput(IN element);
 
 	/**
-	 * Returns the TypeSerializer for input elements.
-	 */
-	public abstract TypeSerializer<UDFIN> getInputTypeSerializer();
-
-	/**
 	 * Gets the proto representation of the Python user-defined functions to be executed.
 	 */
 	@VisibleForTesting
@@ -213,6 +199,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	public abstract String getInputOutputCoderUrn();
 
 	public abstract String getFunctionUrn();
+
+	public abstract void processElementInternal(IN value) throws Exception;
 
 	private Map<String, String> buildJobOptions(Configuration config) {
 		Map<String, String> jobOptions = new HashMap<>();

@@ -171,20 +171,6 @@ public class BeamPythonStatelessFunctionRunner extends BeamPythonFunctionRunner 
 	}
 
 	/**
-	 * Gets the logical type of the input elements of the Python user-defined functions.
-	 */
-	public RowType getInputType() {
-		return inputType;
-	}
-
-	/**
-	 * Gets the logical type of the execution results of the Python user-defined functions.
-	 */
-	public RowType getOutputType() {
-		return outputType;
-	}
-
-	/**
 	 * Gets the proto representation of the input coder.
 	 */
 	private RunnerApi.Coder getInputCoderProto() {

@@ -19,15 +19,15 @@
 package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
+import org.apache.flink.table.runtime.arrow.serializers.RowArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowPythonScalarFunctionOperator;
 import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.runtime.typeutils.serializers.python.ArrowSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.RowArrowSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -70,29 +70,22 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 	@Override
 	public void open() throws Exception {
 		super.open();
-		maxArrowBatchSize = getPythonConfig().getMaxArrowBatchSize();
+		maxArrowBatchSize = Math.min(getPythonConfig().getMaxArrowBatchSize(), maxBundleSize);
 		arrowSerializer = new RowArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
 		arrowSerializer.open(bais, baos);
 		currentBatchCount = 0;
 	}
 
 	@Override
-	public void processElement(StreamRecord<CRow> element) throws Exception {
-		CRow value = element.getValue();
-		bufferInput(value);
-		arrowSerializer.dump(getFunctionInput(value));
-		currentBatchCount++;
-		if (currentBatchCount >= maxArrowBatchSize) {
-			invokeCurrentBatch();
-		}
-		checkInvokeFinishBundleByCount();
-		emitResults();
-	}
-
-	@Override
 	protected void invokeFinishBundle() throws Exception {
 		invokeCurrentBatch();
 		super.invokeFinishBundle();
+	}
+
+	@Override
+	public void dispose() throws Exception {
+		super.dispose();
+		arrowSerializer.close();
 	}
 
 	@Override
@@ -109,7 +102,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResult() throws Exception {
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
 		byte[] udfResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		bais.setBuffer(udfResult, 0, length);
@@ -126,11 +119,21 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 		return SCHEMA_ARROW_CODER_URN;
 	}
 
+	@Override
+	public void processElementInternal(CRow value) throws Exception {
+		arrowSerializer.dump(getFunctionInput(value));
+		currentBatchCount++;
+		if (currentBatchCount >= maxArrowBatchSize) {
+			invokeCurrentBatch();
+		}
+	}
+
 	private void invokeCurrentBatch() throws Exception {
 		if (currentBatchCount > 0) {
 			arrowSerializer.finishCurrentBatch();
 			currentBatchCount = 0;
 			pythonFunctionRunner.process(baos.toByteArray());
+			checkInvokeFinishBundleByCount();
 			baos.reset();
 		}
 	}

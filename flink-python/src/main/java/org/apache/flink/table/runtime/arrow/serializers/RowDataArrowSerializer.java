@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils.serializers.python;
+package org.apache.flink.table.runtime.arrow.serializers;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
@@ -29,6 +30,7 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 /**
  * It takes {@link RowData} as the input type.
  */
+@Internal
 public class RowDataArrowSerializer extends ArrowSerializer<RowData> {
 	public RowDataArrowSerializer(
 		RowType inputType,

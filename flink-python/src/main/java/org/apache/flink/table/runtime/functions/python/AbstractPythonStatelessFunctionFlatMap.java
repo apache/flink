@@ -41,7 +41,6 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.beam.BeamPythonStatelessFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
@@ -123,14 +122,14 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	private transient int elementCount;
 
 	/**
+	 * OutputStream Wrapper.
+	 */
+	transient DataOutputViewStreamWrapper baosWrapper;
+
+	/**
 	 * The collector used to collect records.
 	 */
 	protected transient Collector<Row> resultCollector;
-
-	/**
-	 * The Python function execution result tuple.
-	 */
-	protected transient Tuple2<byte[], Integer> resultTuple;
 
 	/**
 	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
@@ -148,29 +147,14 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	protected transient DataInputViewStreamWrapper baisWrapper;
 
 	/**
-	 * The TypeSerializer for user-defined function execution results.
-	 */
-	protected transient TypeSerializer<Row> userDefinedFunctionTypeSerializer;
-
-	/**
 	 * The type serializer for the forwarded fields.
 	 */
 	protected transient TypeSerializer<Row> forwardedInputSerializer;
 
 	/**
-	 *
-	 */
-	protected transient TypeSerializer<Row> inputTypeSerializer;
-
-	/**
 	 * Reusable OutputStream used to holding the serialized input elements.
 	 */
 	protected transient ByteArrayOutputStreamWithPos baos;
-
-	/**
-	 * OutputStream Wrapper.
-	 */
-	protected transient DataOutputViewStreamWrapper baosWrapper;
 
 	public AbstractPythonStatelessFunctionFlatMap(
 		Configuration config,
@@ -189,7 +173,6 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
@@ -214,8 +197,6 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
 
-		inputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
-
 		bais = new ByteArrayInputStreamWithPos();
 		baisWrapper = new DataInputViewStreamWrapper(bais);
 
@@ -223,7 +204,6 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
 
 		userDefinedFunctionOutputType = new RowType(outputType.getFields().subList(getForwardedFieldsCount(), outputType.getFieldCount()));
-		userDefinedFunctionTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 
 		this.pythonFunctionRunner = createPythonFunctionRunner();
 		this.pythonFunctionRunner.open(config);
@@ -233,10 +213,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	public void flatMap(Row value, Collector<Row> out) throws Exception {
 		this.resultCollector = out;
 		bufferInput(value);
-
-		inputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
-		pythonFunctionRunner.process(baos.toByteArray());
-		baos.reset();
+		processElementInternal(value);
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
@@ -269,7 +246,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 
 	public abstract void bufferInput(Row input);
 
-	public abstract void emitResult() throws Exception;
+	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
 
 	public abstract int getForwardedFieldsCount();
 
@@ -281,6 +258,8 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	public abstract String getInputOutputCoderUrn();
 
 	public abstract String getFunctionUrn();
+
+	public abstract void processElementInternal(Row value) throws Exception;
 
 	/**
 	 * Checks whether to invoke finishBundle by elements count. Called in flatMap.
@@ -307,7 +286,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		}
 	}
 
-	protected FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
+	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		for (Object input : pythonFunctionInfo.getInputs()) {
@@ -334,16 +313,19 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		return Row.project(element, userDefinedFunctionInputOffsets);
 	}
 
-	protected void emitResults() throws Exception {
+	private void emitResults() throws Exception {
+		Tuple2<byte[], Integer> resultTuple;
 		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
-			emitResult();
+			emitResult(resultTuple);
 		}
 	}
 
 	protected void invokeFinishBundle() throws Exception {
-		pythonFunctionRunner.flush();
-		elementCount = 0;
-		emitResults();
+		if (elementCount > 0) {
+			pythonFunctionRunner.flush();
+			elementCount = 0;
+			emitResults();
+		}
 	}
 
 	private PythonFunctionRunner createPythonFunctionRunner() throws IOException {

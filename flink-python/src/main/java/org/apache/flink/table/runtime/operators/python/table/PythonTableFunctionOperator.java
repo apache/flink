@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.TableFunction;
@@ -57,6 +58,11 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	 */
 	private transient TypeSerializer<Row> udtfOutputTypeSerializer;
 
+	/**
+	 * The TypeSerializer for udtf input elements.
+	 */
+	private transient TypeSerializer<Row> udtfInputTypeSerializer;
+
 	public PythonTableFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
@@ -77,11 +83,12 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 				TypeConversions.fromLogicalToDataType(inputType)));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
 		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+		udtfInputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
 	}
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResult() throws Exception {
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
 		CRow input = forwardedInputQueue.poll();
 		byte[] rawUdtfResult;
 		int length;
@@ -124,8 +131,9 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public TypeSerializer<Row> getInputTypeSerializer() {
-		return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+	public void processElementInternal(CRow value) throws Exception {
+		udtfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
+		baos.reset();
 	}
 }

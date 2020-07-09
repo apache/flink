@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.GenericRowData;
@@ -68,6 +69,11 @@ public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunct
 	private transient TypeSerializer<RowData> udtfOutputTypeSerializer;
 
 	/**
+	 * The TypeSerializer for udtf input elements.
+	 */
+	private transient TypeSerializer<RowData> udtfInputTypeSerializer;
+
+	/**
 	 * The type serializer for the forwarded fields.
 	 */
 	private transient RowDataSerializer forwardedInputSerializer;
@@ -91,6 +97,7 @@ public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunct
 
 		udtfInputProjection = createUdtfInputProjection();
 		forwardedInputSerializer = new RowDataSerializer(this.getExecutionConfig(), inputType);
+		udtfInputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
 		udtfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
@@ -108,9 +115,10 @@ public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunct
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public TypeSerializer<RowData> getInputTypeSerializer() {
-		return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
+	public void processElementInternal(RowData value) throws Exception {
+		udtfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
+		baos.reset();
 	}
 
 	private Projection<RowData, BinaryRowData> createUdtfInputProjection() {
@@ -126,7 +134,7 @@ public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunct
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResult() throws Exception {
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
 		RowData input = forwardedInputQueue.poll();
 		byte[] rawUdtfResult;
 		int length;

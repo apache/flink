@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils.serializers.python;
+package org.apache.flink.table.runtime.arrow.serializers;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
@@ -37,6 +38,7 @@ import java.io.OutputStream;
  *
  * @param <T> type of the input elements.
  */
+@Internal
 public abstract class ArrowSerializer<T> {
 
 	/**
@@ -52,7 +54,7 @@ public abstract class ArrowSerializer<T> {
 	/**
 	 * Allocator which is used for byte buffer allocation.
 	 */
-	private transient BufferAllocator allocatorReader;
+	private transient BufferAllocator allocator;
 
 	/**
 	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
@@ -69,12 +71,7 @@ public abstract class ArrowSerializer<T> {
 	 * Container that holds a set of vectors for the input elements
 	 * to be sent to the Python worker.
 	 */
-	protected transient VectorSchemaRoot rootWriter;
-
-	/**
-	 * Allocator which is used by {@link #rootWriter} for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocatorWriter;
+	transient VectorSchemaRoot rootWriter;
 
 	/**
 	 * Writer which is responsible for serialize the input elements to arrow format.
@@ -94,11 +91,10 @@ public abstract class ArrowSerializer<T> {
 	}
 
 	public void open(InputStream bais, OutputStream baos) throws Exception {
-		allocatorReader = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
-		arrowStreamReader = new ArrowStreamReader(bais, allocatorReader);
+		allocator = ArrowUtils.getRootAllocator().newChildAllocator("allocator", 0, Long.MAX_VALUE);
+		arrowStreamReader = new ArrowStreamReader(bais, allocator);
 
-		allocatorWriter = ArrowUtils.getRootAllocator().newChildAllocator("writer", 0, Long.MAX_VALUE);
-		rootWriter = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(inputType), allocatorWriter);
+		rootWriter = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(inputType), allocator);
 		arrowWriter = createArrowWriter();
 		arrowStreamWriter = new ArrowStreamWriter(rootWriter, null, baos);
 		arrowStreamWriter.start();
@@ -124,9 +120,8 @@ public abstract class ArrowSerializer<T> {
 	public void close() throws Exception {
 		arrowStreamWriter.end();
 		arrowStreamReader.close();
-		allocatorReader.close();
 		rootWriter.close();
-		allocatorWriter.close();
+		allocator.close();
 	}
 
 	/**

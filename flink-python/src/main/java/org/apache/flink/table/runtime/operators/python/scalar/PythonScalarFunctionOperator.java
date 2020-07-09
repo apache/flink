@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -42,6 +43,11 @@ public class PythonScalarFunctionOperator extends AbstractRowPythonScalarFunctio
 	 */
 	private transient TypeSerializer<Row> udfOutputTypeSerializer;
 
+	/**
+	 * The TypeSerializer for udf input elements.
+	 */
+	private transient TypeSerializer<Row> udfInputTypeSerializer;
+
 	public PythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
@@ -56,12 +62,20 @@ public class PythonScalarFunctionOperator extends AbstractRowPythonScalarFunctio
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
+		udfInputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
 		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
+	public void processElementInternal(CRow value) throws Exception {
+		udfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
+		baos.reset();
+	}
+
+	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResult() throws Exception {
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
 		byte[] rawUdfResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		CRow input = forwardedInputQueue.poll();

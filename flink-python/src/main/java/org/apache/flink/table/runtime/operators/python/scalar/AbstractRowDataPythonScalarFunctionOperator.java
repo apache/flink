@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.JoinedRowData;
@@ -31,7 +30,6 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Arrays;
@@ -97,12 +95,6 @@ public abstract class AbstractRowDataPythonScalarFunctionOperator
 	@Override
 	public RowData getFunctionInput(RowData element) {
 		return udfInputProjection.apply(element);
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeSerializer<RowData> getInputTypeSerializer() {
-		return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
 	}
 
 	private Projection<RowData, BinaryRowData> createUdfInputProjection() {

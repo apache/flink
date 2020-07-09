@@ -20,12 +20,15 @@ package org.apache.flink.table.runtime.functions.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -56,6 +59,16 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 	 */
 	private final JoinRelType joinType;
 
+	/**
+	 * The TypeSerializer for udf input elements.
+	 */
+	private transient TypeSerializer<Row> userDefinedFunctionInputTypeSerializer;
+
+	/**
+	 * The TypeSerializer for user-defined function execution results.
+	 */
+	private transient TypeSerializer<Row> userDefinedFunctionOutputTypeSerializer;
+
 	public PythonTableFunctionFlatMap(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
@@ -72,12 +85,15 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
 		RowTypeInfo forwardedInputTypeInfo = (RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
 			TypeConversions.fromLogicalToDataType(inputType));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+		userDefinedFunctionInputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+		userDefinedFunctionOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
@@ -95,7 +111,7 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResult() throws Exception {
+	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
 		Row input = forwardedInputQueue.poll();
 		byte[] rawUdtfResult;
 		int length;
@@ -108,7 +124,7 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 			isFinishResult = isFinishResult(rawUdtfResult, length);
 			if (!isFinishResult) {
 				bais.setBuffer(rawUdtfResult, 0, length);
-				udtfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
+				udtfResult = userDefinedFunctionOutputTypeSerializer.deserialize(baisWrapper);
 				this.resultCollector.collect(Row.join(input, udtfResult));
 				resultTuple = pythonFunctionRunner.pollResult();
 				hasJoined = true;
@@ -143,6 +159,13 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 	@Override
 	public String getFunctionUrn() {
 		return TABLE_FUNCTION_URN;
+	}
+
+	@Override
+	public void processElementInternal(Row value) throws Exception {
+		userDefinedFunctionInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+		pythonFunctionRunner.process(baos.toByteArray());
+		baos.reset();
 	}
 
 	private boolean isFinishResult(byte[] rawUdtfResult, int length) {

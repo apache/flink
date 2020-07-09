@@ -58,11 +58,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	protected transient PythonFunctionRunner pythonFunctionRunner;
 
 	/**
-	 * The Python function execution result tuple.
-	 */
-	protected transient Tuple2<byte[], Integer> resultTuple;
-
-	/**
 	 * Max number of elements to include in a bundle.
 	 */
 	protected transient int maxBundleSize;
@@ -258,7 +253,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Sends the execution result to the downstream operator.
 	 */
-	public abstract void emitResult() throws Exception;
+	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
 
 	/**
 	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
@@ -287,8 +282,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	}
 
 	protected void emitResults() throws Exception {
+		Tuple2<byte[], Integer> resultTuple;
 		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
-			emitResult();
+			emitResult(resultTuple);
 		}
 	}
 
@@ -307,20 +303,22 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 */
 	private void checkInvokeFinishBundleByTime() throws Exception {
 		long now = getProcessingTimeService().getCurrentProcessingTime();
-		if (now - lastFinishBundleTime >= maxBundleTimeMills && elementCount > 0) {
+		if (now - lastFinishBundleTime >= maxBundleTimeMills) {
 			invokeFinishBundle();
 		}
 	}
 
 	protected void invokeFinishBundle() throws Exception {
-		pythonFunctionRunner.flush();
-		elementCount = 0;
-		emitResults();
-		lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
-		// callback only after current bundle was fully finalized
-		if (bundleFinishedCallback != null) {
-			bundleFinishedCallback.run();
-			bundleFinishedCallback = null;
+		if (elementCount > 0) {
+			pythonFunctionRunner.flush();
+			elementCount = 0;
+			emitResults();
+			lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+			// callback only after current bundle was fully finalized
+			if (bundleFinishedCallback != null) {
+				bundleFinishedCallback.run();
+				bundleFinishedCallback = null;
+			}
 		}
 	}
 

@@ -20,7 +20,7 @@ package org.apache.flink.python.env.beam;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.python.env.ProcessEnvironment;
+import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -54,7 +54,7 @@ import java.util.UUID;
 
 /**
  * The ProcessPythonEnvironmentManager is used to prepare the working dir of python UDF worker and create
- * ProcessEnvironment object of Beam Fn API. It's used when the python function runner is configured to run python UDF
+ * ProcessPythonEnvironment object of Beam Fn API. It's used when the python function runner is configured to run python UDF
  * in process mode.
  */
 @Internal
@@ -180,7 +180,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		}
 		String runnerScript = PythonEnvironmentManagerUtils.getPythonUdfRunnerScript(dependencyInfo.getPythonExec(), env);
 
-		return new ProcessEnvironment(runnerScript, env);
+		return new ProcessPythonEnvironment(runnerScript, env);
 	}
 
 	/**
