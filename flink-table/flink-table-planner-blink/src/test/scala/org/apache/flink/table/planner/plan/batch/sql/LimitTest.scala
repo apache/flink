@@ -41,8 +41,9 @@ class LimitTest extends LegacyLimitTest {
   }
 
   /**
-   * The plan of testOrderByWithLimitSource in LimitTest.xml is a bit diffirent from LegacyLimitTest.xml
-   * Because the [[TestValuesTableSource]] has implemented [[SupportsProjectionPushDown]] while TestLimitableTableSource doesn't.
+   * The plan of testOrderByWithLimitSource in LimitTest.xml is a bit diffirent from
+   * LegacyLimitTest.xml. Because the [[TestValuesTableSource]] has implemented
+   * [[SupportsProjectionPushDown]] while TestLimitableTableSource doesn't.
    * So the Calc has pushed down to the scan.
    */
 }
