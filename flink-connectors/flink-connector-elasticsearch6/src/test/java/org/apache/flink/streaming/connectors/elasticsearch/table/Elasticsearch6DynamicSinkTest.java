@@ -60,6 +60,8 @@ public class Elasticsearch6DynamicSinkTest {
 	private static final String SCHEMA = "https";
 	private static final String INDEX = "MyIndex";
 	private static final String DOC_TYPE = "MyType";
+	private static final String USERNAME = "username";
+	private static final String PASSWORD = "password";
 
 	@Test
 	public void testBuilder() {
@@ -111,6 +113,35 @@ public class Elasticsearch6DynamicSinkTest {
 		verify(provider.builderSpy).setBulkFlushMaxActions(1000);
 		verify(provider.builderSpy).setBulkFlushMaxSizeMb(2);
 		verify(provider.builderSpy).setRestClientFactory(new Elasticsearch6DynamicSink.DefaultRestClientFactory(null));
+		verify(provider.sinkSpy, never()).disableFlushOnCheckpoint();
+	}
+
+	@Test
+	public void testAuthConfig() {
+		final TableSchema schema = createTestSchema();
+		Configuration configuration = new Configuration();
+		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
+		configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+		configuration.setString(ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
+		configuration.setString(ElasticsearchOptions.USERNAME_OPTION.key(), USERNAME);
+		configuration.setString(ElasticsearchOptions.PASSWORD_OPTION.key(), PASSWORD);
+
+		BuilderProvider provider = new BuilderProvider();
+		final Elasticsearch6DynamicSink testSink = new Elasticsearch6DynamicSink(
+			new DummyEncodingFormat(),
+			new Elasticsearch6Configuration(configuration, this.getClass().getClassLoader()),
+			schema,
+			provider
+		);
+
+		testSink.getSinkRuntimeProvider(new MockSinkContext()).createSinkFunction();
+
+		verify(provider.builderSpy).setFailureHandler(new NoOpFailureHandler());
+		verify(provider.builderSpy).setBulkFlushBackoff(false);
+		verify(provider.builderSpy).setBulkFlushInterval(1000);
+		verify(provider.builderSpy).setBulkFlushMaxActions(1000);
+		verify(provider.builderSpy).setBulkFlushMaxSizeMb(2);
+		verify(provider.builderSpy).setRestClientFactory(new Elasticsearch6DynamicSink.AuthRestClientFactory(null, USERNAME, PASSWORD));
 		verify(provider.sinkSpy, never()).disableFlushOnCheckpoint();
 	}
 
