@@ -25,7 +25,7 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -76,7 +76,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			.map(DataType::getLogicalType)
 			.toArray(LogicalType[]::new),
 		fieldNames);
-	private static RowDataTypeInfo rowDataTypeInfo = RowDataTypeInfo.of(rowType);
+	private static InternalTypeInfo<RowData> rowDataTypeInfo = InternalTypeInfo.of(rowType);
 
 	@After
 	public void tearDown() throws Exception {

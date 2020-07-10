@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.connector.source.DynamicTableSource.DataStructureConverter;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
-import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputDataType;
@@ -39,7 +39,7 @@ public final class ScanRuntimeProviderContext implements ScanTableSource.ScanCon
 	@Override
 	public TypeInformation<?> createTypeInformation(DataType producedDataType) {
 		validateInputDataType(producedDataType);
-		return WrapperTypeInfo.of(producedDataType.getLogicalType());
+		return InternalTypeInfo.of(producedDataType.getLogicalType());
 	}
 
 	@Override

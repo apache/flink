@@ -46,7 +46,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator
 import org.apache.flink.table.runtime.operators.over.frame.OffsetOverFrame.CalcOffsetFunc
 import org.apache.flink.table.runtime.operators.over.frame._
 import org.apache.flink.table.runtime.operators.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{BIGINT, INTEGER, SMALLINT}
 
 import org.apache.calcite.plan._
@@ -422,7 +422,7 @@ class BatchExecOverAggregate(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      RowDataTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       input.getParallelism,
       managedMemory)
   }

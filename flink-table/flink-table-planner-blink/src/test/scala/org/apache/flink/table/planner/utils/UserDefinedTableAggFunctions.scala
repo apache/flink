@@ -24,7 +24,7 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.TableAggregateFunction
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.util.Collector
 
@@ -265,7 +265,7 @@ class TableAggSum extends TableAggregateFunction[JInt, GenericRowData] {
   }
 
   override def getAccumulatorType: TypeInformation[GenericRowData] = {
-    new RowDataTypeInfo(new IntType()).asInstanceOf[TypeInformation[GenericRowData]]
+    InternalTypeInfo.ofFields(new IntType()).asInstanceOf[TypeInformation[GenericRowData]]
   }
 }
 

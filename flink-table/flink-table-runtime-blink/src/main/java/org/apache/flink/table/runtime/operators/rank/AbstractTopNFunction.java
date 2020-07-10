@@ -32,7 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -67,7 +67,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 
 	private final boolean generateUpdateBefore;
 	protected final boolean outputRankNumber;
-	protected final RowDataTypeInfo inputRowType;
+	protected final InternalTypeInfo<RowData> inputRowType;
 	protected final KeySelector<RowData, RowData> sortKeySelector;
 
 	protected KeyContext keyContext;
@@ -88,7 +88,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	AbstractTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
-			RowDataTypeInfo inputRowType,
+			InternalTypeInfo<RowData> inputRowType,
 			GeneratedRecordComparator generatedSortKeyComparator,
 			RowDataKeySelector sortKeySelector,
 			RankType rankType,
@@ -152,7 +152,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 
 		// initialize rankEndFetcher
 		if (!isConstantRankEnd) {
-			LogicalType rankEndIdxType = inputRowType.getLogicalTypes()[rankEndIndex];
+			LogicalType rankEndIdxType = inputRowType.toRowFieldTypes()[rankEndIndex];
 			switch (rankEndIdxType.getTypeRoot()) {
 				case BIGINT:
 					rankEndFetcher = (RowData row) -> row.getLong(rankEndIndex);

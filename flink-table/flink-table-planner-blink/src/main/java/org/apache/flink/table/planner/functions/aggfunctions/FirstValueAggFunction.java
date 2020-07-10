@@ -26,7 +26,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -90,7 +90,7 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 				"time"
 		};
 
-		return (TypeInformation) new RowDataTypeInfo(fieldTypes, fieldNames);
+		return (TypeInformation) InternalTypeInfo.ofFields(fieldTypes, fieldNames);
 	}
 
 	/**

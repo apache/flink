@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import java.util.TimeZone
-
-import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
@@ -35,6 +32,10 @@ import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
+
+import org.apache.calcite.avatica.util.DateTimeUtils
+
+import java.util.TimeZone
 
 import scala.collection.mutable
 
@@ -383,7 +384,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable null [[org.apache.flink.table.dataformat.GenericRowData]] to the member area.
+    * Adds a reusable null [[GenericRowData]] to the member area.
     */
   def addReusableNullRow(rowTerm: String, arity: Int): Unit = {
     addReusableOutputRecord(

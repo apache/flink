@@ -25,7 +25,7 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
 /**
@@ -72,7 +72,7 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 	}
 
 	@Override
-	public RowDataTypeInfo getProducedType() {
-		return new RowDataTypeInfo(keyFieldTypes);
+	public InternalTypeInfo<RowData> getProducedType() {
+		return InternalTypeInfo.ofFields(keyFieldTypes);
 	}
 }

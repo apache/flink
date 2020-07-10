@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
-import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateOutputDataType;
@@ -47,7 +47,7 @@ public final class SinkRuntimeProviderContext implements DynamicTableSink.Contex
 	@Override
 	public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
 		validateOutputDataType(consumedDataType);
-		return WrapperTypeInfo.of(consumedDataType.getLogicalType());
+		return InternalTypeInfo.of(consumedDataType.getLogicalType());
 	}
 
 	@Override

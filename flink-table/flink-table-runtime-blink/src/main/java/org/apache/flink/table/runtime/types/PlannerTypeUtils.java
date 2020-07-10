@@ -26,6 +26,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
@@ -233,6 +234,8 @@ public class PlannerTypeUtils {
 				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
 					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
 					return new LocalZonedTimestampType(instantTypeInfo.getPrecision());
+				} else if (typeInfo instanceof InternalTypeInfo) {
+					return ((InternalTypeInfo<?>) typeInfo).toLogicalType();
 				} else {
 					return new TypeInformationRawType<>(typeInfo);
 				}

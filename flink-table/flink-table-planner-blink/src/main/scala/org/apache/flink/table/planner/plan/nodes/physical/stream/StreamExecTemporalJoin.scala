@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.plan.utils.{InputRefVisitor, KeySelectorUt
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector
 import org.apache.flink.table.runtime.operators.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.util.Preconditions.checkState
 
@@ -134,7 +134,7 @@ class StreamExecTemporalJoin(
       rightTransform,
       getRelDetailedDescription,
       joinOperator,
-      RowDataTypeInfo.of(returnType),
+      InternalTypeInfo.of(returnType),
       leftTransform.getParallelism)
 
     if (inputsContainSingleton()) {
@@ -191,14 +191,14 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
   def getLeftKeySelector: RowDataKeySelector = {
     KeySelectorUtil.getRowDataSelector(
       joinInfo.leftKeys.toIntArray,
-      RowDataTypeInfo.of(leftInputType)
+      InternalTypeInfo.of(leftInputType)
     )
   }
 
   def getRightKeySelector: RowDataKeySelector = {
     KeySelectorUtil.getRowDataSelector(
       joinInfo.rightKeys.toIntArray,
-      RowDataTypeInfo.of(rightInputType)
+      InternalTypeInfo.of(rightInputType)
     )
   }
 
@@ -244,8 +244,8 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
       case JoinRelType.INNER =>
         if (rightTimeAttributeInputReference.isDefined) {
           new TemporalRowTimeJoinOperator(
-            RowDataTypeInfo.of(leftInputType),
-            RowDataTypeInfo.of(rightInputType),
+            InternalTypeInfo.of(leftInputType),
+            InternalTypeInfo.of(rightInputType),
             generatedJoinCondition,
             leftTimeAttributeInputReference,
             rightTimeAttributeInputReference.get,
@@ -253,7 +253,7 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
             maxRetentionTime)
         } else {
           new TemporalProcessTimeJoinOperator(
-            RowDataTypeInfo.of(rightInputType),
+            InternalTypeInfo.of(rightInputType),
             generatedJoinCondition,
             minRetentionTime,
             maxRetentionTime)

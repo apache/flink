@@ -30,7 +30,7 @@ import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
@@ -105,7 +105,7 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 
 	@Override
 	public TypeInformation<RowData> getResultType() {
-		return new RowDataTypeInfo(
+		return InternalTypeInfo.ofFields(
 				Arrays.stream(producedTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new),
 				producedNames);
 	}

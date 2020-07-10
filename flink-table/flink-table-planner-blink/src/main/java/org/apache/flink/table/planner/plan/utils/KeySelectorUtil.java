@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.keyselector.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -35,15 +36,15 @@ import org.apache.flink.table.types.logical.RowType;
 public class KeySelectorUtil {
 
 	/**
-	 * Create a RowDataKeySelector to extract keys from DataStream which type is RowDataTypeInfo.
+	 * Create a RowDataKeySelector to extract keys from DataStream which type is {@link InternalTypeInfo} of {@link RowData}.
 	 *
 	 * @param keyFields key fields
 	 * @param rowType type of DataStream to extract keys
-	 * @return the RowDataKeySelector to extract keys from DataStream which type is RowDataTypeInfo.
+	 * @return the RowDataKeySelector to extract keys from DataStream which type is {@link InternalTypeInfo} of {@link RowData}.
 	 */
-	public static RowDataKeySelector getRowDataSelector(int[] keyFields, RowDataTypeInfo rowType) {
+	public static RowDataKeySelector getRowDataSelector(int[] keyFields, InternalTypeInfo<RowData> rowType) {
 		if (keyFields.length > 0) {
-			LogicalType[] inputFieldTypes = rowType.getLogicalTypes();
+			LogicalType[] inputFieldTypes = rowType.toRowFieldTypes();
 			LogicalType[] keyFieldTypes = new LogicalType[keyFields.length];
 			for (int i = 0; i < keyFields.length; ++i) {
 				keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
@@ -58,7 +59,7 @@ public class KeySelectorUtil {
 				inputType,
 				returnType,
 				keyFields);
-			RowDataTypeInfo keyRowType = RowDataTypeInfo.of(returnType);
+			InternalTypeInfo<RowData> keyRowType = InternalTypeInfo.of(returnType);
 			return new BinaryRowDataKeySelector(keyRowType, generatedProjection);
 		} else {
 			return EmptyRowDataKeySelector.INSTANCE;

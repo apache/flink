@@ -16,18 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.keyselector;
+package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /**
- * RowDataKeySelector takes an RowData and extracts the deterministic key for the RowData.
+ * Test for {@link StringDataTypeInfo}, {@link DecimalDataTypeInfo}.
  */
-public interface RowDataKeySelector extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
+public class InternalTypeInfosTest extends TypeInformationTestBase<TypeInformation<?>> {
 
-	InternalTypeInfo<RowData> getProducedType();
-
+	@Override
+	protected TypeInformation[] getTestData() {
+		return new TypeInformation[] {
+			StringDataTypeInfo.INSTANCE,
+			new DecimalDataTypeInfo(5, 2),
+			new TimestampDataTypeInfo(0),
+			new TimestampDataTypeInfo(3),
+			new TimestampDataTypeInfo(6),
+			new TimestampDataTypeInfo(9)
+		};
+	}
 }
