@@ -1,6 +1,6 @@
 ---
-title: "Flink操作场景"
-nav-title: 'Flink操作场景'
+title: "Flink 操作场景"
+nav-title: 'Flink 操作场景'
 nav-parent_id: try-flink
 nav-pos: 4
 ---
@@ -23,17 +23,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-在多环境下部署和操作Apache Flink可以有很多种方式，抛开这种多样性而言，Flink集群的基本构建方式和操作原则仍然是相同的。
+Apache Flink 可以以多种方式在不同的环境中部署，抛开这种多样性而言，Flink 集群的基本构建方式和操作原则仍然是相同的。
 
-在这篇文章里，你将会学习如何管理和运行Flink任务，了解如何部署和监控应用程序、Flink如何从失败作业中进行恢复，同时你还会学习如何执行一些日常操作任务，如升级和扩容。
+在这篇文章里，你将会学习如何管理和运行 Flink 任务，了解如何部署和监控应用程序、Flink如何从失败作业中进行恢复，同时你还会学习如何执行一些日常操作任务，如升级和扩容。
 
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
   <b>
-  注意：本文中使用的Apache Flink Docker镜像仅适用于Apache Flink发行版。
+  注意：本文中使用的 Apache Flink Docker 镜像仅适用于 Apache Flink 发行版。
   </b><br>
-  由于你目前正在浏览快照版的文档，因此下文中引用的分支可能已经不存在了。
-  请先通过左侧菜单下方的版本选择器切换到发行版文档再查看。
+  由于你目前正在浏览快照版的文档，因此下文中引用的分支可能已经不存在了，请先通过左侧菜单下方的版本选择器切换到发行版文档再查看。
 </p>
 {% endif %}
 
@@ -42,38 +41,38 @@ under the License.
 
 ## 场景说明
 
-这篇文章中的所有操作都是基于一个 
-[Flink Session Cluster]({{ site.baseurl }}/concepts/glossary.html#flink-session-cluster) 和一个Kafka集群进行的，
+这篇文章中的所有操作都是基于如下两个集群进行的： 
+[Flink Session Cluster]({%link concepts/glossary.zh.md %}#flink-session-cluster) 以及一个 Kafka 集群，
 我们会在下文带领大家一起搭建这两个集群。
 
 一个Flink集群总是包含一个 
-[JobManager]({{ site.baseurl }}/concepts/glossary.html#flink-jobmanager) 以及一个或多个 
-[Flink TaskManager]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager)。JobManager 
-负责处理 [Job]({{ site.baseurl }}/concepts/glossary.html#flink-job) 提交、
-Job监控以及资源管理。Flink TaskManager 运行worker进程，
+[JobManager]({%link concepts/glossary.zh.md %}#flink-jobmanager) 以及一个或多个 
+[Flink TaskManager]({%link concepts/glossary.zh.md %}#flink-taskmanager)。JobManager 
+负责处理 [Job]({%link concepts/glossary.zh.md %}#flink-job) 提交、
+Job 监控以及资源管理。Flink TaskManager 运行 worker 进程，
 负责实际任务 
-[Tasks]({{ site.baseurl }}/concepts/glossary.html#task) 的执行，而这些任务共同组成了一个 Flink Job。 在这篇文章中，
+[Tasks]({%link concepts/glossary.zh.md %}#task) 的执行，而这些任务共同组成了一个 Flink Job。 在这篇文章中，
 我们会先运行一个 TaskManager，接下来会扩容到多个 TaskManager。 
-另外，这里我们会使用一个 *客户端* 容器（已废弃）来提交Flink Job，
-后续还会使用该容器执行一些操作任务。需要注意的是，Flink集群的运行并不需要依赖 *客户端* 容器，
+另外，这里我们会专门使用一个 *client* 容器来提交 Flink Job，
+后续还会使用该容器执行一些操作任务。需要注意的是，Flink 集群的运行并不需要依赖 *client* 容器，
 我们这里引入只是为了使用方便。
 
-这里的Kafka集群由一个Zookeeper服务端和一个Kafka Broker组成。
+这里的 Kafka 集群由一个 Zookeeper 服务端和一个 Kafka Broker 组成。
 
-<img src="{{ site.baseurl }}/fig/flink-docker-playground.svg" alt="Flink Docker 场景"
+<img src="{%link fig/flink-docker-playground.svg %}" alt="Flink Docker Playground"
 class="offset" width="80%" />
 
-一开始，我们会往 JobManager 提交一个名为 *Flink事件计数* 的Job，此外，我们还创建了两个Kafka Topic：*input* 和 *output*。
+一开始，我们会往 JobManager 提交一个名为 *Flink 事件计数* 的 Job，此外，我们还创建了两个 Kafka Topic：*input* 和 *output*。
 
-<img src="{{ site.baseurl }}/fig/click-event-count-example.svg" alt="Click Event Count Example"
+<img src="{%link fig/click-event-count-example.svg %}" alt="Click Event Count Example"
 class="offset" width="80%" />
 
-该Job负责从 *input* topic消费点击事件 `ClickEvent`，每个点击事件都包含一个 `timestamp` 和一个 `page` 属性。
-这些事件将按照 `page` 属性进行分组，然后按照每15s窗口 [windows]({{ site.baseurl }}/dev/stream/operators/windows.html) 进行统计，
-最终结果输出到 *output* topic中。
+该 Job 负责从 *input* topic 消费点击事件 `ClickEvent`，每个点击事件都包含一个 `timestamp` 和一个 `page` 属性。
+这些事件将按照 `page` 属性进行分组，然后按照每15s窗口 [windows]({%link dev/stream/operators/windows.zh.md %}) 进行统计，
+最终结果输出到 *output* topic 中。
 
-总共有6种不同的page属性，针对特定page，我们会按照每15s产生1000个点击事件的速率生成数据。
-因此，针对特定page，该Flink job应该能在每个窗口中输出1000个该page的点击数据。
+总共有6种不同的 page 属性，针对特定 page，我们会按照每15s产生1000个点击事件的速率生成数据。
+因此，针对特定 page，该 Flink job 应该能在每个窗口中输出1000个该 page 的点击数据。
 
 {% top %}
 
@@ -87,7 +86,7 @@ class="offset" width="80%" />
 
 我们所使用的配置文件位于 
 [flink-playgrounds](https://github.com/apache/flink-playgrounds) 仓库中，
-检出该仓库并启动docker环境：
+检出该仓库并启动 docker 环境：
 
 {% highlight bash %}
 git clone --branch release-{{ site.version_title }} https://github.com/apache/flink-playgrounds.git
@@ -96,7 +95,7 @@ docker-compose build
 docker-compose up -d
 {% endhighlight %}
 
-接下来可以执行如下命令来查看Docker容器：
+接下来可以执行如下命令来查看 Docker 容器：
 
 {% highlight bash %}
 docker-compose ps
@@ -111,69 +110,71 @@ operations-playground_taskmanager_1            /docker-entrypoint.sh task ...   
 operations-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
 {% endhighlight %}
 
-从上面的信息可以看出客户端容器（client_1）已成功提交了Flink Job ("Exit 0")，
-同时包含数据生成器（clickevent-generator_1）在内的所有集群组件都处于运行中状态 ("Up")。
+从上面的信息可以看出 client 容器已成功提交了 Flink Job (`Exit 0`)，
+同时包含数据生成器在内的所有集群组件都处于运行中状态 (`Up`)。
 
-你可以执行如下命令停止docker环境：
+你可以执行如下命令停止 docker 环境：
+
 {% highlight bash %}
 docker-compose down -v
 {% endhighlight %}
 
 ## 环境讲解
 
-在这个搭建好的环境中你可以尝试和验证很多事情，在下面的两个部分中我们将向你展示如何与Flink集群进行交互，演示并讲解Flink的一些核心特性。
+在这个搭建好的环境中你可以尝试和验证很多事情，在下面的两个部分中我们将向你展示如何与 Flink 集群进行交互以及演示并讲解Flink的一些核心特性。
 
-### Flink UI界面
+### Flink WebUI 界面
 
-观察Flink集群首先想到的就是Flink UI界面：打开浏览器并访问 
-[http://localhost:8081](http://localhost:8081)， 如果一切正常，你将会在界面上看到一个TaskManager
-和一个处于"RUNNING"状态的名为 *Click Event Count* 的Job。
+观察Flink集群首先想到的就是 Flink WebUI 界面：打开浏览器并访问 
+[http://localhost:8081](http://localhost:8081)，如果一切正常，你将会在界面上看到一个 TaskManager 
+和一个处于 "RUNNING" 状态的名为 *Click Event Count* 的 Job。
 
-<img src="{{ site.baseurl }}/fig/playground-webui.png" alt="Playground Flink WebUI"
+<img src="{%link fig/playground-webui.png %}" alt="Playground Flink WebUI"
 class="offset" width="100%" />
 
-Flink UI界面包含许多关于Flink集群和运行在其上的Jobs的有用信息，比如：JobGraph, Metrics, Checkpointing Statistics, TaskManager Status等等。 
+Flink WebUI 界面包含许多关于 Flink 集群以及运行在其上的 Jobs 的有用信息，比如：JobGraph、Metrics、Checkpointing Statistics、TaskManager Status 等等。 
 
 ### 日志
 
 **JobManager**
 
-JobManager日志可以通过 `docker-compose` 命令进行查看。
+JobManager 日志可以通过 `docker-compose` 命令进行查看。
+
 {% highlight bash %}
 docker-compose logs -f jobmanager
 {% endhighlight %}
 
-JobManager刚启动完成之时，你会看到很多关于 checkpoint completion （检查点完成）的日志。
+JobManager 刚启动完成之时，你会看到很多关于 checkpoint completion (检查点完成)的日志。
 
 **TaskManager**
 
-TaskManager日志也可以通过同样的方式进行查看。
+TaskManager 日志也可以通过同样的方式进行查看。
 {% highlight bash %}
 docker-compose logs -f taskmanager
 {% endhighlight %}
 
-TaskManager刚启动完成之时，你同样会看到很多关于 checkpoint completion （检查点完成）的日志。
+TaskManager 刚启动完成之时，你同样会看到很多关于 checkpoint completion (检查点完成)的日志。
 
 ### Flink CLI
 
-[Flink CLI]({{ site.baseurl }}/ops/cli.html) 相关命令可以在客户端容器内进行使用。
-比如，想查看Flink CLI的 `help` 命令，可以通过如下方式进行查看：
+[Flink CLI]({%link ops/cli.zh.md %}) 相关命令可以在 client 容器内进行使用。
+比如，想查看 Flink CLI 的 `help` 命令，可以通过如下方式进行查看：
 {% highlight bash%}
 docker-compose run --no-deps client flink --help
 {% endhighlight %}
 
 ### Flink REST API
 
-[Flink REST API]({{ site.baseurl }}/monitoring/rest_api.html#api) 可以通过本机的 
-`localhost:8081` 进行访问，也可以在客户端容器中通过 `jobmanager:8081` 进行访问。
-比如，通过如下命令可以获取所有正在运行中的Job：
+[Flink REST API]({%link monitoring/rest_api.zh.md %}#api) 可以通过本机的 
+`localhost:8081` 进行访问，也可以在 client 容器中通过 `jobmanager:8081` 进行访问。
+比如，通过如下命令可以获取所有正在运行中的 Job：
 {% highlight bash%}
 curl localhost:8081/jobs
 {% endhighlight %}
 
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
-  <b>注意</b>: 如果你的主机上没有 `curl` 命令，那么你可以通过客户端容器进行访问（类似于Flink CLI命令）：
+  <b>注意</b>: 如果你的主机上没有 <i>curl</i> 命令，那么你可以通过 client 容器进行访问（类似于 Flink CLI 命令）：
 {% highlight bash%}
 docker-compose run --no-deps client curl jobmanager:8081/jobs 
 {% endhighlight %} 
@@ -182,7 +183,7 @@ docker-compose run --no-deps client curl jobmanager:8081/jobs
 
 ### Kafka Topics
 
-可以运行如下命令查看Kafka Topics中的记录：
+可以运行如下命令查看 Kafka Topics 中的记录：
 {% highlight bash%}
 //input topic (1000 records/s)
 docker-compose exec kafka kafka-console-consumer.sh \
@@ -197,10 +198,10 @@ docker-compose exec kafka kafka-console-consumer.sh \
 
 ## 核心特性探索
 
-到目前为止，你已经学习了如何与Flink及Docker容器进行交互，现在让我们看一些常用的操作命令。
-本节中的各部分命令不需要按任何特定的顺序执行，这些命令大部分都可以通过[CLI](#Flink-CLI) 或 [RESTAPI](#Flink-REST-API)执行。
+到目前为止，你已经学习了如何与 Flink 以及 Docker 容器进行交互，现在让我们看一些常用的操作命令。
+本节中的各部分命令不需要按任何特定的顺序执行，这些命令大部分都可以通过 [CLI](#flink-cli) 或 [RESTAPI](#flink-rest-api) 执行。
 
-### 获取所有运行中的Job
+### 获取所有运行中的 Job
 
 <div class="codetabs" markdown="1">
 <div data-lang="CLI" markdown="1">
@@ -236,21 +237,21 @@ curl localhost:8081/jobs
 </div>
 </div>
 
-一旦Job提交，Flink会默认为其生成一个JobID，后续对该Job的
-所有操作（无论是通过CLI还是REST API）都需要带上JobID。
+一旦 Job 提交，Flink 会默认为其生成一个 JobID，后续对该 Job 的
+所有操作（无论是通过 CLI 还是 REST API）都需要带上 JobID。
 
-### Job失败与恢复
+### Job 失败与恢复
 
-在Job(部分)失败的情况下，Flink对事件处理依然能够提供"exactly-once"的保障，
+在 Job (部分)失败的情况下，Flink 对事件处理依然能够提供精确一次的保障，
 在本节中你将会观察到并能够在某种程度上验证这种行为。 
 
 #### Step 1: 观察输出
 
 如[前文](#场景说明)所述，事件以特定速率生成，刚好使得每个统计窗口都包含确切的1000条记录。
-因此，你可以实时查看output topic的输出，确定失败恢复后所有的窗口依然输出正确的统计数字，
-以此来验证Flink在TaskManager失败时能够成功恢复，而且不丢失数据、不产生数据重复。
+因此，你可以实时查看 output topic 的输出，确定失败恢复后所有的窗口依然输出正确的统计数字，
+以此来验证 Flink 在 TaskManager 失败时能够成功恢复，而且不丢失数据、不产生数据重复。
 
-为此，通过控制台命令消费 *output* topic，保持消费直到Job从失败中恢复(Step 3)。
+为此，通过控制台命令消费 *output* topic，保持消费直到 Job 从失败中恢复 (Step 3)。
 
 {% highlight bash%}
 docker-compose exec kafka kafka-console-consumer.sh \
@@ -259,65 +260,65 @@ docker-compose exec kafka kafka-console-consumer.sh \
 
 #### Step 2: 模拟失败
 
-为了模拟部分失败故障，你可以kill掉一个TaskManager，这种失败行为在生产环境中就相当于
-TaskManager进程挂掉、TaskManager机器宕机，或者从框架或用户代码中抛出的一个临时异常（例如，由于外部资源暂时不可用）而导致的失败。   
+为了模拟部分失败故障，你可以 kill 掉一个 TaskManager，这种失败行为在生产环境中就相当于 
+TaskManager 进程挂掉、TaskManager 机器宕机或者从框架或用户代码中抛出的一个临时异常（例如，由于外部资源暂时不可用）而导致的失败。   
 
 {% highlight bash%}
 docker-compose kill taskmanager
 {% endhighlight %}
 
-几秒钟后，JobManager就会感知到TaskManager已失联，接下来它会
-取消Job运行并且立即重新提交该Job以进行恢复。
-当Job重启后，所有的任务都会处于`SCHEDULED`状态，如以下截图中紫色方格所示：
+几秒钟后，JobManager 就会感知到 TaskManager 已失联，接下来它会
+取消 Job 运行并且立即重新提交该 Job 以进行恢复。
+当 Job 重启后，所有的任务都会处于 `SCHEDULED` 状态，如以下截图中紫色方格所示：
 
-<img src="{{ site.baseurl }}/fig/playground-webui-failure.png" alt="Playground Flink WebUI" 
+<img src="{%link fig/playground-webui-failure.png %}" alt="Playground Flink WebUI" 
 class="offset" width="100%" />
 
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
-  <b>注意</b>：虽然Job的所有任务都处于SCHEDULED状态，但整个Job的状态却显示为RUNNING。
+  <b>注意</b>：虽然 Job 的所有任务都处于 SCHEDULED 状态，但整个 Job 的状态却显示为 RUNNING。
 </p>
 
-此时，由于TaskSlots资源(TaskManager提供)不够用，Job的所有任务都不能成功转为 
-`RUNNING` 状态，直到有新的TaskManager可用。在此之前，该Job将经历一个取消和重新提交
+此时，由于 TaskManager 提供的 TaskSlots 资源不够用，Job 的所有任务都不能成功转为 
+`RUNNING` 状态，直到有新的 TaskManager 可用。在此之前，该 Job 将经历一个取消和重新提交
 不断循环的过程。
 
-与此同时，数据生成器（data generator）一直不断地往 *input* topic中生成 `ClickEvent`s 事件，在生产环境中也经常出现这种Job挂掉但源头还在不断产生数据的情况。
+与此同时，数据生成器 (data generator) 一直不断地往 *input* topic 中生成 `ClickEvent` 事件，在生产环境中也经常出现这种 Job 挂掉但源头还在不断产生数据的情况。
 
 #### Step 3: 失败恢复
 
-一旦TaskManager重启成功，它将会重新连接到JobManager。
+一旦 TaskManager 重启成功，它将会重新连接到 JobManager。
 
 {% highlight bash%}
 docker-compose up -d taskmanager
 {% endhighlight %}
 
-当TaskManager注册成功后，JobManager就会将处于 `SCHEDULED` 状态的所有任务调度到该TaskManager
-的可用TaskSlots中运行，此时所有的任务将会从失败前最近一次成功的 
-[checkpoint]({{ site.baseurl }}/learn-flink/fault_tolerance.html) 进行恢复，
-一旦恢复成功，它们的状态将转变为`RUNNING`。
+当 TaskManager 注册成功后，JobManager 就会将处于 `SCHEDULED` 状态的所有任务调度到该 TaskManager 
+的可用 TaskSlots 中运行，此时所有的任务将会从失败前最近一次成功的 
+[checkpoint]({%link learn-flink/fault_tolerance.zh.md %}) 进行恢复，
+一旦恢复成功，它们的状态将转变为 `RUNNING`。
 
-接下来该Job将快速处理Kafka input事件的全部积压（在Job中断期间累积的数据），
-并以更快的速度(> 24条记录/分钟)产生输出，直到它追上kafka的lag延迟为止。
-此时观察 *output* topic输出，
+接下来该 Job 将快速处理 Kafka input 事件的全部积压（在 Job 中断期间累积的数据），
+并以更快的速度(>24条记录/分钟)产生输出，直到它追上 kafka 的 lag 延迟为止。
+此时观察 *output* topic 输出，
 你会看到在每一个时间窗口中都有按 `page` 进行分组的记录，而且计数刚好是1000。
-由于我们使用的是 [FlinkKafkaProducer]({site.base url}}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance) "at-least-once"模式，因此你可能会看到一些记录重复输出多次。
+由于我们使用的是 [FlinkKafkaProducer]({%link dev/connectors/kafka.zh.md %}#kafka-producers-and-fault-tolerance) "至少一次"模式，因此你可能会看到一些记录重复输出多次。
 
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
-  <b>注意</b>：在大部分生产环境中都需要一个资源管理器(Kubernetes, Yarn, Mesos)对
-  失败的Job进行自动重启。
+  <b>注意</b>：在大部分生产环境中都需要一个资源管理器 (Kubernetes、Yarn,、Mesos)对
+  失败的 Job 进行自动重启。
 </p>
 
-### Job升级与扩容
+### Job 升级与扩容
 
-升级Flink作业一般都需要两步：第一，使用 [Savepoint]({{ site.baseurl }}/ops/state/savepoints.html) 优雅地停止Flink Job。
-Savepoint是整个应用程序状态的一次快照（类似于checkpoint），该快照是在一个明确定义的、全局一致的时间点生成的。第二，从Savepoint恢复启动待升级的Flink Job。
+升级 Flink 作业一般都需要两步：第一，使用 [Savepoint]({%link ops/state/savepoints.zh.md %}) 优雅地停止 Flink Job。
+Savepoint 是整个应用程序状态的一次快照（类似于 checkpoint ），该快照是在一个明确定义的、全局一致的时间点生成的。第二，从 Savepoint 恢复启动待升级的 Flink Job。
 在此，“升级”包含如下几种含义：
 
-* 配置升级（比如Job并行度修改）
-* Job拓扑升级（比如添加或者删除算子）
-* Job的用户自定义函数升级
+* 配置升级（比如 Job 并行度修改）
+* Job 拓扑升级（比如添加或者删除算子）
+* Job 的用户自定义函数升级
 
-在开始升级之前，你可能需要实时查看 *Output* topic输出，
+在开始升级之前，你可能需要实时查看 *Output* topic 输出，
 以便观察在升级过程中没有数据丢失或损坏。
 
 {% highlight bash%}
@@ -325,10 +326,10 @@ docker-compose exec kafka kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic output
 {% endhighlight %}
 
-#### Step 1: 停止Job
+#### Step 1: 停止 Job
 
-要优雅停止Job，需要使用JobID通过CLI或REST API调用“stop”命令。
-JobID可以通过[获取所有运行中的Job](#获取所有运行中的job)接口或Flink UI界面获取，拿到JobID后就可以继续停止作业了：
+要优雅停止 Job，需要使用 JobID 通过 CLI 或 REST API 调用 “stop” 命令。
+JobID 可以通过[获取所有运行中的 Job](#获取所有运行中的-job) 接口或 Flink WebUI 界面获取，拿到 JobID 后就可以继续停止作业了：
 
 <div class="codetabs" markdown="1">
 <div data-lang="CLI" markdown="1">
@@ -342,10 +343,10 @@ Suspending job "<job-id>" with a savepoint.
 Suspended job "<job-id>" with a savepoint.
 {% endhighlight %}
 
-Savepoint已保存在 `state.savepoint.dir` 指定的路径中，该配置在 *flink-conf.yaml* 
-中定义， *flink-conf.yaml* 挂载在本机的 */tmp/flink-savepoints-directory/* 目录下。
-在下一步操作中我们会用到这个Savepoint路径，如果我们是通过REST API操作的，
-那么Savepoint路径会随着响应结果一起返回，我们可以直接查看文件系统来确认Savepoint保存情况。
+Savepoint 已保存在 `state.savepoint.dir` 指定的路径中，该配置在 *flink-conf.yaml* 
+中定义，*flink-conf.yaml* 挂载在本机的 */tmp/flink-savepoints-directory/* 目录下。
+在下一步操作中我们会用到这个 Savepoint 路径，如果我们是通过 REST API 操作的，
+那么 Savepoint 路径会随着响应结果一起返回，我们可以直接查看文件系统来确认 Savepoint 保存情况。
 
 **命令**
 {% highlight bash %}
@@ -364,7 +365,7 @@ total 0
  
  **请求**
 {% highlight bash %}
-# 停止Job
+# 停止 Job
 curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
 {% endhighlight %}
 
@@ -377,7 +378,7 @@ curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
 
 **请求**
 {% highlight bash %}
-# 检查停止结果并获取savepoint路径
+# 检查停止结果并获取 savepoint 路径
  curl localhost:8081/jobs/<job-id>/savepoints/<trigger-id>
 {% endhighlight %}
 
@@ -395,9 +396,9 @@ curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
 </div>
 </div>
 
-#### Step 2a: 重启Job(不作任何变更)
+#### Step 2a: 重启 Job (不作任何变更)
 
-现在你可以从这个Savepoint重新启动待升级的Job，为了简单起见，不对该Job作任何变更就直接重启。
+现在你可以从这个 Savepoint 重新启动待升级的 Job，为了简单起见，不对该 Job 作任何变更就直接重启。
 
 <div class="codetabs" markdown="1">
 <div data-lang="CLI" markdown="1">
@@ -417,7 +418,7 @@ Job has been submitted with JobID <job-id>
 
 **请求**
 {% highlight bash %}
-# 从客户端容器上传JAR
+# 从客户端容器上传 JAR
 docker-compose run --no-deps client curl -X POST -H "Expect:" \
   -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 {% endhighlight %}
@@ -433,7 +434,7 @@ docker-compose run --no-deps client curl -X POST -H "Expect:" \
 
 **请求**
 {% highlight bash %}
-# 提交Job
+# 提交 Job
 curl -X POST http://localhost:8081/jars/<jar-id>/run \
   -d '{"programArgs": "--bootstrap.servers kafka:9092 --checkpointing --event-time", "savepointPath": "<savepoint-path>"}'
 {% endhighlight %}
@@ -446,13 +447,13 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
 </div>
 </div>
  
-一旦该Job再次处于 `RUNNING` 状态，你将从 *output* Topic中看到数据在快速输出，
-因为刚启动的Job正在处理停止期间积压的大量数据。另外，你还会看到在升级期间
+一旦该 Job 再次处于 `RUNNING` 状态，你将从 *output* Topic 中看到数据在快速输出，
+因为刚启动的 Job 正在处理停止期间积压的大量数据。另外，你还会看到在升级期间
 没有产生任何数据丢失：所有窗口都在输出1000。
 
-#### Step 2b: 重启Job(修改并行度)
+#### Step 2b: 重启 Job (修改并行度)
 
-在从Savepoint重启Job之前，你还可以通过修改并行度来达到扩容Job的目的。
+在从 Savepoint 重启 Job 之前，你还可以通过修改并行度来达到扩容 Job 的目的。
 
 <div class="codetabs" markdown="1">
 <div data-lang="CLI" markdown="1">
@@ -488,7 +489,7 @@ docker-compose run --no-deps client curl -X POST -H "Expect:" \
 
 **请求**
 {% highlight bash %}
-# 提交Job
+# 提交 Job
 curl -X POST http://localhost:8081/jars/<jar-id>/run \
   -d '{"parallelism": 3, "programArgs": "--bootstrap.servers kafka:9092 --checkpointing --event-time", "savepointPath": "<savepoint-path>"}'
 {% endhighlight %}
@@ -500,21 +501,21 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
 {% endhighlight %}
 </div>
 </div>
-现在Job已重新提交，但由于我们提高了并行度所以导致TaskSlots不够用（1个TaskSlot可用，总共需要3个），最终Job会重启失败。通过如下命令：
+现在 Job 已重新提交，但由于我们提高了并行度所以导致 TaskSlots 不够用（1个 TaskSlot 可用，总共需要3个），最终 Job 会重启失败。通过如下命令：
 {% highlight bash %}
 docker-compose scale taskmanager=2
 {% endhighlight %}
-你可以向Flink集群添加第二个TaskManager（为Flink集群提供2个TaskSlots资源），
-它会自动向JobManager注册，TaskManager注册完成后，Job会再次处于 "RUNNING" 状态。
+你可以向 Flink 集群添加第二个 TaskManager（为 Flink 集群提供2个 TaskSlots 资源），
+它会自动向 JobManager 注册，TaskManager 注册完成后，Job 会再次处于 "RUNNING" 状态。
 
-一旦Job再次运行起来，从 *output* Topic的输出中你会看到在扩容期间数据依然没有丢失：
+一旦 Job 再次运行起来，从 *output* Topic 的输出中你会看到在扩容期间数据依然没有丢失：
 所有窗口的计数都正好是1000。
 
-### 查询Job指标
+### 查询 Job 指标
 
-可以通过JobManager提供的REST API来获取系统和用户 [指标]({{ site.baseurl }}/monitoring/metrics.html)
+可以通过 JobManager 提供的 REST API 来获取系统和用户[指标]({%link monitoring/metrics.zh.md %})
 
-具体请求方式取决于我们想查询哪类指标，Job相关的指标分类可通过 `jobs/<job-id>/metrics` 
+具体请求方式取决于我们想查询哪类指标，Job 相关的指标分类可通过 `jobs/<job-id>/metrics` 
 获得，而要想查询某类指标的具体值则可以在请求地址后跟上 `get` 参数。
 
 **请求**
@@ -531,11 +532,11 @@ curl "localhost:8081/jobs/<jod-id>/metrics?get=lastCheckpointSize"
 ]
 {% endhighlight %}
 
-REST API不仅可以用于查询指标，还可以用于获取正在运行中的Job详细信息。
+REST API 不仅可以用于查询指标，还可以用于获取正在运行中的 Job 详细信息。
 
 **请求**
 {% highlight bash %}
-# 可以从结果中获取感兴趣的vertex-id
+# 可以从结果中获取感兴趣的 vertex-id
 curl localhost:8081/jobs/<jod-id>
 {% endhighlight %}
 
@@ -760,23 +761,22 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-请查阅 [REST API 参考]({{ site.baseurl }}/monitoring/rest_api.html#api)，该参考上有完整的指标查询接口信息，包括如何查询不同种类的指标（例如，TaskManager指标）。
+请查阅 [REST API 参考]({%link monitoring/rest_api.zh.md %}#api)，该参考上有完整的指标查询接口信息，包括如何查询不同种类的指标（例如 TaskManager 指标）。
 
 {%  top %}
 
 ## 延伸拓展
 
-你可能已经注意到了，*Click Event Count* 这个Job在启动时总是会带上 `--checkpointing` 和 `--event-time` 两个参数，
-如果我们去除这两个参数，那么Job的行为也会随之改变。
+你可能已经注意到了，*Click Event Count* 这个 Job 在启动时总是会带上 `--checkpointing` 和 `--event-time` 两个参数，
+如果我们去除这两个参数，那么 Job 的行为也会随之改变。
 
-* `--checkpointing` 参数开启了检查点 [checkpoint]({{ site.baseurl }}/learn-flink/fault_tolerance.html) 配置，检查点是Flink容错机制的重要保证。
-如果你没有开启检查点，那么在 
-[Job失败与恢复](#job失败与恢复) 这一节中，你将会看到数据丢失现象发生。
+* `--checkpointing` 参数开启了 [checkpoint]({%link learn-flink/fault_tolerance.zh.md %}) 配置，savepoint 是 Flink 容错机制的重要保证。
+如果你没有开启 checkpoint，那么在 
+[Job 失败与恢复](#job-失败与恢复)这一节中，你将会看到数据丢失现象发生。
 
-* `--event-time` 参数开启了Job的 [事件时间]({{ site.baseurl }}/dev/event_time.html) 机制，该机制会使用`ClickEvent`自带的时间戳进行统计。
-如果不指定该参数，Flink将结合当前机器时间使用事件处理时间进行统计。如此一来，每个窗口计数将不再是准确的1000了。 
+* `--event-time` 参数开启了 Job 的 [事件时间]({%link dev/event_time.zh.md %}) 机制，该机制会使用 `ClickEvent` 自带的时间戳进行统计。
+如果不指定该参数，Flink 将结合当前机器时间使用事件处理时间进行统计。如此一来，每个窗口计数将不再是准确的1000了。 
 
-*Click Event Count* 这个Job还有另外一个选项，该选项默认是关闭的，你可以在 *client* 容器的`docker-compose.yaml`文件中添加该选项从而观察该Job在背压下的表现，该选项描述如下：
+*Click Event Count* 这个 Job 还有另外一个选项，该选项默认是关闭的，你可以在 *client* 容器的 `docker-compose.yaml` 文件中添加该选项从而观察该 Job 在反压下的表现，该选项描述如下：
 
-* `--backpressure` 将一个额外算子添加到Job中，该算子会在偶数分钟内产生严重的背压（比如：10:12期间，而10:13期间不会）。这种现象可以通过多种[网络指标]({{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage`指标，通过WebUI上的
-[背压监控]({{ site.baseurl }}/monitoring/back_pressure.html#monitoring-back-pressure)也可以观察到。
+* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12期间，而10:13期间不会）。这种现象可以通过多种[网络指标]({%link monitoring/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。
