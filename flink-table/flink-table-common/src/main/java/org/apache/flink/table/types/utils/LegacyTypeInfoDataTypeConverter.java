@@ -30,9 +30,11 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.DataTypeQueryable;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
@@ -176,7 +178,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return convertToMapType((MapTypeInfo) typeInfo);
 		}
 
-		else if (typeInfo instanceof CompositeType) {
+		else if (typeInfo instanceof CompositeType || isRowData(typeInfo)) {
 			return createLegacyType(LogicalTypeRoot.STRUCTURED_TYPE, typeInfo);
 		}
 
@@ -394,6 +396,18 @@ public final class LegacyTypeInfoDataTypeConverter {
 
 	private static TypeInformation<?> convertToRawTypeInfo(DataType dataType) {
 		return ((TypeInformationRawType) dataType.getLogicalType()).getTypeInformation();
+	}
+
+	/**
+	 * Temporary solution to enable tests with type information and internal data structures until we
+	 * drop all legacy types.
+	 */
+	private static boolean isRowData(TypeInformation<?> typeInfo) {
+		if (!(typeInfo instanceof DataTypeQueryable)) {
+			return false;
+		}
+		final DataType dataType = ((DataTypeQueryable) typeInfo).getDataType();
+		return dataType.getConversionClass() == RowData.class;
 	}
 
 	private LegacyTypeInfoDataTypeConverter() {

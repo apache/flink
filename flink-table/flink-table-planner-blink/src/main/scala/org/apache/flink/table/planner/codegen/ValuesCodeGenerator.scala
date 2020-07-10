@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.operators.values.ValuesInputFormat
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.`type`.RelDataType
@@ -54,7 +54,7 @@ object ValuesCodeGenerator {
       generatedRecords.map(_.code),
       outputType)
 
-    new ValuesInputFormat(generatedFunction, RowDataTypeInfo.of(outputType))
+    new ValuesInputFormat(generatedFunction, InternalTypeInfo.of(outputType))
   }
 
 }

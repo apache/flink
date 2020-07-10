@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
@@ -38,7 +39,7 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.join.String2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.StringNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.StringRecordComparator;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Test;
@@ -59,9 +60,9 @@ import static org.apache.flink.table.runtime.operators.join.String2HashJoinOpera
 public class String2SortMergeJoinOperatorTest {
 
 	private boolean leftIsSmall;
-	RowDataTypeInfo typeInfo = new RowDataTypeInfo(
+	InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
-	private RowDataTypeInfo joinedInfo = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> joinedInfo = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
 
 	public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {

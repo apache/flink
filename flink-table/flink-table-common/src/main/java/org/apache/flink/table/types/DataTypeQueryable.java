@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.keyselector;
+package org.apache.flink.table.types;
 
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.annotation.Internal;
 
 /**
- * RowDataKeySelector takes an RowData and extracts the deterministic key for the RowData.
+ * Indicates that a {@link DataType} can be retrieved from a class that implements this interfaces.
  */
-public interface RowDataKeySelector extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
+@Internal
+public interface DataTypeQueryable {
 
-	InternalTypeInfo<RowData> getProducedType();
-
+	DataType getDataType();
 }

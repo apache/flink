@@ -26,7 +26,7 @@ import org.apache.flink.table.data.{DecimalDataUtils, GenericRowData, StringData
 import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
 
@@ -83,7 +83,7 @@ object PartitionPruner {
       return allPartitions
     }
 
-    val inputType = new RowDataTypeInfo(partitionFieldTypes, partitionFieldNames).toRowType
+    val inputType = InternalTypeInfo.ofFields(partitionFieldTypes, partitionFieldNames).toRowType
     val returnType: LogicalType = new BooleanType(false)
 
     val ctx = new ConstantCodeGeneratorContext(config)

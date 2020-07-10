@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
 import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -100,7 +100,7 @@ class StreamExecLimit(
       throw new TableException(
         "FETCH is missed, which on streaming table is not supported currently.")
     }
-    val inputRowTypeInfo = RowDataTypeInfo.of(
+    val inputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
@@ -131,7 +131,7 @@ class StreamExecLimit(
         outputRankNumber,
         cacheSize)
     } else {
-      val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
+      val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
       val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("LimitValueEqualiser")
       new RetractableTopNFunction(
         minIdleStateRetentionTime,
@@ -151,7 +151,7 @@ class StreamExecLimit(
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
 
-    val outputRowTypeInfo = RowDataTypeInfo.of(
+    val outputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // as input node is singleton exchange, its parallelism is 1.

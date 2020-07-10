@@ -31,7 +31,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -112,12 +112,12 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 			Types.LONG);
 		lastTriggeringTsState = getRuntimeContext().getState(lastTriggeringTsDescriptor);
 
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accStateDesc = new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accStateDesc);
 
 		// input element are all binary row as they are came from network
-		RowDataTypeInfo inputType = new RowDataTypeInfo(inputFieldTypes);
+		InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
 		ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
 		MapStateDescriptor<Long, List<RowData>> inputStateDesc = new MapStateDescriptor<Long, List<RowData>>(
 			"inputState",

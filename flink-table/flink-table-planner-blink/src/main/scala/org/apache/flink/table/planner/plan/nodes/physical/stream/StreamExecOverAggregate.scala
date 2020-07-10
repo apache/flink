@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStream
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.over._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
@@ -253,12 +253,12 @@ class StreamExecOverAggregate(
     }
 
     val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val inputTypeInfo = RowDataTypeInfo.of(inRowType)
+    val inputTypeInfo = InternalTypeInfo.of(inRowType)
 
     val selector = KeySelectorUtil.getRowDataSelector(partitionKeys, inputTypeInfo)
 
-    val returnTypeInfo = RowDataTypeInfo.of(outRowType)
-      .asInstanceOf[RowDataTypeInfo]
+    val returnTypeInfo = InternalTypeInfo.of(outRowType)
+      .asInstanceOf[InternalTypeInfo[RowData]]
     // partitioned aggregation
 
     val operator = new KeyedProcessOperator(overProcessFunction)

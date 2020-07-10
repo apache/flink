@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.planner.utils.{RowDataTestUtil, TableTestUtil, TestingTableEnvironment}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 
@@ -415,7 +415,7 @@ class BatchTestBase extends BatchAbstractTestBase {
   }
 
   def newRangeSource(start: Long, end: Long): DataStream[RowData] = {
-    val typeInfo: TypeInformation[RowData] = new RowDataTypeInfo(new BigIntType)
+    val typeInfo: TypeInformation[RowData] = InternalTypeInfo.ofFields(new BigIntType)
     val boundedStream = env.createInput(new RangeInputFormat(start, end), typeInfo)
     boundedStream.setParallelism(1)
     boundedStream

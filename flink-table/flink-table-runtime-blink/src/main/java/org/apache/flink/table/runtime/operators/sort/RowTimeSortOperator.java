@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -48,7 +48,7 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RowTimeSortOperator.class);
 
-	private final RowDataTypeInfo inputRowType;
+	private final InternalTypeInfo<RowData> inputRowType;
 	private final int rowTimeIdx;
 
 	private GeneratedRecordComparator gComparator;
@@ -64,9 +64,9 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	 * @param rowTimeIdx The index of the rowTime field.
 	 * @param gComparator generated comparator, could be null if only sort on RowTime field
 	 */
-	public RowTimeSortOperator(RowDataTypeInfo inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
+	public RowTimeSortOperator(InternalTypeInfo<RowData> inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
-		Preconditions.checkArgument(rowTimeIdx >= 0 && rowTimeIdx < inputRowType.getArity(),
+		Preconditions.checkArgument(rowTimeIdx >= 0 && rowTimeIdx < inputRowType.toRowSize(),
 				"RowTimeIdx must be 0 or positive number and smaller than input row arity!");
 		this.rowTimeIdx = rowTimeIdx;
 		this.gComparator = gComparator;

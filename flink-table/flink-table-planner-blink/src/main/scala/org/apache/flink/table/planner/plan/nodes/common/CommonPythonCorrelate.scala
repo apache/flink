@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate.PYTHON_TABLE_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.mutable
@@ -38,8 +38,8 @@ import scala.collection.mutable
 trait CommonPythonCorrelate extends CommonPythonBase {
   private def getPythonTableFunctionOperator(
       config: Configuration,
-      inputRowType: RowDataTypeInfo,
-      outputRowType: RowDataTypeInfo,
+      inputRowType: InternalTypeInfo[RowData],
+      outputRowType: InternalTypeInfo[RowData],
       pythonFunctionInfo: PythonFunctionInfo,
       udtfInputOffsets: Array[Int],
       joinType: JoinRelType): OneInputStreamOperator[RowData, RowData] = {
@@ -81,8 +81,9 @@ trait CommonPythonCorrelate extends CommonPythonBase {
     val pythonTableFuncRexCall = scan.getCall.asInstanceOf[RexCall]
     val (pythonUdtfInputOffsets, pythonFunctionInfo) =
       extractPythonTableFunctionInfo(pythonTableFuncRexCall)
-    val pythonOperatorInputRowType = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val pythonOperatorOutputRowType = RowDataTypeInfo.of(
+    val pythonOperatorInputRowType = inputTransform.getOutputType
+      .asInstanceOf[InternalTypeInfo[RowData]]
+    val pythonOperatorOutputRowType = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalType(outputRowType).asInstanceOf[RowType])
     val pythonOperator = getPythonTableFunctionOperator(
       config,

@@ -22,12 +22,12 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryRawValueData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 import org.apache.flink.table.functions.UserDefinedAggregateFunction
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LegacyTypeInformationType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -88,15 +88,18 @@ object DataViewUtils {
             (fromLegacyInfoToDataType(pojoTypeInfo), accumulatorSpecs.toArray)
 
           // so we add another check => acc.isInstanceOf[GenericRowData]
-          case t: RowDataTypeInfo if acc.isInstanceOf[GenericRowData] =>
+          case t: InternalTypeInfo[RowData] if acc.isInstanceOf[GenericRowData] =>
             val accInstance = acc.asInstanceOf[GenericRowData]
-            val (arity, fieldNames, fieldTypes) = (t.getArity, t.getFieldNames, t.getFieldTypes)
+            val (arity, fieldNames, fieldTypes) = (
+              t.toRowSize,
+              t.toRowFieldNames,
+              t.toRowFieldTypes)
             val newFieldTypes = for (i <- 0 until arity) yield {
               val fieldName = fieldNames(i)
               val fieldInstance = accInstance.getField(i)
               val (newTypeInfo: TypeInformation[_], spec: Option[DataViewSpec]) =
                 decorateDataViewTypeInfo(
-                  fieldTypes(i),
+                  fromLogicalTypeToTypeInfo(fieldTypes(i)),
                   fieldInstance,
                   isStateBackedDataViews,
                   index,
@@ -108,7 +111,7 @@ object DataViewUtils {
               fromTypeInfoToLogicalType(newTypeInfo)
             }
 
-            val newType = new RowDataTypeInfo(newFieldTypes.toArray, fieldNames)
+            val newType = InternalTypeInfo.ofFields(newFieldTypes.toArray, fieldNames)
             (fromLegacyInfoToDataType(newType), accumulatorSpecs.toArray)
 
           case ct: CompositeType[_] if includesDataView(ct) =>

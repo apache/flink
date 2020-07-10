@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
-import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, BinaryRowDataSerializer}
+import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, BinaryRowDataSerializer}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
@@ -196,8 +196,8 @@ class BatchExecHashJoin(
         .asInstanceOf[Transformation[RowData]]
 
     // get type
-    val lType = lInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
-    val rType = rInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
+    val lType = lInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
 
     val keyType = RowType.of(leftKeys.map(lType.getTypeAt): _*)
 
@@ -259,7 +259,7 @@ class BatchExecHashJoin(
       probe,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
+      InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       probe.getParallelism,
       managedMemory)
   }

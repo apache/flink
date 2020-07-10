@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
@@ -75,8 +75,8 @@ class StreamExecExchange(
       planner: StreamPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
-    val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val outputTypeInfo = RowDataTypeInfo.of(
+    val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val outputTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
     relDistribution.getType match {
       case RelDistribution.Type.SINGLETON =>

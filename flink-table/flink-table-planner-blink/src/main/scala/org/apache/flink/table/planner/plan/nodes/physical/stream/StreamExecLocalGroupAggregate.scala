@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchLocalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.MapBundleOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -127,7 +127,7 @@ class StreamExecLocalGroupAggregate(
     val aggsHandler = generator.generateAggsHandler("GroupAggsHandler", aggInfoList)
     val aggFunction = new MiniBatchLocalGroupAggFunction(aggsHandler)
 
-    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val selector = KeySelectorUtil.getRowDataSelector(grouping, inputTypeInfo)
 
     val operator = new MapBundleOperator(
@@ -139,7 +139,7 @@ class StreamExecLocalGroupAggregate(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

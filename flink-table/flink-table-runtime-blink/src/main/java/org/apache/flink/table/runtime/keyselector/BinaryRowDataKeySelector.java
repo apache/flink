@@ -22,7 +22,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * A KeySelector which will extract key from RowData. The key type is BinaryRowData.
@@ -31,11 +31,11 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 
 	private static final long serialVersionUID = 5375355285015381919L;
 
-	private final RowDataTypeInfo keyRowType;
+	private final InternalTypeInfo<RowData> keyRowType;
 	private final GeneratedProjection generatedProjection;
 	private transient Projection<RowData, BinaryRowData> projection;
 
-	public BinaryRowDataKeySelector(RowDataTypeInfo keyRowType, GeneratedProjection generatedProjection) {
+	public BinaryRowDataKeySelector(InternalTypeInfo<RowData> keyRowType, GeneratedProjection generatedProjection) {
 		this.keyRowType = keyRowType;
 		this.generatedProjection = generatedProjection;
 	}
@@ -51,7 +51,7 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 	}
 
 	@Override
-	public RowDataTypeInfo getProducedType() {
+	public InternalTypeInfo<RowData> getProducedType() {
 		return keyRowType;
 	}
 

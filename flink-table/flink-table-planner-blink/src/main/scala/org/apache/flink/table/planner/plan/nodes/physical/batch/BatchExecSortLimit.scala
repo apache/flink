@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortLimitOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -131,8 +131,8 @@ class BatchExecSortLimit(
 
     val input = getInputNodes.get(0).translateToPlan(planner)
         .asInstanceOf[Transformation[RowData]]
-    val inputType = input.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val types = inputType.getLogicalTypes
+    val inputType = input.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val types = inputType.toRowFieldTypes
 
     // generate comparator
     val genComparator = ComparatorCodeGenerator.gen(

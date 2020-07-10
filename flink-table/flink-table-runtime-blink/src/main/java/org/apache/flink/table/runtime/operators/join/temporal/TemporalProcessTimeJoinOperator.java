@@ -32,7 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * The operator to temporal join a stream on processing time.
@@ -42,7 +42,7 @@ public class TemporalProcessTimeJoinOperator
 
 	private static final long serialVersionUID = -5182289624027523612L;
 
-	private final RowDataTypeInfo rightType;
+	private final InternalTypeInfo<RowData> rightType;
 	private final GeneratedJoinCondition generatedJoinCondition;
 
 	private transient ValueState<RowData> rightState;
@@ -52,7 +52,7 @@ public class TemporalProcessTimeJoinOperator
 	private transient TimestampedCollector<RowData> collector;
 
 	public TemporalProcessTimeJoinOperator(
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			long minRetentionTime,
 			long maxRetentionTime) {

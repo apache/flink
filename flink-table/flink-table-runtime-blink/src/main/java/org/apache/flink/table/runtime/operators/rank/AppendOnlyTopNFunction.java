@@ -27,7 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.util.Collector;
 
@@ -51,7 +51,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AppendOnlyTopNFunction.class);
 
-	private final RowDataTypeInfo sortKeyType;
+	private final InternalTypeInfo<RowData> sortKeyType;
 	private final TypeSerializer<RowData> inputRowSer;
 	private final long cacheSize;
 
@@ -67,7 +67,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 	public AppendOnlyTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
-			RowDataTypeInfo inputRowType,
+			InternalTypeInfo<RowData> inputRowType,
 			GeneratedRecordComparator sortKeyGeneratedRecordComparator,
 			RowDataKeySelector sortKeySelector,
 			RankType rankType,

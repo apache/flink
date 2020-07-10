@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.sinks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
@@ -32,12 +31,12 @@ import org.apache.flink.types.Row;
 public class BatchSelectTableSink extends SelectTableSinkBase<RowData> implements StreamTableSink<RowData> {
 
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema, createRowDataTypeInfo(tableSchema).createSerializer(new ExecutionConfig()));
+		super(tableSchema, createTypeInfo(tableSchema).toRowSerializer());
 	}
 
 	@Override
 	public TypeInformation<RowData> getOutputType() {
-		return createRowDataTypeInfo(getTableSchema());
+		return createTypeInfo(getTableSchema());
 	}
 
 	@Override

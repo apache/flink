@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan._
@@ -77,7 +77,7 @@ class StreamExecTableSourceScan(
       env: StreamExecutionEnvironment,
       inputFormat: InputFormat[RowData, _],
       name: String,
-      outTypeInfo: RowDataTypeInfo): Transformation[RowData] = {
+      outTypeInfo: InternalTypeInfo[RowData]): Transformation[RowData] = {
     // It's better to use StreamExecutionEnvironment.createInput()
     // rather than addLegacySource() for streaming, because it take care of checkpoint.
     env

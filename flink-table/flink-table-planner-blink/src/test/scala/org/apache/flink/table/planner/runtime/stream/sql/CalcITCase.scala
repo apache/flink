@@ -29,7 +29,7 @@ import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 
@@ -52,7 +52,7 @@ class CalcITCase extends StreamingTestBase {
     val data = List(rowData)
 
     implicit val tpe: TypeInformation[GenericRowData] =
-      new RowDataTypeInfo(
+      InternalTypeInfo.ofFields(
         new IntType(),
         new IntType(),
         new BigIntType()).asInstanceOf[TypeInformation[GenericRowData]]
@@ -62,7 +62,7 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTableRow", t)
 
-    val outputType = new RowDataTypeInfo(
+    val outputType = InternalTypeInfo.ofFields(
       new IntType(),
       new IntType(),
       new BigIntType())
@@ -95,7 +95,7 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTableRow", t)
 
-    val outputType = new RowDataTypeInfo(
+    val outputType = InternalTypeInfo.ofFields(
       new VarCharType(VarCharType.MAX_LENGTH),
       new VarCharType(VarCharType.MAX_LENGTH),
       new IntType())
@@ -121,7 +121,7 @@ class CalcITCase extends StreamingTestBase {
     val data = List(rowData)
 
     implicit val tpe: TypeInformation[GenericRowData] =
-      new RowDataTypeInfo(
+      InternalTypeInfo.ofFields(
         new IntType(),
         new IntType(),
         new BigIntType()).asInstanceOf[TypeInformation[GenericRowData]]

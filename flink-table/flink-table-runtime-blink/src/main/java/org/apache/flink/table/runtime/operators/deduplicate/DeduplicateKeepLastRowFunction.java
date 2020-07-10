@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRow;
@@ -37,7 +37,7 @@ public class DeduplicateKeepLastRowFunction
 		extends KeyedProcessFunction<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -291348892087180350L;
-	private final RowDataTypeInfo rowTypeInfo;
+	private final InternalTypeInfo<RowData> rowTypeInfo;
 	private final boolean generateUpdateBefore;
 	private final boolean generateInsert;
 
@@ -47,7 +47,7 @@ public class DeduplicateKeepLastRowFunction
 
 	public DeduplicateKeepLastRowFunction(
 			long minRetentionTime,
-			RowDataTypeInfo rowTypeInfo,
+			InternalTypeInfo<RowData> rowTypeInfo,
 			boolean generateUpdateBefore,
 			boolean generateInsert) {
 		this.minRetentionTime = minRetentionTime;

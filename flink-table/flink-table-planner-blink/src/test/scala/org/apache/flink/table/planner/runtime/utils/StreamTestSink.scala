@@ -33,7 +33,8 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.utils.RowDataTestUtil
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
@@ -140,10 +141,10 @@ final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
 }
 
 final class TestingAppendRowDataSink(
-    rowTypeInfo: RowDataTypeInfo, tz: TimeZone)
+    rowTypeInfo: InternalTypeInfo[RowData], tz: TimeZone)
   extends AbstractExactlyOnceSink[RowData] {
 
-  def this(rowTypeInfo: RowDataTypeInfo) {
+  def this(rowTypeInfo: InternalTypeInfo[RowData]) {
     this(rowTypeInfo, TimeZone.getTimeZone("UTC"))
   }
 
@@ -297,8 +298,8 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   }
 
   override def getRecordType: TypeInformation[RowData] =
-    new RowDataTypeInfo(
-      fTypes.map(TypeConversions.fromLegacyInfoToDataType(_).getLogicalType),
+    InternalTypeInfo.ofFields(
+      fTypes.map(fromTypeInfoToLogicalType),
       fNames)
 
   override def getFieldNames: Array[String] = fNames

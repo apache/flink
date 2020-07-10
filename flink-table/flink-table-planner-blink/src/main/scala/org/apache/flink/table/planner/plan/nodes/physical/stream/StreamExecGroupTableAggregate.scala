@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -148,14 +148,14 @@ class StreamExecGroupTableAggregate(
 
     val selector = KeySelectorUtil.getRowDataSelector(
       grouping,
-      RowDataTypeInfo.of(inputRowType))
+      InternalTypeInfo.of(inputRowType))
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
       "GroupTableAggregate",
       operator,
-      RowDataTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

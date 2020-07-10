@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.python.scalar;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
@@ -32,6 +31,7 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
@@ -47,10 +47,10 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 public class RowDataPythonScalarFunctionOperatorTest
 		extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
-		Types.STRING,
-		Types.STRING,
-		Types.LONG
+	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new LogicalType[]{
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.BIGINT().getLogicalType()
 	});
 
 	@Override

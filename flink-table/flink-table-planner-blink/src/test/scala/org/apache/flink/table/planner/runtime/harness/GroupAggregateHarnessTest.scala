@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, Types}
+import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
@@ -67,7 +67,10 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
     val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
-    val assertor = new RowDataHarnessAssertor(Array( Types.STRING, Types.LONG))
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 

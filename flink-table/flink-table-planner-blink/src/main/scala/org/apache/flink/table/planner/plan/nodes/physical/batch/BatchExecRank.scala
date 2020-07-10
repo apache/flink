@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRul
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
 import org.apache.flink.table.runtime.operators.sort.RankOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
@@ -290,7 +290,7 @@ class BatchExecRank(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      RowDataTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       input.getParallelism)
   }
 }

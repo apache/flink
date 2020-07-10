@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -44,16 +42,16 @@ import static org.junit.Assert.assertEquals;
  */
 public class RowDataHarnessAssertor {
 
-	private final TypeInformation[] typeInfos;
+	private final LogicalType[] types;
 	private final Comparator<GenericRowData> comparator;
 
-	public RowDataHarnessAssertor(TypeInformation[] typeInfos, Comparator<GenericRowData> comparator) {
-		this.typeInfos = typeInfos;
+	public RowDataHarnessAssertor(LogicalType[] types, Comparator<GenericRowData> comparator) {
+		this.types = types;
 		this.comparator = comparator;
 	}
 
-	public RowDataHarnessAssertor(TypeInformation[] typeInfos) {
-		this(typeInfos, new StringComparator());
+	public RowDataHarnessAssertor(LogicalType[] types) {
+		this(types, new StringComparator());
 	}
 
 	/**
@@ -110,9 +108,7 @@ public class RowDataHarnessAssertor {
 				} else {
 					GenericRowData genericRow = RowDataUtil.toGenericRow(
 						row,
-						Arrays.stream(typeInfos)
-							.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
-							.toArray(LogicalType[]::new));
+						types);
 					expectedRecords.add(genericRow);
 				}
 			}
@@ -124,9 +120,7 @@ public class RowDataHarnessAssertor {
 				// joined row can't equals to generic row, so cast joined row to generic row first
 				GenericRowData actualRow = RowDataUtil.toGenericRow(
 						actualOutput,
-						Arrays.stream(typeInfos)
-								.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
-								.toArray(LogicalType[]::new));
+						types);
 				actualRecords.add(actualRow);
 			}
 		}

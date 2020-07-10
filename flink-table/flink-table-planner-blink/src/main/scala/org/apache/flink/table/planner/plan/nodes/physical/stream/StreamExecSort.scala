@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.StreamSortOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -112,10 +112,10 @@ class StreamExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val rowComparator = ComparatorCodeGenerator.gen(config, "StreamExecSortComparator",
       keys, keyTypes, orders, nullsIsLast)
-    val sortOperator = new StreamSortOperator(RowDataTypeInfo.of(inputType), rowComparator)
+    val sortOperator = new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator)
     val input = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
-    val outputRowTypeInfo = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(

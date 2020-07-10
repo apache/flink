@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.runtime.operators.wmassigners.{ProcTimeMiniBatchAssignerOperator, RowTimeMiniBatchAssginerOperator}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
@@ -98,7 +98,7 @@ class StreamExecMiniBatchAssigner(
         s"mode, this is a bug, please file an issue.")
     }
 
-    val outputRowTypeInfo = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
     val transformation = new OneInputTransformation[RowData, RowData](
       inputTransformation,
       getRelDetailedDescription,

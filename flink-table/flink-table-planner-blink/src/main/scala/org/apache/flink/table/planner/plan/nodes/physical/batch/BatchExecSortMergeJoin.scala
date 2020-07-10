@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
@@ -206,8 +206,8 @@ class BatchExecSortMergeJoin(
     val rightInput = getInputNodes.get(1).translateToPlan(planner)
         .asInstanceOf[Transformation[RowData]]
 
-    val leftType = leftInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
-    val rightType = rightInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
+    val leftType = leftInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rightType = rightInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
 
     val keyType = RowType.of(leftAllKey.map(leftType.getChildren.get(_)): _*)
 
@@ -260,7 +260,7 @@ class BatchExecSortMergeJoin(
       rightInput,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
+      InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       rightInput.getParallelism,
       managedMemory)
   }

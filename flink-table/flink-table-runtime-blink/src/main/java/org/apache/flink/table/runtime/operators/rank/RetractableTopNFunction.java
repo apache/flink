@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SortedMapTypeInfo;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -64,7 +64,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	private static final String STATE_CLEARED_WARN_MSG = "The state is cleared because of state ttl. " +
 			"This will result in incorrect result. You can increase the state ttl to avoid this.";
 
-	private final RowDataTypeInfo sortKeyType;
+	private final InternalTypeInfo<RowData> sortKeyType;
 
 	// flag to skip records with non-exist error instead to fail, true by default.
 	private final boolean lenient = true;
@@ -84,7 +84,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	public RetractableTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
-			RowDataTypeInfo inputRowType,
+			InternalTypeInfo<RowData> inputRowType,
 			GeneratedRecordComparator generatedRecordComparator,
 			RowDataKeySelector sortKeySelector,
 			RankType rankType,

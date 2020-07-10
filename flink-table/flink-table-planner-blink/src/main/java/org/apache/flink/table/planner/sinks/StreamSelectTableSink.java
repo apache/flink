@@ -43,12 +43,12 @@ public class StreamSelectTableSink
 	public StreamSelectTableSink(TableSchema tableSchema) {
 		super(tableSchema, new TupleTypeInfo<Tuple2<Boolean, RowData>>(
 				Types.BOOLEAN,
-				createRowDataTypeInfo(tableSchema)).createSerializer(new ExecutionConfig()));
+				createTypeInfo(tableSchema)).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
 	public TypeInformation<RowData> getRecordType() {
-		return createRowDataTypeInfo(getTableSchema());
+		return createTypeInfo(getTableSchema());
 	}
 
 	@Override

@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
@@ -116,15 +116,15 @@ class StreamExecJoin(
       planner: StreamPlanner): Transformation[RowData] = {
 
     val tableConfig = planner.getTableConfig
-    val returnType = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val returnType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val leftTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
     val rightTransform = getInputNodes.get(1).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
 
-    val leftType = leftTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val rightType = rightTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val leftType = leftTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val rightType = rightTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
 
     val (leftJoinKey, rightJoinKey) =
       JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
@@ -193,7 +193,7 @@ class StreamExecJoin(
     if (uniqueKeys == null || uniqueKeys.isEmpty) {
       JoinInputSideSpec.withoutUniqueKey()
     } else {
-      val inRowType = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
+      val inRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
       val joinKeys = if (input == left) {
         keyPairs.map(_.source).toArray
       } else {

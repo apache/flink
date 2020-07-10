@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
 
@@ -112,7 +112,7 @@ object CorrelateCodeGenerator {
       inputTransformation,
       transformationName,
       substituteStreamOperator,
-      RowDataTypeInfo.of(returnType),
+      InternalTypeInfo.of(returnType),
       parallelism)
   }
 

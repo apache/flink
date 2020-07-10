@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -131,7 +131,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<RowData, 
 
 		equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = ctx.getRuntimeContext().getState(accDesc);
 

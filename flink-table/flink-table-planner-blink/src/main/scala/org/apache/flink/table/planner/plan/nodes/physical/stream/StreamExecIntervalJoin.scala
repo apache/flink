@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, JoinTypeUtil
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.join.interval.{ProcTimeIntervalJoin, RowTimeIntervalJoin}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.plan._
@@ -136,7 +136,7 @@ class StreamExecIntervalJoin(
            FlinkJoinType.FULL =>
         val leftRowType = FlinkTypeFactory.toLogicalRowType(getLeft.getRowType)
         val rightRowType = FlinkTypeFactory.toLogicalRowType(getRight.getRowType)
-        val returnType = RowDataTypeInfo.of(
+        val returnType = InternalTypeInfo.of(
           FlinkTypeFactory.toLogicalRowType(getRowType))
 
         val relativeWindowSize = leftUpperBound - leftLowerBound
@@ -199,12 +199,12 @@ class StreamExecIntervalJoin(
       rightPlan: Transformation[RowData],
       leftArity: Int,
       rightArity: Int,
-      returnTypeInfo: RowDataTypeInfo): Transformation[RowData] = {
+      returnTypeInfo: InternalTypeInfo[RowData]): Transformation[RowData] = {
     // We filter all records instead of adding an empty source to preserve the watermarks.
     val allFilter = new FlatMapFunction[RowData, RowData] with ResultTypeQueryable[RowData] {
       override def flatMap(value: RowData, out: Collector[RowData]): Unit = {}
 
-      override def getProducedType: RowDataTypeInfo = returnTypeInfo
+      override def getProducedType: InternalTypeInfo[RowData] = returnTypeInfo
     }
 
     val leftPadder = new MapFunction[RowData, RowData] with ResultTypeQueryable[RowData] {
@@ -212,7 +212,7 @@ class StreamExecIntervalJoin(
 
       override def map(value: RowData): RowData = paddingUtil.padLeft(value)
 
-      override def getProducedType: RowDataTypeInfo = returnTypeInfo
+      override def getProducedType: InternalTypeInfo[RowData] = returnTypeInfo
     }
 
     val rightPadder = new MapFunction[RowData, RowData] with ResultTypeQueryable[RowData] {
@@ -220,7 +220,7 @@ class StreamExecIntervalJoin(
 
       override def map(value: RowData): RowData = paddingUtil.padRight(value)
 
-      override def getProducedType: RowDataTypeInfo = returnTypeInfo
+      override def getProducedType: InternalTypeInfo[RowData] = returnTypeInfo
     }
 
     val leftParallelism = leftPlan.getParallelism
@@ -270,12 +270,12 @@ class StreamExecIntervalJoin(
   private def createProcTimeJoin(
       leftPlan: Transformation[RowData],
       rightPlan: Transformation[RowData],
-      returnTypeInfo: RowDataTypeInfo,
+      returnTypeInfo: InternalTypeInfo[RowData],
       joinFunction: GeneratedFunction[FlatJoinFunction[RowData, RowData, RowData]],
       leftKeys: Array[Int],
       rightKeys: Array[Int]): Transformation[RowData] = {
-    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val procJoinFunc = new ProcTimeIntervalJoin(
       flinkJoinType,
       leftLowerBound,
@@ -310,13 +310,13 @@ class StreamExecIntervalJoin(
   private def createRowTimeJoin(
       leftPlan: Transformation[RowData],
       rightPlan: Transformation[RowData],
-      returnTypeInfo: RowDataTypeInfo,
+      returnTypeInfo: InternalTypeInfo[RowData],
       joinFunction: GeneratedFunction[FlatJoinFunction[RowData, RowData, RowData]],
       leftKeys: Array[Int],
       rightKeys: Array[Int]
   ): Transformation[RowData] = {
-    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val rowJoinFunc = new RowTimeIntervalJoin(
       flinkJoinType,
       leftLowerBound,

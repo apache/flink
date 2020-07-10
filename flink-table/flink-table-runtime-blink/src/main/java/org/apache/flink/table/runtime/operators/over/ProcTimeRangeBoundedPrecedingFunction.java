@@ -33,7 +33,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -95,14 +95,14 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 		output = new JoinedRowData();
 
 		// input element are all binary row as they are came from network
-		RowDataTypeInfo inputType = new RowDataTypeInfo(inputFieldTypes);
+		InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
 		// we keep the elements received in a map state indexed based on their ingestion time
 		ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<>(inputType);
 		MapStateDescriptor<Long, List<RowData>> mapStateDescriptor = new MapStateDescriptor<>(
 			"inputState", BasicTypeInfo.LONG_TYPE_INFO, rowListTypeInfo);
 		inputState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> stateDescriptor =
 			new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(stateDescriptor);
