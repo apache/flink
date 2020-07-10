@@ -89,6 +89,12 @@ By default no operator is disabled.</td>
             <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.state.ttl</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">"0 ms"</td>
+            <td>Duration/td>
+            <td>A time-to-live (TTL) can be assigned to the keyed state of any type. If a TTL is configured and a state value has expired, the stored value will be cleaned up on a best effort basis.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.spill-compression.block-size</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"64 kb"</td>
             <td>String</td>

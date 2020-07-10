@@ -23,6 +23,8 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
 
+import java.time.ZoneId;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -51,4 +53,22 @@ public class TableConfigOptions {
 			.withDescription("The SQL dialect defines how to parse a SQL query. " +
 					"A different SQL dialect may support different SQL grammar. " +
 					"Currently supported dialects are: default and hive");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<String> LOCAL_TIME_ZONE = key("table.local-time-zone")
+			.stringType()
+			.defaultValue(ZoneId.systemDefault().toString())
+			.withDescription("The local time zone defines current session time zone id. It is used when converting to/from " +
+				"TIMESTAMP_WITH_LOCAL_TIME_ZONE. Internally, timestamps with local time zone are always represented in the UTC time zone. " +
+				"However, when converting to data types that don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), " +
+				"the session time zone is used during conversion.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<Integer> MAX_LENGTH_GENERATED_CODE =
+		key("table.generated-code.max-length")
+			.intType()
+			.defaultValue(64000)
+			.withDescription("Specifies a threshold where generated code will be split into sub-function calls. " +
+					"Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary.");
+
 }

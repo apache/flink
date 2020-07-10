@@ -23,6 +23,8 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -48,6 +50,15 @@ public class ExecutionConfigOptions {
 				"it will be marked as temporarily idle. This allows downstream " +
 				"tasks to advance their watermarks without the need to wait for " +
 				"watermarks from this source while it is idle.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	public static final ConfigOption<Duration> IDLE_STATE_RETENTION =
+		key("table.exec.state.ttl")
+			.durationType()
+			.defaultValue(Duration.ofMillis(0))
+			.withDescription("A time-to-live (TTL) can be assigned to the keyed state of any type. " +
+				"If a TTL is configured and a state value has expired, " +
+				"the stored value will be cleaned up on a best effort basis.");
 
 	// ------------------------------------------------------------------------
 	//  Sink Options

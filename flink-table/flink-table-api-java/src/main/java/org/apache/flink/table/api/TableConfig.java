@@ -29,6 +29,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,12 +63,6 @@ import java.util.Map;
  */
 @PublicEvolving
 public class TableConfig {
-
-	/**
-	 * Defines the zone id for timestamp with local time zone.
-	 */
-	private ZoneId localZoneId = ZoneId.systemDefault();
-
 	/**
 	 * Defines if all fields need to be checked for NULL first.
 	 */
@@ -83,13 +78,6 @@ public class TableConfig {
 	 * We use Scala's default MathContext.DECIMAL128.
 	 */
 	private MathContext decimalContext = MathContext.DECIMAL128;
-
-	/**
-	 * Specifies a threshold where generated code will be split into sub-function calls. Java has a
-	 * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
-	 */
-	private Integer maxGeneratedCodeLength = 64000; // just an estimate
-
 	/**
 	 * The minimum time until state which was not updated will be retained.
 	 * State might be cleared and removed if it was not updated for the defined period of time.
@@ -147,7 +135,7 @@ public class TableConfig {
 	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public ZoneId getLocalTimeZone() {
-		return localZoneId;
+		return ZoneId.of(configuration.getValue(TableConfigOptions.LOCAL_TIME_ZONE));
 	}
 
 	/**
@@ -191,7 +179,7 @@ public class TableConfig {
 	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public void setLocalTimeZone(ZoneId zoneId) {
-		this.localZoneId = Preconditions.checkNotNull(zoneId);
+		configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
 	}
 
 	/**
@@ -245,7 +233,7 @@ public class TableConfig {
 	 * necessary. Default is 64000.
 	 */
 	public Integer getMaxGeneratedCodeLength() {
-		return maxGeneratedCodeLength;
+		return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
 	}
 
 	/**
@@ -254,7 +242,7 @@ public class TableConfig {
 	 * necessary. Default is 64000.
 	 */
 	public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
-		this.maxGeneratedCodeLength = Preconditions.checkNotNull(maxGeneratedCodeLength);
+		this.configuration.setInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, maxGeneratedCodeLength);
 	}
 
 	/**
@@ -300,6 +288,20 @@ public class TableConfig {
 	 */
 	public long getMaxIdleStateRetentionTime() {
 		return maxIdleStateRetentionTime;
+	}
+
+	/**
+	 * Specifies a time interval for state ttl.
+	 */
+	public void setIdleStateTTL(Duration ttl){
+		configuration.set(ExecutionConfigOptions.IDLE_STATE_RETENTION, ttl);
+	}
+
+	/**
+	 * @return The idle state ttl.
+	 */
+	public Duration getIdleStateTTL(){
+		return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
 	}
 
 	/**
