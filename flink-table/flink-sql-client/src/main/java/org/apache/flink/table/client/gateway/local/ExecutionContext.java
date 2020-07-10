@@ -29,6 +29,7 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -61,7 +62,6 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.SinkTableEntry;
 import org.apache.flink.table.client.config.entries.SourceSinkTableEntry;
@@ -184,10 +184,7 @@ public class ExecutionContext<ClusterID> {
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
 
-		LOG.debug("Deployment descriptor: {}", environment.getDeployment());
-		final CommandLine commandLine = createCommandLine(
-				environment.getDeployment(),
-				commandLineOptions);
+		final CommandLine commandLine = createCommandLine(commandLineOptions);
 
 		flinkConfig.addAll(createExecutionConfig(
 				commandLine,
@@ -355,9 +352,9 @@ public class ExecutionContext<ClusterID> {
 		return executionConfig;
 	}
 
-	private static CommandLine createCommandLine(DeploymentEntry deployment, Options commandLineOptions) {
+	private static CommandLine createCommandLine(Options commandLineOptions) {
 		try {
-			return deployment.getCommandLine(commandLineOptions);
+			return  CliFrontendParser.parse(commandLineOptions, new String[0], true);
 		} catch (Exception e) {
 			throw new SqlExecutionException("Invalid deployment options.", e);
 		}

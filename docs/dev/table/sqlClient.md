@@ -354,10 +354,6 @@ configuration:
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
 
-# Properties that describe the cluster to which table programs are submitted to.
-
-deployment:
-  response-timeout: 5000
 {% endhighlight %}
 
 This configuration:

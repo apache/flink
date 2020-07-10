@@ -257,7 +257,6 @@ public class LocalExecutor implements Executor {
 		final Environment env = getExecutionContext(sessionId).getEnvironment();
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(env.getExecution().asTopLevelMap());
-		properties.putAll(env.getDeployment().asTopLevelMap());
 		properties.putAll(env.getConfiguration().asMap());
 		return properties;
 	}

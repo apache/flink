@@ -355,10 +355,6 @@ configuration:
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
 
-# 描述表程序提交集群的属性。
-
-deployment:
-  response-timeout: 5000
 {% endhighlight %}
 
 上述配置：

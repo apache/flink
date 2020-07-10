@@ -21,7 +21,6 @@ package org.apache.flink.table.client.config;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.ConfigurationEntry;
-import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
 import org.apache.flink.table.client.config.entries.ModuleEntry;
@@ -41,17 +40,12 @@ import java.util.Map;
  * Environment configuration that represents the content of an environment file. Environment files
  * define catalogs, tables, execution, and deployment behavior. An environment might be defined by default or
  * as part of a session. Environments can be merged or enriched with properties (e.g. from CLI command).
- *
- * <p>In future versions, we might restrict the merging or enrichment of deployment properties to not
- * allow overwriting of a deployment by a session.
  */
 public class Environment {
 
 	public static final String EXECUTION_ENTRY = "execution";
 
 	public static final String CONFIGURATION_ENTRY = "table";
-
-	public static final String DEPLOYMENT_ENTRY = "deployment";
 
 	private Map<String, ModuleEntry> modules;
 
@@ -65,8 +59,6 @@ public class Environment {
 
 	private ConfigurationEntry configuration;
 
-	private DeploymentEntry deployment;
-
 	public Environment() {
 		this.modules = new LinkedHashMap<>();
 		this.catalogs = Collections.emptyMap();
@@ -74,7 +66,6 @@ public class Environment {
 		this.functions = Collections.emptyMap();
 		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
 		this.configuration = ConfigurationEntry.DEFAULT_INSTANCE;
-		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
 	}
 
 	public Map<String, ModuleEntry> getModules() {
@@ -163,14 +154,6 @@ public class Environment {
 		return configuration;
 	}
 
-	public void setDeployment(Map<String, Object> config) {
-		this.deployment = DeploymentEntry.create(config);
-	}
-
-	public DeploymentEntry getDeployment() {
-		return deployment;
-	}
-
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
@@ -198,8 +181,6 @@ public class Environment {
 		execution.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		sb.append("================== Configuration =================\n");
 		configuration.asMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
-		sb.append("=================== Deployment ===================\n");
-		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		return sb.toString();
 	}
 
@@ -259,9 +240,6 @@ public class Environment {
 		// merge configuration properties
 		mergedEnv.configuration = ConfigurationEntry.merge(env1.getConfiguration(), env2.getConfiguration());
 
-		// merge deployment properties
-		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
-
 		return mergedEnv;
 	}
 
@@ -292,9 +270,6 @@ public class Environment {
 
 		// enrich configuration properties
 		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, properties);
-
-		// enrich deployment properties
-		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
 
 		return enrichedEnv;
 	}
