@@ -48,8 +48,8 @@ class HashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# configure the python worker to use the managed memory budget of the task slot
-table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
+table_env.get_config().get_configuration().set_boolean("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Python function
 table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
@@ -60,6 +60,8 @@ my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
 # use the Python function in SQL API
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
+
+<span class="label label-info">Note</span> If not using RocksDB as state backend, you can configure the python worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 
 It also supports to use Java/Scala scalar functions in Python Table API programs.
 
@@ -79,8 +81,8 @@ public class HashCode extends ScalarFunction {
 
 table_env = BatchTableEnvironment.create(env)
 
-# configure the python worker to use the managed memory budget of the task slot
-table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
+table_env.get_config().get_configuration().set_boolean("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Java function
 table_env.register_java_function("hash_code", "my.java.function.HashCode")
@@ -91,6 +93,8 @@ my_table.select("string.hash_code(), hash_code(string)")
 # use the Java function in SQL API
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 {% endhighlight %}
+
+<span class="label label-info">Note</span> If not using RocksDB as state backend, you can configure the python worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 
 There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`.
 The following examples show the different ways to define a Python scalar function which takes two columns of
@@ -151,8 +155,8 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# configure the python worker to use the managed memory budget of the task slot
-table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
+table_env.get_config().get_configuration().set_boolean("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Python Table Function
 table_env.register_function("split", udtf(Split(), DataTypes.STRING(), [DataTypes.STRING(), DataTypes.INT()]))
@@ -167,6 +171,8 @@ table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE
 
 {% endhighlight %}
 
+<span class="label label-info">Note</span> If not using RocksDB as state backend, you can configure the python worker to use the managed memory of 
+taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 
 It also supports to use Java/Scala table functions in Python Table API programs.
 {% highlight python %}
@@ -191,8 +197,8 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# configure the python worker to use the managed memory budget of the task slot
-table_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
+# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
+table_env.get_config().get_configuration().set_boolean("taskmanager.memory.task.off-heap.size", '80m')
 
 # Register the java function.
 table_env.register_java_function("split", "my.java.function.Split")
@@ -209,6 +215,8 @@ table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)
 # LEFT JOIN a table function (equivalent to "left_outer_join" in Table API).
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
+
+<span class="label label-info">Note</span> If not using RocksDB as state backend, you can configure the python worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 
 Like Python scalar functions, you can use the above five ways to define Python TableFunctions.
 
