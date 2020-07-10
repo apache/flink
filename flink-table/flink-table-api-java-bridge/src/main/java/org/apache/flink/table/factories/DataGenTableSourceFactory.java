@@ -107,10 +107,10 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 		DataGenerator[] fieldGenerators = new DataGenerator[tableSchema.getFieldCount()];
 		for (int i = 0; i < fieldGenerators.length; i++) {
-			fieldGenerators[i] = createDataGenerator(
+			fieldGenerators[i] = createContainer(
 					tableSchema.getFieldName(i).get(),
 					tableSchema.getFieldDataType(i).get(),
-					options);
+					options).generator;
 		}
 
 		return new DataGenTableSource(fieldGenerators, tableSchema, options.get(ROWS_PER_SECOND));
@@ -121,21 +121,8 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		for (int i = 0; i < schema.getFieldCount(); i++) {
 			String name = schema.getFieldNames()[i];
 			DataType type = schema.getFieldDataTypes()[i];
-
-			ConfigOption<String> genKindOption = generatorKind(name);
-			optionalOptions.add(genKindOption);
-
-			String genKind = options.get(genKindOption);
-			switch (genKind) {
-				case RANDOM:
-					optionalOptions.addAll(randomContainer(name, type, options).options);
-					break;
-				case SEQUENCE:
-					optionalOptions.addAll(sequenceContainer(name, type, options).options);
-					break;
-				default:
-					throw new ValidationException("Unsupported generator type: " + genKind);
-			}
+			optionalOptions.add(generatorKind(name));
+			optionalOptions.addAll(createContainer(name, type, options).options);
 		}
 
 		FactoryUtil.validateFactoryOptions(new HashSet<>(), optionalOptions, options);
@@ -147,13 +134,13 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		FactoryUtil.validateUnconsumedKeys(factoryIdentifier(), options.keySet(), consumedOptionKeys);
 	}
 
-	private DataGenerator createDataGenerator(String name, DataType type, ReadableConfig options) {
+	private DataGeneratorContainer createContainer(String name, DataType type, ReadableConfig options) {
 		String genKind = options.get(generatorKind(name));
 		switch (genKind) {
 			case RANDOM:
-				return randomContainer(name, type, options).generator;
+				return randomContainer(name, type, options);
 			case SEQUENCE:
-				return sequenceContainer(name, type, options).generator;
+				return sequenceContainer(name, type, options);
 			default:
 				throw new ValidationException("Unsupported generator type: " + genKind);
 		}
