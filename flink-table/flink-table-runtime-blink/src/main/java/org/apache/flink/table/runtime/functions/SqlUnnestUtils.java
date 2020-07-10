@@ -74,15 +74,31 @@ public final class SqlUnnestUtils {
 	 */
 	public abstract static class UnnestTableFunction extends TableFunction<Object> {
 
-		protected abstract LogicalType getOutputType();
+		private final transient LogicalType inputType;
+
+		private final transient LogicalType outputType;
+
+		UnnestTableFunction(LogicalType inputType, LogicalType outputType) {
+			this.inputType = inputType;
+			this.outputType = outputType;
+		}
 
 		public LogicalType getWrappedOutputType() {
-			final LogicalType outputType = getOutputType();
 			if (hasRoot(outputType, LogicalTypeRoot.ROW) ||
 					hasRoot(outputType, LogicalTypeRoot.STRUCTURED_TYPE)) {
 				return outputType;
 			}
 			return RowType.of(outputType);
+		}
+
+		@Override
+		public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+			final DataType inputDataType = DataTypeUtils.toInternalDataType(inputType);
+			final DataType outputDataType = DataTypeUtils.toInternalDataType(outputType);
+			return TypeInference.newBuilder()
+				.typedArguments(inputDataType)
+				.outputTypeStrategy(TypeStrategies.explicit(outputDataType))
+				.build();
 		}
 	}
 
@@ -93,18 +109,13 @@ public final class SqlUnnestUtils {
 
 		private static final long serialVersionUID = 1L;
 
-		private final transient LogicalType inputType;
-
-		private final transient LogicalType outputType;
-
 		private final ArrayData.ElementGetter elementGetter;
 
 		public CollectionUnnestTableFunction(
 				LogicalType inputType,
 				LogicalType outputType,
 				ArrayData.ElementGetter elementGetter) {
-			this.inputType = inputType;
-			this.outputType = outputType;
+			super(inputType, outputType);
 			this.elementGetter = elementGetter;
 		}
 
@@ -133,21 +144,6 @@ public final class SqlUnnestUtils {
 				}
 			}
 		}
-
-		@Override
-		public LogicalType getOutputType() {
-			return outputType;
-		}
-
-		@Override
-		public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-			final DataType inputDataType = DataTypeUtils.toInternalDataType(inputType);
-			final DataType outputDataType = DataTypeUtils.toInternalDataType(outputType);
-			return TypeInference.newBuilder()
-				.typedArguments(inputDataType)
-				.outputTypeStrategy(TypeStrategies.explicit(outputDataType))
-				.build();
-		}
 	}
 
 	/**
@@ -156,10 +152,6 @@ public final class SqlUnnestUtils {
 	public static final class MapUnnestTableFunction extends UnnestTableFunction {
 
 		private static final long serialVersionUID = 1L;
-
-		private final transient LogicalType inputType;
-
-		private final transient LogicalType outputType;
 
 		private final ArrayData.ElementGetter keyGetter;
 
@@ -170,8 +162,7 @@ public final class SqlUnnestUtils {
 				LogicalType outputType,
 				ArrayData.ElementGetter keyGetter,
 				ArrayData.ElementGetter valueGetter) {
-			this.inputType = inputType;
-			this.outputType = outputType;
+			super(inputType, outputType);
 			this.keyGetter = keyGetter;
 			this.valueGetter = valueGetter;
 		}
@@ -189,21 +180,6 @@ public final class SqlUnnestUtils {
 						keyGetter.getElementOrNull(keyArray, i),
 						valueGetter.getElementOrNull(valueArray, i)));
 			}
-		}
-
-		@Override
-		public LogicalType getOutputType() {
-			return outputType;
-		}
-
-		@Override
-		public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-			final DataType inputDataType = DataTypeUtils.toInternalDataType(inputType);
-			final DataType outputDataType = DataTypeUtils.toInternalDataType(outputType);
-			return TypeInference.newBuilder()
-				.typedArguments(inputDataType)
-				.outputTypeStrategy(TypeStrategies.explicit(outputDataType))
-				.build();
 		}
 	}
 
