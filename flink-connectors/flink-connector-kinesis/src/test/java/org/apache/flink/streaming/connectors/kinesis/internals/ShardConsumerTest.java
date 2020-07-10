@@ -18,7 +18,10 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -51,6 +54,7 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -63,9 +67,8 @@ public class ShardConsumerTest {
 	public void testMetricsReporting() {
 		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(500, 5, 500);
 
-		ShardMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
+		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
 		assertEquals(500, metrics.getMillisBehindLatest());
-		assertEquals(10000, metrics.getMaxNumberOfRecordsPerFetch());
 	}
 
 	@Test
@@ -132,7 +135,7 @@ public class ShardConsumerTest {
 		// Expecting to receive all messages
 		// 10 batches of 3 aggregated records each with 5 child records
 		// 10 * 3 * 5 = 150
-		ShardMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(150, kinesis, fakeSequenceNumber());
+		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(150, kinesis, fakeSequenceNumber());
 		assertEquals(3, metrics.getNumberOfAggregatedRecords());
 		assertEquals(15, metrics.getNumberOfDeaggregatedRecords());
 
@@ -148,7 +151,7 @@ public class ShardConsumerTest {
 		// 5 batches of 1 aggregated record each with 10 child records
 		// Last consumed message was sub-sequence 5 (6/10) (zero based) (remaining are 6, 7, 8, 9)
 		// 5 * 1 * 10 - 6 = 44
-		ShardMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(44, kinesis, sequenceNumber);
+		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(44, kinesis, sequenceNumber);
 		assertEquals(1, metrics.getNumberOfAggregatedRecords());
 		assertEquals(10, metrics.getNumberOfDeaggregatedRecords());
 
@@ -159,19 +162,20 @@ public class ShardConsumerTest {
 		return new SequenceNumber("fakeStartingState");
 	}
 
-	private ShardMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
-			final int expectedNumberOfMessages,
-			final KinesisProxyInterface kinesis,
-			final SequenceNumber startingSequenceNumber) {
+	private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+		final int expectedNumberOfMessages,
+		final KinesisProxyInterface kinesis,
+		final SequenceNumber startingSequenceNumber) {
 		return assertNumberOfMessagesReceivedFromKinesis(expectedNumberOfMessages, kinesis, startingSequenceNumber, new Properties());
 	}
 
-	private ShardMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
-			final int expectedNumberOfMessages,
-			final KinesisProxyInterface kinesis,
-			final SequenceNumber startingSequenceNumber,
-			final Properties consumerProperties) {
-		ShardMetricsReporter shardMetricsReporter = new ShardMetricsReporter();
+	private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+		final int expectedNumberOfMessages,
+		final KinesisProxyInterface kinesis,
+		final SequenceNumber startingSequenceNumber,
+		final Properties consumerProperties) {
+		ShardConsumerMetricsReporter shardMetricsReporter = new ShardConsumerMetricsReporter(mock(MetricGroup.class));
+
 		StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
 
 		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
@@ -196,13 +200,18 @@ public class ShardConsumerTest {
 				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
 				Mockito.mock(KinesisProxyInterface.class));
 
+		final StreamShardHandle shardHandle = subscribedShardsStateUnderTest.get(0).getStreamShardHandle();
+
+		final RecordPublisher recordPublisher = new PollingRecordPublisherFactory()
+			.create(fetcher.getConsumerConfiguration(), mock(MetricGroup.class), shardHandle, kinesis);
+
 		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
 		new ShardConsumer<>(
 			fetcher,
+			recordPublisher,
 			shardIndex,
-			subscribedShardsStateUnderTest.get(0).getStreamShardHandle(),
+			shardHandle,
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
-			kinesis,
 			shardMetricsReporter,
 			deserializationSchema)
 			.run();
