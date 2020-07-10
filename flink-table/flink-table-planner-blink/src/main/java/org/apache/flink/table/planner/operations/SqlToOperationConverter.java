@@ -659,6 +659,15 @@ public class SqlToOperationConverter {
 		final SqlNodeList fieldList = sqlCreateView.getFieldList();
 
 		SqlNode validateQuery = flinkPlanner.validate(query);
+		// Put the sql string unparse (getQuotedSqlString()) in front of
+		// the node conversion (toQueryOperation()),
+		// because before Calcite 1.22.0, during sql-to-rel conversion, the SqlWindow
+		// bounds state would be mutated as default when they are null (not specified).
+
+		// This bug is fixed in CALCITE-3877 of Calcite 1.23.0.
+		String originalQuery = getQuotedSqlString(query);
+		String expandedQuery = getQuotedSqlString(validateQuery);
+
 		PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
 		TableSchema schema = operation.getTableSchema();
 
@@ -681,8 +690,6 @@ public class SqlToOperationConverter {
 			schema = TableSchema.builder().fields(aliasFieldNames, inputFieldTypes).build();
 		}
 
-		String originalQuery = getQuotedSqlString(query);
-		String expandedQuery = getQuotedSqlString(validateQuery);
 		String comment = sqlCreateView.getComment().map(c -> c.getNlsString().getValue()).orElse(null);
 		CatalogView catalogView = new CatalogViewImpl(originalQuery,
 				expandedQuery,
