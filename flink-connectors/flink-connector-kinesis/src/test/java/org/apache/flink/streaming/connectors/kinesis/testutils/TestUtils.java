@@ -19,12 +19,18 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
 import com.amazonaws.kinesis.agg.AggRecord;
 import com.amazonaws.kinesis.agg.RecordAggregator;
+import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
+import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
@@ -91,6 +97,23 @@ public class TestUtils {
 		}
 
 		return recordBatch;
+	}
+
+	public static StreamShardHandle createDummyStreamShardHandle() {
+		return createDummyStreamShardHandle("stream-name", "000000");
+	}
+
+	public static StreamShardHandle createDummyStreamShardHandle(final String streamName, final String shardId) {
+		final Shard shard = new Shard()
+			.withSequenceNumberRange(new SequenceNumberRange()
+				.withStartingSequenceNumber("0")
+				.withEndingSequenceNumber("9999999999999"))
+			.withHashKeyRange(new HashKeyRange()
+				.withStartingHashKey("0")
+				.withEndingHashKey(new BigInteger(StringUtils.repeat("FF", 16), 16).toString()))
+			.withShardId(shardId);
+
+		return new StreamShardHandle(streamName, shard);
 	}
 
 }
