@@ -140,21 +140,6 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		IOUtils.closeQuietly(fileSystem);
 	}
 
-	YarnLocalResourceDescriptor registerSingleLocalResource(
-		final String key,
-		final Path resourcePath,
-		final String relativeDstPath,
-		final boolean whetherToAddToRemotePaths,
-		final boolean whetherToAddToEnvShipResourceList) throws IOException {
-		return registerSingleLocalResource(
-			key,
-			resourcePath,
-			relativeDstPath,
-			whetherToAddToRemotePaths,
-			whetherToAddToEnvShipResourceList,
-			LocalResourceType.FILE);
-	}
-
 	/**
 	 * Register a single local/remote resource and adds it to <tt>localResources</tt>.
 	 * @param key the key to add the resource under
@@ -163,6 +148,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 *                              (this will be prefixed by the application-specific directory)
 	 * @param whetherToAddToRemotePaths whether to add the path of local resource to <tt>remotePaths</tt>
 	 * @param whetherToAddToEnvShipResourceList whether to add the local resource to <tt>envShipResourceList</tt>
+	 * @param resourceType type of the resource, which can be one of FILE, PATTERN, or ARCHIVE
 	 *
 	 * @return the uploaded resource descriptor
 	 */
@@ -225,13 +211,6 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return Tuple2.of(dst, fss[0].getModificationTime());
 	}
 
-	List<String> registerMultipleLocalResources(
-		final Collection<Path> shipFiles,
-		final String localResourcesDirectory
-	) throws IOException {
-		return registerMultipleLocalResources(shipFiles, localResourcesDirectory, LocalResourceType.FILE);
-	}
-
 	/**
 	 * Recursively uploads (and registers) any (user and system) files in <tt>shipFiles</tt> except
 	 * for files matching "<tt>flink-dist*.jar</tt>" which should be uploaded separately. If it is
@@ -241,13 +220,15 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * 		local or remote files to register as Yarn local resources
 	 * @param localResourcesDirectory
 	 *		the directory the localResources are uploaded to
+	 * @param resourceType
+	 *      type of the resource, which can be one of FILE, PATTERN, or ARCHIVE
 	 *
 	 * @return list of class paths with the the proper resource keys from the registration
 	 */
 	List<String> registerMultipleLocalResources(
 			final Collection<Path> shipFiles,
 			final String localResourcesDirectory,
-			LocalResourceType resourceType
+			final LocalResourceType resourceType
 			) throws IOException {
 
 		final List<Path> localPaths = new ArrayList<>();

@@ -48,8 +48,7 @@ public class YarnLocalResourceDescriptionTest extends TestLogger {
 			size,
 			ts,
 			LocalResourceVisibility.PUBLIC,
-			LocalResourceType.FILE
-		);
+			LocalResourceType.FILE);
 
 		final String desc = localResourceDesc.toString();
 		YarnLocalResourceDescriptor newLocalResourceDesc = YarnLocalResourceDescriptor.fromString(desc);
@@ -59,7 +58,6 @@ public class YarnLocalResourceDescriptionTest extends TestLogger {
 		assertThat(newLocalResourceDesc.getModificationTime(), is(ts));
 		assertThat(newLocalResourceDesc.getVisibility(), is(LocalResourceVisibility.PUBLIC));
 		assertThat(newLocalResourceDesc.getResourceType(), is(LocalResourceType.FILE));
-
 	}
 
 	@Test
