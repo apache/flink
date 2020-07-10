@@ -87,7 +87,7 @@ The displaying content will be influenced by the query execution type(`execution
 SET execution.result-mode=tableau;
 ```
 
-Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of 
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of
 this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
 Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
 
@@ -356,11 +356,6 @@ configuration:
   table.optimizer.join-reorder-enabled: true
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
-
-# Properties that describe the cluster to which table programs are submitted to.
-
-deployment:
-  response-timeout: 5000
 ```
 
 This configuration:
@@ -499,8 +494,8 @@ functions:
           - type: ...            # optional: type of the literal parameter
             value: ...           # optional: value of the literal parameter
   - name: python_udf             # required: name of the function
-    from: python                 # required: source of the function 
-    fully-qualified-name: ...    # required: fully qualified class name of the function      
+    from: python                 # required: source of the function
+    fully-qualified-name: ...    # required: fully qualified class name of the function
 ```
 
 For Java/Scala UDF, make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
