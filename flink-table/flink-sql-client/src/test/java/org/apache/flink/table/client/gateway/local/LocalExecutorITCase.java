@@ -20,7 +20,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
@@ -528,12 +527,12 @@ public class LocalExecutorITCase extends TestLogger {
                     retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
             final List<String> expectedResults = new ArrayList<>();
-            expectedResults.add("(true,+I[47, Hello World, ABC])");
-            expectedResults.add("(true,+I[27, Hello World, ABC])");
-            expectedResults.add("(true,+I[37, Hello World, ABC])");
-            expectedResults.add("(true,+I[37, Hello World, ABC])");
-            expectedResults.add("(true,+I[47, Hello World, ABC])");
-            expectedResults.add("(true,+I[57, Hello World!!!!, ABC])");
+            expectedResults.add("+I(+I[47, Hello World, ABC])");
+            expectedResults.add("+I(+I[27, Hello World, ABC])");
+            expectedResults.add("+I(+I[37, Hello World, ABC])");
+            expectedResults.add("+I(+I[37, Hello World, ABC])");
+            expectedResults.add("+I(+I[47, Hello World, ABC])");
+            expectedResults.add("+I(+I[57, Hello World!!!!, ABC])");
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -560,12 +559,12 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("(true,+I[47, Hello World])");
-        expectedResults.add("(true,+I[27, Hello World])");
-        expectedResults.add("(true,+I[37, Hello World])");
-        expectedResults.add("(true,+I[37, Hello World])");
-        expectedResults.add("(true,+I[47, Hello World])");
-        expectedResults.add("(true,+I[57, Hello World!!!!])");
+        expectedResults.add("+I(+I[47, Hello World])");
+        expectedResults.add("+I(+I[27, Hello World])");
+        expectedResults.add("+I(+I[37, Hello World])");
+        expectedResults.add("+I(+I[37, Hello World])");
+        expectedResults.add("+I(+I[47, Hello World])");
+        expectedResults.add("+I(+I[57, Hello World!!!!])");
 
         try {
             for (int i = 0; i < 3; i++) {
@@ -1784,11 +1783,11 @@ public class LocalExecutorITCase extends TestLogger {
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<List<Tuple2<Boolean, Row>>> result =
+            final TypedResult<List<Row>> result =
                     executor.retrieveResultChanges(sessionId, resultID);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
-                for (Tuple2<Boolean, Row> change : result.getPayload()) {
-                    actualResults.add(change.toString());
+                for (Row row : result.getPayload()) {
+                    actualResults.add(row.getKind().shortString() + "(" + row.toString() + ")");
                 }
             } else if (result.getType() == TypedResult.ResultType.EOS) {
                 break;

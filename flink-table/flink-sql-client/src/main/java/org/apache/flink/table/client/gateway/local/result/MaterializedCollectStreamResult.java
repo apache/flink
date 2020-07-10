@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -55,21 +54,21 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
     // --------------------------------------------------------------------------------------------
 
     @Override
-    protected void processRecord(Tuple2<Boolean, Row> change) {
+    protected void processRecord(Row row) {
         synchronized (resultLock) {
+            boolean isInsertOp =
+                    row.getKind() == RowKind.INSERT || row.getKind() == RowKind.UPDATE_AFTER;
             // Always set the RowKind to INSERT, so that we can compare rows correctly (RowKind will
             // be ignored),
-            // just use the Boolean of Tuple2<Boolean, Row> to figure out whether it is insert or
-            // delete.
-            change.f1.setKind(RowKind.INSERT);
+            row.setKind(RowKind.INSERT);
 
             // insert
-            if (change.f0) {
-                processInsert(change.f1);
+            if (isInsertOp) {
+                processInsert(row);
             }
             // delete
             else {
-                processDelete(change.f1);
+                processDelete(row);
             }
         }
     }

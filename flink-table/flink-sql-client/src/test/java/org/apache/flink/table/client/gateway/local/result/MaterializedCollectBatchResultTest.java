@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
@@ -54,10 +53,10 @@ public class MaterializedCollectBatchResultTest {
 
             result.isRetrieving = true;
 
-            result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-            result.processRecord(Tuple2.of(true, Row.of("B", 1)));
-            result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-            result.processRecord(Tuple2.of(true, Row.of("C", 2)));
+            result.processRecord(Row.of("A", 1));
+            result.processRecord(Row.of("B", 1));
+            result.processRecord(Row.of("A", 1));
+            result.processRecord(Row.of("C", 2));
 
             assertEquals(TypedResult.payload(4), result.snapshot(1));
 
@@ -66,7 +65,7 @@ public class MaterializedCollectBatchResultTest {
             assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
             assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
 
-            result.processRecord(Tuple2.of(true, Row.of("A", 1)));
+            result.processRecord(Row.of("A", 1));
 
             assertEquals(TypedResult.payload(5), result.snapshot(1));
 
@@ -94,10 +93,10 @@ public class MaterializedCollectBatchResultTest {
                         3)) { // with 3 rows overcommitment
             result.isRetrieving = true;
 
-            result.processRecord(Tuple2.of(true, Row.of("D", 1)));
-            result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-            result.processRecord(Tuple2.of(true, Row.of("B", 1)));
-            result.processRecord(Tuple2.of(true, Row.of("A", 1)));
+            result.processRecord(Row.of("D", 1));
+            result.processRecord(Row.of("A", 1));
+            result.processRecord(Row.of("B", 1));
+            result.processRecord(Row.of("A", 1));
 
             assertEquals(
                     Arrays.asList(
@@ -109,13 +108,13 @@ public class MaterializedCollectBatchResultTest {
             assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
             assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(2));
 
-            result.processRecord(Tuple2.of(true, Row.of("C", 1)));
+            result.processRecord(Row.of("C", 1));
 
             assertEquals(
                     Arrays.asList(Row.of("A", 1), Row.of("C", 1)), // limit clean up has taken place
                     result.getMaterializedTable());
 
-            result.processRecord(Tuple2.of(true, Row.of("A", 1)));
+            result.processRecord(Row.of("A", 1));
 
             assertEquals(
                     Arrays.asList(null, Row.of("C", 1), Row.of("A", 1)),

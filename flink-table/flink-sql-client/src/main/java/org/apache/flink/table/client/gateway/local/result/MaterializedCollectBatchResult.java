@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.types.Row;
 
@@ -44,12 +43,12 @@ public class MaterializedCollectBatchResult extends MaterializedCollectResultBas
     }
 
     @Override
-    protected void processRecord(Tuple2<Boolean, Row> change) {
+    protected void processRecord(Row row) {
         // limit the materialized table
         if (materializedTable.size() - validRowPosition >= maxRowCount) {
             cleanUp();
         }
-        materializedTable.add(change.f1);
+        materializedTable.add(row);
     }
 
     private void cleanUp() {

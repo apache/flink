@@ -42,6 +42,7 @@ import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
+import static org.apache.flink.table.utils.PrintUtils.NULL_COLUMN;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -103,7 +104,7 @@ public class CliChangelogResultView
     @Override
     protected void refresh() {
         // retrieve change record
-        final TypedResult<List<Tuple2<Boolean, Row>>> result;
+        final TypedResult<List<Row>> result;
         try {
             result =
                     client.getExecutor()
@@ -124,18 +125,11 @@ public class CliChangelogResultView
                 stopRetrieval(false);
                 break;
             default:
-                List<Tuple2<Boolean, Row>> changes = result.getPayload();
+                List<Row> changes = result.getPayload();
 
-                for (Tuple2<Boolean, Row> change : changes) {
+                for (Row change : changes) {
                     // convert row
-                    final String[] changeRow = new String[change.f1.getArity() + 1];
-                    final String[] row = PrintUtils.rowToString(change.f1);
-                    System.arraycopy(row, 0, changeRow, 1, row.length);
-                    if (change.f0) {
-                        changeRow[0] = "+";
-                    } else {
-                        changeRow[0] = "-";
-                    }
+                    final String[] row = PrintUtils.rowToString(change, NULL_COLUMN, true);
 
                     // update results
 
@@ -145,7 +139,7 @@ public class CliChangelogResultView
                     if (results.size() >= DEFAULT_MAX_ROW_COUNT) {
                         results.remove(0);
                     }
-                    results.add(changeRow);
+                    results.add(row);
 
                     scrolling++;
                 }
@@ -280,7 +274,7 @@ public class CliChangelogResultView
         // add change column
         schemaHeader.append(' ');
         schemaHeader.style(AttributedStyle.DEFAULT.underline());
-        schemaHeader.append("+/-");
+        schemaHeader.append(" op");
         schemaHeader.style(AttributedStyle.DEFAULT);
 
         Arrays.stream(resultDescriptor.getResultSchema().getFieldNames())

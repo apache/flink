@@ -20,7 +20,6 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -371,8 +370,8 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(
-            String sessionId, String resultId) throws SqlExecutionException {
+    public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+            throws SqlExecutionException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(

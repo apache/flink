@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,8 +58,7 @@ public abstract class CollectResultBase implements DynamicResult {
         return TypedResult.endOfStream();
     }
 
-    // TODO change Tuple2<Boolean, Row> to Row
-    protected abstract void processRecord(Tuple2<Boolean, Row> change);
+    protected abstract void processRecord(Row row);
 
     protected boolean isRetrieving() {
         return retrievalThread.isRunning;
@@ -76,16 +73,7 @@ public abstract class CollectResultBase implements DynamicResult {
         public void run() {
             try {
                 while (isRunning && result.hasNext()) {
-                    Row change = result.next();
-                    boolean isInsert =
-                            change.getKind() == RowKind.INSERT
-                                    || change.getKind() == RowKind.UPDATE_AFTER;
-                    // Always set the RowKind to INSERT, so that we can compare rows correctly
-                    // (RowKind will be ignored),
-                    // just use the Boolean of Tuple2<Boolean, Row> to figure out whether it is
-                    // insert or delete.
-                    change.setKind(RowKind.INSERT);
-                    processRecord(new Tuple2<>(isInsert, change));
+                    processRecord(result.next());
                 }
             } catch (RuntimeException e) {
                 executionException.compareAndSet(
