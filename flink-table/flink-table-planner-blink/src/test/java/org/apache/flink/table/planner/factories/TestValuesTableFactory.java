@@ -54,6 +54,10 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Keyed
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+<<<<<<< HEAD
+=======
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -239,6 +243,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
+<<<<<<< HEAD
+=======
+		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
+
+		Set<String> filterableFieldsSet = new HashSet<>();
+		filterableFields.ifPresent(elements -> filterableFieldsSet.addAll(elements));
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
@@ -252,7 +263,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
+<<<<<<< HEAD
 				null);
+=======
+				null,
+				null,
+				filterableFieldsSet);
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -343,6 +360,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
+<<<<<<< HEAD
+=======
+		private List<ResolvedExpression> filterPredicates;
+		private final Set<String> filterableFields;
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
@@ -449,6 +471,118 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		@Override
+<<<<<<< HEAD
+=======
+		public Result applyFilters(List<ResolvedExpression> filters) {
+			List<ResolvedExpression> acceptedFilters = new ArrayList<>();
+			List<ResolvedExpression> remainingFilters = new ArrayList<>();
+			for (ResolvedExpression expr : filters) {
+				if (shouldPushDown(expr)) {
+					acceptedFilters.add(expr);
+				} else {
+					remainingFilters.add(expr);
+				}
+			}
+			this.filterPredicates = acceptedFilters;
+			return Result.of(acceptedFilters, remainingFilters);
+		}
+
+		private Boolean shouldPushDown(Expression expr) {
+			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
+				return shouldPushDownUnaryExpression(expr.getChildren().get(0))
+					&& shouldPushDownUnaryExpression(expr.getChildren().get(1));
+			}
+			return false;
+		}
+
+		private boolean shouldPushDownUnaryExpression(Expression expr) {
+			if (expr instanceof FieldReferenceExpression) {
+				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
+					return true;
+				}
+			}
+
+			if (expr instanceof ValueLiteralExpression) {
+				return true;
+			}
+
+			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
+				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
+					|| ((CallExpression) expr).getFunctionDefinition().equals(BuiltInFunctionDefinitions.LOWER)) {
+					return shouldPushDownUnaryExpression(expr.getChildren().get(0));
+				}
+			}
+			// other resolved expressions return false
+			return false;
+		}
+
+		private boolean isRetainedAfterApplyingFilterPredicates(Row row) {
+			if (filterPredicates == null) {
+				return true;
+			}
+			for (ResolvedExpression expr : filterPredicates) {
+				if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
+					if (!binaryFilterApplies((CallExpression) expr, row)) {
+						return false;
+					}
+				} else {
+					throw new RuntimeException(expr + " not supported!");
+				}
+			}
+			return true;
+		}
+
+		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
+			List<Expression> children = binExpr.getChildren();
+			Preconditions.checkArgument(children.size() == 2);
+			Comparable lhsValue = getValue(children.get(0), row);
+			Comparable rhsValue = getValue(children.get(1), row);
+			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
+
+			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) > 0;
+			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) < 0;
+			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) >= 0;
+			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) <= 0;
+			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) == 0;
+			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) != 0;
+			} else {
+				return false;
+			}
+		}
+
+		private Comparable<?> getValue(Expression expr, Row row) {
+			if (expr instanceof ValueLiteralExpression) {
+				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
+				return (Comparable) value.orElse(null);
+			}
+
+			if (expr instanceof FieldReferenceExpression) {
+				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(((FieldReferenceExpression) expr).getName());
+				return (Comparable) row.getField(idx);
+			}
+
+			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
+				Comparable child = getValue(expr.getChildren().get(0), row);
+				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
+				if (functionDefinition.equals(UPPER)) {
+					return child.toString().toUpperCase();
+				} else if (functionDefinition.equals(LOWER)) {
+					return child.toString().toLowerCase();
+				} else {
+					throw new RuntimeException(expr + " not supported!");
+				}
+			}
+			throw new RuntimeException(expr + " not supported!");
+		}
+
+		@Override
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 		public DynamicTableSource copy() {
 			return new TestValuesTableSource(
 				physicalSchema,
@@ -473,6 +607,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Row value : data) {
+<<<<<<< HEAD
 				Row projectedRow;
 				if (projectedFields == null) {
 					projectedRow = value;
@@ -480,6 +615,23 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					Object[] newValues = new Object[projectedFields.length];
 					for (int i = 0; i < projectedFields.length; ++i) {
 						newValues[i] = value.getField(projectedFields[i]);
+=======
+				if (isRetainedAfterApplyingFilterPredicates(value)) {
+					Row projectedRow;
+					if (projectedFields == null) {
+						projectedRow = value;
+					} else {
+						Object[] newValues = new Object[projectedFields.length];
+						for (int i = 0; i < projectedFields.length; ++i) {
+							newValues[i] = value.getField(projectedFields[i]);
+						}
+						projectedRow = Row.of(newValues);
+					}
+					RowData rowData = (RowData) converter.toInternal(projectedRow);
+					if (rowData != null) {
+						rowData.setRowKind(value.getKind());
+						result.add(rowData);
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 					}
 					projectedRow = Row.of(newValues);
 				}
@@ -565,7 +717,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				String tableName,
 				boolean isInsertOnly,
 				String runtimeSink,
+<<<<<<< HEAD
 				int expectedNum) {
+=======
+			int expectedNum) {
+>>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 			this.schema = schema;
 			this.tableName = tableName;
 			this.isInsertOnly = isInsertOnly;

@@ -30,7 +30,7 @@ import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.calcite.tools.RuleSets;
 
 /**
- * Test for [[PushFilterIntoTableSourceScanRule]].
+ * Test for {@link PushFilterIntoTableSourceScanRule}.
  */
 public class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoLegacyTableSourceScanRuleTest {
 
@@ -79,7 +79,7 @@ public class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoLegacyT
 
 	@Override
 	public void testLowerUpperPushdown() {
-		String ddl3 =
+		String ddl =
 			"CREATE TABLE MTable (\n" +
 				"  a STRING,\n" +
 				"  b STRING\n" +
@@ -88,7 +88,7 @@ public class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoLegacyT
 				" 'filterable-fields' = 'a;b',\n" +
 				" 'bounded' = 'true'\n" +
 				")";
-		util().tableEnv().executeSql(ddl3);
+		util().tableEnv().executeSql(ddl);
 		util().verifyPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'");
 	}
 }

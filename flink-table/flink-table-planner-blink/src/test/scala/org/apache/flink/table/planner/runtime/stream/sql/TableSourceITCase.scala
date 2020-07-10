@@ -44,7 +44,8 @@ class TableSourceITCase extends StreamingTestBase {
          |  `c` STRING
          |) WITH (
          |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId'
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'false'
          |)
          |""".stripMargin)
 
@@ -60,7 +61,8 @@ class TableSourceITCase extends StreamingTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'filterable-fields' = 'amount',
-         |  'data-id' = '$filterableTableDataId'
+         |  'data-id' = '$filterableTableDataId',
+         |  'bounded' = 'false'
          |)
          |""".stripMargin)
   }
