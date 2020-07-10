@@ -18,16 +18,5 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-/**
- * A result of a table program submission to a cluster.
- *
- * @param <C> type of the cluster id to which this result belongs to
- */
-public interface Result<C> {
-
-    /**
-     * Sets the cluster information of the cluster this result comes from. This method should only
-     * be called once.
-     */
-    void setClusterInformation(C clusterId, String webInterfaceUrl);
-}
+/** A result of a table program. */
+public interface Result {}

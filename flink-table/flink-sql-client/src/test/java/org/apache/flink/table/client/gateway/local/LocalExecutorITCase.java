@@ -49,6 +49,7 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -56,6 +57,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
@@ -896,34 +898,46 @@ public class LocalExecutorITCase extends TestLogger {
             final String statement1 =
                     "INSERT INTO TableSourceSink SELECT IntegerField1 = 42,"
                             + " LowerUDF(StringField1), TimestampField1 FROM TableNumber1";
-            executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
+            executeAndVerifySinkResult(
+                    executor, sessionId, statement1, () -> verifySinkResult(csvOutputPath));
             // Case 1.2: Registered sink with lowercase insert into keyword.
             final String statement2 =
                     "insert Into TableSourceSink \n "
                             + "SELECT IntegerField1 = 42, LowerUDF(StringField1), TimestampField1 "
                             + "FROM TableNumber1";
-            executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
+            executeAndVerifySinkResult(
+                    executor, sessionId, statement2, () -> verifySinkResult(csvOutputPath));
             // Case 1.3: Execute the same statement again, the results should expect to be the same.
-            executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
+            executeAndVerifySinkResult(
+                    executor, sessionId, statement2, () -> verifySinkResult(csvOutputPath));
 
             // Case 2: Temporary sink
             executor.executeSql(sessionId, "use catalog `simple-catalog`");
             executor.executeSql(sessionId, "use default_database");
+            // create temporary sink
+            executor.executeSql(
+                    sessionId,
+                    "CREATE TEMPORARY TABLE MySink (id int, str VARCHAR) WITH ('connector' = 'COLLECTION')");
+            final String statement3 = "INSERT INTO MySink select * from `test-table`";
+
             // all queries are pipelined to an in-memory sink, check it is properly registered
-            final ResultDescriptor otherCatalogDesc =
-                    executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
-
-            final List<String> otherCatalogResults =
-                    retrieveTableResult(executor, sessionId, otherCatalogDesc.getResultId());
-
-            TestBaseUtils.compareResultCollections(
-                    SimpleCatalogFactory.TABLE_CONTENTS.stream()
-                            .map(Row::toString)
-                            .collect(Collectors.toList()),
-                    otherCatalogResults,
-                    Comparator.naturalOrder());
+            executeAndVerifySinkResult(
+                    executor,
+                    sessionId,
+                    statement3,
+                    () -> {
+                        TestBaseUtils.compareResultCollections(
+                                SimpleCatalogFactory.TABLE_CONTENTS.stream()
+                                        .map(Row::toString)
+                                        .collect(Collectors.toList()),
+                                TestCollectionTableFactory.getResult().stream()
+                                        .map(Row::toString)
+                                        .collect(Collectors.toList()),
+                                Comparator.naturalOrder());
+                    });
         } finally {
             executor.closeSession(sessionId);
+            TestCollectionTableFactory.reset();
         }
     }
 
@@ -1674,7 +1688,10 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     private void executeAndVerifySinkResult(
-            Executor executor, String sessionId, String statement, String resultPath)
+            Executor executor,
+            String sessionId,
+            String statement,
+            RunnableWithException verifyResult)
             throws Exception {
         final ProgramTargetDescriptor targetDescriptor =
                 executor.executeUpdate(sessionId, statement);
@@ -1691,7 +1708,7 @@ public class LocalExecutorITCase extends TestLogger {
                     continue;
                 case FINISHED:
                     isRunning = false;
-                    verifySinkResult(resultPath);
+                    verifyResult.run();
                     break;
                 default:
                     fail("Unexpected job status.");

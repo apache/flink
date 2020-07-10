@@ -18,34 +18,22 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Collects results and returns them as a changelog.
- *
- * @param <C> cluster id to which this result belongs to
- */
-public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C>
-        implements ChangelogResult<C> {
+/** Collects results and returns them as a changelog. */
+public class ChangelogCollectResult extends CollectResultBase implements ChangelogResult {
 
-    private List<Tuple2<Boolean, Row>> changeRecordBuffer;
+    private final List<Tuple2<Boolean, Row>> changeRecordBuffer;
     private static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
 
-    public ChangelogCollectStreamResult(
-            TableSchema tableSchema,
-            ExecutionConfig config,
-            InetAddress gatewayAddress,
-            int gatewayPort) {
-        super(tableSchema, config, gatewayAddress, gatewayPort);
-
+    public ChangelogCollectResult(TableResult tableResult) {
+        super(tableResult);
         // prepare for changelog
         changeRecordBuffer = new ArrayList<>();
     }

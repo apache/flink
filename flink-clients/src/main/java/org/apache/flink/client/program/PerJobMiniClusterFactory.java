@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -118,9 +119,16 @@ public final class PerJobMiniClusterFactory {
     private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {
         Configuration configuration = new Configuration(this.configuration);
 
-        if (!configuration.contains(RestOptions.BIND_PORT)) {
-            configuration.setString(RestOptions.BIND_PORT, "0");
-        }
+		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
+		// enabled this by default. (see MiniClusterResource#startMiniCluster)
+		// or we can remove this after FLINK-18717 is resolved?
+		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		}
+
+		if (!configuration.contains(RestOptions.BIND_PORT)) {
+			configuration.setString(RestOptions.BIND_PORT, "0");
+		}
 
         int numTaskManagers =
                 configuration.getInteger(
