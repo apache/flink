@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 
@@ -31,7 +30,6 @@ public interface ChangelogResult extends DynamicResult {
 
 	/**
 	 * Retrieves the available result records.
-	 * TODO change Tuple2<Boolean, Row> to Row
 	 */
-	TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges();
+	TypedResult<List<Row>> retrieveChanges();
 }

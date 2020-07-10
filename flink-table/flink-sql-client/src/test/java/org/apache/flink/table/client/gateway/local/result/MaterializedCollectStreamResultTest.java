@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
@@ -53,10 +52,10 @@ public class MaterializedCollectStreamResultTest {
 
 			result.isRetrieving = true;
 
-			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
-			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "B", 1)));
-			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
-			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "C", 2)));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "A", 1));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "B", 1));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "A", 1));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "C", 2));
 
 			assertEquals(TypedResult.payload(4), result.snapshot(1));
 
@@ -65,7 +64,7 @@ public class MaterializedCollectStreamResultTest {
 			assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
 			assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
 
-			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1)));
+			result.processRecord(Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1));
 
 			assertEquals(TypedResult.payload(3), result.snapshot(1));
 
@@ -73,8 +72,8 @@ public class MaterializedCollectStreamResultTest {
 			assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
 			assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(3));
 
-			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "C", 2)));
-			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1)));
+			result.processRecord(Row.ofKind(RowKind.UPDATE_BEFORE, "C", 2));
+			result.processRecord(Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1));
 
 			assertEquals(TypedResult.payload(1), result.snapshot(1));
 
@@ -100,30 +99,30 @@ public class MaterializedCollectStreamResultTest {
 
 			result.isRetrieving = true;
 
-			result.processRecord(Tuple2.of(true, Row.of("D", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("B", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "D", 1));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "A", 1));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "B", 1));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "A", 1));
 
 			assertEquals(
-				Arrays.asList(null, null, Row.of("B", 1), Row.of("A", 1)), // two over-committed rows
+				Arrays.asList(null, null, Row.ofKind(RowKind.INSERT, "B", 1), Row.ofKind(RowKind.INSERT, "A", 1)), // two over-committed rows
 				result.getMaterializedTable());
 
 			assertEquals(TypedResult.payload(2), result.snapshot(1));
 
-			assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
-			assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(2));
+			assertEquals(Collections.singletonList(Row.ofKind(RowKind.INSERT, "B", 1)), result.retrievePage(1));
+			assertEquals(Collections.singletonList(Row.ofKind(RowKind.INSERT, "A", 1)), result.retrievePage(2));
 
-			result.processRecord(Tuple2.of(true, Row.of("C", 1)));
+			result.processRecord(Row.ofKind(RowKind.INSERT, "C", 1));
 
 			assertEquals(
-				Arrays.asList(Row.of("A", 1), Row.of("C", 1)), // limit clean up has taken place
+				Arrays.asList(Row.ofKind(RowKind.INSERT, "A", 1), Row.ofKind(RowKind.INSERT, "C", 1)), // limit clean up has taken place
 				result.getMaterializedTable());
 
-			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+			result.processRecord(Row.ofKind(RowKind.DELETE, "A", 1));
 
 			assertEquals(
-				Collections.singletonList(Row.of("C", 1)), // regular clean up has taken place
+				Collections.singletonList(Row.ofKind(RowKind.INSERT, "C", 1)), // regular clean up has taken place
 				result.getMaterializedTable());
 		} finally {
 			if (result != null) {

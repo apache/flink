@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.gateway;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
@@ -103,7 +102,7 @@ public interface Executor {
 	/**
 	 * Asks for the next changelog results (non-blocking).
 	 */
-	TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException;
+	TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException;
 
 	/**
 	 * Creates an immutable result snapshot of the running Flink job. Throws an exception if no Flink job can be found.

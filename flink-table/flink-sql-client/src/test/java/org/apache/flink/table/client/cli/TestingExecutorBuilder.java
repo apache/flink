@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -36,9 +35,7 @@ import java.util.List;
  */
 class TestingExecutorBuilder {
 
-	private String defaultCurrentCatalogName = "default_catalog";
-	private String defaultCurrentDatabaseName = "default_database";
-	private List<SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>> resultChangesSupplier = Collections.emptyList();
+	private List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>> resultChangesSupplier = Collections.emptyList();
 	private List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResultsSupplier = Collections.emptyList();
 	private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier = Collections.emptyList();
 	private BiFunctionWithException<String, String, TableResult, SqlExecutionException> setExecuteSqlConsumer = (ignoredA, ignoredB) -> null;
@@ -46,7 +43,7 @@ class TestingExecutorBuilder {
 	private FunctionWithException<String, Void, SqlExecutionException> resetSessionPropertiesFunction = (ignoredA) -> null;
 
 	@SafeVarargs
-	public final TestingExecutorBuilder setResultChangesSupplier(SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException> ... resultChangesSupplier) {
+	public final TestingExecutorBuilder setResultChangesSupplier(SupplierWithException<TypedResult<List<Row>>, SqlExecutionException> ... resultChangesSupplier) {
 		this.resultChangesSupplier = Arrays.asList(resultChangesSupplier);
 		return this;
 	}

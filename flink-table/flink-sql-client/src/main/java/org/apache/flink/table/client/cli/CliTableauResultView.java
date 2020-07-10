@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.client.gateway.Executor;
@@ -45,7 +44,6 @@ import java.util.stream.Stream;
 public class CliTableauResultView implements AutoCloseable {
 
 	private static final int DEFAULT_COLUMN_WIDTH = 20;
-	private static final String CHANGEFLAG_COLUMN_NAME = "+/-";
 
 	private final Terminal terminal;
 	private final Executor sqlExecutor;
@@ -116,11 +114,11 @@ public class CliTableauResultView implements AutoCloseable {
 		final int[] colWidths;
 		if (isStreamingMode) {
 			fieldNames = Stream.concat(
-					Stream.of(CHANGEFLAG_COLUMN_NAME),
+					Stream.of(PrintUtils.ROW_KIND_COLUMN),
 					columns.stream().map(TableColumn::getName)
 			).toArray(String[]::new);
 			colWidths = PrintUtils.columnWidthsByType(
-					columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, CHANGEFLAG_COLUMN_NAME);
+					columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, PrintUtils.ROW_KIND_COLUMN);
 		} else {
 			fieldNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
 			colWidths = PrintUtils.columnWidthsByType(columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, null);
@@ -135,7 +133,7 @@ public class CliTableauResultView implements AutoCloseable {
 		terminal.flush();
 
 		while (true) {
-			final TypedResult<List<Tuple2<Boolean, Row>>> result =
+			final TypedResult<List<Row>> result =
 					sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
 
 			switch (result.getType()) {
@@ -151,17 +149,9 @@ public class CliTableauResultView implements AutoCloseable {
 					terminal.flush();
 					return;
 				case PAYLOAD:
-					List<Tuple2<Boolean, Row>> changes = result.getPayload();
-					for (Tuple2<Boolean, Row> change : changes) {
-						final String[] cols = PrintUtils.rowToString(change.f1);
-						final String[] row;
-						if (isStreamingMode) {
-							row = new String[cols.length + 1];
-							row[0] = change.f0 ? "+" : "-";
-							System.arraycopy(cols, 0, row, 1, cols.length);
-						} else {
-							row = cols;
-						}
+					List<Row> changes = result.getPayload();
+					for (Row change : changes) {
+						final String[] row = PrintUtils.rowToString(change, PrintUtils.NULL_COLUMN, isStreamingMode);
 						PrintUtils.printSingleRow(colWidths, row, terminal.writer());
 						receivedRowCount.incrementAndGet();
 					}
