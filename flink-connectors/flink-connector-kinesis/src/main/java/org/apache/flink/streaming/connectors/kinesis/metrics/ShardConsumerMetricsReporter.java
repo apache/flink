@@ -19,23 +19,26 @@
 package org.apache.flink.streaming.connectors.kinesis.metrics;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 
 /**
  * A container for {@link ShardConsumer}s to report metric values.
  */
 @Internal
-public class ShardMetricsReporter {
+public class ShardConsumerMetricsReporter {
 
 	private volatile long millisBehindLatest = -1;
-	private volatile double loopFrequencyHz = 0.0;
-	private volatile double bytesPerRead = 0.0;
-	private volatile long runLoopTimeNanos = 0L;
 	private volatile long averageRecordSizeBytes = 0L;
-	private volatile long sleepTimeMillis = 0L;
 	private volatile int numberOfAggregatedRecords = 0;
 	private volatile int numberOfDeaggregatedRecords = 0;
-	private volatile int maxNumberOfRecordsPerFetch = 0;
+
+	public ShardConsumerMetricsReporter(final MetricGroup metricGroup) {
+		metricGroup.gauge(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE, this::getMillisBehindLatest);
+		metricGroup.gauge(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH, this::getNumberOfAggregatedRecords);
+		metricGroup.gauge(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH, this::getNumberOfDeaggregatedRecords);
+		metricGroup.gauge(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES, this::getAverageRecordSizeBytes);
+	}
 
 	public long getMillisBehindLatest() {
 		return millisBehindLatest;
@@ -45,44 +48,12 @@ public class ShardMetricsReporter {
 		this.millisBehindLatest = millisBehindLatest;
 	}
 
-	public double getLoopFrequencyHz() {
-		return loopFrequencyHz;
-	}
-
-	public void setLoopFrequencyHz(double loopFrequencyHz) {
-		this.loopFrequencyHz = loopFrequencyHz;
-	}
-
-	public double getBytesPerRead() {
-		return bytesPerRead;
-	}
-
-	public void setBytesPerRead(double bytesPerRead) {
-		this.bytesPerRead = bytesPerRead;
-	}
-
-	public long getRunLoopTimeNanos() {
-		return runLoopTimeNanos;
-	}
-
-	public void setRunLoopTimeNanos(long runLoopTimeNanos) {
-		this.runLoopTimeNanos = runLoopTimeNanos;
-	}
-
 	public long getAverageRecordSizeBytes() {
 		return averageRecordSizeBytes;
 	}
 
 	public void setAverageRecordSizeBytes(long averageRecordSizeBytes) {
 		this.averageRecordSizeBytes = averageRecordSizeBytes;
-	}
-
-	public long getSleepTimeMillis() {
-		return sleepTimeMillis;
-	}
-
-	public void setSleepTimeMillis(long sleepTimeMillis) {
-		this.sleepTimeMillis = sleepTimeMillis;
 	}
 
 	public int getNumberOfAggregatedRecords() {
@@ -99,14 +70,6 @@ public class ShardMetricsReporter {
 
 	public void setNumberOfDeaggregatedRecords(int numberOfDeaggregatedRecords) {
 		this.numberOfDeaggregatedRecords = numberOfDeaggregatedRecords;
-	}
-
-	public int getMaxNumberOfRecordsPerFetch() {
-		return maxNumberOfRecordsPerFetch;
-	}
-
-	public void setMaxNumberOfRecordsPerFetch(int maxNumberOfRecordsPerFetch) {
-		this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
 	}
 
 }

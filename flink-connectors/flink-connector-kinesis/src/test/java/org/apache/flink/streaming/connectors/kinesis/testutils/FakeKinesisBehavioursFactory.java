@@ -43,6 +43,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.createDummyStreamShardHandle;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -121,10 +122,10 @@ public class FakeKinesisBehavioursFactory {
 	 * @param numOfGetRecordsCalls the number batches available in the fake stream
 	 */
 	public static KinesisProxyInterface aggregatedRecords(
-			final int numOfAggregatedRecords,
-			final int numOfChildRecords,
-			final int numOfGetRecordsCalls) {
-			return new SingleShardEmittingAggregatedRecordsKinesis(numOfAggregatedRecords, numOfChildRecords, numOfGetRecordsCalls);
+		final int numOfAggregatedRecords,
+		final int numOfChildRecords,
+		final int numOfGetRecordsCalls) {
+		return new SingleShardEmittingAggregatedRecordsKinesis(numOfAggregatedRecords, numOfChildRecords, numOfGetRecordsCalls);
 	}
 
 	public static KinesisProxyInterface blockingQueueGetRecords(Map<String, List<BlockingQueue<String>>> streamsToShardQueues) {
@@ -335,14 +336,14 @@ public class FakeKinesisBehavioursFactory {
 
 		public SingleShardEmittingAggregatedRecordsKinesis(
 				final int numOfAggregatedRecords,
-				final int numOfChildRecords,
-				final int numOfGetRecordsCalls) {
+			final int numOfChildRecords,
+			final int numOfGetRecordsCalls) {
 			super(initShardItrToRecordBatch(numOfAggregatedRecords, numOfChildRecords, numOfGetRecordsCalls));
 		}
 
 		private static Map<String, List<Record>> initShardItrToRecordBatch(final int numOfAggregatedRecords,
-				final int numOfChildRecords,
-				final int numOfGetRecordsCalls) {
+			final int numOfChildRecords,
+			final int numOfGetRecordsCalls) {
 
 			Map<String, List<Record>> shardToRecordBatch = new HashMap<>();
 
@@ -415,9 +416,7 @@ public class FakeKinesisBehavioursFactory {
 					List<StreamShardHandle> shardsOfStream = new ArrayList<>(shardCount);
 					for (int i = 0; i < shardCount; i++) {
 						shardsOfStream.add(
-							new StreamShardHandle(
-								streamName,
-								new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i))));
+							createDummyStreamShardHandle(streamName, KinesisShardIdGenerator.generateFromShardOrder(i)));
 					}
 					streamsWithListOfShards.put(streamName, shardsOfStream);
 				}

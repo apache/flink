@@ -30,8 +30,13 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -41,6 +46,7 @@ import static org.junit.Assert.fail;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(KinesisConfigUtil.class)
 public class KinesisConfigUtilTest {
+
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
 
@@ -509,4 +515,52 @@ public class KinesisConfigUtilTest {
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
+
+	@Test
+	public void testParseStreamTimestampStartingPositionUsingDefaultFormat() throws Exception {
+		String timestamp = "2020-08-13T09:18:00.0+01:00";
+		Date expectedTimestamp = new SimpleDateFormat(DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT).parse(timestamp);
+
+		Properties consumerProperties = new Properties();
+		consumerProperties.setProperty(STREAM_INITIAL_TIMESTAMP, timestamp);
+
+		Date actualimestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
+
+		assertEquals(expectedTimestamp, actualimestamp);
+	}
+
+	@Test
+	public void testParseStreamTimestampStartingPositionUsingCustomFormat() throws Exception {
+		String format = "yyyy-MM-dd'T'HH:mm";
+		String timestamp = "2020-08-13T09:23";
+		Date expectedTimestamp = new SimpleDateFormat(format).parse(timestamp);
+
+		Properties consumerProperties = new Properties();
+		consumerProperties.setProperty(STREAM_INITIAL_TIMESTAMP, timestamp);
+		consumerProperties.setProperty(STREAM_TIMESTAMP_DATE_FORMAT, format);
+
+		Date actualimestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
+
+		assertEquals(expectedTimestamp, actualimestamp);
+	}
+
+	@Test
+	public void testParseStreamTimestampStartingPositionUsingParseError() {
+		exception.expect(NumberFormatException.class);
+
+		Properties consumerProperties = new Properties();
+		consumerProperties.setProperty(STREAM_INITIAL_TIMESTAMP, "bad");
+
+		KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
+	}
+
+	@Test
+	public void testParseStreamTimestampStartingPositionIllegalArgumentException() {
+		exception.expect(IllegalArgumentException.class);
+
+		Properties consumerProperties = new Properties();
+
+		KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
+	}
+
 }
