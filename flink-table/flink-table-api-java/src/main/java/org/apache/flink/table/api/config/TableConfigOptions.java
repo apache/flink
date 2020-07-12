@@ -42,7 +42,7 @@ public class TableConfigOptions {
 			key("table.dynamic-table-options.enabled")
 					.booleanType()
 					.defaultValue(false)
-					.withDescription("Enable or disable the OPTIONS hint used to specify table options" +
+					.withDescription("Enable or disable the OPTIONS hint used to specify table options " +
 							"dynamically, if disabled, an exception would be thrown " +
 							"if any OPTIONS hint is specified");
 
