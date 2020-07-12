@@ -39,7 +39,7 @@ class TableConfigCompletenessTests(PythonAPICompletenessTestCase, unittest.TestC
     @classmethod
     def excluded_methods(cls):
         # internal interfaces, no need to expose to users.
-        return {'getPlannerConfig', 'setPlannerConfig', 'addJobParameter'}
+        return {'getPlannerConfig', 'setPlannerConfig', 'addJobParameter', 'getIdleStateTTL', 'setIdleStateTTL'}
 
     @classmethod
     def java_method_name(cls, python_method_name):
