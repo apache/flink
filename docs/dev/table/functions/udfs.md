@@ -92,14 +92,8 @@ class SubstringFunction extends ScalarFunction {
 
 val env = TableEnvironment.create(...)
 
-// call function "inline" without registration in Table API
-env.from("MyTable").select(call(classOf[SubstringFunction], $"myField", 5, 12))
-
 // register function
 env.createTemporarySystemFunction("SubstringFunction", classOf[SubstringFunction])
-
-// call registered function in Table API
-env.from("MyTable").select(call("SubstringFunction", $"myField", 5, 12))
 
 // call registered function in SQL
 env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable")
