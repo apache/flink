@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流的情况下。Flink 提供 [复杂事件处理（CEP）库]({% link dev/libs/cep.zh.md %})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含大量内置函数和基于规则的优化，可以开箱即用。
+搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流的情况下。Flink 提供[复杂事件处理（CEP）库]({% link dev/libs/cep.zh.md %})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含大量内置函数和基于规则的优化，可以开箱即用。
 
 2016 年 12 月，国际标准化组织（ISO）发布了新版本的 SQL 标准，其中包括在 _SQL 中的行模式识别（Row Pattern Recognition in SQL）_([ISO/IEC TR 19075-5:2016](https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip))。它允许 Flink 使用 `MATCH_RECOGNIZE` 子句融合 CEP 和 SQL API，以便在 SQL 中进行复杂事件处理。
 
@@ -165,7 +165,7 @@ FROM Ticker
 
 模式变量 `PRICE_DOWN` 定义为价格小于满足 `PRICE_DOWN` 条件的最后一行。对于初始情况或没有满足 `PRICE_DOWN` 条件的最后一行时，该行的价格应小于该模式中前一行（由 `START_ROW` 引用）的价格。
 
-模变变量 `PRICE_UP` 定义为价格大于满足 `PRICE_DOWN` 条件的最后一行。
+模式变量 `PRICE_UP` 定义为价格大于满足 `PRICE_DOWN` 条件的最后一行。
 
 此查询为股票价格持续下跌的每个期间生成摘要行。
 
@@ -208,15 +208,15 @@ Define & Measures
 
 `MEASURES` 子句定义匹配模式的输出中要包含哪些内容。它可以投影列并定义表达式进行计算。产生的行数取决于[输出方式](#output-mode)设置。
 
-`DEFINE` 子句指定行必须满足的条件才能被分类到相应的 [pattern variable](#defining-a-pattern)。如果没有为模式变量定义条件，则将使用对每一行的计算结果为 `true` 的默认条件。
+`DEFINE` 子句指定行必须满足的条件才能被分类到相应的[模式变量](#defining-a-pattern)。如果没有为模式变量定义条件，则将使用对每一行的计算结果为 `true` 的默认条件。
 
-有关在这些子句中可使用的表达式的更详细的说明，请查看 [event stream navigation](#pattern-navigation) 部分。
+有关在这些子句中可使用的表达式的更详细的说明，请查看[事件流导航](#pattern-navigation)部分。
 
 ### Aggregations
 
 Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({% link dev/table/functions/systemFunctions.zh.md %})和[用户自定义函数]({% link dev/table/functions/udfs.zh.md %})。
 
-对相应匹配项的行子集可以使用 Aggregate functions。请查看 [event stream navigation](#pattern-navigation) 部分以了解如何计算这些子集。
+对相应匹配项的行子集可以使用 Aggregate functions。请查看[事件流导航](#pattern-navigation)部分以了解如何计算这些子集。
 
 下面这个示例的任务是找出股票平均价格没有低于某个阈值的最长时间段。它展示了 `MATCH_RECOGNIZE` 在聚合中的可表达性。可以使用以下查询执行此任务：
 
@@ -278,7 +278,7 @@ ACME       01-APR-11 10:00:05  01-APR-11 10:00:10     13.5
 
 `MATCH_RECOGNIZE` 子句允许用户在事件流中使用功能强大、表达力强的语法搜索模式，这种语法与广泛使用的正则表达式语法有些相似。
 
-每个模式都是由基本的构建块构造的，称为 _pattern variables_，可以应用算子（量词和其他修饰符）到这些模块中。整个模式必须用括号括起来。
+每个模式都是由基本的构建块构造的，称为 _模式变量_，可以应用算子（量词和其他修饰符）到这些模块中。整个模式必须用括号括起来。
 
 示例模式如下所示：
 
@@ -617,7 +617,7 @@ DEFINE
 
 ### Logical Offsets
 
-_Logical offsets_ 启用映射到特定模式变量的事件内的导航。这可以用两个相应的函数表示：
+_Logical offsets_ 在映射到指定模式变量的事件启用导航。这可以用两个相应的函数表示：
 
 <table class="table table-bordered">
   <thead>
@@ -880,11 +880,11 @@ FROM Ticker
 
 与上一个策略相比，下一个匹配再次包含 #2 行匹配。因此，第二个结果与 #2，#3，#4，#5 行匹配。
 
-第三个结果与 #3、#4、#5 行匹配。
+第三个结果与 #3，#4，#5 行匹配。
 
 第四个结果与 #4，#5，#6 行匹配。
 
-最后一个结果与第 5 行、第 6 行匹配。
+最后一个结果与 #5，#6 行匹配。
 
 ##### `AFTER MATCH SKIP TO LAST A`
 
@@ -899,11 +899,11 @@ FROM Ticker
 
 同样，第一个结果与 #1，#2，#3，#4 行匹配。
 
-与前一个策略相比，下一个匹配只包含第#3行（mapped to `A`）用于下一个匹配。因此，第二个结果与#3，#4，#5行匹配。
+与前一个策略相比，下一个匹配只包含 #3 行（对应 `A`）用于下一个匹配。因此，第二个结果与 #3，#4，#5 行匹配。
 
-第三个结果与#4、#5、#6行匹配。
+第三个结果与 #4，#5，#6 行匹配。
 
-最后一个结果与#5行、#6行匹配。
+最后一个结果与 #5，#6 行匹配。
 
 ##### `AFTER MATCH SKIP TO FIRST A`
 
