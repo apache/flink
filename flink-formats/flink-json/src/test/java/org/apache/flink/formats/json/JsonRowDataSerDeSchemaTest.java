@@ -21,7 +21,6 @@ package org.apache.flink.formats.json;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -31,12 +30,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -325,7 +324,7 @@ public class JsonRowDataSerDeSchemaTest {
 		String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
 		try {
 			deserializationSchema.deserialize(serializedJson);
-			throw new RuntimeException("expecting exception message: " + errorMessage);
+			Assert.fail("expecting exception message: " + errorMessage);
 		} catch (Throwable t) {
 			assertEquals(errorMessage, t.getMessage());
 		}
@@ -339,10 +338,9 @@ public class JsonRowDataSerDeSchemaTest {
 		errorMessage = "JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.";
 		try {
 			// failOnMissingField and ignoreParseErrors both enabled
-			//noinspection ConstantConditions
 			new JsonRowDataDeserializationSchema(
-				schema, new RowDataTypeInfo(schema), true, true, TimestampFormat.ISO_8601);
-			throw new RuntimeException("expecting exception message: " + errorMessage);
+				schema, WrapperTypeInfo.of(schema), true, true, TimestampFormat.ISO_8601);
+			Assert.fail("expecting exception message: " + errorMessage);
 		} catch (Throwable t) {
 			assertEquals(errorMessage, t.getMessage());
 		}
@@ -384,7 +382,7 @@ public class JsonRowDataSerDeSchemaTest {
 		// the parsing field should be null and no exception is thrown
 		JsonRowDataDeserializationSchema ignoreErrorsSchema = new JsonRowDataDeserializationSchema(
 			spec.rowType, WrapperTypeInfo.of(spec.rowType), false, true,
-			TimestampFormat.ISO_8601);
+			spec.timestampFormat);
 		Row expected;
 		if (spec.expected != null) {
 			expected = spec.expected;
@@ -406,7 +404,7 @@ public class JsonRowDataSerDeSchemaTest {
 
 		try {
 			failingSchema.deserialize(spec.json.getBytes());
-			throw new RuntimeException("expecting exception " + spec.errorMessage);
+			Assert.fail("expecting exception " + spec.errorMessage);
 		} catch (Throwable t) {
 			assertEquals(t.getMessage(), spec.errorMessage);
 		}
@@ -507,7 +505,7 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.expect(Row.of(LocalDateTime.parse("2019-11-12T18:00:12"))),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
