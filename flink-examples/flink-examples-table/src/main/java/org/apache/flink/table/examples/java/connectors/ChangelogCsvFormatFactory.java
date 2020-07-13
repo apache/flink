@@ -67,6 +67,10 @@ public final class ChangelogCsvFormatFactory implements DeserializationFormatFac
 
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+		// either implement your custom validation logic here ...
+		// or use the provided helper method
+		FactoryUtil.validateFactoryOptions(this, formatOptions);
+
 		// get the validated options
 		final String columnDelimiter = formatOptions.get(COLUMN_DELIMITER);
 
