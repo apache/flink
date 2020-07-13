@@ -29,7 +29,7 @@ under the License.
 
 `MATCH_RECOGNIZE` 子句启用以下任务：
 * 使用 `PARTITION BY` 和 `ORDER BY` 子句对数据进行逻辑分区和排序。
-* 使用 `PATTERN` 子句定义要查找的行的模式。这些模式使用类似于正则表达式的语法。
+* 使用 `PATTERN` 子句定义要查找的行模式。这些模式使用类似于正则表达式的语法。
 * 在 `DEFINE` 子句中指定行模式变量的逻辑组合。
 * measures 是指在 `MEASURES` 子句中定义的表达式，这些表达式可用于 SQL 查询中的其他部分。
 
