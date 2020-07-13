@@ -398,6 +398,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 
@@ -429,6 +430,10 @@ public class ChangelogCsvFormatFactory implements DeserializationFormatFactory {
   public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
       DynamicTableFactory.Context context,
       ReadableConfig formatOptions) {
+    // either implement your custom validation logic here ...
+    // or use the provided helper method
+    FactoryUtil.validateFactoryOptions(this, formatOptions);
+
     // get the validated options
     final String columnDelimiter = formatOptions.get(COLUMN_DELIMITER);
 
