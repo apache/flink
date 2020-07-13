@@ -247,6 +247,45 @@ public class Elasticsearch6DynamicSinkITCase {
 		assertThat(result, equalTo(expectedMap));
 	}
 
+	@Test
+	public void testWritingDocumentsWithDynamicIndex() throws Exception {
+		TableSchema schema = TableSchema.builder()
+			.field("a", DataTypes.BIGINT().notNull())
+			.field("b", DataTypes.TIMESTAMP().notNull())
+			.primaryKey("a")
+			.build();
+		GenericRowData rowData = GenericRowData.of(
+			1L,
+			TimestampData.fromLocalDateTime(LocalDateTime.parse("2012-12-12T12:12:12")));
+
+		String index = "dynamic-index-{b|yyyy-MM-dd}";
+		String myType = "MyType";
+		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+
+		SinkFunctionProvider sinkRuntimeProvider = (SinkFunctionProvider) sinkFactory.createDynamicTableSink(
+			context()
+				.withSchema(schema)
+				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), index)
+				.withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), myType)
+				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200")
+				.withOption(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false")
+				.build()
+		).getSinkRuntimeProvider(new MockContext());
+
+		SinkFunction<RowData> sinkFunction = sinkRuntimeProvider.createSinkFunction();
+		StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+		rowData.setRowKind(RowKind.UPDATE_AFTER);
+		environment.<RowData>fromElements(rowData).addSink(sinkFunction);
+		environment.execute();
+
+		Client client = elasticsearchResource.getClient();
+		Map<String, Object> response = client.get(new GetRequest("dynamic-index-2012-12-12", myType, "1")).actionGet().getSource();
+		Map<Object, Object> expectedMap = new HashMap<>();
+		expectedMap.put("a", 1);
+		expectedMap.put("b", "2012-12-12 12:12:12");
+		assertThat(response, equalTo(expectedMap));
+	}
+
 	private static class MockContext implements DynamicTableSink.Context {
 		@Override
 		public boolean isBounded() {
