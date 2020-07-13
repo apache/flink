@@ -1573,7 +1573,7 @@ public class StreamExecutionEnvironment {
 	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
 
-		if (function instanceof ResultTypeQueryable) {
+		if (typeInfo == null && function instanceof ResultTypeQueryable) {
 			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
 		}
 		if (typeInfo == null) {
