@@ -146,6 +146,23 @@ public final class ExtractionUtils {
 	}
 
 	/**
+	 * Validates the characteristics of a class for a {@link StructuredType} such as accessibility.
+	 */
+	public static void validateStructuredClass(Class<?> clazz) {
+		final int m = clazz.getModifiers();
+		if (Modifier.isAbstract(m)) {
+			throw extractionError("Class '%s' must not be abstract.", clazz.getName());
+		}
+		if (!Modifier.isPublic(m)) {
+			throw extractionError("Class '%s' is not public.", clazz.getName());
+		}
+		if (clazz.getEnclosingClass() != null &&
+				(clazz.getDeclaringClass() == null || !Modifier.isStatic(m))) {
+			throw extractionError("Class '%s' is a not a static, globally accessible class.", clazz.getName());
+		}
+	}
+
+	/**
 	 * Returns the field of a structured type. The logic is as broad as possible to support
 	 * both Java and Scala in different flavors.
 	 */
@@ -431,23 +448,6 @@ public final class ExtractionUtils {
 	private static boolean typeVariableEquals(TypeVariable<?> variable, TypeVariable<?> currentVariable) {
 		return currentVariable.getGenericDeclaration().equals(variable.getGenericDeclaration()) &&
 				currentVariable.getName().equals(variable.getName());
-	}
-
-	/**
-	 * Validates the characteristics of a class for a {@link StructuredType} such as accessibility.
-	 */
-	static void validateStructuredClass(Class<?> clazz) {
-		final int m = clazz.getModifiers();
-		if (Modifier.isAbstract(m)) {
-			throw extractionError("Class '%s' must not be abstract.", clazz.getName());
-		}
-		if (!Modifier.isPublic(m)) {
-			throw extractionError("Class '%s' is not public.", clazz.getName());
-		}
-		if (clazz.getEnclosingClass() != null &&
-				(clazz.getDeclaringClass() == null || !Modifier.isStatic(m))) {
-			throw extractionError("Class '%s' is a not a static, globally accessible class.", clazz.getName());
-		}
 	}
 
 	/**

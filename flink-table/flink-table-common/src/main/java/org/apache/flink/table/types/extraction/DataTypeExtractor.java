@@ -23,10 +23,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.types.Row;
 
@@ -515,20 +512,11 @@ public final class DataTypeExtractor {
 			type,
 			fields);
 
-		final List<StructuredAttribute> attributes = createStructuredTypeAttributes(
+		final DataTypes.Field[] attributes = createStructuredTypeAttributes(
 			constructor,
 			fieldDataTypes);
 
-		final StructuredType.Builder builder = StructuredType.newBuilder(clazz);
-		builder.attributes(attributes);
-		builder.setFinal(true); // anonymous structured types should not allow inheritance
-		builder.setInstantiable(true);
-		return new FieldsDataType(
-			builder.build(),
-			clazz,
-			attributes.stream()
-				.map(a -> fieldDataTypes.get(a.getName()))
-				.collect(Collectors.toList()));
+		return DataTypes.STRUCTURED(clazz, attributes);
 	}
 
 	private Map<String, DataType> extractStructuredTypeFields(
@@ -560,7 +548,7 @@ public final class DataTypeExtractor {
 		return fieldDataTypes;
 	}
 
-	private List<StructuredAttribute> createStructuredTypeAttributes(
+	private DataTypes.Field[] createStructuredTypeAttributes(
 			ExtractionUtils.AssigningConstructor constructor,
 			Map<String, DataType> fieldDataTypes) {
 		return Optional.ofNullable(constructor)
@@ -572,11 +560,8 @@ public final class DataTypeExtractor {
 				// field order is sorted
 				return fieldDataTypes.keySet().stream().sorted();
 			})
-			.map(name -> {
-				final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
-				return new StructuredAttribute(name, logicalType);
-			})
-			.collect(Collectors.toList());
+			.map(name -> DataTypes.FIELD(name, fieldDataTypes.get(name)))
+			.toArray(DataTypes.Field[]::new);
 	}
 
 	/**

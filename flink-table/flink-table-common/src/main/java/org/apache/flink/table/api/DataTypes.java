@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
@@ -52,6 +53,8 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -73,6 +76,8 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
 
 /**
  * A {@link DataType} can be used to declare input and/or output types of operations. This class
@@ -784,6 +789,54 @@ public final class DataTypes {
 	 */
 	public static <T> DataType RAW(TypeInformation<T> typeInformation) {
 		return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+	}
+
+	/**
+	 * Data type of a user-defined object structured type. Structured types contain zero, one or more
+	 * attributes. Each attribute consists of a name and a type. A type cannot be defined so that one of
+	 * its attribute types (transitively) uses itself.
+	 *
+	 * <p>There are two kinds of structured types. Types that are stored in a catalog and are identified
+	 * by an {@link ObjectIdentifier} or anonymously defined, unregistered types (usually reflectively
+	 * extracted) that are identified by an implementation {@link Class}.
+	 *
+	 * <p>This method helps in manually constructing anonymous, unregistered types. This is useful in
+	 * cases where the reflective extraction using {@link DataTypes#of(Class)} is not applicable. However,
+	 * {@link DataTypes#of(Class)} is the recommended way of creating inline structured types as it also
+	 * considers {@link DataTypeHint}s.
+	 *
+	 * <p>Structured types are converted to internal data structures by the runtime. The given implementation
+	 * class is only used at the edges of the table ecosystem (e.g. when bridging to a function or connector).
+	 * Serialization and equality ({@code hashCode/equals}) are handled by the runtime based on the logical
+	 * type. An implementation class must offer a default constructor with zero arguments or a full constructor
+	 * that assigns all attributes.
+	 *
+	 * <p>Note: A caller of this method must make sure that the {@link DataType#getConversionClass()} of the
+	 * given fields matches with the attributes of the given implementation class, otherwise an exception
+	 * might be thrown during runtime.
+	 *
+	 * @see DataTypes#of(Class)
+	 * @see StructuredType
+	 */
+	public static <T> DataType STRUCTURED(Class<T> implementationClass, Field... fields) {
+		// some basic validation of the class to prevent common mistakes
+		validateStructuredClass(implementationClass);
+
+		final StructuredType.Builder builder = StructuredType.newBuilder(implementationClass);
+		final List<StructuredAttribute> attributes = Stream.of(fields)
+			.map(f ->
+				new StructuredAttribute(
+					f.getName(),
+					f.getDataType().getLogicalType(),
+					f.getDescription().orElse(null)))
+			.collect(Collectors.toList());
+		builder.attributes(attributes);
+		builder.setFinal(true);
+		builder.setInstantiable(true);
+		final List<DataType> fieldDataTypes = Stream.of(fields)
+			.map(DataTypes.Field::getDataType)
+			.collect(Collectors.toList());
+		return new FieldsDataType(builder.build(), implementationClass, fieldDataTypes);
 	}
 
 	// --------------------------------------------------------------------------------------------

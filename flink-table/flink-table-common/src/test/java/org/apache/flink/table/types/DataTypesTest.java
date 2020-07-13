@@ -357,7 +357,15 @@ public class DataTypesTest {
 				.forUnresolvedDataType(RAW(Object.class))
 				.expectUnresolvedString("[RAW('java.lang.Object', '?')]")
 				.lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
-				.expectResolvedDataType(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
+				.expectResolvedDataType(DataTypes.RAW(new GenericTypeInfo<>(Object.class))),
+
+			TestSpec
+				.forUnresolvedDataType(DataTypes.of(SimplePojo.class))
+				.expectResolvedDataType(
+					DataTypes.STRUCTURED(
+						SimplePojo.class,
+						DataTypes.FIELD("name", DataTypes.STRING()),
+						DataTypes.FIELD("count", DataTypes.INT().notNull().bridgedTo(int.class))))
 		);
 	}
 
@@ -473,6 +481,23 @@ public class DataTypesTest {
 		@Override
 		public String toString() {
 			return abstractDataType.toString();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Helper classes
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Simple POJO for testing.
+	 */
+	public static class SimplePojo {
+		public final String name;
+		public final int count;
+
+		public SimplePojo(String name, int count) {
+			this.name = name;
+			this.count = count;
 		}
 	}
 }
