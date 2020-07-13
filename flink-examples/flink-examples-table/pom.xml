@@ -203,7 +203,7 @@ under the License.
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/connectors/ChangelogSocketExample*</include>
+								<include>org/apache/flink/table/examples/java/connectors/*</include>
 								<include>**/META-INF/services/*</include>
 							</includes>
 						</configuration>
