@@ -390,7 +390,7 @@ object FlinkRelMdSize {
     BuiltInMethod.AVERAGE_ROW_SIZE.method)
 
   def averageTypeValueSize(t: RelDataType): JDouble = t.getSqlTypeName match {
-    case SqlTypeName.ROW =>
+    case SqlTypeName.ROW | SqlTypeName.STRUCTURED =>
       estimateRowSize(t)
     case SqlTypeName.ARRAY =>
       // 16 is an arbitrary estimate
