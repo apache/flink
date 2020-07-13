@@ -3,7 +3,6 @@ title: 'Detecting Patterns in Tables'
 nav-parent_id: streaming_tableapi
 nav-title: 'Detecting Patterns'
 nav-pos: 5
-is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -67,9 +66,9 @@ FROM MyTable
 
 This page will explain each keyword in more detail and will illustrate more complex examples.
 
-<span class="label label-danger">Attention</span> Flink's implementation of the `MATCH_RECOGNIZE`
+{% info Notice %} Flink's implementation of the `MATCH_RECOGNIZE`
 clause is a subset of the full standard. Only those features documented in the following sections
-are supported. Since the development is still in an early phase, please also take a look at the
+are supported. Additional features may be supported based on community feeback, please also take a look at the
 [known limitations](#known-limitations).
 
 * This will be replaced by the TOC
