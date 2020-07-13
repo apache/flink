@@ -87,7 +87,7 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 		//we can not push filter successfully twice
 		return tableSourceTable != null
 			&& tableSourceTable.tableSource() instanceof SupportsFilterPushDown
-			&& Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.contains("filter"));
+			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.contains("filter"));
 	}
 
 	@Override

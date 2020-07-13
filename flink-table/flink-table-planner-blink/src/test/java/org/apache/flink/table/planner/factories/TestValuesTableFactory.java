@@ -41,11 +41,17 @@ import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
@@ -54,15 +60,12 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Keyed
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-<<<<<<< HEAD
-=======
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -75,11 +78,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.collection.Seq;
 
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -226,6 +232,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.booleanType()
 		.defaultValue(false);
 
+	private static final ConfigOption<List<String>> FILTERABLE_FIELDS = ConfigOptions
+		.key("filterable-fields")
+		.stringType()
+		.asList()
+		.noDefaultValue();
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -243,13 +255,10 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
-<<<<<<< HEAD
-=======
 		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
 
 		Set<String> filterableFieldsSet = new HashSet<>();
 		filterableFields.ifPresent(elements -> filterableFieldsSet.addAll(elements));
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
@@ -263,13 +272,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
-<<<<<<< HEAD
-				null);
-=======
 				null,
 				null,
 				filterableFieldsSet);
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -316,7 +321,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_INSERT_ONLY,
 			RUNTIME_SINK,
 			SINK_EXPECTED_MESSAGES_NUM,
-			NESTED_PROJECTION_SUPPORTED));
+			NESTED_PROJECTION_SUPPORTED,
+			FILTERABLE_FIELDS));
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -349,7 +355,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
@@ -360,11 +366,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
-<<<<<<< HEAD
-=======
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
@@ -375,7 +378,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				boolean isAsync,
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
-				int[] projectedFields) {
+				int[] projectedFields,
+				List<ResolvedExpression> filterPredicates,
+				Set<String> filterableFields) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -385,6 +390,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.lookupFunctionClass = lookupFunctionClass;
 			this.nestedProjectionSupported = nestedProjectionSupported;
 			this.projectedFields = projectedFields;
+			this.filterPredicates = filterPredicates;
+			this.filterableFields = filterableFields;
 		}
 
 		@Override
@@ -471,8 +478,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		@Override
-<<<<<<< HEAD
-=======
 		public Result applyFilters(List<ResolvedExpression> filters) {
 			List<ResolvedExpression> acceptedFilters = new ArrayList<>();
 			List<ResolvedExpression> remainingFilters = new ArrayList<>();
@@ -508,7 +513,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
 				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
-					|| ((CallExpression) expr).getFunctionDefinition().equals(BuiltInFunctionDefinitions.LOWER)) {
+					|| ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
 					return shouldPushDownUnaryExpression(expr.getChildren().get(0));
 				}
 			}
@@ -582,7 +587,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		@Override
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 		public DynamicTableSource copy() {
 			return new TestValuesTableSource(
 				physicalSchema,
@@ -593,7 +597,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
-				projectedFields);
+				projectedFields,
+				filterPredicates,
+				filterableFields);
 		}
 
 		@Override
@@ -601,21 +607,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return "TestValues";
 		}
 
-		private static Collection<RowData> convertToRowData(
+		private Collection<RowData> convertToRowData(
 				Collection<Row> data,
 				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Row value : data) {
-<<<<<<< HEAD
-				Row projectedRow;
-				if (projectedFields == null) {
-					projectedRow = value;
-				} else {
-					Object[] newValues = new Object[projectedFields.length];
-					for (int i = 0; i < projectedFields.length; ++i) {
-						newValues[i] = value.getField(projectedFields[i]);
-=======
 				if (isRetainedAfterApplyingFilterPredicates(value)) {
 					Row projectedRow;
 					if (projectedFields == null) {
@@ -631,14 +628,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					if (rowData != null) {
 						rowData.setRowKind(value.getKind());
 						result.add(rowData);
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 					}
-					projectedRow = Row.of(newValues);
-				}
-				RowData rowData = (RowData) converter.toInternal(projectedRow);
-				if (rowData != null) {
-					rowData.setRowKind(value.getKind());
-					result.add(rowData);
 				}
 			}
 			return result;
@@ -717,11 +707,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				String tableName,
 				boolean isInsertOnly,
 				String runtimeSink,
-<<<<<<< HEAD
 				int expectedNum) {
-=======
-			int expectedNum) {
->>>>>>> [FLINK-17425][blink-planner] fixs problems of review.
 			this.schema = schema;
 			this.tableName = tableName;
 			this.isInsertOnly = isInsertOnly;
