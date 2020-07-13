@@ -241,32 +241,30 @@ public class Elasticsearch7DynamicSinkITCase {
 
 	@Test
 	public void testWritingDocumentsWithDynamicIndex() throws Exception {
-		TableSchema schema = TableSchema.builder()
-			.field("a", DataTypes.BIGINT().notNull())
-			.field("b", DataTypes.TIMESTAMP().notNull())
-			.primaryKey("a")
-			.build();
-		GenericRowData rowData = GenericRowData.of(
-			1L,
-			TimestampData.fromLocalDateTime(LocalDateTime.parse("2012-12-12T12:12:12")));
+		TableEnvironment tableEnvironment = TableEnvironment.create(EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inStreamingMode()
+			.build());
 
 		String index = "dynamic-index-{b|yyyy-MM-dd}";
-		Elasticsearch7DynamicSinkFactory sinkFactory = new Elasticsearch7DynamicSinkFactory();
+		tableEnvironment.executeSql("CREATE TABLE esTable (" +
+			"a BIGINT NOT NULL,\n" +
+			"b TIMESTAMP NOT NULL,\n" +
+			"PRIMARY KEY (a) NOT ENFORCED\n" +
+			")\n" +
+			"WITH (\n" +
+			String.format("'%s'='%s',\n", "connector", "elasticsearch-7") +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index) +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
+			String.format("'%s'='%s'\n", ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false") +
+			")");
 
-		SinkFunctionProvider sinkRuntimeProvider = (SinkFunctionProvider) sinkFactory.createDynamicTableSink(
-			context()
-				.withSchema(schema)
-				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), index)
-				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200")
-				.withOption(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false")
-				.build()
-		).getSinkRuntimeProvider(new MockContext());
-
-		SinkFunction<RowData> sinkFunction = sinkRuntimeProvider.createSinkFunction();
-		StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
-		rowData.setRowKind(RowKind.UPDATE_AFTER);
-		environment.<RowData>fromElements(rowData).addSink(sinkFunction);
-		environment.execute();
+		tableEnvironment.fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
+			.executeInsert("esTable")
+			.getJobClient()
+			.get()
+			.getJobExecutionResult(this.getClass().getClassLoader())
+			.get();
 
 		Client client = elasticsearchResource.getClient();
 		Map<String, Object> response = client.get(new GetRequest("dynamic-index-2012-12-12", "1"))
