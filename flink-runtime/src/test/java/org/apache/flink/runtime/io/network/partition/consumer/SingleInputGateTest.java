@@ -228,9 +228,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 							Thread.sleep(1);
 						}
 					} catch (Throwable t) {
-						if (!inputGate.getCloseFuture().isDone()) {
-							throw new AssertionError("Exceptions are expected here only if the gate was closed", t);
-						}
 						return null;
 					}
 				}
@@ -242,6 +239,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// wait until the internal channel state recover task finishes
 			executor.awaitTermination(60, TimeUnit.SECONDS);
 			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
+			assertTrue(inputGate.getCloseFuture().isDone());
 
 			environment.close();
 		}
