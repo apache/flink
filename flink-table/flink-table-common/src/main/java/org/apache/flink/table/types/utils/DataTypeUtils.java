@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -39,13 +40,16 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -84,12 +88,17 @@ public final class DataTypeUtils {
 	}
 
 	/**
-	 * Transforms the given data type (can be nested) to a different data type using the given
-	 * transformations. The given transformations will be called in order.
+	 * Transforms the given data type to a different data type using the given transformations.
+	 *
+	 * <p>The transformations will be called in the given order. In case of constructed or composite
+	 * types, a transformation will be applied transitively to children first.
+	 *
+	 * <p>Both the {@link DataType#getLogicalType()} and {@link DataType#getConversionClass()} can be
+	 * transformed.
 	 *
 	 * @param typeToTransform data type to be transformed.
 	 * @param transformations the transformations to transform data type to another type.
-	 * @return the new data type,
+	 * @return the new data type
 	 */
 	public static DataType transform(DataType typeToTransform, TypeTransformation... transformations) {
 		Preconditions.checkArgument(transformations.length > 0, "transformations should not be empty.");
@@ -183,6 +192,12 @@ public final class DataTypeUtils {
 		}
 	}
 
+	/**
+	 * Transforms a {@link DataType}.
+	 *
+	 * <p>In case of constructed or composite types, a transformation will be applied transitively to
+	 * children first.
+	 */
 	private static class DataTypeTransformer implements DataTypeVisitor<DataType> {
 
 		private final TypeTransformation transformation;
@@ -198,9 +213,9 @@ public final class DataTypeUtils {
 
 		@Override
 		public DataType visit(CollectionDataType collectionDataType) {
-			DataType newElementType = collectionDataType.getElementDataType().accept(this);
-			LogicalType logicalType = collectionDataType.getLogicalType();
-			LogicalType newLogicalType;
+			final DataType newElementType = collectionDataType.getElementDataType().accept(this);
+			final LogicalType logicalType = collectionDataType.getLogicalType();
+			final LogicalType newLogicalType;
 			if (logicalType instanceof ArrayType) {
 				newLogicalType = new ArrayType(
 					logicalType.isNullable(),
@@ -217,37 +232,60 @@ public final class DataTypeUtils {
 
 		@Override
 		public DataType visit(FieldsDataType fieldsDataType) {
-			final List<DataType> newFields = fieldsDataType.getChildren().stream()
+			final List<DataType> newDataTypes = fieldsDataType.getChildren().stream()
 				.map(dt -> dt.accept(this))
 				.collect(Collectors.toList());
 
 			final LogicalType logicalType = fieldsDataType.getLogicalType();
 			final LogicalType newLogicalType;
 			if (logicalType instanceof RowType) {
-				final List<RowType.RowField> oldFields = ((RowType) logicalType).getFields();
-				final List<RowType.RowField> newRowFields = IntStream.range(0, oldFields.size())
+				final List<RowField> oldFields = ((RowType) logicalType).getFields();
+				final List<RowField> newFields = IntStream.range(0, oldFields.size())
 					.mapToObj(i ->
-						new RowType.RowField(
+						new RowField(
 							oldFields.get(i).getName(),
-							newFields.get(i).getLogicalType(),
+							newDataTypes.get(i).getLogicalType(),
 							oldFields.get(i).getDescription().orElse(null)))
 					.collect(Collectors.toList());
 
 				newLogicalType = new RowType(
 					logicalType.isNullable(),
-					newRowFields);
+					newFields);
+			} else if (logicalType instanceof StructuredType) {
+				final StructuredType structuredType = (StructuredType) logicalType;
+				if (structuredType.getSuperType().isPresent()) {
+					throw new UnsupportedOperationException("Hierarchies of structured types are not supported yet.");
+				}
+				final List<StructuredAttribute> oldAttributes = structuredType.getAttributes();
+				final List<StructuredAttribute> newAttributes = IntStream.range(0, oldAttributes.size())
+					.mapToObj(i ->
+						new StructuredAttribute(
+							oldAttributes.get(i).getName(),
+							newDataTypes.get(i).getLogicalType(),
+							oldAttributes.get(i).getDescription().orElse(null)))
+					.collect(Collectors.toList());
+
+				final StructuredType.Builder builder = createStructuredBuilder(structuredType);
+				builder.attributes(newAttributes);
+				builder.setNullable(structuredType.isNullable());
+				builder.setFinal(structuredType.isFinal());
+				builder.setInstantiable(structuredType.isInstantiable());
+				builder.comparision(structuredType.getComparision());
+				structuredType.getDescription().ifPresent(builder::description);
+
+				newLogicalType = builder.build();
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new FieldsDataType(newLogicalType, newFields));
+			return transformation.transform(new FieldsDataType(newLogicalType, newDataTypes));
 		}
 
 		@Override
 		public DataType visit(KeyValueDataType keyValueDataType) {
-			DataType newKeyType = keyValueDataType.getKeyDataType().accept(this);
-			DataType newValueType = keyValueDataType.getValueDataType().accept(this);
-			LogicalType logicalType = keyValueDataType.getLogicalType();
-			LogicalType newLogicalType;
+			final DataType newKeyType = keyValueDataType.getKeyDataType().accept(this);
+			final DataType newValueType = keyValueDataType.getValueDataType().accept(this);
+			final LogicalType logicalType = keyValueDataType.getLogicalType();
+			final LogicalType newLogicalType;
 			if (logicalType instanceof MapType) {
 				newLogicalType = new MapType(
 					logicalType.isNullable(),
@@ -257,6 +295,22 @@ public final class DataTypeUtils {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
 			return transformation.transform(new KeyValueDataType(newLogicalType, newKeyType, newValueType));
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		private StructuredType.Builder createStructuredBuilder(StructuredType structuredType) {
+			final Optional<ObjectIdentifier> identifier = structuredType.getObjectIdentifier();
+			final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
+			if (identifier.isPresent() && implementationClass.isPresent()) {
+				return StructuredType.newBuilder(identifier.get(), implementationClass.get());
+			} else if (identifier.isPresent()) {
+				return StructuredType.newBuilder(identifier.get());
+			} else if (implementationClass.isPresent()) {
+				return StructuredType.newBuilder(implementationClass.get());
+			} else {
+				throw new IllegalArgumentException("Invalid structured type.");
+			}
 		}
 	}
 
