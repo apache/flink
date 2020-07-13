@@ -204,6 +204,13 @@ public class ShardConsumer<T> implements Runnable {
 		lastSequenceNum = collectedSequenceNumber;
 	}
 
+	/**
+	 * Filters out aggregated records that have previously been processed.
+	 * This method is to support restarting from a partially consumed aggregated sequence number.
+	 *
+	 * @param record the record to filter
+	 * @return {@code true} if the record should be retained
+	 */
 	private boolean filterDeaggregatedRecord(final UserRecord record) {
 		if (lastSequenceNum.isAggregated()) {
 			return !record.getSequenceNumber().equals(lastSequenceNum.getSequenceNumber()) ||
