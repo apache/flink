@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流的情况下。Flink 提供[复杂事件处理（CEP）库]({% link dev/libs/cep.zh.md %})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含大量内置函数和基于规则的优化，可以开箱即用。
+搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流情景中。Flink 提供[复杂事件处理（CEP）库]({% link dev/libs/cep.zh.md %})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含大量内置函数和基于规则的优化，可以开箱即用。
 
 2016 年 12 月，国际标准化组织（ISO）发布了新版本的 SQL 标准，其中包括在 _SQL 中的行模式识别（Row Pattern Recognition in SQL）_([ISO/IEC TR 19075-5:2016](https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip))。它允许 Flink 使用 `MATCH_RECOGNIZE` 子句融合 CEP 和 SQL API，以便在 SQL 中进行复杂事件处理。
 
