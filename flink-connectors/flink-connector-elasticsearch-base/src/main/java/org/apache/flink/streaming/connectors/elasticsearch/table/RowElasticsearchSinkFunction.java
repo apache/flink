@@ -69,6 +69,11 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
 	}
 
 	@Override
+	public void open() {
+		indexGenerator.open();
+	}
+
+	@Override
 	public void process(
 			RowData element,
 			RuntimeContext ctx,

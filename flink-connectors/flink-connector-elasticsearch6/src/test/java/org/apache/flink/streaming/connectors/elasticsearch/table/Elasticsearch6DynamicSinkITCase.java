@@ -247,6 +247,43 @@ public class Elasticsearch6DynamicSinkITCase {
 		assertThat(result, equalTo(expectedMap));
 	}
 
+	@Test
+	public void testWritingDocumentsWithDynamicIndex() throws Exception {
+		TableEnvironment tableEnvironment = TableEnvironment.create(EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inStreamingMode()
+			.build());
+
+		String index = "dynamic-index-{b|yyyy-MM-dd}";
+		String myType = "MyType";
+		tableEnvironment.executeSql("CREATE TABLE esTable (" +
+			"a BIGINT NOT NULL,\n" +
+			"b TIMESTAMP NOT NULL,\n" +
+			"PRIMARY KEY (a) NOT ENFORCED\n" +
+			")\n" +
+			"WITH (\n" +
+			String.format("'%s'='%s',\n", "connector", "elasticsearch-6") +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index) +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), myType) +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
+			String.format("'%s'='%s'\n", ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false") +
+			")");
+
+		tableEnvironment.fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
+			.executeInsert("esTable")
+			.getJobClient()
+			.get()
+			.getJobExecutionResult(this.getClass().getClassLoader())
+			.get();
+
+		Client client = elasticsearchResource.getClient();
+		Map<String, Object> response = client.get(new GetRequest("dynamic-index-2012-12-12", myType, "1")).actionGet().getSource();
+		Map<Object, Object> expectedMap = new HashMap<>();
+		expectedMap.put("a", 1);
+		expectedMap.put("b", "2012-12-12 12:12:12");
+		assertThat(response, equalTo(expectedMap));
+	}
+
 	private static class MockContext implements DynamicTableSink.Context {
 		@Override
 		public boolean isBounded() {
