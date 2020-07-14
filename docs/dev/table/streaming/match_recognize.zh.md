@@ -79,7 +79,7 @@ FROM MyTable
 </dependency>
 {% endhighlight %}
 
-或者，也可以将依赖项添加到集群 classpath（查看 [dependency section]({% link dev/project-configuration.zh.md %}) 获取更多相关依赖信息）。
+或者，也可以将依赖项添加到集群的 classpath（查看 [dependency section]({% link dev/project-configuration.zh.md %}) 获取更多相关依赖信息）。
 
 如果你想在 [SQL Client]({% link dev/table/sqlClient.zh.md %}) 中使用 `MATCH_RECOGNIZE` 子句，你无需执行任何操作，因为默认情况下包含所有依赖项。
 
@@ -93,11 +93,11 @@ FROM MyTable
 * [ORDER BY](#order-of-events) - 指定传入行的排序方式；这是必须的，因为模式依赖于顺序。
 * [MEASURES](#define--measures) - 定义子句的输出；类似于 `SELECT` 子句。
 * [ONE ROW PER MATCH](#output-mode) - 输出方式，定义每个匹配项应产生多少行。
-* [AFTER MATCH SKIP](#after-match-strategy) - 指定下一个匹配的开始位置；这也是一种控制单个事件可以属于多少个不同匹配的方法。
+* [AFTER MATCH SKIP](#after-match-strategy) - 指定下一个匹配的开始位置；这也是控制单个事件可以属于多少个不同匹配项的方法。
 * [PATTERN](#defining-a-pattern) - 允许使用类似于 _正则表达式_ 的语法构造搜索的模式。
 * [DEFINE](#define--measures) - 本部分定义了模式变量必须满足的条件。
 
-<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于追加表（[append table]({% link dev/table/streaming/dynamic_tables.zh.md %}#update-and-append-queries)）。此外，它还总是生成一个追加表。
+<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于[追加表]({% link dev/table/streaming/dynamic_tables.zh.md %}#update-and-append-queries)。此外，它也总是生成一个追加表。
 
 <a name="examples"></a>
 
@@ -184,7 +184,7 @@ ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 分区
 ------------
 
-可以在分区数据中寻找模式，例如单个股票行情或特定用户的趋势。这可以用 `PARTITION BY` 子句来表示。该子句类似于对聚合使用 `GROUP BY`。
+可以在分区数据中寻找模式，例如单个股票行情或特定用户的趋势。这可以用 `PARTITION BY` 子句来表示。该子句类似于对 aggregation 使用 `GROUP BY`。
 
 <span class="label label-danger">注意</span> 强烈建议对传入的数据进行分区，否则 `MATCH_RECOGNIZE` 子句将被转换为非并行算子，以确保全局排序。
 
@@ -195,7 +195,7 @@ ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 
 Apache Flink 可以根据时间（[处理时间或者事件时间]({% link dev/table/streaming/time_attributes.zh.md %})）进行模式搜索。
 
-如果是事件时间，则在将事件传递到内部模式状态机之前对其进行排序。所以，无论行添加到表的顺序如何，生成的输出都是正确的。相反，模式是按照每行中包含的时间指定的顺序计算的。
+如果是事件时间，则在将事件传递到内部模式状态机之前对其进行排序。所以，无论行添加到表的顺序如何，生成的输出都是正确的。而模式是按照每行中所包含的时间指定顺序计算的。
 
 `MATCH_RECOGNIZE` 子句假定升序的 [时间属性]({% link dev/table/streaming/time_attributes.zh.md %}) 是 `ORDER BY` 子句的第一个参数。
 
@@ -208,7 +208,7 @@ Define & Measures
 
 `MEASURES` 子句定义匹配模式的输出中要包含哪些内容。它可以投影列并定义表达式进行计算。产生的行数取决于[输出方式](#output-mode)设置。
 
-`DEFINE` 子句指定行必须满足的条件才能被分类到相应的[模式变量](#defining-a-pattern)。如果没有为模式变量定义条件，则将使用对每一行的计算结果为 `true` 的默认条件。
+`DEFINE` 子句指定行必须满足的条件才能被分类到相应的[模式变量](#defining-a-pattern)。如果没有为模式变量定义条件，则将对每一行使用计算结果为 `true` 的默认条件。
 
 有关在这些子句中可使用的表达式的更详细的说明，请查看[事件流导航](#pattern-navigation)部分。
 
@@ -218,7 +218,7 @@ Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置�
 
 对相应匹配项的行子集可以使用 Aggregate functions。请查看[事件流导航](#pattern-navigation)部分以了解如何计算这些子集。
 
-下面这个示例的任务是找出股票平均价格没有低于某个阈值的最长时间段。它展示了 `MATCH_RECOGNIZE` 在聚合中的可表达性。可以使用以下查询执行此任务：
+下面这个示例的任务是找出股票平均价格没有低于某个阈值的最长时间段。它展示了 `MATCH_RECOGNIZE` 在 aggregation 中的可表达性。可以使用以下查询执行此任务：
 
 {% highlight sql %}
 SELECT *
@@ -267,9 +267,9 @@ ACME       01-APR-11 10:00:00  01-APR-11 10:00:03     14.5
 ACME       01-APR-11 10:00:05  01-APR-11 10:00:10     13.5
 {% endhighlight %}
 
-<span class="label label-info">注意</span> 聚合可以应用于表达式，但前提是它们引用单个模式变量。因此，`SUM(A.price * A.tax)` 是有效的，而 `AVG(A.price * B.tax)` 则是无效的。
+<span class="label label-info">注意</span> Aggregation 可以应用于表达式，但前提是它们引用单个模式变量。因此，`SUM(A.price * A.tax)` 是有效的，而 `AVG(A.price * B.tax)` 则是无效的。
 
-<span class="label label-danger">注意</span> 不支持 `DISTINCT` 聚合。
+<span class="label label-danger">注意</span> 不支持 `DISTINCT` aggregation。
 
 <a name="defining-a-pattern"></a>
 
@@ -506,9 +506,7 @@ FROM Ticker
 
 _引用模式变量_ 允许引用一组映射到 `DEFINE` 或 `MEASURES` 子句中特定模式变量的行。
 
-如果 `DEFINE`/`MEASURES` 子句中的表达式需要一行（例如 `a.price` 或 `a.price > 10`），它将选择属于相应集合的最后一个值。
-
-例如，如果我们尝试将当前行与 `A` 进行匹配，则会描述当前行，表达式 `A.price` 描述了目前为止已映射到 `A` 的一组行。如果 `DEFINE`/`MEASURES` 子句中的表达式需要单行（例如 `A.price` 或者 `A.price > 10`），它将选择属于相应集合的最后一个值。
+例如，如果我们尝试将当前行与 `A` 进行匹配，则表达式 `A.price` 描述了目前为止已映射到 `A` 的一组行加上当前行。如果 `DEFINE`/`MEASURES` 子句中的表达式需要一行（例如 `a.price` 或 `a.price > 10`），它将选择属于相应集合的最后一个值。
 
 如果没有指定模式变量（例如 `SUM(price)`），则表达式引用默认模式变量 `*`，该变量引用模式中的所有变量。换句话说，它创建了一个列表，其中列出了迄今为止映射到任何变量的所有行以及当前行。
 
@@ -720,9 +718,9 @@ DEFINE
   </tbody>
 </table>
 
-将默认模式变量与逻辑偏移量一起使用也可能很有意义。
+将默认模式变量与 logical offsets 一起使用也可能很有意义。
 
-在这种情况下，偏移量会包含到目前为止映射的所有行：
+在这种情况下，offset 会包含到目前为止映射的所有行：
 
 {% highlight sql %}
 PATTERN (A B? C)
@@ -982,7 +980,7 @@ DEFINE
   C as C.price > 20
 {% endhighlight %}
 
-<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({% link dev/table/streaming/query_configuration.zh.md %}#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [clause](#known-limitations)。
+<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({% link dev/table/streaming/query_configuration.zh.md %}#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [子句](#time-constraint)。
 
 <a name="known-limitations"></a>
 
