@@ -234,7 +234,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 	public boolean equals(Object obj) {
 		if (obj instanceof RowDataSerializer) {
 			RowDataSerializer other = (RowDataSerializer) obj;
-			return Arrays.equals(types, other.types);
+			return Arrays.equals(fieldSerializers, other.fieldSerializers);
 		}
 
 		return false;
@@ -242,7 +242,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(types);
+		return Arrays.hashCode(fieldSerializers);
 	}
 
 	@Override
