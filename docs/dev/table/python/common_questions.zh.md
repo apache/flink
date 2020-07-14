@@ -22,15 +22,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes the solutions to some common questions for PyFlink users.
+本页介绍了针对PyFlink用户的一些常见问题的解决方案。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Preparing Python Virtual Environment
+## 准备Python虚拟环境
 
-You can download a [convenience script]({{ site.baseurl }}/downloads/setup-pyflink-virtual-env.sh) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions.
-You can specify the version parameter to generate a Python virtual environment required for the corresponding PyFlink version, otherwise the most recent version will be installed.
+您可以下载[便捷脚本]({{ site.baseurl }}/downloads/setup-pyflink-virtual-env.sh)，以准备可在Mac OS和大多数Linux发行版上使用的Python虚拟环境包(virtual env zip)。
+您可以指定PyFlink的版本，来生成对应的PyFlink版本所需的Python虚拟环境，否则将安装最新版本的PyFlink所对应的Python虚拟环境。
 
 {% highlight bash %}
 {% if site.is_stable %}
@@ -40,11 +40,10 @@ $ sh setup-pyflink-virtual-env.sh
 {% endif %}
 {% endhighlight bash %}
 
-## Execute PyFlink jobs with Python virtual environment
+## 使用Python虚拟环境执行PyFlink任务
+在设置了[python虚拟环境](#准备python虚拟环境)之后（如上一节所述），您应该在执行PyFlink作业之前激活虚拟环境。
 
-After setting up a [python virtual environment](#preparing-python-virtual-environment), as described in the previous section, you should activate the environment before executing the PyFlink job.
-
-#### Local
+#### 本地（Local）
 
 {% highlight shell %}
 # activate the conda python virtual environment
@@ -52,35 +51,35 @@ $ source venv/bin/activate
 $ python xxx.py
 {% endhighlight %}
 
-#### Cluster
+#### 集群（Cluster）
 
 {% highlight shell %}
-$ # specify the Python virtual environment
+$ # 指定Python虚拟环境
 $ table_env.add_python_archive("venv.zip")
-$ # specify the path of the python interpreter which is used to execute the python UDF workers
+$ # 指定用于执行python UDF workers (用户自定义函数工作者) 的python解释器的路径
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage).
+如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage)。
 
-## Adding Jar Files
+## 添加Jar文件
 
-A PyFlink job may depend on jar files, i.e. connectors, Java UDFs, etc.
-You can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/zh/ops/cli.html#usage">command-line arguments</a> directly when submitting the job.
+PyFlink作业可能依赖jar文件，比如connector，Java UDF等。
+您可以在提交作业时使用以下Python Table API或通过<a href="{{ site.baseurl }}/zh/ops/cli.html#usage">命令行参数</a>来指定依赖项。
 
 {% highlight python %}
-# NOTE: Only local file URLs (start with "file:") are supported.
+# 注意：仅支持本地文件URL（以"file:"开头）。
 table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 
-# NOTE: The Paths must specify a protocol (e.g. "file") and users should ensure that the URLs are accessible on both the client and the cluster.
+# 注意：路径必须指定协议（例如：文件——"file"），并且用户应确保在客户端和群集上都可以访问这些URL。
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html##java-dependency)
+有关添加Java依赖项的API的详细信息，请参阅[相关文档]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html##java-dependency)。
 
-## Adding Python Files
-You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.
-For example, if you have a directory named `myDir` which has the following hierarchy:
+## 添加Python文件
+您可以使用命令行参数`pyfs`或TableEnvironment的API `add_python_file`添加python文件依赖，这些依赖可以是python文件，python软件包或本地目录。
+例如，如果您有一个名为`myDir`的目录，该目录具有以下层次结构：
 
 ```
 myDir
@@ -89,7 +88,7 @@ myDir
     ├──my_util.py
 ```
 
-You can add the Python files of directory `myDir` as following:
+您可以将添加目录`myDir`添加到Python依赖中，如下所示：
 
 {% highlight python %}
 table_env.add_python_file('myDir')
