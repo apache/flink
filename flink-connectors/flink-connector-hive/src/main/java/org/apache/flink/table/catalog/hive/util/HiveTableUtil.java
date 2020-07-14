@@ -46,6 +46,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -453,22 +454,16 @@ public class HiveTableUtil {
 			if (value == null) {
 				return "null";
 			}
+			LogicalTypeRoot typeRoot = dataType.getLogicalType().getTypeRoot();
+			if (typeRoot.getFamilies().contains(LogicalTypeFamily.DATETIME)) {
+				// hive not support partition filter push down with these types.
+				return null;
+			}
 			value = HiveInspectors.getConversion(HiveInspectors.getObjectInspector(dataType), dataType.getLogicalType(), hiveShim)
 					.toHiveObject(value);
 			String res = value.toString();
-			LogicalTypeRoot typeRoot = dataType.getLogicalType().getTypeRoot();
-			switch (typeRoot) {
-				case CHAR:
-				case VARCHAR:
-					res = "'" + res.replace("'", "''") + "'";
-					break;
-				case DATE:
-				case TIMESTAMP_WITHOUT_TIME_ZONE:
-				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-					// hive not support partition filter push down with these types.
-					return null;
-				default:
-					break;
+			if (typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR) {
+				res = "'" + res.replace("'", "''") + "'";
 			}
 			return res;
 		}

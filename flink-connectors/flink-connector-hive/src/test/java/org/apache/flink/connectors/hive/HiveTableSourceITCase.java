@@ -289,6 +289,14 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
 			results = Lists.newArrayList(query.execute().collect());
 			assertEquals("[4]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where '' = p2");
+			explain = query.explain().split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
+			results = Lists.newArrayList(query.execute().collect());
+			assertEquals("[]", results.toString());
 		} finally {
 			tableEnv.executeSql("drop database db1 cascade");
 		}
@@ -319,7 +327,11 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
 			List<Row> results = Lists.newArrayList(query.execute().collect());
 			assertEquals("[3]", results.toString());
-			System.out.println(results);
+
+			// filter by timestamp partition
+			query = tableEnv.sqlQuery("select x from db1.part where timestamp '2018-08-08 08:08:09' = p2");
+			results = Lists.newArrayList(query.execute().collect());
+			assertEquals("[2]", results.toString());
 		} finally {
 			tableEnv.executeSql("drop database db1 cascade");
 		}
