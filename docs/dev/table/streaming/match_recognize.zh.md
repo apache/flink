@@ -55,10 +55,7 @@ FROM MyTable
 
 本页将更详细地解释每个关键字，并演示说明更复杂的示例。
 
-{% info Notice %}  Flink's implementation of the `MATCH_RECOGNIZE`
-clause is a subset of the full standard. Only those features documented in the following sections
-are supported. Additional features may be supported based on community feeback, please also take a look at the
-[known limitations](#known-limitations).
+<span class="label label-danger">注意</span> Flink 的 `MATCH_RECOGNIZE` 子句实现是完整标准的一个子集。仅支持以下部分中记录的功能。由于开发仍处于初期阶段，请查看[已知的局限](#已知的局限)。
 
 * This will be replaced by the TOC
 {:toc}
@@ -94,7 +91,7 @@ are supported. Additional features may be supported based on community feeback, 
 * [PATTERN](#定义模式) - 允许使用类似于 _正则表达式_ 的语法构造搜索的模式。
 * [DEFINE](#define--measures) - 本部分定义了模式变量必须满足的条件。
 
-<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于追加表（[append table](dynamic_tables.html#更新和追加查询)）。此外，它还总是生成一个追加表。
+<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于追加表（[append table]({% link dev/table/streaming/dynamic_tables.zh.md %}#更新和追加查询)）。此外，它还总是生成一个追加表。
 
 ### 示例
 
@@ -185,11 +182,11 @@ ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 事件顺序
 ---------------
 
-Apache Flink 可以根据时间（[processing time or event time](time_attributes.html)）进行模式搜索。
+Apache Flink 可以根据时间（[processing time or event time]({% link dev/table/streaming/time_attributes.zh.md %})）进行模式搜索。
 
 如果是 event time，则在将事件传递到内部模式状态机之前对其进行排序。所以，无论行添加到表的顺序如何，生成的输出都是正确的。相反，模式是按照每行中包含的时间指定的顺序计算的。
 
-`MATCH_RECOGNIZE` 子句假定升序的 [time attribute](time_attributes.html) 是 `ORDER BY` 子句的第一个参数。
+`MATCH_RECOGNIZE` 子句假定升序的 [time attribute]({% link dev/table/streaming/time_attributes.zh.md %}) 是 `ORDER BY` 子句的第一个参数。
 
 对于示例 `Ticker` 表，诸如 `ORDER BY rowtime ASC, price DESC` 的定义是有效的，但 `ORDER BY price, rowtime` 或者 `ORDER BY rowtime DESC, price ASC` 是无效的。
 
@@ -886,7 +883,7 @@ FROM Ticker
 时间属性
 ---------------
 
-为了在 `MATCH_RECOGNIZE` 之上应用一些后续查询，可能需要使用 [time attributes](time_attributes.html)。有两个函数可供选择：
+为了在 `MATCH_RECOGNIZE` 之上应用一些后续查询，可能需要使用 [time attributes]({% link dev/table/streaming/time_attributes.zh.md %})。有两个函数可供选择：
 
 <table class="table table-bordered">
   <thead>
@@ -903,7 +900,7 @@ FROM Ticker
       </td>
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
-        <p>结果属性是 <a href="time_attributes.html">rowtime attribute</a>，可用于后续基于时间的操作，例如 <a href="joins.html#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>结果属性是 <a href="{% link dev/table/streaming/time_attributes.zh.md %}">rowtime attribute</a>，可用于后续基于时间的操作，例如 <a href="{% link dev/table/streaming/joins.zh.md %}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>
@@ -911,7 +908,7 @@ FROM Ticker
         <code>MATCH_PROCTIME()</code><br/>
       </td>
       <td>
-        <p>返回 <a href="time_attributes.html#处理时间">proctime attribute</a>，该属性可用于随后的基于时间的操作，例如 <a href="joins.html#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>返回 <a href="{% link dev/table/streaming/time_attributes.zh.md %}#处理时间">proctime attribute</a>，该属性可用于随后的基于时间的操作，例如 <a href="{% link dev/table/streaming/joins.zh.md %}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
   </tbody>
@@ -950,7 +947,7 @@ DEFINE
   C as C.price > 20
 {% endhighlight %}
 
-<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time](query_configuration.html#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [clause](#时间约束)。
+<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({% link dev/table/streaming/query_configuration.zh.md %}#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [clause](#时间约束)。
 
 已知的局限
 -----------------
