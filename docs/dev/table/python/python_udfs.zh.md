@@ -1,5 +1,5 @@
 ---
-title: "自定义函数"
+title: "自定义函数（UDF）"
 nav-parent_id: python_tableapi
 nav-pos: 20
 ---
@@ -22,21 +22,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
+用户定义函数是重要的功能，因为它们极大地扩展了Python Table API程序的表达能力。
 
-**NOTE:** Python UDF execution requires Python version (3.5, 3.6 or 3.7) with PyFlink installed. It's required on both the client side and the cluster side.
+**NOTE:** 要执行Python UDF，需要安装Python版本3.5、3.6或3.7，并安装PyFlink。 客户端和集群端都需要它。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Scalar Functions
-It supports to use Python scalar functions in Python Table API programs. In order to define a Python scalar function,
-one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method.
-The behavior of a Python scalar function is defined by the evaluation method which is named `eval`.
-The evaluation method can support variable arguments, such as `eval(*args)`.
+## 标量函数（ScalarFunction）
 
-The following example shows how to define your own Python hash code function, register it in the TableEnvironment, and call it in a query.
-Note that you can configure your scalar function via a constructor before it is registered:
+它支持在Python Table API程序中使用Python标量函数。 如果要定义Python标量函数，
+可以在`pyflink.table.udf`中扩展基类ScalarFunction，并实现一种评估函数。
+Python标量函数的行为由名为`eval`的计算函数定义。
+计算函数可以支持可变参数，例如`eval(* args)`。
+
+以下示例显示了如何定义自己的Python哈希码函数，如何在TableEnvironment中注册它以及如何在查询中调用它。
+请注意，可以在注册构造函数之前通过构造函数配置标量函数：
 
 {% highlight python %}
 class HashCode(ScalarFunction):
@@ -51,13 +52,13 @@ table_env = BatchTableEnvironment.create(env)
 # configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# register the Python function
+# 注册Python函数
 table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
-# use the Python function in Python Table API
+# 在Python Table API中使用Python函数
 my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
 
-# use the Python function in SQL API
+# 在SQL API中使用Python函数
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
@@ -65,13 +66,13 @@ table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
-It also supports to use Java/Scala scalar functions in Python Table API programs.
+它还支持在Python Table API程序中使用Java / Scala标量函数。
 
 {% highlight python %}
 '''
 Java code:
 
-// The Java class must have a public no-argument constructor and can be founded in current Java classloader.
+// Java类必须具有公共的无参数构造函数，并且可以在当前的Java类加载器中创建。
 public class HashCode extends ScalarFunction {
   private int factor = 12;
 
@@ -86,13 +87,13 @@ table_env = BatchTableEnvironment.create(env)
 # configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# register the Java function
+# 注册Java函数
 table_env.register_java_function("hash_code", "my.java.function.HashCode")
 
-# use the Java function in Python Table API
+# 在Python Table API中使用Java函数
 my_table.select("string.hash_code(), hash_code(string)")
 
-# use the Java function in SQL API
+# 在SQL API中使用Java函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 {% endhighlight %}
 
@@ -100,54 +101,57 @@ table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
-There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`.
-The following examples show the different ways to define a Python scalar function which takes two columns of
-bigint as the input parameters and returns the sum of them as the result.
+除了扩展基类`ScalarFunction`之外，还有许多函数可以定义Python标量函数。
+以下示例显示了定义Python标量函数的不同函数，该函数需要两列(column) 
+bigint作为输入参数，并返回它们的总和作为结果。
 
 {% highlight python %}
-# option 1: extending the base class `ScalarFunction`
+# 选项1：扩展基类`ScalarFunction`
 class Add(ScalarFunction):
   def eval(self, i, j):
     return i + j
 
 add = udf(Add(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
 
-# option 2: Python function
+# 选项2：Python函数
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
 def add(i, j):
   return i + j
 
-# option 3: lambda function
+# 选项3：lambda函数
 add = udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
 
-# option 4: callable function
+# 选项4：可调用函数
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
 add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
 
-# option 5: partial function
+# 选项5：部分（partial）函数
 def partial_add(i, j, k):
   return i + j + k
 
 add = udf(functools.partial(partial_add, k=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
           DataTypes.BIGINT())
 
-# register the Python function
+# 注册Python函数
 table_env.register_function("add", add)
-# use the function in Python Table API
+# 使用Python Table API中的函数
 my_table.select("add(a, b)")
 {% endhighlight %}
 
-## Table Functions
-Similar to a Python user-defined scalar function, a user-defined table function takes zero, one, or 
-multiple scalar values as input parameters. However in contrast to a scalar function, it can return 
-an arbitrary number of rows as output instead of a single value. The return type of a Python UDTF 
-could be of types Iterable, Iterator or generator.
+## Table函数
+类似于Python用户定义的标量函数，用户定义的表函数采用零，一或
+多个标量值作为输入参数。 但是，与标量函数不同的是，它可以返回
+任意数量的行(row)作为输出而不是单个值。 Python UDTF（用户定义的Table函数）的返回类型
+可以是Iterable，Iterator或generator的类型。
 
-The following example shows how to define your own Python multi emit function, register it in the 
-TableEnvironment, and call it in a query.
+<!-- TODO: confirm that the following notice is deprecated  -->
+<!-- <span class="label label-info">注意</span> 当前，旧计划器（planner)在流和批处理模式下都支持Python UDTF，而在Blink计划器中，仅在流模式下才支持Python UDTF。 -->
+
+以下示例说明了如何定义自己的Python多发出函数，并将其注册到
+TableEnvironment，并在查询中调用它。
 
 {% highlight python %}
 class Split(TableFunction):
@@ -162,14 +166,14 @@ my_table = ...  # type: Table, table schema: [a: String]
 # configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# register the Python Table Function
+# 注册Python Table函数
 table_env.register_function("split", udtf(Split(), DataTypes.STRING(), [DataTypes.STRING(), DataTypes.INT()]))
 
-# use the Python Table Function in Python Table API
+# 在Python Table API中使用Python Table函数
 my_table.join_lateral("split(a) as (word, length)")
 my_table.left_outer_join_lateral("split(a) as (word, length)")
 
-# use the Python Table function in SQL API
+# 在SQL API中使用Python Table函数
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
@@ -179,13 +183,13 @@ table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE
 worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
-It also supports to use Java/Scala table functions in Python Table API programs.
+它还支持在Python Table API程序中使用Java / Scala表函数。
 {% highlight python %}
 '''
 Java code:
 
-// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
-// The java class must have a public no-argument constructor and can be founded in current java classloader.
+// 通用类型"Tuple2 <String，Integer>"将返回表的模式确定为（String，Integer）。
+// Java类必须具有公共的无参数构造函数，并且可以在当前的Java类加载器中创建。
 public class Split extends TableFunction<Tuple2<String, Integer>> {
     private String separator = " ";
     
@@ -205,19 +209,19 @@ my_table = ...  # type: Table, table schema: [a: String]
 # configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# Register the java function.
+# 注册java函数。
 table_env.register_java_function("split", "my.java.function.Split")
 
-# Use the table function in the Python Table API. "as" specifies the field names of the table.
+# 使用Python Table API中的table函数。 "as"指定表的字段名称。
 my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
 my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
 
-# Register the python function.
+# 注册python函数。
 
-# Use the table function in SQL with LATERAL and TABLE keywords.
-# CROSS JOIN a table function (equivalent to "join" in Table API).
+# 在SQL中将table函数与LATERAL和TABLE关键字一起使用。
+# CROSS JOIN表函数（等效于Table API中的"join"）。
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
-# LEFT JOIN a table function (equivalent to "left_outer_join" in Table API).
+# LEFT JOIN一个表函数（等同于Table API中的"left_outer_join"）。
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 
@@ -225,23 +229,23 @@ table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE
 worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
 Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
-Like Python scalar functions, you can use the above five ways to define Python TableFunctions.
+像Python标量函数一样，您可以使用上述五种方式来定义Python TableFunction。
 
-<span class="label label-info">Note</span> The only difference is that the return type of Python Table Functions needs to be an iterable, iterator or generator.
+<span class="label label-info">注意</span> 唯一的区别是Python Table Functions的返回类型必须是iterable（可迭代子类）, iterator（迭代器） or generator（生成器）。
 
 {% highlight python %}
-# option 1: generator function
+# 选项1：生成器函数
 @udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
 def generator_func(x):
       yield 1
       yield 2
 
-# option 2: return iterator
+# 选项2：返回迭代器
 @udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
 def iterator_func(x):
       return range(5)
 
-# option 3: return iterable
+# 选项3：返回可迭代子类
 @udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
 def iterable_func(x):
       result = [1, 2, 3]
