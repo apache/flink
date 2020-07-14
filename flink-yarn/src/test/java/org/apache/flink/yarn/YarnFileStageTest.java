@@ -219,7 +219,8 @@ public class YarnFileStageTest extends TestLogger {
 
 			final List<String> classpath = uploader.registerMultipleLocalResources(
 				Collections.singletonList(srcPath),
-				localResourceDirectory, LocalResourceType.FILE);
+				localResourceDirectory,
+				LocalResourceType.FILE);
 
 			final Path basePath = new Path(localResourceDirectory, srcPath.getName());
 			final Path nestedPath = new Path(basePath, "nested");
