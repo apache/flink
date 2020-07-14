@@ -84,10 +84,10 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 
 		LogicalTableScan scan = call.rel(1);
 		TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-		//we can not push filter twice
+		// we can not push filter twice
 		return tableSourceTable != null
 			&& tableSourceTable.tableSource() instanceof SupportsFilterPushDown
-			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.contains("filter"));
+			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.startsWith("filter=["));
 	}
 
 	@Override
@@ -126,10 +126,10 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 
 		List<Expression> remainingPredicates = new LinkedList<>();
 		remainingPredicates.addAll(Arrays.asList(predicates));
-		//record size before applyFilters for update statistics
+		// record size before applyFilters for update statistics
 		int originPredicatesSize = remainingPredicates.size();
 
-		//Update DynamicTableSource
+		// update DynamicTableSource
 		TableSourceTable oldTableSourceTable = relOptTable.unwrap(TableSourceTable.class);
 		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
 		ExpressionResolver resolver = ExpressionResolver.resolverFor(
@@ -140,24 +140,29 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 			}),
 			context.getCatalogManager().getDataTypeFactory())
 			.build();
-		SupportsFilterPushDown.Result result = ((SupportsFilterPushDown) newTableSource).applyFilters(resolver.resolve(remainingPredicates));
+		SupportsFilterPushDown.Result result = ((SupportsFilterPushDown) newTableSource).applyFilters(
+			resolver.resolve(remainingPredicates)
+		);
 
-		//record size after applyFilters for update statistics
+		// record size after applyFilters for update statistics
 		int updatedPredicatesSize = result.getRemainingFilters().size();
-		//set the newStatistic newTableSource and extraDigests
+		// set the newStatistic newTableSource and extraDigests
 		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
 			newTableSource,
 			getNewFlinkStatistic(oldTableSourceTable, originPredicatesSize, updatedPredicatesSize),
 			getNewExtraDigests(oldTableSourceTable, result.getAcceptedFilters())
 		);
-		TableScan newScan = new LogicalTableScan(scan.getCluster(), scan.getTraitSet(), scan.getHints(), newTableSourceTable);
+		TableScan newScan = LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());
 		// check whether framework still need to do a filter
 		if (result.getRemainingFilters().isEmpty() && unconvertedRexNodes.length == 0) {
 			call.transformTo(newScan);
 		} else {
 			relBuilder.push(scan);
 			ExpressionConverter converter = new ExpressionConverter(relBuilder);
-			List<RexNode> remainingConditions = result.getRemainingFilters().stream().map(e -> e.accept(converter)).collect(Collectors.toList());
+			List<RexNode> remainingConditions = result.getRemainingFilters()
+				.stream()
+				.map(e -> e.accept(converter))
+				.collect(Collectors.toList());
 			remainingConditions.addAll(Arrays.asList(unconvertedRexNodes));
 			RexNode remainingCondition = relBuilder.and(remainingConditions);
 			Filter newFilter = filter.copy(filter.getTraitSet(), newScan, remainingCondition);
