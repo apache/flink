@@ -120,7 +120,7 @@ The processing time attribute is defined with the `.proctime` property during sc
 DataStream<Tuple2<String, String>> stream = ...;
 
 // declare an additional logical field as a processing time attribute
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime()");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime());
 
 WindowedTable windowedTable = table.window(
         Tumble.over(lit(10).minutes())
