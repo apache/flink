@@ -68,7 +68,7 @@ This page will explain each keyword in more detail and will illustrate more comp
 
 {% info Notice %} Flink's implementation of the `MATCH_RECOGNIZE`
 clause is a subset of the full standard. Only those features documented in the following sections
-are supported. Additional features may be supported based on community feeback, please also take a look at the
+are supported. Additional features may be supported based on community feedback, please also take a look at the
 [known limitations](#known-limitations).
 
 * This will be replaced by the TOC
