@@ -282,7 +282,7 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
 				String key,
 				XContentType contentType,
 				byte[] document) {
-			return new IndexRequest(index, docType, index)
+			return new IndexRequest(index, docType, key)
 				.source(document, contentType);
 		}
 
