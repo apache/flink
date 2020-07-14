@@ -27,22 +27,6 @@ import org.junit._
 class SortValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
-  def testOffsetWithoutOrder(): Unit = {
-    val util = batchTestUtil()
-    val ds = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-
-    ds.offset(5)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFetchWithoutOrder(): Unit = {
-    val util = batchTestUtil()
-    val ds = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-
-    ds.fetch(5)
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testFetchBeforeOffset(): Unit = {
     val util = batchTestUtil()
     val ds = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
