@@ -24,7 +24,7 @@ import org.apache.flink.optimizer.plandump.DumpableConnection;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 /**
- * A connection between to operators. Represents an intermediate result
+ * A connection between two operators. Represents an intermediate result
  * and a data exchange between the two operators.
  *
  * The data exchange has a mode in which it performs (batch / pipelined).
