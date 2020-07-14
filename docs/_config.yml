@@ -67,6 +67,7 @@ is_stable: false
 show_outdated_warning: false
 
 previous_docs:
+  '1.11': http://ci.apache.org/projects/flink/flink-docs-release-1.11
   '1.10': http://ci.apache.org/projects/flink/flink-docs-release-1.10
   '1.9': http://ci.apache.org/projects/flink/flink-docs-release-1.9
   '1.8': http://ci.apache.org/projects/flink/flink-docs-release-1.8
