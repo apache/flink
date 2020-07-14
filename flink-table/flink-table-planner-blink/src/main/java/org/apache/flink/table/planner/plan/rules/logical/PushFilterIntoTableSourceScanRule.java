@@ -84,7 +84,7 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 
 		LogicalTableScan scan = call.rel(1);
 		TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-		//we can not push filter successfully twice
+		//we can not push filter twice
 		return tableSourceTable != null
 			&& tableSourceTable.tableSource() instanceof SupportsFilterPushDown
 			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.contains("filter"));
@@ -182,16 +182,22 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 
 	private String[] getNewExtraDigests(TableSourceTable tableSourceTable, List<ResolvedExpression> acceptedFilters) {
 		String[] oldExtraDigests = tableSourceTable.extraDigests();
-		String[] newExtraDigests = oldExtraDigests;
+		String extraDigest = null;
 		if (!acceptedFilters.isEmpty()) {
+			// push filter successfully
 			String pushedExpr = acceptedFilters
 				.stream()
 				.reduce((l, r) -> new CallExpression(AND, Arrays.asList(l, r), DataTypes.BOOLEAN()))
 				.get()
 				.toString();
-			String extraDigest = "filter=[" + pushedExpr + "]";
-			newExtraDigests = Stream.concat(Arrays.stream(oldExtraDigests), Arrays.stream(new String[]{extraDigest})).toArray(String[]::new);
+			extraDigest = "filter=[" + pushedExpr + "]";
+		} else {
+			// try to push filter, but insuccess
+			extraDigest = "filter=[]";
 		}
-		return newExtraDigests;
+		return Stream.concat(
+				Arrays.stream(oldExtraDigests),
+				Arrays.stream(new String[]{extraDigest}))
+			.toArray(String[]::new);
 	}
 }
