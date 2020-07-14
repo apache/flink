@@ -28,8 +28,10 @@ import org.apache.flink.table.types.DataType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
@@ -157,6 +159,8 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 
 		final TableSchema.Builder builder = TableSchema.builder();
 
+		final Set<String> regularColumns = new HashSet<>();
+
 		final TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
 		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
 			final TableColumn tableColumn = tableSchema.getTableColumns().get(i);
@@ -177,14 +181,18 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 				final String aliasName = descriptorProperties
 					.getOptionalString(SCHEMA + '.' + i + '.' + SCHEMA_FROM)
 					.orElse(fieldName);
-				builder.field(aliasName, dataType);
+				if (regularColumns.add(aliasName)) {
+					builder.field(aliasName, dataType);
+				}
 			}
 			// only use the rowtime attribute if it references a field
 			else if (isRowtime &&
 					descriptorProperties.isValue(timestampKey, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD)) {
 				final String aliasName = descriptorProperties
 					.getString(SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_FROM);
-				builder.field(aliasName, dataType);
+				if (regularColumns.add(aliasName)) {
+					builder.field(aliasName, dataType);
+				}
 			}
 		}
 
