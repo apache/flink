@@ -55,7 +55,7 @@ FROM MyTable
 
 本页将更详细地解释每个关键字，并演示说明更复杂的示例。
 
-<span class="label label-danger">注意</span> Flink 的 `MATCH_RECOGNIZE` 子句实现是完整标准的一个子集。仅支持以下部分中记录的功能。由于开发仍处于初期阶段，请查看[已知的局限](#known-limitations)。
+<span class="label label-danger">注意</span> Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。目前开发仍处于初期阶段，请查看[已知的局限](#known-limitations)。
 
 * This will be replaced by the TOC
 {:toc}
