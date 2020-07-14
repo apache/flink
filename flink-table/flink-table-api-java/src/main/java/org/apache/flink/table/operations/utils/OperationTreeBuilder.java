@@ -138,7 +138,7 @@ public final class OperationTreeBuilder {
 			typeFactory,
 			tableReferenceLookup,
 			new ProjectionOperationFactory(),
-			new SortOperationFactory(isStreamingMode),
+			new SortOperationFactory(),
 			new CalculatedTableFactory(),
 			new SetOperationFactory(isStreamingMode),
 			new AggregateOperationFactory(isStreamingMode),
@@ -402,7 +402,6 @@ public final class OperationTreeBuilder {
 	}
 
 	public QueryOperation sort(List<Expression> fields, QueryOperation child) {
-
 		ExpressionResolver resolver = getResolver(child);
 		List<ResolvedExpression> resolvedFields = resolver.resolve(fields);
 
@@ -410,11 +409,13 @@ public final class OperationTreeBuilder {
 	}
 
 	public QueryOperation limitWithOffset(int offset, QueryOperation child) {
-		return sortOperationFactory.createLimitWithOffset(offset, child);
+		ExpressionResolver resolver = getResolver(child);
+		return sortOperationFactory.createLimitWithOffset(offset, child, resolver.postResolverFactory());
 	}
 
 	public QueryOperation limitWithFetch(int fetch, QueryOperation child) {
-		return sortOperationFactory.createLimitWithFetch(fetch, child);
+		ExpressionResolver resolver = getResolver(child);
+		return sortOperationFactory.createLimitWithFetch(fetch, child, resolver.postResolverFactory());
 	}
 
 	public QueryOperation alias(List<Expression> fields, QueryOperation child) {

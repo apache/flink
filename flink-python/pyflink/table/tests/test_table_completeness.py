@@ -43,7 +43,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase
         # complete type system, which does not exist currently. It will be implemented after
         # FLINK-12408 is merged. So we exclude this method for the time being.
         return {'map', 'flatMap', 'flatAggregate',  'aggregate', 'leftOuterJoinLateral',
-                'createTemporalTableFunction', 'joinLateral', 'getQueryOperation'}
+                'createTemporalTableFunction', 'joinLateral', 'getQueryOperation', 'limit'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

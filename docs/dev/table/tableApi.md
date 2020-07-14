@@ -1924,10 +1924,10 @@ result = left.select("a, b, c").where("a.in(RightTable)")
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.orderBy($("a").asc()");
@@ -1938,10 +1938,10 @@ Table result = in.orderBy($("a").asc()");
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 
@@ -1973,10 +1973,10 @@ Table result3 = in.orderBy($("a").asc()).offset(10).fetch(5);
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, $"a", $"b", $"c")
 val result = in.orderBy($"a".asc)
@@ -1987,10 +1987,11 @@ val result = in.orderBy($"a".asc)
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, $"a", $"b", $"c")
 
@@ -2021,10 +2022,10 @@ val result3: Table = in.orderBy($"a".asc).offset(10).fetch(5)
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight python %}
 in = table_env.from_path("Source1").select("a, b, c")
 result = in.order_by("a.asc")
@@ -2035,10 +2036,10 @@ result = in.order_by("a.asc")
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight python %}
 in = table_env.from_path("Source1").select("a, b, c")
 
