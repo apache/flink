@@ -97,11 +97,12 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 
 	private static RexNode convertCast(CallExpression call, ConvertContext context) {
 		checkArgumentNumber(call, 2);
-		RexNode child = context.toRexNode(call.getChildren().get(0));
-		TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
+		final RexNode child = context.toRexNode(call.getChildren().get(0));
+		final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
+		final RelDataType targetRelDataType = context.getTypeFactory()
+			.createFieldTypeFromLogicalType(targetType.getOutputDataType().getLogicalType());
 		return context.getRelBuilder().getRexBuilder().makeAbstractCast(
-			context.getTypeFactory().createFieldTypeFromLogicalType(
-				type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+			targetRelDataType,
 			child);
 	}
 
