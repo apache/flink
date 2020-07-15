@@ -16,15 +16,21 @@
 # limitations under the License.
 ################################################################################
 # cython: language_level = 3
+# cython: infer_types = True
+# cython: profile=True
+# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 
-cdef class LengthPrefixInputStream:
-    cdef size_t read(self, char** data):
-        pass
-    cdef size_t available(self):
-        pass
+from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
-cdef class LengthPrefixOutputStream:
-    cdef void write(self, char*data, size_t length):
-        pass
-    cpdef void flush(self):
-        pass
+from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
+from pyflink.fn_execution.stream cimport LengthPrefixInputStream
+
+cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
+    cdef readonly StreamCoderImpl _value_coder
+
+cdef class BeamCoderImpl(StreamCoderImpl):
+    cdef readonly BaseCoderImpl _value_coder
+
+cdef class InputStreamWrapper:
+    cdef BaseCoderImpl _value_coder
+    cdef LengthPrefixInputStream _input_stream
