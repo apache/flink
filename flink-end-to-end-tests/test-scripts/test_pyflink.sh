@@ -162,49 +162,50 @@ wait_job_terminal_state "$JOB_ID" "FINISHED"
 stop_cluster
 
 # These tests are known to fail on JDK11. See FLINK-13719
-if [[ ${PROFILE} != *"jdk11"* ]]; then
-    cd "${CURRENT_DIR}/../"
-    source "${CURRENT_DIR}"/common_yarn_docker.sh
-    # test submitting on yarn
-    start_hadoop_cluster_and_prepare_flink
-
-    # copy test files
-    docker cp "${FLINK_PYTHON_DIR}/dev/lint-python.sh" master:/tmp/
-    docker cp "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar" master:/tmp/
-    docker cp "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" master:/tmp/
-    docker cp "${REQUIREMENTS_PATH}" master:/tmp/
-    docker cp "${FLINK_PYTHON_TEST_DIR}/python/python_job.py" master:/tmp/
-    PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
-    docker cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" master:/tmp/
-
-    # prepare environment
-    docker exec master bash -c "
-    /tmp/lint-python.sh -s miniconda
-    source /tmp/.conda/bin/activate
-    pip install /tmp/${PYFLINK_PACKAGE_FILE}
-    conda install -y -q zip=3.0
-    rm -rf /tmp/.conda/pkgs
-    cd /tmp
-    zip -q -r /tmp/venv.zip .conda
-    echo \"taskmanager.memory.task.off-heap.size: 100m\" >> \"/home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml\"
-    "
-
-    docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-        export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
-        /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
-        -pyfs /tmp/add_one.py \
-        -pyreq /tmp/requirements.txt \
-        -pyarch /tmp/venv.zip \
-        -pyexec venv.zip/.conda/bin/python \
-        /tmp/PythonUdfSqlJobExample.jar"
-
-    docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-        export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
-        /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
-        -pyfs /tmp/add_one.py \
-        -pyreq /tmp/requirements.txt \
-        -pyarch /tmp/venv.zip \
-        -pyexec venv.zip/.conda/bin/python \
-        -py /tmp/python_job.py \
-        pipeline.jars file:/tmp/PythonUdfSqlJobExample.jar"
-fi
+# YARN tests disabled because we can no longer download oracle jdk. See FLINK-18600
+#if [[ ${PROFILE} != *"jdk11"* ]]; then
+#    cd "${CURRENT_DIR}/../"
+#    source "${CURRENT_DIR}"/common_yarn_docker.sh
+#    # test submitting on yarn
+#    start_hadoop_cluster_and_prepare_flink
+#
+#    # copy test files
+#    docker cp "${FLINK_PYTHON_DIR}/dev/lint-python.sh" master:/tmp/
+#    docker cp "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar" master:/tmp/
+#    docker cp "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" master:/tmp/
+#    docker cp "${REQUIREMENTS_PATH}" master:/tmp/
+#    docker cp "${FLINK_PYTHON_TEST_DIR}/python/python_job.py" master:/tmp/
+#    PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
+#    docker cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" master:/tmp/
+#
+#    # prepare environment
+#    docker exec master bash -c "
+#    /tmp/lint-python.sh -s miniconda
+#    source /tmp/.conda/bin/activate
+#    pip install /tmp/${PYFLINK_PACKAGE_FILE}
+#    conda install -y -q zip=3.0
+#    rm -rf /tmp/.conda/pkgs
+#    cd /tmp
+#    zip -q -r /tmp/venv.zip .conda
+#    echo \"taskmanager.memory.task.off-heap.size: 100m\" >> \"/home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml\"
+#    "
+#
+#    docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
+#        export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
+#        /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
+#        -pyfs /tmp/add_one.py \
+#        -pyreq /tmp/requirements.txt \
+#        -pyarch /tmp/venv.zip \
+#        -pyexec venv.zip/.conda/bin/python \
+#        /tmp/PythonUdfSqlJobExample.jar"
+#
+#    docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
+#        export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
+#        /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
+#        -pyfs /tmp/add_one.py \
+#        -pyreq /tmp/requirements.txt \
+#        -pyarch /tmp/venv.zip \
+#        -pyexec venv.zip/.conda/bin/python \
+#        -py /tmp/python_job.py \
+#        pipeline.jars file:/tmp/PythonUdfSqlJobExample.jar"
+#fi
