@@ -44,20 +44,23 @@ import java.util.concurrent.CompletableFuture;
  */
 public class CollectResultIteratorTest extends TestLogger {
 
+	private final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
+
 	private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
 	private static final JobID TEST_JOB_ID = new JobID();
 	private static final String ACCUMULATOR_NAME = "accumulatorName";
 
 	@Test
-	public void testIteratorWithCheckpointAndFailure() throws Exception {
+	public void testCheckpointedIterator() throws Exception {
 		// run this random test multiple times
-		for (int testCount = 1000; testCount > 0; testCount--) {
+		for (int testCount = 200; testCount > 0; testCount--) {
 			List<Integer> expected = new ArrayList<>();
 			for (int i = 0; i < 200; i++) {
 				expected.add(i);
 			}
 
-			CollectResultIterator<Integer> iterator = createIteratorAndJobClient(expected, IntSerializer.INSTANCE).f0;
+			CollectResultIterator<Integer> iterator = createIteratorAndJobClient(
+				new TestCoordinationRequestHandler<>(expected, serializer, ACCUMULATOR_NAME)).f0;
 
 			List<Integer> actual = new ArrayList<>();
 			while (iterator.hasNext()) {
@@ -80,8 +83,8 @@ public class CollectResultIteratorTest extends TestLogger {
 			expected.add(i);
 		}
 
-		Tuple2<CollectResultIterator<Integer>, JobClient> tuple2 =
-			createIteratorAndJobClient(expected, IntSerializer.INSTANCE);
+		Tuple2<CollectResultIterator<Integer>, JobClient> tuple2 = createIteratorAndJobClient(
+			new TestCoordinationRequestHandler<>(expected, serializer, ACCUMULATOR_NAME));
 		CollectResultIterator<Integer> iterator = tuple2.f0;
 		JobClient jobClient = tuple2.f1;
 
@@ -96,16 +99,12 @@ public class CollectResultIteratorTest extends TestLogger {
 	}
 
 	private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(
-			List<Integer> expected,
-			TypeSerializer<Integer> serializer) {
+			TestCoordinationRequestHandler<Integer> handler) {
 		CollectResultIterator<Integer> iterator = new CollectResultIterator<>(
 			CompletableFuture.completedFuture(TEST_OPERATOR_ID),
 			serializer,
 			ACCUMULATOR_NAME,
 			0);
-
-		TestCoordinationRequestHandler<Integer> handler = new TestCoordinationRequestHandler<>(
-			expected, serializer, ACCUMULATOR_NAME);
 
 		TestJobClient.JobInfoProvider infoProvider = new TestJobClient.JobInfoProvider() {
 

@@ -69,9 +69,9 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 	private long checkpointingOffset;
 	private long checkpointedOffset;
 
-	private Map<String, OptionalFailure<Object>> accumulatorResults;
+	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
-	private Random random;
+	private final Random random;
 	private boolean closed;
 
 	public TestCoordinationRequestHandler(
@@ -110,10 +110,44 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 		Assert.assertTrue(request instanceof CollectCoordinationRequest);
 		CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 
+		updateBufferedResults();
+		Assert.assertTrue(offset <= collectRequest.getOffset());
+
+		List<T> subList = Collections.emptyList();
+		if (collectRequest.getVersion().equals(version)) {
+			while (buffered.size() > 0 && collectRequest.getOffset() > offset) {
+				buffered.removeFirst();
+				offset++;
+			}
+			subList = new ArrayList<>();
+			Iterator<T> iterator = buffered.iterator();
+			for (int i = 0; i < BATCH_SIZE && iterator.hasNext(); i++) {
+				subList.add(iterator.next());
+			}
+		}
+		List<byte[]> nextBatch = CollectTestUtils.toBytesList(subList, serializer);
+
+		CoordinationResponse response;
+		if (random.nextBoolean()) {
+			// with 50% chance we return valid result
+			response = new CollectCoordinationResponse(version, checkpointedOffset, nextBatch);
+		} else {
+			// with 50% chance we return invalid result
+			response = new CollectCoordinationResponse(
+				collectRequest.getVersion(),
+				-1,
+				Collections.emptyList());
+		}
+		return CompletableFuture.completedFuture(response);
+	}
+
+	private void updateBufferedResults() {
 		for (int i = random.nextInt(3) + 1; i > 0; i--) {
 			if (checkpointCountDown > 0) {
+				// countdown on-going checkpoint
 				checkpointCountDown--;
 				if (checkpointCountDown == 0) {
+					// complete a checkpoint
 					checkpointedData = checkpointingData;
 					checkpointedBuffered = checkpointingBuffered;
 					checkpointedOffset = checkpointingOffset;
@@ -148,40 +182,15 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 				// with 10% chance we fail
 				checkpointCountDown = 0;
 				version = UUID.randomUUID().toString();
+
+				// we shuffle data to simulate jobs whose result order is undetermined
+				Collections.shuffle(checkpointedData);
 				data = new LinkedList<>(checkpointedData);
+
 				buffered = new LinkedList<>(checkpointedBuffered);
 				offset = checkpointedOffset;
 			}
 		}
-
-		Assert.assertTrue(offset <= collectRequest.getOffset());
-
-		List<T> subList = Collections.emptyList();
-		if (collectRequest.getVersion().equals(version)) {
-			while (buffered.size() > 0 && collectRequest.getOffset() > offset) {
-				buffered.removeFirst();
-				offset++;
-			}
-			subList = new ArrayList<>();
-			Iterator<T> iterator = buffered.iterator();
-			for (int i = 0; i < BATCH_SIZE && iterator.hasNext(); i++) {
-				subList.add(iterator.next());
-			}
-		}
-		List<byte[]> nextBatch = CollectTestUtils.toBytesList(subList, serializer);
-
-		CoordinationResponse response;
-		if (random.nextBoolean()) {
-			// with 50% chance we return valid result
-			response = new CollectCoordinationResponse(version, checkpointedOffset, nextBatch);
-		} else {
-			// with 50% chance we return invalid result
-			response = new CollectCoordinationResponse(
-				collectRequest.getVersion(),
-				-1,
-				Collections.emptyList());
-		}
-		return CompletableFuture.completedFuture(response);
 	}
 
 	public boolean isClosed() {
