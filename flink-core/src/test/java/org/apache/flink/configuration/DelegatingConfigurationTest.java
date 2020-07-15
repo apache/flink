@@ -125,18 +125,13 @@ public class DelegatingConfigurationTest {
 		conf.setString("prefix.prefix.k2", "v2");
 		conf.setString("k3.prefix.prefix.k3", "v3");
 		DelegatingConfiguration dc = new DelegatingConfiguration(conf, "prefix.");
-//		System.out.println(dc.getString("k0", "empty")); // empty
-//		System.out.println(dc.getString("k1", "empty")); // v1
 		Properties properties = new Properties();
 		dc.addAllToProperties(properties);
 
 		Map<String, String> map = dc.toMap();
 		Properties mapProperties = new Properties();
 		for (Map.Entry<String, String> entry : map.entrySet()) {
-			mapProperties.put(entry.getKey(),entry.getValue());
-		}
-//		System.out.println(dc.toMap().get("k1")); // should be v1, but null
-//		System.out.println(dc.toMap().get("prefix.prefix.k1")); // should be null, but v1
-		assertEquals(properties,mapProperties);
+			mapProperties.put(entry.getKey(), entry.getValue());
+		assertEquals(properties, mapProperties);
 	}
 }
