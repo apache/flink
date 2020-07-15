@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.TestLimitableTableSource
-import org.junit.Assert.assertEquals
 import org.junit._
 
 class LimitITCase extends BatchTestBase {
@@ -96,13 +95,6 @@ class LimitITCase extends BatchTestBase {
   def testLimitWithLimitTable(): Unit = {
     checkSize(
       "SELECT * FROM LimitTable LIMIT 5",
-      5)
-  }
-
-  @Test
-  def testTableLimitWithLimitTable(): Unit = {
-    assertEquals(
-      executeQuery(tEnv.from("LimitTable").fetch(5)).size,
       5)
   }
 
