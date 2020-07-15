@@ -24,6 +24,8 @@ from pyflink.table.table_schema import TableSchema
 
 __all__ = ['TableResult']
 
+from pyflink.table.utils import CloseableIterator
+
 
 class TableResult(object):
     """
@@ -150,6 +152,18 @@ class TableResult(object):
         .. versionadded:: 1.11.0
         """
         return ResultKind._from_j_result_kind(self._j_table_result.getResultKind())
+
+    def collect(self):
+        """
+        Get the result contents as a closeable row iterator.
+
+        :return: A CloseableIterator.
+        """
+        data_types = self._j_table_result.getTableSchema().getFieldDataTypes()
+
+        j_iter = self._j_table_result.collect()
+
+        return CloseableIterator(j_iter, data_types)
 
     def print(self):
         """

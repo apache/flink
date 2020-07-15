@@ -19,6 +19,12 @@ package org.apache.flink.api.common.python;
 
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.types.Row;
 
 import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
@@ -30,9 +36,14 @@ import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 /**
@@ -55,7 +66,7 @@ public final class PythonBridgeUtils {
 		Unpickler unpickle = new Unpickler();
 		initialize();
 		List<Object[]> unpickledData = new ArrayList<>();
-		for (byte[] pickledData: data) {
+		for (byte[] pickledData : data) {
 			Object obj = unpickle.loads(pickledData);
 			if (batched) {
 				if (obj instanceof Object[]) {
@@ -177,7 +188,42 @@ public final class PythonBridgeUtils {
 		return objs;
 	}
 
+	private static List<byte[]> getPickledBytesFromRow(Row row, LogicalType[] dataTypes) throws IOException {
+		List<byte[]> pickledRowBytes = new ArrayList<>(row.getArity());
+		Pickler pickler = new Pickler();
+		for (int i = 0; i < row.getArity(); i++) {
+			Object fieldData = row.getField(i);
+			if (fieldData == null) {
+				pickledRowBytes.add(new byte[0]);
+			} else {
+				if (dataTypes[i] instanceof DateType) {
+					long time = ((LocalDate) fieldData).toEpochDay();
+					pickledRowBytes.add(pickler.dumps(time));
+				} else if (dataTypes[i] instanceof TimeType) {
+					long time = ((LocalTime) fieldData).toNanoOfDay();
+					time = time / 1000;
+					pickledRowBytes.add(pickler.dumps(time));
+				} else if (dataTypes[i] instanceof RowType) {
+					Row tmpRow = (Row) fieldData;
+					LogicalType[] tmpRowFieldTypes = new LogicalType[tmpRow.getArity()];
+					((RowType) dataTypes[i]).getChildren().toArray(tmpRowFieldTypes);
+					List<byte[]> rowFieldBytes = getPickledBytesFromRow(tmpRow, tmpRowFieldTypes);
+					pickledRowBytes.add(pickler.dumps(rowFieldBytes));
+				} else {
+					pickledRowBytes.add(pickler.dumps(row.getField(i)));
+				}
+			}
+		}
+		return pickledRowBytes;
+	}
+
+	public static List<byte[]> getPickledBytesFromRow(Row row, DataType[] dataTypes) throws IOException {
+		LogicalType[] logicalTypes = Arrays.stream(dataTypes).map(f -> f.getLogicalType()).toArray(LogicalType[]::new);
+		return getPickledBytesFromRow(row, logicalTypes);
+	}
+
 	private static boolean initialized = false;
+
 	private static void initialize() {
 		synchronized (PythonBridgeUtils.class) {
 			if (!initialized) {
