@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.util.CloseableIterator;
 
 import java.io.IOException;
@@ -40,18 +42,20 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
 	public CollectResultIterator(
 			CompletableFuture<OperatorID> operatorIdFuture,
 			TypeSerializer<T> serializer,
-			String accumulatorName) {
-		this.fetcher = new CollectResultFetcher<>(operatorIdFuture, serializer, accumulatorName);
+			String accumulatorName,
+			CheckpointConfig checkpointConfig) {
+		AbstractCollectResultBuffer<T> buffer = createBuffer(serializer, checkpointConfig);
+		this.fetcher = new CollectResultFetcher<>(buffer, operatorIdFuture, accumulatorName);
 		this.bufferedResult = null;
 	}
 
 	@VisibleForTesting
 	public CollectResultIterator(
+			AbstractCollectResultBuffer<T> buffer,
 			CompletableFuture<OperatorID> operatorIdFuture,
-			TypeSerializer<T> serializer,
 			String accumulatorName,
 			int retryMillis) {
-		this.fetcher = new CollectResultFetcher<>(operatorIdFuture, serializer, accumulatorName, retryMillis);
+		this.fetcher = new CollectResultFetcher<>(buffer, operatorIdFuture, accumulatorName, retryMillis);
 		this.bufferedResult = null;
 	}
 
@@ -90,6 +94,20 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
 		} catch (IOException e) {
 			fetcher.close();
 			throw new RuntimeException("Failed to fetch next result", e);
+		}
+	}
+
+	private AbstractCollectResultBuffer<T> createBuffer(
+			TypeSerializer<T> serializer,
+			CheckpointConfig checkpointConfig) {
+		if (checkpointConfig.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE) {
+			if (checkpointConfig.isCheckpointingEnabled()) {
+				return new CheckpointedCollectResultBuffer<>(serializer);
+			} else {
+				return new UncheckpointedCollectResultBuffer<>(serializer, false);
+			}
+		} else {
+			return new UncheckpointedCollectResultBuffer<>(serializer, true);
 		}
 	}
 }

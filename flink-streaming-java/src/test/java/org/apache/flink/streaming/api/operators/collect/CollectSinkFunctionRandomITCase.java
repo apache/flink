@@ -59,6 +59,26 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
 	private boolean jobFinished;
 
 	@Test
+	public void testUncheckpointedFunction() throws Exception {
+		// run multiple times for this random test
+		for (int testCount = 30; testCount > 0; testCount--) {
+			functionWrapper = new CollectSinkFunctionTestWrapper<>(serializer, MAX_RESULTS_PER_BATCH * 4);
+			jobFinished = false;
+
+			List<Integer> expected = new ArrayList<>();
+			for (int i = 0; i < 50; i++) {
+				expected.add(i);
+			}
+			Thread feeder = new ThreadWithException(new UncheckpointedDataFeeder(expected));
+
+			List<Integer> actual = runFunctionRandomTest(feeder);
+			assertResultsEqualAfterSort(expected, actual);
+
+			functionWrapper.closeWrapper();
+		}
+	}
+
+	@Test
 	public void testCheckpointedFunction() throws Exception {
 		// run multiple times for this random test
 		for (int testCount = 30; testCount > 0; testCount--) {
@@ -272,8 +292,8 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
 			this.results = new ArrayList<>();
 
 			this.iterator = new CollectResultIterator<>(
+				new CheckpointedCollectResultBuffer<>(serializer),
 				CompletableFuture.completedFuture(TEST_OPERATOR_ID),
-				serializer,
 				ACCUMULATOR_NAME,
 				0
 			);
