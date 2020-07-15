@@ -335,6 +335,23 @@ public class ValuesITCase extends StreamingTestBase {
 		assertThat(results, equalTo(Collections.singletonList(row)));
 	}
 
+	@Test
+	public void testNullabilityOverwriting() {
+		Row row = Row.of(1, "ABC");
+		Table values = tEnv().fromValues(
+			DataTypes.ROW(
+				DataTypes.FIELD("f0", DataTypes.INT().nullable()),
+				DataTypes.FIELD("f1", DataTypes.STRING().nullable())
+			),
+			Collections.singletonList(row));
+		tEnv().createTemporaryView("values_t", values);
+		Iterator<Row> iter = tEnv().executeSql("select * from values_t").collect();
+
+		List<Row> results = new ArrayList<>();
+		iter.forEachRemaining(results::add);
+		assertThat(results, equalTo(Collections.singletonList(row)));
+	}
+
 	/**
 	 * A {@link ScalarFunction} that takes all supported types as parameters and
 	 * converts them to String.
