@@ -118,7 +118,7 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 		this.currentWatermark = mark.getTimestamp();
 	}
 
-	private class SimpleContext implements SinkFunction.Context<RowData> {
+	private class SimpleContext implements SinkFunction.Context {
 
 		private StreamRecord<RowData> element;
 

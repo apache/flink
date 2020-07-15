@@ -112,7 +112,7 @@ object Companion {
 
 class ResultSink extends SinkFunction[(String, Long)] {
 
-  override def invoke(value: (String, Long), context: SinkFunction.Context[_]): Unit = {
+  override def invoke(value: (String, Long), context: SinkFunction.Context): Unit = {
     Companion.results.append(value.toString())
   }
 

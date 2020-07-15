@@ -30,8 +30,8 @@ public class SinkContextUtil {
 	 * Creates a {@link SinkFunction.Context} that
 	 * throws an exception when trying to access the current watermark or processing time.
 	 */
-	public static <T> SinkFunction.Context<T> forTimestamp(long timestamp) {
-		return new SinkFunction.Context<T>() {
+	public static SinkFunction.Context forTimestamp(long timestamp) {
+		return new SinkFunction.Context() {
 			@Override
 			public long currentProcessingTime() {
 				throw new RuntimeException("Not implemented");
