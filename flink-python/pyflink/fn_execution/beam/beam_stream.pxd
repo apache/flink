@@ -20,15 +20,15 @@
 from apache_beam.coders.coder_impl cimport InputStream as BInputStream
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 
-from pyflink.fn_execution.stream cimport InputStream, OutputStream
+from pyflink.fn_execution.stream cimport LengthPrefixInputStream, LengthPrefixOutputStream
 
-cdef class BeamInputStream(InputStream):
+cdef class BeamInputStream(LengthPrefixInputStream):
     cdef char*_input_data
     cdef size_t _input_buffer_size
     cdef size_t _input_pos
     cdef void _parse_input_stream(self, BInputStream input_stream)
 
-cdef class BeamOutputStream(OutputStream):
+cdef class BeamOutputStream(LengthPrefixOutputStream):
     cdef char*_output_data
     cdef size_t _output_pos
     cdef size_t _output_buffer_size

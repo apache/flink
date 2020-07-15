@@ -19,11 +19,11 @@
 
 cimport libc.stdint
 
-from pyflink.fn_execution.stream cimport InputStream, OutputStream
+from pyflink.fn_execution.stream cimport LengthPrefixInputStream, LengthPrefixOutputStream
 
 cdef class BaseCoderImpl:
-    cpdef void encode(self, value, OutputStream output_stream)
-    cpdef decode(self, InputStream input_stream)
+    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
 
 cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef readonly list _field_coders
@@ -57,7 +57,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                               size_t remaining_bits_num)
 
     # encode data to output_stream
-    cdef void _encode_one_row(self, value, OutputStream output_stream)
+    cdef void _encode_one_row(self, value, LengthPrefixOutputStream output_stream)
     cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
                             item)
     cdef void _encode_field_simple(self, TypeName field_type, item)
@@ -72,7 +72,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef void _encode_bytes(self, char*b, size_t length)
 
     # decode data from input_stream
-    cdef void _decode_next_row(self, InputStream input_stream)
+    cdef void _decode_next_row(self, LengthPrefixInputStream input_stream)
     cdef object _decode_field(self, CoderType coder_type, TypeName field_type,
                               FieldCoder field_coder)
     cdef object _decode_field_simple(self, TypeName field_type)

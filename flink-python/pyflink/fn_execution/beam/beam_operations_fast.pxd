@@ -15,22 +15,27 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-# cython: language_level = 3
-# cython: infer_types = True
-# cython: profile=True
-# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+# cython: language_level=3
 
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
+from apache_beam.runners.worker.operations cimport Operation
 
-from pyflink.fn_execution.fast_coder_impl cimport BaseCoderImpl
-from pyflink.fn_execution.stream cimport InputStream
+from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
 
-cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
-    cdef readonly StreamCoderImpl _value_coder
+cdef class BeamStatelessFunctionOperation(Operation):
+    cdef Operation consumer
+    cdef StreamCoderImpl _value_coder_impl
+    cdef BaseCoderImpl _output_coder
+    cdef list user_defined_funcs
+    cdef object func
+    cdef bint _is_python_coder
+    cdef bint _metric_enabled
+    cdef object base_metric_group
 
-cdef class BeamCoderImpl(StreamCoderImpl):
-    cdef readonly BaseCoderImpl _value_coder
+    cdef void _update_gauge(self, base_metric_group)
 
-cdef class InputStreamWrapper:
-    cdef BaseCoderImpl _value_coder
-    cdef InputStream _input_stream
+cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
+    pass
+
+cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
+    pass

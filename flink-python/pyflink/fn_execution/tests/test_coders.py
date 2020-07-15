@@ -26,7 +26,7 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     LocalZonedTimestampCoder
 
 try:
-    from pyflink.fn_execution import fast_coder_impl  # noqa # pylint: disable=unused-import
+    from pyflink.fn_execution import coder_impl_fast  # noqa # pylint: disable=unused-import
 
     have_cython = True
 except ImportError:

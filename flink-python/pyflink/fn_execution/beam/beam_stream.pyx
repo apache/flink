@@ -23,7 +23,7 @@
 from libc.stdlib cimport realloc
 from libc.string cimport memcpy
 
-cdef class BeamInputStream(InputStream):
+cdef class BeamInputStream(LengthPrefixInputStream):
     def __cinit__(self, input_stream, size):
         self._input_buffer_size = size
         self._input_pos = 0
@@ -53,7 +53,7 @@ cdef class BeamInputStream(InputStream):
         self._input_data = input_stream.allc
         input_stream.pos = self._input_buffer_size
 
-cdef class BeamOutputStream(OutputStream):
+cdef class BeamOutputStream(LengthPrefixOutputStream):
     def __cinit__(self, output_stream):
         self._output_stream = output_stream
         self._parse_output_stream(output_stream)

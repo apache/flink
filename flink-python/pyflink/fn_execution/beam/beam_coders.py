@@ -24,16 +24,14 @@ from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
-from pyflink.fn_execution.beam import beam_slow_coder_impl
+from pyflink.fn_execution.beam import beam_coder_impl_slow
 
 try:
-    from pyflink.fn_execution import fast_coder_impl as coder_impl
-    from pyflink.fn_execution.beam.beam_coder_impl import BeamCoderImpl, \
-        PassThroughLengthPrefixCoderImpl
+    from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import BeamCoderImpl
 except ImportError:
-    coder_impl = beam_slow_coder_impl
+    beam_coder_impl = beam_coder_impl_slow
     BeamCoderImpl = lambda a: a
-    PassThroughLengthPrefixCoderImpl = coder_impl.PassThroughLengthPrefixCoderImpl
 
 from pyflink.fn_execution import flink_fn_execution_pb2, coders
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
@@ -51,7 +49,7 @@ class PassThroughLengthPrefixCoder(LengthPrefixCoder):
         super(PassThroughLengthPrefixCoder, self).__init__(value_coder)
 
     def _create_impl(self):
-        return PassThroughLengthPrefixCoderImpl(self._value_coder.get_impl())
+        return beam_coder_impl.PassThroughLengthPrefixCoderImpl(self._value_coder.get_impl())
 
     def __repr__(self):
         return 'PassThroughLengthPrefixCoder[%s]' % self._value_coder
@@ -145,7 +143,7 @@ class ArrowCoder(FastCoder):
         self._timezone = timezone
 
     def _create_impl(self):
-        return beam_slow_coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
+        return beam_coder_impl_slow.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def to_type_hint(self):
         import pandas as pd
