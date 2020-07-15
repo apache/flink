@@ -15,12 +15,16 @@
 # #  See the License for the specific language governing permissions and
 # # limitations under the License.
 ################################################################################
+import datetime
+import decimal
 import glob
 import os
 import pathlib
 import sys
 
 from py4j.protocol import Py4JJavaError
+
+from pyflink.common import RowKind
 from pyflink.common.typeinfo import Types
 
 from pyflink.dataset import ExecutionEnvironment
@@ -35,10 +39,10 @@ from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
-from pyflink.table.types import RowType
+from pyflink.table.types import RowType, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase
 from pyflink.util.utils import get_j_env_configuration
 
 
@@ -454,6 +458,24 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
                     "(True, <Row(2, 'Hello')>)"]
         self.assertEqual(result, expected)
 
+    def test_collect_null_value_result(self):
+        element_data = [(1, None, 'a'),
+                        (3, 4, 'b'),
+                        (5, None, 'a'),
+                        (7, 8, 'b')]
+        source = self.t_env.from_elements(element_data,
+                                          DataTypes.ROW([DataTypes.FIELD('a', DataTypes.INT()),
+                                                         DataTypes.FIELD('b', DataTypes.INT()),
+                                                         DataTypes.FIELD('c', DataTypes.STRING())]))
+        table_result = source.execute()
+        expected_result = [Row([1, None, 'a']), Row([3, 4, 'b']), Row([5, None, 'a']),
+                           Row([7, 8, 'b'])]
+        with table_result.collect() as results:
+            collected_result = []
+            for result in results:
+                collected_result.append(result)
+            self.assertEqual(collected_result, expected_result)
+
     def test_set_jars(self):
         self.verify_set_java_dependencies("pipeline.jars", self.execute_with_t_env)
 
@@ -593,6 +615,157 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
     def get_jar_url(jar_filename_pattern):
         test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))
         return [pathlib.Path(jar_path).as_uri() for jar_path in test_jars]
+
+    def test_collect_for_all_data_types(self):
+        expected_result = [Row([1, None, 1, True, 32767, -2147483648, 1.23,
+                           1.98932, bytearray(b'pyflink'), 'pyflink',
+                           datetime.date(2014, 9, 13), datetime.time(12, 0),
+                           datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                           [Row(['[pyflink]']), Row(['[pyflink]']),
+                            Row(['[pyflink]'])], {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                           decimal.Decimal('1000000000000000000.05'),
+                           decimal.Decimal('1000000000000000000.05999999999999999899999999999')])]
+        source = self.t_env.from_elements([(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                                            bytearray(b'pyflink'), 'pyflink',
+                                            datetime.date(2014, 9, 13),
+                                            datetime.time(hour=12, minute=0, second=0,
+                                                          microsecond=123000),
+                                            datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                                            [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
+                                            {1: Row(['flink']), 2: Row(['pyflink'])},
+                                            decimal.Decimal('1000000000000000000.05'),
+                                            decimal.Decimal(
+                                                '1000000000000000000.0599999999999999989'
+                                                '9999999999'))],
+                                          DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                                         DataTypes.FIELD("b", DataTypes.BIGINT()),
+                                                         DataTypes.FIELD("c", DataTypes.TINYINT()),
+                                                         DataTypes.FIELD("d", DataTypes.BOOLEAN()),
+                                                         DataTypes.FIELD("e", DataTypes.SMALLINT()),
+                                                         DataTypes.FIELD("f", DataTypes.INT()),
+                                                         DataTypes.FIELD("g", DataTypes.FLOAT()),
+                                                         DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                                                         DataTypes.FIELD("i", DataTypes.BYTES()),
+                                                         DataTypes.FIELD("j", DataTypes.STRING()),
+                                                         DataTypes.FIELD("k", DataTypes.DATE()),
+                                                         DataTypes.FIELD("l", DataTypes.TIME()),
+                                                         DataTypes.FIELD("m",
+                                                                         DataTypes.TIMESTAMP(3)),
+                                                         DataTypes.FIELD("n", DataTypes.ARRAY(
+                                                             DataTypes.ROW([DataTypes.FIELD('ss2',
+                                                                            DataTypes.STRING())]))),
+                                                         DataTypes.FIELD("o", DataTypes.MAP(
+                                                             DataTypes.BIGINT(), DataTypes.ROW(
+                                                                 [DataTypes.FIELD('ss',
+                                                                  DataTypes.STRING())]))),
+                                                         DataTypes.FIELD("p",
+                                                                         DataTypes.DECIMAL(38, 18)),
+                                                         DataTypes.FIELD("q",
+                                                                         DataTypes.DECIMAL(38,
+                                                                                           18))]))
+        table_result = source.execute()
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+            self.assertEqual(expected_result, collected_result)
+
+    def test_collect_with_retract(self):
+
+        expected_row_kinds = [RowKind.INSERT, RowKind.DELETE, RowKind.INSERT, RowKind.INSERT,
+                              RowKind.DELETE, RowKind.INSERT]
+        element_data = [(1, 2, 'a'),
+                        (3, 4, 'b'),
+                        (5, 6, 'a'),
+                        (7, 8, 'b')]
+        field_names = ['a', 'b', 'c']
+        source = self.t_env.from_elements(element_data, field_names)
+        table_result = self.t_env.execute_sql(
+            "SELECT SUM(a), c FROM %s group by c" % source)
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+
+            collected_result = [str(result) + ',' + str(result.get_row_kind())
+                                for result in collected_result]
+            expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
+                               Row([3, 'b']), Row([10, 'b'])]
+            for i in range(len(expected_result)):
+                expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
+            expected_result.sort()
+            collected_result.sort()
+            self.assertEqual(expected_result, collected_result)
+
+
+class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamTableTestCase):
+
+    def test_collect_with_retract(self):
+        expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
+                              RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER]
+        element_data = [(1, 2, 'a'),
+                        (3, 4, 'b'),
+                        (5, 6, 'a'),
+                        (7, 8, 'b')]
+        field_names = ['a', 'b', 'c']
+        source = self.t_env.from_elements(element_data, field_names)
+        table_result = self.t_env.execute_sql(
+            "SELECT SUM(a), c FROM %s group by c" % source)
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+
+            collected_result = [str(result) + ',' + str(result.get_row_kind())
+                                for result in collected_result]
+            expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
+                               Row([3, 'b']), Row([10, 'b'])]
+            for i in range(len(expected_result)):
+                expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
+            expected_result.sort()
+            collected_result.sort()
+            self.assertEqual(expected_result, collected_result)
+
+    def test_collect_for_all_data_types(self):
+        expected_result = [Row([1, None, 1, True, 32767, -2147483648, 1.23,
+                           1.98932, bytearray(b'pyflink'), 'pyflink',
+                           datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
+                           datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                           [Row(['[pyflink]']), Row(['[pyflink]']), Row(['[pyflink]'])],
+                           {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                           decimal.Decimal('1000000000000000000.050000000000000000'),
+                           decimal.Decimal('1000000000000000000.059999999999999999')])]
+        source = self.t_env.from_elements(
+            [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932, bytearray(b'pyflink'), 'pyflink',
+             datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
+             microsecond=123000), datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+             [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
+              {1: Row(['flink']), 2: Row(['pyflink'])}, decimal.Decimal('1000000000000000000.05'),
+              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))], DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()), DataTypes.FIELD("b", DataTypes.BIGINT()),
+                 DataTypes.FIELD("c", DataTypes.TINYINT()),
+                 DataTypes.FIELD("d", DataTypes.BOOLEAN()),
+                 DataTypes.FIELD("e", DataTypes.SMALLINT()),
+                 DataTypes.FIELD("f", DataTypes.INT()),
+                 DataTypes.FIELD("g", DataTypes.FLOAT()),
+                 DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                 DataTypes.FIELD("i", DataTypes.BYTES()),
+                 DataTypes.FIELD("j", DataTypes.STRING()),
+                 DataTypes.FIELD("k", DataTypes.DATE()),
+                 DataTypes.FIELD("l", DataTypes.TIME()),
+                 DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
+                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD('ss2',
+                                                      DataTypes.STRING())]))),
+                 DataTypes.FIELD("o", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.ROW(
+                     [DataTypes.FIELD('ss', DataTypes.STRING())]))),
+                 DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)), DataTypes.FIELD("q",
+                 DataTypes.DECIMAL(38, 18))]))
+        table_result = source.execute()
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+            self.assertEqual(expected_result, collected_result)
 
 
 class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase):
