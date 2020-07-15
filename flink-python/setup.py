@@ -66,10 +66,6 @@ else:
                 sources=["pyflink/fn_execution/fast_coder_impl.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
-                name="pyflink.fn_execution.fast_operations",
-                sources=["pyflink/fn_execution/fast_operations.pyx"],
-                include_dirs=["pyflink/fn_execution/"]),
-            Extension(
                 name="pyflink.fn_execution.stream",
                 sources=["pyflink/fn_execution/stream.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
@@ -81,6 +77,10 @@ else:
                 name="pyflink.fn_execution.beam.beam_coder_impl",
                 sources=["pyflink/fn_execution/beam/beam_coder_impl.pyx"],
                 include_dirs=["pyflink/fn_execution/beam"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_operations",
+                sources=["pyflink/fn_execution/beam/beam_operations.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
         ])
     except ImportError:
         if os.path.exists("pyflink/fn_execution/fast_coder_impl.c"):
@@ -88,10 +88,6 @@ else:
                 Extension(
                     name="pyflink.fn_execution.fast_coder_impl",
                     sources=["pyflink/fn_execution/fast_coder_impl.c"],
-                    include_dirs=["pyflink/fn_execution/"]),
-                Extension(
-                    name="pyflink.fn_execution.fast_operations",
-                    sources=["pyflink/fn_execution/fast_operations.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
                     name="pyflink.fn_execution.stream",
@@ -104,6 +100,10 @@ else:
                 Extension(
                     name="pyflink.fn_execution.beam.beam_coder_impl",
                     sources=["pyflink/fn_execution/beam/beam_coder_impl.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_operations",
+                    sources=["pyflink/fn_execution/beam/beam_operations.c"],
                     include_dirs=["pyflink/fn_execution/beam"]),
             ])
         else:

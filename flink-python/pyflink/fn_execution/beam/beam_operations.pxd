@@ -15,18 +15,27 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
+# cython: language_level=3
 
-# force to register the operations to SDK Harness
-try:
-    import pyflink.fn_execution.beam.beam_operations
-except ImportError:
-    import pyflink.fn_execution.beam.beam_slow_operations
+from apache_beam.coders.coder_impl cimport StreamCoderImpl
+from apache_beam.runners.worker.operations cimport Operation
 
-# force to register the coders to SDK Harness
-import pyflink.fn_execution.beam.beam_coders # noqa # pylint: disable=unused-import
+from pyflink.fn_execution.fast_coder_impl cimport BaseCoderImpl
 
-import apache_beam.runners.worker.sdk_worker_main
+cdef class BeamStatelessFunctionOperation(Operation):
+    cdef Operation consumer
+    cdef StreamCoderImpl _value_coder_impl
+    cdef BaseCoderImpl _output_coder
+    cdef list user_defined_funcs
+    cdef object func
+    cdef bint _is_python_coder
+    cdef bint _metric_enabled
+    cdef object base_metric_group
 
-if __name__ == '__main__':
-    apache_beam.runners.worker.sdk_worker_main.main(sys.argv)
+    cdef void _update_gauge(self, base_metric_group)
+
+cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
+    pass
+
+cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
+    pass
