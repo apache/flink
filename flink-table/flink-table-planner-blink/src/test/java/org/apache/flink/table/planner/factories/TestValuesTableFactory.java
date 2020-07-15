@@ -84,6 +84,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.collection.Seq;
 
+import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.LOG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -540,40 +541,55 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
 			List<Expression> children = binExpr.getChildren();
 			Preconditions.checkArgument(children.size() == 2);
-			Comparable lhsValue = getValue(children.get(0), row);
-			Comparable rhsValue = getValue(children.get(1), row);
-			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
+			Object lhsValue = getValue(children.get(0), row);
+			Object rhsValue = getValue(children.get(1), row);
+			// validate that literal is comparable
+			if (!isComparable(lhsValue, binExpr) || !isComparable(rhsValue, binExpr)) {
+				return false;
+			}
 
+			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
 			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) > 0;
+				return ((Comparable) lhsValue).compareTo(rhsValue) > 0;
 			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) < 0;
+				return ((Comparable) lhsValue).compareTo(rhsValue) < 0;
 			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) >= 0;
+				return ((Comparable) lhsValue).compareTo(rhsValue) >= 0;
 			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) <= 0;
+				return ((Comparable) lhsValue).compareTo(rhsValue) <= 0;
 			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) == 0;
+				return ((Comparable) lhsValue).compareTo(rhsValue) == 0;
 			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) != 0;
+				return ((Comparable) lhsValue).compareTo(rhsValue) != 0;
 			} else {
 				return false;
 			}
 		}
 
-		private Comparable<?> getValue(Expression expr, Row row) {
+		private boolean isComparable(Object value, CallExpression binExpr) {
+			// validate that literal is comparable
+			if (!(value instanceof Comparable)) {
+				LOG.warn("Encountered a non-comparable literal of type {}." +
+					"Cannot push predicate [{}] into ParquetTablesource." +
+					"This is a bug and should be reported.", value.getClass().getCanonicalName(), binExpr);
+				return false;
+			}
+			return true;
+		}
+
+		private Object getValue(Expression expr, Row row) {
 			if (expr instanceof ValueLiteralExpression) {
 				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
-				return (Comparable) value.orElse(null);
+				return value.orElse(null);
 			}
 
 			if (expr instanceof FieldReferenceExpression) {
 				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(((FieldReferenceExpression) expr).getName());
-				return (Comparable) row.getField(idx);
+				return row.getField(idx);
 			}
 
 			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				Comparable child = getValue(expr.getChildren().get(0), row);
+				Object child = getValue(expr.getChildren().get(0), row);
 				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
 				if (functionDefinition.equals(UPPER)) {
 					return child.toString().toUpperCase();
