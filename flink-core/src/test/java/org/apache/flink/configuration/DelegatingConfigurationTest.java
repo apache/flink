@@ -132,6 +132,7 @@ public class DelegatingConfigurationTest {
 		Properties mapProperties = new Properties();
 		for (Map.Entry<String, String> entry : map.entrySet()) {
 			mapProperties.put(entry.getKey(), entry.getValue());
+		}
 		assertEquals(properties, mapProperties);
 	}
 }
