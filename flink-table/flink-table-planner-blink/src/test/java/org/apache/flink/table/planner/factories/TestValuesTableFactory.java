@@ -495,13 +495,17 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		private boolean shouldPushDown(Expression expr) {
 			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
-				return shouldPushDownUnaryExpression(expr.getChildren().get(0))
-					&& shouldPushDownUnaryExpression(expr.getChildren().get(1));
+				return shouldPushDownUnaryExpression(((CallExpression) expr).getResolvedChildren().get(0))
+					&& shouldPushDownUnaryExpression(((CallExpression) expr).getResolvedChildren().get(1));
 			}
 			return false;
 		}
 
-		private boolean shouldPushDownUnaryExpression(Expression expr) {
+		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr) {
+			// validate that type is comparable
+			if (isComparable(expr.getOutputDataType().getConversionClass())) {
+				return false;
+			}
 			if (expr instanceof FieldReferenceExpression) {
 				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
 					return true;
@@ -509,15 +513,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 
 			if (expr instanceof ValueLiteralExpression) {
-				// validate that literal is comparable
-				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
-				return isComparable(value.orElse(null));
+				return true;
 			}
 
 			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
 				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
 					|| ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
-					return shouldPushDownUnaryExpression(expr.getChildren().get(0));
+					return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0));
 				}
 			}
 			// other resolved expressions return false
@@ -563,12 +565,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 		}
 
-		private boolean isComparable(Object value) {
+		private boolean isComparable(Class<?> clazz) {
 			// validate that literal is comparable
-			if (!(value instanceof Comparable)) {
-				LOG.warn("Encountered a non-comparable literal of type {}." +
-					"Cannot push predicate into TestValuesTableSource." +
-					"This is a bug and should be reported.", value.getClass().getCanonicalName());
+			if (!Comparable.class.isAssignableFrom(clazz)) {
+				LOG.warn("Encountered a non-comparable type {}. Cannot push predicate into TestValuesTableSource." +
+					"This is a bug and should be reported.", clazz.getCanonicalName());
 				return false;
 			}
 			return true;
