@@ -60,13 +60,12 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 			final StreamStatusMaintainer streamStatusMaintainer,
 			final OperatorChain<?, ?> operatorChain) throws Exception {
 
-		run(lockingObject, streamStatusMaintainer, output, operatorChain);
+		run(lockingObject, streamStatusMaintainer, output);
 	}
 
 	public void run(final Object lockingObject,
 			final StreamStatusMaintainer streamStatusMaintainer,
-			final Output<StreamRecord<OUT>> collector,
-			final OperatorChain<?, ?> operatorChain) throws Exception {
+			final Output<StreamRecord<OUT>> collector) throws Exception {
 
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
@@ -107,7 +106,11 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 				// in theory, the subclasses of StreamSource may implement the BoundedOneInput interface,
 				// so we still need the following call to end the input
 				synchronized (lockingObject) {
-					operatorChain.endMainOperatorInput(1);
+					if (this instanceof BoundedOneInput) {
+						((BoundedOneInput) this).endInput();
+					} else if (this instanceof BoundedMultiInput) {
+						((BoundedMultiInput) this).endInput(1);
+					}
 				}
 			}
 		} finally {

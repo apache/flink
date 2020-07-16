@@ -76,7 +76,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
-			operatorChain,
 			setupNumRecordsInCounter(mainOperator));
 	}
 }

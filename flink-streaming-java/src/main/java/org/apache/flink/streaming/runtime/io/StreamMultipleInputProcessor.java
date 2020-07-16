@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.NetworkInputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.SourceInputConfig;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -58,9 +59,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 	private final MultipleInputSelectionHandler inputSelectionHandler;
 
 	private final InputProcessor<?>[] inputProcessors;
-
-	private final OperatorChain<?, ?> operatorChain;
-
 	/**
 	 * Stream status for the two inputs. We need to keep track for determining when
 	 * to forward stream status changes downstream.
@@ -128,8 +126,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			}
 
 		}
-
-		this.operatorChain = checkNotNull(operatorChain);
 	}
 
 	@Override
@@ -162,7 +158,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		lastReadInputIndex = readingInputIndex;
 		InputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
-		checkFinished(inputStatus, readingInputIndex);
 		return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
 	}
 
@@ -175,13 +170,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		isPrepared = true;
 
 		return selectNextReadingInputIndex();
-	}
-
-	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
-		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endMainOperatorInput(getInputId(inputIndex));
-			inputSelectionHandler.nextSelection();
-		}
 	}
 
 	@Override
@@ -242,10 +230,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		}
 	}
 
-	private int getInputId(int inputIndex) {
-		return inputIndex + 1;
-	}
-
 	private boolean allStreamStatusesAreIdle() {
 		for (StreamStatus streamStatus : streamStatuses) {
 			if (streamStatus.isActive()) {
@@ -267,7 +251,12 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		}
 
 		public InputStatus processInput() throws Exception {
-			return taskInput.emitNext(dataOutput);
+			InputStatus status = taskInput.emitNext(dataOutput);
+			if (status == InputStatus.END_OF_INPUT) {
+				dataOutput.endOutput();
+				inputSelectionHandler.nextSelection();
+			}
+			return status;
 		}
 
 		public void close() throws IOException {
@@ -334,8 +323,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		@Override
 		public void emitStreamStatus(StreamStatus streamStatus) {
-			final StreamStatus anotherStreamStatus;
-
 			streamStatuses[inputIndex] = streamStatus;
 
 			// check if we need to toggle the task's stream status
@@ -352,6 +339,13 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
 			input.processLatencyMarker(latencyMarker);
+		}
+
+		@Override
+		public void endOutput() throws Exception {
+			if (input instanceof BoundedOneInput) {
+				((BoundedOneInput) input).endInput();
+			}
 		}
 	}
 }

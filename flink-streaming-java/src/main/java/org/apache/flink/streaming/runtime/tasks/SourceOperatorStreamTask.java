@@ -53,8 +53,8 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
 		inputProcessor = new StreamOneInputProcessor<>(
 			input,
-			output,
-			operatorChain);
+			output
+		);
 	}
 
 	/**

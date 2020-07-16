@@ -26,6 +26,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
@@ -90,8 +91,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
-				output,
-				operatorChain);
+				output
+			);
 		}
 		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique
@@ -171,6 +172,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
 			operator.processLatencyMarker(latencyMarker);
+		}
+
+		@Override
+		public void endOutput() throws Exception {
+			if (operator instanceof BoundedOneInput) {
+				((BoundedOneInput) operator).endInput();
+			}
 		}
 	}
 }

@@ -169,7 +169,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 			operator.getContainingTask(),
 			StreamTask.createRecordWriterDelegate(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
 		try {
-			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<>(output), operatorChain);
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<>(output));
 			operator.close();
 		} finally {
 			operatorChain.releaseOutputs();

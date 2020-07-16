@@ -57,5 +57,7 @@ public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
 		void emitStreamStatus(StreamStatus streamStatus) throws Exception;
 
 		void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception;
+
+		default void endOutput() throws Exception {}
 	}
 }

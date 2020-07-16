@@ -376,17 +376,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 * Ends the main operator input specified by {@code inputId}).
-	 *
-	 * @param inputId the input ID starts from 1 which indicates the first input.
-	 */
-	public void endMainOperatorInput(int inputId) throws Exception {
-		if (mainOperatorWrapper != null) {
-			mainOperatorWrapper.endOperatorInput(inputId);
-		}
-	}
-
-	/**
 	 * Initialize state and open all operators in the chain from <b>tail to heads</b>,
 	 * contrary to {@link StreamOperator#close()} which happens <b>heads to tail</b>
 	 * (see {@link #closeOperators(StreamTaskActionExecutor)}).

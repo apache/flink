@@ -94,7 +94,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 	 *
 	 * @param inputId the input ID starts from 1 which indicates the first input.
 	 */
-	public void endOperatorInput(int inputId) throws Exception {
+	private void endOperatorInput(int inputId) throws Exception {
 		if (wrapped instanceof BoundedOneInput) {
 			((BoundedOneInput) wrapped).endInput();
 		} else if (wrapped instanceof BoundedMultiInput) {
