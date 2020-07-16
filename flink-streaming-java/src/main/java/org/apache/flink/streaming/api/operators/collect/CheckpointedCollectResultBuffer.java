@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import java.io.IOException;
-
 /**
  * A buffer which encapsulates the logic of dealing with the response from the {@link CollectSinkFunction}.
  * It will consider the checkpoint related fields in the response.

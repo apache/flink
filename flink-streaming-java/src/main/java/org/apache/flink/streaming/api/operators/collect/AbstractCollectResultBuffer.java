@@ -56,6 +56,9 @@ public abstract class AbstractCollectResultBuffer<T> {
 		this.userVisibleTail = 0;
 	}
 
+	/**
+	 * Get next user visible result, returns null if currently there is no more.
+	 */
 	public T next() {
 		if (userVisibleHead == userVisibleTail) {
 			return null;
@@ -80,11 +83,13 @@ public abstract class AbstractCollectResultBuffer<T> {
 		long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
 
 		if (INIT_VERSION.equals(version)) {
+			// first response, just update version and do nothing
 			version = responseVersion;
 			return;
 		}
 
 		if (!version.equals(responseVersion)) {
+			// version not matched, sink has restarted
 			sinkRestarted(responseLastCheckpointedOffset);
 			version = responseVersion;
 		}
@@ -107,6 +112,9 @@ public abstract class AbstractCollectResultBuffer<T> {
 		userVisibleTail = visiblePos;
 	}
 
+	/**
+	 * Revert the buffer back to the result whose offset is `checkpointedOffset`.
+	 */
 	protected void revert(long checkpointedOffset) {
 		while (offset > checkpointedOffset) {
 			buffer.removeLast();
@@ -114,6 +122,9 @@ public abstract class AbstractCollectResultBuffer<T> {
 		}
 	}
 
+	/**
+	 * Clear the whole buffer and discard all results.
+	 */
 	protected void reset() {
 		buffer.clear();
 		userVisibleHead = 0;

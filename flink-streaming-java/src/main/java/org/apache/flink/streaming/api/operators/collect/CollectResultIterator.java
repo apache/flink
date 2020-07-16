@@ -100,14 +100,14 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
 	private AbstractCollectResultBuffer<T> createBuffer(
 			TypeSerializer<T> serializer,
 			CheckpointConfig checkpointConfig) {
-		if (checkpointConfig.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE) {
-			if (checkpointConfig.isCheckpointingEnabled()) {
+		if (checkpointConfig.isCheckpointingEnabled()) {
+			if (checkpointConfig.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE) {
 				return new CheckpointedCollectResultBuffer<>(serializer);
 			} else {
-				return new UncheckpointedCollectResultBuffer<>(serializer, false);
+				return new UncheckpointedCollectResultBuffer<>(serializer, true);
 			}
 		} else {
-			return new UncheckpointedCollectResultBuffer<>(serializer, true);
+			return new UncheckpointedCollectResultBuffer<>(serializer, false);
 		}
 	}
 }
