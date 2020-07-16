@@ -493,7 +493,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return Result.of(acceptedFilters, remainingFilters);
 		}
 
-		private Boolean shouldPushDown(Expression expr) {
+		private boolean shouldPushDown(Expression expr) {
 			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
 				return shouldPushDownUnaryExpression(expr.getChildren().get(0))
 					&& shouldPushDownUnaryExpression(expr.getChildren().get(1));
@@ -509,7 +509,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 
 			if (expr instanceof ValueLiteralExpression) {
-				return true;
+				// validate that literal is comparable
+				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
+				return isComparable(value.orElse(null));
 			}
 
 			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
@@ -541,51 +543,46 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
 			List<Expression> children = binExpr.getChildren();
 			Preconditions.checkArgument(children.size() == 2);
-			Object lhsValue = getValue(children.get(0), row);
-			Object rhsValue = getValue(children.get(1), row);
-			// validate that literal is comparable
-			if (!isComparable(lhsValue, binExpr) || !isComparable(rhsValue, binExpr)) {
-				return false;
-			}
-
+			Comparable lhsValue = getValue(children.get(0), row);
+			Comparable rhsValue = getValue(children.get(1), row);
 			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
 			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
-				return ((Comparable) lhsValue).compareTo(rhsValue) > 0;
+				return lhsValue.compareTo(rhsValue) > 0;
 			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
-				return ((Comparable) lhsValue).compareTo(rhsValue) < 0;
+				return lhsValue.compareTo(rhsValue) < 0;
 			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return ((Comparable) lhsValue).compareTo(rhsValue) >= 0;
+				return lhsValue.compareTo(rhsValue) >= 0;
 			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return ((Comparable) lhsValue).compareTo(rhsValue) <= 0;
+				return lhsValue.compareTo(rhsValue) <= 0;
 			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
-				return ((Comparable) lhsValue).compareTo(rhsValue) == 0;
+				return lhsValue.compareTo(rhsValue) == 0;
 			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
-				return ((Comparable) lhsValue).compareTo(rhsValue) != 0;
+				return lhsValue.compareTo(rhsValue) != 0;
 			} else {
 				return false;
 			}
 		}
 
-		private boolean isComparable(Object value, CallExpression binExpr) {
+		private boolean isComparable(Object value) {
 			// validate that literal is comparable
 			if (!(value instanceof Comparable)) {
 				LOG.warn("Encountered a non-comparable literal of type {}." +
-					"Cannot push predicate [{}] into ParquetTablesource." +
-					"This is a bug and should be reported.", value.getClass().getCanonicalName(), binExpr);
+					"Cannot push predicate into TestValuesTableSource." +
+					"This is a bug and should be reported.", value.getClass().getCanonicalName());
 				return false;
 			}
 			return true;
 		}
 
-		private Object getValue(Expression expr, Row row) {
+		private Comparable<?> getValue(Expression expr, Row row) {
 			if (expr instanceof ValueLiteralExpression) {
 				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
-				return value.orElse(null);
+				return (Comparable<?>) value.orElse(null);
 			}
 
 			if (expr instanceof FieldReferenceExpression) {
 				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(((FieldReferenceExpression) expr).getName());
-				return row.getField(idx);
+				return (Comparable<?>) row.getField(idx);
 			}
 
 			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
