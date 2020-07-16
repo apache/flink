@@ -32,6 +32,16 @@ import java.util.concurrent.CompletableFuture;
 /**
  * An iterator which iterates through the results of a query job.
  *
+ * <p>The behavior of the iterator is slightly different under different checkpointing mode.
+ * <ul>
+ *     <li>If the user does not specify any checkpointing,
+ *     results are immediately delivered but exceptions will be thrown when the job restarts.
+ *     <li>If the user specifies exactly-once checkpointing,
+ *     results are guaranteed to be exactly-once but they're only visible after the corresponding checkpoint completes.
+ *     <li>If the user specifies at-least-once checkpointing,
+ *     results are immediately delivered but the same result may be delivered multiple times.
+ * </ul>
+ *
  * <p>NOTE: After using this iterator, the close method MUST be called in order to release job related resources.
  */
 public class CollectResultIterator<T> implements CloseableIterator<T> {
