@@ -78,4 +78,20 @@ public class Constants {
 	public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
 
 	public static final String RESTART_POLICY_OF_NEVER = "Never";
+
+	// Constants for volume builder
+	public static final String KUBERNETES_VOLUME_NAME = "name";
+	public static final String KUBERNETES_VOLUME_TYPE = "type";
+	public static final String KUBERNETES_VOLUMES_HOSTPATH_TYPE = "hostPath";
+	public static final String KUBERNETES_VOLUMES_PVC_TYPE = "persistentVolumeClaim";
+	public static final String KUBERNETES_VOLUMES_EMPTYDIR_TYPE = "emptyDir";
+	public static final String KUBERNETES_VOLUMES_NFS_TYPE = "nfs";
+	public static final String KUBERNETES_VOLUMES_MOUNT_PATH_KEY = "mount-path";
+	public static final String KUBERNETES_VOLUMES_MOUNT_SUBPATH_KEY = "mount-subPath";
+	public static final String KUBERNETES_VOLUMES_MOUNT_READONLY_KEY = "mount-readOnly";
+	public static final String KUBERNETES_VOLUMES_OPTIONS_PATH_KEY = "options-path";
+	public static final String KUBERNETES_VOLUMES_OPTIONS_CLAIM_NAME_KEY = "options-claimName";
+	public static final String KUBERNETES_VOLUMES_OPTIONS_MEDIUM_KEY = "options-medium";
+	public static final String KUBERNETES_VOLUMES_OPTIONS_SIZE_LIMIT_KEY = "options-sizeLimit";
+	public static final String KUBERNETES_VOLUMES_OPTIONS_SERVER_KEY = "options-server";
 }

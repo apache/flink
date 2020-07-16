@@ -24,6 +24,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.volume.EmptyDirVolumeConfig;
+import org.apache.flink.kubernetes.configuration.volume.HostPathVolumeConfig;
+import org.apache.flink.kubernetes.configuration.volume.KubernetesVolumeConfig;
+import org.apache.flink.kubernetes.configuration.volume.KubernetesVolumeSpecification;
+import org.apache.flink.kubernetes.configuration.volume.NFSVolumeConfig;
+import org.apache.flink.kubernetes.configuration.volume.PVCVolumeConfig;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
@@ -44,6 +50,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUMES_MOUNT_PATH_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUMES_MOUNT_READONLY_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUMES_MOUNT_SUBPATH_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUMES_OPTIONS_CLAIM_NAME_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUMES_OPTIONS_PATH_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUME_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_VOLUME_TYPE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -55,14 +68,15 @@ public class KubernetesUtils {
 
 	/**
 	 * Check whether the port config option is a fixed port. If not, the fallback port will be set to configuration.
-	 * @param flinkConfig flink configuration
-	 * @param port config option need to be checked
+	 *
+	 * @param flinkConfig  flink configuration
+	 * @param port         config option need to be checked
 	 * @param fallbackPort the fallback port that will be set to the configuration
 	 */
 	public static void checkAndUpdatePortConfigOption(
-			Configuration flinkConfig,
-			ConfigOption<String> port,
-			int fallbackPort) {
+		Configuration flinkConfig,
+		ConfigOption<String> port,
+		int fallbackPort) {
 		if (KubernetesUtils.parsePort(flinkConfig, port) == 0) {
 			flinkConfig.setString(port, String.valueOf(fallbackPort));
 			LOG.info(
@@ -76,7 +90,7 @@ public class KubernetesUtils {
 	 * Parse a valid port for the config option. A fixed port is expected, and do not support a range of ports.
 	 *
 	 * @param flinkConfig flink config
-	 * @param port port config option
+	 * @param port        port config option
 	 * @return valid port
 	 */
 	public static Integer parsePort(Configuration flinkConfig, ConfigOption<String> port) {
@@ -114,8 +128,8 @@ public class KubernetesUtils {
 	/**
 	 * Get resource requirements from memory and cpu.
 	 *
-	 * @param mem Memory in mb.
-	 * @param cpu cpu.
+	 * @param mem               Memory in mb.
+	 * @param cpu               cpu.
 	 * @param externalResources external resources
 	 * @return KubernetesResource requirements.
 	 */
@@ -130,7 +144,7 @@ public class KubernetesUtils {
 			.addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity);
 
 		// Add the external resources to resource requirement.
-		for (Map.Entry<String, Long> externalResource: externalResources.entrySet()) {
+		for (Map.Entry<String, Long> externalResource : externalResources.entrySet()) {
 			final Quantity resourceQuantity = new Quantity(String.valueOf(externalResource.getValue()));
 			resourceRequirementsBuilder
 				.addToRequests(externalResource.getKey(), resourceQuantity)
@@ -142,15 +156,15 @@ public class KubernetesUtils {
 	}
 
 	public static String getCommonStartCommand(
-			Configuration flinkConfig,
-			ClusterComponent mode,
-			String jvmMemOpts,
-			String configDirectory,
-			String logDirectory,
-			boolean hasLogback,
-			boolean hasLog4j,
-			String mainClass,
-			@Nullable String mainArgs) {
+		Configuration flinkConfig,
+		ClusterComponent mode,
+		String jvmMemOpts,
+		String configDirectory,
+		String logDirectory,
+		boolean hasLogback,
+		boolean hasLog4j,
+		String mainClass,
+		@Nullable String mainArgs) {
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 		startCommandValues.put("classpath", "-classpath " + "$" + Constants.ENV_FLINK_CLASSPATH);
@@ -177,7 +191,7 @@ public class KubernetesUtils {
 
 		startCommandValues.put("redirects",
 			"1> " + logDirectory + "/" + logFileName + ".out " +
-			"2> " + logDirectory + "/" + logFileName + ".err");
+				"2> " + logDirectory + "/" + logFileName + ".err");
 
 		final String commandTemplate = flinkConfig.getString(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE);
 		return BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
@@ -192,8 +206,8 @@ public class KubernetesUtils {
 						return new File(jarURI.getPath());
 					}
 					throw new IllegalArgumentException("Only \"local\" is supported as schema for application mode." +
-							" This assumes that the jar is located in the image, not the Flink client." +
-							" An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
+						" This assumes that the jar is located in the image, not the Flink client." +
+						" An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
 				})
 		).collect(Collectors.toList());
 	}
@@ -223,6 +237,45 @@ public class KubernetesUtils {
 	}
 
 	/**
+	 * Generating a volume specification from parsing a map which contains volume property.
+	 *
+	 * @param volumeProperties a Map contains volume specification property
+	 * @return a class contains the configuration of the specified volume
+	 */
+	public static KubernetesVolumeSpecification parseVolumes(Map<String, String> volumeProperties) {
+		final String volumeName = checkNotNull(volumeProperties.get(KUBERNETES_VOLUME_NAME));
+		final String volumeType = checkNotNull(volumeProperties.get(KUBERNETES_VOLUME_TYPE));
+		final String mountPath = checkNotNull(volumeProperties.get(KUBERNETES_VOLUMES_MOUNT_PATH_KEY));
+		final String mountSubPath = volumeProperties.getOrDefault(KUBERNETES_VOLUMES_MOUNT_SUBPATH_KEY, "");
+		final Boolean mountReadOnly = Boolean.valueOf(
+			volumeProperties.getOrDefault(KUBERNETES_VOLUMES_MOUNT_READONLY_KEY, "false"));
+
+		final KubernetesVolumeConfig volumeConfig = parseVolumeSpecificConf(volumeProperties, volumeType);
+
+		return new KubernetesVolumeSpecification(volumeName, mountPath, mountSubPath, mountReadOnly, volumeConfig);
+	}
+
+	private static KubernetesVolumeConfig parseVolumeSpecificConf(Map<String, String> properties, String volumeType) {
+		if (Constants.KUBERNETES_VOLUMES_HOSTPATH_TYPE.equalsIgnoreCase(volumeType)) {
+			final String hostPath = checkNotNull(properties.get(KUBERNETES_VOLUMES_OPTIONS_PATH_KEY));
+			return new HostPathVolumeConfig(hostPath);
+		} else if (Constants.KUBERNETES_VOLUMES_PVC_TYPE.equalsIgnoreCase(volumeType)) {
+			final String claimName = checkNotNull(properties.get(KUBERNETES_VOLUMES_OPTIONS_CLAIM_NAME_KEY));
+			return new PVCVolumeConfig(claimName);
+		} else if (Constants.KUBERNETES_VOLUMES_NFS_TYPE.equalsIgnoreCase(volumeType)) {
+			final String path = checkNotNull(properties.get(KUBERNETES_VOLUMES_OPTIONS_PATH_KEY));
+			final String server = checkNotNull(properties.get(Constants.KUBERNETES_VOLUMES_OPTIONS_SERVER_KEY));
+			return new NFSVolumeConfig(path, server);
+		} else if (Constants.KUBERNETES_VOLUMES_EMPTYDIR_TYPE.equalsIgnoreCase(volumeType)) {
+			final String medium = properties.getOrDefault(Constants.KUBERNETES_VOLUMES_OPTIONS_MEDIUM_KEY, "");
+			final String sizeLimit = properties.getOrDefault(Constants.KUBERNETES_VOLUMES_OPTIONS_SIZE_LIMIT_KEY, null);
+			return new EmptyDirVolumeConfig(medium, sizeLimit);
+		} else {
+			throw new IllegalArgumentException(volumeType + " is not a supported volume type");
+		}
+	}
+
+	/**
 	 * Cluster components.
 	 */
 	public enum ClusterComponent {
@@ -230,5 +283,6 @@ public class KubernetesUtils {
 		TASK_MANAGER
 	}
 
-	private KubernetesUtils() {}
+	private KubernetesUtils() {
+	}
 }

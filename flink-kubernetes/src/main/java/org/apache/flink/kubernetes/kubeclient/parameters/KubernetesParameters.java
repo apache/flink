@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.volume.KubernetesVolumeSpecification;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 
@@ -66,7 +67,7 @@ public interface KubernetesParameters {
 	Map<String, String> getEnvironments();
 
 	/**
-	 *	A map of user-specified annotations that are set to the JobManager and TaskManager pods.
+	 * A map of user-specified annotations that are set to the JobManager and TaskManager pods.
 	 */
 	Map<String, String> getAnnotations();
 
@@ -110,4 +111,9 @@ public interface KubernetesParameters {
 	 * The local directory to locate the custom Hadoop configuration.
 	 */
 	Optional<String> getLocalHadoopConfigurationDirectory();
+
+	/**
+	 * A list of volume specification for the given pod.
+	 */
+	List<KubernetesVolumeSpecification> getKubernetesVolumeSpecifications();
 }

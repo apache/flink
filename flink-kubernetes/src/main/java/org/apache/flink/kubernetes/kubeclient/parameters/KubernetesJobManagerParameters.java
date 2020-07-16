@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
+import org.apache.flink.kubernetes.configuration.volume.KubernetesVolumeSpecification;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -35,6 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -83,6 +85,14 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	@Override
 	public List<Map<String, String>> getTolerations() {
 		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
+	}
+
+	@Override
+	public List<KubernetesVolumeSpecification> getKubernetesVolumeSpecifications() {
+		final List<Map<String, String>> volumes = flinkConfig.getOptional(
+			KubernetesConfigOptions.JOB_MANAGER_VOLUMES).orElse(Collections.emptyList());
+
+		return volumes.stream().map(KubernetesUtils::parseVolumes).collect(Collectors.toList());
 	}
 
 	public Map<String, String> getRestServiceAnnotations() {

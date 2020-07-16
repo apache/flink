@@ -83,7 +83,6 @@ public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
 		return Collections.singletonList(headlessService);
 	}
 
-
 	/**
 	 * Generate name of the internal Service.
 	 */

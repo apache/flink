@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.volume.KubernetesVolumeSpecification;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
@@ -106,6 +107,11 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
 		@Override
 		public List<Map<String, String>> getTolerations() {
+			throw new UnsupportedOperationException("NOT supported");
+		}
+
+		@Override
+		public List<KubernetesVolumeSpecification> getKubernetesVolumeSpecifications() {
 			throw new UnsupportedOperationException("NOT supported");
 		}
 	}

@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.volume.KubernetesVolumeSpecification;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 
@@ -28,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -49,11 +51,11 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	private final Map<String, Long> taskManagerExternalResources;
 
 	public KubernetesTaskManagerParameters(
-			Configuration flinkConfig,
-			String podName,
-			String dynamicProperties,
-			ContaineredTaskManagerParameters containeredTaskManagerParameters,
-			Map<String, Long> taskManagerExternalResources) {
+		Configuration flinkConfig,
+		String podName,
+		String dynamicProperties,
+		ContaineredTaskManagerParameters containeredTaskManagerParameters,
+		Map<String, Long> taskManagerExternalResources) {
 		super(flinkConfig);
 		this.podName = checkNotNull(podName);
 		this.dynamicProperties = checkNotNull(dynamicProperties);
@@ -88,6 +90,14 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	@Override
 	public List<Map<String, String>> getTolerations() {
 		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
+	}
+
+	@Override
+	public List<KubernetesVolumeSpecification> getKubernetesVolumeSpecifications() {
+		final List<Map<String, String>> volumes = flinkConfig.getOptional(
+			KubernetesConfigOptions.TASK_MANAGER_VOLUMES).orElse(Collections.emptyList());
+
+		return volumes.stream().map(KubernetesUtils::parseVolumes).collect(Collectors.toList());
 	}
 
 	public String getTaskManagerMainContainerName() {

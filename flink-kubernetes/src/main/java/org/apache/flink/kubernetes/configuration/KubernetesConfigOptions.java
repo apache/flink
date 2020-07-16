@@ -242,6 +242,24 @@ public class KubernetesConfigOptions {
 		return "flink:" + tag;
 	}
 
+	public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_VOLUMES =
+		key("kubernetes.jobmanager.volumes")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("Specify the a list of volume that mounted to the jobmanager pod. The value should be " +
+				"in the form of name:v1,type:hostPath,options-path:/tmp/hostPath,mount-path:/tmp/mount,mount-readOnly:true;" +
+				"name:v2,type:pvc,options-claimName:foo,mount-path:/tmp/mount,mount-subPath:/subPath,mount-readOnly:true");
+
+	public static final ConfigOption<List<Map<String, String>>> TASK_MANAGER_VOLUMES =
+		key("kubernetes.taskmanager.volumes")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("Specify the a list of volume that mounted to the taskmanager pod. The value should be " +
+				"in the form of name:v1,type:hostPath,options-path:/tmp/hostPath,mount-path:/tmp/mount,mount-readOnly:true;" +
+				"name:v2,type:pvc,options-claimName:foo,mount-path:/tmp/mount,mount-subPath:/subPath,mount-readOnly:true");
+
 	/**
 	 * The flink rest service exposed type.
 	 */
