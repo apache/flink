@@ -356,6 +356,13 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	@Override
 	public NotificationResult notifyBufferAvailable(Buffer buffer) {
 		NotificationResult notificationResult = NotificationResult.BUFFER_NOT_USED;
+		// Two remote channels might call this method mutually by task thread and canceller thread concurrently.
+		// To avoid deadlock issue we can check the released state to return immediately before synchronizing.
+		// See FLINK-18595 for details.
+		if (isReleased.get()) {
+			return notificationResult;
+		}
+
 		try {
 			synchronized (bufferQueue) {
 				checkState(isWaitingForFloatingBuffers,
