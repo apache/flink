@@ -56,6 +56,45 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 		}
 	}
 
+	/**
+	 * The record publisher type represents the record-consume style.
+	 */
+	public enum RecordPublisherType {
+
+		/** Consume the Kinesis records using AWS SDK v2 with the enhanced fan-out consumer. */
+		EFO,
+		/** Consume the Kinesis records using AWS SDK v1 with the get-records method. */
+		POLLING
+	}
+
+	/**
+	 * The EFO registration type reprsents how we are going to de-/register efo consumer.
+	 */
+	public enum EFORegistrationType {
+
+		/** Delay the registration of efo consumer for taskmanager to execute.
+		 * De-register the efo consumer for taskmanager to execute when task is shut down. */
+		LAZY,
+		/** Register the efo consumer eagerly for jobmanager to execute.
+		 * De-register the efo consumer the same way as lazy does. */
+		EAGER,
+		/** Do not register efo consumer programmatically.
+		 * Do not de-register either. */
+		NONE
+	}
+
+	/** The RecordPublisher type (EFO|POLLING, default is POLLING). */
+	public static final String RECORD_PUBLISHER_TYPE = "flink.stream.recordpublisher";
+
+	/** The name of the EFO consumer to register with KDS. */
+	public static final String EFO_CONSUMER_NAME = "flink.stream.efo.consumername";
+
+	/** Determine how and when consumer de-/registration is performed (LAZY|EAGER|NONE, default is LAZY). */
+	public static final String EFO_REGISTRATION_TYPE = "flink.stream.efo.registration";
+
+	/** The prefix of consumer ARN for a given stream. */
+	public static final String EFO_CONSUMER_ARN_PREFIX = "flink.stream.efo.consumerarn";
+
 	/** The initial position to start reading Kinesis streams from (LATEST is used if not set). */
 	public static final String STREAM_INITIAL_POSITION = "flink.stream.initpos";
 
@@ -85,6 +124,54 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/** The power constant for exponential backoff between each listShards attempt. */
 	public static final String LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.list.shards.backoff.expconst";
+
+	/** The maximum number of registerStream attempts if we get a recoverable exception. */
+	public static final String REGISTER_STREAM_RETRIES = "flink.stream.registerstreamconsumer.maxretries";
+
+	/** The base backoff time between each registerStream attempt. */
+	public static final String REGISTER_STREAM_BACKOFF_BASE = "flink.stream.registerstreamconsumer.backoff.base";
+
+	/** The maximum backoff time between each registerStream attempt. */
+	public static final String REGISTER_STREAM_BACKOFF_MAX = "flink.stream.registerstreamconsumer.backoff.max";
+
+	/** The power constant for exponential backoff between each registerStream attempt. */
+	public static final String REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.registerstreamconsumer.backoff.expconst";
+
+	/** The maximum number of deregisterStream attempts if we get a recoverable exception. */
+	public static final String DEREGISTER_STREAM_RETRIES = "flink.stream.deregisterstreamconsumer.maxretries";
+
+	/** The base backoff time between each deregisterStream attempt. */
+	public static final String DEREGISTER_STREAM_BACKOFF_BASE = "flink.stream.deregisterstreamconsumer.backoff.base";
+
+	/** The maximum backoff time between each deregisterStream attempt. */
+	public static final String DEREGISTER_STREAM_BACKOFF_MAX = "flink.stream.deregisterstreamconsumer.backoff.max";
+
+	/** The power constant for exponential backoff between each deregisterStream attempt. */
+	public static final String DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.deregisterstreamconsumer.backoff.expconst";
+
+	/** The maximum number of listStream attempts if we get a recoverable exception. */
+	public static final String LIST_STREAM_CONSUMERS_RETRIES = "flink.stream.liststreamconsumer.maxretries";
+
+	/** The base backoff time between each listStream attempt. */
+	public static final String LIST_STREAM_CONSUMERS_BACKOFF_BASE = "flink.stream.liststreamconsumer.backoff.base";
+
+	/** The maximum backoff time between each listStream attempt. */
+	public static final String LIST_STREAM_CONSUMERS_BACKOFF_MAX = "flink.stream.liststreamconsumer.backoff.max";
+
+	/** The power constant for exponential backoff between each listStream attempt. */
+	public static final String LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.liststreamconsumer.backoff.expconst";
+
+	/** The maximum number of subscribeToShard attempts if we get a recoverable exception. */
+	public static final String SUBSCRIBE_TO_SHARD_RETRIES = "flink.shard.subscribetoshard.maxretries";
+
+	/** The base backoff time between each subscribeToShard  attempt. */
+	public static final String SUBSCRIBE_TO_SHARD_BACKOFF_BASE = "flink.shard.subscribetoshard.backoff.base";
+
+	/** The maximum backoff time between each subscribeToShard  attempt. */
+	public static final String SUBSCRIBE_TO_SHARD_BACKOFF_MAX = "flink.shard.subscribetoshard.backoff.max";
+
+	/** The power constant for exponential backoff between each subscribeToShard  attempt. */
+	public static final String SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT = "flink.shard.subscribetoshard.backoff.expconst";
 
 	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard. */
 	public static final String SHARD_GETRECORDS_MAX = "flink.shard.getrecords.maxrecordcount";
@@ -155,6 +242,38 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final double DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_LIST_SHARDS_RETRIES = 10;
+
+	public static final int DEFAULT_REGISTER_STREAM_RETRIES = 10;
+
+	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_BASE = 200L;
+
+	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_MAX = 1000L;
+
+	public static final double DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final int DEFAULT_DEREGISTER_STREAM_RETRIES = 10;
+
+	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE = 200L;
+
+	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX = 1000L;
+
+	public static final double DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final int DEFAULT_LIST_STREAM_CONSUMERS_RETRIES = 10;
+
+	public static final long DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_BASE = 200L;
+
+	public static final long DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_MAX = 1000L;
+
+	public static final double DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final int DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES = 5;
+
+	public static final long DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE = 1000L;
+
+	public static final long DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_MAX = 2000L;
+
+	public static final double DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_SHARD_GETRECORDS_MAX = 10000;
 
