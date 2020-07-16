@@ -145,30 +145,18 @@ each event, and it also needs the stream to include watermarks.
 The Taxi data sources used in the hands-on exercises take care of these details for you. But in your
 own applications you will have to take care of this yourself, which is usually done by implementing
 a class that extracts the timestamps from the events, and generates watermarks on demand. The
-easiest way to do this is by extending the `BoundedOutOfOrdernessTimestampExtractor`:
+easiest way to do this is by using a `WatermarkStrategy`:
 
 {% highlight java %}
 DataStream<Event> stream = ...
 
+WatermarkStrategy<Event> strategy = WatermarkStrategy
+        .<Event>forBoundedOutOfOrderness(Duration.ofSeconds(20))
+        .withTimestampAssigner((event, timestamp) -> event.timestamp);
+
 DataStream<Event> withTimestampsAndWatermarks =
-    stream.assignTimestampsAndWatermarks(new TimestampsAndWatermarks(Time.seconds(10)));
-
-public static class TimestampsAndWatermarks
-        extends BoundedOutOfOrdernessTimestampExtractor<Event> {
-
-    public TimestampsAndWatermarks(Time t) {
-        super(t);
-    }
-
-    @Override
-    public long extractTimestamp(Event event) {
-        return event.timestamp;
-    }
-}
+    stream.assignTimestampsAndWatermarks(strategy);
 {% endhighlight %}
-
-Note that the constructor for `BoundedOutOfOrdernessTimestampExtractor` takes a parameter which
-specifies the maximum expected out-of-orderness (10 seconds, in this example).
 
 {% top %}
 
