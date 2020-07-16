@@ -226,7 +226,7 @@ Besides enabling Flink's checkpointing, you can also choose three different mode
  or `read_uncommitted` - the latter one is the default value) for any application consuming records
  from Kafka.
 
-Please refer to [Kafka documentation]({% link dev/connectors/kafka.md %}#kafka-producers-and-fault-tolerance) for more caveats about delivery guarantees.
+Please refer to [Kafka documentation]({% link dev/connectors/kafka.zh.md %}#kafka-producers-and-fault-tolerance) for more caveats about delivery guarantees.
 
 Data Type Mapping
 ----------------
