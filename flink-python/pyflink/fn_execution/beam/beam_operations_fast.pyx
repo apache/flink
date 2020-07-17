@@ -19,6 +19,8 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+from functools import reduce
+from itertools import chain
 
 from libc.stdint cimport *
 from apache_beam.runners.worker import bundle_processor
@@ -30,7 +32,7 @@ from pyflink.fn_execution.fast_coder_impl cimport BaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl cimport InputStreamWrapper
 
-from pyflink.fn_execution import flink_fn_execution_pb2, operations_utils
+from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext
 
@@ -130,14 +132,18 @@ cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
         :param udfs: a list of the proto representation of the Python :class:`ScalarFunction`
         :return: the generated lambda function
         """
-        factory = operations_utils.FunctionFactory()
-        scalar_functions = [factory.extract_user_defined_function(udf) for udf in udfs]
-        mapper = eval('lambda value: [%s]' % ','.join(scalar_functions), factory.variable_dict)
+        scalar_functions, variable_dict, user_defined_funcs = reduce(
+            lambda x, y: (
+                ','.join([x[0], y[0]]),
+                dict(chain(x[1].items(), y[1].items())),
+                x[2] + y[2]),
+            [operation_utils.extract_user_defined_function(udf) for udf in udfs])
+        mapper = eval('lambda value: [%s]' % scalar_functions, variable_dict)
         if self._is_python_coder:
             generate_func = lambda it: map(mapper, it)
         else:
             generate_func = mapper
-        return generate_func, factory.user_defined_funcs
+        return generate_func, user_defined_funcs
 
 cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers):
@@ -150,19 +156,19 @@ cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
         :param udtfs: a list of the proto representation of the Python :class:`TableFunction`
         :return: the generated lambda function
         """
-        factory = operations_utils.FunctionFactory()
-        table_function = factory.extract_user_defined_function(udtfs[0])
-        generate_func = eval('lambda value: %s' % table_function, factory.variable_dict)
-        return generate_func, factory.user_defined_funcs
+        table_function, variable_dict, user_defined_funcs = \
+            operation_utils.extract_user_defined_function(udtfs[0])
+        generate_func = eval('lambda value: %s' % table_function, variable_dict)
+        return generate_func, user_defined_funcs
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    operation_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, BeamScalarFunctionOperation)
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations_utils.TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    operation_utils.TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, BeamTableFunctionOperation)
