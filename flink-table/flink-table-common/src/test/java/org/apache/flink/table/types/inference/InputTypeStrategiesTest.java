@@ -562,7 +562,17 @@ public class InputTypeStrategiesTest {
 				.calledWithArgumentTypes(DataTypes.FLOAT())
 				.expectSignature("f(<EXACT_NUMERIC>)")
 				.expectErrorMessage(
-					"Unsupported argument type. Expected type of family 'EXACT_NUMERIC' but actual type was 'FLOAT'.")
+					"Unsupported argument type. Expected type of family 'EXACT_NUMERIC' but actual type was 'FLOAT'."),
+
+			TestSpec
+				.forStrategy(
+					"Same named arguments for overloaded method.",
+					or(
+						sequence(explicit(DataTypes.STRING())),
+						sequence(explicit(DataTypes.INT()))))
+				.namedArguments("sameName")
+				.calledWithArgumentTypes(DataTypes.BOOLEAN())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(STRING)\nf(INT)")
 		);
 	}
 
