@@ -22,8 +22,8 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -51,12 +51,15 @@ import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -89,14 +92,21 @@ public class DependencyTest {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			final TableSchema result = executor.getTableSchema(sessionId, "TableNumber1");
-			final TableSchema expected = TableSchema.builder()
-				.field("IntegerField1", Types.INT())
-				.field("StringField1", Types.STRING())
-				.field("rowtimeField", Types.SQL_TIMESTAMP())
-				.build();
-
-			assertEquals(expected, result);
+			final TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber1");
+			assertEquals(
+					tableResult.getTableSchema(),
+					TableSchema.builder().fields(
+							new String[] { "name", "type", "null", "key", "computed column", "watermark" },
+							new DataType[] { DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(),
+									DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING() }
+					).build()
+			);
+			List<Row> schemaData = Arrays.asList(
+					Row.of("IntegerField1", "INT", true, null, null, null),
+					Row.of("StringField1", "STRING", true, null, null, null),
+					Row.of("rowtimeField", "TIMESTAMP(3) *ROWTIME*", true, null, null, null)
+			);
+			assertEquals(schemaData, CollectionUtil.iteratorToList(tableResult.collect()));
 		} finally {
 			executor.closeSession(sessionId);
 		}
