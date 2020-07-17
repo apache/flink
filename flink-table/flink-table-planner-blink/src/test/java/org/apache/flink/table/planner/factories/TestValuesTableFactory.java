@@ -89,8 +89,11 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Test implementation of {@link DynamicTableSourceFactory} that creates
- * a source that produces a sequence of values.
+ * Test implementation of {@link DynamicTableSourceFactory} that creates a source that produces a sequence of values.
+ * And this source {@link TestValuesTableSource} supports FilterPushDown. And it has some limitations.
+ * The predicates must satisfy both of the following conditions:
+ * 1. the column name of predicates should exist in FILTERABLE_FIELDS, which user can define in properties.
+ * 2. every argument of  predicate expressions must implement {@link Comparable}.
  */
 public final class TestValuesTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
@@ -502,7 +505,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr) {
 			// validate that type is comparable
-			validateTypeComparable(expr.getOutputDataType().getConversionClass());
+			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
+				return false;
+			}
 			if (expr instanceof FieldReferenceExpression) {
 				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
 					return true;
@@ -562,12 +567,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 		}
 
-		private void validateTypeComparable(Class<?> clazz) {
-			// validate that type is comparable
-			if (!Comparable.class.isAssignableFrom(clazz)) {
-				throw new RuntimeException("Encountered a non-comparable type " + clazz.getCanonicalName() +
-					".Cannot push predicate into TestValuesTableSource. This is a bug and should be reported.");
-			}
+		private boolean isComparable(Class<?> clazz) {
+			return Comparable.class.isAssignableFrom(clazz);
 		}
 
 		private Comparable<?> getValue(Expression expr, Row row) {
