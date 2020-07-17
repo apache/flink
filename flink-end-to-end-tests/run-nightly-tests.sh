@@ -121,7 +121,7 @@ run_test "RocksDB Memory Management end-to-end test" "$END_TO_END_DIR/test-scrip
 ################################################################################
 
 # These tests are known to fail on JDK11. See FLINK-13719
-if [[ ${PROFILE} != *"jdk11"* ]]; then
+#if [[ ${PROFILE} != *"jdk11"* ]]; then
 	#run_test "Wordcount on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_docker_embedded_job.sh dummy-fs"
 
 	#run_test "Run Kubernetes test" "$END_TO_END_DIR/test-scripts/test_kubernetes_embedded_job.sh"
@@ -130,7 +130,7 @@ if [[ ${PROFILE} != *"jdk11"* ]]; then
 
 	#run_test "Running Flink over NAT end-to-end test" "$END_TO_END_DIR/test-scripts/test_nat.sh" "skip_check_exceptions"
 
-	if [[ `uname -i` != 'aarch64' ]]; then
+	#if [[ `uname -i` != 'aarch64' ]]; then
 		# Hadoop YARN deosn't support aarch64 at this moment. See: https://issues.apache.org/jira/browse/HADOOP-16723
 
 		# YARN tests disabled because we can no longer download oracle jdk. See FLINK-18600
@@ -144,8 +144,8 @@ if [[ ${PROFILE} != *"jdk11"* ]]; then
 
 		# `google/cloud-sdk` docker image doesn't support aarch64 currently.
 		#run_test "Test PubSub connector with Docker based Google PubSub Emulator" "$END_TO_END_DIR/test-scripts/test_streaming_gcp_pubsub.sh"
-	fi
-fi
+	#fi
+#fi
 
 ################################################################################
 # High Availability
