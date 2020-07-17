@@ -582,7 +582,18 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 								"My constraint says %s must be nullable.",
 								args -> args.get(0).getLogicalType().isNullable()))))
 				.calledWithArgumentTypes(DataTypes.BOOLEAN().notNull())
-				.expectErrorMessage("My constraint says BOOLEAN NOT NULL must be nullable.")
+				.expectErrorMessage("My constraint says BOOLEAN NOT NULL must be nullable."),
+
+			TestSpec
+				.forStrategy(
+					"Same named arguments for overloaded method.",
+					or(
+						sequence(explicit(DataTypes.STRING())),
+						sequence(explicit(DataTypes.INT()))))
+				.namedArguments("sameName")
+				.calledWithArgumentTypes(DataTypes.BOOLEAN())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(STRING)\nf(INT)")
+
 		);
 	}
 }
