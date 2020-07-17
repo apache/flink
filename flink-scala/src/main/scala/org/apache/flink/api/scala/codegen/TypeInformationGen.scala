@@ -58,6 +58,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
       mkCaseClassTypeInfo(cc)(c.WeakTypeTag(tpe).asInstanceOf[c.WeakTypeTag[Product]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
 
+    case st: SealedTraitDescriptor => mkSealedTraitTypeInfo(st)
+
     case tp: TypeParameterDescriptor => mkTypeParameter(tp)
 
     case p : PrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
@@ -159,6 +161,30 @@ private[flink] trait TypeInformationGen[C <: Context] {
         }
       }
     }
+  }
+
+  def mkSealedTraitTypeInfo[T: c.WeakTypeTag](
+        desc: SealedTraitDescriptor): c.Expr[TypeInformation[T]] = {
+    val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
+
+    val subtypeClasses = desc.subtypes.map(t => c.Expr[Class[_]](Literal(Constant(t.tpe))).tree)
+    val subtypeClassesExpr = c.Expr[Array[Class[_]]](mkArray(subtypeClasses.toList))
+
+    val subtypeTypeInfos = desc.subtypes.map { f => mkTypeInfo(f)(c.WeakTypeTag(f.tpe)).tree }
+    val subtypeTypeInfosExpr = c.Expr[Array[TypeInformation[_]]](mkArray(subtypeTypeInfos.toList))
+
+    val result =
+      q"""
+          import org.apache.flink.api.scala.typeutils.SealedTraitTypeInfo
+
+
+          new SealedTraitTypeInfo[${desc.tpe}](
+            $tpeClazz,
+            $subtypeClassesExpr,
+            $subtypeTypeInfosExpr
+          )
+        """
+    c.Expr[TypeInformation[T]](result)
   }
 
   def mkEitherTypeInfo[T: c.WeakTypeTag](desc: EitherDescriptor): c.Expr[TypeInformation[T]] = {

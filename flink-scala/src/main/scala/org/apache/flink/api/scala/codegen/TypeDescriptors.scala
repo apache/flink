@@ -145,6 +145,9 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
   }
 
+  case class SealedTraitDescriptor(id: Int, tpe: Type, subtypes: Seq[UDTDescriptor])
+    extends UDTDescriptor
+
   case class FieldDescriptor(
       name: String,
       getter: Symbol,

@@ -75,6 +75,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case CaseClassType() => analyzeCaseClass(id, tpe)
 
+          case SealedTraitType(subtypes) => analyzeSealedTrait(id, tpe, subtypes)
+
           case TraversableType(elemTpe) => analyzeTraversable(id, tpe, elemTpe)
 
           case ValueType() => ValueDescriptor(id, tpe)
@@ -272,6 +274,21 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
     }
 
+    private def analyzeSealedTrait(id: Int, tpe: Type, subtypes: List[Symbol]): UDTDescriptor = {
+      val subtypeDescriptors = subtypes.map(subtype => analyze(subtype.asClass.selfType))
+      val unsupportedSubtypes = subtypeDescriptors.collect {
+        case UnsupportedDescriptor(_, _, errs) => UnsupportedDescriptor(id, tpe, errs)
+      }
+      unsupportedSubtypes.headOption match {
+        case Some(head) => head
+        case None => SealedTraitDescriptor(
+          id = id,
+          tpe = tpe,
+          subtypes = subtypeDescriptors
+        )
+      }
+    }
+
     private object PrimitiveType {
       def intPrimitive: (Type, Literal, Type) = {
         val (d, w) = primitives(definitions.IntClass)
@@ -345,6 +362,13 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object CaseClassType {
       def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isCaseClass
+    }
+
+    private object SealedTraitType {
+      def unapply(tpe: Type): Option[List[Symbol]] = {
+        val clazz = tpe.typeSymbol.asClass
+        if (clazz.isSealed) Some(clazz.knownDirectSubclasses.toList) else None
+      }
     }
 
     private object NothingType {

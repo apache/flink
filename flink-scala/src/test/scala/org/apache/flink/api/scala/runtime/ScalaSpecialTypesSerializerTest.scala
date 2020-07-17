@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.typeutils.SealedTraitSerializerTest.{NestedADT, NestedAdtOne, NestedAdtTwo}
+import org.apache.flink.api.scala.typeutils.{ADT, AdtOne, AdtTwo}
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 import org.junit.Assert._
@@ -124,6 +126,18 @@ class ScalaSpecialTypesSerializerTest {
   @Test
   def testSortedSet(): Unit = {
     val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
+    runTests(testData)
+  }
+
+  @Test
+  def testSealedTrait(): Unit = {
+    val testData: Array[ADT] = Array(AdtOne(1), AdtTwo(2, "d"))
+    runTests(testData)
+  }
+
+  @Test
+  def testNestedSealedTrait(): Unit = {
+    val testData: Array[NestedADT] = Array(NestedAdtOne(1), NestedAdtTwo(2, "d"))
     runTests(testData)
   }
 
