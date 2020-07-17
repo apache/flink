@@ -82,17 +82,11 @@ public abstract class AbstractCollectResultBuffer<T> {
 		String responseVersion = response.getVersion();
 		long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
 
-		if (INIT_VERSION.equals(version)) {
-			// first response, just update version and do nothing
-			version = responseVersion;
-			return;
-		}
-
-		if (!version.equals(responseVersion)) {
+		if (!INIT_VERSION.equals(version) && !version.equals(responseVersion)) {
 			// version not matched, sink has restarted
 			sinkRestarted(responseLastCheckpointedOffset);
-			version = responseVersion;
 		}
+		version = responseVersion;
 
 		addResults(response, responseOffset);
 		maintainVisibility(userVisibleTail, responseLastCheckpointedOffset);

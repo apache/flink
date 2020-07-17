@@ -187,6 +187,24 @@ public class CollectResultBufferTest {
 		Assert.assertNull(buffer.next());
 	}
 
+	@Test
+	public void testImmediateAccumulatorResult() throws Exception {
+		String version = "version";
+		AbstractCollectResultBuffer<Integer> buffer = new UncheckpointedCollectResultBuffer<>(serializer, false);
+
+		// job finished before the first request,
+		// so the first and only response is from the accumulator and contains results
+		List<Integer> expected = Arrays.asList(1, 2, 3);
+		CollectCoordinationResponse response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
+		buffer.dealWithResponse(response, 0);
+		buffer.complete();
+
+		for (Integer expectedValue : expected) {
+			Assert.assertEquals(expectedValue, buffer.next());
+		}
+		Assert.assertNull(buffer.next());
+	}
+
 	private List<byte[]> createSerializedResults(List<Integer> values) throws Exception {
 		List<byte[]> serializedResults = new ArrayList<>();
 		for (int value : values) {
