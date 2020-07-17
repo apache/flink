@@ -40,21 +40,18 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
-import org.apache.flink.table.data.writer.BinaryArrayWriter;
-import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
+import org.apache.flink.table.data.writer.ArrayDataWriterWrapper;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -80,8 +77,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -1109,19 +1108,14 @@ public class DataFormatConverters {
 		private final Class<T> componentClass;
 		private final LogicalType elementType;
 		private final DataFormatConverter<Object, T> elementConverter;
-		private final int elementSize;
-		private final TypeSerializer<T> eleSer;
 		private final boolean isEleIndentity;
 
-		private transient BinaryArrayData reuseArray;
-		private transient BinaryArrayWriter reuseWriter;
+		private transient ArrayDataWriterWrapper reuseWriter;
 
 		public ObjectArrayConverter(DataType elementType) {
 			this.componentClass = (Class) elementType.getConversionClass();
 			this.elementType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(elementType);
 			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
-			this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
-			this.eleSer = InternalSerializers.create(this.elementType);
 			this.isEleIndentity = elementConverter instanceof IdentityConverter;
 		}
 
@@ -1131,24 +1125,14 @@ public class DataFormatConverters {
 		}
 
 		private ArrayData toBinaryArray(T[] value) {
-			if (reuseArray == null) {
-				reuseArray = new BinaryArrayData();
+			if (reuseWriter == null) {
+				reuseWriter = new ArrayDataWriterWrapper(elementType);
 			}
-			if (reuseWriter == null || reuseWriter.getNumElements() != value.length) {
-				reuseWriter = new BinaryArrayWriter(reuseArray, value.length, elementSize);
-			} else {
-				reuseWriter.reset();
-			}
-			for (int i = 0; i < value.length; i++) {
-				Object field = value[i];
-				if (field == null) {
-					reuseWriter.setNullAt(i, elementType);
-				} else {
-					BinaryWriter.write(reuseWriter, i, elementConverter.toInternalImpl(value[i]), elementType, eleSer);
-				}
-			}
-			reuseWriter.complete();
-			return reuseArray.copy();
+			return reuseWriter.write(
+				value.length,
+				idx -> value[idx] == null,
+				idx -> elementConverter.toInternalImpl(value[idx])
+			).copy();
 		}
 
 		@Override
@@ -1221,35 +1205,18 @@ public class DataFormatConverters {
 		private final DataFormatConverter keyConverter;
 		private final DataFormatConverter valueConverter;
 
-		private final int keyElementSize;
-		private final int valueElementSize;
-
-		private final Class keyComponentClass;
-		private final Class valueComponentClass;
-
-		private final TypeSerializer keySer;
-		private final TypeSerializer valueSer;
-
 		private final boolean isKeyValueIndentity;
 
-		private transient BinaryArrayData reuseKArray;
-		private transient BinaryArrayWriter reuseKWriter;
-		private transient BinaryArrayData reuseVArray;
-		private transient BinaryArrayWriter reuseVWriter;
+		private transient ArrayDataWriterWrapper reuseKeyWriter;
+		private transient ArrayDataWriterWrapper reuseValueWriter;
 
 		public MapConverter(DataType keyTypeInfo, DataType valueTypeInfo) {
 			this.keyType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(keyTypeInfo);
 			this.valueType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(valueTypeInfo);
 			this.keyConverter = DataFormatConverters.getConverterForDataType(keyTypeInfo);
 			this.valueConverter = DataFormatConverters.getConverterForDataType(valueTypeInfo);
-			this.keyElementSize = BinaryArrayData.calculateFixLengthPartSize(keyType);
-			this.valueElementSize = BinaryArrayData.calculateFixLengthPartSize(valueType);
-			this.keyComponentClass = keyTypeInfo.getConversionClass();
-			this.valueComponentClass = valueTypeInfo.getConversionClass();
 			this.isKeyValueIndentity = keyConverter instanceof IdentityConverter &&
 					valueConverter instanceof IdentityConverter;
-			this.keySer = InternalSerializers.create(this.keyType);
-			this.valueSer = InternalSerializers.create(this.valueType);
 		}
 
 		@Override
@@ -1258,36 +1225,29 @@ public class DataFormatConverters {
 		}
 
 		private MapData toBinaryMap(Map value) {
-			if (reuseKArray == null) {
-				reuseKArray = new BinaryArrayData();
-				reuseVArray = new BinaryArrayData();
+			if (reuseKeyWriter == null) {
+				reuseKeyWriter = new ArrayDataWriterWrapper(keyType);
 			}
-			if (reuseKWriter == null || reuseKWriter.getNumElements() != value.size()) {
-				reuseKWriter = new BinaryArrayWriter(reuseKArray, value.size(), keyElementSize);
-				reuseVWriter = new BinaryArrayWriter(reuseVArray, value.size(), valueElementSize);
-			} else {
-				reuseKWriter.reset();
-				reuseVWriter.reset();
+			if (reuseValueWriter == null) {
+				reuseValueWriter = new ArrayDataWriterWrapper(valueType);
 			}
 
-			int i = 0;
+			List keys = new ArrayList(value.size());
+			List values = new ArrayList(value.size());
 			for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
-				if (entry.getKey() == null) {
-					reuseKWriter.setNullAt(i, keyType);
-				} else {
-					BinaryWriter.write(reuseKWriter, i, keyConverter.toInternalImpl(entry.getKey()), keyType, keySer);
-				}
-				if (entry.getValue() == null) {
-					reuseVWriter.setNullAt(i, valueType);
-				} else {
-					BinaryWriter.write(reuseVWriter, i, valueConverter.toInternalImpl(entry.getValue()), valueType, valueSer);
-				}
-				i++;
+				keys.add(entry.getKey());
+				values.add(entry.getValue());
 			}
 
-			reuseKWriter.complete();
-			reuseVWriter.complete();
-			return BinaryMapData.valueOf(reuseKArray, reuseVArray);
+			return BinaryMapData.valueOf(
+				reuseKeyWriter.write(
+					value.size(),
+					idx -> keys.get(idx) == null,
+					idx -> keyConverter.toInternalImpl(keys.get(idx))),
+				reuseValueWriter.write(
+					value.size(),
+					idx -> values.get(idx) == null,
+					idx -> valueConverter.toInternalImpl(values.get(idx))));
 		}
 
 		@SuppressWarnings("unchecked")

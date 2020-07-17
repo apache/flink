@@ -151,7 +151,7 @@ public class BinaryRowDataTest {
 		writer.writeInt(8, 88);
 		writer.writeLong(10, 284);
 		writer.writeShort(11, (short) 292);
-		writer.setNullAt(12);
+		writer.writeNullLong(12);
 
 		writer.complete();
 
@@ -321,14 +321,14 @@ public class BinaryRowDataTest {
 			row.setRowKind(RowKind.UPDATE_BEFORE);
 			assertFalse(row.anyNull());
 
-			writer.setNullAt(2);
+			writer.writeNullLong(2);
 			assertTrue(row.anyNull());
 
-			writer.setNullAt(0);
+			writer.writeNullLong(0);
 			assertTrue(row.anyNull(new int[]{0, 1, 2}));
 			assertFalse(row.anyNull(new int[]{1}));
 
-			writer.setNullAt(1);
+			writer.writeNullLong(1);
 			assertTrue(row.anyNull());
 		}
 
@@ -338,7 +338,7 @@ public class BinaryRowDataTest {
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			row.setRowKind(RowKind.DELETE);
 			assertFalse(row.anyNull());
-			writer.setNullAt(i);
+			writer.writeNullLong(i);
 			assertTrue(row.anyNull());
 		}
 	}
@@ -362,7 +362,7 @@ public class BinaryRowDataTest {
 			writer.writeInt(8, 88);
 			writer.writeLong(10, 284);
 			writer.writeShort(11, (short) 292);
-			writer.setNullAt(12);
+			writer.writeNullLong(12);
 			writer.complete();
 			BinaryRowData copy = row.copy();
 			assertEquals(row.hashCode(), copy.hashCode());
@@ -402,7 +402,7 @@ public class BinaryRowDataTest {
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 
 		writer.writeInt(0, 10);
-		writer.setNullAt(1);
+		writer.writeNullLong(1);
 		writer.writeRowKind(RowKind.UPDATE_BEFORE);
 		writer.complete();
 
@@ -423,7 +423,7 @@ public class BinaryRowDataTest {
 			BinaryRowData row = new BinaryRowData(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeDecimal(0, DecimalData.fromUnscaledLong(5, precision, scale), precision);
-			writer.setNullAt(1);
+			writer.writeNullDecimal(1, precision);
 			writer.complete();
 
 			assertEquals("0.05", row.getDecimal(0, precision, scale).toString());
@@ -442,7 +442,7 @@ public class BinaryRowDataTest {
 			BinaryRowData row = new BinaryRowData(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeDecimal(0, decimal1, precision);
-			writer.writeDecimal(1, null, precision);
+			writer.writeNullDecimal(1, precision);
 			writer.complete();
 
 			assertEquals("5.55000", row.getDecimal(0, precision, scale).toString());
@@ -459,7 +459,7 @@ public class BinaryRowDataTest {
 		RawValueDataSerializer<String> binarySerializer = new RawValueDataSerializer<>(StringSerializer.INSTANCE);
 		RawValueData<String> hahah = RawValueData.fromObject("hahah");
 		writer.writeRawValue(0, hahah, binarySerializer);
-		writer.setNullAt(1);
+		writer.writeNullRawValue(1);
 		writer.writeRawValue(2, hahah, binarySerializer);
 		writer.complete();
 
@@ -476,7 +476,7 @@ public class BinaryRowDataTest {
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeRow(0, GenericRowData.of(fromString("1"), 1),
 				new RowDataSerializer(RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
-		writer.setNullAt(1);
+		writer.writeNullRow(1);
 		writer.complete();
 
 		RowData nestedRow = row.getRow(0, 2);
@@ -507,7 +507,7 @@ public class BinaryRowDataTest {
 			array, 3, BinaryArrayData.calculateFixLengthPartSize(DataTypes.INT().getLogicalType()));
 
 		arrayWriter.writeInt(0, 6);
-		arrayWriter.setNullInt(1);
+		arrayWriter.writeNullInt(1);
 		arrayWriter.writeInt(2, 666);
 		arrayWriter.complete();
 
@@ -569,7 +569,7 @@ public class BinaryRowDataTest {
 		writer2.writeString(0, fromString("6"));
 		writer2.writeString(1, fromString("5"));
 		writer2.writeString(2, fromString("666"));
-		writer2.setNullAt(3, DataTypes.STRING().getLogicalType());
+		writer2.writeNullString(3);
 		writer2.complete();
 
 		BinaryMapData binaryMap = BinaryMapData.valueOf(array1, array2);
@@ -1016,7 +1016,7 @@ public class BinaryRowDataTest {
 			BinaryRowData row = new BinaryRowData(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeTimestamp(0, TimestampData.fromEpochMillis(123L), precision);
-			writer.setNullAt(1);
+			writer.writeNullTimestamp(1, precision);
 			writer.complete();
 
 			assertEquals("1970-01-01T00:00:00.123", row.getTimestamp(0, 3).toString());
@@ -1033,7 +1033,7 @@ public class BinaryRowDataTest {
 			BinaryRowData row = new BinaryRowData(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeTimestamp(0, timestamp1, precision);
-			writer.writeTimestamp(1, null, precision);
+			writer.writeNullTimestamp(1, precision);
 			writer.complete();
 
 			// the size of row should be 8 + (8 + 8) * 2

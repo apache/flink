@@ -388,7 +388,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		public BinaryRowData apply(RowData row) {
 			writer.reset();
 			if (row.isNullAt(0)) {
-				writer.setNullAt(0);
+				writer.writeNullInt(0);
 			} else {
 				writer.writeInt(0, row.getInt(0));
 			}

@@ -382,7 +382,7 @@ public class HeapWindowsGroupingTest {
 		public BinaryRowData getRow() {
 			writer.reset();
 			if (assignedWindowStart.get(count) == null) {
-				writer.setNullAt(0);
+				writer.writeNullLong(0);
 			} else {
 				writer.writeLong(0, assignedWindowStart.get(count));
 			}

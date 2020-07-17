@@ -28,14 +28,11 @@ import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
-import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
-import org.apache.flink.table.data.writer.BinaryArrayWriter;
-import org.apache.flink.table.data.writer.BinaryWriter;
+import org.apache.flink.table.data.writer.ArrayDataWriterWrapper;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -53,10 +50,8 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 	private final TypeSerializer keySerializer;
 	private final TypeSerializer valueSerializer;
 
-	private transient BinaryArrayData reuseKeyArray;
-	private transient BinaryArrayData reuseValueArray;
-	private transient BinaryArrayWriter reuseKeyWriter;
-	private transient BinaryArrayWriter reuseValueWriter;
+	private transient ArrayDataWriterWrapper reuseKeyWriter;
+	private transient ArrayDataWriterWrapper reuseValueWriter;
 
 	public MapDataSerializer(LogicalType keyType, LogicalType valueType) {
 		this.keyType = keyType;
@@ -125,47 +120,15 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 			return (BinaryMapData) from;
 		}
 
-		int numElements = from.size();
-		if (reuseKeyArray == null) {
-			reuseKeyArray = new BinaryArrayData();
+		if (reuseKeyWriter == null) {
+			reuseKeyWriter = new ArrayDataWriterWrapper(keyType);
 		}
-		if (reuseValueArray == null) {
-			reuseValueArray = new BinaryArrayData();
+		if (reuseValueWriter == null) {
+			reuseValueWriter = new ArrayDataWriterWrapper(valueType);
 		}
-		if (reuseKeyWriter == null || reuseKeyWriter.getNumElements() != numElements) {
-			reuseKeyWriter = new BinaryArrayWriter(
-				reuseKeyArray, numElements, BinaryArrayData.calculateFixLengthPartSize(keyType));
-		} else {
-			reuseKeyWriter.reset();
-		}
-		if (reuseValueWriter == null || reuseValueWriter.getNumElements() != numElements) {
-			reuseValueWriter = new BinaryArrayWriter(
-				reuseValueArray, numElements, BinaryArrayData.calculateFixLengthPartSize(valueType));
-		} else {
-			reuseValueWriter.reset();
-		}
-
-		ArrayData keyArray = from.keyArray();
-		ArrayData valueArray = from.valueArray();
-		for (int i = 0; i < from.size(); i++) {
-			Object key = ArrayData.get(keyArray, i, keyType);
-			Object value = ArrayData.get(valueArray, i, valueType);
-			if (key == null) {
-				reuseKeyWriter.setNullAt(i, keyType);
-			} else {
-				BinaryWriter.write(reuseKeyWriter, i, key, keyType, keySerializer);
-			}
-			if (value == null) {
-				reuseValueWriter.setNullAt(i, valueType);
-			} else {
-				BinaryWriter.write(reuseValueWriter, i, value, valueType, valueSerializer);
-			}
-		}
-
-		reuseKeyWriter.complete();
-		reuseValueWriter.complete();
-
-		return BinaryMapData.valueOf(reuseKeyArray, reuseValueArray);
+		return BinaryMapData.valueOf(
+			reuseKeyWriter.write(from.keyArray()),
+			reuseValueWriter.write(from.valueArray()));
 	}
 
 	@Override

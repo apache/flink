@@ -79,7 +79,7 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 		// for null value
 		BinaryRowWriter emptyAggBufferWriter = new BinaryRowWriter(emptyAggBuffer);
 		emptyAggBufferWriter.reset();
-		emptyAggBufferWriter.setNullAt(0);
+		emptyAggBufferWriter.writeNullLong(0);
 		emptyAggBufferWriter.complete();
 	}
 
@@ -90,7 +90,7 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 		// project key from input
 		currentKeyWriter.reset();
 		if (in1.isNullAt(0)) {
-			currentKeyWriter.setNullAt(0);
+			currentKeyWriter.writeNullInt(0);
 		} else {
 			currentKeyWriter.writeInt(0, in1.getInt(0));
 		}

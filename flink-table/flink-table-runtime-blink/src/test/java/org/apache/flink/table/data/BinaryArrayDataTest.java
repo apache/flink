@@ -61,7 +61,7 @@ public class BinaryArrayDataTest {
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, 3, 4);
 
 		writer.writeInt(0, 6);
-		writer.setNullInt(1);
+		writer.writeNullInt(1);
 		writer.writeInt(2, 666);
 		writer.complete();
 
@@ -106,7 +106,7 @@ public class BinaryArrayDataTest {
 			// test bool
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 1);
-			writer.setNullBoolean(0);
+			writer.writeNullBoolean(0);
 			writer.writeBoolean(1, true);
 			writer.complete();
 
@@ -133,7 +133,7 @@ public class BinaryArrayDataTest {
 			// test byte
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 1);
-			writer.setNullByte(0);
+			writer.writeNullByte(0);
 			writer.writeByte(1, (byte) 25);
 			writer.complete();
 
@@ -160,7 +160,7 @@ public class BinaryArrayDataTest {
 			// test short
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 2);
-			writer.setNullShort(0);
+			writer.writeNullShort(0);
 			writer.writeShort(1, (short) 25);
 			writer.complete();
 
@@ -187,7 +187,7 @@ public class BinaryArrayDataTest {
 			// test int
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 4);
-			writer.setNullInt(0);
+			writer.writeNullInt(0);
 			writer.writeInt(1, 25);
 			writer.complete();
 
@@ -214,7 +214,7 @@ public class BinaryArrayDataTest {
 			// test long
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-			writer.setNullLong(0);
+			writer.writeNullLong(0);
 			writer.writeLong(1, 25);
 			writer.complete();
 
@@ -241,7 +241,7 @@ public class BinaryArrayDataTest {
 			// test float
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 4);
-			writer.setNullFloat(0);
+			writer.writeNullFloat(0);
 			writer.writeFloat(1, 25);
 			writer.complete();
 
@@ -268,7 +268,7 @@ public class BinaryArrayDataTest {
 			// test double
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-			writer.setNullDouble(0);
+			writer.writeNullDouble(0);
 			writer.writeDouble(1, 25);
 			writer.complete();
 
@@ -295,7 +295,7 @@ public class BinaryArrayDataTest {
 			// test string
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-			writer.setNullAt(0);
+			writer.writeNullString(0);
 			writer.writeString(1, fromString("jaja"));
 			writer.complete();
 
@@ -309,7 +309,7 @@ public class BinaryArrayDataTest {
 
 		BinaryArrayData subArray = new BinaryArrayData();
 		BinaryArrayWriter subWriter = new BinaryArrayWriter(subArray, 2, 8);
-		subWriter.setNullAt(0);
+		subWriter.writeNullString(0);
 		subWriter.writeString(1, fromString("hehehe"));
 		subWriter.complete();
 
@@ -317,7 +317,7 @@ public class BinaryArrayDataTest {
 			// test array
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-			writer.setNullAt(0);
+			writer.writeNullArray(0);
 			writer.writeArray(1, subArray, new ArrayDataSerializer(DataTypes.INT().getLogicalType()));
 			writer.complete();
 
@@ -333,7 +333,7 @@ public class BinaryArrayDataTest {
 			// test map
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-			writer.setNullAt(0);
+			writer.writeNullMap(0);
 			writer.writeMap(1, BinaryMapData.valueOf(subArray, subArray),
 					new MapDataSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
 			writer.complete();
@@ -439,7 +439,7 @@ public class BinaryArrayDataTest {
 			int scale = 2;
 			writer.reset();
 			writer.writeDecimal(0, DecimalData.fromUnscaledLong(5, precision, scale), precision);
-			writer.setNullAt(1);
+			writer.writeNullDecimal(1, precision);
 			writer.complete();
 
 			assertEquals("0.05", array.getDecimal(0, precision, scale).toString());
@@ -457,7 +457,7 @@ public class BinaryArrayDataTest {
 
 			writer.reset();
 			writer.writeDecimal(0, decimal1, precision);
-			writer.writeDecimal(1, null, precision);
+			writer.writeNullDecimal(1, precision);
 			writer.complete();
 
 			assertEquals("5.55000", array.getDecimal(0, precision, scale).toString());
@@ -474,7 +474,7 @@ public class BinaryArrayDataTest {
 		RawValueData<String> generic = RawValueData.fromObject("hahah");
 		RawValueDataSerializer<String> serializer = new RawValueDataSerializer<>(StringSerializer.INSTANCE);
 		writer.writeRawValue(0, generic, serializer);
-		writer.setNullAt(1);
+		writer.writeNullRawValue(1);
 		writer.complete();
 
 		RawValueData<String> newGeneric = array.getRawValue(0);
@@ -488,7 +488,7 @@ public class BinaryArrayDataTest {
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 		writer.writeRow(0, GenericRowData.of(fromString("1"), 1),
 				new RowDataSerializer(RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
-		writer.setNullAt(1);
+		writer.writeNullRow(1);
 		writer.complete();
 
 		RowData nestedRow = array.getRow(0, 2);
@@ -521,7 +521,7 @@ public class BinaryArrayDataTest {
 			final int precision = 3;
 			writer.reset();
 			writer.writeTimestamp(0, TimestampData.fromEpochMillis(123L), precision);
-			writer.setNullAt(1);
+			writer.writeNullTimestamp(1, precision);
 			writer.complete();
 
 			assertEquals("1970-01-01T00:00:00.123", array.getTimestamp(0, 3).toString());
@@ -538,7 +538,7 @@ public class BinaryArrayDataTest {
 
 			writer.reset();
 			writer.writeTimestamp(0, timestamp1, precision);
-			writer.writeTimestamp(1, null, precision);
+			writer.writeNullTimestamp(1, precision);
 			writer.complete();
 
 			assertEquals("1970-01-01T00:00:00.123456789", array.getTimestamp(0, precision).toString());

@@ -33,8 +33,7 @@ import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.data.writer.BinaryRowWriter;
-import org.apache.flink.table.data.writer.BinaryWriter;
+import org.apache.flink.table.data.writer.RowDataWriterWrapper;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
@@ -47,14 +46,14 @@ import java.util.Arrays;
  */
 @Internal
 public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
+
 	private static final long serialVersionUID = 1L;
 
-	private BinaryRowDataSerializer binarySerializer;
+	private final BinaryRowDataSerializer binarySerializer;
 	private final LogicalType[] types;
 	private final TypeSerializer[] fieldSerializers;
 
-	private transient BinaryRowData reuseRow;
-	private transient BinaryRowWriter reuseWriter;
+	private transient RowDataWriterWrapper reuseWriter;
 
 	public RowDataSerializer(RowType rowType) {
 		this(rowType.getChildren().toArray(new LogicalType[0]),
@@ -179,21 +178,11 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 		if (row instanceof BinaryRowData) {
 			return (BinaryRowData) row;
 		}
-		if (reuseRow == null) {
-			reuseRow = new BinaryRowData(types.length);
-			reuseWriter = new BinaryRowWriter(reuseRow);
+
+		if (reuseWriter == null) {
+			reuseWriter = new RowDataWriterWrapper(types);
 		}
-		reuseWriter.reset();
-		reuseWriter.writeRowKind(row.getRowKind());
-		for (int i = 0; i < types.length; i++) {
-			if (row.isNullAt(i)) {
-				reuseWriter.setNullAt(i);
-			} else {
-				BinaryWriter.write(reuseWriter, i, RowData.get(row, i, types[i]), types[i], fieldSerializers[i]);
-			}
-		}
-		reuseWriter.complete();
-		return reuseRow;
+		return reuseWriter.write(row);
 	}
 
 	@Override

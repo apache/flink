@@ -20,15 +20,25 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,5 +103,69 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
 		}
 		writer.complete();
 		return array;
+	}
+
+	@Test
+	public void testToBinaryMapWithCompactDecimal() {
+		testToBinaryMapWithDecimal(4);
+	}
+
+	@Test
+	public void testToBinaryMapWithNotCompactDecimal() {
+		testToBinaryMapWithDecimal(38);
+	}
+
+	private void testToBinaryMapWithDecimal(int precision) {
+		DecimalData decimal = DecimalData.fromBigDecimal(new BigDecimal(123), precision, 0);
+
+		BinaryArrayData expectedKeys = new BinaryArrayData();
+		BinaryArrayWriter keyWriter = new BinaryArrayWriter(expectedKeys, 1, 8);
+		keyWriter.writeDecimal(0, decimal, precision);
+		keyWriter.complete();
+		BinaryArrayData expectedValues = new BinaryArrayData();
+		BinaryArrayWriter valueWriter = new BinaryArrayWriter(expectedValues, 1, 8);
+		valueWriter.writeNullDecimal(0, precision);
+		valueWriter.complete();
+		BinaryMapData expected = BinaryMapData.valueOf(expectedKeys, expectedValues);
+
+		MapDataSerializer serializer = new MapDataSerializer(
+			new DecimalType(precision, 0),
+			new DecimalType(precision, 0));
+		GenericMapData genericMap = new GenericMapData(Collections.singletonMap(decimal, null));
+		BinaryMapData actual = serializer.toBinaryMap(genericMap);
+
+		Assert.assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testToBinaryMapWithCompactTimestamp() {
+		testToBinaryMapWithTimestamp(3);
+	}
+
+	@Test
+	public void testToBinaryMapWithNotCompactTimestamp() {
+		testToBinaryMapWithTimestamp(9);
+	}
+
+	private void testToBinaryMapWithTimestamp(int precision) {
+		TimestampData timestamp = TimestampData.fromTimestamp(new Timestamp(123));
+
+		BinaryArrayData expectedKeys = new BinaryArrayData();
+		BinaryArrayWriter keyWriter = new BinaryArrayWriter(expectedKeys, 1, 8);
+		keyWriter.writeTimestamp(0, timestamp, precision);
+		keyWriter.complete();
+		BinaryArrayData expectedValues = new BinaryArrayData();
+		BinaryArrayWriter valueWriter = new BinaryArrayWriter(expectedValues, 1, 8);
+		valueWriter.writeNullTimestamp(0, precision);
+		valueWriter.complete();
+		BinaryMapData expected = BinaryMapData.valueOf(expectedKeys, expectedValues);
+
+		MapDataSerializer serializer = new MapDataSerializer(
+			new TimestampType(precision),
+			new TimestampType(precision));
+		GenericMapData genericMap = new GenericMapData(Collections.singletonMap(timestamp, null));
+		BinaryMapData actual = serializer.toBinaryMap(genericMap);
+
+		Assert.assertEquals(expected, actual);
 	}
 }

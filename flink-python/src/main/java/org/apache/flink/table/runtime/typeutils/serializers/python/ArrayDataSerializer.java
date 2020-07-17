@@ -28,8 +28,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
-import org.apache.flink.table.data.writer.BinaryArrayWriter;
-import org.apache.flink.table.data.writer.BinaryWriter;
+import org.apache.flink.table.data.writer.ArrayDataWriterWrapper;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -49,13 +48,10 @@ public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutil
 
 	private final TypeSerializer elementTypeSerializer;
 
-	private final int elementSize;
-
 	public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
 		super(eleType);
 		this.elementType = eleType;
 		this.elementTypeSerializer = elementTypeSerializer;
-		this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
 	}
 
 	@Override
@@ -87,18 +83,11 @@ public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutil
 
 	private ArrayData deserializeInternal(DataInputView source, BinaryArrayData array) throws IOException {
 		int len = source.readInt();
-		BinaryArrayWriter writer = new BinaryArrayWriter(array, len, elementSize);
-		for (int i = 0; i < len; i++) {
-			boolean isNonNull = source.readBoolean();
-			if (isNonNull) {
-				Object element = elementTypeSerializer.deserialize(source);
-				BinaryWriter.write(writer, i, element, elementType, elementTypeSerializer);
-			} else {
-				writer.setNullAt(i);
-			}
-		}
-		writer.complete();
-		return array;
+		ArrayDataWriterWrapper writer = new ArrayDataWriterWrapper(elementType, array);
+		return writer.write(
+			len,
+			idx -> !source.readBoolean(),
+			idx -> elementTypeSerializer.deserialize(source));
 	}
 
 	@Override

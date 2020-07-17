@@ -51,7 +51,6 @@ import org.apache.flink.table.runtime.operators.sort.BinaryInMemorySortBuffer;
 import org.apache.flink.table.runtime.operators.sort.ListMemorySegmentPool;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -186,17 +185,13 @@ public class SortCodeGeneratorTest {
 	private BinaryRowData row(int i, Object[][] values) {
 		BinaryRowData row = new BinaryRowData(fields.length);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
+
 		for (int j = 0; j < fields.length; j++) {
 			Object value = values[j][i];
 			if (value == null) {
-				writer.setNullAt(j);
+				BinaryWriter.createNullSetter(types[fields[j]]).setNull(writer, j);
 			} else {
-				BinaryWriter.write(
-					writer,
-					j,
-					value,
-					types[fields[j]],
-					InternalSerializers.create(types[fields[j]]));
+				BinaryWriter.createValueSetter(types[fields[j]]).setValue(writer, j, value);
 			}
 		}
 

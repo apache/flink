@@ -354,7 +354,7 @@ public class SortMergeJoinIteratorTest {
 		if (i != null) {
 			writer.writeInt(0, i);
 		} else {
-			writer.setNullAt(0);
+			writer.writeNullInt(0);
 		}
 		writer.complete();
 		return row;

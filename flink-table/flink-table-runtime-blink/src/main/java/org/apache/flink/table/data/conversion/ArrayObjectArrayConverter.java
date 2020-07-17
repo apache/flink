@@ -49,7 +49,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 
 	private final int elementSize;
 
-	private final BinaryArrayWriter.NullSetter  writerNullSetter;
+	private final BinaryWriter.NullSetter  writerNullSetter;
 
 	private final BinaryWriter.ValueSetter writerValueSetter;
 
@@ -68,7 +68,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 	private ArrayObjectArrayConverter(
 			Class<E> elementClass,
 			int elementSize,
-			BinaryArrayWriter.NullSetter writerNullSetter,
+			BinaryWriter.NullSetter writerNullSetter,
 			BinaryWriter.ValueSetter writerValueSetter,
 			GenericToJavaArrayConverter<E> genericToJavaArrayConverter,
 			ArrayData.ElementGetter elementGetter,
@@ -172,7 +172,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 		return new ArrayObjectArrayConverter<>(
 			(Class<E>) primitiveToWrapper(elementDataType.getConversionClass()),
 			BinaryArrayData.calculateFixLengthPartSize(elementType),
-			BinaryArrayWriter.createNullSetter(elementType),
+			BinaryWriter.createNullSetter(elementType),
 			BinaryWriter.createValueSetter(elementType),
 			createGenericToJavaArrayConverter(elementType),
 			ArrayData.createElementGetter(elementType),
