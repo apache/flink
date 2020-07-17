@@ -90,10 +90,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates a source that produces a sequence of values.
- * And this source {@link TestValuesTableSource} supports FilterPushDown. And it has some limitations.
- * The predicates must satisfy both of the following conditions:
- * 1. the column name of predicates should exist in FILTERABLE_FIELDS, which user can define in properties.
- * 2. every argument of  predicate expressions must implement {@link Comparable}.
+ * And {@link TestValuesTableSource} can push down filter into table source. And it has some limitations.
+ * A predicate can be pushed down only if it satisfies the following conditions:
+ * 1. field name is in filterable-fields, which are defined in with properties.
+ * 2. the field type all should be comparable.
+ * 3. UDF is UPPER or LOWER.
  */
 public final class TestValuesTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
