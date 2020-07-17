@@ -62,22 +62,23 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	public SqlCreateHiveTable(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList,
 			HiveTableCreationContext creationContext, SqlNodeList propertyList,
 			SqlNodeList partColList, @Nullable SqlCharStringLiteral comment, boolean isTemporary, boolean isExternal,
-			HiveTableRowFormat rowFormat, HiveTableStoredAs storedAs, SqlCharStringLiteral location) throws ParseException {
+			HiveTableRowFormat rowFormat, HiveTableStoredAs storedAs, SqlCharStringLiteral location, boolean ifNotExists) throws ParseException {
 
 		super(
-				pos,
-				tableName,
-				columnList,
-				creationContext.constraints,
-				HiveDDLUtils.checkReservedTableProperties(propertyList),
-				extractPartColIdentifiers(partColList),
-				null,
-				HiveDDLUtils.unescapeStringLiteral(comment),
-				null,
-				isTemporary
-		);
-		HiveDDLUtils.unescapeProperties(propertyList);
+			pos,
+			tableName,
+			columnList,
+			creationContext.constraints,
+			HiveDDLUtils.checkReservedTableProperties(propertyList),
+			extractPartColIdentifiers(partColList),
+			null,
+			HiveDDLUtils.unescapeStringLiteral(comment),
+			null,
+			isTemporary,
+			ifNotExists
+			);
 
+		HiveDDLUtils.unescapeProperties(propertyList);
 		this.origColList = HiveDDLUtils.deepCopyColList(columnList);
 		this.origPartColList = partColList != null ?
 				HiveDDLUtils.deepCopyColList(partColList) :
