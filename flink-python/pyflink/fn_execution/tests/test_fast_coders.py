@@ -22,7 +22,7 @@ import unittest
 
 try:
     from pyflink.fn_execution import fast_coder_impl
-    from pyflink.fn_execution.beam import beam_slow_coder_impl as coder_impl
+    from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
 
     have_cython = True
 except ImportError:
@@ -41,9 +41,9 @@ class CodersTest(unittest.TestCase):
         input_stream = BeamInputStream(beam_input_stream, beam_input_stream.size())
         beam_output_stream = create_OutputStream()
         cy_flatten_row_coder = fast_coder_impl.FlattenRowCoderImpl(cython_field_coders)
-        value = cy_flatten_row_coder.decode(input_stream)
+        value = cy_flatten_row_coder.decode_from_stream(input_stream)
         output_stream = BeamOutputStream(beam_output_stream)
-        cy_flatten_row_coder.encode(value, output_stream)
+        cy_flatten_row_coder.encode_to_stream(value, output_stream)
         output_stream.flush()
         generator_result = py_flatten_row_coder.decode_from_stream(create_InputStream(
             beam_output_stream.get()), False)

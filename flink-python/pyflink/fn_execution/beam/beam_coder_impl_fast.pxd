@@ -23,7 +23,7 @@
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
 from pyflink.fn_execution.fast_coder_impl cimport BaseCoderImpl
-from pyflink.fn_execution.stream cimport InputStream
+from pyflink.fn_execution.stream cimport LengthPrefixInputStream
 
 cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     cdef readonly StreamCoderImpl _value_coder
@@ -33,4 +33,4 @@ cdef class BeamCoderImpl(StreamCoderImpl):
 
 cdef class InputStreamWrapper:
     cdef BaseCoderImpl _value_coder
-    cdef InputStream _input_stream
+    cdef LengthPrefixInputStream _input_stream

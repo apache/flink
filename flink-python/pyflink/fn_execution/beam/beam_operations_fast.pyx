@@ -30,7 +30,7 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 
 from pyflink.fn_execution.fast_coder_impl cimport BaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
-from pyflink.fn_execution.beam.beam_coder_impl cimport InputStreamWrapper
+from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
 
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.metrics.metricbase import GenericMetricGroup
@@ -46,7 +46,7 @@ cdef class BeamStatelessFunctionOperation(Operation):
         super(BeamStatelessFunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-        from pyflink.fn_execution.beam.beam_slow_coder_impl import ArrowCoderImpl
+        from pyflink.fn_execution.beam.beam_coder_impl_slow import ArrowCoderImpl
         if isinstance(self._value_coder_impl, ArrowCoderImpl):
             self._is_python_coder = True
         else:
@@ -94,9 +94,9 @@ cdef class BeamStatelessFunctionOperation(Operation):
                 input_coder = input_stream_wrapper._value_coder
                 output_stream = BeamOutputStream(self.consumer.output_stream)
                 while input_stream.available():
-                    input_data = input_coder.decode(input_stream)
+                    input_data = input_coder.decode_from_stream(input_stream)
                     result = self.func(input_data)
-                    self._output_coder.encode(result, output_stream)
+                    self._output_coder.encode_to_stream(result, output_stream)
                 output_stream.flush()
 
     def progress_metrics(self):

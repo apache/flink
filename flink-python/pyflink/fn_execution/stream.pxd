@@ -17,10 +17,10 @@
 ################################################################################
 # cython: language_level = 3
 
-cdef class InputStream:
+cdef class LengthPrefixInputStream:
     cdef size_t read(self, char**data)
     cdef size_t available(self)
 
-cdef class OutputStream:
+cdef class LengthPrefixOutputStream:
     cdef void write(self, char*data, size_t length)
     cpdef void flush(self)

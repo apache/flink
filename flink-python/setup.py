@@ -74,8 +74,8 @@ else:
                 sources=["pyflink/fn_execution/beam/beam_stream.pyx"],
                 include_dirs=["pyflink/fn_execution/beam"]),
             Extension(
-                name="pyflink.fn_execution.beam.beam_coder_impl",
-                sources=["pyflink/fn_execution/beam/beam_coder_impl.pyx"],
+                name="pyflink.fn_execution.beam.beam_coder_impl_fast",
+                sources=["pyflink/fn_execution/beam/beam_coder_impl_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/beam"]),
             Extension(
                 name="pyflink.fn_execution.beam.beam_operations_fast",
@@ -98,8 +98,8 @@ else:
                     sources=["pyflink/fn_execution/beam/beam_stream.c"],
                     include_dirs=["pyflink/fn_execution/beam"]),
                 Extension(
-                    name="pyflink.fn_execution.beam.beam_coder_impl",
-                    sources=["pyflink/fn_execution/beam/beam_coder_impl.c"],
+                    name="pyflink.fn_execution.beam.beam_coder_impl_fast",
+                    sources=["pyflink/fn_execution/beam/beam_coder_impl_fast.c"],
                     include_dirs=["pyflink/fn_execution/beam"]),
                 Extension(
                     name="pyflink.fn_execution.beam.beam_operations_fast",
