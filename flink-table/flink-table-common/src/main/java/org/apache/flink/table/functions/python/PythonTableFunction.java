@@ -93,7 +93,11 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
 	@Override
 	public TypeInformation[] getParameterTypes(Class[] signature) {
-		return inputTypes;
+		if (inputTypes != null) {
+			return inputTypes;
+		} else {
+			return super.getParameterTypes(signature);
+		}
 	}
 
 	@Override

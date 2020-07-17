@@ -620,7 +620,8 @@ class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
     pass
 
 
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
+# test only specifies the result type
+@udf(result_type=DataTypes.BIGINT())
 def add(i, j):
     return i + j
 

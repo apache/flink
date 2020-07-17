@@ -115,8 +115,8 @@ class MultiEmit(TableFunction, unittest.TestCase):
             yield x, i
 
 
-@udtf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-      result_types=DataTypes.BIGINT())
+# test only specifies the result type
+@udtf(result_types=DataTypes.BIGINT())
 def condition_multi_emit(x, y):
     if x == 3:
         return range(y, x)
