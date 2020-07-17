@@ -541,7 +541,7 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"row\":{\"id\":\"abc\"}}")
 			.rowType(ROW(FIELD("row", ROW(FIELD("id", BOOLEAN())))))
-			.expect(Row.of(Row.of(Boolean.FALSE))),
+			.expect(Row.of(Row.of(false))),
 
 		TestSpec
 			.json("{\"array\":[123, \"abc\"]}")
