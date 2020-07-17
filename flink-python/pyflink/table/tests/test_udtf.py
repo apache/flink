@@ -31,14 +31,12 @@ class UserDefinedTableFunctionTests(object):
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 
         self.t_env.register_function(
-            "multi_emit", udtf(MultiEmit(), [DataTypes.BIGINT(), DataTypes.BIGINT()],
-                               [DataTypes.BIGINT(), DataTypes.BIGINT()]))
+            "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
         self.t_env.register_function("condition_multi_emit", condition_multi_emit)
 
         self.t_env.register_function(
-            "multi_num", udf(MultiNum(), [DataTypes.BIGINT()],
-                             DataTypes.BIGINT()))
+            "multi_num", udf(MultiNum(), result_type=DataTypes.BIGINT()))
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
         t = t.join_lateral("multi_emit(a, multi_num(b)) as (x, y)") \
@@ -55,8 +53,7 @@ class UserDefinedTableFunctionTests(object):
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 
         self.t_env.register_function(
-            "multi_emit", udtf(MultiEmit(), [DataTypes.BIGINT(), DataTypes.BIGINT()],
-                               [DataTypes.BIGINT(), DataTypes.BIGINT()]))
+            "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
         self.t_env.register_table("MyTable", t)
@@ -115,6 +112,7 @@ class MultiEmit(TableFunction, unittest.TestCase):
             yield x, i
 
 
+# test specify the input_types
 @udtf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
       result_types=DataTypes.BIGINT())
 def condition_multi_emit(x, y):

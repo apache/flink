@@ -48,7 +48,7 @@ The following example shows how to define your own vectorized Python scalar func
 and use it in a query:
 
 {% highlight python %}
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT(), udf_type="pandas")
+@udf(result_type=DataTypes.BIGINT(), udf_type="pandas")
 def add(i, j):
   return i + j
 

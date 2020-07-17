@@ -52,7 +52,7 @@ table_env = BatchTableEnvironment.create(env)
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Python function
-table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+table_env.register_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 
 # use the Python function in Python Table API
 my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
@@ -110,29 +110,28 @@ class Add(ScalarFunction):
   def eval(self, i, j):
     return i + j
 
-add = udf(Add(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+add = udf(Add(), result_type=DataTypes.BIGINT())
 
 # option 2: Python function
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
+@udf(result_type=DataTypes.BIGINT())
 def add(i, j):
   return i + j
 
 # option 3: lambda function
-add = udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
 
 # option 4: callable function
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
-add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+add = udf(CallableAdd(), result_type=DataTypes.BIGINT())
 
 # option 5: partial function
 def partial_add(i, j, k):
   return i + j + k
 
-add = udf(functools.partial(partial_add, k=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
-          DataTypes.BIGINT())
+add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 
 # register the Python function
 table_env.register_function("add", add)
@@ -163,7 +162,7 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Python Table Function
-table_env.register_function("split", udtf(Split(), DataTypes.STRING(), [DataTypes.STRING(), DataTypes.INT()]))
+table_env.register_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 
 # use the Python Table Function in Python Table API
 my_table.join_lateral("split(a) as (word, length)")
@@ -231,18 +230,18 @@ Like Python scalar functions, you can use the above five ways to define Python T
 
 {% highlight python %}
 # option 1: generator function
-@udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
+@udtf(result_types=DataTypes.BIGINT())
 def generator_func(x):
       yield 1
       yield 2
 
 # option 2: return iterator
-@udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
+@udtf(result_types=DataTypes.BIGINT())
 def iterator_func(x):
       return range(5)
 
 # option 3: return iterable
-@udtf(input_types=DataTypes.BIGINT(), result_types=DataTypes.BIGINT())
+@udtf(result_types=DataTypes.BIGINT())
 def iterable_func(x):
       result = [1, 2, 3]
       return result

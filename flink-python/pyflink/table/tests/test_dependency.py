@@ -45,8 +45,7 @@ class DependencyTests(object):
             from test_dependency_manage_lib import add_two
             return add_two(i)
 
-        self.t_env.register_function("add_two", udf(plus_two, DataTypes.BIGINT(),
-                                                    DataTypes.BIGINT()))
+        self.t_env.register_function("add_two", udf(plus_two, result_type=DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -77,8 +76,7 @@ class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
             from test_dependency_manage_lib import add_two
             return add_two(i)
 
-        self.t_env.register_function("add_two", udf(plus_two, DataTypes.BIGINT(),
-                                                    DataTypes.BIGINT()))
+        self.t_env.register_function("add_two", udf(plus_two, result_type=DataTypes.BIGINT()))
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])\
             .select("add_two(a), a")
@@ -107,8 +105,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             return i
 
         self.t_env.register_function("check_requirements",
-                                     udf(check_requirements, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+                                     udf(check_requirements, result_type=DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -153,9 +150,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             from python_package1 import plus
             return plus(i, 1)
 
-        self.t_env.register_function("add_one",
-                                     udf(add_one, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+        self.t_env.register_function("add_one", udf(add_one, result_type=DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -181,8 +176,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
                 return i + int(f.read())
 
         self.t_env.register_function("add_from_file",
-                                     udf(add_from_file, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+                                     udf(add_from_file, result_type=DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -207,8 +201,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             return i
 
         self.t_env.register_function("check_python_exec",
-                                     udf(check_python_exec, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+                                     udf(check_python_exec, result_type=DataTypes.BIGINT()))
 
         def check_pyflink_gateway_disabled(i):
             try:
@@ -222,8 +215,8 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             return i
 
         self.t_env.register_function("check_pyflink_gateway_disabled",
-                                     udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+                                     udf(check_pyflink_gateway_disabled,
+                                         result_type=DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
