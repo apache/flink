@@ -180,6 +180,11 @@ public class HiveDialectITCase {
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
 		assertEquals(";", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.COLLECTION_DELIM));
 		assertEquals(":", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.MAPKEY_DELIM));
+
+		int createdTimeForTableExists = hiveTable.getCreateTime();
+		tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
+		assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
 	}
 
 	@Test

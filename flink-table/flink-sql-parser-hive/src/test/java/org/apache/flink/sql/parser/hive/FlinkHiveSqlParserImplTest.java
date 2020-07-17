@@ -173,6 +173,10 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `P`  TIMESTAMP\n" +
 						")");
 		sql("create table tbl (v varchar)").fails("VARCHAR precision is mandatory");
+
+		sql("create table if not exists tbl (x int)").ok("CREATE TABLE IF NOT EXISTS `TBL` (\n"
+				+ "  `X`  INTEGER\n"
+				+ ")");
 		// TODO: support CLUSTERED BY, SKEWED BY, STORED BY, col constraints
 	}
 

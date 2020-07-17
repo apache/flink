@@ -279,6 +279,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
 SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
+    boolean ifNotExists = false;
     SqlIdentifier tableName;
     SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
     List<SqlNodeList> uniqueKeysList = new ArrayList<SqlNodeList>();
@@ -297,6 +298,11 @@ SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
 {
     [ <EXTERNAL> { isExternal = true; } ]
     <TABLE> { propertyList = new SqlNodeList(getPos()); }
+
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
 
     tableName = CompoundIdentifier()
     [
@@ -365,7 +371,8 @@ SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
                 isExternal,
                 rowFormat,
                 storedAs,
-                location);
+                location,
+                ifNotExists);
     }
 }
 
