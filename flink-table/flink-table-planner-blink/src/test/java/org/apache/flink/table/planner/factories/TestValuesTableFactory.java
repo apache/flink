@@ -503,7 +503,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr) {
 			// validate that type is comparable
-			if (isComparable(expr.getOutputDataType().getConversionClass())) {
+			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
 				return false;
 			}
 			if (expr instanceof FieldReferenceExpression) {
