@@ -15,27 +15,24 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import os
-import sys
+# cython: language_level = 3
 
-# force to register the operations to SDK Harness
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.coders.coder_impl cimport InputStream as BInputStream
+from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 
-try:
-    import pyflink.fn_execution.fast_operations
-except ImportError:
-    import pyflink.fn_execution.operations
+from pyflink.fn_execution.stream cimport InputStream, OutputStream
 
-# force to register the coders to SDK Harness
-import pyflink.fn_execution.coders # noqa # pylint: disable=unused-import
+cdef class BeamInputStream(InputStream):
+    cdef char*_input_data
+    cdef size_t _input_buffer_size
+    cdef size_t _input_pos
+    cdef void _parse_input_stream(self, BInputStream input_stream)
 
-import apache_beam.runners.worker.sdk_worker_main
-
-if 'PIPELINE_OPTIONS' in os.environ:
-    pipeline_options = apache_beam.runners.worker.sdk_worker_main._parse_pipeline_options(
-        os.environ['PIPELINE_OPTIONS'])
-else:
-    pipeline_options = PipelineOptions.from_dictionary({})
-
-if __name__ == '__main__':
-    apache_beam.runners.worker.sdk_worker_main.main(sys.argv)
+cdef class BeamOutputStream(OutputStream):
+    cdef char*_output_data
+    cdef size_t _output_pos
+    cdef size_t _output_buffer_size
+    cdef BOutputStream _output_stream
+    cdef void _map_output_data_to_output_stream(self)
+    cdef void _maybe_flush(self)
+    cdef void _parse_output_stream(self, BOutputStream output_stream)

@@ -103,5 +103,5 @@ if __name__ == "__main__":
     if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
         exit(0)
 
-    call([python_exec, "-m", "pyflink.fn_execution.sdk_worker_main"],
+    call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
          stdout=sys.stdout, stderr=sys.stderr, env=env)

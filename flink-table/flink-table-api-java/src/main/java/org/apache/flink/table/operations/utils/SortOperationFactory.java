@@ -22,11 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.PostResolverFactory;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,28 +41,22 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
 @Internal
 final class SortOperationFactory {
 
-	private final boolean isStreamingMode;
-
-	SortOperationFactory(boolean isStreamingMode) {
-		this.isStreamingMode = isStreamingMode;
-	}
-
 	/**
-	 * Creates a valid {@link SortQueryOperation} operation.
+	 * Creates a valid {@link SortQueryOperation}.
 	 *
-	 * <p><b>NOTE:</b> if the collation is not explicitly specified for any expression, it is wrapped in a
-	 * default ascending order
+	 * <p><b>NOTE:</b> If the collation is not explicitly specified for an expression, the expression
+	 * is wrapped in a default ascending order. If no expression is specified, the result is not sorted
+	 * but only limited.
 	 *
-	 * @param orders expressions describing order,
+	 * @param orders expressions describing order
 	 * @param child relational expression on top of which to apply the sort operation
+	 * @param postResolverFactory factory for creating resolved expressions
 	 * @return valid sort operation
 	 */
 	QueryOperation createSort(
 			List<ResolvedExpression> orders,
 			QueryOperation child,
-			ExpressionResolver.PostResolverFactory postResolverFactory) {
-		failIfStreaming();
-
+			PostResolverFactory postResolverFactory) {
 		final OrderWrapper orderWrapper = new OrderWrapper(postResolverFactory);
 
 		List<ResolvedExpression> convertedOrders = orders.stream()
@@ -71,14 +66,18 @@ final class SortOperationFactory {
 	}
 
 	/**
-	 * Adds offset to the underlying {@link SortQueryOperation} if it is a valid one.
+	 * Creates a valid {@link SortQueryOperation} with offset (possibly merged into a preceding {@link SortQueryOperation}).
 	 *
-	 * @param offset offset to add
-	 * @param child should be {@link SortQueryOperation}
+	 * @param offset offset to start from
+	 * @param child relational expression on top of which to apply the sort operation
+	 * @param postResolverFactory factory for creating resolved expressions
 	 * @return valid sort operation with applied offset
 	 */
-	QueryOperation createLimitWithOffset(int offset, QueryOperation child) {
-		SortQueryOperation previousSort = validateAndGetChildSort(child);
+	QueryOperation createLimitWithOffset(
+			int offset,
+			QueryOperation child,
+			PostResolverFactory postResolverFactory) {
+		SortQueryOperation previousSort = validateAndGetChildSort(child, postResolverFactory);
 
 		if (offset < 0) {
 			throw new ValidationException("Offset should be greater or equal 0");
@@ -92,14 +91,18 @@ final class SortOperationFactory {
 	}
 
 	/**
-	 * Adds fetch to the underlying {@link SortQueryOperation} if it is a valid one.
+	 * Creates a valid {@link SortQueryOperation} with fetch (possibly merged into a preceding {@link SortQueryOperation}).
 	 *
-	 * @param fetch fetch number to add
-	 * @param child should be {@link SortQueryOperation}
-	 * @return valid sort operation with applied fetch
+	 * @param fetch fetch to limit
+	 * @param child relational expression on top of which to apply the sort operation
+	 * @param postResolverFactory factory for creating resolved expressions
+	 * @return valid sort operation with applied offset
 	 */
-	QueryOperation createLimitWithFetch(int fetch, QueryOperation child) {
-		SortQueryOperation previousSort = validateAndGetChildSort(child);
+	QueryOperation createLimitWithFetch(
+			int fetch,
+			QueryOperation child,
+			PostResolverFactory postResolverFactory) {
+		SortQueryOperation previousSort = validateAndGetChildSort(child, postResolverFactory);
 
 		if (fetch < 0) {
 			throw new ValidationException("Fetch should be greater or equal 0");
@@ -110,14 +113,13 @@ final class SortOperationFactory {
 		return new SortQueryOperation(previousSort.getOrder(), previousSort.getChild(), offset, fetch);
 	}
 
-	private SortQueryOperation validateAndGetChildSort(QueryOperation child) {
-		failIfStreaming();
-
-		if (!(child instanceof SortQueryOperation)) {
-			throw new ValidationException("A limit operation must be preceded by a sort operation.");
+	private SortQueryOperation validateAndGetChildSort(QueryOperation child, PostResolverFactory postResolverFactory) {
+		final SortQueryOperation previousSort;
+		if (child instanceof SortQueryOperation) {
+			previousSort = (SortQueryOperation) child;
+		} else {
+			previousSort = (SortQueryOperation) createSort(Collections.emptyList(), child, postResolverFactory);
 		}
-
-		SortQueryOperation previousSort = (SortQueryOperation) child;
 
 		if ((previousSort).getFetch() != -1) {
 			throw new ValidationException("FETCH is already defined.");
@@ -126,17 +128,11 @@ final class SortOperationFactory {
 		return previousSort;
 	}
 
-	private void failIfStreaming() {
-		if (isStreamingMode) {
-			throw new ValidationException("A limit operation on unbounded tables is currently not supported.");
-		}
-	}
-
 	private static class OrderWrapper extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
-		private ExpressionResolver.PostResolverFactory postResolverFactory;
+		private PostResolverFactory postResolverFactory;
 
-		OrderWrapper(ExpressionResolver.PostResolverFactory postResolverFactory) {
+		OrderWrapper(PostResolverFactory postResolverFactory) {
 			this.postResolverFactory = postResolverFactory;
 		}
 

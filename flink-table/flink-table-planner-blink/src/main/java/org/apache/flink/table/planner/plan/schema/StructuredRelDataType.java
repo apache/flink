@@ -35,6 +35,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The {@link RelDataType} representation of a {@link StructuredType}.
@@ -98,9 +99,17 @@ public final class StructuredRelDataType extends ObjectSqlType {
 				sb.append(structuredType.asSerializableString());
 			}
 			// in case of inline structured type we are using a temporary identifier
+			// that includes both the implementation class plus its children for cases with classes
+			// that use generics
 			else {
 				sb.append(structuredType.asSummaryString());
-				if (structuredType.isNullable()) {
+				sb.append("(");
+				sb.append(
+					fieldList.stream()
+						.map(field -> field.getType().getFullTypeString())
+						.collect(Collectors.joining(", ")));
+				sb.append(")");
+				if (!structuredType.isNullable()) {
 					sb.append(" NOT NULL");
 				}
 			}
