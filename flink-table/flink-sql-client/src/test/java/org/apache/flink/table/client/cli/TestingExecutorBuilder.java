@@ -36,6 +36,8 @@ import java.util.List;
  */
 class TestingExecutorBuilder {
 
+	private String defaultCurrentCatalogName = "default_catalog";
+	private String defaultCurrentDatabaseName = "default_database";
 	private List<SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>> resultChangesSupplier = Collections.emptyList();
 	private List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResultsSupplier = Collections.emptyList();
 	private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier = Collections.emptyList();

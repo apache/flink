@@ -178,7 +178,7 @@ public class CliClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testUseCatalog() throws Exception {
+	public void testUseCatalogAndShowCurrentCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
 				.setExecuteSqlConsumer((ignored1, sql) -> {
 					if (!sql.toLowerCase().equals("use catalog cat")) {
@@ -192,10 +192,14 @@ public class CliClientTest extends TestLogger {
 		String output = testExecuteSql(executor, "use catalog cat;");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		assertFalse(output.contains("unexpected catalog name"));
+
+		output = testExecuteSql(executor, "show current catalog;");
+		assertThat(executor.getNumShowCurrentCatalogCalls(), is(1));
+		assertTrue(output.contains("cat"));
 	}
 
 	@Test
-	public void testUseDatabase() throws Exception {
+	public void testUseDatabaseAndShowCurrentDatabase() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
 				.setExecuteSqlConsumer((ignored1, sql) -> {
 					if (!sql.toLowerCase().equals("use db")) {
@@ -208,6 +212,10 @@ public class CliClientTest extends TestLogger {
 		String output = testExecuteSql(executor, "use db;");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		assertFalse(output.contains("unexpected database name"));
+
+		output = testExecuteSql(executor, "show current database;");
+		assertThat(executor.getNumShowCurrentDatabaseCalls(), is(1));
+		assertTrue(output.contains("db"));
 	}
 
 	@Test

@@ -53,6 +53,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowCurrentDatabase() {
+		sql("show current database").ok("SHOW CURRENT DATABASE");
+	}
+
+	@Test
 	public void testUseDatabase() {
 		// use database
 		sql("use db1").ok("USE `DB1`");
@@ -257,6 +262,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testShowCatalogs() {
 		sql("show catalogs").ok("SHOW CATALOGS");
+	}
+
+	@Test
+	public void testShowCurrentCatalog() {
+		sql("show current catalog").ok("SHOW CURRENT CATALOG");
 	}
 
 	@Test
