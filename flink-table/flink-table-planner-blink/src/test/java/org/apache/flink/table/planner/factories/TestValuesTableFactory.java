@@ -84,7 +84,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.collection.Seq;
 
-import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.LOG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -503,9 +502,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr) {
 			// validate that type is comparable
-			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
-				return false;
-			}
+			validateTypeComparable(expr.getOutputDataType().getConversionClass());
 			if (expr instanceof FieldReferenceExpression) {
 				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
 					return true;
@@ -565,14 +562,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 		}
 
-		private boolean isComparable(Class<?> clazz) {
-			// validate that literal is comparable
+		private void validateTypeComparable(Class<?> clazz) {
+			// validate that type is comparable
 			if (!Comparable.class.isAssignableFrom(clazz)) {
-				LOG.warn("Encountered a non-comparable type {}. Cannot push predicate into TestValuesTableSource." +
-					"This is a bug and should be reported.", clazz.getCanonicalName());
-				return false;
+				throw new RuntimeException("Encountered a non-comparable type " + clazz.getCanonicalName() +
+					".Cannot push predicate into TestValuesTableSource. This is a bug and should be reported.");
 			}
-			return true;
 		}
 
 		private Comparable<?> getValue(Expression expr, Row row) {
