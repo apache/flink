@@ -29,7 +29,7 @@ under the License.
 
 ## Introduction
 
-Timely steam processing is an extension of [stateful stream processing]({% link
+Timely stream processing is an extension of [stateful stream processing]({% link
 concepts/stateful-stream-processing.md %}) in which time plays some role in the
 computation. Among other things, this is the case when you do time series
 analysis, when doing aggregations based on certain time periods (typically
