@@ -130,14 +130,14 @@ a timeout that specifies the maximum duration for which a file can be open.
     </tr>
     <tr>
         <td><h5>sink.rolling-policy.rollover-interval</h5></td>
-        <td style="word-wrap: break-word;">30 m</td>
+        <td style="word-wrap: break-word;">30 min</td>
         <td>Duration</td>
         <td>The maximum time duration a part file can stay open before rolling (by default 30 min to avoid to many small files).
         The frequency at which this is checked is controlled by the 'sink.rolling-policy.check-interval' option.</td>
     </tr>
     <tr>
         <td><h5>sink.rolling-policy.check-interval</h5></td>
-        <td style="word-wrap: break-word;">1 m</td>
+        <td style="word-wrap: break-word;">1 min</td>
         <td>Duration</td>
         <td>The interval for checking time based rolling policies. This controls the frequency to check whether a part file should rollover based on 'sink.rolling-policy.rollover-interval'.</td>
     </tr>
