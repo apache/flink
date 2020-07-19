@@ -22,10 +22,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-在本节中，你将了解 Flink 中用于处理**事件时间**的时间戳和 watermark 相关的 API。有关*事件时间*，*处理时间*和*摄取时间*的介绍，请参阅[事件时间概览]({{ site.baseurl }}/zh/dev/event_time.html)小节。
+在本节中，你将了解 Flink 中用于处理**事件时间**的时间戳和 watermark 相关的 API。有关*事件时间*，*处理时间*和*摄取时间*的介绍，请参阅[事件时间概览]({% link dev/event_time.zh.md %})小节。
 
 * toc
 {:toc}
+
+<a name="introduction-to-watermark-strategies"></a>
 
 ## Watermark 策略简介
 
@@ -80,11 +82,13 @@ WatermarkStrategies
 
 其中 `TimestampAssigner` 的设置与否是可选的，大多数情况下，可以不用去特别指定。例如，当使用 Kafka 或 Kinesis 数据源时，你可以直接从 Kafka/Kinesis 数据源记录中获取到时间戳。
 
-稍后我们将在[自定义 WatermarkGenerator](#自定义-watermarkgenerator) 小节学习 WatermarkGenerator 接口。
+稍后我们将在[自定义 WatermarkGenerator](#writing-watermarkgenerators) 小节学习 WatermarkGenerator 接口。
 
 <div class="alert alert-warning">
 <strong>注意</strong>：时间戳和 watermark 都是从 1970-01-01T00:00:00Z 起的 Java 纪元开始，并以毫秒为单位。
 </div>
+
+<a name="using-watermark-strategies"></a>
 
 ## 使用 Watermark 策略
 
@@ -139,6 +143,8 @@ withTimestampsAndWatermarks
 
 使用 `WatermarkStrategy` 去获取流并生成带有时间戳的元素和 watermark 的新流时，如果原始流已经具有时间戳或 watermark，则新指定的时间戳分配器将覆盖原有的时间戳和 watermark。
 
+<a name="dealing-with-idle-sources"></a>
+
 ## 处理空闲数据源
 
 如果数据源中的某一个分区/分片在一段时间内未发送事件数据，则意味着 `WatermarkGenerator` 也不会获得任何新数据去生成 watermark。我们称这类数据源为*空闲输入*或*空闲源*。在这种情况下，当某些其他分区仍然发送事件数据的时候就会出现问题。由于下游算子 watermark 的计算方式是取所有不同的上游并行数据源 watermark 的最小值，则其 watermark 将不会发生变化。
@@ -164,6 +170,8 @@ WatermarkStrategies
 </div>
 </div>
 
+
+<a name="writing-watermarkgenerators"></a>
 
 ## 自定义 WatermarkGenerator
 
@@ -204,13 +212,15 @@ watermark 的生成方式本质上是有两种：*周期性生成*和*标记生�
 
 接下来，我们将学习如何实现上述两类生成器。
 
+<a name="writing-a-periodic-watermarkgenerator"></a>
+
 ### 自定义周期性 Watermark 生成器
 
 周期性生成器会观察流事件数据并定期生成 watermark（其生成可能取决于流数据，或者完全基于处理时间）。
 
 生成 watermark 的时间间隔（每 *n* 毫秒）可以通过 `ExecutionConfig.setAutoWatermarkInterval(...)` 指定。每次都会调用生成器的 `onPeriodicEmit()` 方法，如果返回的 watermark 非空且值大于前一个 watermark，则将发出新的 watermark。
 
-如下是两个使用周期性 watermark 生成器的简单示例。注意：Flink 已经附带了 `BoundedOutOfOrdernessWatermarks`，它实现了 `WatermarkGenerator`，其工作原理与下面的 `BoundedOutOfOrdernessGenerator` 相似。可以在[这里]({{ site.baseurl }}/zh/dev/event_timestamp_extractors.html#数据之间存在最大固定延迟)参阅如何使用它的内容。
+如下是两个使用周期性 watermark 生成器的简单示例。注意：Flink 已经附带了 `BoundedOutOfOrdernessWatermarks`，它实现了 `WatermarkGenerator`，其工作原理与下面的 `BoundedOutOfOrdernessGenerator` 相似。可以在[这里]({% link dev/event_timestamp_extractors.zh.md %})参阅如何使用它的内容。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -298,6 +308,8 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 </div>
 </div>
 
+<a name="writing-a-punctuated-watermarkgenerator"></a>
+
 ### 自定义标记 Watermark 生成器
 
 标记 watermark 生成器观察流事件数据并在获取到带有 watermark 信息的特殊事件元素时发出 watermark。
@@ -345,6 +357,8 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 <strong>注意</strong>：可以针对每个事件去生成 watermark。但是由于每个 watermark 都会在下游做一些计算，因此过多的 watermark 会降低程序性能。
 </div>
 
+<a name="watermark-strategies-and-the-kafka-connector"></a>
+
 ## Watermark 策略与 Kafka 连接器
 
 当使用 [Apache Kafka 连接器](connectors/kafka.html)作为数据源时，每个 Kafka 分区可能有一个简单的事件时间模式（递增的时间戳或有界无序）。然而，当使用 Kafka 数据源时，多个分区常常并行使用，因此交错来自各个分区的事件数据就会破坏每个分区的事件时间模式（这是 Kafka 消费客户端所固有的）。
@@ -381,6 +395,8 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 </div>
 
 <img src="{{ site.baseurl }}/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
+
+<a name="how-operators-process-watermarks"></a>
 
 ## 算子处理 Watermark 的方式
 

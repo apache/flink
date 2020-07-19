@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-在本节中，你将学习编写可对时间进行感知（time-aware）的 Flink 程序。可以参阅[实时流处理]({% link concepts/timely-stream-processing.zh.md %})小节以了解实时流处理的概念。
+在本节中，你将学习编写可感知时间变化（time-aware）的 Flink 程序。可以参阅[实时流处理]({% link concepts/timely-stream-processing.zh.md %})小节以了解实时流处理的概念。
 
 有关如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和 [ProcessFunction]({% link dev/stream/operators/process_function.zh.md %}) 小节。
 
@@ -67,7 +67,7 @@ stream
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
 
-env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
 {% endhighlight %}
 </div>
