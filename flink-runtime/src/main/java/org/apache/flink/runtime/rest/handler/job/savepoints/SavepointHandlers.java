@@ -102,7 +102,11 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	@Nullable
 	private final String defaultSavepointDir;
 
-	public SavepointHandlers(@Nullable final String defaultSavepointDir) {
+	/**
+	 * @param operationCacheCloseTimeout CompletedOperationCache Asynchronous close via configurable timeout in seconds.
+	 */
+	public SavepointHandlers(@Nullable final String defaultSavepointDir, final long operationCacheCloseTimeout) {
+		super(operationCacheCloseTimeout);
 		this.defaultSavepointDir = defaultSavepointDir;
 	}
 

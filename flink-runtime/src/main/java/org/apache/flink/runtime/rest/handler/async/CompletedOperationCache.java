@@ -52,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link #registerOngoingOperation(K, CompletableFuture)}, where the
  * {@code CompletableFuture} contains the operation result. Completed operations will be
  * removed from the cache automatically after a fixed timeout.
+ * Asynchronous close via configurable timeout in seconds.
  */
 @ThreadSafe
 class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseableAsync {
@@ -70,12 +71,18 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 	 */
 	private final Cache<K, ResultAccessTracker<R>> completedOperations;
 
-	CompletedOperationCache() {
-		this(Ticker.systemTicker());
+	private final long operationCacheCloseTimeout;
+
+	/**
+	 * Asynchronous close via configurable timeout in seconds.
+	 * @param operationCacheCloseTimeout
+	 */
+	CompletedOperationCache(long operationCacheCloseTimeout) {
+		this(Ticker.systemTicker(), operationCacheCloseTimeout);
 	}
 
 	@VisibleForTesting
-	CompletedOperationCache(final Ticker ticker) {
+	CompletedOperationCache(final Ticker ticker, long operationCacheCloseTimeout) {
 		completedOperations = CacheBuilder.newBuilder()
 			.expireAfterWrite(COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
 			.removalListener((RemovalListener<K, ResultAccessTracker<R>>) removalNotification -> {
@@ -96,6 +103,7 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 			})
 			.ticker(ticker)
 			.build();
+		this.operationCacheCloseTimeout = operationCacheCloseTimeout;
 	}
 
 	/**
@@ -141,7 +149,7 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 	public CompletableFuture<Void> closeAsync() {
 		return FutureUtils.orTimeout(
 			asyncWaitForResultsToBeAccessed(),
-			COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS,
+			operationCacheCloseTimeout,
 			TimeUnit.SECONDS);
 	}
 

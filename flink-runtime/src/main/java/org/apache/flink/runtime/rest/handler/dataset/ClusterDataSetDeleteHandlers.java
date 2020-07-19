@@ -47,6 +47,13 @@ import java.util.concurrent.CompletableFuture;
 public class ClusterDataSetDeleteHandlers extends AbstractAsynchronousOperationHandlers<OperationKey, Void> {
 
 	/**
+	 * @param operationCacheCloseTimeout CompletedOperationCache Asynchronous close via configurable timeout in seconds.
+	 */
+	public ClusterDataSetDeleteHandlers(final long operationCacheCloseTimeout) {
+		super(operationCacheCloseTimeout);
+	}
+
+	/**
 	 * {@link TriggerHandler} implementation for the cluster data set delete operation.
 	 */
 	public class ClusterDataSetDeleteTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, ClusterDataSetDeleteTriggerMessageParameters> {

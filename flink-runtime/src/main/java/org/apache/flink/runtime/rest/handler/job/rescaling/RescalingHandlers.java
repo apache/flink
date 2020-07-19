@@ -43,6 +43,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, Acknowledge> {
 
+	/**
+	 * @param operationCacheCloseTimeout CompletedOperationCache Asynchronous close via configurable timeout in seconds.
+	 */
+	public RescalingHandlers(final long operationCacheCloseTimeout) {
+		super(operationCacheCloseTimeout);
+	}
+
 	private static RestHandlerException featureDisabledException() {
 		return new RestHandlerException("Rescaling is temporarily disabled. See FLINK-12312.", HttpResponseStatus.SERVICE_UNAVAILABLE);
 	}

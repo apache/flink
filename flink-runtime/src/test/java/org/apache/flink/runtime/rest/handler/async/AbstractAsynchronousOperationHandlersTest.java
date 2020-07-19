@@ -75,7 +75,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
 	@Before
 	public void setup() {
-		testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers();
+		testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers(300L);
 
 		testingTriggerHandler = testingAsynchronousOperationHandlers.new TestingTriggerHandler(
 			() -> null,
@@ -333,6 +333,13 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 	}
 
 	private static final class TestingAsynchronousOperationHandlers extends AbstractAsynchronousOperationHandlers<TestOperationKey, String> {
+
+		/**
+		 * @param operationCacheCloseTimeout CompletedOperationCache Asynchronous close via configurable timeout in seconds.
+		 */
+		public TestingAsynchronousOperationHandlers(final long operationCacheCloseTimeout) {
+			super(operationCacheCloseTimeout);
+		}
 
 		class TestingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
 

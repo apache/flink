@@ -49,6 +49,13 @@ import java.util.concurrent.CompletableFuture;
 public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHandlers<OperationKey, Acknowledge> {
 
 	/**
+	 * @param operationCacheCloseTimeout CompletedOperationCache Asynchronous close via configurable timeout in seconds.
+	 */
+	public SavepointDisposalHandlers(final long operationCacheCloseTimeout) {
+		super(operationCacheCloseTimeout);
+	}
+
+	/**
 	 * {@link TriggerHandler} implementation for the savepoint disposal operation.
 	 */
 	public class SavepointDisposalTriggerHandler extends TriggerHandler<RestfulGateway, SavepointDisposalRequest, EmptyMessageParameters> {

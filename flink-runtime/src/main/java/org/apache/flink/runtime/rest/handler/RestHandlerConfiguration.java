@@ -40,12 +40,15 @@ public class RestHandlerConfiguration {
 
 	private final boolean webSubmitEnabled;
 
+	private final long operationCacheCloseTimeout;
+
 	public RestHandlerConfiguration(
 			long refreshInterval,
 			int maxCheckpointStatisticCacheEntries,
 			Time timeout,
 			File webUiDir,
-			boolean webSubmitEnabled) {
+			boolean webSubmitEnabled,
+			long operationCacheCloseTimeout) {
 		Preconditions.checkArgument(refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
 		this.refreshInterval = refreshInterval;
 
@@ -54,6 +57,7 @@ public class RestHandlerConfiguration {
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.webUiDir = Preconditions.checkNotNull(webUiDir);
 		this.webSubmitEnabled = webSubmitEnabled;
+		this.operationCacheCloseTimeout = operationCacheCloseTimeout;
 	}
 
 	public long getRefreshInterval() {
@@ -76,6 +80,10 @@ public class RestHandlerConfiguration {
 		return webSubmitEnabled;
 	}
 
+	public long getOperationCacheCloseTimeout() {
+		return operationCacheCloseTimeout;
+	}
+
 	public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
 		final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
 
@@ -88,11 +96,14 @@ public class RestHandlerConfiguration {
 
 		final boolean webSubmitEnabled = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
 
+		final long operationCacheCloseTimeout = configuration.getLong(WebOptions.OPERATION_CACHE_CLOSE_TIMEOUT);
+
 		return new RestHandlerConfiguration(
 			refreshInterval,
 			maxCheckpointStatisticCacheEntries,
 			timeout,
 			webUiDir,
-			webSubmitEnabled);
+			webSubmitEnabled,
+			operationCacheCloseTimeout);
 	}
 }

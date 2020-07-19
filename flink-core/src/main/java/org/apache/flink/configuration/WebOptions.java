@@ -181,6 +181,14 @@ public class WebOptions {
 		.defaultValue(10L * 60L * 1000L)
 		.withDescription("Timeout for asynchronous operations by the web monitor in milliseconds.");
 
+	/**
+	 * Timeout for asynchronous operation cache close in seconds.
+	 */
+	public static final ConfigOption<Long> OPERATION_CACHE_CLOSE_TIMEOUT =
+		key("web.operation.cache.close.timeout")
+			.defaultValue(5L * 60L)
+			.withDescription("Timeout for asynchronous operation cache close in seconds.");
+
 	// ------------------------------------------------------------------------
 
 	/** Not meant to be instantiated. */

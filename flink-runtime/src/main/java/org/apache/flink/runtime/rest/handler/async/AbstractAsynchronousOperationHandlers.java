@@ -84,7 +84,14 @@ import java.util.concurrent.CompletableFuture;
  */
 public abstract class AbstractAsynchronousOperationHandlers<K extends OperationKey, R> {
 
-	private final CompletedOperationCache<K, R> completedOperationCache = new CompletedOperationCache<>();
+	private final CompletedOperationCache<K, R> completedOperationCache;
+
+	/**
+	 * @param operationCacheCloseTimeout CompletedOperationCache Asynchronous close via configurable timeout in seconds.
+	 */
+	protected AbstractAsynchronousOperationHandlers(long operationCacheCloseTimeout) {
+		this.completedOperationCache = new CompletedOperationCache<>(operationCacheCloseTimeout);
+	}
 
 	/**
 	 * Handler which is responsible for triggering an asynchronous operation. After the operation has

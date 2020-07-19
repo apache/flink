@@ -80,7 +80,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
 	public void setUp() throws Exception {
 		leaderRetriever = () -> CompletableFuture.completedFuture(null);
 
-		final SavepointHandlers savepointHandlers = new SavepointHandlers(null);
+		final SavepointHandlers savepointHandlers = new SavepointHandlers(null, 300L);
 		savepointTriggerHandler = savepointHandlers.new StopWithSavepointHandler(
 				leaderRetriever,
 				TIMEOUT,
@@ -127,7 +127,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
 						})
 				.build();
 		final String defaultSavepointDir = "/other/dir";
-		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
+		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir, 300L);
 		final SavepointHandlers.StopWithSavepointHandler savepointTriggerHandler = savepointHandlers.new StopWithSavepointHandler(
 				leaderRetriever,
 				TIMEOUT,

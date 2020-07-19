@@ -447,7 +447,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		final String defaultSavepointDir = clusterConfiguration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY);
 
-		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
+		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir, restConfiguration.getOperationCacheCloseTimeout());
 
 		final SavepointHandlers.StopWithSavepointHandler stopWithSavepointHandler = savepointHandlers.new StopWithSavepointHandler(
 			leaderRetriever,
@@ -492,7 +492,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor,
 			metricFetcher);
 
-		final RescalingHandlers rescalingHandlers = new RescalingHandlers();
+		final RescalingHandlers rescalingHandlers = new RescalingHandlers(restConfiguration.getOperationCacheCloseTimeout());
 
 		final RescalingHandlers.RescalingTriggerHandler rescalingTriggerHandler = rescalingHandlers.new RescalingTriggerHandler(
 			leaderRetriever,
@@ -542,7 +542,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor,
 			metricFetcher);
 
-		final SavepointDisposalHandlers savepointDisposalHandlers = new SavepointDisposalHandlers();
+		final SavepointDisposalHandlers savepointDisposalHandlers = new SavepointDisposalHandlers(restConfiguration.getOperationCacheCloseTimeout());
 
 		final SavepointDisposalHandlers.SavepointDisposalTriggerHandler savepointDisposalTriggerHandler = savepointDisposalHandlers.new SavepointDisposalTriggerHandler(
 			leaderRetriever,
@@ -555,7 +555,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			responseHeaders);
 
 		final ClusterDataSetListHandler clusterDataSetListHandler = new ClusterDataSetListHandler(leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
-		final ClusterDataSetDeleteHandlers clusterDataSetDeleteHandlers = new ClusterDataSetDeleteHandlers();
+		final ClusterDataSetDeleteHandlers clusterDataSetDeleteHandlers = new ClusterDataSetDeleteHandlers(restConfiguration.getOperationCacheCloseTimeout());
 		final ClusterDataSetDeleteHandlers.ClusterDataSetDeleteTriggerHandler clusterDataSetDeleteTriggerHandler =
 			clusterDataSetDeleteHandlers.new ClusterDataSetDeleteTriggerHandler(leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
 		final ClusterDataSetDeleteHandlers.ClusterDataSetDeleteStatusHandler clusterDataSetDeleteStatusHandler =

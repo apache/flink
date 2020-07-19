@@ -50,7 +50,7 @@ public class CompletedOperationCacheTest extends TestLogger {
 	@Before
 	public void setUp() {
 		manualTicker = new ManualTicker();
-		completedOperationCache = new CompletedOperationCache<>(manualTicker);
+		completedOperationCache = new CompletedOperationCache<>(manualTicker, 300L);
 	}
 
 	@Test
