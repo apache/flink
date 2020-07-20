@@ -173,8 +173,6 @@ jobs:
         source ./tools/ci/maven-utils.sh
         setup_maven
       displayName: Setup Maven 3.2.5
-    - script: ./tools/azure-pipelines/setup_docker.sh
-      displayName: Setup Docker
     - script: ./tools/azure-pipelines/free_disk_space.sh
       displayName: Free up disk space
     - script: sudo apt-get install -y bc
