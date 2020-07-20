@@ -184,7 +184,7 @@ public class CliClientTest extends TestLogger {
 					if (!sql.toLowerCase().equals("use catalog cat")) {
 						throw new SqlExecutionException("unexpected catalog name: cat");
 					} else {
-						return TestTableResult.OK;
+						return TestTableResult.TABLE_RESULT_OK;
 					}
 				})
 				.build();
@@ -201,7 +201,7 @@ public class CliClientTest extends TestLogger {
 					if (!sql.toLowerCase().equals("use db")) {
 						throw new SqlExecutionException("unexpected database name: db");
 					} else {
-						return TestTableResult.OK;
+						return TestTableResult.TABLE_RESULT_OK;
 					}
 				})
 				.build();
@@ -260,7 +260,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testCreateCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-				.setExecuteSqlConsumer((s, s2) -> TestTableResult.OK).build();
+				.setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK).build();
 		testExecuteSql(executor, "create catalog c1 with('type'='generic_in_memory');");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
@@ -268,7 +268,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testDropCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-				.setExecuteSqlConsumer((s, s2) -> TestTableResult.OK).build();
+				.setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK).build();
 		testExecuteSql(executor, "drop catalog c1;");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
@@ -400,7 +400,7 @@ public class CliClientTest extends TestLogger {
 
 		@Override
 		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-			return TestTableResult.OK;
+			return TestTableResult.TABLE_RESULT_OK;
 		}
 
 		@Override
