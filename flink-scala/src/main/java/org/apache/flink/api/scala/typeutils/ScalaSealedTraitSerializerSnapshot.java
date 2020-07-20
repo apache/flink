@@ -8,23 +8,28 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Comparator;
 
 /**
  * A {@link TypeSerializerSnapshot} for the Scala {@link SealedTraitSerializer}.
  */
 public class ScalaSealedTraitSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<T, SealedTraitSerializer<T>> {
 
-	public static final int VERSION = 1;
+	public static final int VERSION = 3;
 
 	Class<?>[] subtypeClasses;
 	SealedTraitSerializer<T> instance;
 
+	/**
+	 * Snapshot read constructor
+	 */
 	public ScalaSealedTraitSerializerSnapshot() {
 		super(SealedTraitSerializer.class);
 	}
 
+	/**
+	 * Snapshot write constructor
+	 * @param instance the serializer instance to snapshot
+	 */
 	public ScalaSealedTraitSerializerSnapshot(SealedTraitSerializer<T> instance) {
 		super(instance);
 		this.instance = instance;
@@ -64,12 +69,18 @@ public class ScalaSealedTraitSerializerSnapshot<T> extends CompositeTypeSerializ
 
 	@Override
 	public OuterSchemaCompatibility resolveOuterSchemaCompatibility(SealedTraitSerializer<T> newSerializer) {
-		int sameClasses = Arrays.compare(subtypeClasses, newSerializer.subtypeClasses(), new Comparator<Class<?>>() {
-			@Override
-			public int compare(Class<?> aClass, Class<?> t1) {
-				return aClass.equals(t1) ? 0 : -1;
+		// arity change is not supported by the underlying CompositeTypeSerializerSnapshot
+		if (subtypeClasses.length != newSerializer.subtypeClasses().length) {
+			return OuterSchemaCompatibility.INCOMPATIBLE;
+		} else {
+			boolean compatible = true;
+			for (int i = 0; (i < subtypeClasses.length) && compatible; i += 1) {
+				if (subtypeClasses[i] != newSerializer.subtypeClasses()[i]) compatible = false;
 			}
-		});
-		return sameClasses == 0 ? OuterSchemaCompatibility.COMPATIBLE_AS_IS : OuterSchemaCompatibility.INCOMPATIBLE;
+			if (compatible)
+				return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
+			 else
+				return OuterSchemaCompatibility.INCOMPATIBLE;
+		}
 	}
 }
