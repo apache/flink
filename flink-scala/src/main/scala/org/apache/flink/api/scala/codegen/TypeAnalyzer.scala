@@ -274,8 +274,27 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
     }
 
-    private def analyzeSealedTrait(id: Int, tpe: Type, subtypes: List[Symbol]): UDTDescriptor = {
-      val subtypeDescriptors = subtypes.map(subtype => analyze(subtype.asClass.selfType))
+    private def analyzeSealedTrait(
+        id: Int, tpe: Type, subtypeSymbols: List[Symbol]): UDTDescriptor = {
+      val subtypes = subtypeSymbols.map(_.asClass.selfType)
+      val subtypeBaseClasses = subtypes.flatMap(_.baseClasses)
+      if (subtypeBaseClasses.contains(tpe.typeSymbol)) {
+        UnsupportedDescriptor(id, tpe, Seq("Recursive sealed trait hierarchies are not supported"))
+      } else {
+        val subtypeDescriptors = subtypes.map(analyze)
+        val unsupportedSubtypeErrors = subtypeDescriptors.collect {
+          case UnsupportedDescriptor(_, _, err) => err
+        }
+        if (unsupportedSubtypeErrors.nonEmpty) {
+          UnsupportedDescriptor(id, tpe, unsupportedSubtypeErrors.flatten)
+        } else {
+          SealedTraitDescriptor(id, tpe, subtypeDescriptors)
+        }
+      }
+
+      println(subtypeSymbols.map(_.asClass.selfType))
+      println(subtypeSymbols.flatMap(_.asClass.selfType.baseClasses).contains(tpe.typeSymbol))
+      val subtypeDescriptors = subtypeSymbols.map(subtype => analyze(subtype.asClass.selfType))
       val unsupportedSubtypes = subtypeDescriptors.collect {
         case UnsupportedDescriptor(_, _, errs) => UnsupportedDescriptor(id, tpe, errs)
       }
