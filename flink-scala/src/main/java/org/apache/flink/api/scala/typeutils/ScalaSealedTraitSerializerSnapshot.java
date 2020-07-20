@@ -1,7 +1,7 @@
 package org.apache.flink.api.scala.typeutils;
 
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -12,75 +12,84 @@ import java.io.IOException;
 /**
  * A {@link TypeSerializerSnapshot} for the Scala {@link SealedTraitSerializer}.
  */
-public class ScalaSealedTraitSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<T, SealedTraitSerializer<T>> {
+public class ScalaSealedTraitSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
-	public static final int VERSION = 3;
+	public static final int VERSION = 1;
 
 	Class<?>[] subtypeClasses;
-	SealedTraitSerializer<T> instance;
+	TypeSerializer<?>[] subtypeSerializers;
 
 	/**
 	 * Snapshot read constructor
 	 */
-	public ScalaSealedTraitSerializerSnapshot() {
-		super(SealedTraitSerializer.class);
-	}
+	public ScalaSealedTraitSerializerSnapshot() {}
 
 	/**
 	 * Snapshot write constructor
 	 * @param instance the serializer instance to snapshot
 	 */
 	public ScalaSealedTraitSerializerSnapshot(SealedTraitSerializer<T> instance) {
-		super(instance);
-		this.instance = instance;
+		this.subtypeClasses = instance.subtypeClasses();
+		this.subtypeSerializers = instance.subtypeSerializers();
 	}
 
 	@Override
-	public void writeOuterSnapshot(DataOutputView out) throws IOException {
-		out.writeInt(instance.subtypeClasses().length);
-		for (Class<?> clazz : instance.subtypeClasses()) {
-			out.writeUTF(clazz.getName());
-		}
-	}
-
-	@Override
-	public void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		int subtypeCount = in.readInt();
-		subtypeClasses = new Class<?>[subtypeCount];
-		for (int i = 0; i < subtypeCount; i++) {
-			subtypeClasses[i] = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
-		}
-	}
-
-	@Override
-	public SealedTraitSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		return new SealedTraitSerializer<T>(subtypeClasses, (TypeSerializer<T>[]) nestedSerializers);
-	}
-
-	@Override
-	public TypeSerializer<?>[] getNestedSerializers(SealedTraitSerializer<T> outerSerializer) {
-		return outerSerializer.subtypeSerializers();
-	}
-
-	@Override
-	public int getCurrentOuterSnapshotVersion() {
+	public int getCurrentVersion() {
 		return VERSION;
 	}
 
 	@Override
-	public OuterSchemaCompatibility resolveOuterSchemaCompatibility(SealedTraitSerializer<T> newSerializer) {
-		// arity change is not supported by the underlying CompositeTypeSerializerSnapshot
-		if (subtypeClasses.length != newSerializer.subtypeClasses().length) {
-			return OuterSchemaCompatibility.INCOMPATIBLE;
-		} else {
-			boolean compatible = true;
-			for (int i = 0; (i < subtypeClasses.length) && compatible; i += 1) {
-				if (subtypeClasses[i] != newSerializer.subtypeClasses()[i]) compatible = false;
-			}
-			if (compatible)
-				return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
-			 else
-				return OuterSchemaCompatibility.INCOMPATIBLE;
+	public void writeSnapshot(DataOutputView out) throws IOException {
+		out.writeInt(VERSION);
+		out.writeInt(subtypeClasses.length);
+		for (Class<?> clazz: subtypeClasses) {
+			out.writeUTF(clazz.getName());
 		}
+		for (TypeSerializer<?> ser: subtypeSerializers) {
+			TypeSerializerSnapshot.writeVersionedSnapshot(out, ser.snapshotConfiguration());
+		}
+	}
+
+	@Override
+	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+		int version = in.readInt();
+		int subtypes = in.readInt();
+		subtypeClasses = new Class<?>[subtypes];
+		for (int i = 0; i < subtypes; i++) {
+			subtypeClasses[i] = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+		}
+		subtypeSerializers = new TypeSerializer<?>[subtypes];
+		for (int i = 0; i < subtypes; i++) {
+			subtypeSerializers[i] = TypeSerializerSnapshot.readVersionedSnapshot(in, userCodeClassLoader).restoreSerializer();
+		}
+	}
+
+	@Override
+	public TypeSerializer<T> restoreSerializer() {
+		return new SealedTraitSerializer<T>(subtypeClasses, subtypeSerializers);
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+		if (newSerializer instanceof SealedTraitSerializer) {
+			SealedTraitSerializer<T> sealed = (SealedTraitSerializer<T>) newSerializer;
+			// we cannot remove ADT members, so it's expected that ADT size can only grow
+			if (sealed.subtypeClasses().length >= subtypeClasses.length) {
+				boolean compatible = true;
+				// ADT members can be added only by appending them
+				for (int i = 0; (i < subtypeClasses.length) && compatible; i++) {
+					if (subtypeClasses[i] != sealed.subtypeClasses()[i]) compatible = false;
+				}
+				if (compatible) {
+					if (subtypeClasses.length == sealed.subtypeClasses().length) {
+						return TypeSerializerSchemaCompatibility.compatibleAsIs();
+					} else {
+						// there are new members added, so old serializer cannot be used for writing
+						return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+					}
+				}
+			}
+		}
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 }

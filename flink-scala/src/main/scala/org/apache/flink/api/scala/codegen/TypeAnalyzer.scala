@@ -291,21 +291,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           SealedTraitDescriptor(id, tpe, subtypeDescriptors)
         }
       }
-
-      println(subtypeSymbols.map(_.asClass.selfType))
-      println(subtypeSymbols.flatMap(_.asClass.selfType.baseClasses).contains(tpe.typeSymbol))
-      val subtypeDescriptors = subtypeSymbols.map(subtype => analyze(subtype.asClass.selfType))
-      val unsupportedSubtypes = subtypeDescriptors.collect {
-        case UnsupportedDescriptor(_, _, errs) => UnsupportedDescriptor(id, tpe, errs)
-      }
-      unsupportedSubtypes.headOption match {
-        case Some(head) => head
-        case None => SealedTraitDescriptor(
-          id = id,
-          tpe = tpe,
-          subtypes = subtypeDescriptors
-        )
-      }
     }
 
     private object PrimitiveType {
@@ -386,7 +371,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
     private object SealedTraitType {
       def unapply(tpe: Type): Option[List[Symbol]] = {
         val clazz = tpe.typeSymbol.asClass
-        if (clazz.isSealed) Some(clazz.knownDirectSubclasses.toList) else None
+        if (clazz.isSealed && clazz.typeParams.isEmpty) Some(clazz.knownDirectSubclasses.toList) else None
       }
     }
 

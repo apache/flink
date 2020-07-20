@@ -42,7 +42,7 @@ class SealedTraitSerializerCompatibilityTest extends TestLogger with JUnitSuiteL
   }
 
   @Test
-  def testAddSubtype(): Unit = {
+  def testAddSubtypeAtEnd(): Unit = {
     val config = new ExecutionConfig()
     val a = new SealedTraitSerializer[ADT](
       subtypeClasses = Array(classOf[AOne], classOf[ATwo]),
@@ -56,6 +56,25 @@ class SealedTraitSerializerCompatibilityTest extends TestLogger with JUnitSuiteL
         createTypeInformation[AOne].createSerializer(config),
         createTypeInformation[ATwo].createSerializer(config),
         createTypeInformation[AThree].createSerializer(config)
+      ))
+    assert(compatibility(a, b).isCompatibleAfterMigration)
+  }
+
+  @Test
+  def testAddSubtypeAtStart(): Unit = {
+    val config = new ExecutionConfig()
+    val a = new SealedTraitSerializer[ADT](
+      subtypeClasses = Array(classOf[AOne], classOf[ATwo]),
+      subtypeSerializers = Array(
+        createTypeInformation[AOne].createSerializer(config),
+        createTypeInformation[ATwo].createSerializer(config)))
+
+    val b = new SealedTraitSerializer[ADT](
+      subtypeClasses = Array(classOf[AThree], classOf[AOne], classOf[ATwo]),
+      subtypeSerializers = Array(
+        createTypeInformation[AThree].createSerializer(config),
+        createTypeInformation[AOne].createSerializer(config),
+        createTypeInformation[ATwo].createSerializer(config)
       ))
     assert(compatibility(a, b).isIncompatible)
   }

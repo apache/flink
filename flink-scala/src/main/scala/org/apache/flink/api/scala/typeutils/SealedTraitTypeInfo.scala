@@ -42,9 +42,6 @@ class SealedTraitTypeInfo[T](
   override def getArity: Int = 1
   @PublicEvolving
   override def getTypeClass: Class[T] = clazz
-  @PublicEvolving
-  override def getGenericParameters: java.util.Map[String, TypeInformation[_]] =
-    java.util.Map.of()
 
   @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {

@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import java.util
 
-import org.apache.flink.api.common.typeutils.{CompositeTypeSerializerSnapshot, TypeSerializer, TypeSerializerSnapshot}
+import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 class SealedTraitSerializer[T](

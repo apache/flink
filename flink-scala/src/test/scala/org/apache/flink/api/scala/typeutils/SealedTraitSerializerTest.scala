@@ -56,4 +56,10 @@ object SealedTraitSerializerTest {
   case class NestedAdtOne(id: Int) extends NestedADT
   case class NestedAdtTwo(id: Int, payload: String) extends NestedADT
 
+  sealed trait GenericADT[T] {
+    def id: T
+  }
+
+  case class GenericADT1(id: Int) extends GenericADT[Int]
+
 }
