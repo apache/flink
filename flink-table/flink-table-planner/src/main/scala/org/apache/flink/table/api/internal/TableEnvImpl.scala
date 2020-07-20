@@ -744,11 +744,11 @@ abstract class TableEnvImpl(
       case _: ShowCatalogsOperation =>
         buildShowResult("catalog name", listCatalogs())
       case _: ShowCurrentCatalogOperation =>
-        buildShowResult("catalog name", Array(catalogManager.getCurrentCatalog))
+        buildShowResult("current catalog name", Array(catalogManager.getCurrentCatalog))
       case _: ShowDatabasesOperation =>
         buildShowResult("database name", listDatabases())
       case _: ShowCurrentDatabaseOperation =>
-        buildShowResult("database name", Array(catalogManager.getCurrentDatabase))
+        buildShowResult("current database name", Array(catalogManager.getCurrentDatabase))
       case _: ShowTablesOperation =>
         buildShowResult("table name", listTables())
       case _: ShowFunctionsOperation =>

@@ -454,7 +454,7 @@ public class CliClient {
 	private void callShowCurrentCatalog() {
 		String currentCatalog;
 		try {
-			currentCatalog = executor.listCurrentCatalog(sessionId);
+			currentCatalog = executor.executeSql(sessionId, "SHOW CURRENT CATALOG").collect().next().toString();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -482,7 +482,7 @@ public class CliClient {
 	private void callShowCurrentDatabase() {
 		String currentDatabase;
 		try {
-			currentDatabase = executor.listCurrentDatabase(sessionId);
+			currentDatabase = executor.executeSql(sessionId, "SHOW CURRENT DATABASE").collect().next().toString();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;

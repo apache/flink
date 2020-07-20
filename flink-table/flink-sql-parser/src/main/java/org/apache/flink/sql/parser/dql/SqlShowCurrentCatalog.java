@@ -33,6 +33,7 @@ import java.util.List;
  * SHOW CURRENT CATALOG sql call.
  */
 public class SqlShowCurrentCatalog extends SqlCall {
+
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW CURRENT CATALOG", SqlKind.OTHER);
 
 	public SqlShowCurrentCatalog(SqlParserPos pos) {
@@ -51,9 +52,9 @@ public class SqlShowCurrentCatalog extends SqlCall {
 
 	@Override
 	public void unparse(
-		SqlWriter writer,
-		int leftPrec,
-		int rightPrec) {
+			SqlWriter writer,
+			int leftPrec,
+			int rightPrec) {
 		writer.keyword("SHOW CURRENT CATALOG");
 	}
 }

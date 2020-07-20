@@ -33,6 +33,7 @@ import java.util.List;
 * Show current database.
  */
 public class SqlShowCurrentDatabase extends SqlCall {
+
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW CURRENT DATABASE", SqlKind.OTHER);
 
 	public SqlShowCurrentDatabase(SqlParserPos pos) {
@@ -51,9 +52,9 @@ public class SqlShowCurrentDatabase extends SqlCall {
 
 	@Override
 	public void unparse(
-		SqlWriter writer,
-		int leftPrec,
-		int rightPrec) {
+			SqlWriter writer,
+			int leftPrec,
+			int rightPrec) {
 		writer.keyword("SHOW CURRENT DATABASE");
 	}
 }

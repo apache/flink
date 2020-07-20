@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or list current catalog and database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
@@ -59,11 +59,11 @@ tEnv.executeSql("SHOW CATALOGS").print();
 
 // show current catalog
 tEnv.executeSql("SHOW CURRENT CATALOG").print();
-// +-----------------+
-// |    catalog name |
-// +-----------------+
-// | default_catalog |
-// +-----------------+
+// +----------------------+
+// | current catalog name |
+// +----------------------+
+// |      default_catalog |
+// +----------------------+
 
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
@@ -75,11 +75,11 @@ tEnv.executeSql("SHOW DATABASES").print();
 
 // show current database
 tEnv.executeSql("SHOW CURRENT DATABASE").print();
-// +------------------+
-// |    database name |
-// +------------------+
-// | default_database |
-// +------------------+
+// +-----------------------+
+// | current database name |
+// +-----------------------+
+// |      default_database |
+// +-----------------------+
 
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");

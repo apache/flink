@@ -1010,11 +1010,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		} else if (operation instanceof ShowCatalogsOperation) {
 			return buildShowResult("catalog name", listCatalogs());
 		} else if (operation instanceof ShowCurrentCatalogOperation){
-			return buildShowResult("catalog name", new String[]{catalogManager.getCurrentCatalog()});
+			return buildShowResult("current catalog name", new String[]{catalogManager.getCurrentCatalog()});
 		} else if (operation instanceof ShowDatabasesOperation) {
 			return buildShowResult("database name", listDatabases());
 		} else if (operation instanceof ShowCurrentDatabaseOperation) {
-			return buildShowResult("database name", new String[]{catalogManager.getCurrentDatabase()});
+			return buildShowResult("current database name", new String[]{catalogManager.getCurrentDatabase()});
 		} else if (operation instanceof ShowTablesOperation) {
 			return buildShowResult("table name", listTables());
 		} else if (operation instanceof ShowFunctionsOperation) {

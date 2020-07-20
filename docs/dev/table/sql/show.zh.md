@@ -59,11 +59,11 @@ tEnv.executeSql("SHOW CATALOGS").print();
 
 // show current catalog
 tEnv.executeSql("SHOW CURRENT CATALOG").print();
-// +-----------------+
-// |    catalog name |
-// +-----------------+
-// | default_catalog |
-// +-----------------+
+// +----------------------+
+// | current catalog name |
+// +----------------------+
+// |      default_catalog |
+// +----------------------+
 
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
@@ -75,11 +75,11 @@ tEnv.executeSql("SHOW DATABASES").print();
 
 // show current database
 tEnv.executeSql("SHOW CURRENT DATABASE").print();
-// +------------------+
-// |    database name |
-// +------------------+
-// | default_database |
-// +------------------+
+// +-----------------------+
+// | current database name |
+// +-----------------------+
+// |      default_database |
+// +-----------------------+
 
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
