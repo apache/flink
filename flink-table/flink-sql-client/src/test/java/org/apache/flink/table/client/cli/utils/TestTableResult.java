@@ -37,7 +37,7 @@ public class TestTableResult implements TableResult {
 	private final ResultKind resultKind;
 	private final CloseableIterator<Row> data;
 
-	public static TestTableResult TABLE_RESULT_OK = new TestTableResult(
+	public static final TestTableResult TABLE_RESULT_OK = new TestTableResult(
 			ResultKind.SUCCESS,
 			TableSchema.builder().field("result", DataTypes.STRING()).build(),
 			CloseableIterator.adapterForIterator(Collections.singletonList(Row.of("OK")).iterator()));
