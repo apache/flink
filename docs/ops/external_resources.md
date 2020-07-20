@@ -86,7 +86,8 @@ corresponds to the name listed in the **external resource list**:
 
   - **Driver Factory** (`external-resource.<resource_name>.driver-factory.class`): *optional*. Defines the factory class
   name for the external resource identified by **\<resource_name\>**. If configured, the factory will be used to instantiate
-  *drivers* in the external resource framework.
+  *drivers* in the external resource framework. If not configured, the requested resource will still exist in the `TaskManager`
+  as long as the relevant options are configured. However, the operator will not get any information of the resource from `RuntimeContext` in that case.
 
   - **Driver Parameters** (`external-resource.<resource_name>.param.<param>`): *optional*. The naming pattern of custom
   config options for the external resource specified by **\<resource_name\>**. Only the configurations that follow this pattern
@@ -338,7 +339,7 @@ For standalone mode, multiple TaskManagers might be co-located on the same machi
 the TaskManagers. The default discovery script supports a coordination mode, in which it leverages a coordination file to
 synchronize the allocation state of GPU devices and ensure each GPU device can only be used by one TaskManager process. The relevant arguments are:
 
-  - `--enable-coordination-mode`: Enable the coordination mode.
+  - `--enable-coordination-mode`: Enable the coordination mode. By default the coordination mode is disabled.
 
   - `--coordination-file filePath`: The path of the coordination file used to synchronize the allocation state of GPU resources. The default path is `/var/tmp/flink-gpu-coordination`.
 
