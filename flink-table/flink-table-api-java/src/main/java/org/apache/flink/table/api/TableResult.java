@@ -136,14 +136,14 @@ public interface TableResult {
 	 * (to enable checkpointing for a streaming job,
 	 * set checkpointing properties through {@link TableConfig#getConfiguration()}).
 	 * <ul>
-	 *     <li>If the user is running a batch job, or does not enable checkpointing for a streaming job,
+	 *     <li>For batch jobs or streaming jobs without checkpointing,
 	 *     this method has neither exactly-once nor at-least-once guarantee.
 	 *     Query results are immediately accessible by the clients once they're produced,
-	 *     but the function calls will throw an exception when the job fails and restarts.
-	 *     <li>If the user enables exactly-once checkpointing for a streaming job,
+	 *     but exceptions will be thrown when the job fails and restarts.
+	 *     <li>For streaming jobs with exactly-once checkpointing,
 	 *     this method guarantees an end-to-end exactly-once record delivery.
 	 *     A result will be accessible by clients only after its corresponding checkpoint completes.
-	 *     <li>If the user enables at-least-once checkpointing for a streaming job,
+	 *     <li>For streaming jobs with at-least-once checkpointing,
 	 *     this method guarantees an end-to-end at-least-once record delivery.
 	 *     Query results are immediately accessible by the clients once they're produced,
 	 *     but it is possible for the same result to be delivered multiple times.
@@ -162,14 +162,14 @@ public interface TableResult {
 	 * (to enable checkpointing for a streaming job,
 	 * set checkpointing properties through {@link TableConfig#getConfiguration()}).
 	 * <ul>
-	 *     <li>If the user is running a batch job, or does not enable checkpointing for a streaming job,
+	 *     <li>For batch jobs or streaming jobs without checkpointing,
 	 *     this method has neither exactly-once nor at-least-once guarantee.
 	 *     Query results are immediately accessible by the clients once they're produced,
-	 *     but the function calls will throw an exception when the job fails and restarts.
-	 *     <li>If the user enables exactly-once checkpointing for a streaming job,
+	 *     but exceptions will be thrown when the job fails and restarts.
+	 *     <li>For streaming jobs with exactly-once checkpointing,
 	 *     this method guarantees an end-to-end exactly-once record delivery.
 	 *     A result will be accessible by clients only after its corresponding checkpoint completes.
-	 *     <li>If the user enables at-least-once checkpointing for a streaming job,
+	 *     <li>For streaming jobs with at-least-once checkpointing,
 	 *     this method guarantees an end-to-end at-least-once record delivery.
 	 *     Query results are immediately accessible by the clients once they're produced,
 	 *     but it is possible for the same result to be delivered multiple times.

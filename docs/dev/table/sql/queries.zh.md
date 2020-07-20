@@ -145,9 +145,9 @@ SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` �
 我们还可以通过 `TableResult.print()` 方法将查询结果打印到本地控制台。`TableResult` 中的结果数据只能被访问一次，因此一个 `TableResult` 实例中，`collect()` 方法和 `print()` 方法不能被同时使用。
 
 `TableResult.collect()` 与 `TableResult.print()` 的行为在不同的 checkpointing 模式下略有不同（流作业开启 checkpointing 的方法可参考 <a href="{{ site.baseurl }}/zh/ops/config.html#checkpointing">checkpointing 配置</a>）。
-* 若用户正在运行批作业，或正在运行流作业但没有配置任何 checkpointing，`TableResult.collect()` 与 `TableResult.print()` 既不保证精确一次的数据交付、也不保证至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但作业失败并重启时将会报错。
-* 若用户正在运行流作业并配置了精准一次的 checkpointing，`TableResult.collect()` 与 `TableResult.print()` 保证端到端精确一次的数据交付。一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
-* 若用户正在运行流作业并配置了至少一次的 checkpointing，`TableResult.collect()` 与 `TableResult.print()` 保证端到端至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但同一条结果可能被多次传递给客户端。
+* 对于批作业或没有配置任何 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 既不保证精确一次的数据交付、也不保证至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但作业失败并重启时将会报错。
+* 对于配置了精准一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端精确一次的数据交付。一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
+* 对于配置了至少一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但同一条结果可能被多次传递给客户端。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
