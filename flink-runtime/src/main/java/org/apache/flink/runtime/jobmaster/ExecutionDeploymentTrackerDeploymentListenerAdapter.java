@@ -19,32 +19,25 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
-
-import java.util.Map;
+import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 
 /**
- * Component for reconciling the deployment state of executions.
+ * An adapter for using an {@link ExecutionDeploymentTracker} as an {@link ExecutionDeploymentListener}.
  */
-public interface ExecutionDeploymentReconciler {
+public class ExecutionDeploymentTrackerDeploymentListenerAdapter implements ExecutionDeploymentListener {
+	private final ExecutionDeploymentTracker executionDeploymentTracker;
 
-	/**
-	 * Factory for {@link ExecutionDeploymentReconciler}.
-	 */
-	interface Factory {
-		ExecutionDeploymentReconciler create(ExecutionDeploymentReconciliationHandler reconciliationHandler);
+	public ExecutionDeploymentTrackerDeploymentListenerAdapter(ExecutionDeploymentTracker executionDeploymentTracker) {
+		this.executionDeploymentTracker = executionDeploymentTracker;
 	}
 
-	/**
-	 * Reconciles the deployment states between all reported/expected executions for the given task executor.
-	 *
-	 * @param taskExecutorHost hosting task executor
-	 * @param executionDeploymentReport task executor report for deployed executions
-	 * @param expectedDeployedExecutionIds map of expected executions and their current deployment status
-	 */
-	void reconcileExecutionDeployments(
-		ResourceID taskExecutorHost,
-		ExecutionDeploymentReport executionDeploymentReport,
-		Map<ExecutionAttemptID, ExecutionDeploymentState> expectedDeployedExecutionIds);
+	@Override
+	public void onStartedDeployment(ExecutionAttemptID execution, ResourceID host) {
+		executionDeploymentTracker.startTrackingPendingDeploymentOf(execution, host);
+	}
 
+	@Override
+	public void onCompletedDeployment(ExecutionAttemptID execution) {
+		executionDeploymentTracker.completeDeploymentOf(execution);
+	}
 }

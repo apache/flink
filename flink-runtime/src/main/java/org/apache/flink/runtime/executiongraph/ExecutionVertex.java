@@ -874,13 +874,23 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	//   Miscellaneous
 	// --------------------------------------------------------------------------------------------
 
-	void notifyDeployment(Execution execution) {
+	void notifyPendingDeployment(Execution execution) {
+		// only forward this notification if the execution is still the current execution
+		// otherwise we have an outdated execution
+		if (isCurrentExecution(execution)) {
+			getExecutionGraph().getExecutionDeploymentListener().onStartedDeployment(
+				execution.getAttemptId(),
+				execution.getAssignedResourceLocation().getResourceID());
+		}
+	}
+
+	void notifyCompletedDeployment(Execution execution) {
 		// only forward this notification if the execution is still the current execution
 		// otherwise we have an outdated execution
 		if (isCurrentExecution(execution)) {
 			getExecutionGraph().getExecutionDeploymentListener().onCompletedDeployment(
-				execution.getAttemptId(),
-				execution.getAssignedResourceLocation().getResourceID());
+				execution.getAttemptId()
+			);
 		}
 	}
 
