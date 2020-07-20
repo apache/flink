@@ -76,6 +76,9 @@ public class ArrayDataWriterWrapper {
 		return reuseArray;
 	}
 
+	/**
+	 * A function interface that accepts T, returns R and throws E.
+	 */
 	public interface ThrowingFunction<T, R, E extends Throwable> {
 		R apply(T t) throws E;
 	}

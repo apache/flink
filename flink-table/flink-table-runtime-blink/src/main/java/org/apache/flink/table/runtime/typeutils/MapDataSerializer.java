@@ -33,6 +33,7 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.writer.ArrayDataWriterWrapper;
+import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
