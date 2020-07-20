@@ -20,10 +20,18 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 /**
- * A listener that is called when the deployment of an execution has been started/completed.
+ * No-op implementation of {@link ExecutionDeploymentListener}.
  */
-public interface ExecutionDeploymentListener {
-	void onStartedDeployment(ExecutionAttemptID execution, ResourceID host);
+public enum NoOpExecutionDeploymentListener implements ExecutionDeploymentListener {
+	INSTANCE;
 
-	void onCompletedDeployment(ExecutionAttemptID execution);
+	@Override
+	public void onStartedDeployment(ExecutionAttemptID execution, ResourceID host) {}
+
+	@Override
+	public void onCompletedDeployment(ExecutionAttemptID execution) {}
+
+	public static ExecutionDeploymentListener get() {
+		return INSTANCE;
+	}
 }

@@ -122,7 +122,7 @@ public class ExecutionGraphBuilder {
 			shuffleMaster,
 			partitionTracker,
 			failoverStrategy,
-			(execution, host) -> {},
+			NoOpExecutionDeploymentListener.get(),
 			(execution, newState) -> {});
 	}
 

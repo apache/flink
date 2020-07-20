@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
-
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+package org.apache.flink.runtime.jobmaster;
 
 /**
- * A listener that is called when the deployment of an execution has been started/completed.
+ * Possible states for the deployment of an execution.
  */
-public interface ExecutionDeploymentListener {
-	void onStartedDeployment(ExecutionAttemptID execution, ResourceID host);
-
-	void onCompletedDeployment(ExecutionAttemptID execution);
+public enum ExecutionDeploymentState {
+	/** The deployment has or is about to be started. */
+	PENDING,
+	/** The deployment has been acknowledged by the TaskExecutor. */
+	DEPLOYED
 }

@@ -75,7 +75,7 @@ public class TestingExecutionGraphBuilder {
 	private JobGraph jobGraph = new JobGraph();
 	private MetricGroup metricGroup = new UnregisteredMetricsGroup();
 	private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
-	private ExecutionDeploymentListener executionDeploymentListener = (execution, host) -> {};
+	private ExecutionDeploymentListener executionDeploymentListener = NoOpExecutionDeploymentListener.get();
 	private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
 
 	private TestingExecutionGraphBuilder() {
