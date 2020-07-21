@@ -28,7 +28,7 @@ import java.util.Map;
  * Interface for a Kinesis proxy that operates on multiple Kinesis streams within the same AWS service region.
  */
 @Internal
-public interface KinesisProxyInterface {
+public interface KinesisProxyInterface extends KinesisProxyMarker {
 
 	/**
 	 * Get a shard iterator from the specified position in a shard.
