@@ -37,9 +37,10 @@ import java.util.concurrent.atomic.AtomicLong;
 class UnsafeMemoryBudget {
 	// max. number of sleeps during try-reserving with exponentially
 	// increasing delay before throwing OutOfMemoryError:
-	// 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 (total 1023 ms ~ 1 s)
+	// 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, ... (total (2 x 1024) - 1 ms ~ 2 s)
 	// which means that MemoryReservationException will be thrown after 1 s of trying
-	private static final int MAX_SLEEPS = 10;
+	private static final int MAX_SLEEPS = 11;
+	private static final int MAX_SLEEPS_VERIFY_EMPTY = 17; // (total (128 x 1024) - 1 ms ~ 2 min)
 	private static final int RETRIGGER_GC_AFTER_SLEEPS = 9; // ~ 0.5 sec
 
 	private final long totalMemorySize;
@@ -61,7 +62,8 @@ class UnsafeMemoryBudget {
 
 	boolean verifyEmpty() {
 		try {
-			reserveMemory(totalMemorySize);
+			// we wait longer as we have to GC all memory, allocated by task, to perform the verification
+			reserveMemory(totalMemorySize, MAX_SLEEPS_VERIFY_EMPTY);
 		} catch (MemoryReservationException e) {
 			return false;
 		}
@@ -74,8 +76,12 @@ class UnsafeMemoryBudget {
 	 *
 	 * <p>Adjusted version of {@link java.nio.Bits#reserveMemory(long, int)} taken from Java 11.
 	 */
-	@SuppressWarnings({"OverlyComplexMethod", "JavadocReference", "NestedTryStatement"})
 	void reserveMemory(long size) throws MemoryReservationException {
+		reserveMemory(size, MAX_SLEEPS);
+	}
+
+	@SuppressWarnings({"OverlyComplexMethod", "JavadocReference", "NestedTryStatement"})
+	void reserveMemory(long size, int maxSleeps) throws MemoryReservationException {
 		long availableOrReserved = tryReserveMemory(size);
 		// optimist!
 		if (availableOrReserved >= size) {
@@ -122,15 +128,15 @@ class UnsafeMemoryBudget {
 				if (availableOrReserved >= size) {
 					return;
 				}
-				if (sleeps >= MAX_SLEEPS) {
+				if (sleeps >= maxSleeps) {
 					break;
-				}
-				if (sleeps >= RETRIGGER_GC_AFTER_SLEEPS) {
-					// trigger again VM's Reference processing if we have to wait longer
-					System.gc();
 				}
 				try {
 					if (!JavaGcCleanerWrapper.tryRunPendingCleaners()) {
+						if (sleeps >= RETRIGGER_GC_AFTER_SLEEPS) {
+							// trigger again VM's Reference processing if we have to wait longer
+							System.gc();
+						}
 						Thread.sleep(sleepTime);
 						sleepTime <<= 1;
 						sleeps++;

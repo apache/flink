@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
@@ -84,15 +85,22 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 	/** The closing future is completed when the slot is freed and closed. */
 	private final CompletableFuture<Void> closingFuture;
 
+	/**
+	 * {@link ExecutorService} for background actions, e.g. verify all managed memory released.
+	 */
+	private final ExecutorService asyncExecutor;
+
 	public TaskSlot(
 		final int index,
 		final ResourceProfile resourceProfile,
 		final int memoryPageSize,
 		final JobID jobId,
-		final AllocationID allocationId) {
+		final AllocationID allocationId,
+		final ExecutorService asyncExecutor) {
 
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+		this.asyncExecutor = Preconditions.checkNotNull(asyncExecutor);
 
 		this.tasks = new HashMap<>(4);
 		this.state = TaskSlotState.ALLOCATED;
@@ -295,22 +303,25 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 				// and set the slot state to releasing so that it gets eventually freed
 				tasks.values().forEach(task -> task.failExternally(cause));
 			}
+
 			final CompletableFuture<Void> cleanupFuture = FutureUtils
 				.waitForAll(tasks.values().stream().map(TaskSlotPayload::getTerminationFuture).collect(Collectors.toList()))
-				.thenRun(() -> {
-					verifyMemoryFreed();
-					this.memoryManager.shutdown();
-				});
-
+				.thenRun(memoryManager::shutdown);
+			verifyAllManagedMemoryIsReleasedAfter(cleanupFuture);
 			FutureUtils.forward(cleanupFuture, closingFuture);
 		}
 		return closingFuture;
 	}
 
-	private void verifyMemoryFreed() {
-		if (!memoryManager.verifyEmpty()) {
-			LOG.warn("Not all slot memory is freed, potential memory leak at {}", this);
-		}
+	private void verifyAllManagedMemoryIsReleasedAfter(CompletableFuture<Void> after) {
+		FutureUtils.runAfterwardsAsync(
+			after,
+			() -> {
+				if (!memoryManager.verifyEmpty()) {
+					LOG.warn("Not all slot memory is freed, potential memory leak at {}", this);
+				}
+			},
+			asyncExecutor);
 	}
 
 	private static MemoryManager createMemoryManager(ResourceProfile resourceProfile, int pageSize) {
