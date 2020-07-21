@@ -434,7 +434,7 @@ public class FutureUtils {
 	 * @param <T> type of the given future
 	 * @return The timeout enriched future
 	 */
-	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit, String timeoutMsg) {
+	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit, @Nullable String timeoutMsg) {
 		return orTimeout(future, timeout, timeUnit, Executors.directExecutor(), timeoutMsg);
 	}
 
@@ -472,7 +472,7 @@ public class FutureUtils {
 		long timeout,
 		TimeUnit timeUnit,
 		Executor timeoutFailExecutor,
-		String timeoutMsg) {
+		@Nullable String timeoutMsg) {
 
 		if (!future.isDone()) {
 			final ScheduledFuture<?> timeoutFuture = Delayer.delay(
@@ -1069,7 +1069,7 @@ public class FutureUtils {
 
 		@Override
 		public void run() {
-			future.completeExceptionally(null == timeoutMsg ? new TimeoutException() : new TimeoutException(timeoutMsg));
+			future.completeExceptionally(new TimeoutException(timeoutMsg));
 		}
 	}
 
