@@ -149,28 +149,28 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The power constant for exponential backoff between each deregisterStream attempt. */
 	public static final String DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.deregisterstreamconsumer.backoff.expconst";
 
-	/** The maximum number of listStream attempts if we get a recoverable exception. */
+	/** The maximum number of listStreamConsumers attempts if we get a recoverable exception. */
 	public static final String LIST_STREAM_CONSUMERS_RETRIES = "flink.stream.liststreamconsumer.maxretries";
 
-	/** The base backoff time between each listStream attempt. */
+	/** The base backoff time between each listStreamConsumers attempt. */
 	public static final String LIST_STREAM_CONSUMERS_BACKOFF_BASE = "flink.stream.liststreamconsumer.backoff.base";
 
-	/** The maximum backoff time between each listStream attempt. */
+	/** The maximum backoff time between each listStreamConsumer attempt. */
 	public static final String LIST_STREAM_CONSUMERS_BACKOFF_MAX = "flink.stream.liststreamconsumer.backoff.max";
 
-	/** The power constant for exponential backoff between each listStream attempt. */
+	/** The power constant for exponential backoff between each listStreamConsumers attempt. */
 	public static final String LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.liststreamconsumer.backoff.expconst";
 
 	/** The maximum number of subscribeToShard attempts if we get a recoverable exception. */
 	public static final String SUBSCRIBE_TO_SHARD_RETRIES = "flink.shard.subscribetoshard.maxretries";
 
-	/** The base backoff time between each subscribeToShard  attempt. */
+	/** The base backoff time between each subscribeToShard attempt. */
 	public static final String SUBSCRIBE_TO_SHARD_BACKOFF_BASE = "flink.shard.subscribetoshard.backoff.base";
 
-	/** The maximum backoff time between each subscribeToShard  attempt. */
+	/** The maximum backoff time between each subscribeToShard attempt. */
 	public static final String SUBSCRIBE_TO_SHARD_BACKOFF_MAX = "flink.shard.subscribetoshard.backoff.max";
 
-	/** The power constant for exponential backoff between each subscribeToShard  attempt. */
+	/** The power constant for exponential backoff between each subscribeToShard attempt. */
 	public static final String SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT = "flink.shard.subscribetoshard.backoff.expconst";
 
 	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard. */

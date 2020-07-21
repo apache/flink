@@ -204,10 +204,10 @@ public class KinesisConfigUtilTest {
 
 		KinesisConfigUtil.validateRecordPublisherType(testConfig);
 	}
+
 	// ----------------------------------------------------------------------
 	// validateEfoConfiguration() tests
 	// ----------------------------------------------------------------------
-
 	@Test
 	public void testNoEfoRegistrationTypeInConfig() {
 		Properties testConfig = TestUtils.getStandardProperties();

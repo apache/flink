@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 
@@ -114,17 +115,17 @@ public class FanOutProperties {
 	private final int deregisterStreamMaxRetries;
 
 	/**
-	 * Base backoff millis for the list stream operation.
+	 * Base backoff millis for the list stream consumers operation.
 	 */
 	private final long listStreamConsumersBaseBackoffMillis;
 
 	/**
-	 * Maximum backoff millis for the list stream operation.
+	 * Maximum backoff millis for the list stream consumers operation.
 	 */
 	private final long listStreamConsumersMaxBackoffMillis;
 
 	/**
-	 * Exponential backoff power constant for the list stream operation.
+	 * Exponential backoff power constant for the list stream consumers operation.
 	 */
 	private final double listStreamConsumersExpConstant;
 
@@ -133,9 +134,6 @@ public class FanOutProperties {
 	 */
 	private final int listStreamConsumersMaxRetries;
 
-	// ------------------------------------------------------------------------
-	//  registerStream() related performance settings
-	// ------------------------------------------------------------------------
 	/**
 	 * Creates a FanOutProperties.
 	 *
@@ -255,10 +253,10 @@ public class FanOutProperties {
 	public double getSubscribeToShardExpConstant() {
 		return subscribeToShardExpConstant;
 	}
+
 	// ------------------------------------------------------------------------
 	//  registerStream() related performance settings
 	// ------------------------------------------------------------------------
-
 	/**
 	 * Get base backoff millis for the register stream operation.
 	 */
@@ -290,7 +288,6 @@ public class FanOutProperties {
 	// ------------------------------------------------------------------------
 	//  deregisterStream() related performance settings
 	// ------------------------------------------------------------------------
-
 	/**
 	 * Get base backoff millis for the deregister stream operation.
 	 */
@@ -318,10 +315,10 @@ public class FanOutProperties {
 	public int getDeregisterStreamMaxRetries() {
 		return deregisterStreamMaxRetries;
 	}
-	// ------------------------------------------------------------------------
-	//  listStream() related performance settings
-	// ------------------------------------------------------------------------
 
+	// ------------------------------------------------------------------------
+	//  listStreamConsumers() related performance settings
+	// ------------------------------------------------------------------------
 	/**
 	 * Get base backoff millis for the list stream consumers operation.
 	 */
@@ -360,27 +357,21 @@ public class FanOutProperties {
 	/**
 	 * Get consumer name, will be null if efo registration type is 'NONE'.
 	 */
-	@Nullable
-	public String getConsumerName() {
-		return consumerName;
+	public Optional<String> getConsumerName() {
+		return Optional.ofNullable(consumerName);
 	}
 
 	/**
 	 * Get stream consumer arns, will be null if efo registration type is 'LAZY' or 'EAGER'.
 	 */
-	@Nullable
-	public Map<String, String> getStreamConsumerArns() {
-		return streamConsumerArns;
+	public Optional<Map<String, String>> getStreamConsumerArns() {
+		return Optional.ofNullable(streamConsumerArns);
 	}
 
 	/**
 	 * Get the according consumer arn to the stream, will be null if efo registration type is 'LAZY' or 'EAGER'.
 	 */
-	@Nullable
-	public String getStreamConsumerArn(String stream) {
-		if (this.streamConsumerArns == null) {
-			return null;
-		}
-		return streamConsumerArns.get(stream);
+	public Optional<String> getStreamConsumerArn(String stream) {
+		return Optional.ofNullable(streamConsumerArns).map(arns -> arns.get(stream));
 	}
 }

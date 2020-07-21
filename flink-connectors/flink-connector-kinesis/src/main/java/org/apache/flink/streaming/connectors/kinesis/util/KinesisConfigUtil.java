@@ -248,7 +248,7 @@ public class KinesisConfigUtil {
 	/**
 	 * Validate the record publisher type.
 	 * @param config config properties
-	 * @return if `ConsumerConfigConstants.RECORD_PUBLISHER_TYPE` is set, return the parsed record publisher type. Else return polling record publisher type.
+	 * @return if {@code ConsumerConfigConstants.RECORD_PUBLISHER_TYPE} is set, return the parsed record publisher type. Else return polling record publisher type.
 	 */
 	public static RecordPublisherType validateRecordPublisherType(Properties config) {
 		if (config.containsKey(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE)) {
@@ -273,21 +273,21 @@ public class KinesisConfigUtil {
 	 * @param streams the streams which is sent to match the EFO consumer arn if the EFO registration mode is set to `NONE`.
 	 */
 	public static void validateEfoConfiguration(Properties config, List<String> streams) {
-		String efoRegistrationType;
+		EFORegistrationType efoRegistrationType;
 		if (config.containsKey(ConsumerConfigConstants.EFO_REGISTRATION_TYPE)) {
-			efoRegistrationType = config.getProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE);
+			String typeInString = config.getProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE);
 			// specified efo registration type in stream must be either LAZY, EAGER or NONE.
 			try {
-				EFORegistrationType.valueOf(efoRegistrationType);
+				efoRegistrationType = EFORegistrationType.valueOf(typeInString);
 			} catch (IllegalArgumentException e) {
 				String errorMessage = Arrays.stream(EFORegistrationType.values())
 					.map(Enum::name).collect(Collectors.joining(", "));
 				throw new IllegalArgumentException("Invalid efo registration type in stream set in config. Valid values are: " + errorMessage);
 			}
 		} else {
-			efoRegistrationType = EFORegistrationType.LAZY.toString();
+			efoRegistrationType = EFORegistrationType.LAZY;
 		}
-		if (EFORegistrationType.valueOf(efoRegistrationType) == EFORegistrationType.NONE) {
+		if (efoRegistrationType == EFORegistrationType.NONE) {
 			//if the registration type is NONE, then for each stream there must be an according consumer ARN
 			List<String> missingConsumerArnKeys = new ArrayList<>();
 			for (String stream : streams) {

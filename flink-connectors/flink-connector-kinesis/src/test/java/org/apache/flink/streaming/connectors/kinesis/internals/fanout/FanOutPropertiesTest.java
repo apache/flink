@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
@@ -66,7 +67,7 @@ public class FanOutPropertiesTest extends TestLogger {
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME, fakedConsumerName);
 		FanOutProperties fanOutProperties = new FanOutProperties(testConfig, new ArrayList<>());
-		assertEquals(fanOutProperties.getConsumerName(), fakedConsumerName);
+		assertEquals(fanOutProperties.getConsumerName(), Optional.of(fakedConsumerName));
 	}
 
 	@Test
@@ -96,8 +97,8 @@ public class FanOutPropertiesTest extends TestLogger {
 		expectedStreamArns.put("fakedstream1", "fakedstream1");
 		expectedStreamArns.put("fakedstream2", "fakedstream2");
 
-		assertEquals(fanOutProperties.getStreamConsumerArn("fakedstream1"), "fakedstream1");
-		assertEquals(fanOutProperties.getStreamConsumerArns(), expectedStreamArns);
+		assertEquals(fanOutProperties.getStreamConsumerArn("fakedstream1"), Optional.of("fakedstream1"));
+		assertEquals(fanOutProperties.getStreamConsumerArns(), Optional.of(expectedStreamArns));
 	}
 
 	@Test
