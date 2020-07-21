@@ -79,6 +79,12 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	 */
 	private static final int OTHER_RESP_PAYLOAD_OVERHEAD = 1024;
 
+	/**
+	 * default is {@link org.apache.flink.configuration.RestOptions#SERVER_MAX_CONTENT_LENGTH} - {@link AbstractHandler#OTHER_RESP_PAYLOAD_OVERHEAD}
+	 * if FlinkHttpObjectAggregator is null use this value.
+	 */
+	private static final int REST_SERVER_MAX_CONTENT_LENGTH_DEFAULT = 104856576;
+
 	private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
 
 	/**
@@ -199,7 +205,10 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 	private CompletableFuture<Void> handleException(Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
 		FlinkHttpObjectAggregator flinkHttpObjectAggregator = ctx.pipeline().get(FlinkHttpObjectAggregator.class);
-		int maxLength = flinkHttpObjectAggregator.maxContentLength() - OTHER_RESP_PAYLOAD_OVERHEAD;
+		int maxLength = REST_SERVER_MAX_CONTENT_LENGTH_DEFAULT;
+		if (null != flinkHttpObjectAggregator) {
+			maxLength = flinkHttpObjectAggregator.maxContentLength() - OTHER_RESP_PAYLOAD_OVERHEAD;
+		}
 		if (throwable instanceof RestHandlerException) {
 			RestHandlerException rhe = (RestHandlerException) throwable;
 			String stackTrace = ExceptionUtils.stringifyException(rhe);
