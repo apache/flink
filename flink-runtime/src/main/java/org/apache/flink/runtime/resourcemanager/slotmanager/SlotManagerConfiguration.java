@@ -48,6 +48,7 @@ public class SlotManagerConfiguration {
 	private final WorkerResourceSpec defaultWorkerResourceSpec;
 	private final int numSlotsPerWorker;
 	private final int maxSlotNum;
+	private final int redundantTaskManagerNum;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
@@ -57,7 +58,8 @@ public class SlotManagerConfiguration {
 			SlotMatchingStrategy slotMatchingStrategy,
 			WorkerResourceSpec defaultWorkerResourceSpec,
 			int numSlotsPerWorker,
-			int maxSlotNum) {
+			int maxSlotNum,
+			int redundantTaskManagerNum) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
@@ -69,6 +71,8 @@ public class SlotManagerConfiguration {
 		Preconditions.checkState(maxSlotNum > 0);
 		this.numSlotsPerWorker = numSlotsPerWorker;
 		this.maxSlotNum = maxSlotNum;
+		Preconditions.checkState(redundantTaskManagerNum >= 0);
+		this.redundantTaskManagerNum = redundantTaskManagerNum;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -103,6 +107,10 @@ public class SlotManagerConfiguration {
 		return maxSlotNum;
 	}
 
+	public int getRedundantTaskManagerNum() {
+		return redundantTaskManagerNum;
+	}
+
 	public static SlotManagerConfiguration fromConfiguration(
 			Configuration configuration,
 			WorkerResourceSpec defaultWorkerResourceSpec) throws ConfigurationException {
@@ -130,6 +138,8 @@ public class SlotManagerConfiguration {
 
 		int maxSlotNum = configuration.getInteger(ResourceManagerOptions.MAX_SLOT_NUM);
 
+		int redundantTaskManagerNum = configuration.getInteger(ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM);
+
 		return new SlotManagerConfiguration(
 			rpcTimeout,
 			slotRequestTimeout,
@@ -138,7 +148,8 @@ public class SlotManagerConfiguration {
 			slotMatchingStrategy,
 			defaultWorkerResourceSpec,
 			numSlotsPerWorker,
-			maxSlotNum);
+			maxSlotNum,
+			redundantTaskManagerNum);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {

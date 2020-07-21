@@ -40,6 +40,7 @@ public class SlotManagerBuilder {
 	private int numSlotsPerWorker;
 	private SlotManagerMetricGroup slotManagerMetricGroup;
 	private int maxSlotNum;
+	private int redundantTaskManagerNum;
 
 	private SlotManagerBuilder() {
 		this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -52,6 +53,7 @@ public class SlotManagerBuilder {
 		this.numSlotsPerWorker = 1;
 		this.slotManagerMetricGroup = UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
 		this.maxSlotNum = ResourceManagerOptions.MAX_SLOT_NUM.defaultValue();
+		this.redundantTaskManagerNum = ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
 	}
 
 	public static SlotManagerBuilder newBuilder() {
@@ -108,6 +110,11 @@ public class SlotManagerBuilder {
 		return this;
 	}
 
+	public SlotManagerBuilder setRedundantTaskManagerNum(int redundantTaskManagerNum) {
+		this.redundantTaskManagerNum = redundantTaskManagerNum;
+		return this;
+	}
+
 	public SlotManagerImpl build() {
 		final SlotManagerConfiguration slotManagerConfiguration = new SlotManagerConfiguration(
 			taskManagerRequestTimeout,
@@ -117,7 +124,8 @@ public class SlotManagerBuilder {
 			slotMatchingStrategy,
 			defaultWorkerResourceSpec,
 			numSlotsPerWorker,
-			maxSlotNum);
+			maxSlotNum,
+			redundantTaskManagerNum);
 
 		return new SlotManagerImpl(
 			scheduledExecutor,

@@ -908,6 +908,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		try (final SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setTaskManagerTimeout(Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))
+			.setRedundantTaskManagerNum(0)
 			.build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
@@ -976,6 +977,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		try (final SlotManager slotManager = createSlotManagerBuilder()
 			.setTaskManagerTimeout(taskManagerTimeout)
+			.setRedundantTaskManagerNum(0)
 			.buildAndStartWithDirectExec(resourceManagerId, resourceActions)) {
 
 			slotManager.registerTaskManager(taskExecutorConnection, initialSlotReport);
@@ -1299,6 +1301,7 @@ public class SlotManagerImplTest extends TestLogger {
 	private SlotManagerImpl createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions, int numSlotsPerWorker) {
 		SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setNumSlotsPerWorker(numSlotsPerWorker)
+			.setRedundantTaskManagerNum(0)
 			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions);
 		return slotManager;
 	}
@@ -1595,6 +1598,7 @@ public class SlotManagerImplTest extends TestLogger {
 		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setNumSlotsPerWorker(numberSlots)
 			.setMaxSlotNum(maxSlotNum)
+			.setRedundantTaskManagerNum(0)
 			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection1, slotReport1);
 			slotManager.registerTaskManager(taskManagerConnection2, slotReport2);
