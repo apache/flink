@@ -247,7 +247,8 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getNumberOfSlots(),
 			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
-			taskManagerServicesConfiguration.getPageSize());
+			taskManagerServicesConfiguration.getPageSize(),
+			ioExecutor);
 
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
@@ -284,7 +285,8 @@ public class TaskManagerServices {
 			final int numberOfSlots,
 			final TaskExecutorResourceSpec taskExecutorResourceSpec,
 			final long timerServiceShutdownTimeout,
-			final int pageSize) {
+			final int pageSize,
+			final Executor memoryVerificationExecutor) {
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
@@ -293,7 +295,8 @@ public class TaskManagerServices {
 			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
 			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
 			pageSize,
-			timerService);
+			timerService,
+			memoryVerificationExecutor);
 	}
 
 	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
