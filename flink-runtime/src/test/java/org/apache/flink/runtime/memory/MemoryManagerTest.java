@@ -364,6 +364,16 @@ public class MemoryManagerTest {
 		memoryManager.computeMemorySize(-0.1);
 	}
 
+	@Test
+	public void testVerifyEmptyCanBeDoneAfterShutdown() throws MemoryAllocationException, MemoryReservationException {
+		memoryManager.release(memoryManager.allocatePages(new Object(), 1));
+		Object owner = new Object();
+		memoryManager.reserveMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
+		memoryManager.releaseMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
+		memoryManager.shutdown();
+		memoryManager.verifyEmpty();
+	}
+
 	private void testCannotAllocateAnymore(Object owner, int numPages) {
 		try {
 			memoryManager.allocatePages(owner, numPages);
