@@ -188,7 +188,9 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            The {@link KeySelector} used for grouping the second input
 	 * @return The partitioned {@link ConnectedStreams}
 	 */
-	public ConnectedStreams<IN1, IN2> keyBy(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
+	public <KEY> ConnectedStreams<IN1, IN2> keyBy(
+			KeySelector<IN1, KEY> keySelector1,
+			KeySelector<IN2, KEY> keySelector2) {
 		return new ConnectedStreams<>(environment, inputStream1.keyBy(keySelector1),
 				inputStream2.keyBy(keySelector2));
 	}
