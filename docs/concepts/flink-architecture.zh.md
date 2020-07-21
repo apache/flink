@@ -80,7 +80,7 @@ failures, among others. This process consists of three different components:
   * **Dispatcher** 
 
     The _Dispatcher_ provides a REST interface to submit Flink applications for
-    execution and starts a new JobManager for each submitted job. It
+    execution and starts a new JobMaster for each submitted job. It
     also runs the Flink WebUI to provide information about job executions.
 
   * **JobMaster** 
