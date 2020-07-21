@@ -1033,9 +1033,9 @@ under the License.
 			</dependencies>
 		</profile>
 		<profile>
-			<id>hive-2.0.0</id>
+			<id>hive-2.0.1</id>
 			<properties>
-				<hive.version>2.0.0</hive.version>
+				<hive.version>2.0.1</hive.version>
 			</properties>
 		</profile>
 		<profile>
