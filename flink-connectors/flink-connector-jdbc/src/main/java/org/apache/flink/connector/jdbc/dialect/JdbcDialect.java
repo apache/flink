@@ -79,6 +79,18 @@ public interface JdbcDialect extends Serializable {
 	default String quoteIdentifier(String identifier) {
 		return "\"" + identifier + "\"";
 	}
+	
+	/**
+	 * Quotes the table name. Spilt the table name first and then quote it.  
+	 */
+	default String quoteTablename(String tableName){
+        if(tableName.contains(".")){
+            String[] strs = tableName.split("\\.");
+            return Arrays.stream(strs).map(s -> quoteIdentifier(s)).collect(Collectors.joining("."));
+        }else {
+            return quoteIdentifier(tableName);
+        }
+    }
 
 	/**
 	 * Get dialect upsert statement, the database has its own upsert syntax, such as Mysql
@@ -99,7 +111,7 @@ public interface JdbcDialect extends Serializable {
 		String fieldExpressions = Arrays.stream(conditionFields)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(" AND "));
-		return "SELECT 1 FROM " + quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
+		return "SELECT 1 FROM " + quoteTablename(tableName) + " WHERE " + fieldExpressions;
 	}
 
 	/**
@@ -112,7 +124,7 @@ public interface JdbcDialect extends Serializable {
 		String placeholders = Arrays.stream(fieldNames)
 			.map(f -> "?")
 			.collect(Collectors.joining(", "));
-		return "INSERT INTO " + quoteIdentifier(tableName) +
+		return "INSERT INTO " + quoteTablename(tableName) +
 			"(" + columns + ")" + " VALUES (" + placeholders + ")";
 	}
 
@@ -127,7 +139,7 @@ public interface JdbcDialect extends Serializable {
 		String conditionClause = Arrays.stream(conditionFields)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(" AND "));
-		return "UPDATE " + quoteIdentifier(tableName) +
+		return "UPDATE " + quoteTablename(tableName) +
 			" SET " + setClause +
 			" WHERE " + conditionClause;
 	}
@@ -140,7 +152,7 @@ public interface JdbcDialect extends Serializable {
 		String conditionClause = Arrays.stream(conditionFields)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(" AND "));
-		return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
+		return "DELETE FROM " + quoteTablename(tableName) + " WHERE " + conditionClause;
 	}
 
 	/**
@@ -154,6 +166,6 @@ public interface JdbcDialect extends Serializable {
 				.map(f -> quoteIdentifier(f) + "=?")
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
-				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+				quoteTablename(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
 	}
 }
