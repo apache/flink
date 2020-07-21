@@ -40,8 +40,10 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -51,7 +53,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Test suite for idle task managers release in slot manager.
  */
-public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
+public class TaskManagerCheckInSlotManagerTest extends TestLogger {
 	private static final ResourceID resourceID = ResourceID.generate();
 	private static final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 	private static final SlotID slotId = new SlotID(resourceID, 0);
@@ -69,13 +71,21 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	private CompletableFuture<InstanceID> releaseFuture;
 	private ResourceActions resourceManagerActions;
 	private ManuallyTriggeredScheduledExecutor mainThreadExecutor;
+	private final AtomicInteger allocateResourceCalls = new AtomicInteger(0);
+	private final AtomicInteger releaseResourceCalls = new AtomicInteger(0);
 
 	@Before
 	public void setup() {
 		canBeReleasedFuture.set(new CompletableFuture<>());
 		releaseFuture = new CompletableFuture<>();
+		allocateResourceCalls.getAndSet(0);
+		releaseResourceCalls.getAndSet(0);
 		resourceManagerActions = new TestingResourceActionsBuilder()
-			.setReleaseResourceConsumer((instanceID, e) -> releaseFuture.complete(instanceID))
+			.setReleaseResourceConsumer((instanceID, e) -> {
+				releaseFuture.complete(instanceID);
+				releaseResourceCalls.incrementAndGet();
+			})
+			.setAllocateResourceConsumer(ignored -> allocateResourceCalls.incrementAndGet())
 			.build();
 		mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
@@ -98,6 +108,74 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 			executor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
 			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
 		}
+	}
+
+	/**
+	 * Register four taskManagers that all have two slots.
+	 * For taskManager0, both slots are free.
+	 * For taskManager1, both slots are allocated.
+	 * For taskManager2, One slot is allocated, the other is free.
+	 * For taskManager3, one slot is free, the other is allocated.
+	 * If redundantTaskManagerNum is 0, the idle taskManager should be released.
+	 * @throws Exception
+	 */
+	@Test
+	public void testTaskManagerTimeoutWithZeroRedundantTaskManager() throws Exception {
+		registerAndCheckMultiTaskManagers(0);
+
+		assertThat(allocateResourceCalls.get(), is(0));
+		assertThat(releaseResourceCalls.get(), is(1));
+	}
+
+	/**
+	 * Register four taskManagers that all have two slots.
+	 * For taskManager0, both slots are free.
+	 * For taskManager1, both slots are allocated.
+	 * For taskManager2, One slot is allocated, the other is free.
+	 * For taskManager3, one slot is free, the other is allocated.
+	 * If redundantTaskManagerNum is 1, two free slots are needed and the idle taskManager should be released.
+	 * @throws Exception
+	 */
+	@Test
+	public void testTaskManagerTimeoutWithOneRedundantTaskManager() throws Exception {
+		registerAndCheckMultiTaskManagers(1);
+
+		assertThat(allocateResourceCalls.get(), is(0));
+		assertThat(releaseResourceCalls.get(), is(1));
+	}
+
+	/**
+	 * Register four taskManagers that all have two slots.
+	 * For taskManager0, both slots are free.
+	 * For taskManager1, both slots are allocated.
+	 * For taskManager2, One slot is allocated, the other is free.
+	 * For taskManager3, one slot is free, the other is allocated.
+	 * If redundantTaskManagerNum is 2, four free slots can satisfy the requirement.
+	 * @throws Exception
+	 */
+	@Test
+	public void testTaskManagerTimeoutWithTwoRedundantTaskManager() throws Exception {
+		registerAndCheckMultiTaskManagers(2);
+
+		assertThat(allocateResourceCalls.get(), is(0));
+		assertThat(releaseResourceCalls.get(), is(0));
+	}
+
+	/**
+	 * Register four taskManagers that all have two slots.
+	 * For taskManager0, both slots are free.
+	 * For taskManager1, both slots are allocated.
+	 * For taskManager2, One slot is allocated, the other is free.
+	 * For taskManager3, one slot is free, the other is allocated.
+	 * If redundantTaskManagerNum is 3, two more free slots are needed and another taskManager should be allocated.
+	 * @throws Exception
+	 */
+	@Test
+	public void testTaskManagerTimeoutWithThreeRedundantTaskManager() throws Exception {
+		registerAndCheckMultiTaskManagers(3);
+
+		assertThat(allocateResourceCalls.get(), is(1));
+		assertThat(releaseResourceCalls.get(), is(0));
 	}
 
 	/**
@@ -135,14 +213,74 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Register four taskManagers that all have two slots.
+	 * The difference between the taskManagers is whether the slot is allocated.
+	 * To maintain redundantTaskManagerNum, SlotManagerImpl may release or allocate taskManagers.
+	 * @param redundantTaskManagerNum
+	 * @throws Exception
+	 */
+	private void registerAndCheckMultiTaskManagers(int redundantTaskManagerNum) throws Exception {
+		SlotManagerImpl slotManager = createAndStartSlotManager(redundantTaskManagerNum, 2);
+
+		// Both slots are free.
+		registerTaskManagerWithTwoSlots(slotManager, true, true);
+
+		// Both slots are allocated.
+		registerTaskManagerWithTwoSlots(slotManager, false, false);
+
+		// One slot is allocated, the other is free.
+		registerTaskManagerWithTwoSlots(slotManager, false, true);
+
+		// One slot is free, the other is allocated.
+		registerTaskManagerWithTwoSlots(slotManager, true, false);
+
+		checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, true);
+	}
+
+	private void registerTaskManagerWithTwoSlots(SlotManagerImpl slotManager,
+												 boolean slot0Free,
+												 boolean slot1Free) {
+		canBeReleasedFuture.set(new CompletableFuture<>());
+
+		ResourceID resourceID = ResourceID.generate();
+		ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
+		JobID jobID = new JobID();
+
+		SlotID slotId0 = new SlotID(resourceID, 0);
+		SlotStatus slotStatus0 = slot0Free ? new SlotStatus(slotId0, resourceProfile)
+			: new SlotStatus(slotId0, resourceProfile, jobID, new AllocationID());
+
+		SlotID slotId1 = new SlotID(resourceID, 1);
+		SlotStatus slotStatus1 = slot1Free ? new SlotStatus(slotId1, resourceProfile) :
+			new SlotStatus(slotId1, resourceProfile, jobID, new AllocationID());
+
+		SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus0, slotStatus1));
+
+		TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setCanBeReleasedSupplier(canBeReleasedFuture::get)
+			.createTestingTaskExecutorGateway();
+		TaskExecutorConnection taskManagerConnection =
+			new TaskExecutorConnection(resourceID, taskExecutorGateway);
+
+		mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
+	}
+
 	private SlotManagerImpl createAndStartSlotManagerWithTM() {
+		SlotManagerImpl slotManager = createAndStartSlotManager(0, 1);
+		mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
+		return slotManager;
+	}
+
+	private SlotManagerImpl createAndStartSlotManager(int redundantTaskManagerNum, int numSlotsPerWorker) {
 		SlotManagerImpl slotManager = SlotManagerBuilder
 			.newBuilder()
 			.setScheduledExecutor(mainThreadExecutor)
 			.setTaskManagerTimeout(Time.milliseconds(0L))
+			.setRedundantTaskManagerNum(redundantTaskManagerNum)
+			.setNumSlotsPerWorker(numSlotsPerWorker)
 			.build();
 		slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
-		mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
 		return slotManager;
 	}
 
@@ -157,7 +295,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 			boolean canBeReleased,
 			RunnableWithException doAfterCheckTriggerBeforeCanBeReleasedResponse) throws Exception {
 		canBeReleasedFuture.set(new CompletableFuture<>());
-		mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts); // trigger TM.canBeReleased request
+		mainThreadExecutor.execute(slotManager::checkTaskManagerTimeoutsAndRedundancy); // trigger TM.canBeReleased request
 		mainThreadExecutor.triggerAll();
 		doAfterCheckTriggerBeforeCanBeReleasedResponse.run();
 		canBeReleasedFuture.get().complete(canBeReleased); // finish TM.canBeReleased request
