@@ -35,13 +35,17 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<google-cloud-libraries-bom.version>8.1.0</google-cloud-libraries-bom.version>
+	</properties>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<!-- This is the way we get a consistent set of versions of the Google tools -->
 				<groupId>com.google.cloud</groupId>
 				<artifactId>libraries-bom</artifactId>
-				<version>8.0.0</version>
+				<version>${google-cloud-libraries-bom.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
