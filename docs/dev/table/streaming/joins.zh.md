@@ -140,7 +140,7 @@ WHERE r.currency = o.currency
 
 探针侧的每条记录都将与构建侧的表执行 Join 运算，构建侧的表中与探针侧对应时间属性的记录将参与运算。为了支持更新（包括覆盖）构建侧的表，该表必须定义主键。
 
-在示例中，`Orders` 表中的每一条记录都与时间点 `o.rowtime` 的 `Rates` 进行 Join 运算。`currency` 字段已被定义为 `Rates` 表的主键，在示例中该字段也被用于连接两个表。如果该查询采用的是 processing-time，则在执行时新增的订单将始终与最新的 `Rates` 执行 Join。
+在示例中，`Orders` 表中的每一条记录都与时间点 `o.rowtime` 的 `Rates` 进行 Join 运算。`currency` 字段已被定义为 `Rates` 表的主键，在示例中该字段也被用于连接两个表。如果该查询采用的是处理时间，则在执行时新增的订单将始终与最新的 `Rates` 执行 Join。
 
 与[常规 Join](#regular-joins) 相反，时态表函数 Join 意味着如果在构建侧新增一行记录将不会影响之前的结果。这同时使得 Flink 能够限制必须保存在 state 中的元素数量（因为不再需要保存之前的状态）。
 
@@ -184,28 +184,28 @@ val result = orders
 
 **注意**: 时态 Join 中的 State 保留（在[查询配置]({%link dev/table/streaming/query_configuration.zh.md %})中定义）还未实现。这意味着计算的查询结果所需的状态可能会无限增长，具体数量取决于历史记录表的不重复主键个数。
 
-### 基于 Processing-time 的时态 Join
+### 基于处理时间的时态 Join
 
-如果将 processing-time 作为时间属性，将无法将 _过去_ 时间属性作为参数传递给时态表函数。
-根据定义，processing-time 总会是当前时间戳。因此，基于 processing-time 的时态表函数将始终返回基础表的最新已知版本，时态表函数的调用将始终返回基础表的最新已知版本，并且基础历史表中的任何更新也将立即覆盖当前值。
+如果将处理时间作为时间属性，将无法将 _过去_ 时间属性作为参数传递给时态表函数。
+根据定义，处理时间总会是当前时间戳。因此，基于处理时间的时态表函数将始终返回基础表的最新已知版本，时态表函数的调用将始终返回基础表的最新已知版本，并且基础历史表中的任何更新也将立即覆盖当前值。
 
 只有最新版本的构建侧记录（是否最新由所定义的主键所决定）会被保存在 state 中。
 构建侧的更新不会对之前 Join 的结果产生影响。
 
-可以将 processing-time 的时态 Join 视作简单的 `HashMap <K，V>`，HashMap 中存储来自构建侧的所有记录。
+可以将处理时间的时态 Join 视作简单的 `HashMap <K，V>`，HashMap 中存储来自构建侧的所有记录。
 当来自构建侧的新插入的记录与旧值具有相同的 Key 时，旧值会被覆盖。
 探针侧的每条记录将总会根据 `HashMap` 的最新/当前状态来计算。
 
-### 基于 Event-time 的时态 Join
+### 基于事件时间的时态 Join
 
-将 event-time 作为时间属性时，可将 _过去_ 时间属性作为参数传递给时态表函数。这允许对两个表中在相同时间点的记录执行 Join 操作。
+将事件时间作为时间属性时，可将 _过去_ 时间属性作为参数传递给时态表函数。这允许对两个表中在相同时间点的记录执行 Join 操作。
 
-与基于 processing-time 的时态 Join 相比，时态表不仅将构建侧记录的最新版本（是否最新由所定义的主键所决定）保存在 state 中，同时也会存储自上一个 watermarks 以来的所有版本（按时间区分）。
+与基于处理时间的时态 Join 相比，时态表不仅将构建侧记录的最新版本（是否最新由所定义的主键所决定）保存在 state 中，同时也会存储自上一个 watermarks 以来的所有版本（按时间区分）。
 
-例如，在探针侧表新插入一条 event-time 时间为 `12:30:00` 的记录，它将和构建侧表时间点为 `12:30:00` 的版本根据[时态表的概念]({%link dev/table/streaming/temporal_tables.zh.md %})进行 Join 运算。
+例如，在探针侧表新插入一条事件时间时间为 `12:30:00` 的记录，它将和构建侧表时间点为 `12:30:00` 的版本根据[时态表的概念]({%link dev/table/streaming/temporal_tables.zh.md %})进行 Join 运算。
 因此，新插入的记录仅与时间戳小于等于 `12:30:00` 的记录进行 Join 计算（由主键决定哪些时间点的数据将参与计算）。
 
-通过定义事件时间（event time），[watermarks]({%link dev/event_time.zh.md %}) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
+通过定义事件时间，[watermarks]({%link dev/event_time.zh.md %}) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
 
 <a name="join-with-a-temporal-table"></a>
 
@@ -285,14 +285,14 @@ FROM
   ON r.currency = o.currency
 {% endhighlight %}
 
-探针侧表中的每个记录都将与构建侧表的当前版本所关联。 在此示例中，查询使用 `processing-time` 作为处理时间，因而新增订单将始终与表 `LatestRates` 的最新汇率执行 Join 操作。 注意，结果对于处理时间来说不是确定的。
+探针侧表中的每个记录都将与构建侧表的当前版本所关联。 在此示例中，查询使用`处理时间`作为处理时间，因而新增订单将始终与表 `LatestRates` 的最新汇率执行 Join 操作。 注意，结果对于处理时间来说不是确定的。
 
 与[常规 Join](#regular-joins) 相比，尽管构建侧表的数据发生了变化，但时态表 Join 的变化前结果不会随之变化。而且时态表 Join 运算非常轻量级且不会保留任何状态。
 
 与[时间区间 Join](#interval-joins) 相比，时态表 Join 没有定义决定哪些记录将被 Join 的时间窗口。
-探针侧的记录将总是与构建侧在对应 `processing time` 时间的最新数据执行 Join。因而构建侧的数据可能是任意旧的。
+探针侧的记录将总是与构建侧在对应`处理时间`的最新数据执行 Join。因而构建侧的数据可能是任意旧的。
 
-[时态表函数 Join](#join-with-a-temporal-table-function) 和时态表 Join都有类似的功能，但是有不同的 SQL 语法和 runtime 实现：
+[时态表函数 Join](#join-with-a-temporal-table-function) 和时态表 Join 都有类似的功能，但是有不同的 SQL 语法和 runtime 实现：
 
 * 时态表函数 Join 的 SQL 语法是一种 Join 用户定义生成表函数(UDTF，User-Defined Table-Generating Functions)，而时态表 Join 使用了 SQL:2011 标准引入的标准时态表语法。
 * 时态表函数 Join 的实现实际上是 Join 两个流并保存在 state 中，而时态表 Join 只接受唯一的输入流，并根据记录的键值查找外部数据库。
@@ -313,7 +313,7 @@ FROM table1 [AS <alias1>]
 ON table1.column-name1 = table2.column-name1
 {% endhighlight %}
 
-目前只支持 INNER JOIN 和 LEFT JOIN，`FOR SYSTEM_TIME AS OF table1.proctime` 应位于时态表之后. `proctime` 是 `table1` 的 [processing time 属性]({%link dev/table/streaming/time_attributes.zh.md %}#processing-time)。
+目前只支持 INNER JOIN 和 LEFT JOIN，`FOR SYSTEM_TIME AS OF table1.proctime` 应位于时态表之后. `proctime` 是 `table1` 的[处理时间属性]({%link dev/table/streaming/time_attributes.zh.md %}#processing-time)。
 这意味着在 Join 计算中连接左侧表中的每个记录时会为时态表产生快照。
 
 例如在[定义时态表]({%link dev/table/streaming/temporal_tables.zh.md %}#defining-temporal-table)之后，我们可以用以下方式使用：
@@ -335,6 +335,6 @@ FROM
 
 <span class="label label-danger">注意</span> 只在 SQL 中支持，Table API 暂不支持。
 
-<span class="label label-danger">注意</span> Flink 目前不支持 event time 时态表的 Join 。
+<span class="label label-danger">注意</span> Flink 目前不支持事件时间时态表的 Join 。
 
 {% top %}
