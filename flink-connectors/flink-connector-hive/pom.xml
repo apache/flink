@@ -1007,9 +1007,9 @@ under the License.
 			</dependencies>
 		</profile>
 		<profile>
-			<id>hive-1.2.1</id>
+			<id>hive-1.2.2</id>
 			<properties>
-				<hive.version>1.2.1</hive.version>
+				<hive.version>1.2.2</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.2.1</hiverunner.version>
 			</properties>
