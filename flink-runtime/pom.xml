@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-	<name>flink-runtime</name>
+	<name>Flink : Runtime</name>
 
 	<packaging>jar</packaging>
 

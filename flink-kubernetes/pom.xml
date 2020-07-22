@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
-	<name>flink-kubernetes</name>
+	<name>Flink : Kubernetes</name>
 	<packaging>jar</packaging>
 
 	<properties>

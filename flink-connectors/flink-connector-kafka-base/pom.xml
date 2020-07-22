@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-kafka-base_${scala.binary.version}</artifactId>
-	<name>flink-connector-kafka-base</name>
+	<name>Flink : Connectors : Kafka base</name>
 
 	<packaging>jar</packaging>
 

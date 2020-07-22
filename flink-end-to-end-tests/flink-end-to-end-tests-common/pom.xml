@@ -28,6 +28,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-end-to-end-tests-common</artifactId>
+	<name>Flink : E2E Tests : Common</name>
 
 	<dependencies>
 		<dependency>

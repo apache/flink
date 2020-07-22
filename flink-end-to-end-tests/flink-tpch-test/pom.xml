@@ -27,6 +27,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-tpch-test</artifactId>
+	<name>Flink : E2E Tests : TPCH</name>
 
 	<dependencies>
 		<dependency>

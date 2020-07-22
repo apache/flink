@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-gcp-pubsub_${scala.binary.version}</artifactId>
-	<name>flink-connector-gcp-pubsub</name>
+	<name>Flink : Connectors : Google PubSub</name>
 
 	<packaging>jar</packaging>
 

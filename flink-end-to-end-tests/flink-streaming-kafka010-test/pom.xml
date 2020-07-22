@@ -29,7 +29,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-streaming-kafka010-test_${scala.binary.version}</artifactId>
-	<name>flink-streaming-kafka010-test</name>
+	<name>Flink : E2E Tests : Streaming Kafka 0.10</name>
 
 	<dependencies>
 		<dependency>

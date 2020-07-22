@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-hadoop-bulk_${scala.binary.version}</artifactId>
-	<name>flink-hadoop-bulk</name>
+	<name>Flink : Formats : Hadoop bulk</name>
 
 	<packaging>jar</packaging>
 
