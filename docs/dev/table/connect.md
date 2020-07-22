@@ -140,7 +140,7 @@ schema: ...
 
 The table's type (`source`, `sink`, or `both`) determines how a table is registered. In case of table type `both`, both a table source and table sink are registered under the same name. Logically, this means that we can both read and write to such a table similarly to a table in a regular DBMS.
 
-For streaming queries, an [update mode](connect.html#update-mode) declares how to communicate between a dynamic table and the storage system for continuous queries. The connector might already provide a default update mode, e.g. Kafka connector works in append mode by default.
+For streaming queries, an [update mode](connect.html#update-modes) declares how to communicate between a dynamic table and the storage system for continuous queries. The connector might already provide a default update mode, e.g. Kafka connector works in append mode by default.
 
 The following code shows a full example of how to connect to Kafka for reading Json records.
 
