@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-external-resources</artifactId>
-	<name>flink-external-resources</name>
+	<name>Flink : External resources : </name>
 	<packaging>pom</packaging>
 
 	<modules>

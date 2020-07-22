@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
-	<name>flink-table-api-scala</name>
+	<name>Flink : Table : API Scala</name>
 	<description>
 		This module contains the Table/SQL API for writing table programs
 		within the table ecosystem using the Scala programming language.

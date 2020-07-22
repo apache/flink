@@ -28,8 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-s3-fs-base</artifactId>
-	<name>flink-s3-fs-base</name>
-
+	<name>Flink : FileSystems : S3 FS Base</name>
 	<packaging>jar</packaging>
 
 	<properties>

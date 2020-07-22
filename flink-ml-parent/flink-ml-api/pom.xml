@@ -29,6 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-ml-api</artifactId>
+	<name>Flink : ML : API</name>
 
 	<dependencies>
 		<dependency>

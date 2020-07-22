@@ -29,6 +29,8 @@ under the License.
 
 	<artifactId>flink-avro-confluent-registry</artifactId>
 
+	<name>Flink : Formats : Avro confluent registry</name>
+
 	<properties>
 		<confluent.schema.registry.version>4.1.0</confluent.schema.registry.version>
 	</properties>

@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-cassandra_${scala.binary.version}</artifactId>
-	<name>flink-connector-cassandra</name>
+	<name>Flink : Connectors : Cassandra</name>
 
 	<packaging>jar</packaging>
 

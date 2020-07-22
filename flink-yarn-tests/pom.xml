@@ -34,7 +34,7 @@ under the License.
 	-->
 	
 	<artifactId>flink-yarn-tests</artifactId>
-	<name>flink-yarn-tests</name>
+	<name>Flink : Yarn Tests</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-s3-fs-hadoop</artifactId>
-	<name>flink-s3-fs-hadoop</name>
+	<name>Flink : FileSystems : S3 FS Hadoop</name>
 
 	<packaging>jar</packaging>
 

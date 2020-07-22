@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
-	<name>flink-hadoop-compatibility</name>
+	<name>Flink : Connectors : Hadoop compatibility</name>
 
 	<packaging>jar</packaging>
 

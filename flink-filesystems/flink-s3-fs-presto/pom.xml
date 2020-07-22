@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
-	<name>flink-s3-fs-presto</name>
+	<name>Flink : FileSystems : S3 FS Presto</name>
 
 	<packaging>jar</packaging>
 

@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-gcp-pubsub-emulator-tests</artifactId>
-	<name>flink-connector-gcp-pubsub-emulator-tests</name>
+	<name>Flink : E2E Tests : Connectors : Google PubSub</name>
 
 	<packaging>jar</packaging>
 

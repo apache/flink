@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-orc-nohive_${scala.binary.version}</artifactId>
-	<name>flink-orc-nohive</name>
+	<name>Flink : Formats : Orc nohive</name>
 
 	<packaging>jar</packaging>
 

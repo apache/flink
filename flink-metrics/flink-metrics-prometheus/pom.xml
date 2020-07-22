@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
-	<name>flink-metrics-prometheus</name>
+	<name>Flink : Metrics : Prometheus</name>
 
 	<dependencies>
 		<dependency>

@@ -29,6 +29,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-rocksdb-state-memory-control-test</artifactId>
+	<name>Flink : E2E Tests : RocksDB state memory control</name>
 
 	<dependencies>
 		<dependency>

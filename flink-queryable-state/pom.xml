@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-queryable-state</artifactId>
-	<name>flink-queryable-state</name>
+	<name>Flink : Queryable state : </name>
 	<packaging>pom</packaging>
 
 	<modules>

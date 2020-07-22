@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-	<name>flink-table-planner</name>
+	<name>Flink : Table : Planner</name>
 	<description>
 		This module bridges Table/SQL API and runtime. It contains
 		all resources that are required during pre-flight and runtime

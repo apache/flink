@@ -32,7 +32,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-contrib</artifactId>
-	<name>flink-contrib</name>
+	<name>Flink : Contrib : </name>
 
 	<packaging>pom</packaging>
 

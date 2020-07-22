@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
-	<name>flink-test-utils</name>
+	<name>Flink : Test utils : Utils</name>
 
 	<packaging>jar</packaging>
 

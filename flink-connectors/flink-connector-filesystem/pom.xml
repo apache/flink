@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-filesystem_${scala.binary.version}</artifactId>
-	<name>flink-connector-filesystem</name>
+	<name>Flink : Connectors : Filesystem</name>
 
 	<packaging>jar</packaging>
 

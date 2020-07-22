@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-orc_${scala.binary.version}</artifactId>
-	<name>flink-orc</name>
+	<name>Flink : Formats : Orc</name>
 
 	<packaging>jar</packaging>
 

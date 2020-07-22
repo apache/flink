@@ -29,7 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
-	<name>flink-examples-batch</name>
+	<name>Flink : Examples : Batch</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

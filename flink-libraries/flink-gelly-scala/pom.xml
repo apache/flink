@@ -29,7 +29,7 @@ under the License.
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>flink-gelly-scala_${scala.binary.version}</artifactId>
-    <name>flink-gelly-scala</name>
+    <name>Flink : Libraries : Gelly scala</name>
 
     <packaging>jar</packaging>
 

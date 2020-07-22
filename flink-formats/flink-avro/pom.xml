@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-avro</artifactId>
-	<name>flink-avro</name>
+	<name>Flink : Formats : Avro</name>
 
 	<packaging>jar</packaging>
 

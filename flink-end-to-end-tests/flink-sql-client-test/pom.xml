@@ -27,7 +27,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-sql-client-test</artifactId>
-	<name>flink-sql-client-test</name>
+	<name>Flink : E2E Tests : SQL client</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

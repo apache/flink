@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-dataset-fine-grained-recovery-test</artifactId>
-	<name>flink-dataset-fine-grained-recovery-test</name>
+	<name>Flink : E2E Tests : Dataset Fine-grained recovery</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

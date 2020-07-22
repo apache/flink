@@ -32,7 +32,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<artifactId>flink-end-to-end-tests</artifactId>
-	<name>flink-end-to-end-tests</name>
+	<name>Flink : E2E Tests : </name>
 
 	<properties>
 		<!-- functions as a global exclude; required since an empty set of included groups implicitly includes all -->

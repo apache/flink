@@ -27,7 +27,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-state-evolution-test</artifactId>
-	<name>flink-state-evolution-test</name>
+	<name>Flink : E2E Tests : State evolution</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

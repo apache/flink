@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-queryable-state-client-java</artifactId>
-	<name>flink-queryable-state-client-java</name>
+	<name>Flink : Queryable state : Client Java</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

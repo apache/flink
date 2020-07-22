@@ -30,6 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-ml-parent</artifactId>
+	<name>Flink : ML : </name>
 
 	<packaging>pom</packaging>
 

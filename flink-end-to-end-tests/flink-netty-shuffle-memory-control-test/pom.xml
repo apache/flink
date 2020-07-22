@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-netty-shuffle-memory-control-test</artifactId>
-	<name>flink-netty-shuffle-memory-control-test</name>
+	<name>Flink : E2E Tests : Netty shuffle memory control</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

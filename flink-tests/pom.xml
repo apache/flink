@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-tests</artifactId>
-	<name>flink-tests</name>
+	<name>Flink : Tests</name>
 
 	<packaging>jar</packaging>
 

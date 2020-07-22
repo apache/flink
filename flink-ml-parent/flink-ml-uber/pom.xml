@@ -27,7 +27,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-ml-uber_${scala.binary.version}</artifactId>
-	<name>flink-ml-uber</name>
+	<name>Flink : ML : Uber</name>
 	<description>
 		This module contains both the api and libraries for writing Flink ML programs.
 	</description>

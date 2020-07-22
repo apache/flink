@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-optimizer_${scala.binary.version}</artifactId>
-	<name>flink-optimizer</name>
+	<name>Flink : Optimizer</name>
 
 	<packaging>jar</packaging>
 

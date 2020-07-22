@@ -33,5 +33,6 @@ under the License.
 
 	<artifactId>flink-quickstart-scala</artifactId>
 	<packaging>maven-archetype</packaging>
+	<name>Flink : Quickstart : Scala</name>
 
 </project>

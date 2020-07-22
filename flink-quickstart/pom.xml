@@ -30,7 +30,7 @@ under the License.
 	<artifactId>flink-quickstart</artifactId>
 	<packaging>pom</packaging>
 
-	<name>flink-quickstart</name>
+	<name>Flink : Quickstart : </name>
 	<description>Parent project for different quickstart archetypes for Apache Flink</description>
 
 	<modules>

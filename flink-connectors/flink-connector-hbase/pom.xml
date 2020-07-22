@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-hbase_${scala.binary.version}</artifactId>
-	<name>flink-connector-hbase</name>
+	<name>Flink : Connectors : HBase</name>
 	<packaging>jar</packaging>
 
 	<properties>

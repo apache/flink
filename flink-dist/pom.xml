@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-dist_${scala.binary.version}</artifactId>
-	<name>flink-dist</name>
+	<name>Flink : Dist</name>
 	<packaging>jar</packaging>
 
 	<properties>

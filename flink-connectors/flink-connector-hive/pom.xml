@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
-	<name>flink-connector-hive</name>
+	<name>Flink : Connectors : Hive</name>
 
 	<packaging>jar</packaging>
 

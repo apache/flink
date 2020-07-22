@@ -28,6 +28,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-streaming-file-sink-test</artifactId>
+	<name>Flink : E2E Tests : Streaming file sink</name>
 
 	<dependencies>
 		<dependency>

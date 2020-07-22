@@ -28,7 +28,7 @@ under the License.
 	</parent>
 	
 	<artifactId>flink-mesos_${scala.binary.version}</artifactId>
-	<name>flink-mesos</name>
+	<name>Flink : Mesos</name>
 	<packaging>jar</packaging>
 	
 	<properties>

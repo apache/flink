@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-fs-hadoop-shaded</artifactId>
-	<name>flink-filesystems :: flink-fs-hadoop-shaded</name>
+	<name>Flink : FileSystems : Hadoop FS shaded</name>
 
 	<packaging>jar</packaging>
 

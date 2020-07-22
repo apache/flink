@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-	<name>flink-table-api-java-bridge</name>
+	<name>Flink : Table : API Java bridge</name>
 	<description>
 		This module contains the Table/SQL API for writing table programs
 		that interact with other Flink APIs using the Java programming language.

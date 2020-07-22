@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-statsd</artifactId>
-	<name>flink-metrics-statsd</name>
+	<name>Flink : Metrics : StatsD</name>
 
 	<dependencies>
 		<dependency>

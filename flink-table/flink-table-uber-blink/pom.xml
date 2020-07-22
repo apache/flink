@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-uber-blink_${scala.binary.version}</artifactId>
-	<name>flink-table-uber-blink</name>
+	<name>Flink : Table : Uber Blink</name>
 	<description>
 		This module contains the entire Table/SQL distribution for writing table programs
 		within the table ecosystem or between other Flink APIs. This module uses the Blink planner

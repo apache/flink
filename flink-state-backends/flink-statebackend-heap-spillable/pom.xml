@@ -32,7 +32,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-statebackend-heap-spillable_${scala.binary.version}</artifactId>
-	<name>flink-statebackend-heap-spillable</name>
+	<name>Flink : State backends : Heap spillable</name>
 
 	<packaging>jar</packaging>
 

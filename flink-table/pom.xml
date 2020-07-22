@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table</artifactId>
-	<name>flink-table</name>
+	<name>Flink : Table : </name>
 
 	<packaging>pom</packaging>
 

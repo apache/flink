@@ -29,7 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-examples</artifactId>
-	<name>flink-examples</name>
+	<name>Flink : Examples : </name>
 	<packaging>pom</packaging>
 
 	<modules>

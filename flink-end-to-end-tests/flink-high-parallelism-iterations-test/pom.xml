@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-high-parallelism-iterations-test</artifactId>
-	<name>flink-high-parallelism-iterations-test</name>
+	<name>Flink : E2E Tests : High parallelism iterations</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

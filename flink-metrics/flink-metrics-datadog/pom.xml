@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-datadog</artifactId>
-	<name>flink-metrics-datadog</name>
+	<name>Flink : Metrics : Datadog</name>
 
 	<dependencies>
 		<dependency>

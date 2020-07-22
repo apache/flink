@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-dataset-allround-test</artifactId>
-	<name>flink-dataset-allround-test</name>
+	<name>Flink : E2E Tests : Dataset allround</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
