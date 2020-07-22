@@ -120,7 +120,7 @@ public static class PseudoWindow extends
   除此之外，`processElement` 和 `onTimer` 都提供了一个上下文对象，该对象可用于与 `TimerService` 交互。
   这两个回调还传递了一个可用于发出结果的 `Collector`。
 
-<a name="The-`open()`-method"></a>
+<a name="The-open()-method"></a>
 #### `open()` 方法
 
 {% highlight java %}
@@ -142,7 +142,7 @@ public void open(Configuration conf) {
 实际上，如果 Watermark 延迟比窗口长度长得多，则可能有多个窗口同时打开，而不仅仅是两个。
 此实现通过使用 `MapState` 来支持处理这一点，该 `MapState` 将每个窗口的结束时间戳映射到该窗口的小费总和。
 
-<a name="The-`processElement()`-method"></a>
+<a name="The-processElement()-method"></a>
 #### `processElement()` 方法
 
 {% highlight java %}
@@ -183,7 +183,7 @@ public void processElement(
 * 本例使用一个 `MapState`，其中 keys 是时间戳（timestamp），并为同一时间戳设置一个 Timer。
   这是一种常见的模式；它使得在 Timer 触发时查找相关信息变得简单高效。
 
-<a name="The-`onTimer()`-method"></a>
+<a name="The-onTimer()-method"></a>
 #### `onTimer()` 方法
 
 {% highlight java %}
