@@ -34,7 +34,6 @@ import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.writer.ArrayDataWriterWrapper;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.InstantiationUtil;

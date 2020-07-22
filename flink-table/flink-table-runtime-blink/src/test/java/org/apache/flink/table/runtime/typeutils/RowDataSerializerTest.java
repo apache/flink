@@ -288,7 +288,6 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 		writer.complete();
 
 		RowDataSerializer serializer = new RowDataSerializer(
-			new ExecutionConfig(),
 			RowType.of(new DecimalType(precision, 0), new DecimalType(precision, 0)));
 		GenericRowData genericRow = new GenericRowData(2);
 		genericRow.setField(0, decimal);
@@ -318,7 +317,6 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 		writer.complete();
 
 		RowDataSerializer serializer = new RowDataSerializer(
-			new ExecutionConfig(),
 			RowType.of(new TimestampType(precision), new TimestampType(precision)));
 		GenericRowData genericRow = new GenericRowData(2);
 		genericRow.setField(0, timestamp);
