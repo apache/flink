@@ -18,12 +18,8 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import java.lang.reflect.Method
-import java.util.Collections
-
-import org.apache.calcite.rex.{RexCall, RexCallBinding}
 import org.apache.flink.table.data.GenericRowData
-import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL}
+import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL, validateClassForRuntime}
 import org.apache.flink.table.functions.{FunctionKind, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
@@ -33,15 +29,17 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.extraction.ExtractionUtils
-import org.apache.flink.table.types.extraction.ExtractionUtils.{createMethodSignatureString, isAssignable, isInvokable, primitiveToWrapper}
+import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
-import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.DataTypeUtils.{validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
+
+import org.apache.calcite.rex.{RexCall, RexCallBinding}
+
+import java.util.Collections
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]].
@@ -324,19 +322,13 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       argumentDataTypes: Seq[DataType],
       outputDataType: Option[DataType])
     : Unit = {
-    val methods = toScala(ExtractionUtils.collectMethods(udf.getClass, methodName))
     val argumentClasses = argumentDataTypes.map(_.getConversionClass).toArray
     val outputClass = outputDataType.map(_.getConversionClass).getOrElse(classOf[Unit])
-    // verifies regular JVM calling semantics
-    def methodMatches(method: Method): Boolean = {
-      isInvokable(method, argumentClasses: _*) &&
-        isAssignable(outputClass, method.getReturnType, true)
-    }
-    if (!methods.exists(methodMatches)) {
-      throw new CodeGenException(
-        s"Could not find an implementation method in class '${typeTerm(udf.getClass)}' for " +
-          s"function '$function' that matches the following signature: \n" +
-          s"${createMethodSignatureString(methodName, argumentClasses, outputClass)}")
-    }
+    validateClassForRuntime(
+      udf.getClass,
+      methodName,
+      argumentClasses,
+      outputClass,
+      function.toString)
   }
 }

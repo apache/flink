@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.BooleanFirstValueAggFunction;
@@ -66,7 +66,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
+		protected AggregateFunction<Byte, RowData> getAggregator() {
 			return new ByteFirstValueAggFunction();
 		}
 	}
@@ -83,7 +83,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRowData> getAggregator() {
+		protected AggregateFunction<Short, RowData> getAggregator() {
 			return new ShortFirstValueAggFunction();
 		}
 	}
@@ -100,7 +100,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
+		protected AggregateFunction<Integer, RowData> getAggregator() {
 			return new IntFirstValueAggFunction();
 		}
 	}
@@ -117,7 +117,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRowData> getAggregator() {
+		protected AggregateFunction<Long, RowData> getAggregator() {
 			return new LongFirstValueAggFunction();
 		}
 	}
@@ -134,7 +134,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRowData> getAggregator() {
+		protected AggregateFunction<Float, RowData> getAggregator() {
 			return new FloatFirstValueAggFunction();
 		}
 	}
@@ -151,7 +151,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRowData> getAggregator() {
+		protected AggregateFunction<Double, RowData> getAggregator() {
 			return new DoubleFirstValueAggFunction();
 		}
 	}
@@ -207,7 +207,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
+		protected AggregateFunction<Boolean, RowData> getAggregator() {
 			return new BooleanFirstValueAggFunction();
 		}
 	}
@@ -259,7 +259,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+		protected AggregateFunction<DecimalData, RowData> getAggregator() {
 			return new DecimalFirstValueAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
@@ -309,7 +309,7 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
+		protected AggregateFunction<StringData, RowData> getAggregator() {
 			return new StringFirstValueAggFunction();
 		}
 	}
@@ -325,10 +325,10 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 	 * The base test class for FirstValueAggFunction without order.
 	 */
 	public abstract static class FirstValueAggFunctionWithoutOrderTestBase<T>
-		extends AggFunctionTestBase<T, GenericRowData> {
+		extends AggFunctionTestBase<T, RowData> {
 		@Override
 		protected Class<?> getAccClass() {
-			return GenericRowData.class;
+			return RowData.class;
 		}
 	}
 

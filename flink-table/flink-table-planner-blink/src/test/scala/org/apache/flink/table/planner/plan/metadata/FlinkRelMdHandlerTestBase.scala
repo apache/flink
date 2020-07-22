@@ -749,7 +749,7 @@ class FlinkRelMdHandlerTestBase {
       false,
       false,
       false,
-      Seq(Integer.valueOf(0)).toList,
+      Seq(Integer.valueOf(3)).toList,
       -1,
       RelCollationImpl.of(),
       relDataType,

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.data.{RowData, StringData, DecimalData, TimestampData}
+import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampData}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -36,6 +36,8 @@ import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlF
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -45,14 +47,13 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import java.time.Duration
 import java.util
@@ -303,12 +304,16 @@ object AggregateUtil extends Enumeration {
       }
 
       val function = factory.createAggFunction(call, index)
-      val (externalAccTypes, viewSpecs, externalResultType) = function match {
+      val (externalArgTypes, externalAccTypes, viewSpecs, externalResultType) = function match {
         case a: DeclarativeAggregateFunction =>
           val bufferTypes: Array[LogicalType] = a.getAggBufferTypes.map(_.getLogicalType)
           val bufferTypeInfos = bufferTypes.map(fromLogicalTypeToDataType)
-          (bufferTypeInfos, Array.empty[DataViewSpec],
-              fromLogicalTypeToDataType(a.getResultType.getLogicalType))
+          (
+            null,
+            bufferTypeInfos,
+            Array.empty[DataViewSpec],
+            fromLogicalTypeToDataType(a.getResultType.getLogicalType)
+          )
         case a: UserDefinedAggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {
             case aggSqlFun: AggSqlFunction =>
@@ -316,13 +321,24 @@ object AggregateUtil extends Enumeration {
             case _ => (null, null)
           }
           val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
+          val argTypes = call.getArgList
+            .map(idx => inputRowType.getFieldList.get(idx).getType)
+            .map(FlinkTypeFactory.toLogicalType)
+          val externalArgTypes: Array[DataType] = getAggUserDefinedInputTypes(
+            a,
+            externalAccType,
+            argTypes.toArray)
           val (newExternalAccType, specs) = useNullSerializerForStateViewFieldsFromAccType(
             index,
             a,
             externalAccType,
             isStateBackedDataViews)
-          (Array(newExternalAccType), specs,
-            getResultTypeOfAggregateFunction(a, implicitResultType))
+          (
+            externalArgTypes,
+            Array(newExternalAccType),
+            specs,
+            getResultTypeOfAggregateFunction(a, implicitResultType)
+          )
         case _ => throw new TableException(s"Unsupported function: $function")
       }
 
@@ -331,6 +347,7 @@ object AggregateUtil extends Enumeration {
         function,
         index,
         argIndexes,
+        externalArgTypes,
         externalAccTypes,
         viewSpecs,
         externalResultType,

@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.planner.codegen.CodeGenException;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
@@ -736,13 +735,13 @@ public class FunctionITCase extends StreamingTestBase {
 				"INSERT INTO SinkTable " +
 				"SELECT CustomScalarFunction('test')");
 			fail();
-		} catch (CodeGenException e) {
+		} catch (ValidationException e) {
 			assertThat(
 				e,
 				hasMessage(
 					equalTo(
-						"Could not find an implementation method in class '" + CustomScalarFunction.class.getCanonicalName() +
-						"' for function 'CustomScalarFunction' that matches the following signature: \n" +
+						"Could not find an implementation method 'eval' in class '" + CustomScalarFunction.class +
+						"' for function 'CustomScalarFunction' that matches the following signature:\n" +
 						"java.lang.String eval(java.lang.String)")));
 		}
 	}
