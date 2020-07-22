@@ -148,6 +148,8 @@ WHERE r.currency = o.currency
 
 这种做法让时态表 Join 成为一个很好的用于表达不同流之间关联的方法。
 
+<a name="usage"></a>
+
 ### 用法
 
 在[定义时态表函数]({%link dev/table/streaming/temporal_tables.zh.md %}#defining-temporal-table-function)之后就可以使用了。时态表函数可以和普通表函数一样使用。
@@ -184,6 +186,8 @@ val result = orders
 
 **注意**: 时态 Join 中的 State 保留（在[查询配置]({%link dev/table/streaming/query_configuration.zh.md %})中定义）还未实现。这意味着计算的查询结果所需的状态可能会无限增长，具体数量取决于历史记录表的不重复主键个数。
 
+<a name="processing-time-temporal-joins"></a>
+
 ### 基于处理时间的时态 Join
 
 如果将处理时间作为时间属性，将无法将 _过去_ 时间属性作为参数传递给时态表函数。
@@ -195,6 +199,8 @@ val result = orders
 可以将处理时间的时态 Join 视作简单的 `HashMap <K，V>`，HashMap 中存储来自构建侧的所有记录。
 当来自构建侧的新插入的记录与旧值具有相同的 Key 时，旧值会被覆盖。
 探针侧的每条记录将总会根据 `HashMap` 的最新/当前状态来计算。
+
+<a name="event-time-temporal-joins"></a>
 
 ### 基于事件时间的时态 Join
 
@@ -301,6 +307,8 @@ FROM
 这种做法让时态表 Join 成为一个很好的用于表达不同流之间关联的方法。
 
 将来，时态表 Join 将支持时态表函数 Join 的功能，即支持时态 Join 变更日志流。
+
+<a name="usage-1"></a>
 
 ### 用法
 
