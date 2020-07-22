@@ -168,7 +168,7 @@ stream.
 
 Flink 有一些内置的窗口分配器，如下所示：
 
-{% link /fig/window-assigners.svg %}
+<img src="{% link fig/window-assigners.svg %}" alt="Window assigners" class="center" width="80%" />
 
 通过一些示例来展示关于这些窗口如何使用，或者如何区分它们：
 
