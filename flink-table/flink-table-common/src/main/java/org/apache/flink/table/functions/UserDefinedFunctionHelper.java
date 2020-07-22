@@ -27,6 +27,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.lang.reflect.Method;
@@ -213,6 +214,38 @@ public final class UserDefinedFunctionHelper {
 	 */
 	public static void validateClass(Class<? extends UserDefinedFunction> functionClass) {
 		validateClass(functionClass, true);
+	}
+
+	/**
+	 * Validates a {@link UserDefinedFunction} class for usage in the runtime.
+	 *
+	 * <p>Note: This is for the final validation when actual {@link DataType}s for arguments and result
+	 * are known.
+	 */
+	public static void validateClassForRuntime(
+			Class<? extends UserDefinedFunction> functionClass,
+			String methodName,
+			Class<?>[] argumentClasses,
+			Class<?> outputClass,
+			String functionName) {
+		final List<Method> methods = ExtractionUtils.collectMethods(functionClass, methodName);
+		// verifies regular JVM calling semantics
+		final boolean isMatching = methods.stream()
+			.anyMatch(method ->
+				ExtractionUtils.isInvokable(method, argumentClasses) &&
+					ExtractionUtils.isAssignable(outputClass, method.getReturnType(), true));
+		if (!isMatching) {
+			throw new ValidationException(
+				String.format(
+					"Could not find an implementation method '%s' in class '%s' for function '%s' that " +
+						"matches the following signature:\n%s",
+					methodName,
+					functionClass,
+					functionName,
+					ExtractionUtils.createMethodSignatureString(methodName, argumentClasses, outputClass)
+				)
+			);
+		}
 	}
 
 	/**

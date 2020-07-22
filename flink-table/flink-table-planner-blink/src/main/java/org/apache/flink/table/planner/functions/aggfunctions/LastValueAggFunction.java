@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -36,7 +37,7 @@ import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.
 /**
  * built-in LastValue aggregate function.
  */
-public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRowData> {
+public class LastValueAggFunction<T> extends AggregateFunction<T, RowData> {
 
 	@Override
 	public boolean isDeterministic() {
@@ -44,7 +45,7 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRowData
 	}
 
 	@Override
-	public GenericRowData createAccumulator() {
+	public RowData createAccumulator() {
 		// The accumulator schema:
 		// lastValue: T
 		// lastOrder: Long
@@ -54,31 +55,36 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRowData
 		return acc;
 	}
 
-	public void accumulate(GenericRowData acc, Object value) {
+	public void accumulate(RowData rowData, Object value) {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null) {
 			acc.setField(0, value);
 		}
 	}
 
-	public void accumulate(GenericRowData acc, Object value, Long order) {
+	public void accumulate(RowData rowData, Object value, Long order) {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null && acc.getLong(1) < order) {
 			acc.setField(0, value);
 			acc.setField(1, order);
 		}
 	}
 
-	public void resetAccumulator(GenericRowData acc) {
+	public void resetAccumulator(RowData rowData) {
+		GenericRowData acc = (GenericRowData) rowData;
 		acc.setField(0, null);
 		acc.setField(1, Long.MIN_VALUE);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public T getValue(GenericRowData acc) {
+	public T getValue(RowData rowData) {
+		GenericRowData acc = (GenericRowData) rowData;
 		return (T) acc.getField(0);
 	}
 
 	@Override
-	public TypeInformation<GenericRowData> getAccumulatorType() {
+	public TypeInformation<RowData> getAccumulatorType() {
 		LogicalType[] fieldTypes = new LogicalType[] {
 				fromTypeInfoToLogicalType(getResultType()),
 				new BigIntType()
@@ -89,7 +95,7 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRowData
 				"time"
 		};
 
-		return (TypeInformation) InternalTypeInfo.ofFields(fieldTypes, fieldNames);
+		return InternalTypeInfo.ofFields(fieldTypes, fieldNames);
 	}
 
 	/**

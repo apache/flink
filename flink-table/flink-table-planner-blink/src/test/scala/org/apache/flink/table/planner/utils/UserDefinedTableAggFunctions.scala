@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
-import org.apache.flink.table.data.GenericRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.TableAggregateFunction
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.IntType
@@ -245,27 +245,29 @@ class Top3WithRetractInput
 
 /****** Function for testing internal accumulator type ******/
 
-class TableAggSum extends TableAggregateFunction[JInt, GenericRowData] {
+class TableAggSum extends TableAggregateFunction[JInt, RowData] {
 
-  override def createAccumulator(): GenericRowData = {
+  override def createAccumulator(): RowData = {
     val acc = new GenericRowData(1)
     acc.setField(0, 0)
     acc
   }
 
-  def accumulate(acc: GenericRowData, v: Int): Unit = {
+  def accumulate(rowData: RowData, v: Int): Unit = {
+    val acc = rowData.asInstanceOf[GenericRowData]
     acc.setField(0, acc.getInt(0) + v)
   }
 
-  def emitValue(acc: GenericRowData, out: Collector[JInt]): Unit = {
+  def emitValue(rowData: RowData, out: Collector[JInt]): Unit = {
+    val acc = rowData.asInstanceOf[GenericRowData]
     // output two records
     val result = acc.getInt(0)
     out.collect(result)
     out.collect(result)
   }
 
-  override def getAccumulatorType: TypeInformation[GenericRowData] = {
-    InternalTypeInfo.ofFields(new IntType()).asInstanceOf[TypeInformation[GenericRowData]]
+  override def getAccumulatorType: TypeInformation[RowData] = {
+    InternalTypeInfo.ofFields(new IntType())
   }
 }
 
