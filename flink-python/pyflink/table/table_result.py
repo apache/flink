@@ -138,15 +138,15 @@ class TableResult(object):
 
             - For batch jobs or streaming jobs without checkpointing,
               this method has neither exactly-once nor at-least-once guarantee.
-        	  Query results are immediately accessible by the clients once they're produced,
-        	  but exceptions will be thrown when the job fails and restarts.
-        	- For streaming jobs with exactly-once checkpointing,
-        	  this method guarantees an end-to-end exactly-once record delivery.
-        	  A result will be accessible by clients only after its corresponding checkpoint completes.
-        	- For streaming jobs with at-least-once checkpointing,
-        	  this method guarantees an end-to-end at-least-once record delivery.
-        	  Query results are immediately accessible by the clients once they're produced,
-        	  but it is possible for the same result to be delivered multiple times.
+              Query results are immediately accessible by the clients once they're produced,
+              but exceptions will be thrown when the job fails and restarts.
+            - For streaming jobs with exactly-once checkpointing,
+              this method guarantees an end-to-end exactly-once record delivery.
+              A result will be accessible by clients only after its corresponding checkpoint completes.
+            - For streaming jobs with at-least-once checkpointing,
+              this method guarantees an end-to-end at-least-once record delivery.
+              Query results are immediately accessible by the clients once they're produced,
+              but it is possible for the same result to be delivered multiple times.
 
         .. versionadded:: 1.11.0
         """
