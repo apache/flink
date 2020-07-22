@@ -33,11 +33,6 @@ class UnsupportedOpsValidationTest extends AbstractTestBase {
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
   @Test(expected = classOf[ValidationException])
-  def testSort(): Unit = {
-    StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).orderBy('_1.desc)
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testJoin(): Unit = {
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
@@ -78,17 +73,4 @@ class UnsupportedOpsValidationTest extends AbstractTestBase {
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.minusAll(t2)
   }
-
-  @Test(expected = classOf[ValidationException])
-  def testOffset(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
-    t1.offset(5)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFetch(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
-    t1.fetch(5)
-  }
-
 }

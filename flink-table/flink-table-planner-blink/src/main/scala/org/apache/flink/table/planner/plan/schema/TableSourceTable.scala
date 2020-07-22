@@ -100,4 +100,27 @@ class TableSourceTable(
       dynamicOptions,
       extraDigests ++ newExtraDigests)
   }
+
+  /**
+   * Creates a copy of this table with specified digest and statistic.
+   *
+   * @param newTableSource tableSource to replace
+   * @param newStatistic statistic to replace
+   * @return added TableSourceTable instance with specified digest and statistic
+   */
+  def copy(
+      newTableSource: DynamicTableSource,
+      newStatistic: FlinkStatistic,
+      newExtraDigests: Array[String]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      tableIdentifier,
+      rowType,
+      newStatistic,
+      newTableSource,
+      isStreamingMode,
+      catalogTable,
+      dynamicOptions,
+      extraDigests ++ newExtraDigests)
+  }
 }

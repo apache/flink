@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
-	<name>flink-examples-streaming</name>
+	<name>Flink : Examples : Streaming</name>
 
 	<packaging>jar</packaging>
 

@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -89,7 +89,7 @@ class StreamExecCalc(
       inputTransform,
       getRelDetailedDescription,
       substituteStreamOperator,
-      RowDataTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       inputTransform.getParallelism)
 
     if (inputsContainSingleton()) {

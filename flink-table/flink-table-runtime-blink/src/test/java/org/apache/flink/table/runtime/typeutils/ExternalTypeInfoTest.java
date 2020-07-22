@@ -20,32 +20,24 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.api.DataTypes;
 
+import java.nio.ByteBuffer;
 import java.time.DayOfWeek;
 
 /**
- * Test for {@link WrapperTypeInfo}.
+ * Test for {@link ExternalTypeInfo}.
  */
-public class WrapperTypeInfoTest extends TypeInformationTestBase<WrapperTypeInfo<?>> {
+public class ExternalTypeInfoTest extends TypeInformationTestBase<ExternalTypeInfo<?>> {
 
 	@Override
-	protected WrapperTypeInfo<?>[] getTestData() {
-		return new WrapperTypeInfo<?>[] {
-				new WrapperTypeInfo<>(
-					new IntType(),
-					Object.class,
-					new KryoSerializer<>(Object.class, new ExecutionConfig())),
-				new WrapperTypeInfo<>(
-					new IntType(),
-					DayOfWeek.class,
-					new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())),
-				new WrapperTypeInfo<>(
-					new IntType(),
-					Integer.class,
-					IntSerializer.INSTANCE)
+	protected ExternalTypeInfo<?>[] getTestData() {
+		return new ExternalTypeInfo<?>[] {
+				ExternalTypeInfo.of(
+					DataTypes.RAW(DayOfWeek.class, new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()))),
+				ExternalTypeInfo.of(
+					DataTypes.RAW(ByteBuffer.class, new KryoSerializer<>(ByteBuffer.class, new ExecutionConfig()))),
 		};
 	}
 }

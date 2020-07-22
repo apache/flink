@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
 import org.apache.flink.table.runtime.operators.rank._
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -120,7 +120,7 @@ class StreamExecSortLimit(
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
-    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val fieldCollations = sortCollation.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     val sortKeySelector = KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo)
@@ -130,7 +130,7 @@ class StreamExecSortLimit(
       tableConfig,
       "StreamExecSortComparator",
       sortFields.indices.toArray,
-      sortKeyType.getLogicalTypes,
+      sortKeyType.toRowFieldTypes,
       sortDirections,
       nullsIsLast)
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
@@ -175,7 +175,7 @@ class StreamExecSortLimit(
 
       // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
       case RetractStrategy =>
-        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
+        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
         new RetractableTopNFunction(
           minIdleStateRetentionTime,
@@ -192,7 +192,7 @@ class StreamExecSortLimit(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
 
-    val outputRowTypeInfo = RowDataTypeInfo.of(
+    val outputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val ret = new OneInputTransformation(

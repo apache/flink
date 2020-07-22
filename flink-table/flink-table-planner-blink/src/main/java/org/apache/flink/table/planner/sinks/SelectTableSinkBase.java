@@ -31,16 +31,13 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.UUID;
-import java.util.stream.Stream;
 
 /**
  * Basic implementation of {@link StreamTableSink} for select job to collect the result to local.
@@ -124,10 +121,9 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 	protected abstract Row convertToRow(T element);
 
 	/**
-	 * Create RowDataTypeInfo based on given table schema.
+	 * Create {@link InternalTypeInfo} of {@link RowData} based on given table schema.
 	 */
-	protected static RowDataTypeInfo createRowDataTypeInfo(TableSchema tableSchema) {
-		return new RowDataTypeInfo(
-				Stream.of(tableSchema.getFieldDataTypes()).map(DataType::getLogicalType).toArray(LogicalType[]::new));
+	protected static InternalTypeInfo<RowData> createTypeInfo(TableSchema tableSchema) {
+		return InternalTypeInfo.of(tableSchema.toRowDataType().getLogicalType());
 	}
 }

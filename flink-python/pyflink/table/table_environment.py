@@ -221,10 +221,9 @@ class TableEnvironment(object):
         ::
 
             >>> table_env.create_temporary_system_function(
-            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
             >>> table_env.create_temporary_system_function("add", add)
@@ -233,7 +232,7 @@ class TableEnvironment(object):
             ...     def eval(self, i):
             ...         return i - 1
             >>> table_env.create_temporary_system_function(
-            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         :param name: The name under which the function will be registered globally.
         :param function: The function class containing the implementation. The function must have a
@@ -356,10 +355,9 @@ class TableEnvironment(object):
         ::
 
             >>> table_env.create_temporary_function(
-            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
             >>> table_env.create_temporary_function("add", add)
@@ -368,7 +366,7 @@ class TableEnvironment(object):
             ...     def eval(self, i):
             ...         return i - 1
             >>> table_env.create_temporary_function(
-            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
@@ -1101,10 +1099,9 @@ class TableEnvironment(object):
         ::
 
             >>> table_env.register_function(
-            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
             >>> table_env.register_function("add", add)
@@ -1113,7 +1110,7 @@ class TableEnvironment(object):
             ...     def eval(self, i):
             ...         return i - 1
             >>> table_env.register_function(
-            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         :param name: The name under which the function is registered.
         :type name: str

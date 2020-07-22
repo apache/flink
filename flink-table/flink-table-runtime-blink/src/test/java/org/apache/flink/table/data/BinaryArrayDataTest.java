@@ -73,7 +73,7 @@ public class BinaryArrayDataTest {
 		{
 			BinaryRowData row2 = new BinaryRowData(1);
 			BinaryRowWriter writer2 = new BinaryRowWriter(row2);
-			writer2.writeArray(0, array, new ArrayDataSerializer(DataTypes.INT().getLogicalType(), null));
+			writer2.writeArray(0, array, new ArrayDataSerializer(DataTypes.INT().getLogicalType()));
 			writer2.complete();
 
 			BinaryArrayData array2 = (BinaryArrayData) row2.getArray(0);
@@ -89,7 +89,7 @@ public class BinaryArrayDataTest {
 
 			BinaryRowData row2 = new BinaryRowData(1);
 			BinaryRowWriter writer2 = new BinaryRowWriter(row2);
-			writer2.writeArray(0, array3, new ArrayDataSerializer(DataTypes.INT().getLogicalType(), null));
+			writer2.writeArray(0, array3, new ArrayDataSerializer(DataTypes.INT().getLogicalType()));
 			writer2.complete();
 
 			BinaryArrayData array2 = (BinaryArrayData) row2.getArray(0);
@@ -318,7 +318,7 @@ public class BinaryArrayDataTest {
 			BinaryArrayData array = new BinaryArrayData();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 			writer.setNullAt(0);
-			writer.writeArray(1, subArray, new ArrayDataSerializer(DataTypes.INT().getLogicalType(), null));
+			writer.writeArray(1, subArray, new ArrayDataSerializer(DataTypes.INT().getLogicalType()));
 			writer.complete();
 
 			assertTrue(array.isNullAt(0));
@@ -335,7 +335,7 @@ public class BinaryArrayDataTest {
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 			writer.setNullAt(0);
 			writer.writeMap(1, BinaryMapData.valueOf(subArray, subArray),
-					new MapDataSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
+					new MapDataSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
 			writer.complete();
 
 			assertTrue(array.isNullAt(0));
@@ -368,7 +368,7 @@ public class BinaryArrayDataTest {
 		BinaryRowData row = new BinaryRowData(1);
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
 		rowWriter.writeMap(0, binaryMap,
-				new MapDataSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
+				new MapDataSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
 		rowWriter.complete();
 
 		BinaryMapData map = (BinaryMapData) row.getMap(0);
@@ -487,7 +487,7 @@ public class BinaryArrayDataTest {
 		BinaryArrayData array = new BinaryArrayData();
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 		writer.writeRow(0, GenericRowData.of(fromString("1"), 1),
-				new RowDataSerializer(null, RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
+				new RowDataSerializer(RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
 		writer.setNullAt(1);
 		writer.complete();
 

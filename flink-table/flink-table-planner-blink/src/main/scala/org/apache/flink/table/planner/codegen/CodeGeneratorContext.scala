@@ -22,19 +22,20 @@ import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.GenericRowData
+import org.apache.flink.table.data.conversion.DataStructureConverter
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.runtime.operators.TableStreamOperator
-import org.apache.flink.table.runtime.types.InternalSerializers
+import org.apache.flink.table.runtime.typeutils.InternalSerializers
 import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
-import org.apache.calcite.avatica.util.DateTimeUtils
-import java.util.TimeZone
 
-import org.apache.flink.table.data.conversion.DataStructureConverter
+import org.apache.calcite.avatica.util.DateTimeUtils
+
+import java.util.TimeZone
 
 import scala.collection.mutable
 
@@ -383,7 +384,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable null [[org.apache.flink.table.dataformat.GenericRowData]] to the member area.
+    * Adds a reusable null [[GenericRowData]] to the member area.
     */
   def addReusableNullRow(rowTerm: String, arity: Int): Unit = {
     addReusableOutputRecord(

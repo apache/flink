@@ -108,8 +108,12 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
           StructKind.PEEK_FIELDS_NO_EXPAND)
 
       case LogicalTypeRoot.STRUCTURED_TYPE =>
-        val structuredType = t.asInstanceOf[StructuredType]
-        StructuredRelDataType.create(this, structuredType)
+        t match {
+          case structuredType: StructuredType => StructuredRelDataType.create(this, structuredType)
+          case legacyTypeInformationType: LegacyTypeInformationType[_] =>
+            createFieldTypeFromLogicalType(
+            PlannerTypeUtils.removeLegacyTypes(legacyTypeInformationType))
+        }
 
       case LogicalTypeRoot.ARRAY =>
         val arrayType = t.asInstanceOf[ArrayType]

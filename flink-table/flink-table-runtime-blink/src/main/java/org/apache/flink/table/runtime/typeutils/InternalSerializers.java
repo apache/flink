@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.types;
+package org.apache.flink.table.runtime.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
@@ -28,13 +29,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
-import org.apache.flink.table.runtime.typeutils.DecimalDataSerializer;
-import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
-import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
-import org.apache.flink.table.runtime.typeutils.TimestampDataSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
@@ -48,25 +42,20 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPr
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 
 /**
- * {@link TypeSerializer} of {@link LogicalType} for internal sql engine execution data formats.
+ * {@link TypeSerializer} of {@link LogicalType} for internal data structures.
  */
-public class InternalSerializers {
+@Internal
+public final class InternalSerializers {
 
 	/**
 	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
 	 */
-	public static TypeSerializer<?> create(LogicalType type) {
-		return create(type, new ExecutionConfig());
+	@SuppressWarnings("unchecked")
+	public static <T> TypeSerializer<T> create(LogicalType type) {
+		return (TypeSerializer<T>) createInternal(type);
 	}
 
-	/**
-	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
-	 *
-	 * @deprecated Use {@link #create(LogicalType)} instead. All types of the new type system have been
-	 *             fully resolved before.
-	 */
-	@Deprecated
-	public static TypeSerializer create(LogicalType type, ExecutionConfig config) {
+	private static TypeSerializer<?> createInternal(LogicalType type) {
 		// ordered by type root definition
 		switch (type.getTypeRoot()) {
 			case CHAR:
@@ -101,24 +90,24 @@ public class InternalSerializers {
 			case TIMESTAMP_WITH_TIME_ZONE:
 				throw new UnsupportedOperationException();
 			case ARRAY:
-				return new ArrayDataSerializer(((ArrayType) type).getElementType(), config);
+				return new ArrayDataSerializer(((ArrayType) type).getElementType());
 			case MULTISET:
-				return new MapDataSerializer(((MultisetType) type).getElementType(), new IntType(false), config);
+				return new MapDataSerializer(((MultisetType) type).getElementType(), new IntType(false));
 			case MAP:
 				MapType mapType = (MapType) type;
-				return new MapDataSerializer(mapType.getKeyType(), mapType.getValueType(), config);
+				return new MapDataSerializer(mapType.getKeyType(), mapType.getValueType());
 			case ROW:
 			case STRUCTURED_TYPE:
-				return new RowDataSerializer(config, type.getChildren().toArray(new LogicalType[0]));
+				return new RowDataSerializer(type.getChildren().toArray(new LogicalType[0]));
 			case DISTINCT_TYPE:
-				return create(((DistinctType) type).getSourceType(), config);
+				return create(((DistinctType) type).getSourceType());
 			case RAW:
 				if (type instanceof RawType) {
 					final RawType<?> rawType = (RawType<?>) type;
 					return new RawValueDataSerializer<>(rawType.getTypeSerializer());
 				}
 				return new RawValueDataSerializer<>(
-					((TypeInformationRawType<?>) type).getTypeInformation().createSerializer(config));
+					((TypeInformationRawType<?>) type).getTypeInformation().createSerializer(new ExecutionConfig()));
 			case NULL:
 			case SYMBOL:
 			case UNRESOLVED:
@@ -126,5 +115,9 @@ public class InternalSerializers {
 				throw new UnsupportedOperationException(
 					"Unsupported type '" + type + "' to get internal serializer");
 		}
+	}
+
+	private InternalSerializers() {
+		// no instantiation
 	}
 }

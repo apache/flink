@@ -212,9 +212,6 @@ jobs:
         source ./tools/ci/maven-utils.sh
         setup_maven
 
-        echo "Setting up Docker"
-        ./tools/azure-pipelines/setup_docker.sh
-
         echo "Free up disk space"
         ./tools/azure-pipelines/free_disk_space.sh
 

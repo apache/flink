@@ -32,7 +32,7 @@ under the License.
 
 
 	<artifactId>flink-connectors</artifactId>
-	<name>flink-connectors</name>
+	<name>Flink : Connectors : </name>
 	<packaging>pom</packaging>
 
 	<modules>

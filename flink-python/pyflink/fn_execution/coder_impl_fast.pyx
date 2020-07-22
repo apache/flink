@@ -28,10 +28,10 @@ import decimal
 from pyflink.table import Row
 
 cdef class BaseCoderImpl:
-    cpdef void encode(self, value, OutputStream output_stream):
+    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         pass
 
-    cpdef decode(self, InputStream input_stream):
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
         pass
 
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
@@ -40,7 +40,7 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
         self._end_message = <char*> malloc(1)
         self._end_message[0] = 0x00
 
-    cpdef void encode(self, iter_value, OutputStream output_stream):
+    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         if iter_value:
             for value in iter_value:
                 if self._field_count == 1:
@@ -70,10 +70,10 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         self._init_attribute()
         self.row = [None for _ in range(self._field_count)]
 
-    cpdef void encode(self, value, OutputStream output_stream):
+    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         self._encode_one_row(value, output_stream)
 
-    cpdef decode(self, InputStream input_stream):
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
         self._decode_next_row(input_stream)
         return self.row
 
@@ -90,7 +90,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             self._field_type[i] = self._field_coders[i].type_name()
             self._field_coder_type[i] = self._field_coders[i].coder_type()
 
-    cdef void _encode_one_row(self, value, OutputStream output_stream):
+    cdef void _encode_one_row(self, value, LengthPrefixOutputStream output_stream):
         cdef size_t i
         self._write_null_mask(value, self._leading_complete_bytes_num, self._remaining_bits_num)
         for i in range(self._field_count):
@@ -124,7 +124,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                 null_mask[field_pos] = (b & self._null_byte_search_table[i]) > 0
                 field_pos += 1
 
-    cdef void _decode_next_row(self, InputStream input_stream):
+    cdef void _decode_next_row(self, LengthPrefixInputStream input_stream):
         cdef size_t i
         cdef size_t length
         length = input_stream.read(&self._input_data)

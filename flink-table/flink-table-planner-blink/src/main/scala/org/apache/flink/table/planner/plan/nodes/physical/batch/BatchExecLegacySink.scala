@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
 
@@ -135,7 +135,7 @@ class BatchExecLegacySink[T](
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
             CodeGeneratorContext(config),
             config,
-            plan.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType,
+            plan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType,
             sink,
             withChangeFlag,
             "SinkConversion"

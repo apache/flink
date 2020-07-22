@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-wikiedits_${scala.binary.version}</artifactId>
-	<name>flink-connector-wikiedits</name>
+	<name>Flink : Contrib : Connectors : Wikiedits</name>
 
 	<packaging>jar</packaging>
 

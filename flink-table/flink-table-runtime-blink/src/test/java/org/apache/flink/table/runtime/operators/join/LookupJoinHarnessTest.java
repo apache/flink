@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -37,8 +35,7 @@ import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -59,15 +56,14 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 public class LookupJoinHarnessTest {
 
 	private final TypeSerializer<RowData> inSerializer = new RowDataSerializer(
-		new ExecutionConfig(),
-			new IntType(),
-			new VarCharType(VarCharType.MAX_LENGTH));
+		DataTypes.INT().getLogicalType(),
+		DataTypes.STRING().getLogicalType());
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
-		Types.INT,
-		Types.STRING,
-		Types.INT,
-		Types.STRING
+	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new LogicalType[]{
+		DataTypes.INT().getLogicalType(),
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.INT().getLogicalType(),
+		DataTypes.STRING().getLogicalType()
 	});
 
 	@Test

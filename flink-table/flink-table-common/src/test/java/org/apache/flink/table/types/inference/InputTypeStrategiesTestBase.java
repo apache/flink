@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
@@ -198,8 +199,8 @@ public abstract class InputTypeStrategiesTestBase {
 			return this;
 		}
 
-		TestSpec calledWithArgumentTypes(DataType... dataTypes) {
-			this.actualArgumentTypes.add(Arrays.asList(dataTypes));
+		TestSpec calledWithArgumentTypes(AbstractDataType<?>... dataTypes) {
+			this.actualArgumentTypes.add(resolveDataTypes(dataTypes));
 			return this;
 		}
 
@@ -219,14 +220,21 @@ public abstract class InputTypeStrategiesTestBase {
 			return this;
 		}
 
-		TestSpec expectArgumentTypes(DataType... dataTypes) {
-			this.expectedArgumentTypes = Arrays.asList(dataTypes);
+		TestSpec expectArgumentTypes(AbstractDataType<?>... dataTypes) {
+			this.expectedArgumentTypes = resolveDataTypes(dataTypes);
 			return this;
 		}
 
 		TestSpec expectErrorMessage(String expectedErrorMessage) {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
+		}
+
+		private List<DataType> resolveDataTypes(AbstractDataType<?>[] dataTypes) {
+			final DataTypeFactoryMock factoryMock = new DataTypeFactoryMock();
+			return Arrays.stream(dataTypes)
+				.map(factoryMock::createDataType)
+				.collect(Collectors.toList());
 		}
 
 		@Override

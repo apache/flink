@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -48,8 +48,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class String2HashJoinOperatorTest implements Serializable {
 
-	private RowDataTypeInfo typeInfo = new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
-	private RowDataTypeInfo joinedInfo = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
+	private InternalTypeInfo<RowData> joinedInfo = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
 	private transient TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness;
 	private ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();

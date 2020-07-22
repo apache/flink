@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-common</artifactId>
-	<name>flink-table-common</name>
+	<name>Flink : Table : Common</name>
 	<description>
 		This module contains extension points of the Table/SQL API.
 		It allows for implementing user-defined functions, custom

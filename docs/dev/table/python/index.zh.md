@@ -24,15 +24,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Python Table API allows users to develop [Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html) programs using the Python language.
-Apache Flink has provided Python Table API support since 1.9.0.
+Python Table API允许用户使用Python语言开发[Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html)程序。
+
+自1.9.0起，Apache Flink就提供了Python Table API支持。
 
 ## Where to go next?
 
-- [环境安装]({{ site.baseurl }}/zh/dev/table/python/installation.html): Introduction of how to set up the Python Table API execution environment.
-- [自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html): Explanation of how to define Python user-defined functions.
-- [自定义向量化函数]({{ site.baseurl }}/zh/dev/table/python/vectorized_python_udfs.html): Explanation of how to define vectorized Python user-defined functions.
-- [PyFlink Table 和 Pandas DataFrame 互转]({{ site.baseurl }}/zh/dev/table/python/conversion_of_pandas.html): Explanation of how to convert between PyFlink Table and Pandas DataFrame.
-- [依赖管理]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html): Specification of how to use third-part dependencies in a Python Table API program.
-- [配置]({{ site.baseurl }}/zh/dev/table/python/python_config.html): Description of the config options available for Python Table API programs.
+- [环境安装]({{ site.baseurl }}/zh/dev/table/python/installation.html): 介绍了如何设置Python Table API的执行环境。
+- [自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html): 有关如何定义Python用户自定义函数的说明。
+- [自定义向量化函数]({{ site.baseurl }}/zh/dev/table/python/vectorized_python_udfs.html): 有关如何定义向量化Python用户自定义函数的说明。
+- [PyFlink Table 和 Pandas DataFrame 互转]({{ site.baseurl }}/zh/dev/table/python/conversion_of_pandas.html): 介绍了PyFlink Table和Pandas DataFrame之间如何互转。
+- [依赖管理]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html): 在Python Table API作业中如何使用第三方依赖。
+- [配置]({{ site.baseurl }}/zh/dev/table/python/python_config.html): 描述了Python Table API程序的配置项。
 - [常见问题]({{ site.baseurl }}/zh/dev/table/python/common_questions.html)

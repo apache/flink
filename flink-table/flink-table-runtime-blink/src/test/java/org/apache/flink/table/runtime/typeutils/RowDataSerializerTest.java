@@ -90,7 +90,7 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 	}
 
 	private static Object[] testRowDataSerializer() {
-		RowDataTypeInfo typeInfo = new RowDataTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
+		InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 		GenericRowData row1 = new GenericRowData(2);
 		row1.setField(0, 1);
 		row1.setField(1, fromString("a"));
@@ -99,12 +99,12 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 		row2.setField(0, 2);
 		row2.setField(1, null);
 
-		RowDataSerializer serializer = typeInfo.createSerializer(new ExecutionConfig());
+		RowDataSerializer serializer = typeInfo.toRowSerializer();
 		return new Object[] {serializer, new RowData[]{row1, row2}};
 	}
 
 	private static Object[] testLargeRowDataSerializer() {
-		RowDataTypeInfo typeInfo = new RowDataTypeInfo(
+		InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(
 			new IntType(),
 			new IntType(),
 			new IntType(),
@@ -133,12 +133,12 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 		row.setField(11, null);
 		row.setField(12, fromString("Test"));
 
-		RowDataSerializer serializer = typeInfo.createSerializer(new ExecutionConfig());
+		RowDataSerializer serializer = typeInfo.toRowSerializer();
 		return new Object[] {serializer, new RowData[]{row}};
 	}
 
 	private static Object[] testRowDataSerializerWithComplexTypes() {
-		RowDataTypeInfo typeInfo = new RowDataTypeInfo(
+		InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(
 			new IntType(),
 			new DoubleType(),
 			new VarCharType(VarCharType.MAX_LENGTH),
@@ -161,7 +161,7 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 			createRow(1, 1.0, fromString("b"), createArray(1, 2, 3, 4, 5, 6), createMap(new int[]{1, 8}, new int[]{1, 6}))
 		};
 
-		RowDataSerializer serializer = typeInfo.createSerializer(new ExecutionConfig());
+		RowDataSerializer serializer = typeInfo.toRowSerializer();
 		return new Object[] {serializer, data};
 	}
 

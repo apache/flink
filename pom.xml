@@ -30,7 +30,7 @@ under the License.
 	<artifactId>flink-parent</artifactId>
 	<version>1.12-SNAPSHOT</version>
 
-	<name>flink</name>
+	<name>Flink : </name>
 	<packaging>pom</packaging>
 	<url>https://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>

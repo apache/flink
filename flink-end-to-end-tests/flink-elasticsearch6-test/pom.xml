@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-elasticsearch6-test</artifactId>
-	<name>flink-elasticsearch6-test</name>
+	<name>Flink : E2E Tests : Elasticsearch 6</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
