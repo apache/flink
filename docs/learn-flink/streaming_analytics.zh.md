@@ -296,6 +296,7 @@ private static class MyWindowFunction extends ProcessWindowFunction<
 {% endhighlight %}
 
 请注意 `Iterable<SensorReading>` 将只包含一个读数 -- `MyReducingMax` 计算出的预先汇总的最大值。
+
 <a name="Late-Events"></a>
 ### 晚到的事件
 
@@ -333,7 +334,7 @@ stream.
 当允许的延迟大于零时，只有那些超过最大无序边界以至于会被丢弃的事件才会被发送到侧输出流（如果已配置）。
 
 <a name="Surprises"></a>
-### 
+### 出乎意料
 
 Flink 的窗口 API 某些方面有一些奇怪的行为，可能和我们预期的行为不一致。 根据 [Flink 用户邮件列表](https://flink.apache.org/community.html#mailing-lists) 和其他地方一些频繁被问起的问题, 以下是一些有关 Windows 的底层事实，这些信息可能会让您感到惊讶。
 
