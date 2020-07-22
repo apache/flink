@@ -35,6 +35,7 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.dataview.MapViewSerializer;
@@ -58,10 +59,10 @@ import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.
 /**
  * built-in FirstValue with retraction aggregate function.
  */
-public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunction<T, GenericRowData> {
+public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunction<T, RowData> {
 
 	@Override
-	public GenericRowData createAccumulator() {
+	public RowData createAccumulator() {
 		// The accumulator schema:
 		// firstValue: T
 		// fistOrder: Long
@@ -77,7 +78,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		return acc;
 	}
 
-	public void accumulate(GenericRowData acc, Object value) throws Exception {
+	public void accumulate(RowData rowData, Object value) throws Exception {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null) {
 			T v = (T) value;
 			Long order = System.currentTimeMillis();
@@ -92,7 +94,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		}
 	}
 
-	public void accumulate(GenericRowData acc, Object value, Long order) throws Exception {
+	public void accumulate(RowData rowData, Object value, Long order) throws Exception {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null) {
 			T v = (T) value;
 			Long prevOrder = (Long) acc.getField(1);
@@ -111,7 +114,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		}
 	}
 
-	public void retract(GenericRowData acc, Object value) throws Exception {
+	public void retract(RowData rowData, Object value) throws Exception {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null) {
 			T v = (T) value;
 			MapView<T, List<Long>> valueToOrderMapView = getValueToOrderMapViewFromAcc(acc);
@@ -129,7 +133,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		}
 	}
 
-	public void retract(GenericRowData acc, Object value, Long order) throws Exception {
+	public void retract(RowData rowData, Object value, Long order) throws Exception {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null) {
 			T v = (T) value;
 			MapView<Long, List<T>> orderToValueMapView = getOrderToValueMapViewFromAcc(acc);
@@ -169,7 +174,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		}
 	}
 
-	public void resetAccumulator(GenericRowData acc) {
+	public void resetAccumulator(RowData rowData) {
+		GenericRowData acc = (GenericRowData) rowData;
 		acc.setField(0, null);
 		acc.setField(1, null);
 		MapView<T, List<Long>> valueToOrderMapView = getValueToOrderMapViewFromAcc(acc);
@@ -178,15 +184,17 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		orderToValueMapView.clear();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public T getValue(GenericRowData acc) {
+	public T getValue(RowData rowData) {
+		GenericRowData acc = (GenericRowData) rowData;
 		return (T) acc.getField(0);
 	}
 
 	protected abstract TypeSerializer<T> createValueSerializer();
 
 	@Override
-	public TypeInformation<GenericRowData> getAccumulatorType() {
+	public TypeInformation<RowData> getAccumulatorType() {
 		LogicalType[] fieldTypes = new LogicalType[] {
 				fromTypeInfoToLogicalType(getResultType()),
 				new BigIntType(),
@@ -201,7 +209,7 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 				"orderToValueMapView"
 		};
 
-		return (TypeInformation) InternalTypeInfo.ofFields(fieldTypes, fieldNames);
+		return InternalTypeInfo.ofFields(fieldTypes, fieldNames);
 	}
 
 	@SuppressWarnings("unchecked")
