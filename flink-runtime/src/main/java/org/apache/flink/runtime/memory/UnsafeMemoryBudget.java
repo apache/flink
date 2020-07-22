@@ -158,8 +158,10 @@ class UnsafeMemoryBudget {
 			}
 
 			// no luck
-			throw new MemoryReservationException(
-				String.format("Could not allocate %d bytes, only %d bytes are remaining", size, availableOrReserved));
+			throw new MemoryReservationException(String.format(
+				"Could not allocate %d bytes, only %d bytes are remaining, try to upgrade to Java 8u72 or higher",
+				size,
+				availableOrReserved));
 
 		} finally {
 			if (interrupted) {
