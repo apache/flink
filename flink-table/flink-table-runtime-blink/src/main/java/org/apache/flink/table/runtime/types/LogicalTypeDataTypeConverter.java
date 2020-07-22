@@ -34,6 +34,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 @Deprecated
 public class LogicalTypeDataTypeConverter {
 
+	@Deprecated
 	public static DataType fromLogicalTypeToDataType(LogicalType logicalType) {
 		return TypeConversions.fromLogicalToDataType(logicalType);
 	}
@@ -41,6 +42,7 @@ public class LogicalTypeDataTypeConverter {
 	/**
 	 * It convert {@link LegacyTypeInformationType} to planner types.
 	 */
+	@Deprecated
 	public static LogicalType fromDataTypeToLogicalType(DataType dataType) {
 		return PlannerTypeUtils.removeLegacyTypes(dataType.getLogicalType());
 	}

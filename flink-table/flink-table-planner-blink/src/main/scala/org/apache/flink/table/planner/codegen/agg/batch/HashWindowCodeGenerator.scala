@@ -369,11 +369,11 @@ class HashWindowCodeGenerator(
     // build mapping for DeclarativeAggregationFunction binding references
     val offset = if (isMerge) grouping.length + 1 else grouping.length
     val argsMapping = AggCodeGenHelper.buildAggregateArgsMapping(
-      isMerge, offset, inputType,  auxGrouping, aggArgs, aggBufferTypes)
+      isMerge, offset, inputType, auxGrouping, aggInfos, aggBufferTypes)
     val aggBuffMapping = HashAggCodeGenHelper.buildAggregateAggBuffMapping(aggBufferTypes)
     // gen code to create empty agg buffer
     val initedAggBuffer = HashAggCodeGenHelper.genReusableEmptyAggBuffer(
-      ctx, builder, inputTerm, inputType, auxGrouping, aggregates, aggBufferRowType)
+      ctx, builder, inputTerm, inputType, auxGrouping, aggInfos, aggBufferRowType)
     if (auxGrouping.isEmpty) {
       // init aggBuffer in open function when there is no auxGrouping
       ctx.addReusableOpenStatement(initedAggBuffer.code)
@@ -386,8 +386,7 @@ class HashWindowCodeGenerator(
       inputType,
       inputTerm,
       auxGrouping,
-      aggregates,
-      aggCallToAggFunction,
+      aggInfos,
       argsMapping,
       aggBuffMapping,
       currentAggBufferTerm,
@@ -650,7 +649,7 @@ class HashWindowCodeGenerator(
         ctx,
         builder,
         auxGrouping,
-        aggregates,
+        aggInfos,
         argsMapping,
         aggBuffMapping,
         outputTerm,
@@ -697,7 +696,7 @@ class HashWindowCodeGenerator(
         ctx,
         builder,
         auxGrouping,
-        aggregates,
+        aggInfos,
         argsMapping,
         aggBuffMapping,
         outputTerm,

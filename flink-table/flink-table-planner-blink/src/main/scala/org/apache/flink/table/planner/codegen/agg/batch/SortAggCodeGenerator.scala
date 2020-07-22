@@ -46,16 +46,20 @@ object SortAggCodeGenerator {
       grouping: Array[Int],
       auxGrouping: Array[Int],
       isMerge: Boolean,
-      isFinal: Boolean): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+      isFinal: Boolean)
+    : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+
+    // prepare for aggregation
+    val aggInfos = aggInfoList.aggInfos
+    aggInfos
+      .map(_.function)
+      .filter(_.isInstanceOf[AggregateFunction[_, _]])
+      .map(ctx.addReusableFunction(_))
+    val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
+
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
-
-    val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
-    val aggArgs = aggInfoList.aggInfos.map(_.argIndexes)
-
-    // register udaggs
-    aggCallToAggFunction.map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
-
     val lastKeyTerm = "lastKey"
     val currentKeyTerm = "currentKey"
     val currentKeyWriterTerm = "currentKeyWriter"
@@ -72,11 +76,6 @@ object SortAggCodeGenerator {
 
     val keyNotEquals = AggCodeGenHelper.genGroupKeyChangedCheckCode(currentKeyTerm, lastKeyTerm)
 
-    val aggregates = aggCallToAggFunction.map(_._2)
-    val udaggs = AggCodeGenHelper.getUdaggs(aggregates)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggregates)
-    val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggregates)
-
     val (initAggBufferCode, doAggregateCode, aggOutputExpr) = AggCodeGenHelper.genSortAggCodes(
       isMerge,
       isFinal,
@@ -84,11 +83,8 @@ object SortAggCodeGenerator {
       builder,
       grouping,
       auxGrouping,
-      aggCallToAggFunction,
-      aggArgs,
-      aggregates,
-      aggInfoList.aggInfos.map(_.externalResultType),
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       inputTerm,
       inputType,
       aggBufferNames,
