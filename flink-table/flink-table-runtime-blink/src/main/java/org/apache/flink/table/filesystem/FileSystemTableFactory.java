@@ -29,6 +29,7 @@ import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -75,7 +76,7 @@ public class FileSystemTableFactory implements
 		context.getTable().getOptions().forEach(conf::setString);
 
 		return new FileSystemTableSource(
-				context.getTable().getSchema(),
+				TableSchemaUtils.getPhysicalSchema(context.getTable().getSchema()),
 				getPath(conf),
 				context.getTable().getPartitionKeys(),
 				conf.get(PARTITION_DEFAULT_NAME),
@@ -90,7 +91,7 @@ public class FileSystemTableFactory implements
 		return new FileSystemTableSink(
 				context.getObjectIdentifier(),
 				context.isBounded(),
-				context.getTable().getSchema(),
+				TableSchemaUtils.getPhysicalSchema(context.getTable().getSchema()),
 				getPath(conf),
 				context.getTable().getPartitionKeys(),
 				conf.get(PARTITION_DEFAULT_NAME),
