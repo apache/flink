@@ -371,7 +371,11 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
     private object SealedTraitType {
       def unapply(tpe: Type): Option[List[Symbol]] = {
         val clazz = tpe.typeSymbol.asClass
-        if (clazz.isSealed && clazz.typeParams.isEmpty) Some(clazz.knownDirectSubclasses.toList) else None
+        if (clazz.isSealed && clazz.typeParams.isEmpty) {
+          Some(clazz.knownDirectSubclasses.toList)
+        } else {
+          None
+        }
       }
     }
 

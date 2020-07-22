@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.SealedTraitSerializerTest.{Generic2ADT, Generic2ADT1, GenericADT, GenericADT1, NestedADT, NestedAdtOne, NestedAdtTwo}
+import org.apache.flink.api.scala.typeutils.SealedTraitSerializerTest.{GenericADT, GenericADT1, NestedADT, NestedAdtOne, NestedAdtTwo}
 import org.apache.flink.api.scala.typeutils.{ADT, AdtOne, AdtTwo}
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker

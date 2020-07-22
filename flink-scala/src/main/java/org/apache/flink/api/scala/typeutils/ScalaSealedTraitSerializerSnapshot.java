@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -37,12 +38,12 @@ public class ScalaSealedTraitSerializerSnapshot<T> implements TypeSerializerSnap
 	TypeSerializer<?>[] subtypeSerializers;
 
 	/**
-	 * Snapshot read constructor
+	 * Snapshot read constructor.
 	 */
 	public ScalaSealedTraitSerializerSnapshot() {}
 
 	/**
-	 * Snapshot write constructor
+	 * Snapshot write constructor.
 	 * @param instance the serializer instance to snapshot
 	 */
 	public ScalaSealedTraitSerializerSnapshot(SealedTraitSerializer<T> instance) {
@@ -95,7 +96,9 @@ public class ScalaSealedTraitSerializerSnapshot<T> implements TypeSerializerSnap
 				boolean compatible = true;
 				// ADT members can be added only by appending them
 				for (int i = 0; (i < subtypeClasses.length) && compatible; i++) {
-					if (subtypeClasses[i] != sealed.subtypeClasses()[i]) compatible = false;
+					if (subtypeClasses[i] != sealed.subtypeClasses()[i]) {
+						compatible = false;
+					}
 				}
 				if (compatible) {
 					if (subtypeClasses.length == sealed.subtypeClasses().length) {
