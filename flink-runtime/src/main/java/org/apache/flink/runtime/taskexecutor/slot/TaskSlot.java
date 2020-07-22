@@ -317,7 +317,11 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 		after.thenRunAsync(
 			() -> {
 				if (!memoryManager.verifyEmpty()) {
-					LOG.warn("Not all slot memory is freed, potential memory leak at {}", this);
+					LOG.warn(
+						"Not all slot managed memory is freed at {}. This usually indicates memory leak. " +
+							"However, when running an old JVM version it can also be caused by slow garbage collection. " +
+							"Try to upgrade to Java 8u72 or higher if running on an old Java version.",
+						this);
 				}
 			},
 			asyncExecutor);
