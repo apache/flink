@@ -411,8 +411,8 @@ public static class OverloadedFunction extends TableFunction<Row> {
   output = @DataTypeHint("INT")
 )
 @FunctionHint(
-  input = [@DataTypeHint("LONG"), @DataTypeHint("LONG")],
-  output = @DataTypeHint("LONG")
+  input = [@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")],
+  output = @DataTypeHint("BIGINT")
 )
 @FunctionHint(
   input = [],
@@ -443,7 +443,7 @@ import org.apache.flink.types.Row
 
 // function with overloaded evaluation methods
 // but globally defined output type
-@FunctionHint(output = @DataTypeHint("ROW<s STRING, i INT>"))
+@FunctionHint(output = new DataTypeHint("ROW<s STRING, i INT>"))
 class OverloadedFunction extends TableFunction[Row] {
 
   def eval(a: Int, b: Int): Unit = {
@@ -459,16 +459,16 @@ class OverloadedFunction extends TableFunction[Row] {
 // decouples the type inference from evaluation methods,
 // the type inference is entirely determined by the function hints
 @FunctionHint(
-  input = Array(@DataTypeHint("INT"), @DataTypeHint("INT")),
-  output = @DataTypeHint("INT")
+  input = Array(new DataTypeHint("INT"), new DataTypeHint("INT")),
+  output = new DataTypeHint("INT")
 )
 @FunctionHint(
-  input = Array(@DataTypeHint("LONG"), @DataTypeHint("LONG")),
-  output = @DataTypeHint("LONG")
+  input = Array(new DataTypeHint("BIGINT"), new DataTypeHint("BIGINT")),
+  output = new DataTypeHint("BIGINT")
 )
 @FunctionHint(
   input = Array(),
-  output = @DataTypeHint("BOOLEAN")
+  output = new DataTypeHint("BOOLEAN")
 )
 class OverloadedFunction extends TableFunction[AnyRef] {
 
@@ -818,12 +818,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.types.Row
 
-@FunctionHint(output = @DataTypeHint("ROW<word STRING, length INT>"))
+@FunctionHint(output = new DataTypeHint("ROW<word STRING, length INT>"))
 class SplitFunction extends TableFunction[Row] {
 
   def eval(str: String): Unit = {
     // use collect(...) to emit a row
-    str.split(" ").foreach(s => collect(Row.of(s, s.length)))
+    str.split(" ").foreach(s => collect(Row.of(s, Int.box(s.length))))
   }
 }
 
