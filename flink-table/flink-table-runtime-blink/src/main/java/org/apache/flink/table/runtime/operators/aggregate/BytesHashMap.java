@@ -24,7 +24,6 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
@@ -381,24 +380,17 @@ public class BytesHashMap {
 			LOG.warn("We can't handle more than Integer.MAX_VALUE buckets (eg. because hash functions return int)");
 			throw new EOFException();
 		}
-		List<MemorySegment> newBucketSegments = new ArrayList<>(required);
 
-		try {
-			int numAllocatedSegments = required - memoryPool.freePages();
-			if (numAllocatedSegments > 0) {
-				throw new MemoryAllocationException();
-			}
-			int needNumFromFreeSegments = required - newBucketSegments.size();
-			for (int end = needNumFromFreeSegments; end > 0; end--) {
-				newBucketSegments.add(memoryPool.nextSegment());
-			}
-
-			setBucketVariables(newBucketSegments);
-		} catch (MemoryAllocationException e) {
+		int numAllocatedSegments = required - memoryPool.freePages();
+		if (numAllocatedSegments > 0) {
 			LOG.warn("BytesHashMap can't allocate {} pages, and now used {} pages",
-					required, reservedNumBuffers);
+				required, reservedNumBuffers);
 			throw new EOFException();
 		}
+
+		List<MemorySegment> newBucketSegments = memoryPool.allocateSegments(required);
+		setBucketVariables(newBucketSegments);
+
 		long reHashStartTime = System.currentTimeMillis();
 		resetBucketSegments(newBucketSegments);
 		// Re-mask (we don't recompute the hashcode because we stored all 32 bits of it)
