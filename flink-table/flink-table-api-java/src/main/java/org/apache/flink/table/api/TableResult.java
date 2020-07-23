@@ -132,10 +132,22 @@ public interface TableResult {
 	 *  }
 	 * }</pre>
 	 *
-	 * <p>For streaming mode, this method guarantees end-to-end exactly-once record delivery
-	 * which requires the checkpointing mechanism to be enabled.
-	 * By default, checkpointing is disabled. To enable checkpointing, set checkpointing properties
-	 * (see ExecutionCheckpointingOptions) through {@link TableConfig#getConfiguration()}.
+	 * <p>This method has slightly different behaviors under different checkpointing settings
+	 * (to enable checkpointing for a streaming job,
+	 * set checkpointing properties through {@link TableConfig#getConfiguration()}).
+	 * <ul>
+	 *     <li>For batch jobs or streaming jobs without checkpointing,
+	 *     this method has neither exactly-once nor at-least-once guarantee.
+	 *     Query results are immediately accessible by the clients once they're produced,
+	 *     but exceptions will be thrown when the job fails and restarts.
+	 *     <li>For streaming jobs with exactly-once checkpointing,
+	 *     this method guarantees an end-to-end exactly-once record delivery.
+	 *     A result will be accessible by clients only after its corresponding checkpoint completes.
+	 *     <li>For streaming jobs with at-least-once checkpointing,
+	 *     this method guarantees an end-to-end at-least-once record delivery.
+	 *     Query results are immediately accessible by the clients once they're produced,
+	 *     but it is possible for the same result to be delivered multiple times.
+	 * </ul>
 	 *
 	 * <p>In order to fetch result to local, you can call either {@link #collect()} and {@link #print()}.
 	 * But, they can't be called both on the same {@link TableResult} instance,
@@ -146,10 +158,22 @@ public interface TableResult {
 	/**
 	 * Print the result contents as tableau form to client console.
 	 *
-	 * <p>For streaming mode, this method guarantees end-to-end exactly-once record delivery
-	 * which requires the checkpointing mechanism to be enabled.
-	 * By default, checkpointing is disabled. To enable checkpointing, set checkpointing properties
-	 * (see ExecutionCheckpointingOptions) through {@link TableConfig#getConfiguration()}.
+	 * <p>This method has slightly different behaviors under different checkpointing settings
+	 * (to enable checkpointing for a streaming job,
+	 * set checkpointing properties through {@link TableConfig#getConfiguration()}).
+	 * <ul>
+	 *     <li>For batch jobs or streaming jobs without checkpointing,
+	 *     this method has neither exactly-once nor at-least-once guarantee.
+	 *     Query results are immediately accessible by the clients once they're produced,
+	 *     but exceptions will be thrown when the job fails and restarts.
+	 *     <li>For streaming jobs with exactly-once checkpointing,
+	 *     this method guarantees an end-to-end exactly-once record delivery.
+	 *     A result will be accessible by clients only after its corresponding checkpoint completes.
+	 *     <li>For streaming jobs with at-least-once checkpointing,
+	 *     this method guarantees an end-to-end at-least-once record delivery.
+	 *     Query results are immediately accessible by the clients once they're produced,
+	 *     but it is possible for the same result to be delivered multiple times.
+	 * </ul>
 	 *
 	 * <p>In order to fetch result to local, you can call either {@link #collect()} and {@link #print()}.
 	 * But, they can't be called both on the same {@link TableResult} instance,

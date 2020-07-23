@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
@@ -46,19 +47,15 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 
 	private final TableSchema tableSchema;
 	protected final DataFormatConverters.DataFormatConverter<RowData, Row> converter;
+	private final TypeSerializer<T> typeSerializer;
 
-	private final CollectSinkOperatorFactory<T> factory;
-	private final CollectResultIterator<T> iterator;
+	private CollectResultIterator<T> iterator;
 
 	@SuppressWarnings("unchecked")
 	public SelectTableSinkBase(TableSchema schema, TypeSerializer<T> typeSerializer) {
 		this.tableSchema = schema;
 		this.converter = DataFormatConverters.getConverterForDataType(this.tableSchema.toPhysicalRowDataType());
-
-		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
-		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
-		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
-		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
+		this.typeSerializer = typeSerializer;
 	}
 
 	@Override
@@ -73,8 +70,19 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<T> dataStream) {
+		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
+
+		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+		CollectSinkOperatorFactory<T> factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
+		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+		this.iterator = new CollectResultIterator<>(
+			operator.getOperatorIdFuture(),
+			typeSerializer,
+			accumulatorName,
+			env.getCheckpointConfig());
+
 		CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
-		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
+		env.addOperator(sink.getTransformation());
 		return sink.name("Select table sink");
 	}
 

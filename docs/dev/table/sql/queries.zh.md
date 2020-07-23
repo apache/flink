@@ -144,21 +144,16 @@ SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` �
 `TableResult.collect()` 方法返回一个可以关闭的行迭代器。除非所有的数据都被收集到本地，否则一个查询作业永远不会结束。所以我们应该通过 `CloseableIterator#close()` 方法主动地关闭作业以防止资源泄露。
 我们还可以通过 `TableResult.print()` 方法将查询结果打印到本地控制台。`TableResult` 中的结果数据只能被访问一次，因此一个 `TableResult` 实例中，`collect()` 方法和 `print()` 方法不能被同时使用。
 
-对于流模式，`TableResult.collect()` 方法或者 `TableResult.print` 方法保证端到端精确一次的数据交付。这就要求开启 checkpointing。默认情况下 checkpointing 是禁止的，我们可以通过 `TableConfig` 设置 checkpointing 相关属性（请参考 <a href="{{ site.baseurl }}/zh/ops/config.html#checkpointing">checkpointing 配置</a>）来开启 checkpointing。
-因此一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
-
-**注意：** 对于流模式，当前仅支持追加模式的查询语句，并且应该开启 checkpoint。因为一条结果只有在其对应的 checkpoint 完成之后才能被客户端访问到。
+`TableResult.collect()` 与 `TableResult.print()` 的行为在不同的 checkpointing 模式下略有不同（流作业开启 checkpointing 的方法可参考 <a href="{{ site.baseurl }}/zh/ops/config.html#checkpointing">checkpointing 配置</a>）。
+* 对于批作业或没有配置任何 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 既不保证精确一次的数据交付、也不保证至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但作业失败并重启时将会报错。
+* 对于配置了精准一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端精确一次的数据交付。一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
+* 对于配置了至少一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但同一条结果可能被多次传递给客户端。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
-// enable checkpointing
-tableEnv.getConfig().getConfiguration().set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE);
-tableEnv.getConfig().getConfiguration().set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10));
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
