@@ -46,11 +46,10 @@ LogicalSort(fetch=[10])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, c])
-+- Limit(offset=[0], fetch=[10], global=[true])
-   +- Exchange(distribution=[single])
-      +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[10]]], fields=[a, b, c])
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[10]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -88,11 +87,10 @@ LogicalSort(offset=[10], fetch=[10])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, c])
-+- Limit(offset=[10], fetch=[10], global=[true])
-   +- Exchange(distribution=[single])
-      +- Limit(offset=[0], fetch=[20], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[20]]], fields=[a, b, c])
+Limit(offset=[10], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[20], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[20]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -181,11 +179,10 @@ LogicalSort(fetch=[10])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, c])
-+- Limit(offset=[0], fetch=[10], global=[true])
-   +- Exchange(distribution=[single])
-      +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[10]]], fields=[a, b, c])
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[10]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -304,11 +301,10 @@ LogicalSort(offset=[1], fetch=[10])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, c])
-+- Limit(offset=[1], fetch=[10], global=[true])
-   +- Exchange(distribution=[single])
-      +- Limit(offset=[0], fetch=[11], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[11]]], fields=[a, b, c])
+Limit(offset=[1], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[11], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[11]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>

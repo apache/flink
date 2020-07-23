@@ -22,6 +22,17 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 
+/**
+ * The plan of following unit test in LimitTest.xml is a bit diffirent from LegacyLimitTest.xml.
+ * Because the TestValuesTableSource has implemented [[SupportsProjectionPushDown]]
+ * while the TestLegacyLimitableTableSource doesn't.
+ * So the Calc has been pushed down to the scan.
+ * 1.testFetchWithOffsetAndLimitSource
+ * 2.testOrderByWithLimitSource
+ * 3.testLimitWithLimitSource
+ * 4.testLimitWithOffsetAndLimitSource
+ * 5.testFetchWithLimitSource
+ */
 class LimitTest extends LegacyLimitTest {
 
   override def setup(): Unit = {
@@ -39,11 +50,4 @@ class LimitTest extends LegacyLimitTest {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
   }
-
-  /**
-   * The plan of testOrderByWithLimitSource in LimitTest.xml is a bit diffirent from
-   * LegacyLimitTest.xml. Because the [[TestValuesTableSource]] has implemented
-   * [[SupportsProjectionPushDown]] while TestLimitableTableSource doesn't.
-   * So the Calc has pushed down to the scan.
-   */
 }

@@ -200,11 +200,6 @@ class CatalogSourceTable[T](
   private def validateTableSource(tableSource: DynamicTableSource): Unit = {
     // throw exception if unsupported ability interface is implemented
     val unsupportedAbilities = List(
-<<<<<<< HEAD
-      classOf[SupportsLimitPushDown],
-=======
-      classOf[SupportsFilterPushDown],
->>>>>>> [FLINK-17426][blink-planner] DynamicSource supports SupportsLimitPushDown.
       classOf[SupportsPartitionPushDown],
       classOf[SupportsComputedColumnPushDown],
       classOf[SupportsWatermarkPushDown])

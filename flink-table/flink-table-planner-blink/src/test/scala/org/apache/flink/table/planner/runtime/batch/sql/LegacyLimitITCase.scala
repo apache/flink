@@ -100,13 +100,6 @@ class LegacyLimitITCase extends BatchTestBase {
       5)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testTableLimitWithLimitTable(): Unit = {
-    Assert.assertEquals(
-      executeQuery(tEnv.from("LimitTable").fetch(5)).size,
-      5)
-  }
-
   @Test
   def testLessThanOffset(): Unit = {
     checkSize(

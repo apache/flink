@@ -34,10 +34,10 @@ import org.apache.calcite.rex.RexLiteral;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.stream.Stream;
 
 /**
- * Planner rule that tries to push limit into a [[FlinkLogicalTableSourceScan]].
+ * Planner rule that tries to push limit into a {@link FlinkLogicalTableSourceScan},
+ * which table is a {@link TableSourceTable}. And the table source in the table is a {@link SupportsLimitPushDown}.
  * The original limit will still be retained.
  * The reasons why the limit still be retained:
  * 1.If the source is required to return the exact number of limit number, the implementation
@@ -60,14 +60,14 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 	@Override
 	public boolean matches(RelOptRuleCall call) {
 		Sort sort = call.rel(0);
+		TableSourceTable tableSourceTable = call.rel(1).getTable().unwrap(TableSourceTable.class);
+
+		// a limit can be pushed down only if it satisfies the two conditions: 1) do not have order by keys, 2) have limit.
 		boolean onlyLimit = sort.getCollation().getFieldCollations().isEmpty() && sort.fetch != null;
-		if (onlyLimit) {
-			TableSourceTable tableSourceTable = call.rel(1).getTable().unwrap(TableSourceTable.class);
-			if (tableSourceTable != null && tableSourceTable.tableSource() instanceof SupportsLimitPushDown  && tableSourceTable.extraDigests().length == 0) {
-				return true;
-			}
-		}
-		return false;
+		return onlyLimit
+			&& tableSourceTable != null
+			&& tableSourceTable.tableSource() instanceof SupportsLimitPushDown
+			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.startsWith("limit=["));
 	}
 
 	@Override
@@ -78,17 +78,17 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 		int offset = sort.offset == null ? 0 : RexLiteral.intValue(sort.offset);
 		int limit = offset + RexLiteral.intValue(sort.fetch);
 
-		TableSourceTable newTableSourceTable = applyLimit((long) limit, tableSourceTable);
+		TableSourceTable newTableSourceTable = applyLimit(limit, tableSourceTable);
 
-		FlinkLogicalTableSourceScan newScan = scan.copy(scan.getTraitSet(), newTableSourceTable);
+		FlinkLogicalTableSourceScan newScan = FlinkLogicalTableSourceScan.create(scan.getCluster(), newTableSourceTable);
 		call.transformTo(sort.copy(sort.getTraitSet(), Collections.singletonList(newScan)));
 	}
 
 	private TableSourceTable applyLimit(
-		Long limit,
+		long limit,
 		FlinkPreparingTableBase relOptTable) {
-		TableSourceTable tableSourceTable = relOptTable.unwrap(TableSourceTable.class);
-		DynamicTableSource newTableSource = tableSourceTable.tableSource().copy();
+		TableSourceTable oldTableSourceTable = relOptTable.unwrap(TableSourceTable.class);
+		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
 		((SupportsLimitPushDown) newTableSource).applyLimit(limit);
 
 		FlinkStatistic statistic = relOptTable.getStatistic();
@@ -98,32 +98,23 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 		} else {
 			newRowCount = limit;
 		}
-		// Update TableStats after limit push down
+		// update TableStats after limit push down
 		TableStats newTableStats = new TableStats(newRowCount);
 		FlinkStatistic newStatistic = FlinkStatistic.builder()
 			.statistic(statistic)
 			.tableStats(newTableStats)
 			.build();
 
-		//Update extraDigests
-		String[] oldExtraDigests = tableSourceTable.extraDigests();
-		String[] newExtraDigests = null;
+		// update extraDigests
+		String[] newExtraDigests = new String[0];
 		if (limit > 0) {
-			String extraDigests = "limit=[" + limit + "]";
-			newExtraDigests = Stream.concat(Arrays.stream(oldExtraDigests), Arrays.stream(new String[]{extraDigests})).toArray(String[]::new);
-		} else {
-			newExtraDigests = oldExtraDigests;
+			String extraDigest = "limit=[" + limit + "]";
+			newExtraDigests = new String[]{extraDigest};
 		}
 
-		return new TableSourceTable(
-			tableSourceTable.getRelOptSchema(),
-			tableSourceTable.tableIdentifier(),
-			tableSourceTable.getRowType(),
-			newStatistic,
+		return oldTableSourceTable.copy(
 			newTableSource,
-			tableSourceTable.isStreamingMode(),
-			tableSourceTable.catalogTable(),
-			tableSourceTable.dynamicOptions(),
+			newStatistic,
 			newExtraDigests
 		);
 	}
