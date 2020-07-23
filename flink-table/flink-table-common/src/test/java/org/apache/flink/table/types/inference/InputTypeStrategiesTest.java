@@ -600,7 +600,17 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				)
 				.calledWithArgumentTypes(DataTypes.of(SimpleStructuredType.class).notNull())
 				.expectSignature("f(<COMPOSITE>)")
-				.expectArgumentTypes(DataTypes.of(SimpleStructuredType.class).notNull())
+				.expectArgumentTypes(DataTypes.of(SimpleStructuredType.class).notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Same named arguments for overloaded method.",
+					or(
+						sequence(explicit(DataTypes.STRING())),
+						sequence(explicit(DataTypes.INT()))))
+				.namedArguments("sameName")
+				.calledWithArgumentTypes(DataTypes.BOOLEAN())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(STRING)\nf(INT)")
 		);
 	}
 
