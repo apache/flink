@@ -272,7 +272,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // 声明一个额外的逻辑字段作为事件时间属性
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime()");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime());
 
 
 // Option 2:

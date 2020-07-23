@@ -153,7 +153,7 @@ GROUP BY user;
 - **Computing Updates:** Some queries require to recompute and update a large fraction of the emitted result rows even if only a single input record is added or updated. Clearly, such queries are not well suited to be executed as continuous queries. An example is the following query which computes for each user a `RANK` based on the time of the last click. As soon as the `clicks` table receives a new row, the `lastAction` of the user is updated and a new rank must be computed. However since two rows cannot have the same rank, all lower ranked rows need to be updated as well.
 
 {% highlight sql %}
-SELECT user, RANK() OVER (ORDER BY lastLogin)
+SELECT user, RANK() OVER (ORDER BY lastAction)
 FROM (
   SELECT user, MAX(cTime) AS lastAction FROM clicks GROUP BY user
 );

@@ -155,7 +155,7 @@ GROUP BY user;
 - **计算更新：** 有些查询需要重新计算和更新大量已输出的结果行，即使只添加或更新一条输入记录。显然，这样的查询不适合作为连续查询执行。下面的查询就是一个例子，它根据最后一次单击的时间为每个用户计算一个 `RANK`。一旦 `click` 表接收到一个新行，用户的 `lastAction` 就会更新，并必须计算一个新的排名。然而，由于两行不能具有相同的排名，所以所有较低排名的行也需要更新。
 
 {% highlight sql %}
-SELECT user, RANK() OVER (ORDER BY lastLogin)
+SELECT user, RANK() OVER (ORDER BY lastAction)
 FROM (
   SELECT user, MAX(cTime) AS lastAction FROM clicks GROUP BY user
 );
