@@ -81,7 +81,7 @@ object ScanUtil {
     val inputTerm = DEFAULT_INPUT1_TERM
     val internalInType = fromDataTypeToLogicalType(inputType)
     val (inputTermConverter, inputRowType) = {
-      val convertFunc = CodeGenUtils.genToInternal(ctx, inputType)
+      val convertFunc = CodeGenUtils.genToInternalConverter(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
         case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",

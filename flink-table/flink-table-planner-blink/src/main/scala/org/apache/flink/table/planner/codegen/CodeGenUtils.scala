@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.planner.codegen
 
-import java.lang.reflect.Method
-import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
-import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
@@ -41,11 +38,15 @@ import org.apache.flink.table.runtime.util.MurmurHashUtil
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
-import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
+
+import java.lang.reflect.Method
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.annotation.tailrec
 
@@ -110,6 +111,8 @@ object CodeGenUtils {
   val BINARY_STRING_UTIL: String = className[BinaryStringDataUtil]
 
   val TIMESTAMP_DATA: String = className[TimestampData]
+
+  val RUNTIME_CONTEXT: String = className[RuntimeContext]
 
   // ----------------------------------------------------------------------------------------
 
@@ -789,6 +792,12 @@ object CodeGenUtils {
       ctx: CodeGeneratorContext,
       sourceDataType: DataType)
     : String => String = {
+
+    // fallback to old stack if at least one legacy type is present
+    if (LogicalTypeChecks.hasLegacyTypes(sourceDataType.getLogicalType)) {
+      return genToInternalConverterWithLegacy(ctx, sourceDataType)
+    }
+
     if (isInternal(sourceDataType)) {
       externalTerm => s"$externalTerm"
     } else {
@@ -805,6 +814,21 @@ object CodeGenUtils {
    * Generates code for converting the given term of external data type to an internal data
    * structure.
    *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
+  def genToInternalConverter(
+      ctx: CodeGeneratorContext,
+      sourceDataType: DataType,
+      externalTerm: String)
+    : String = {
+    genToInternalConverter(ctx, sourceDataType)(externalTerm)
+  }
+
+  /**
+   * Generates code for converting the given term of external data type to an internal data
+   * structure.
+   *
    * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
    * the RESULT CAN BE NULL.
    */
@@ -813,6 +837,12 @@ object CodeGenUtils {
       sourceDataType: DataType,
       externalTerm: String)
     : GeneratedExpression = {
+
+    // fallback to old stack if at least one legacy type is present
+    if (LogicalTypeChecks.hasLegacyTypes(sourceDataType.getLogicalType)) {
+      return genToInternalConverterAllWithLegacy(ctx, sourceDataType, externalTerm)
+    }
+
     val sourceType = sourceDataType.getLogicalType
     val sourceClass = sourceDataType.getConversionClass
     // convert external source type to internal structure
@@ -841,6 +871,12 @@ object CodeGenUtils {
       targetDataType: DataType,
       internalTerm: String)
     : String = {
+
+    // fallback to old stack if at least one legacy type is present
+    if (LogicalTypeChecks.hasLegacyTypes(targetDataType.getLogicalType)) {
+      return genToExternalConverterWithLegacy(ctx, targetDataType, internalTerm)
+    }
+
     if (isInternal(targetDataType)) {
       s"$internalTerm"
     } else {
@@ -864,6 +900,12 @@ object CodeGenUtils {
       targetDataType: DataType,
       internalExpr: GeneratedExpression)
     : String = {
+
+    // fallback to old stack if at least one legacy type is present
+    if (LogicalTypeChecks.hasLegacyTypes(targetDataType.getLogicalType)) {
+      return genToExternalConverterAllWithLegacy(ctx, targetDataType, internalExpr)
+    }
+
     val targetType = targetDataType.getLogicalType
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
@@ -904,13 +946,6 @@ object CodeGenUtils {
   }
 
   /**
-   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
-   */
-  @deprecated
-  def genToInternal(ctx: CodeGeneratorContext, t: DataType, term: String): String =
-    genToInternal(ctx, t)(term)
-
-  /**
    * Generates code for converting the given external source data type to the internal data format.
    *
    * Use this function for converting at the edges of the API where primitive types CAN NOT occur
@@ -919,7 +954,10 @@ object CodeGenUtils {
    * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
   @deprecated
-  def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
+  private def genToInternalConverterWithLegacy(
+      ctx: CodeGeneratorContext,
+      t: DataType)
+    : String => String = {
     if (isConverterIdentity(t)) {
       term => s"$term"
     } else {
@@ -937,7 +975,7 @@ object CodeGenUtils {
    * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
   @deprecated
-  def genToInternalIfNeeded(
+  private def genToInternalConverterAllWithLegacy(
       ctx: CodeGeneratorContext,
       sourceDataType: DataType,
       externalTerm: String)
@@ -948,7 +986,7 @@ object CodeGenUtils {
     val internalResultTerm = if (isInternalClass(sourceDataType)) {
       s"$externalTerm"
     } else {
-      genToInternal(ctx, sourceDataType, externalTerm)
+      genToInternalConverterWithLegacy(ctx, sourceDataType)(externalTerm)
     }
     // extract null term from result term
     if (sourceClass.isPrimitive) {
@@ -962,7 +1000,7 @@ object CodeGenUtils {
    * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
   @deprecated
-  def genToExternal(
+  def genToExternalConverterWithLegacy( // still public due to FLINK-18701
       ctx: CodeGeneratorContext,
       targetType: DataType,
       internalTerm: String): String = {
@@ -982,7 +1020,7 @@ object CodeGenUtils {
    * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
   @deprecated
-  def genToExternalIfNeeded(
+  private def genToExternalConverterAllWithLegacy(
       ctx: CodeGeneratorContext,
       targetDataType: DataType,
       internalExpr: GeneratedExpression)
@@ -999,7 +1037,7 @@ object CodeGenUtils {
     val externalResultTerm = if (isInternalClass(targetDataType)) {
       s"($targetTypeTerm) ${internalExpr.resultTerm}"
     } else {
-      genToExternal(ctx, targetDataType, internalExpr.resultTerm)
+      genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm)
     }
     // merge null term into the result term
     if (targetDataType.getConversionClass.isPrimitive) {
