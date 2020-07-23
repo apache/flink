@@ -181,6 +181,11 @@ under the License.
 			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<dependencyManagement>
