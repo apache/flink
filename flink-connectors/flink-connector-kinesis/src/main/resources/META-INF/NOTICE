@@ -18,11 +18,46 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:jmespath-java:1.11.754
 - org.apache.httpcomponents:httpclient:4.5.9
 - org.apache.httpcomponents:httpcore:4.4.6
+- software.amazon.ion:ion-java:jar:1.0.2
+- software.amazon.awssdk:kinesis:jar:2.13.52
+- software.amazon.awssdk:aws-cbor-protocol:jar:2.13.52
+- software.amazon.awssdk:aws-json-protocol:jar:2.13.52
+- software.amazon.awssdk:protocol-core:jar:2.13.52
+- software.amazon.awssdk:profiles:jar:2.13.52
+- software.amazon.awssdk:sdk-core:jar:2.13.52
+- software.amazon.awssdk:auth:jar:2.13.52
+- software.amazon.eventstream:eventstream:jar:1.0.1
+- software.amazon.awssdk:http-client-spi:jar:2.13.52
+- software.amazon.awssdk:regions:jar:2.13.52
+- software.amazon.awssdk:annotations:jar:2.13.52
+- software.amazon.awssdk:utils:jar:2.13.52
+- software.amazon.awssdk:aws-core:jar:2.13.52
+- software.amazon.awssdk:metrics-spi:jar:2.13.52
+- software.amazon.awssdk:apache-client:jar:2.13.52
+- software.amazon.awssdk:netty-nio-client:jar:2.13.52
+- software.amazon.awssdk:sts:jar:2.13.52
+- software.amazon.awssdk:aws-query-protocol:jar:2.13.52
+- io.netty:netty-codec-http:jar:4.1.46.Final
+- io.netty:netty-codec-http2:jar:4.1.46.Final
+- io.netty:netty-codec:jar:4.1.46.Final
+- io.netty:netty-transport:jar:4.1.46.Final
+- io.netty:netty-resolver:jar:4.1.46.Final
+- io.netty:netty-common:jar:4.1.46.Final
+- io.netty:netty-buffer:jar:4.1.46.Final
+- io.netty:netty-handler:jar:4.1.46.Final
+- io.netty:netty-transport-native-epoll:jar:linux-x86_64:4.1.46.Final
+- io.netty:netty-transport-native-unix-common:jar:4.1.46.Final
+- com.typesafe.netty:netty-reactive-streams-http:jar:2.0.4
+- com.typesafe.netty:netty-reactive-streams:jar:2.0.4
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
 
 - com.google.protobuf:protobuf-java:2.6.1
+
+This project bundles the following dependencies under the Creative Commons Zero license (https://creativecommons.org/publicdomain/zero/1.0/).
+
+- org.reactivestreams:reactive-streams:jar:1.0.2
 
 The Amazon Kinesis Producer Library includes http-parser, Copyright (c) Joyent, Inc. and other Node contributors, libc++, Copyright (c) 2003-2014, LLVM Project, and slf4j, Copyright (c) 2004-2013 QOS.ch, each of which is subject to the terms and conditions of the MIT license that states as follows:
 
