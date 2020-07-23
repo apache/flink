@@ -34,8 +34,6 @@ under the License.
 
 	<modules>
 		<module>flink-walkthrough-common</module>
-		<module>flink-walkthrough-table-java</module>
-		<module>flink-walkthrough-table-scala</module>
 		<module>flink-walkthrough-datastream-java</module>
 		<module>flink-walkthrough-datastream-scala</module>
 	</modules>
