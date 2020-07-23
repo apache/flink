@@ -201,6 +201,7 @@ class CatalogSourceTable[T](
     // throw exception if unsupported ability interface is implemented
     val unsupportedAbilities = List(
       classOf[SupportsPartitionPushDown],
+      classOf[SupportsLimitPushDown],
       classOf[SupportsComputedColumnPushDown],
       classOf[SupportsWatermarkPushDown])
     unsupportedAbilities.foreach { ability =>

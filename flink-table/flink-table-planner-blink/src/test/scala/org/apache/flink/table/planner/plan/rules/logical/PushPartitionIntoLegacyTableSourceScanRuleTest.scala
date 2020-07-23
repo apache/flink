@@ -35,7 +35,7 @@ import org.junit.{Before, Test}
 @RunWith(classOf[Parameterized])
 class PushPartitionIntoLegacyTableSourceScanRuleTest(
     sourceFetchPartitions: Boolean) extends TableTestBase {
-  private val util = batchTestUtil()
+  protected val util = batchTestUtil()
 
   @Before
   def setup(): Unit = {

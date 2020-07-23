@@ -39,6 +39,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
@@ -243,6 +244,25 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
+	private static final List<Map<String, String>> partitions = Arrays.asList(
+		new HashMap<String, String>(){{
+			put("part1", "A");
+			put("part2", "1");
+		}},
+		new HashMap<String, String>(){{
+			put("part1", "A");
+			put("part2", "2");
+		}},
+		new HashMap<String, String>(){{
+			put("part1", "B");
+			put("part2", "3");
+		}},
+		new HashMap<String, String>(){{
+			put("part1", "C");
+			put("part2", "1");
+		}}
+	);
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -279,6 +299,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				nestedProjectionSupported,
 				null,
 				null,
+				filterableFieldsSet,
+				partitions);
 				filterableFieldsSet,
 				Long.MAX_VALUE);
 		} else {
@@ -366,6 +388,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		SupportsProjectionPushDown,
 		SupportsFilterPushDown,
 		SupportsLimitPushDown {
+	private static class TestValuesTableSource implements ScanTableSource,
+		LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown, SupportsPartitionPushDown {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
@@ -379,6 +403,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
 		private long limit;
+		private List<Map<String, String>> allPartitions;
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
@@ -393,6 +418,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
 				long limit) {
+				Set<String> filterableFields,
+				List<Map<String, String>> allPartitions) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -405,6 +432,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
 			this.limit = limit;
+			this.allPartitions = allPartitions;
 		}
 
 		@Override
@@ -620,7 +648,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				projectedFields,
 				filterPredicates,
 				filterableFields,
-				limit);
+				limit,
+				filterableFields,
+				allPartitions);
 		}
 
 		@Override
@@ -656,6 +686,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				}
 			}
 			return result;
+		}
+
+		@Override
+		public Optional<List<Map<String, String>>> listPartitions() {
+			return Optional.of(allPartitions);
+		}
+
+		@Override
+		public void applyPartitions(List<Map<String, String>> remainingPartitions) {
+			this.allPartitions = remainingPartitions;
 		}
 
 		@Override
