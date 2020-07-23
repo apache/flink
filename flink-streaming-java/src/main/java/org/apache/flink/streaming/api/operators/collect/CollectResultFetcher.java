@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.JobClient;
@@ -36,7 +35,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -53,11 +51,11 @@ public class CollectResultFetcher<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CollectResultFetcher.class);
 
+	private final AbstractCollectResultBuffer<T> buffer;
+
 	private final CompletableFuture<OperatorID> operatorIdFuture;
 	private final String accumulatorName;
 	private final int retryMillis;
-
-	private ResultBuffer buffer;
 
 	@Nullable
 	private JobClient jobClient;
@@ -68,26 +66,26 @@ public class CollectResultFetcher<T> {
 	private boolean closed;
 
 	public CollectResultFetcher(
+			AbstractCollectResultBuffer<T> buffer,
 			CompletableFuture<OperatorID> operatorIdFuture,
-			TypeSerializer<T> serializer,
 			String accumulatorName) {
 		this(
+			buffer,
 			operatorIdFuture,
-			serializer,
 			accumulatorName,
 			DEFAULT_RETRY_MILLIS);
 	}
 
 	CollectResultFetcher(
+			AbstractCollectResultBuffer<T> buffer,
 			CompletableFuture<OperatorID> operatorIdFuture,
-			TypeSerializer<T> serializer,
 			String accumulatorName,
 			int retryMillis) {
+		this.buffer = buffer;
+
 		this.operatorIdFuture = operatorIdFuture;
 		this.accumulatorName = accumulatorName;
 		this.retryMillis = retryMillis;
-
-		this.buffer = new ResultBuffer(serializer);
 
 		this.jobTerminated = false;
 		this.closed = false;
@@ -130,10 +128,10 @@ public class CollectResultFetcher<T> {
 				buffer.complete();
 			} else {
 				// job still running, try to fetch some results
-				long requestOffset = buffer.offset;
+				long requestOffset = buffer.getOffset();
 				CollectCoordinationResponse response;
 				try {
-					response = sendRequest(buffer.version, requestOffset);
+					response = sendRequest(buffer.getVersion(), requestOffset);
 				} catch (Exception e) {
 					LOG.warn("An exception occurs when fetching query results", e);
 					continue;
@@ -239,95 +237,5 @@ public class CollectResultFetcher<T> {
 	private void checkJobClientConfigured() {
 		Preconditions.checkNotNull(jobClient, "Job client must be configured before first use.");
 		Preconditions.checkNotNull(gateway, "Coordination request gateway must be configured before first use.");
-	}
-
-	/**
-	 * A buffer which encapsulates the logic of dealing with the response from the {@link CollectSinkFunction}.
-	 * See Java doc of {@link CollectSinkFunction} for explanation of this communication protocol.
-	 */
-	private class ResultBuffer {
-
-		private static final String INIT_VERSION = "";
-
-		private final LinkedList<T> buffer;
-		private final TypeSerializer<T> serializer;
-
-		// for detailed explanation of the following 3 variables, see Java doc of CollectSinkFunction
-		// `version` is to check if the sink restarts
-		private String version;
-		// `offset` is the offset of the next result we want to fetch
-		private long offset;
-
-		// userVisibleHead <= user visible results offset < userVisibleTail
-		private long userVisibleHead;
-		private long userVisibleTail;
-
-		private ResultBuffer(TypeSerializer<T> serializer) {
-			this.buffer = new LinkedList<>();
-			this.serializer = serializer;
-
-			this.version = INIT_VERSION;
-			this.offset = 0;
-
-			this.userVisibleHead = 0;
-			this.userVisibleTail = 0;
-		}
-
-		private T next() {
-			if (userVisibleHead == userVisibleTail) {
-				return null;
-			}
-			T ret = buffer.removeFirst();
-			userVisibleHead++;
-
-			sanityCheck();
-			return ret;
-		}
-
-		private void dealWithResponse(CollectCoordinationResponse response, long responseOffset) throws IOException {
-			String responseVersion = response.getVersion();
-			long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
-			List<T> results = response.getResults(serializer);
-
-			// we first check version in the response to decide whether we should throw away dirty results
-			if (!version.equals(responseVersion)) {
-				// sink restarted, we revert back to where the sink tells us
-				for (long i = 0; i < offset - responseLastCheckpointedOffset; i++) {
-					buffer.removeLast();
-				}
-				version = responseVersion;
-				offset = responseLastCheckpointedOffset;
-			}
-
-			// we now check if more results can be seen by the user
-			if (responseLastCheckpointedOffset > userVisibleTail) {
-				// lastCheckpointedOffset increases, this means that more results have been
-				// checkpointed, and we can give these results to the user
-				userVisibleTail = responseLastCheckpointedOffset;
-			}
-
-			if (!results.isEmpty()) {
-				// response contains some data, add them to buffer
-				int addStart = (int) (offset - responseOffset);
-				List<T> addedResults = results.subList(addStart, results.size());
-				buffer.addAll(addedResults);
-				offset += addedResults.size();
-			}
-
-			sanityCheck();
-		}
-
-		private void complete() {
-			userVisibleTail = offset;
-		}
-
-		private void sanityCheck() {
-			Preconditions.checkState(
-				userVisibleHead <= userVisibleTail,
-				"userVisibleHead should not be larger than userVisibleTail. This is a bug.");
-			Preconditions.checkState(
-				userVisibleTail <= offset,
-				"userVisibleTail should not be larger than offset. This is a bug.");
-		}
 	}
 }

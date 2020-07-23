@@ -46,53 +46,32 @@ import java.util.concurrent.CompletableFuture;
 /**
  * A {@link CoordinationRequestHandler} to test fetching SELECT query results.
  */
-public class TestCoordinationRequestHandler<T> implements CoordinationRequestHandler {
+public abstract class AbstractTestCoordinationRequestHandler<T> implements CoordinationRequestHandler {
 
-	private static final int BATCH_SIZE = 3;
+	protected static final int BATCH_SIZE = 3;
 
-	private final TypeSerializer<T> serializer;
-	private final String accumulatorName;
+	protected final TypeSerializer<T> serializer;
+	protected final String accumulatorName;
 
-	private int checkpointCountDown;
+	protected LinkedList<T> buffered;
+	protected String version;
+	protected long offset;
+	protected long checkpointedOffset;
 
-	private LinkedList<T> data;
-	private List<T> checkpointingData;
-	private List<T> checkpointedData;
+	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
-	private LinkedList<T> buffered;
-	private List<T> checkpointingBuffered;
-	private List<T> checkpointedBuffered;
+	protected final Random random;
+	protected boolean closed;
 
-	private String version;
-
-	private long offset;
-	private long checkpointingOffset;
-	private long checkpointedOffset;
-
-	private Map<String, OptionalFailure<Object>> accumulatorResults;
-
-	private Random random;
-	private boolean closed;
-
-	public TestCoordinationRequestHandler(
-			List<T> data,
+	public AbstractTestCoordinationRequestHandler(
 			TypeSerializer<T> serializer,
 			String accumulatorName) {
 		this.serializer = serializer;
 		this.accumulatorName = accumulatorName;
 
-		this.checkpointCountDown = 0;
-
-		this.data = new LinkedList<>(data);
-		this.checkpointedData = new ArrayList<>(data);
-
 		this.buffered = new LinkedList<>();
-		this.checkpointedBuffered = new ArrayList<>();
-
 		this.version = UUID.randomUUID().toString();
-
 		this.offset = 0;
-		this.checkpointingOffset = 0;
 		this.checkpointedOffset = 0;
 
 		this.accumulatorResults = new HashMap<>();
@@ -110,50 +89,7 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 		Assert.assertTrue(request instanceof CollectCoordinationRequest);
 		CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 
-		for (int i = random.nextInt(3) + 1; i > 0; i--) {
-			if (checkpointCountDown > 0) {
-				checkpointCountDown--;
-				if (checkpointCountDown == 0) {
-					checkpointedData = checkpointingData;
-					checkpointedBuffered = checkpointingBuffered;
-					checkpointedOffset = checkpointingOffset;
-				}
-			}
-
-			int r = random.nextInt(10);
-			if (r < 6) {
-				// with 60% chance we add data
-				int size = Math.min(data.size(), BATCH_SIZE * 2 - buffered.size());
-				if (size > 0) {
-					size = random.nextInt(size) + 1;
-				}
-				for (int j = 0; j < size; j++) {
-					buffered.add(data.removeFirst());
-				}
-
-				if (data.isEmpty()) {
-					buildAccumulatorResults();
-					closed = true;
-					break;
-				}
-			} else if (r < 9) {
-				// with 30% chance we do a checkpoint completed in the future
-				if (checkpointCountDown == 0) {
-					checkpointCountDown = random.nextInt(5) + 1;
-					checkpointingData = new ArrayList<>(data);
-					checkpointingBuffered = new ArrayList<>(buffered);
-					checkpointingOffset = offset;
-				}
-			} else {
-				// with 10% chance we fail
-				checkpointCountDown = 0;
-				version = UUID.randomUUID().toString();
-				data = new LinkedList<>(checkpointedData);
-				buffered = new LinkedList<>(checkpointedBuffered);
-				offset = checkpointedOffset;
-			}
-		}
-
+		updateBufferedResults();
 		Assert.assertTrue(offset <= collectRequest.getOffset());
 
 		List<T> subList = Collections.emptyList();
@@ -184,6 +120,8 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 		return CompletableFuture.completedFuture(response);
 	}
 
+	protected abstract void updateBufferedResults();
+
 	public boolean isClosed() {
 		return closed;
 	}
@@ -192,7 +130,7 @@ public class TestCoordinationRequestHandler<T> implements CoordinationRequestHan
 		return accumulatorResults;
 	}
 
-	private void buildAccumulatorResults() {
+	protected void buildAccumulatorResults() {
 		List<byte[]> finalResults = CollectTestUtils.toBytesList(buffered, serializer);
 		SerializedListAccumulator<byte[]> listAccumulator = new SerializedListAccumulator<>();
 		try {
