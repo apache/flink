@@ -101,7 +101,8 @@ public class FlinkKinesisConsumerMigrationTest {
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_7,
 			MigrationVersion.v1_8,
-			MigrationVersion.v1_9);
+			MigrationVersion.v1_9,
+			MigrationVersion.v1_10);
 	}
 
 	public FlinkKinesisConsumerMigrationTest(MigrationVersion testMigrateVersion) {
