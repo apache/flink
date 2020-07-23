@@ -117,7 +117,7 @@ class ImperativeAggCodeGen(
       // do not need convert to internal type
       s"($accTypeInternalTerm) $functionTerm.createAccumulator()"
     } else {
-      genToInternal(ctx, externalAccType, s"$functionTerm.createAccumulator()")
+      genToInternalConverter(ctx, externalAccType, s"$functionTerm.createAccumulator()")
     }
     val accInternal = newName("acc_internal")
     val code = s"$accTypeInternalTerm $accInternal = ($accTypeInternalTerm) $accField;"
@@ -143,7 +143,7 @@ class ImperativeAggCodeGen(
       ctx.addReusableMember(s"private $accTypeExternalTerm $accExternalTerm;")
       s"""
          |$accInternalTerm = ${expr.resultTerm};
-         |$accExternalTerm = ${genToExternal(ctx, externalAccType, accInternalTerm)};
+         |$accExternalTerm = ${genToExternalConverter(ctx, externalAccType, accInternalTerm)};
       """.stripMargin
     }
   }
@@ -154,7 +154,7 @@ class ImperativeAggCodeGen(
     } else {
       s"""
          |$accExternalTerm = ($accTypeExternalTerm) $functionTerm.createAccumulator();
-         |$accInternalTerm = ${genToInternal(ctx, externalAccType, accExternalTerm)};
+         |$accInternalTerm = ${genToInternalConverter(ctx, externalAccType, accExternalTerm)};
        """.stripMargin
     }
   }
@@ -164,7 +164,7 @@ class ImperativeAggCodeGen(
       // do not need convert to internal type
       ""
     } else {
-      s"$accInternalTerm = ${genToInternal(ctx, externalAccType, accExternalTerm)};"
+      s"$accInternalTerm = ${genToInternalConverter(ctx, externalAccType, accExternalTerm)};"
     }
     Seq(GeneratedExpression(accInternalTerm, "false", code, internalAccType))
   }
@@ -233,7 +233,7 @@ class ImperativeAggCodeGen(
       val otherAccExternal = newName("other_acc_external")
       s"""
          |$accTypeExternalTerm $otherAccExternal = ${
-            genToExternal(ctx, mergedAccExternalType, expr.resultTerm)};
+            genToExternalConverter(ctx, mergedAccExternalType, expr.resultTerm)};
          |$accIterTerm.set($otherAccExternal);
          |$functionTerm.merge($accExternalTerm, $accIterTerm);
       """.stripMargin
@@ -252,7 +252,7 @@ class ImperativeAggCodeGen(
          |$valueExternalTypeTerm $valueExternalTerm = ($valueExternalTypeTerm)
          |  $functionTerm.getValue($accTerm);
          |$valueInternalTypeTerm $valueInternalTerm =
-         |  ${genToInternal(ctx, externalResultType, valueExternalTerm)};
+         |  ${genToInternalConverter(ctx, externalResultType, valueExternalTerm)};
          |boolean $nullTerm = $valueInternalTerm == null;
       """.stripMargin
 
@@ -266,7 +266,7 @@ class ImperativeAggCodeGen(
       if (f >= inputTypes.length) {
         // index to constant
         val expr = constantExprs(f - inputTypes.length)
-        genToExternalIfNeeded(ctx, externalInputTypes(index), expr)
+        genToExternalConverterAll(ctx, externalInputTypes(index), expr)
       } else {
         // index to input field
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
@@ -285,7 +285,7 @@ class ImperativeAggCodeGen(
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
         codes += inputExpr.code
-        genToExternalIfNeeded(ctx, externalInputTypes(index), inputExpr)
+        genToExternalConverterAll(ctx, externalInputTypes(index), inputExpr)
       }
     }
 
