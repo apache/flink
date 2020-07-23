@@ -46,6 +46,7 @@ import java.util.LinkedList;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
@@ -118,7 +119,7 @@ public class ShardConsumerTest {
 	@Test
 	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() {
 		Properties consumerProperties = new Properties();
-		consumerProperties.setProperty("flink.shard.adaptivereads", "true");
+		consumerProperties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
 
 		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.initialNumOfRecordsAfterNumOfGetRecordsCallsWithAdaptiveReads(10, 2, 500L);
 
