@@ -146,7 +146,7 @@ class TableFunctionCallGen(
       "TableFunctionResultConverterCollector",
       externalType,
       externalTerm,
-      CodeGenUtils.genToInternal(ctx, externalDataType),
+      CodeGenUtils.genToInternalConverter(ctx, externalDataType),
       collectorCode)
     val resultCollectorTerm = newName("resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)

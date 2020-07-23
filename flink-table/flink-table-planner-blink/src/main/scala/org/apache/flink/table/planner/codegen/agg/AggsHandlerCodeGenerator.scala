@@ -334,8 +334,6 @@ class AggsHandlerCodeGenerator(
 
     val functionName = newName(name)
 
-    val RUNTIME_CONTEXT = className[RuntimeContext]
-
     val functionCode =
       j"""
         public final class $functionName implements $AGGS_HANDLER_FUNCTION {
@@ -444,6 +442,9 @@ class AggsHandlerCodeGenerator(
         public final class $functionName implements ${className[TableAggsHandleFunction]} {
 
           ${ctx.reuseMemberCode()}
+
+          private $STATE_DATA_VIEW_STORE store;
+
           private $CONVERT_COLLECTOR_TYPE_TERM $MEMBER_COLLECTOR_TERM;
 
           public $functionName(java.lang.Object[] references) throws Exception {
@@ -451,8 +452,13 @@ class AggsHandlerCodeGenerator(
             $MEMBER_COLLECTOR_TERM = new $CONVERT_COLLECTOR_TYPE_TERM(references);
           }
 
+          private $RUNTIME_CONTEXT getRuntimeContext() {
+            return store.getRuntimeContext();
+          }
+
           @Override
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
+            this.store = store;
             ${ctx.reuseOpenCode()}
           }
 
@@ -585,15 +591,23 @@ class AggsHandlerCodeGenerator(
         public final class $functionName
           implements $NAMESPACE_AGGS_HANDLER_FUNCTION<$namespaceClassName> {
 
-          private $namespaceClassName $NAMESPACE_TERM;
           ${ctx.reuseMemberCode()}
+
+          private $STATE_DATA_VIEW_STORE store;
+
+          private $namespaceClassName $NAMESPACE_TERM;
 
           public $functionName(Object[] references) throws Exception {
             ${ctx.reuseInitCode()}
           }
 
+          private $RUNTIME_CONTEXT getRuntimeContext() {
+            return store.getRuntimeContext();
+          }
+
           @Override
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
+            this.store = store;
             ${ctx.reuseOpenCode()}
           }
 
@@ -685,8 +699,12 @@ class AggsHandlerCodeGenerator(
         public final class $functionName
           implements ${className[NamespaceTableAggsHandleFunction[_]]}<$namespaceClassName> {
 
-          private $namespaceClassName $NAMESPACE_TERM;
           ${ctx.reuseMemberCode()}
+
+          private $STATE_DATA_VIEW_STORE store;
+
+          private $namespaceClassName $NAMESPACE_TERM;
+
           private $CONVERT_COLLECTOR_TYPE_TERM $MEMBER_COLLECTOR_TERM;
 
           public $functionName(Object[] references) throws Exception {
@@ -694,8 +712,13 @@ class AggsHandlerCodeGenerator(
             $MEMBER_COLLECTOR_TERM = new $CONVERT_COLLECTOR_TYPE_TERM(references);
           }
 
+          private $RUNTIME_CONTEXT getRuntimeContext() {
+            return store.getRuntimeContext();
+          }
+
           @Override
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
+            this.store = store;
             ${ctx.reuseOpenCode()}
           }
 
@@ -1093,7 +1116,7 @@ class AggsHandlerCodeGenerator(
     val resultExpr = exprGenerator.generateConverterResultExpression(
       resultRowType, classOf[GenericRowData], "convertResult")
 
-    val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, recordInputName)
+    val converterCode = CodeGenUtils.genToInternalConverter(ctx, aggExternalType, recordInputName)
     val resultTypeClass = boxedTypeTermForType(resultType)
     s"""
        |${newCtx.reuseMemberCode()}
@@ -1199,7 +1222,7 @@ object AggsHandlerCodeGenerator {
       val openCode =
         s"""
            |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-           |$viewFieldInternalTerm = ${genToInternal(
+           |$viewFieldInternalTerm = ${genToInternalConverter(
                 ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), viewFieldTerm)};
          """.stripMargin
       ctx.addReusableOpenStatement(openCode)
@@ -1227,7 +1250,7 @@ object AggsHandlerCodeGenerator {
         val backupOpenCode =
           s"""
              |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-             |$backupViewInternalTerm = ${genToInternal(
+             |$backupViewInternalTerm = ${genToInternalConverter(
                 ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), backupViewTerm)};
            """.stripMargin
         ctx.addReusableOpenStatement(backupOpenCode)

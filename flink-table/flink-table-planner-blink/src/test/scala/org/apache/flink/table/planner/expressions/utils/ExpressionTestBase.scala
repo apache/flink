@@ -149,7 +149,7 @@ abstract class ExpressionTestBase {
       val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
       val t = new RuntimeUDFContext(
         new TaskInfo("ExpressionTest", 1, 0, 1, 1),
-        null,
+        classOf[ExpressionTestBase].getClassLoader,
         env.getConfig,
         Collections.emptyMap(),
         Collections.emptyMap(),
