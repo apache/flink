@@ -39,7 +39,8 @@ public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerM
 	public static Collection<MigrationVersion> parameters() {
 		return Arrays.asList(
 			MigrationVersion.v1_8,
-			MigrationVersion.v1_9);
+			MigrationVersion.v1_9,
+			MigrationVersion.v1_10);
 	}
 
 	public FlinkKafkaProducerMigrationOperatorTest(MigrationVersion testMigrateVersion) {
