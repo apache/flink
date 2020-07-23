@@ -51,7 +51,6 @@ import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
-import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
 /**
  * Factory for creating configured instances of {@link DataGenTableSource} in a stream environment.
@@ -61,6 +60,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 	public static final String IDENTIFIER = "datagen";
 	public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
+	public static final int RANDOM_STRING_LENGTH_DEFAULT = 100;
 
 	public static final ConfigOption<Long> ROWS_PER_SECOND = key("rows-per-second")
 			.longType()
@@ -97,8 +97,6 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
-		createTableFactoryHelper(this, context).validateExcept(FIELDS);
-
 		Configuration options = new Configuration();
 		context.getCatalogTable().getOptions().forEach(options::setString);
 
@@ -119,7 +117,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 			optionalOptions.addAll(container.options);
 		}
 
-		FactoryUtil.validateFactoryOptions(new HashSet<>(), optionalOptions, options);
+		FactoryUtil.validateFactoryOptions(requiredOptions(), optionalOptions, options);
 
 		Set<String> consumedOptionKeys = new HashSet<>();
 		consumedOptionKeys.add(CONNECTOR.key());
@@ -153,7 +151,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 			case VARCHAR: {
 				ConfigOption<Integer> lenOption = key(FIELDS + "." + name + "." + LENGTH)
 						.intType()
-						.defaultValue(100);
+						.defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
 				return DataGeneratorContainer.of(getRandomStringGenerator(config.get(lenOption)), lenOption);
 			}
 			case TINYINT: {
