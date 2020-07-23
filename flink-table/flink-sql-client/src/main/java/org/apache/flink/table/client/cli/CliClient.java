@@ -20,13 +20,14 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.util.CollectionUtil;
 
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -52,6 +53,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * SQL CLI client.
@@ -428,7 +432,7 @@ public class CliClient {
 	private void callShowCatalogs() {
 		final List<String> catalogs;
 		try {
-			catalogs = executor.listCatalogs(sessionId);
+			catalogs = getShowResult("CATALOGS");
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -444,7 +448,7 @@ public class CliClient {
 	private void callShowDatabases() {
 		final List<String> dbs;
 		try {
-			dbs = executor.listDatabases(sessionId);
+			dbs = getShowResult("DATABASES");
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -460,7 +464,7 @@ public class CliClient {
 	private void callShowTables() {
 		final List<String> tables;
 		try {
-			tables = executor.listTables(sessionId);
+			tables = getShowResult("TABLES");
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -476,7 +480,7 @@ public class CliClient {
 	private void callShowFunctions() {
 		final List<String> functions;
 		try {
-			functions = executor.listFunctions(sessionId);
+			functions = getShowResult("FUNCTIONS");
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -488,6 +492,14 @@ public class CliClient {
 			functions.forEach((v) -> terminal.writer().println(v));
 		}
 		terminal.flush();
+	}
+
+	private List<String> getShowResult(String objectToShow) {
+		TableResult tableResult = executor.executeSql(sessionId, "SHOW " + objectToShow);
+		return CollectionUtil.iteratorToList(tableResult.collect())
+				.stream()
+				.map(r -> checkNotNull(r.getField(0)).toString())
+				.collect(Collectors.toList());
 	}
 
 	private void callShowModules() {
@@ -509,7 +521,7 @@ public class CliClient {
 
 	private void callUseCatalog(SqlCommandCall cmdCall) {
 		try {
-			executor.useCatalog(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, "USE CATALOG " + cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -519,7 +531,7 @@ public class CliClient {
 
 	private void callUseDatabase(SqlCommandCall cmdCall) {
 		try {
-			executor.useDatabase(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, "USE " + cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -528,14 +540,21 @@ public class CliClient {
 	}
 
 	private void callDescribe(SqlCommandCall cmdCall) {
-		final TableSchema schema;
+		final TableResult tableResult;
 		try {
-			schema = executor.getTableSchema(sessionId, cmdCall.operands[0]);
+			tableResult = executor.executeSql(sessionId, "DESCRIBE " + cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
 		}
-		terminal.writer().println(schema.toString());
+		PrintUtils.printAsTableauForm(
+				tableResult.getTableSchema(),
+				tableResult.collect(),
+				terminal.writer(),
+				Integer.MAX_VALUE,
+				"",
+				false,
+				false);
 		terminal.flush();
 	}
 

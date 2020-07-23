@@ -20,7 +20,6 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
@@ -77,65 +76,14 @@ public interface Executor {
 	void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException;
 
 	/**
-	 * Lists all registered catalogs.
-	 */
-	List<String> listCatalogs(String sessionid) throws SqlExecutionException;
-
-	/**
-	 * Lists all databases in the current catalog.
-	 */
-	List<String> listDatabases(String sessionId) throws SqlExecutionException;
-
-	/**
-	 * Create a table with a DDL statement.
-	 */
-	void createTable(String sessionId, String ddl) throws SqlExecutionException;
-
-	/**
-	 * Drop a table with a DDL statement.
-	 */
-	void dropTable(String sessionId, String ddl) throws SqlExecutionException;
-
-	/**
-	 * Lists all tables in the current database of the current catalog.
-	 */
-	List<String> listTables(String sessionId) throws SqlExecutionException;
-
-	/**
-	 * Lists all user-defined functions known to the executor.
-	 */
-	List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException;
-
-	/**
-	 * Executes a SQL statement.
+	 * Executes a SQL statement, and return {@link TableResult} as execution result.
 	 */
 	TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
-
-	/**
-	 * Lists all functions known to the executor.
-	 */
-	List<String> listFunctions(String sessionId) throws SqlExecutionException;
 
 	/**
 	 * Lists all modules known to the executor in their loaded order.
 	 */
 	List<String> listModules(String sessionId) throws SqlExecutionException;
-
-	/**
-	 * Sets a catalog with given name as the current catalog.
-	 */
-	void useCatalog(String sessionId, String catalogName) throws SqlExecutionException;
-
-	/**
-	 * Sets a database with given name as the current database of the current catalog.
-	 */
-	void useDatabase(String sessionId, String databaseName) throws SqlExecutionException;
-
-	/**
-	 * Returns the schema of a table. Throws an exception if the table could not be found. The
-	 * schema might contain time attribute types for helping the user during debugging a query.
-	 */
-	TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException;
 
 	/**
 	 * Returns a sql parser instance.

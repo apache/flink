@@ -831,7 +831,7 @@ abstract class TableEnvImpl(
       }
     }
     buildResult(
-      Array("name", "type", "null", "key", "compute column", "watermark"),
+      Array("name", "type", "null", "key", "computed column", "watermark"),
       Array(DataTypes.STRING, DataTypes.STRING, DataTypes.BOOLEAN, DataTypes.STRING,
         DataTypes.STRING, DataTypes.STRING),
       data)
