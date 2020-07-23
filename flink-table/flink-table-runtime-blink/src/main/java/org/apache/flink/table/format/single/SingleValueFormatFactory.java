@@ -60,7 +60,7 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
 					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
-				return new SingleValueRowSerializer(
+				return new SingleValueRowDataDeserialization(
 					rowType,
 					rowDataTypeInfo);
 			}
@@ -83,9 +83,7 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 				DynamicTableSink.Context context,
 				DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
-					(TypeInformation<RowData>) context.createTypeInformation(consumedDataType);
-				return new SingleValueRowSerializer(rowType, rowDataTypeInfo);
+				return new SingleValueRowDataSerialization(rowType);
 			}
 
 			@Override
@@ -109,4 +107,5 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 	public Set<ConfigOption<?>> optionalOptions() {
 		return Collections.emptySet();
 	}
+
 }

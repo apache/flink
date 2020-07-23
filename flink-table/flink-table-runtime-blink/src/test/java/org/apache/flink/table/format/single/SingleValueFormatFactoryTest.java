@@ -19,6 +19,7 @@
 package org.apache.flink.table.format.single;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -29,6 +30,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -55,22 +57,45 @@ public class SingleValueFormatFactoryTest extends TestLogger {
 	public void testSeDeSchema() {
 		final Map<String, String> tableOptions = getAllOptions();
 
-		final SingleValueRowSerializer expectedSerializer =
-			new SingleValueRowSerializer(
+		testSchemaDeserialization(tableOptions);
+		testSchemaSerialization(tableOptions);
+	}
+
+	private void testSchemaDeserialization(Map<String, String> options) {
+		final SingleValueRowDataDeserialization expectedDeser =
+			new SingleValueRowDataDeserialization(
 				ROW_TYPE,
 				new RowDataTypeInfo(ROW_TYPE));
 
-		final DynamicTableSource actualSource = createTableSource(tableOptions);
+		final DynamicTableSource actualSource = createTableSource(options);
 		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
 		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
 			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		DeserializationSchema<RowData> actualSerializer = scanSourceMock.valueFormat
+		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
 			.createRuntimeDecoder(
 				ScanRuntimeProviderContext.INSTANCE,
 				SCHEMA.toRowDataType());
 
-		assertEquals(expectedSerializer, actualSerializer);
+		assertEquals(expectedDeser, actualDeser);
+	}
+
+	private void testSchemaSerialization(Map<String, String> options) {
+		final SingleValueRowDataSerialization expectedSer =
+			new SingleValueRowDataSerialization(
+				ROW_TYPE);
+
+		final DynamicTableSink actualSink = createTableSink(options);
+		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+			(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
+			.createRuntimeEncoder(
+				new SinkRuntimeProviderContext(false),
+				SCHEMA.toRowDataType());
+
+		assertEquals(expectedSer, actualSer);
 	}
 
 	private static DynamicTableSource createTableSource(Map<String, String> options) {

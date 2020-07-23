@@ -19,6 +19,8 @@
 package org.apache.flink.table.format.single;
 
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -44,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link SingleValueRowSerializer}.
+ * Tests for {@link SingleValueRowDataDeserialization,SingleValueRowDataSerialization}.
  */
 public class SingleValueRowSerializerTest {
 
@@ -70,18 +72,27 @@ public class SingleValueRowSerializerTest {
 		testSeDeSingleValue(getValueBytes(testDouble), testDouble, new DoubleType());
 		testSeDeSingleValue(getValueBytes(testLong), testLong, new BigIntType());
 		testSeDeSingleValue(getValueBytes(testBoolean), testBoolean, new BooleanType());
-		testSeDeSingleValue(getValueBytes(testChar), StringData.fromBytes(getValueBytes(testChar)), new CharType());
+		testSeDeSingleValue(getValueBytes(testChar), StringData.fromBytes(getValueBytes(testChar)),
+			new CharType());
 	}
 
 	public void testSeDeSingleValue(byte[] bytes, Object value, LogicalType logicalType)
 		throws IOException {
 		RowType rowType = RowType.of(logicalType);
 		GenericRowData rowData = new GenericRowData(1);
+		FieldGetter fieldGetter = RowData.createFieldGetter(logicalType, 0);
 		rowData.setField(0, value);
 
-		SingleValueRowSerializer singleValueRowSerializer = new SingleValueRowSerializer(rowType, new RowDataTypeInfo(rowType));
-		assertEquals(rowData, singleValueRowSerializer.deserialize(bytes));
-		byte[] expects = singleValueRowSerializer.serialize(rowData);
+		SingleValueRowDataDeserialization deser = new SingleValueRowDataDeserialization(rowType,
+			new RowDataTypeInfo(rowType));
+		SingleValueRowDataSerialization ser = new SingleValueRowDataSerialization(rowType);
+
+		RowData expectRowData = deser.deserialize(bytes);
+		Object expectValue = fieldGetter.getFieldOrNull(expectRowData);
+
+		byte[] expects = ser.serialize(rowData);
+
+		assertEquals(value, expectValue);
 		assertTrue(Arrays.equals(bytes, expects));
 	}
 

@@ -16,36 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.format.single;
+package org.apache.flink.table.runtime.typeutils.serializers.python;
 
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-
-import java.io.IOException;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Single value serializer for bytes array.
+ * Test for {@link StringSerializer}.
  */
-public class BytesSingleValueSerializer extends SingleValueSerializer<byte[]> {
+public class StringSerializerTest extends SerializerTestBase<String> {
 
 	@Override
-	public byte[] deserialize(byte[] message) throws IOException {
-		return message;
+	protected TypeSerializer<String> createSerializer() {
+		return StringSerializer.INSTANCE;
 	}
 
 	@Override
-	public boolean isEndOfStream(byte[] nextElement) {
-		return false;
+	protected int getLength() {
+		return -1;
 	}
 
 	@Override
-	public byte[] serialize(byte[] element) {
-		return element;
+	protected Class<String> getTypeClass() {
+		return String.class;
 	}
 
 	@Override
-	public TypeInformation<byte[]> getProducedType() {
-		return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+	protected String[] getTestData() {
+		return new String[]{"pyflink", "flink"};
 	}
-
 }

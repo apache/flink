@@ -28,7 +28,7 @@ import org.apache.flink.table.factories.TableFormatFactoryBase;
  * Single value format validator.
  */
 
-public class SingleValueValidator extends FormatDescriptorValidator{
+public class SingleValueValidator extends FormatDescriptorValidator {
 
 	public static final String FORMAT_TYPE_VALUE = "single-value";
 
@@ -36,10 +36,6 @@ public class SingleValueValidator extends FormatDescriptorValidator{
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 
-		TableSchema tableSchema = TableFormatFactoryBase.deriveSchema(properties.asMap());
-
-		if (tableSchema.getFieldCount() > 1) {
-			throw new ValidationException("Single value should have only one real filed");
-		}
+		// nothing to validate
 	}
 }
