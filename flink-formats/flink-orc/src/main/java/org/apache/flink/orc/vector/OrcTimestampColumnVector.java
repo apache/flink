@@ -20,6 +20,7 @@ package org.apache.flink.orc.vector;
 
 import org.apache.flink.table.data.TimestampData;
 
+import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 
 import java.sql.Timestamp;
@@ -33,9 +34,9 @@ public class OrcTimestampColumnVector extends AbstractOrcColumnVector implements
 
 	private TimestampColumnVector vector;
 
-	public OrcTimestampColumnVector(TimestampColumnVector vector) {
+	public OrcTimestampColumnVector(ColumnVector vector) {
 		super(vector);
-		this.vector = vector;
+		this.vector = (TimestampColumnVector) vector;
 	}
 
 	@Override
