@@ -21,10 +21,12 @@ package org.apache.flink.table.factories;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -48,13 +50,34 @@ public class BlackHoleSinkFactoryTest {
 		Map<String, String> properties = new HashMap<>();
 		properties.put("connector", "blackhole");
 
-		DynamicTableSink sink = FactoryUtil.createTableSink(
+		DynamicTableSink sink = createSink(properties);
+
+		assertEquals("BlackHole", sink.asSummaryString());
+	}
+
+	private DynamicTableSink createSink(Map<String, String> properties) {
+		return FactoryUtil.createTableSink(
 				null,
 				ObjectIdentifier.of("", "", ""),
 				new CatalogTableImpl(TEST_SCHEMA, properties, ""),
 				new Configuration(),
 				Thread.currentThread().getContextClassLoader());
+	}
 
-		assertEquals("BlackHole", sink.asSummaryString());
+	@Test
+	public void testWrongKey() {
+		try {
+			Map<String, String> properties = new HashMap<>();
+			properties.put("connector", "blackhole");
+			properties.put("unknown-key", "1");
+			createSink(properties);
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+					"Unsupported options:\n\nunknown-key"));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
 	}
 }

@@ -29,6 +29,8 @@ import org.apache.flink.types.RowKind;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
+
 /**
  * Black hole table sink factory swallowing all input records. It is designed for:
  * - high performance testing.
@@ -57,6 +59,7 @@ public class BlackHoleTableSinkFactory implements DynamicTableSinkFactory {
 
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
+		createTableFactoryHelper(this, context).validate();
 		return new BlackHoleSink();
 	}
 
