@@ -750,6 +750,26 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     assertEquals(expectedProperty, database.getProperties)
   }
 
+  @Test
+  def testExecuteSqlWithCreateAndShowCreateTable(): Unit = {
+    val createDDL =
+      """|CREATE TABLE `TBL1` (
+         |  `A` BIGINT,
+         |  `H` STRING,
+         |  `B` STRING,
+         |  `TS` TIMESTAMP(3)
+         |) COMMENT 'test show create table statement'
+         |PARTITIONED BY (`B`, `H`)
+         |WITH (
+         |  'connector' = 'kafka',
+         |  'kafka.topic' = 'log.test'
+         |)
+         |""".stripMargin
+    tableEnv.executeSql(createDDL)
+    val showResult = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next();
+    assertEquals(createDDL, showResult.getField(0))
+  }
+
   @Test(expected = classOf[ValidationException])
   def testCreateViewTwice(): Unit = {
     val sourceData = List(

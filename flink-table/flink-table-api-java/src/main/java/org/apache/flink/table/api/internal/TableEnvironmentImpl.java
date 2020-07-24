@@ -39,6 +39,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -96,6 +97,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
@@ -178,6 +180,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final ModuleManager moduleManager;
     private final OperationTreeBuilder operationTreeBuilder;
     private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
+    private final String printIndent = "  ";
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -1121,7 +1124,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof ShowCatalogsOperation) {
             return buildShowResult("catalog name", listCatalogs());
-        } else if (operation instanceof ShowCurrentCatalogOperation) {
+        } else if (operation instanceof ShowCreateTableOperation) {
+			ShowCreateTableOperation showCreateTableOperation = (ShowCreateTableOperation) operation;
+			Optional<CatalogManager.TableLookupResult> result =
+				catalogManager.getTable(showCreateTableOperation.getSqlIdentifier());
+			if (result.isPresent()) {
+				return buildShowCreateTableResult(result.get().getTable(), ((ShowCreateTableOperation) operation).getSqlIdentifier());
+			} else {
+				throw new ValidationException(String.format(
+					"Table with identifier '%s' does not exist.",
+					showCreateTableOperation.getSqlIdentifier().asSummaryString()));
+			}
+		} else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(
                     "current catalog name", new String[] {catalogManager.getCurrentCatalog()});
         } else if (operation instanceof ShowDatabasesOperation) {
@@ -1292,6 +1306,75 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 new DataType[] {DataTypes.STRING()},
                 Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new));
     }
+
+    private TableResult buildShowCreateTableResult(CatalogBaseTable table, ObjectIdentifier sqlIdentifier) {
+		StringBuilder sb = new StringBuilder("CREATE TABLE ");
+		TableSchema schema = table.getSchema();
+		String comment = table.getComment();
+		Map<String, String> options = table.getOptions();
+
+		sb.append(String.format("`%s` (\n", sqlIdentifier.getObjectName()));
+		// append columns
+		sb.append(String.join(",\n",
+			schema
+				.getTableColumns()
+				.stream()
+				.map(col -> {
+					if (col.getExpr().isPresent()) {
+						return String.format("%s`%s` AS %s", printIndent, col.getName(), col.getExpr().get());
+					} else {
+						return String.format("%s`%s` %s", printIndent, col.getName(), col.getType());
+					}
+				}).collect(Collectors.toList())));
+
+		// append watermark spec
+		if (!schema.getWatermarkSpecs().isEmpty()) {
+			sb.append(",\n") // add delimiter for last line
+				.append(String.join(",\n", schema.getWatermarkSpecs().stream().map(
+					sepc -> String.format("%sWATERMARK FOR `%s` AS %s", printIndent, sepc.getRowtimeAttribute(), sepc.getWatermarkExpr())
+				).collect(Collectors.toList())));
+		}
+		// append constraint
+		if (schema.getPrimaryKey().isPresent()) {
+			UniqueConstraint constraint = schema.getPrimaryKey().get();
+			sb.append(",\n") // add delimiter for last line
+				.append(String.format("%s%s", printIndent, constraint.asCanonicalString()));
+		}
+		sb.append("\n) ");
+		// append comment
+		if (comment != null) {
+			sb.append(String.format("COMMENT '%s'\n", comment));
+		}
+		// append partitions
+		if (table instanceof CatalogTable) {
+			CatalogTable catalogTable = (CatalogTable) table;
+			if (catalogTable.isPartitioned()) {
+				sb.append("PARTITIONED BY (")
+					.append(String.join(", ",
+						catalogTable
+							.getPartitionKeys()
+							.stream()
+							.map(key -> String.format("`%s`", key))
+							.collect(Collectors.toList())))
+					.append(")\n");
+			}
+		}
+		// append `with` properties
+		sb.append("WITH (\n")
+			.append(String.join(",\n",
+				options
+					.entrySet()
+					.stream()
+					.map(entry -> String.format("%s'%s' = '%s'", printIndent, entry.getKey(), entry.getValue()))
+					.collect(Collectors.toList())))
+			.append("\n)\n");
+
+		Object[][] rows = new Object[][]{new Object[]{sb.toString()}};
+		return buildResult(
+			new String[]{"create table"},
+			new DataType[]{DataTypes.STRING()},
+			rows);
+	}
 
     private TableResult buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
         Object[][] rows =
