@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.planner.JLong
 import org.apache.flink.types.Row
 
 import com.google.common.base.Charsets
@@ -139,13 +140,13 @@ object UserDefinedFunctionTestUtils {
     override def getValue(acc: Tuple1[Long]): Long = acc.f0
   }
 
-  class CountNullNonNull extends AggregateFunction[String, Tuple2[Long, Long]] {
+  class CountNullNonNull extends AggregateFunction[String, Tuple2[JLong, JLong]] {
 
-    override def createAccumulator(): Tuple2[Long, Long] = Tuple2.of(0L, 0L)
+    override def createAccumulator(): Tuple2[JLong, JLong] = Tuple2.of(0L, 0L)
 
-    override def getValue(acc: Tuple2[Long, Long]): String = s"${acc.f0}|${acc.f1}"
+    override def getValue(acc: Tuple2[JLong, JLong]): String = s"${acc.f0}|${acc.f1}"
 
-    def accumulate(acc: Tuple2[Long, Long], v: String): Unit = {
+    def accumulate(acc: Tuple2[JLong, JLong], v: String): Unit = {
       if (v == null) {
         acc.f1 += 1
       } else {
@@ -153,7 +154,7 @@ object UserDefinedFunctionTestUtils {
       }
     }
 
-    def retract(acc: Tuple2[Long, Long], v: String): Unit = {
+    def retract(acc: Tuple2[JLong, JLong], v: String): Unit = {
       if (v == null) {
         acc.f1 -= 1
       } else {

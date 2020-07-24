@@ -30,7 +30,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -391,16 +391,35 @@ class BatchTestBase extends BatchAbstractTestBase {
       tEnv, tableName, data, typeInfo, fields, fieldNullables, Some(statistic))
   }
 
+  def registerTemporarySystemFunction(
+      name: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    testingTableEnv.createTemporarySystemFunction(name, functionClass)
+  }
+
+  /**
+   * @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def registerFunction(name: String, function: ScalarFunction): Unit = {
     testingTableEnv.registerFunction(name, function)
   }
 
+  /**
+   * @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
     testingTableEnv.registerFunction(name, f)
   }
 
+  /**
+   * @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     testingTableEnv.registerFunction(name, tf)
   }

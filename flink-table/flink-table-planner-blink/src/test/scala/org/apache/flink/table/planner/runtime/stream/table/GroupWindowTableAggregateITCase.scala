@@ -68,7 +68,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
     val windowedTable = table
       .window(Slide over 4.rows every 2.rows on 'proctime as 'w)
       .groupBy('w, 'long)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call(top3, 'int) as ('x, 'y))
       .select('long, 'x, 'y)
 
     val sink = new TestingAppendSink

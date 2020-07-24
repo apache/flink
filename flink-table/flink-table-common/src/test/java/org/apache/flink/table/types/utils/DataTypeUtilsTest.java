@@ -36,9 +36,11 @@ import org.junit.Test;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -62,6 +64,32 @@ public class DataTypeUtilsTest {
 		assertTrue(DataTypeUtils.isInternal(DataTypes.INT().notNull().bridgedTo(int.class)));
 		assertTrue(DataTypeUtils.isInternal(DataTypes.ROW().bridgedTo(RowData.class)));
 		assertFalse(DataTypeUtils.isInternal(DataTypes.ROW()));
+	}
+
+	@Test
+	public void testFlattenToDataTypes() {
+		assertThat(
+			DataTypeUtils.flattenToDataTypes(INT()),
+			equalTo(Collections.singletonList(INT())));
+
+		assertThat(
+			DataTypeUtils.flattenToDataTypes(ROW(FIELD("a", INT()), FIELD("b", BOOLEAN()))),
+			equalTo(Arrays.asList(INT(), BOOLEAN())));
+	}
+
+	@Test
+	public void testFlattenToNames() {
+		assertThat(
+			DataTypeUtils.flattenToNames(INT(), Collections.emptyList()),
+			equalTo(Collections.singletonList("f0")));
+
+		assertThat(
+			DataTypeUtils.flattenToNames(INT(), Collections.singletonList("f0")),
+			equalTo(Collections.singletonList("f0_0")));
+
+		assertThat(
+			DataTypeUtils.flattenToNames(ROW(FIELD("a", INT()), FIELD("b", BOOLEAN())), Collections.emptyList()),
+			equalTo(Arrays.asList("a", "b")));
 	}
 
 	@Test
