@@ -77,9 +77,9 @@ object StreamSQLExample {
       Order(4L, "beer", 1)))
 
     // convert DataStream to Table
-    val tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
+    val tableA = tEnv.fromDataStream(orderA, $"user", $"product", $"amount")
     // register DataStream as Table
-    tEnv.createTemporaryView("OrderB", orderB, 'user, 'product, 'amount)
+    tEnv.createTemporaryView("OrderB", orderB, $"user", $"product", $"amount")
 
     // union the two tables
     val result = tEnv.sqlQuery(

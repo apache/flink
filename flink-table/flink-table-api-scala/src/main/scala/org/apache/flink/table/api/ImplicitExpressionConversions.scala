@@ -364,6 +364,20 @@ trait ImplicitExpressionConversions {
   // ----------------------------------------------------------------------------------------------
 
   /**
+   * Creates an unresolved reference to a table's field.
+   *
+   * For example:
+   *
+   * ```
+   * tab.select($("key"), $("value"))
+   * ```
+   *
+   * This method is useful in cases where the field name is calculated and the recommended way of
+   * using string interpolation like `$"key"` would be inconvenient.
+   */
+  def $(name: String): Expression = Expressions.$(name)
+
+  /**
    * Creates a SQL literal.
    *
    * The data type is derived from the object's class and its value.
