@@ -107,7 +107,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
 		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
-		this.query = options.getDialect().getSelectFromStatement(
+		this.query = options.getDialect().getSelectFromStatement(options.getSchema(),
 				options.getTableName(), fieldNames, keyNames);
 	}
 

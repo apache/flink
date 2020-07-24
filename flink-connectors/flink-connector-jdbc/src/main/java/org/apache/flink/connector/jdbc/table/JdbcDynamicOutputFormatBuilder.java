@@ -105,7 +105,7 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 			// append only query
 			final String sql = dmlOptions
 				.getDialect()
-				.getInsertIntoStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames());
+				.getInsertIntoStatement(dmlOptions.getSchema(), dmlOptions.getTableName(), dmlOptions.getFieldNames());
 			return new JdbcBatchingOutputFormat<>(
 				new SimpleJdbcConnectionProvider(jdbcOptions),
 				executionOptions,
@@ -160,13 +160,13 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 		checkArgument(opt.getKeyFields().isPresent());
 		JdbcDialect dialect = opt.getDialect();
 		return opt.getDialect()
-			.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
+			.getUpsertStatement(opt.getSchema(), opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
 			.map(sql -> createSimpleRowDataExecutor(dialect, sql, fieldTypes, ctx, rowDataTypeInfo))
 			.orElseGet(() ->
 				new InsertOrUpdateJdbcExecutor<>(
-					opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields().get()),
-					opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
-					opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get()),
+					opt.getDialect().getRowExistsStatement(opt.getSchema(), opt.getTableName(), opt.getKeyFields().get()),
+					opt.getDialect().getInsertIntoStatement(opt.getSchema(), opt.getTableName(), opt.getFieldNames()),
+					opt.getDialect().getUpdateStatement(opt.getSchema(), opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get()),
 					createRowDataJdbcStatementBuilder(dialect, pkTypes),
 					createRowDataJdbcStatementBuilder(dialect, fieldTypes),
 					createRowDataJdbcStatementBuilder(dialect, fieldTypes),
@@ -181,7 +181,7 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 			LogicalType[] fieldTypes) {
 		checkArgument(dmlOptions.getKeyFields().isPresent());
 		String[] pkNames = Arrays.stream(pkFields).mapToObj(k -> dmlOptions.getFieldNames()[k]).toArray(String[]::new);
-		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), pkNames);
+		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getSchema(), dmlOptions.getTableName(), pkNames);
 		return createKeyedRowExecutor(dmlOptions.getDialect(), pkFields, pkTypes, deleteSql, fieldTypes);
 	}
 

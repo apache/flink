@@ -79,18 +79,6 @@ public interface JdbcDialect extends Serializable {
 	default String quoteIdentifier(String identifier) {
 		return "\"" + identifier + "\"";
 	}
-	
-	/**
-	 * Quotes the table name. Spilt the table name first and then quote it.  
-	 */
-	default String quoteTablename(String tableName){
-        if(tableName.contains(".")){
-            String[] strs = tableName.split("\\.");
-            return Arrays.stream(strs).map(s -> quoteIdentifier(s)).collect(Collectors.joining("."));
-        }else {
-            return quoteIdentifier(tableName);
-        }
-    }
 
 	/**
 	 * Get dialect upsert statement, the database has its own upsert syntax, such as Mysql
@@ -99,73 +87,74 @@ public interface JdbcDialect extends Serializable {
 	 * @return None if dialect does not support upsert statement, the writer will degrade to
 	 * the use of select + update/insert, this performance is poor.
 	 */
-	default Optional<String> getUpsertStatement(
-		String tableName, String[] fieldNames, String[] uniqueKeyFields) {
+	default Optional<String> getUpsertStatement(String schema,
+												String tableName, String[] fieldNames, String[] uniqueKeyFields) {
 		return Optional.empty();
 	}
 
 	/**
 	 * Get row exists statement by condition fields. Default use SELECT.
 	 */
-	default String getRowExistsStatement(String tableName, String[] conditionFields) {
+	default String getRowExistsStatement(String schema, String tableName, String[] conditionFields) {
 		String fieldExpressions = Arrays.stream(conditionFields)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(" AND "));
-		return "SELECT 1 FROM " + quoteTablename(tableName) + " WHERE " + fieldExpressions;
+		return "SELECT 1 FROM " + (schema == null ? "" : quoteIdentifier(schema) + ".")
+			+ quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
 	}
 
 	/**
 	 * Get insert into statement.
 	 */
-	default String getInsertIntoStatement(String tableName, String[] fieldNames) {
+	default String getInsertIntoStatement(String schema, String tableName, String[] fieldNames) {
 		String columns = Arrays.stream(fieldNames)
 			.map(this::quoteIdentifier)
 			.collect(Collectors.joining(", "));
 		String placeholders = Arrays.stream(fieldNames)
 			.map(f -> "?")
 			.collect(Collectors.joining(", "));
-		return "INSERT INTO " + quoteTablename(tableName) +
-			"(" + columns + ")" + " VALUES (" + placeholders + ")";
+		return "INSERT INTO " + (schema == null ? "" : quoteIdentifier(schema) + ".")
+			+ quoteIdentifier(tableName) + "(" + columns + ")" + " VALUES (" + placeholders + ")";
 	}
 
 	/**
 	 * Get update one row statement by condition fields, default not use limit 1,
 	 * because limit 1 is a sql dialect.
 	 */
-	default String getUpdateStatement(String tableName, String[] fieldNames, String[] conditionFields) {
+	default String getUpdateStatement(String schema, String tableName, String[] fieldNames, String[] conditionFields) {
 		String setClause = Arrays.stream(fieldNames)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(", "));
 		String conditionClause = Arrays.stream(conditionFields)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(" AND "));
-		return "UPDATE " + quoteTablename(tableName) +
-			" SET " + setClause +
-			" WHERE " + conditionClause;
+		return "UPDATE " + (schema == null ? "" : quoteIdentifier(schema) + ".") + quoteIdentifier(tableName)
+			+ " SET " + setClause + " WHERE " + conditionClause;
 	}
 
 	/**
 	 * Get delete one row statement by condition fields, default not use limit 1,
 	 * because limit 1 is a sql dialect.
 	 */
-	default String getDeleteStatement(String tableName, String[] conditionFields) {
+	default String getDeleteStatement(String schema, String tableName, String[] conditionFields) {
 		String conditionClause = Arrays.stream(conditionFields)
 			.map(f -> quoteIdentifier(f) + "=?")
 			.collect(Collectors.joining(" AND "));
-		return "DELETE FROM " + quoteTablename(tableName) + " WHERE " + conditionClause;
+		return "DELETE FROM " + (schema == null ? "" : quoteIdentifier(schema) + ".")
+			+ quoteIdentifier(tableName) + " WHERE " + conditionClause;
 	}
 
 	/**
 	 * Get select fields statement by condition fields. Default use SELECT.
 	 */
-	default String getSelectFromStatement(String tableName, String[] selectFields, String[] conditionFields) {
+	default String getSelectFromStatement(String schema, String tableName, String[] selectFields, String[] conditionFields) {
 		String selectExpressions = Arrays.stream(selectFields)
-				.map(this::quoteIdentifier)
-				.collect(Collectors.joining(", "));
+			.map(this::quoteIdentifier)
+			.collect(Collectors.joining(", "));
 		String fieldExpressions = Arrays.stream(conditionFields)
-				.map(f -> quoteIdentifier(f) + "=?")
-				.collect(Collectors.joining(" AND "));
-		return "SELECT " + selectExpressions + " FROM " +
-				quoteTablename(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+			.map(f -> quoteIdentifier(f) + "=?")
+			.collect(Collectors.joining(" AND "));
+		return "SELECT " + selectExpressions + " FROM " + (schema == null ? "" : quoteIdentifier(schema) + ".")
+			+ quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
 	}
 }

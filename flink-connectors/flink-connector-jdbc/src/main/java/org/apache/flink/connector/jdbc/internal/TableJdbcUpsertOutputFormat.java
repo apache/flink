@@ -64,7 +64,7 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 		int[] pkFields = Arrays.stream(dmlOptions.getFieldNames()).mapToInt(Arrays.asList(dmlOptions.getFieldNames())::indexOf).toArray();
 		int[] pkTypes = dmlOptions.getFieldTypes() == null ? null :
 				Arrays.stream(pkFields).map(f -> dmlOptions.getFieldTypes()[f]).toArray();
-		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames());
+		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getSchema(), dmlOptions.getTableName(), dmlOptions.getFieldNames());
 		return createKeyedRowExecutor(pkFields, pkTypes, deleteSql);
 	}
 
@@ -112,13 +112,13 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 		int[] pkTypes = opt.getFieldTypes() == null ? null : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
 
 		return opt.getDialect()
-			.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
+			.getUpsertStatement(opt.getSchema(), opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
 			.map(sql -> createSimpleRowExecutor(sql, opt.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()))
 			.orElseGet(() ->
 				new InsertOrUpdateJdbcExecutor<>(
-					opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields().get()),
-					opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
-					opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get()),
+					opt.getDialect().getRowExistsStatement(opt.getSchema(), opt.getTableName(), opt.getKeyFields().get()),
+					opt.getDialect().getInsertIntoStatement(opt.getSchema(), opt.getTableName(), opt.getFieldNames()),
+					opt.getDialect().getUpdateStatement(opt.getSchema(), opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get()),
 					createRowJdbcStatementBuilder(pkTypes),
 					createRowJdbcStatementBuilder(opt.getFieldTypes()),
 					createRowJdbcStatementBuilder(opt.getFieldTypes()),

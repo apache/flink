@@ -73,11 +73,11 @@ public class MySQLDialect extends AbstractDialect {
 	 * <p>We don't use REPLACE INTO, if there are other fields, we can keep their previous values.
 	 */
 	@Override
-	public Optional<String> getUpsertStatement(String tableName, String[] fieldNames, String[] uniqueKeyFields) {
+	public Optional<String> getUpsertStatement(String schema, String tableName, String[] fieldNames, String[] uniqueKeyFields) {
 		String updateClause = Arrays.stream(fieldNames)
 			.map(f -> quoteIdentifier(f) + "=VALUES(" + quoteIdentifier(f) + ")")
 			.collect(Collectors.joining(", "));
-		return Optional.of(getInsertIntoStatement(tableName, fieldNames) +
+		return Optional.of(getInsertIntoStatement(schema, tableName, fieldNames) +
 			" ON DUPLICATE KEY UPDATE " + updateClause
 		);
 	}

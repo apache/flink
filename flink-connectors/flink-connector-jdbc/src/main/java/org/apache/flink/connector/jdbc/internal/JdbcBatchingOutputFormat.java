@@ -92,10 +92,10 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 	private transient volatile Exception flushException;
 
 	public JdbcBatchingOutputFormat(
-			@Nonnull JdbcConnectionProvider connectionProvider,
-			@Nonnull JdbcExecutionOptions executionOptions,
-			@Nonnull StatementExecutorFactory<JdbcExec> statementExecutorFactory,
-			@Nonnull RecordExtractor<In, JdbcIn> recordExtractor) {
+		@Nonnull JdbcConnectionProvider connectionProvider,
+		@Nonnull JdbcExecutionOptions executionOptions,
+		@Nonnull StatementExecutorFactory<JdbcExec> statementExecutorFactory,
+		@Nonnull RecordExtractor<In, JdbcIn> recordExtractor) {
 		super(connectionProvider);
 		this.executionOptions = checkNotNull(executionOptions);
 		this.statementExecutorFactory = checkNotNull(statementExecutorFactory);
@@ -314,6 +314,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 			checkNotNull(options, "No options supplied.");
 			checkNotNull(fieldNames, "No fieldNames supplied.");
 			JdbcDmlOptions dml = JdbcDmlOptions.builder()
+				.withSchema(options.getSchema())
 				.withTableName(options.getTableName()).withDialect(options.getDialect())
 				.withFieldNames(fieldNames).withKeyFields(keyFields).withFieldTypes(fieldTypes).build();
 			if (dml.getKeyFields().isPresent() && dml.getKeyFields().get().length > 0) {
@@ -323,7 +324,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 					executionOptionsBuilder.build());
 			} else {
 				// warn: don't close over builder fields
-				String sql = options.getDialect().getInsertIntoStatement(dml.getTableName(), dml.getFieldNames());
+				String sql = options.getDialect().getInsertIntoStatement(dml.getSchema(), dml.getTableName(), dml.getFieldNames());
 				return new JdbcBatchingOutputFormat<>(
 					new SimpleJdbcConnectionProvider(options),
 					executionOptionsBuilder.build(),

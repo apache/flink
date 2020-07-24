@@ -36,14 +36,20 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
 	public static final int CONNECTION_CHECK_TIMEOUT_SECONDS = 60;
 
+	private String schema;
 	private String tableName;
 	private JdbcDialect dialect;
 
-	private JdbcOptions(String dbURL, String tableName, String driverName, String username,
+	private JdbcOptions(String dbURL, String schema, String tableName, String driverName, String username,
 						String password, JdbcDialect dialect) {
 		super(dbURL, driverName, username, password);
+		this.schema = schema;
 		this.tableName = tableName;
 		this.dialect = dialect;
+	}
+
+	public String getSchema() {
+		return schema;
 	}
 
 	public String getTableName() {
@@ -63,6 +69,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 		if (o instanceof JdbcOptions) {
 			JdbcOptions options = (JdbcOptions) o;
 			return Objects.equals(url, options.url) &&
+				Objects.equals(this.schema, options.schema) &&
 				Objects.equals(tableName, options.tableName) &&
 				Objects.equals(driverName, options.driverName) &&
 				Objects.equals(username, options.username) &&
@@ -78,11 +85,20 @@ public class JdbcOptions extends JdbcConnectionOptions {
 	 */
 	public static class Builder {
 		private String dbURL;
+		private String schema;
 		private String tableName;
 		private String driverName;
 		private String username;
 		private String password;
 		private JdbcDialect dialect;
+
+		/**
+		 * optional, schema.
+		 */
+		public JdbcOptions.Builder setSchema(String schema) {
+			this.schema = schema;
+			return this;
+		}
 
 		/**
 		 * required, table name.
@@ -150,7 +166,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 				});
 			}
 
-			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect);
+			return new JdbcOptions(dbURL, schema, tableName, driverName, username, password, dialect);
 		}
 	}
 }
