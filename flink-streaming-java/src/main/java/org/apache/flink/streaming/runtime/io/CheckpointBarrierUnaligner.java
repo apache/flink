@@ -325,6 +325,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 				allBarriersReceivedFuture.completeExceptionally(exception);
 			}
 
+			handler.markCheckpointStart(barrier.getTimestamp());
 			currentReceivedCheckpointId = barrierId;
 			storeNewBuffers.entrySet().forEach(storeNewBuffer -> storeNewBuffer.setValue(true));
 			numBarriersReceived = 0;

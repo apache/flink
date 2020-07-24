@@ -44,6 +44,7 @@ import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -64,6 +65,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.NO_OP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -225,6 +227,39 @@ public class CheckpointBarrierUnalignerTest {
 
 		assertOutput(sequence6);
 		assertInflightData();
+	}
+
+	@Test
+	public void testMetrics() throws Exception {
+		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
+		inputGate = createInputGate(3, handler);
+		int bufferSize = 100;
+		long checkpointId = 1;
+		long sleepTime = 10;
+
+		long checkpointBarrierCreation = System.currentTimeMillis();
+
+		Thread.sleep(sleepTime);
+
+		addSequence(inputGate,
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createBarrier(checkpointId, 1, checkpointBarrierCreation),
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createBarrier(checkpointId, 0),
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize));
+
+		long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
+
+		Thread.sleep(sleepTime);
+
+		addSequence(inputGate,
+			createBarrier(checkpointId, 2),
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2));
+
+		assertEquals(checkpointId, inputGate.getCheckpointBarrierHandler().getLatestCheckpointId());
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.lessThanOrEqualTo(startDelay));
 	}
 
 	@Test
@@ -629,11 +664,15 @@ public class CheckpointBarrierUnalignerTest {
 	// ------------------------------------------------------------------------
 
 	private BufferOrEvent createBarrier(long checkpointId, int channel) {
+		return createBarrier(checkpointId, channel, System.currentTimeMillis());
+	}
+
+	private BufferOrEvent createBarrier(long checkpointId, int channel, long timestamp) {
 		sizeCounter++;
 		return new BufferOrEvent(
 			new CheckpointBarrier(
 				checkpointId,
-				System.currentTimeMillis(),
+				timestamp,
 				CheckpointOptions.forCheckpointWithDefaultLocation()),
 			new InputChannelInfo(0, channel));
 	}
@@ -641,6 +680,10 @@ public class CheckpointBarrierUnalignerTest {
 	private BufferOrEvent createCancellationBarrier(long checkpointId, int channel) {
 		sizeCounter++;
 		return new BufferOrEvent(new CancelCheckpointMarker(checkpointId), new InputChannelInfo(0, channel));
+	}
+
+	private BufferOrEvent createBuffer(int channel, int size) {
+		return new BufferOrEvent(TestBufferFactory.createBuffer(size), new InputChannelInfo(0, channel));
 	}
 
 	private BufferOrEvent createBuffer(int channel) {
