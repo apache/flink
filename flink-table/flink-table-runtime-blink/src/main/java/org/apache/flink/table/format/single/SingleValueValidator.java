@@ -18,16 +18,14 @@
 
 package org.apache.flink.table.format.single;
 
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
-import org.apache.flink.table.factories.TableFormatFactoryBase;
 
 /**
  * Single value format validator.
  */
-
+@Internal
 public class SingleValueValidator extends FormatDescriptorValidator {
 
 	public static final String FORMAT_TYPE_VALUE = "single-value";

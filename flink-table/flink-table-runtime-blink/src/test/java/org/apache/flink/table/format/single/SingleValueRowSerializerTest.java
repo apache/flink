@@ -46,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link SingleValueRowDataDeserialization,SingleValueRowDataSerialization}.
+ * Tests for {@link SingleValueRowDataDeserialization} {@link SingleValueRowDataSerialization}.
  */
 public class SingleValueRowSerializerTest {
 
