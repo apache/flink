@@ -161,6 +161,14 @@ public class HiveCatalog extends AbstractCatalog {
 			false);
 	}
 
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable HiveConf hiveConf, String hiveVersion) {
+		this(catalogName,
+			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
+			hiveConf,
+			hiveVersion,
+			false);
+	}
+
 	@VisibleForTesting
 	protected HiveCatalog(String catalogName, String defaultDatabase, @Nullable HiveConf hiveConf, String hiveVersion,
 			boolean allowEmbedded) {
