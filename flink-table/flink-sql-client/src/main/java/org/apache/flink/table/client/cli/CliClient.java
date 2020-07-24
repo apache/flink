@@ -286,8 +286,14 @@ public class CliClient {
 			case SHOW_CATALOGS:
 				callShowCatalogs();
 				break;
+			case SHOW_CURRENT_CATALOG:
+				callShowCurrentCatalog();
+				break;
 			case SHOW_DATABASES:
 				callShowDatabases();
+				break;
+			case SHOW_CURRENT_DATABASE:
+				callShowCurrentDatabase();
 				break;
 			case SHOW_TABLES:
 				callShowTables();
@@ -445,6 +451,18 @@ public class CliClient {
 		terminal.flush();
 	}
 
+	private void callShowCurrentCatalog() {
+		String currentCatalog;
+		try {
+			currentCatalog = executor.executeSql(sessionId, "SHOW CURRENT CATALOG").collect().next().toString();
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		terminal.writer().println(currentCatalog);
+		terminal.flush();
+	}
+
 	private void callShowDatabases() {
 		final List<String> dbs;
 		try {
@@ -458,6 +476,18 @@ public class CliClient {
 		} else {
 			dbs.forEach((v) -> terminal.writer().println(v));
 		}
+		terminal.flush();
+	}
+
+	private void callShowCurrentDatabase() {
+		String currentDatabase;
+		try {
+			currentDatabase = executor.executeSql(sessionId, "SHOW CURRENT DATABASE").collect().next().toString();
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		terminal.writer().println(currentDatabase);
 		terminal.flush();
 	}
 

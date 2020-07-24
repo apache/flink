@@ -898,6 +898,8 @@ public class LocalExecutorITCase extends TestLogger {
 
 			executor.executeSql(sessionId, "use catalog hivecatalog");
 
+			assertShowResult(executor.executeSql(sessionId, "SHOW CURRENT CATALOG"), Collections.singletonList("hivecatalog"));
+
 			assertShowResult(
 					executor.executeSql(sessionId, "SHOW DATABASES"),
 					Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB)
@@ -914,6 +916,10 @@ public class LocalExecutorITCase extends TestLogger {
 					executor.executeSql(sessionId, "SHOW TABLES"),
 					Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE)
 			);
+
+			assertShowResult(executor.executeSql(sessionId, "SHOW CURRENT DATABASE"),
+				Collections.singletonList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE));
+
 		} finally {
 			executor.closeSession(sessionId);
 		}

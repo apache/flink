@@ -25,12 +25,14 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
+- SHOW CURRENT CATALOG
 - SHOW DATABASES
-- SHOW TABLES 
+- SHOW CURRENT DATABASE
+- SHOW TABLES
 - SHOW VIEWS
 - SHOW FUNCTIONS
 
@@ -55,6 +57,14 @@ tEnv.executeSql("SHOW CATALOGS").print();
 // | default_catalog |
 // +-----------------+
 
+// show current catalog
+tEnv.executeSql("SHOW CURRENT CATALOG").print();
+// +----------------------+
+// | current catalog name |
+// +----------------------+
+// |      default_catalog |
+// +----------------------+
+
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
 // +------------------+
@@ -62,6 +72,14 @@ tEnv.executeSql("SHOW DATABASES").print();
 // +------------------+
 // | default_database |
 // +------------------+
+
+// show current database
+tEnv.executeSql("SHOW CURRENT DATABASE").print();
+// +-----------------------+
+// | current database name |
+// +-----------------------+
+// |      default_database |
+// +-----------------------+
 
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
@@ -244,6 +262,14 @@ SHOW CATALOGS
 
 Show all catalogs.
 
+## SHOW CURRENT CATALOG
+
+{% highlight sql %}
+SHOW CURRENT CATALOG
+{% endhighlight %}
+
+Show current catalog.
+
 ## SHOW DATABASES
 
 {% highlight sql %}
@@ -251,6 +277,14 @@ SHOW DATABASES
 {% endhighlight %}
 
 Show all databases in the current catalog.
+
+## SHOW CURRENT DATABASE
+
+{% highlight sql %}
+SHOW CURRENT DATABASE
+{% endhighlight %}
+
+Show current database.
 
 ## SHOW TABLES
 

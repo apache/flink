@@ -436,6 +436,10 @@ public class HiveDialectITCase {
 		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
 		assertEquals(1, databases.size());
 		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
+		String catalogName = tableEnv.executeSql("show current catalog").collect().next().toString();
+		assertEquals(DEFAULT_BUILTIN_CATALOG, catalogName);
+		String databaseName = tableEnv.executeSql("show current database").collect().next().toString();
+		assertEquals(DEFAULT_BUILTIN_DATABASE, databaseName);
 	}
 
 	@Test
