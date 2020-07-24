@@ -99,7 +99,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 		subpartition.release();
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void testAddTwoNonFinishedBuffer() throws IOException {
 		subpartition.add(createBufferBuilder().createBufferConsumer());
 		subpartition.add(createBufferBuilder().createBufferConsumer());
@@ -120,8 +120,8 @@ public class PipelinedSubpartitionWithReadViewTest {
 		bufferBuilder = createBufferBuilder();
 		subpartition.add(bufferBuilder.createBufferConsumer());
 
-		assertEquals(1, subpartition.getBuffersInBacklog());
-		assertEquals(1, availablityListener.getNumNotifications()); // notification from finishing previous buffer.
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(0, availablityListener.getNumNotifications());
 		assertNull(readView.getNextBuffer());
 		assertEquals(0, subpartition.getBuffersInBacklog());
 	}
@@ -213,14 +213,14 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertEquals(0, availablityListener.getNumNotifications());
 
 		subpartition.add(createFilledFinishedBufferConsumer(0));
-		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumNotifications());
 
 		subpartition.add(createFilledFinishedBufferConsumer(0));
-		assertEquals(1, availablityListener.getNumNotifications());
-		assertEquals(2, subpartition.getBuffersInBacklog());
+		assertEquals(0, availablityListener.getNumNotifications());
+		assertEquals(0, subpartition.getBuffersInBacklog());
 
 		subpartition.add(createFilledFinishedBufferConsumer(1024));
-		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumNotifications());
 
 		assertNextBuffer(readView, 1024, false, 0, false, true);
 	}

@@ -149,6 +149,8 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				return false;
 			}
 
+			removeFinishedEmptyBuffer(insertAsHead);
+
 			// Add the bufferConsumer and update the stats
 			handleAddingBarrier(bufferConsumer, insertAsHead);
 			updateStatistics(bufferConsumer);
@@ -230,41 +232,29 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				return null;
 			}
 
-			Buffer buffer = null;
-
 			if (buffers.isEmpty()) {
+				flushRequested = false;
+				return null;
+			}
+
+			BufferConsumer bufferConsumer = buffers.peek();
+			Buffer buffer = bufferConsumer.build();
+
+			checkState((bufferConsumer.isFinished() && buffer.readableBytes() > 0) || buffers.size() == 1,
+				"When there are multiple buffers, an unfinished or empty bufferConsumer can not be at the head of the buffers queue.");
+
+			if (buffers.size() == 1) {
+				// turn off flushRequested flag if we drained all of the available data
 				flushRequested = false;
 			}
 
-			while (!buffers.isEmpty()) {
-				BufferConsumer bufferConsumer = buffers.peek();
-
-				buffer = bufferConsumer.build();
-
-				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
-					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
-
-				if (buffers.size() == 1) {
-					// turn off flushRequested flag if we drained all of the available data
-					flushRequested = false;
-				}
-
-				if (bufferConsumer.isFinished()) {
-					buffers.pop().close();
-					decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
-				}
-
-				if (buffer.readableBytes() > 0) {
-					break;
-				}
-				buffer.recycleBuffer();
-				buffer = null;
-				if (!bufferConsumer.isFinished()) {
-					break;
-				}
+			if (bufferConsumer.isFinished()) {
+				buffers.pop().close();
+				decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
 			}
 
-			if (buffer == null) {
+			if (buffer.readableBytes() == 0) {
+				buffer.recycleBuffer();
 				return null;
 			}
 
@@ -456,6 +446,25 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			return buffersInBacklog;
 		} else {
 			return Math.max(buffersInBacklog - 1, 0);
+		}
+	}
+
+	/**
+	 * Removes and recycles the last buffer in the queue if it is an finished buffer without any consumable
+	 * data, after which, the reader does not need any available credit to handle this finished empty buffer.
+	 * For example, if the new buffer is an event and the previous buffer is finished but without any data,
+	 * after it is removed, the reader is able to process the new added event without any available credit.
+	 *
+	 * @param insertAsHead Whether the new added buffer is a priority-event.
+	 */
+	private void removeFinishedEmptyBuffer(boolean insertAsHead) {
+		assert Thread.holdsLock(buffers);
+
+		BufferConsumer prevBuffer = insertAsHead ? null : buffers.peekLast();
+		if (prevBuffer != null && prevBuffer.isBuffer() && !prevBuffer.isDataAvailable()) {
+			buffers.pollLast();
+			prevBuffer.close();
+			--buffersInBacklog;
 		}
 	}
 

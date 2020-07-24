@@ -46,7 +46,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEmptyBufferBuilder;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.fillBufferBuilder;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -83,6 +86,37 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		// the tests relating to this are currently not supported by the PipelinedSubpartition
 		Assume.assumeTrue(false);
 		return null;
+	}
+
+	@Test
+	public void testRemoveFinishedEmptyBuffer() throws Exception {
+		final int bufferSize = 1024;
+		final PipelinedSubpartition subpartition = createSubpartition();
+
+		// add an unfinished buffer
+		final BufferBuilder bufferBuilder = createEmptyBufferBuilder(bufferSize);
+		subpartition.add(bufferBuilder.createBufferConsumer());
+		fillBufferBuilder(bufferBuilder, bufferSize);
+		assertFalse(subpartition.isAvailable(Integer.MAX_VALUE));
+		assertEquals(0, subpartition.getBuffersInBacklog());
+
+		// flush to make data available
+		subpartition.flush();
+		assertTrue(subpartition.isAvailable(Integer.MAX_VALUE));
+		assertEquals(1, subpartition.getBuffersInBacklog());
+
+		// poll available data and finish the buffer builder
+		subpartition.pollBuffer();
+		bufferBuilder.finish();
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(1, subpartition.unsynchronizedGetNumberOfQueuedBuffers());
+		assertFalse(subpartition.isAvailable(Integer.MAX_VALUE));
+
+		// add an event
+		subpartition.add(createEventBufferConsumer(bufferSize, Buffer.DataType.EVENT_BUFFER));
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(1, subpartition.unsynchronizedGetNumberOfQueuedBuffers());
+		assertTrue(subpartition.isAvailable(0));
 	}
 
 	@Test

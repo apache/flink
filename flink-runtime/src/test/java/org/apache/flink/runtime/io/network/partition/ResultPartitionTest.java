@@ -45,6 +45,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -342,6 +343,7 @@ public class ResultPartitionTest {
 			for (int i = 0; i < numAllBuffers; ++i) {
 				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking();
 				resultPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
+				bufferBuilder.appendAndCommit(ByteBuffer.wrap(new byte[1]));
 			}
 			resultPartition.finish();
 
