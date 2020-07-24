@@ -113,6 +113,9 @@ public abstract class AbstractFetcher<T, KPH> {
 	/** User class loader used to deserialize watermark assigners. */
 	private final ClassLoader userCodeClassLoader;
 
+	/** Flag to mark the main work loop as alive. */
+	protected volatile boolean running = true;
+
 	// ------------------------------------------------------------------------
 	//  Metrics
 	// ------------------------------------------------------------------------
@@ -346,15 +349,17 @@ public abstract class AbstractFetcher<T, KPH> {
 		// emit the records, using the checkpoint lock to guarantee
 		// atomicity of record emission and offset state update
 		synchronized (checkpointLock) {
-			T record;
-			while ((record = records.poll()) != null) {
-				long timestamp = partitionState.extractTimestamp(record, kafkaEventTimestamp);
-				sourceContext.collectWithTimestamp(record, timestamp);
+			if (running) {
+				T record;
+				while ((record = records.poll()) != null) {
+					long timestamp = partitionState.extractTimestamp(record, kafkaEventTimestamp);
+					sourceContext.collectWithTimestamp(record, timestamp);
 
-				// this might emit a watermark, so do it after emitting the record
-				partitionState.onEvent(record, timestamp);
+					// this might emit a watermark, so do it after emitting the record
+					partitionState.onEvent(record, timestamp);
+				}
+				partitionState.setOffset(offset);
 			}
-			partitionState.setOffset(offset);
 		}
 	}
 

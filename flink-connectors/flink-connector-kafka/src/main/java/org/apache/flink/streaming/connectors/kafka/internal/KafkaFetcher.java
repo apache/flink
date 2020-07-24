@@ -72,9 +72,6 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher. */
 	final KafkaConsumerThread consumerThread;
 
-	/** Flag to mark the main work loop as alive. */
-	volatile boolean running = true;
-
 	// ------------------------------------------------------------------------
 
 	public KafkaFetcher(

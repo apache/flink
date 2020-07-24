@@ -817,7 +817,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			subtaskCheckpointCoordinator.initCheckpoint(checkpointMetaData.getCheckpointId(), checkpointOptions);
 
 			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
-			if (!success) {
+			if (success) {
+				if (isSynchronousSavepointId(checkpointMetaData.getCheckpointId())) {
+					runSynchronousSavepointMailboxLoop();
+				}
+			} else {
 				declineCheckpoint(checkpointMetaData.getCheckpointId());
 			}
 			return success;
