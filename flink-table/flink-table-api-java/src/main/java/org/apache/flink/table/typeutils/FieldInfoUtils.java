@@ -66,6 +66,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -357,12 +358,7 @@ public class FieldInfoUtils {
 
 		// atomic in any case
 		if (fieldNames == null) {
-			int i = 0;
-			String fieldName = ATOMIC_FIELD_NAME;
-			while ((null != existingNames) && existingNames.contains(fieldName)) {
-				fieldName = ATOMIC_FIELD_NAME + "_" + i++;
-			}
-			fieldNames = Collections.singletonList(fieldName);
+			fieldNames = Collections.singletonList(getAtomicName(existingNames));
 		}
 
 		if (fieldNames.contains("*")) {

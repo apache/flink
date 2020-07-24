@@ -71,14 +71,6 @@ public class PlannerTypeUtils {
 		}
 	}
 
-	public static RowType toRowType(LogicalType t) {
-		if (t instanceof RowType) {
-			return (RowType) t;
-		} else {
-			return RowType.of(t);
-		}
-	}
-
 	/**
 	 * A conversion that removes all {@link LegacyTypeInformationType}s by mapping to corresponding new types.
 	 */
