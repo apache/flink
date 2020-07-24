@@ -74,7 +74,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c,
         countFun('b) over 'w as 'mycount,
-        weightAvgFun('a, 'b) over 'w as 'wAvg,
+        call(weightAvgFun, 'a, 'b) over 'w as 'wAvg,
         countDist('a) over 'w as 'countDist)
       .select('c, 'mycount, 'wAvg, 'countDist)
 
@@ -167,7 +167,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         'b.max over 'w,
         'b.min over 'w,
         ('b.min over 'w).abs(),
-        weightAvgFun('b, 'a) over 'w,
+        call(weightAvgFun, 'b, 'a) over 'w,
         countDist('c) over 'w as 'countDist)
 
     val sink = new TestingAppendSink

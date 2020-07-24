@@ -25,8 +25,10 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionRequirement;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Test aggregator functions.
@@ -53,6 +55,11 @@ public class JavaUserDefinedAggFunctions {
 
 		//Overloaded accumulate method
 		public void accumulate(Accumulator0 accumulator, long iValue, int iWeight) {
+		}
+
+		@Override
+		public Set<FunctionRequirement> getRequirements() {
+			return Collections.singleton(FunctionRequirement.OVER_WINDOW_ONLY);
 		}
 	}
 

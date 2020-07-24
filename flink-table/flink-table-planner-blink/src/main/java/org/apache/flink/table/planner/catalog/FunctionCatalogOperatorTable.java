@@ -194,7 +194,10 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		return Optional.of(function);
 	}
 
-	@SuppressWarnings("RedundantIfStatement")
+	/**
+	 * Verifies which kinds of functions are allowed to be returned from the catalog given the
+	 * context information.
+	 */
 	private boolean verifyFunctionKind(
 			@Nullable SqlFunctionCategory category,
 			FunctionIdentifier identifier,
@@ -206,10 +209,13 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			return false;
 		}
 
-		// it would be nice to give a more meaningful exception when a scalar function is used instead
-		// of a table function and vice versa, but we can do that only once FLIP-51 is implemented
+		final FunctionKind kind = definition.getKind();
 
-		if (definition.getKind() == FunctionKind.SCALAR) {
+		if (kind == FunctionKind.TABLE) {
+			return true;
+		} else if (kind == FunctionKind.SCALAR ||
+				kind == FunctionKind.AGGREGATE ||
+				kind == FunctionKind.TABLE_AGGREGATE) {
 			if (category != null && category.isTableFunction()) {
 				throw new ValidationException(
 					String.format(
@@ -219,12 +225,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 				);
 			}
 			return true;
-		} else if (definition.getKind() == FunctionKind.TABLE) {
-			return true;
 		}
-
-		// aggregate function are not supported, because the code generator is not ready yet
-
 		return false;
 	}
 

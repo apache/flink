@@ -213,16 +213,18 @@ Calc(select=[CAST(2) AS b, EXPR$0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
-+- LogicalAggregate(group=[{2}], EXPR$0=[WeightedAvg(DISTINCT $0, $1)], EXPR$1=[WeightedAvg($0, $1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
++- LogicalAggregate(group=[{1}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT $0, $2)], EXPR$1=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $2)])
+   +- LogicalProject(a=[$0], c=[$2], b0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
-+- GroupAggregate(groupBy=[c], select=[c, WeightedAvg(DISTINCT a, b) AS EXPR$0, WeightedAvg(a, b) AS EXPR$1])
++- GroupAggregate(groupBy=[c], select=[c, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT a, b0) AS EXPR$0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(a, b0) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Calc(select=[a, c, CAST(b) AS b0])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

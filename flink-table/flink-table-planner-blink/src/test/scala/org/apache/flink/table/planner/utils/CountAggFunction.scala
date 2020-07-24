@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import java.lang.{Iterable => JIterable, Long => JLong}
 
 /** The initial accumulator for count aggregate function */
-class CountAccumulator extends JTuple1[Long] {
+class CountAccumulator extends JTuple1[JLong] {
   f0 = 0L //count
 }
 

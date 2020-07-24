@@ -407,6 +407,10 @@ public final class FunctionCatalog {
 		);
 	}
 
+	/**
+	 * @deprecated Use {@link #registerTemporarySystemFunction(String, FunctionDefinition, boolean)} instead.
+	 */
+	@Deprecated
 	public <T, ACC> void registerTempSystemAggregateFunction(
 			String name,
 			ImperativeAggregateFunction<T, ACC> function,
@@ -437,6 +441,10 @@ public final class FunctionCatalog {
 		);
 	}
 
+	/**
+	 * @deprecated Use {@link #registerTemporaryCatalogFunction(UnresolvedIdentifier, FunctionDefinition, boolean)} instead.
+	 */
+	@Deprecated
 	public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
 		UserDefinedFunctionHelper.prepareInstance(config, function);
 

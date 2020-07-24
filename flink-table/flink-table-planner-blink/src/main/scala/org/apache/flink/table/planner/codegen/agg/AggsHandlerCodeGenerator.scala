@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
-import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
@@ -34,8 +33,8 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.Collector
@@ -1109,7 +1108,7 @@ class AggsHandlerCodeGenerator(
 
   private def genRecordToRowData(aggExternalType: DataType, recordInputName: String): String = {
     val resultType = fromDataTypeToLogicalType(aggExternalType)
-    val resultRowType = PlannerTypeUtils.toRowType(resultType)
+    val resultRowType = LogicalTypeUtils.toRowType(resultType)
 
     val newCtx = CodeGeneratorContext(ctx.tableConfig)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)

@@ -194,44 +194,21 @@ GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWindowAggregateWithDifferentWindows">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
-:  +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], properties=[])
-:     +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
-+- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
-   +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], properties=[])
-      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[_c0])
-:- Calc(select=[1 AS _c0])
-:  +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
-:     +- Exchange(distribution=[single], reuse_id=[1])
-:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]], fields=[ts, a, b])
-+- Calc(select=[1 AS _c0])
-   +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testEventTimeSessionGroupWindowWithUdAgg">
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7)], select=[string, myWeightedAvg(long, int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
-   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+   +- Calc(select=[long, int, string, rowtime, CAST(int) AS int0])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -287,15 +264,17 @@ GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, myWeightedAvg(long, int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
-   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+   +- Calc(select=[long, int, string, rowtime, CAST(int) AS int0])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -319,15 +298,17 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, myWeightedAvg(long, int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
-   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+   +- Calc(select=[long, int, string, rowtime, CAST(int) AS int0])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -436,16 +417,18 @@ Calc(select=[EXPR$0 AS we1, string, EXPR$1 AS cnt, EXPR$2 AS ws, EXPR$0 AS we2])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
-+- LogicalWindowAggregate(group=[{2, 3, 4}], EXPR$0=[WeightedAvg($0, $1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
++- LogicalWindowAggregate(group=[{2, 3, 4}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $6)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], int2=[$3], int3=[$4], proctime=[$5], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[EXPR$0])
-+- GroupWindowAggregate(groupBy=[string, int2, int3], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, int2, int3, WeightedAvg(long, int) AS EXPR$0])
++- GroupWindowAggregate(groupBy=[string, int2, int3], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, int2, int3, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(long, int0) AS EXPR$0])
    +- Exchange(distribution=[hash[string, int2, int3]])
-      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, int2, int3, proctime])
+      +- Calc(select=[long, int, string, int2, int3, proctime, CAST(int) AS int0])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, int2, int3, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -479,6 +462,31 @@ Calc(select=[string, +(EXPR$0, 1) AS s1, +(EXPR$0, 3) AS s2, EXPR$1 AS x, EXPR$1
 +- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2], select=[string, SUM(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
    +- Exchange(distribution=[hash[string]])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
+:  +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], properties=[])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
++- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
+   +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], properties=[])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[_c0])
+:- Calc(select=[1 AS _c0])
+:  +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+:     +- Exchange(distribution=[single], reuse_id=[1])
+:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]], fields=[ts, a, b])
++- Calc(select=[1 AS _c0])
+   +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

@@ -202,7 +202,7 @@ public final class LogicalTypeChecks {
 	}
 
 	/**
-	 * Returns the field count of row and structured types.
+	 * Returns the field count of row and structured types. Other types return 1.
 	 */
 	public static int getFieldCount(LogicalType logicalType) {
 		return logicalType.accept(FIELD_COUNT_EXTRACTOR);
@@ -444,6 +444,15 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(DistinctType distinctType) {
 			return distinctType.getSourceType().accept(this);
+		}
+
+		@Override
+		protected Integer defaultMethod(LogicalType logicalType) {
+			// legacy
+			if (hasRoot(logicalType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+				return ((LegacyTypeInformationType<?>) logicalType).getTypeInformation().getArity();
+			}
+			return 1;
 		}
 	}
 

@@ -597,7 +597,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env.fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val sqlQuery =
       s"""

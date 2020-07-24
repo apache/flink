@@ -21,11 +21,13 @@ package org.apache.flink.table.planner.functions.utils
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, ImperativeAggregateFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -46,7 +48,9 @@ import java.util
   * @param externalResultType the type information of returned value
   * @param externalAccType the type information of the accumulator
   * @param typeFactory type factory for converting Flink's between Calcite's types
+  * @deprecated This uses the old type inference stack. Use [[BridgingSqlAggFunction]] instead.
   */
+@deprecated
 class AggSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,

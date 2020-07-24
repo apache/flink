@@ -20,10 +20,15 @@ package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionRequirement;
+import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -426,6 +431,83 @@ public class JavaUserDefinedAggFunctions {
 		@Override
 		public Long getValue(MultiArgSumAcc acc) {
 			return acc.count;
+		}
+	}
+
+	/**
+	 * Max function with overloaded arguments and accumulators.
+	 */
+	public static class OverloadedMaxFunction extends AggregateFunction<Object, Row> {
+
+		@Override
+		public Row createAccumulator() {
+			return new Row(1);
+		}
+
+		@FunctionHint(
+			accumulator = @DataTypeHint("ROW<max BIGINT>"),
+			output = @DataTypeHint("BIGINT")
+		)
+		public void accumulate(Row accumulator, Long l) {
+			final Long max = (Long) accumulator.getField(0);
+			if (max == null || l > max) {
+				accumulator.setField(0, l);
+			}
+		}
+
+		@FunctionHint(
+			accumulator = @DataTypeHint("ROW<max STRING>"),
+			output = @DataTypeHint("STRING")
+		)
+		public void accumulate(Row accumulator, String s) {
+			final String max = (String) accumulator.getField(0);
+			if (max == null || s.compareTo(max) > 0) {
+				accumulator.setField(0, s);
+			}
+		}
+
+		@Override
+		public Object getValue(Row accumulator) {
+			return accumulator.getField(0);
+		}
+	}
+
+	/**
+	 * Max function with overloaded arguments and accumulators that returns the result twice using
+	 * {@link TableAggregateFunction}.
+	 */
+	public static class OverloadedDoubleMaxFunction extends TableAggregateFunction<Object, Row> {
+
+		@Override
+		public Row createAccumulator() {
+			return new Row(1);
+		}
+
+		@FunctionHint(
+			accumulator = @DataTypeHint("ROW<max BIGINT>"),
+			output = @DataTypeHint("BIGINT")
+		)
+		public void accumulate(Row accumulator, Long l) {
+			final Long max = (Long) accumulator.getField(0);
+			if (max == null || l > max) {
+				accumulator.setField(0, l);
+			}
+		}
+
+		@FunctionHint(
+			accumulator = @DataTypeHint("ROW<max STRING>"),
+			output = @DataTypeHint("STRING")
+		)
+		public void accumulate(Row accumulator, String s) {
+			final String max = (String) accumulator.getField(0);
+			if (max == null || s.compareTo(max) > 0) {
+				accumulator.setField(0, s);
+			}
+		}
+
+		public void emitValue(Row accumulator, Collector<Object> out) {
+			out.collect(accumulator.getField(0));
+			out.collect(accumulator.getField(0));
 		}
 	}
 }

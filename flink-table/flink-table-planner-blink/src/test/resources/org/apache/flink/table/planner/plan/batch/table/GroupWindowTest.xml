@@ -88,18 +88,20 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 720000
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $3)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_myWeightedAvg(EXPR$0) AS EXPR$0])
+SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(EXPR$0) AS EXPR$0])
 +- Sort(orderBy=[string ASC, assignedWindow$ ASC])
    +- Exchange(distribution=[hash[string]])
-      +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_myWeightedAvg(long, int) AS EXPR$0])
-         +- Sort(orderBy=[string ASC, long ASC])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
+      +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
+         +- Calc(select=[long, int, string, CAST(int) AS int0])
+            +- Sort(orderBy=[string ASC, long ASC])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
 ]]>
     </Resource>
   </TestCase>

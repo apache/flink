@@ -29,14 +29,22 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Utilities for handling {@link LogicalType}s.
  */
 @Internal
 public final class LogicalTypeUtils {
+
+	private static final String ATOMIC_FIELD_NAME = "f0";
 
 	private static final TimeAttributeRemover TIME_ATTRIBUTE_REMOVER = new TimeAttributeRemover();
 
@@ -102,6 +110,45 @@ public final class LogicalTypeUtils {
 			default:
 				throw new IllegalArgumentException("Illegal type: " + type);
 		}
+	}
+
+	/**
+	 * Converts any logical type to a row type. Composite types are converted to a row type. Atomic
+	 * types are wrapped into a field.
+	 */
+	public static RowType toRowType(LogicalType t) {
+		switch (t.getTypeRoot()) {
+			case ROW:
+				return (RowType) t;
+			case STRUCTURED_TYPE:
+				final StructuredType structuredType = (StructuredType) t;
+				final List<RowField> fields = structuredType.getAttributes()
+						.stream()
+						.map(attribute ->
+							new RowField(
+								attribute.getName(),
+								attribute.getType(),
+								attribute.getDescription().orElse(null))
+						)
+						.collect(Collectors.toList());
+				return new RowType(structuredType.isNullable(), fields);
+			case DISTINCT_TYPE:
+				return toRowType(((DistinctType) t).getSourceType());
+			default:
+				return RowType.of(t);
+		}
+	}
+
+	/**
+	 * Returns a unique name for an atomic type.
+	 */
+	public static String getAtomicName(List<String> existingNames) {
+		int i = 0;
+		String fieldName = ATOMIC_FIELD_NAME;
+		while ((null != existingNames) && existingNames.contains(fieldName)) {
+			fieldName = ATOMIC_FIELD_NAME + "_" + i++;
+		}
+		return fieldName;
 	}
 
 	// --------------------------------------------------------------------------------------------

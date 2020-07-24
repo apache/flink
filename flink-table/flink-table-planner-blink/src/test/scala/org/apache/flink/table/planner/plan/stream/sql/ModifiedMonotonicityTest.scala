@@ -38,7 +38,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
   util.addDataStream[(Int, Long, Long)]("B", 'b1, 'b2, 'b3)
   util.addDataStream[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
-  util.addFunction("weightedAvg", new WeightedAvgWithMerge)
+  util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
   util.addTableSource[(Int, Long, String)]("AA", 'a1, 'a2, 'a3)
   util.addTableSource[(Int, Long, Int, String, Long)]("BB", 'b1, 'b2, 'b3, 'b4, 'b5)
 

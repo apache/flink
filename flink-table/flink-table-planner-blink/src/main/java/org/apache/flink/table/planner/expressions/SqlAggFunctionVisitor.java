@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -30,11 +31,17 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.tools.RelBuilder;
+
+import javax.annotation.Nullable;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -65,10 +72,10 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 		AGG_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.COLLECT, FlinkSqlOperatorTable.COLLECT);
 	}
 
-	private final FlinkTypeFactory typeFactory;
+	private final RelBuilder relBuilder;
 
-	public SqlAggFunctionVisitor(FlinkTypeFactory typeFactory) {
-		this.typeFactory = typeFactory;
+	public SqlAggFunctionVisitor(RelBuilder relBuilder) {
+		this.relBuilder = relBuilder;
 	}
 
 	@Override
@@ -77,44 +84,82 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 			defaultMethod(call);
 		}
 
-		FunctionDefinition def = call.getFunctionDefinition();
-		if (AGG_DEF_SQL_OPERATOR_MAPPING.containsKey(def)) {
-			return AGG_DEF_SQL_OPERATOR_MAPPING.get(def);
+		final FunctionDefinition definition = call.getFunctionDefinition();
+		if (AGG_DEF_SQL_OPERATOR_MAPPING.containsKey(definition)) {
+			return AGG_DEF_SQL_OPERATOR_MAPPING.get(definition);
 		}
-		if (BuiltInFunctionDefinitions.DISTINCT == def) {
+		if (BuiltInFunctionDefinitions.DISTINCT == definition) {
 			Expression innerAgg = call.getChildren().get(0);
 			return innerAgg.accept(this);
 		}
 
-		if (isFunctionOfKind(call, AGGREGATE)) {
-			AggregateFunctionDefinition aggDef = (AggregateFunctionDefinition) def;
-			AggregateFunction aggFunc = aggDef.getAggregateFunction();
-			FunctionIdentifier identifier = call.getFunctionIdentifier()
-				.orElse(FunctionIdentifier.of(aggFunc.functionIdentifier()));
+		return createSqlAggFunction(
+			call.getFunctionIdentifier().orElse(null),
+			call.getFunctionDefinition());
+	}
+
+	private SqlAggFunction createSqlAggFunction(@Nullable FunctionIdentifier identifier, FunctionDefinition definition) {
+		// legacy
+		if (definition instanceof AggregateFunctionDefinition) {
+			return createLegacySqlAggregateFunction(identifier, (AggregateFunctionDefinition) definition);
+		} else if (definition instanceof TableAggregateFunctionDefinition) {
+			return createLegacySqlTableAggregateFunction(identifier, (TableAggregateFunctionDefinition) definition);
+		}
+
+		// new stack
+		final DataTypeFactory dataTypeFactory = ShortcutUtils.unwrapContext(relBuilder)
+			.getCatalogManager()
+			.getDataTypeFactory();
+		final TypeInference typeInference = definition.getTypeInference(dataTypeFactory);
+		return BridgingSqlAggFunction.of(
+			dataTypeFactory,
+			ShortcutUtils.unwrapTypeFactory(relBuilder),
+			SqlKind.OTHER_FUNCTION,
+			identifier,
+			definition,
+			typeInference);
+	}
+
+	private SqlAggFunction createLegacySqlAggregateFunction(
+			@Nullable FunctionIdentifier identifier,
+			AggregateFunctionDefinition definition) {
+		final AggregateFunction<?, ?> aggFunc = definition.getAggregateFunction();
+			final FunctionIdentifier adjustedIdentifier;
+			if (identifier != null) {
+				adjustedIdentifier = identifier;
+			} else {
+				adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
+			}
 			return new AggSqlFunction(
-				identifier,
+				adjustedIdentifier,
 				aggFunc.toString(),
 				aggFunc,
-				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
-				fromLegacyInfoToDataType(aggDef.getAccumulatorTypeInfo()),
-				typeFactory,
+				fromLegacyInfoToDataType(definition.getResultTypeInfo()),
+				fromLegacyInfoToDataType(definition.getAccumulatorTypeInfo()),
+				ShortcutUtils.unwrapTypeFactory(relBuilder),
 				aggFunc.getRequirements().contains(FunctionRequirement.OVER_WINDOW_ONLY),
 				scala.Option.empty());
-		} else {
-			TableAggregateFunctionDefinition aggDef = (TableAggregateFunctionDefinition) def;
-			TableAggregateFunction aggFunc = aggDef.getTableAggregateFunction();
-			FunctionIdentifier identifier = call.getFunctionIdentifier()
-				.orElse(FunctionIdentifier.of(aggFunc.functionIdentifier()));
+	}
+
+	private SqlAggFunction createLegacySqlTableAggregateFunction(
+			@Nullable FunctionIdentifier identifier,
+			TableAggregateFunctionDefinition definition) {
+		final TableAggregateFunction<?, ?> aggFunc = definition.getTableAggregateFunction();
+			final FunctionIdentifier adjustedIdentifier;
+			if (identifier != null) {
+				adjustedIdentifier = identifier;
+			} else {
+				adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
+			}
 			return new AggSqlFunction(
-				identifier,
+				adjustedIdentifier,
 				aggFunc.toString(),
 				aggFunc,
-				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
-				fromLegacyInfoToDataType(aggDef.getAccumulatorTypeInfo()),
-				typeFactory,
+				fromLegacyInfoToDataType(definition.getResultTypeInfo()),
+				fromLegacyInfoToDataType(definition.getAccumulatorTypeInfo()),
+				ShortcutUtils.unwrapTypeFactory(relBuilder),
 				false,
 				scala.Option.empty());
-		}
 	}
 
 	@Override
