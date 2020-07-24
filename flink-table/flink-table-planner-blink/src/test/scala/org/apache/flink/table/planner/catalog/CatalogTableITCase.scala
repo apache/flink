@@ -986,6 +986,30 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
+  def testCreateTableAndShowCreateTable(): Unit = {
+    val createDDL =
+    """ |CREATE TABLE `TBL1` (
+        |  `A` BIGINT NOT NULL,
+        |  `H` STRING,
+        |  `G` AS 2 * (`A` + 1),
+        |  `B` STRING NOT NULL,
+        |  `TS` TIMESTAMP(3),
+        |  `PROC` AS PROCTIME(),
+        |  WATERMARK FOR `TS` AS `TS` - INTERVAL '5' SECOND,
+        |  CONSTRAINT test_constraint PRIMARY KEY (`A`, `B`) NOT ENFORCED
+        |) COMMENT 'test show create table statement'
+        |PARTITIONED BY (`B`, `H`)
+        |WITH (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(createDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next();
+    assertEquals(createDDL, row.getField(0))
+  }
+
+  @Test
   def testUseCatalogAndShowCurrentCatalog(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
     tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
