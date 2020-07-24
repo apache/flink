@@ -117,102 +117,6 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-		<dependency>
-			<groupId>io.confluent</groupId>
-			<artifactId>kafka-schema-registry</artifactId>
-			<version>${confluent.version}</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-log4j12</artifactId>
-				</exclusion>
-				<exclusion>
-					<artifactId>kafka-schema-registry-client</artifactId>
-					<groupId>io.confluent</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>kafka_2.12</artifactId>
-					<groupId>org.apache.kafka</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>kafka-clients</artifactId>
-					<groupId>org.apache.kafka</groupId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.swagger</groupId>
-					<artifactId>swagger-core</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>io.confluent</groupId>
-			<artifactId>kafka-schema-registry</artifactId>
-			<version>${confluent.version}</version>
-			<!-- Required for e.g. schema registry's RestApp -->
-			<classifier>tests</classifier>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-log4j12</artifactId>
-				</exclusion>
-				<exclusion>
-					<artifactId>kafka-schema-registry-client</artifactId>
-					<groupId>io.confluent</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>kafka_2.12</artifactId>
-					<groupId>org.apache.kafka</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>kafka-clients</artifactId>
-					<groupId>org.apache.kafka</groupId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.swagger</groupId>
-					<artifactId>swagger-core</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.curator</groupId>
-			<artifactId>curator-test</artifactId>
-			<version>2.12.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<!-- include 2.0 server for tests  -->
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_${scala.binary.version}</artifactId>
-			<version>${kafka.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.kafka</groupId>
-					<artifactId>kafka-clients</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.module</groupId>
-					<artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.scala-lang.modules</groupId>
-					<artifactId>scala-java8-compat_${scala.binary.version}</artifactId>
-				</exclusion>
-			</exclusions>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>${confluent.version}-ccs</version>
-			<classifier>test</classifier>
-			<scope>test</scope>
-		</dependency>
     </dependencies>
 
 	<build>
@@ -228,9 +132,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<!-- Tne compile got stuck when the kafka-schema-registry-client is included,
-							     see https://issues.apache.org/jira/browse/MSHADE-148 for details. -->
-							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>

@@ -21,9 +21,10 @@ package org.apache.flink.formats.avro.registry.confluent;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.AvroToRowDataConverters;
+import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
+import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.generated.Address;
-import org.apache.flink.formats.avro.registry.confluent.service.SingleNodeKafkaClusterEmbedded;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 import org.apache.flink.table.data.GenericRowData;
@@ -33,14 +34,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -75,8 +76,6 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 
 	private static final String SUBJECT = "address-value";
 
-	@ClassRule
-	public static SingleNodeKafkaClusterEmbedded cluster = new SingleNodeKafkaClusterEmbedded();
 	private static SchemaRegistryClient client;
 
 	private Address address;
@@ -86,7 +85,7 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 
 	@BeforeClass
 	public static void beforeClass() {
-		client = new CachedSchemaRegistryClient(cluster.schemaRegistryUrl(), 5);
+		client = new MockSchemaRegistryClient();
 	}
 
 	@Before
@@ -165,23 +164,25 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 	private static AvroRowDataSerializationSchema getSerializationSchema(
 			RowType rowType,
 			Schema avroSchema) {
+		ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
 		return new AvroRowDataSerializationSchema(
 				rowType,
-				ConfluentRegistryAvroSerializationSchema.forGeneric(
-						"address-value",
+				new RegistryAvroSerializationSchema<GenericRecord>(
+						GenericRecord.class,
 						avroSchema,
-						cluster.schemaRegistryUrl()),
+						() -> registryCoder),
 				RowDataToAvroConverters.createRowConverter(rowType));
 	}
 
 	private static AvroRowDataDeserializationSchema getDeserializationSchema(
 			RowType rowType,
 			Schema avroSchema) {
+		ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
 		return new AvroRowDataDeserializationSchema(
-				ConfluentRegistryAvroDeserializationSchema.forGeneric(
+				new RegistryAvroDeserializationSchema<GenericRecord>(
+						GenericRecord.class,
 						avroSchema,
-						cluster.schemaRegistryUrl(),
-						2),
+						() -> registryCoder),
 				AvroToRowDataConverters.createRowConverter(rowType),
 				InternalTypeInfo.of(rowType));
 	}

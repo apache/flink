@@ -52,7 +52,7 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 	 * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
 	 * 	                          schema writing
 	 */
-	protected RegistryAvroSerializationSchema(Class<T> recordClazz, Schema schema, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+	public RegistryAvroSerializationSchema(Class<T> recordClazz, Schema schema, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz, schema);
 		this.schemaCoderProvider = schemaCoderProvider;
 	}
