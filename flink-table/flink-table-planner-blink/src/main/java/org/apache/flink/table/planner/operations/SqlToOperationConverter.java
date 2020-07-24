@@ -50,6 +50,8 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
+import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
+import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
@@ -79,6 +81,8 @@ import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
+import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
@@ -216,8 +220,12 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
 		} else if (validated instanceof SqlShowCatalogs) {
 			return Optional.of(converter.convertShowCatalogs((SqlShowCatalogs) validated));
+		} else if (validated instanceof SqlShowCurrentCatalog){
+			return Optional.of(converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
 		} else if (validated instanceof SqlShowDatabases) {
 			return Optional.of(converter.convertShowDatabases((SqlShowDatabases) validated));
+		} else if (validated instanceof SqlShowCurrentDatabase) {
+			return Optional.of(converter.convertShowCurrentDatabase((SqlShowCurrentDatabase) validated));
 		} else if (validated instanceof SqlShowTables) {
 			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
 		} else if (validated instanceof SqlShowFunctions) {
@@ -638,9 +646,19 @@ public class SqlToOperationConverter {
 		return new ShowCatalogsOperation();
 	}
 
+	/** Convert SHOW CURRENT CATALOG statement. */
+	private Operation convertShowCurrentCatalog(SqlShowCurrentCatalog sqlShowCurrentCatalog) {
+		return new ShowCurrentCatalogOperation();
+	}
+
 	/** Convert SHOW DATABASES statement. */
 	private Operation convertShowDatabases(SqlShowDatabases sqlShowDatabases) {
 		return new ShowDatabasesOperation();
+	}
+
+	/** Convert SHOW CURRENT DATABASE statement. */
+	private Operation convertShowCurrentDatabase(SqlShowCurrentDatabase sqlShowCurrentDatabase) {
+		return new ShowCurrentDatabaseOperation();
 	}
 
 	/** Convert SHOW TABLES statement. */

@@ -58,6 +58,21 @@ SqlShowCatalogs SqlShowCatalogs() :
     }
 }
 
+SqlCall SqlShowCurrentCatalogOrDatabase() :
+{
+}
+{
+    <SHOW> <CURRENT> ( <CATALOG>
+        {
+            return new SqlShowCurrentCatalog(getPos());
+        }
+    | <DATABASE>
+        {
+            return new SqlShowCurrentDatabase(getPos());
+        }
+    )
+}
+
 SqlDescribeCatalog SqlDescribeCatalog() :
 {
     SqlIdentifier catalogName;

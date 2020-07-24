@@ -25,12 +25,14 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出所有的 function，包括：临时系统 function，系统 function，临时 catalog function，当前 catalog 和 database 中的 catalog function。
+SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出所有的 function，包括：临时系统 function，系统 function，临时 catalog function，当前 catalog 和 database 中的 catalog function。
 
 目前 Flink SQL 支持下列 SHOW 语句：
 - SHOW CATALOGS
+- SHOW CURRENT CATALOG
 - SHOW DATABASES
-- SHOW TABLES 
+- SHOW CURRENT DATABASE
+- SHOW TABLES
 - SHOW VIEWS
 - SHOW FUNCTIONS
 
@@ -55,6 +57,14 @@ tEnv.executeSql("SHOW CATALOGS").print();
 // | default_catalog |
 // +-----------------+
 
+// show current catalog
+tEnv.executeSql("SHOW CURRENT CATALOG").print();
+// +----------------------+
+// | current catalog name |
+// +----------------------+
+// |      default_catalog |
+// +----------------------+
+
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
 // +------------------+
@@ -62,6 +72,14 @@ tEnv.executeSql("SHOW DATABASES").print();
 // +------------------+
 // | default_database |
 // +------------------+
+
+// show current database
+tEnv.executeSql("SHOW CURRENT DATABASE").print();
+// +-----------------------+
+// | current database name |
+// +-----------------------+
+// |      default_database |
+// +-----------------------+
 
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
@@ -244,6 +262,14 @@ SHOW CATALOGS
 
 展示所有的 catalog。
 
+## SHOW CURRENT CATALOG
+
+{% highlight sql %}
+SHOW CURRENT CATALOG
+{% endhighlight %}
+
+显示当前正在使用的 catalog。
+
 ## SHOW DATABASES
 
 {% highlight sql %}
@@ -251,6 +277,14 @@ SHOW DATABASES
 {% endhighlight %}
 
 展示当前 catalog 中所有的 database。
+
+## SHOW CURRENT DATABASE
+
+{% highlight sql %}
+SHOW CURRENT DATABASE
+{% endhighlight %}
+
+显示当前正在使用的 database。
 
 ## SHOW TABLES
 

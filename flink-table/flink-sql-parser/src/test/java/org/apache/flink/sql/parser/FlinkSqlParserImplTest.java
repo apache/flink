@@ -48,6 +48,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowCurrentCatalog() {
+		sql("show current catalog").ok("SHOW CURRENT CATALOG");
+	}
+
+	@Test
 	public void testDescribeCatalog() {
 		sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
 	}
@@ -86,6 +91,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testShowDataBases() {
 		sql("show databases").ok("SHOW DATABASES");
+	}
+
+	@Test
+	public void testShowCurrentDatabase() {
+		sql("show current database").ok("SHOW CURRENT DATABASE");
 	}
 
 	@Test

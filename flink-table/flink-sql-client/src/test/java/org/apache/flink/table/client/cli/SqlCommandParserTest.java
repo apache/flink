@@ -213,9 +213,15 @@ public class SqlCommandParserTest {
 				// show catalogs
 				TestItem.validSql("SHOW CATALOGS;", SqlCommand.SHOW_CATALOGS),
 				TestItem.validSql("  SHOW   CATALOGS   ;", SqlCommand.SHOW_CATALOGS),
+				// show current catalog
+				TestItem.validSql("show current catalog", SqlCommand.SHOW_CURRENT_CATALOG),
+				TestItem.validSql("show 	current 	catalog", SqlCommand.SHOW_CURRENT_CATALOG),
 				// show databases
 				TestItem.validSql("SHOW DATABASES;", SqlCommand.SHOW_DATABASES),
 				TestItem.validSql("  SHOW   DATABASES   ;", SqlCommand.SHOW_DATABASES),
+				// show current database
+				TestItem.validSql("show current database", SqlCommand.SHOW_CURRENT_DATABASE),
+				TestItem.validSql("show 	current 	database", SqlCommand.SHOW_CURRENT_DATABASE),
 				// show tables
 				TestItem.validSql("SHOW TABLES;", SqlCommand.SHOW_TABLES),
 				TestItem.validSql("  SHOW   TABLES   ;", SqlCommand.SHOW_TABLES),
