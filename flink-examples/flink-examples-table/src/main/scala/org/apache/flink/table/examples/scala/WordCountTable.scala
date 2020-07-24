@@ -45,9 +45,9 @@ object WordCountTable {
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
     val expr = input.toTable(tEnv)
     val result = expr
-      .groupBy('word)
-      .select('word, 'frequency.sum as 'frequency)
-      .filter('frequency === 2)
+      .groupBy($"word")
+      .select($"word", $"frequency".sum as "frequency")
+      .filter($"frequency" === 2)
       .toDataSet[WC]
 
     result.print()
