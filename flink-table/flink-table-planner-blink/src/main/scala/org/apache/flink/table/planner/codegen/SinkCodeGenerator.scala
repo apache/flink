@@ -94,6 +94,7 @@ object SinkCodeGenerator {
         afterIndexModify = CodeGenUtils.newName("afterIndexModify")
         s"""
            |${conversion.code}
+           |${conversion.resultTerm}.setRowKind(${inputTerm}.getRowKind());
            |${classOf[RowData].getCanonicalName} $afterIndexModify = ${conversion.resultTerm};
            |""".stripMargin
       case _ =>
