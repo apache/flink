@@ -158,6 +158,8 @@ abstract class TableEnvImpl(
       "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, " +
       "SHOW VIEWS, INSERT, DESCRIBE."
 
+  private val PRINT_INDENT = "  "
+
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
     case _ => true
@@ -785,6 +787,15 @@ abstract class TableEnvImpl(
         buildShowResult("current database name", Array(catalogManager.getCurrentDatabase))
       case _: ShowTablesOperation =>
         buildShowResult("table name", listTables())
+      case showCreateTableOperation: ShowCreateTableOperation =>
+        val result = catalogManager.getTable(showCreateTableOperation.getSqlIdentifier)
+        if (result.isPresent) {
+          buildShowCreateResult(result.get().getTable, showCreateTableOperation.getSqlIdentifier)
+        } else {
+          throw new ValidationException(String.format(
+            "Table or view with identifier '%s' doesn't exist",
+            showCreateTableOperation.getSqlIdentifier.asSummaryString()))
+        }
       case showFunctionsOperation: ShowFunctionsOperation =>
         val functionScope = showFunctionsOperation.getFunctionScope()
         val functionNames = functionScope match {
@@ -853,6 +864,79 @@ abstract class TableEnvImpl(
       case (obj, i) => rows(i)(0) = obj
     }
     buildResult(Array(columnName), Array(DataTypes.STRING), rows)
+  }
+
+  private def buildShowCreateResult(
+      table: CatalogBaseTable,
+      sqlIdentifier: ObjectIdentifier): TableResult = {
+    val schema = table.getSchema
+    val fieldCount = schema.getFieldCount
+    val fieldDecls =
+      new Array[String](fieldCount +
+        schema.getWatermarkSpecs.length +
+        (if (schema.getPrimaryKey.isPresent) 1 else 0))
+
+    schema.getTableColumns().asScala.zipWithIndex.foreach {
+      case (col, ind) => {
+        fieldDecls(ind) =
+          if (col.getExpr.isPresent) {
+            String.format("%s`%s` AS %s", PRINT_INDENT, col.getName, col.getExpr.get)
+          } else {
+            String.format("%s`%s` %s", PRINT_INDENT, col.getName, col.getType)
+          }
+      }
+    }
+    if (!schema.getWatermarkSpecs.isEmpty) {
+      schema.getWatermarkSpecs.asScala.zipWithIndex.foreach {
+        case (sepc, ind) => {
+          fieldDecls(fieldCount + ind) =
+            String.format("%sWATERMARK FOR `%s` AS `%s`",
+              PRINT_INDENT, sepc.getRowtimeAttribute, sepc.getWatermarkExpr)
+        }
+      }
+    }
+    if (schema.getPrimaryKey.isPresent) {
+      fieldDecls(fieldCount + schema.getWatermarkSpecs.length) =
+        String.format("%s%s", PRINT_INDENT, schema.getPrimaryKey.get.asCanonicalString())
+    }
+
+    val withOptions = table.getOptions.map(
+      option => String.format("%s'%s' = '%s'", PRINT_INDENT, option._1, option._2)
+    ).toArray
+
+    // assemble all components
+    val sb = StringBuilder.newBuilder
+    sb.append(String.format("CREATE TABLE `%s` (\n", sqlIdentifier.getObjectName))
+      .append(fieldDecls.mkString(",\n"))
+      .append("\n) ")
+
+    if (table.getComment != null) {
+      sb.append(s"COMMENT '${table.getComment}'\n")
+    }
+
+    table match {
+      case partitionedTable: CatalogTable => {
+        if (partitionedTable.isPartitioned) {
+          val keys = partitionedTable.getPartitionKeys
+          if (keys.length > 0) {
+            sb.append("PARTITIONED BY (")
+              .append(partitionedTable
+                .getPartitionKeys
+                .map(key => String.format("`%s`", key))
+                .toArray
+                .mkString(", "))
+              .append(")\n")
+          }
+        }
+      }
+    }
+    sb.append(s"WITH (\n${withOptions.mkString(",\n")}\n)\n")
+
+    buildResult(
+      Array("create table"),
+      Array(DataTypes.STRING),
+      Array(Array(sb.toString))
+    )
   }
 
   private def buildDescribeResult(schema: TableSchema): TableResult = {
