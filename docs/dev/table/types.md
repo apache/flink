@@ -199,7 +199,9 @@ The following data types are supported:
 
 | Data Type | Remarks for Data Type |
 |:----------|:----------------------|
-| `STRING` | `CHAR` and `VARCHAR` are not supported yet. |
+| `CHAR` | |
+| `VARCHAR` | |
+| `STRING` | |
 | `BOOLEAN` | |
 | `BYTES` | `BINARY` and `VARBINARY` are not supported yet. |
 | `DECIMAL` | Supports fixed precision and scale. |

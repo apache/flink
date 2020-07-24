@@ -172,7 +172,9 @@ Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Informat
 
 | 数据类型 | 数据类型的备注 |
 |:----------|:----------------------|
-| `STRING` | `CHAR` 和 `VARCHAR` 暂不支持。 |
+| `CHAR` | |
+| `VARCHAR` | |
+| `STRING` | |
 | `BOOLEAN` | |
 | `BYTES` | `BINARY` 和 `VARBINARY` 暂不支持。 |
 | `DECIMAL` | 支持固定精度和小数位数。 |
