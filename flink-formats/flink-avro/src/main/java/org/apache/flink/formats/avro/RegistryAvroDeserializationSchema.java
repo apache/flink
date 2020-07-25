@@ -60,15 +60,6 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 		this.schemaCoder = schemaCoderProvider.get();
 	}
 
-	public static RegistryAvroDeserializationSchema<GenericRecord> forGeneric(
-			Schema schema,
-			SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
-		return new RegistryAvroDeserializationSchema<>(
-				GenericRecord.class,
-				schema,
-				schemaCoderProvider);
-	}
-
 	@Override
 	public T deserialize(byte[] message) throws IOException {
 			checkAvroInitialized();

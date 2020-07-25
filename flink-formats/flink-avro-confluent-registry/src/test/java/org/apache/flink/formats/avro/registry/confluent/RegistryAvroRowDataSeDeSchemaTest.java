@@ -107,7 +107,7 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 	public void testRowDataWriteReadWithCompatibleSchema() throws Exception {
 		testRowDataWriteReadWithSchema(ADDRESS_SCHEMA_COMPATIBLE);
 		// Validates new schema has been registered.
-		assertThat(client.getAllVersions("address-value").size(), is(1));
+		assertThat(client.getAllVersions(SUBJECT).size(), is(1));
 	}
 
 	@Test
