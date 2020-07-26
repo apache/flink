@@ -41,14 +41,13 @@ under the License.
 public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, WatermarkGeneratorSupplier<T>{
 
     /**
-     * Instantiates a {@link TimestampAssigner} for assigning timestamps according to this
-     * strategy.
+     * 根据策略实例化一个可分配时间戳的 {@link TimestampAssigner}。
      */
     @Override
     TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context);
 
     /**
-     * Instantiates a WatermarkGenerator that generates watermarks according to this strategy.
+     * 根据策略实例化一个 watermark 生成器。
      */
     @Override
     WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context);
@@ -179,26 +178,23 @@ WatermarkStrategies
 
 {% highlight java %}
 /**
- * The {@code WatermarkGenerator} generates watermarks either based on events or
- * periodically (in a fixed interval).
+ * {@code WatermarkGenerator} 可以基于事件或者周期性的生成 watermark。
  *
- * <p><b>Note:</b> This WatermarkGenerator subsumes the previous distinction between the
- * {@code AssignerWithPunctuatedWatermarks} and the {@code AssignerWithPeriodicWatermarks}.
+ * <p><b>注意：</b>  WatermarkGenerator 将以前互相独立的 {@code AssignerWithPunctuatedWatermarks} 
+ * 和 {@code AssignerWithPeriodicWatermarks} 一同包含了进来。
  */
 @Public
 public interface WatermarkGenerator<T> {
 
     /**
-     * Called for every event, allows the watermark generator to examine and remember the
-     * event timestamps, or to emit a watermark based on the event itself.
+     * 每来一条事件数据调用一次，可以检查或者记录事件的时间戳，或者也可以基于事件数据本身去生成 watermark。
      */
     void onEvent(T event, long eventTimestamp, WatermarkOutput output);
 
     /**
-     * Called periodically, and might emit a new watermark, or not.
+     * 周期性的调用，也许会生成新的 watermark，也许不会。
      *
-     * <p>The interval in which this method is called and Watermarks are generated
-     * depends on {@link ExecutionConfig#getAutoWatermarkInterval()}.
+     * <p>调用此方法生成 watermark 的间隔时间由 {@link ExecutionConfig#getAutoWatermarkInterval()} 决定。
      */
     void onPeriodicEmit(WatermarkOutput output);
 }
