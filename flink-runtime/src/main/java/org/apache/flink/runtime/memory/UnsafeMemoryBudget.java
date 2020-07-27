@@ -35,12 +35,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * continues to process any ready cleaners making {@link #MAX_SLEEPS} attempts before throwing {@link OutOfMemoryError}.
  */
 class UnsafeMemoryBudget {
-	// max. number of sleeps during try-reserving with exponentially
-	// increasing delay before throwing OutOfMemoryError:
-	// 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, ... (total (2 x 1024) - 1 ms ~ 2 s)
-	// which means that MemoryReservationException will be thrown after 1 s of trying
-	private static final int MAX_SLEEPS = 11;
-	private static final int MAX_SLEEPS_VERIFY_EMPTY = 17; // (total (128 x 1024) - 1 ms ~ 2 min)
+	private static final int MAX_SLEEPS = 11; // 2^11 - 1 = (2 x 1024) - 1 ms ~ 2 s total sleep duration
+	private static final int MAX_SLEEPS_VERIFY_EMPTY = 17; // 2^17 - 1 = (128 x 1024) - 1 ms ~ 2 min total sleep duration
 	private static final int RETRIGGER_GC_AFTER_SLEEPS = 9; // ~ 0.5 sec
 
 	private final long totalMemorySize;
@@ -62,7 +58,8 @@ class UnsafeMemoryBudget {
 
 	boolean verifyEmpty() {
 		try {
-			// we wait longer as we have to GC all memory, allocated by task, to perform the verification
+			// we wait longer than during the normal reserveMemory as we have to GC all memory,
+			// allocated by task, to perform the verification
 			reserveMemory(totalMemorySize, MAX_SLEEPS_VERIFY_EMPTY);
 		} catch (MemoryReservationException e) {
 			return false;
@@ -80,6 +77,20 @@ class UnsafeMemoryBudget {
 		reserveMemory(size, MAX_SLEEPS);
 	}
 
+	/**
+	 * Reserve memory of certain size if it is available.
+	 *
+	 * <p>If the method cannot reserve immediately, it tries to process the phantom GC cleaners queue by
+	 * calling {@link JavaGcCleanerWrapper#tryRunPendingCleaners()}. If it does not help,
+	 * the method calls {@link System#gc} and tries again to reserve. If it still cannot reserve,
+	 * it tries to process the phantom GC cleaners queue. If there are no cleaners to process,
+	 * the method sleeps the {@code maxSleeps} number of times, starting 1 ms and each time doubling
+	 * the sleeping duration: 1 (0), 2 (1), 4 (2), 8 (3), 16 (4), 32 (5), 64 (6), 128 (7), 256 (8), 512 (9), ...
+	 * After the {@code RETRIGGER_GC_AFTER_SLEEPS} sleeps, the method also calls {@link System#gc} before sleeping.
+	 * After the {@code maxSleeps} being unable to reserve, the {@link MemoryReservationException} is thrown.
+	 *
+	 * <p>Adjusted version of {@link java.nio.Bits#reserveMemory(long, int)} taken from Java 11.
+	 */
 	@SuppressWarnings({"OverlyComplexMethod", "JavadocReference", "NestedTryStatement"})
 	void reserveMemory(long size, int maxSleeps) throws MemoryReservationException {
 		long availableOrReserved = tryReserveMemory(size);

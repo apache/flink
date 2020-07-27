@@ -35,7 +35,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -86,9 +86,9 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 	private final CompletableFuture<Void> closingFuture;
 
 	/**
-	 * {@link ExecutorService} for background actions, e.g. verify all managed memory released.
+	 * {@link Executor} for background actions, e.g. verify all managed memory released.
 	 */
-	private final ExecutorService asyncExecutor;
+	private final Executor asyncExecutor;
 
 	public TaskSlot(
 		final int index,
@@ -96,7 +96,7 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 		final int memoryPageSize,
 		final JobID jobId,
 		final AllocationID allocationId,
-		final ExecutorService asyncExecutor) {
+		final Executor asyncExecutor) {
 
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
@@ -304,18 +304,17 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 				tasks.values().forEach(task -> task.failExternally(cause));
 			}
 
-			final CompletableFuture<Void> cleanupFuture = FutureUtils
+			final CompletableFuture<Void> shutdownFuture = FutureUtils
 				.waitForAll(tasks.values().stream().map(TaskSlotPayload::getTerminationFuture).collect(Collectors.toList()))
 				.thenRun(memoryManager::shutdown);
-			verifyAllManagedMemoryIsReleasedAfter(cleanupFuture);
-			FutureUtils.forward(cleanupFuture, closingFuture);
+			verifyAllManagedMemoryIsReleasedAfter(shutdownFuture);
+			FutureUtils.forward(shutdownFuture, closingFuture);
 		}
 		return closingFuture;
 	}
 
 	private void verifyAllManagedMemoryIsReleasedAfter(CompletableFuture<Void> after) {
-		FutureUtils.runAfterwardsAsync(
-			after,
+		after.thenRunAsync(
 			() -> {
 				if (!memoryManager.verifyEmpty()) {
 					LOG.warn("Not all slot memory is freed, potential memory leak at {}", this);

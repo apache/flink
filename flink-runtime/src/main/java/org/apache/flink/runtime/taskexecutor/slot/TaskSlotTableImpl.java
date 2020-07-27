@@ -53,10 +53,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -112,16 +109,17 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 			"call to TaskSlotTableImpl#start is required");
 
 	/**
-	 * {@link ExecutorService} for background actions, e.g. verify all managed memory released.
+	 * {@link Executor} for background actions, e.g. verify all managed memory released.
 	 */
-	private final ExecutorService asyncExecutor;
+	private final Executor memoryVerificationExecutor;
 
 	public TaskSlotTableImpl(
 			final int numberSlots,
 			final ResourceProfile totalAvailableResourceProfile,
 			final ResourceProfile defaultSlotResourceProfile,
 			final int memoryPageSize,
-			final TimerService<AllocationID> timerService) {
+			final TimerService<AllocationID> timerService,
+			final Executor memoryVerificationExecutor) {
 		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
 
 		this.numberSlots = numberSlots;
@@ -144,11 +142,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		state = State.CREATED;
 		closingFuture = new CompletableFuture<>();
 
-		asyncExecutor = new ThreadPoolExecutor(
-			0,
-			numberSlots,
-			60L, TimeUnit.SECONDS,
-			new SynchronousQueue<>());
+		this.memoryVerificationExecutor = memoryVerificationExecutor;
 	}
 
 	@Override
@@ -183,7 +177,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 					() -> {
 						state = State.CLOSED;
 						timerService.stop();
-						asyncExecutor.shutdownNow();
 					},
 					mainThreadExecutor);
 			FutureUtils.forward(cleanupFuture, closingFuture);
@@ -305,7 +298,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 			return false;
 		}
 
-		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId, asyncExecutor);
+		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId, memoryVerificationExecutor);
 		if (index >= 0) {
 			taskSlots.put(index, taskSlot);
 		}
