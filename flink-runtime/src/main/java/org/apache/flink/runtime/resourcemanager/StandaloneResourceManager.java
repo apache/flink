@@ -106,8 +106,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	protected void startServicesOnLeadership() {
-		super.startServicesOnLeadership();
+	protected void onLeadership() {
 		startStartupPeriod();
 	}
 
