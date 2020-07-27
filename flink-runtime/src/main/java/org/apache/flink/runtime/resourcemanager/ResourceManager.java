@@ -206,7 +206,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void onStart() throws Exception {
+	public final void onStart() throws Exception {
 		try {
 			startResourceManagerServices();
 		} catch (Exception e) {
