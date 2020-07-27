@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -84,12 +85,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -206,6 +209,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	/** Flag to mark this task as canceled. */
 	private volatile boolean canceled;
+
+	/** Flag to mark this task as failing, i.e. if an exception has occurred inside {@link #invoke()}. */
+	private volatile boolean failing;
 
 	private boolean disposedOperators;
 
@@ -478,6 +484,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			afterInvoke();
 		}
 		finally {
+			failing = !canceled;
 			cleanUpInvoke();
 		}
 	}
@@ -488,6 +495,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void afterInvoke() throws Exception {
 		LOG.debug("Finished task {}", getName());
+		getCompletionFuture().exceptionally(unused -> null).join();
 
 		// make sure no further checkpoint and notification actions happen.
 		// we make sure that no other thread is currently in the locked scope before
@@ -526,6 +534,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void cleanUpInvoke() throws Exception {
+		getCompletionFuture().exceptionally(unused -> null).join();
 		// clean up everything we initialized
 		isRunning = false;
 
@@ -575,6 +584,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		mailboxProcessor.close();
 	}
 
+	protected CompletableFuture<Void> getCompletionFuture() {
+		return FutureUtils.completedVoidFuture();
+	}
+
 	@Override
 	public final void cancel() throws Exception {
 		isRunning = false;
@@ -586,8 +599,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			cancelTask();
 		}
 		finally {
-			mailboxProcessor.allActionsCompleted();
-			cancelables.close();
+			getCompletionFuture()
+				.whenComplete((unusedResult, unusedError) -> {
+					// WARN: the method is called from the task thread but the callback can be invoked from a different thread
+					mailboxProcessor.allActionsCompleted();
+					try {
+						cancelables.close();
+					} catch (IOException e) {
+						throw new CompletionException(e);
+					}
+				});
 		}
 	}
 
@@ -626,6 +647,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				operatorChain.endNonHeadOperatorInput(allOperators[i - 1]);
 			}
 		}
+	}
+
+	public final boolean isFailing() {
+		return failing;
 	}
 
 	private void shutdownAsyncThreads() throws Exception {

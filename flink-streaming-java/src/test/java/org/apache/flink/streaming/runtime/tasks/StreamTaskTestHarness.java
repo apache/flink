@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -261,6 +263,10 @@ public class StreamTaskTestHarness<OUT> {
 		waitForTaskCompletion(Long.MAX_VALUE);
 	}
 
+	public void waitForTaskCompletion(long timeout) throws Exception {
+		waitForTaskCompletion(timeout, false);
+	}
+
 	/**
 	 * Waits for the task completion. If this does not happen within the timeout, then a
 	 * TimeoutException is thrown.
@@ -268,12 +274,14 @@ public class StreamTaskTestHarness<OUT> {
 	 * @param timeout Timeout for the task completion
 	 * @throws Exception
 	 */
-	public void waitForTaskCompletion(long timeout) throws Exception {
+	public void waitForTaskCompletion(long timeout, boolean ignoreCancellationException) throws Exception {
 		Preconditions.checkState(taskThread != null, "Task thread was not started.");
 
 		taskThread.join(timeout);
 		if (taskThread.getError() != null) {
-			throw new Exception("error in task", taskThread.getError());
+			if (!ignoreCancellationException || !ExceptionUtils.findThrowable(taskThread.getError(), CancelTaskException.class).isPresent()) {
+				throw new Exception("error in task", taskThread.getError());
+			}
 		}
 	}
 
@@ -432,7 +440,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	// ------------------------------------------------------------------------
 
-	private class TaskThread extends Thread {
+	class TaskThread extends Thread {
 
 		private final Supplier<? extends StreamTask<OUT, ?>> taskFactory;
 		private volatile StreamTask<OUT, ?> task;
