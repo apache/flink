@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.data.{GenericRowData, RowData, UpdatableRowData}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{UserDefinedAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{ImperativeAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
@@ -79,7 +79,7 @@ class ImperativeAggCodeGen(
   private val SINGLE_ITERABLE = className[SingleElementIterator[_]]
   private val UPDATABLE_ROW = className[UpdatableRowData]
 
-  val function = aggInfo.function.asInstanceOf[UserDefinedAggregateFunction[_, _]]
+  val function = aggInfo.function.asInstanceOf[ImperativeAggregateFunction[_, _]]
   val functionTerm: String = ctx.addReusableFunction(
     function,
     contextTerm = s"$STORE_TERM.getRuntimeContext()")
