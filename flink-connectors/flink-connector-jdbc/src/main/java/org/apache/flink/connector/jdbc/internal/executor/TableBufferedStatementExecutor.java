@@ -29,7 +29,7 @@ import java.util.function.Function;
 
 /**
  * Currently, this statement executor is only used for table/sql to buffer records,
- * because the {@link PreparedStatement#executeBatch()} may fail and clear added batched,
+ * because the {@link PreparedStatement#executeBatch()} may fail and clear buffered records,
  * so we have to buffer the records and replay the records when retrying {@link #executeBatch()}.
  */
 public final class TableBufferedStatementExecutor implements JdbcBatchStatementExecutor<RowData> {

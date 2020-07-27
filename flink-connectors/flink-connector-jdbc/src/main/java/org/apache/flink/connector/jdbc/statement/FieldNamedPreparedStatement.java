@@ -201,7 +201,7 @@ public interface FieldNamedPreparedStatement extends AutoCloseable {
 	void setString(int fieldIndex, String x) throws SQLException;
 
 	/**
-	 * Sets the designated parameter to the given Java array of bytes.  The driver converts
+	 * Sets the designated parameter to the given Java array of bytes. The driver converts
 	 * this to an SQL <code>VARBINARY</code> or <code>LONGVARBINARY</code>
 	 * (depending on the argument's size relative to the driver's limits on
 	 * <code>VARBINARY</code> values) when it sends it to the database.
