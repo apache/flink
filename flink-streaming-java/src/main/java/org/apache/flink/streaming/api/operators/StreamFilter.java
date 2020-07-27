@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 
 /**
  * A {@link StreamOperator} for executing {@link FilterFunction FilterFunctions}.
@@ -28,16 +29,25 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFunction<IN>> implements OneInputStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
+	private OutputTag<IN> outputTag;
 
 	public StreamFilter(FilterFunction<IN> filterFunction) {
 		super(filterFunction);
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
+	public StreamFilter(FilterFunction<IN> filterFunction, OutputTag<IN> outputTag) {
+		super(filterFunction);
+		chainingStrategy = ChainingStrategy.ALWAYS;
+		this.outputTag = outputTag;
+	}
+
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (userFunction.filter(element.getValue())) {
 			output.collect(element);
+		} else if (this.outputTag != null) {
+			output.collect(this.outputTag, element);
 		}
 	}
 }

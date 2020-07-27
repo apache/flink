@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
+import org.apache.flink.util.OutputTag;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -96,6 +97,34 @@ public class StreamFilterTest {
 
 		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseFilterFunction.closeCalled);
 		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+	}
+
+	@Test
+	public void testOutputTagFilter() throws Exception {
+		OutputTag<Integer> outputTag = new OutputTag<>("filtered"){};
+		StreamFilter<Integer> operator = new StreamFilter<Integer>(new MyFilter(),outputTag);
+		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<StreamRecord<Integer>> expectedOutputTag = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
+		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
+		testHarness.processWatermark(new Watermark(initialTime + 2));
+		testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
+		testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
+		testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
+		testHarness.processElement(new StreamRecord<Integer>(6, initialTime + 6));
+		testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
+
+		expectedOutputTag.add(new StreamRecord<Integer>(1, initialTime + 1));
+		expectedOutputTag.add(new StreamRecord<Integer>(3, initialTime + 3));
+		expectedOutputTag.add(new StreamRecord<Integer>(5, initialTime + 5));
+		expectedOutputTag.add(new StreamRecord<Integer>(7, initialTime + 7));
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutputTag, testHarness.getSideOutput(outputTag));
 	}
 
 	// This must only be used in one test, otherwise the static fields will be changed

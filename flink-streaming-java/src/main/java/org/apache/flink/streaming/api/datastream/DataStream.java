@@ -97,6 +97,7 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -739,6 +740,28 @@ public class DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T> filter(FilterFunction<T> filter) {
 		return transform("Filter", getType(), new StreamFilter<>(clean(filter)));
+
+	}
+
+	/**
+	 * Applies a Filter transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FilterFunction} for each element of the
+	 * DataStream and retains only those element for which the function returns
+	 * true. Elements for which the function returns false are collected into the
+	 * given {@link OutputTag}.
+	 * The user can also extend {@link RichFilterFunction} to gain access to other
+	 * features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param filter
+	 *            The FilterFunction that is called for each element of the
+	 *            DataStream.
+	 * @param outputTag
+	 * 			  The {@link OutputTag} that filtered records will be collected.
+	 * @return The filtered DataStream.
+	 */
+	public SingleOutputStreamOperator<T> filter(FilterFunction<T> filter, OutputTag<T> outputTag) {
+		return transform("Filter", getType(), new StreamFilter<>(clean(filter),outputTag));
 
 	}
 
