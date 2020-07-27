@@ -411,7 +411,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
 			if (slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport)) {
-				onTaskManagerRegistration(workerTypeWorkerRegistration);
+				onWorkerRegistered(workerTypeWorkerRegistration.getWorker());
 			}
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {
@@ -419,7 +419,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
-	protected void onTaskManagerRegistration(WorkerRegistration<WorkerType> workerTypeWorkerRegistration) {
+	protected void onWorkerRegistered(WorkerType worker) {
 		// noop
 	}
 
