@@ -27,13 +27,16 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+<a name="process-functions"></a>
 ## 处理函数（Process Functions）
 
+<a name="introduction"></a>
 ### 简介
 
 `ProcessFunction` 将事件处理与 Timer，State 结合在一起，使其成为流处理应用的强大构建模块。
 这是使用 Flink 创建事件驱动应用程序的基础。它和 `RichFlatMapFunction` 十分相似， 但是增加了 Timer。
 
+<a name="example"></a>
 ### 示例
 
 如果你已经体验了
@@ -117,6 +120,7 @@ public static class PseudoWindow extends
   除此之外，`processElement` 和 `onTimer` 都提供了一个上下文对象，该对象可用于与 `TimerService` 交互。
   这两个回调还传递了一个可用于发出结果的 `Collector`。
 
+<a name="the-open-method"></a>
 #### `open()` 方法
 
 {% highlight java %}
@@ -138,6 +142,7 @@ public void open(Configuration conf) {
 实际上，如果 Watermark 延迟比窗口长度长得多，则可能有多个窗口同时打开，而不仅仅是两个。
 此实现通过使用 `MapState` 来支持处理这一点，该 `MapState` 将每个窗口的结束时间戳映射到该窗口的小费总和。
 
+<a name="the-processelement-method"></a>
 #### `processElement()` 方法
 
 {% highlight java %}
@@ -178,6 +183,7 @@ public void processElement(
 * 本例使用一个 `MapState`，其中 keys 是时间戳（timestamp），并为同一时间戳设置一个 Timer。
   这是一种常见的模式；它使得在 Timer 触发时查找相关信息变得简单高效。
 
+<a name="the-ontimer-method"></a>
 #### `onTimer()` 方法
 
 {% highlight java %}
@@ -204,6 +210,7 @@ public void onTimer(
   这个 `onTimer` 方法从 `sumOfTips` 中删除相关的条目，这样做的效果是不可能容纳延迟的事件。
   这相当于在使用 Flink 的时间窗口时将 allowedLateness 设置为零。
 
+<a name="performance-considerations"></a>
 ### 性能考虑
 
 Flink 提供了为 RocksDB 优化的 `MapState` 和 `ListState` 类型。
@@ -214,8 +221,10 @@ RocksDBStateBackend 可以附加到 `ListState`，而无需进行（反）序列
 
 {% top %}
 
+<a name="side-outputs"></a>
 ## 旁路输出（Side Outputs）
 
+<a name="introduction-1"></a>
 ### 简介
 
 有几个很好的理由希望从 Flink 算子获得多个输出流，如下报告条目：
@@ -227,6 +236,7 @@ RocksDBStateBackend 可以附加到 `ListState`，而无需进行（反）序列
 
 旁路输出（Side outputs）是一种方便的方法。除了错误报告之外，旁路输出也是实现流的 n 路分割的好方法。
 
+<a name="example-1"></a>
 ### 示例
 
 现在你可以对上一节中忽略的延迟事件执行某些操作。
@@ -263,6 +273,7 @@ hourlyTips.getSideOutput(lateFares).print();
 
 {% top %}
 
+<a name="closing-remarks"></a>
 ## 结语
 
 在本例中，你已经了解了如何使用 `ProcessFunction` 重新实现一个简单的时间窗口。
@@ -282,6 +293,7 @@ hourlyTips.getSideOutput(lateFares).print();
 
 {% top %}
 
+<a name="hands-on"></a>
 ## 实践练习
 
 本节的实践练习是 [Long Ride Alerts
@@ -289,6 +301,7 @@ Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}r
 
 {% top %}
 
+<a name="further-reading"></a>
 ## 延伸阅读
 
 - [处理函数（ProcessFunction）]({% link dev/stream/operators/process_function.zh.md %})
