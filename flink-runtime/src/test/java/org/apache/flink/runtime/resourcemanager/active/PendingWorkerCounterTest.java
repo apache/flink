@@ -27,16 +27,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 /**
- * Tests for {@link ActiveResourceManager}.
+ * Tests for {@link PendingWorkerCounter}.
  */
-public class ActiveResourceManagerTest extends TestLogger {
+public class PendingWorkerCounterTest extends TestLogger {
 
 	@Test
 	public void testPendingWorkerCounterIncreaseAndDecrease() {
 		final WorkerResourceSpec spec1 = new WorkerResourceSpec.Builder().setCpuCores(1.0).build();
 		final WorkerResourceSpec spec2 = new WorkerResourceSpec.Builder().setCpuCores(2.0).build();
 
-		final ActiveResourceManager.PendingWorkerCounter counter = new ActiveResourceManager.PendingWorkerCounter();
+		final PendingWorkerCounter counter = new PendingWorkerCounter();
 		assertThat(counter.getTotalNum(), is(0));
 		assertThat(counter.getNum(spec1), is(0));
 		assertThat(counter.getNum(spec2), is(0));
@@ -70,7 +70,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 	@Test(expected = IllegalStateException.class)
 	public void testPendingWorkerCounterDecreaseOnZero() {
 		final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
-		final ActiveResourceManager.PendingWorkerCounter counter = new ActiveResourceManager.PendingWorkerCounter();
+		final PendingWorkerCounter counter = new PendingWorkerCounter();
 		counter.decreaseAndGet(spec);
 	}
 }
