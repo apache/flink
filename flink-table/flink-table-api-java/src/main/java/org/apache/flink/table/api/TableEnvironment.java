@@ -31,7 +31,6 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AbstractDataType;
-import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -223,7 +222,7 @@ public interface TableEnvironment {
 	 * <p>The method will derive the types automatically from the input expressions. If types
 	 * at a certain position differ, the method will try to find a common super type for all types. If a common
 	 * super type does not exist, an exception will be thrown. If you want to specify the requested type explicitly
-	 * see {@link #fromValues(DataType, Expression...)}.
+	 * see {@link #fromValues(AbstractDataType, Expression...)}.
 	 *
 	 * <p>It is also possible to use {@link org.apache.flink.types.Row} object instead of
 	 * {@code row} expressions.
