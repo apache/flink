@@ -21,6 +21,8 @@ package org.apache.flink.runtime.util.config.memory.taskmanager;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.FlinkMemory;
 
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -127,5 +129,32 @@ public class TaskExecutorFlinkMemory implements FlinkMemory {
 	@Override
 	public MemorySize getTotalFlinkMemorySize() {
 		return frameworkHeap.add(frameworkOffHeap).add(taskHeap).add(taskOffHeap).add(network).add(managed);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		} else if (obj instanceof TaskExecutorFlinkMemory) {
+			TaskExecutorFlinkMemory that = (TaskExecutorFlinkMemory) obj;
+			return Objects.equals(this.frameworkHeap, that.frameworkHeap) &&
+					Objects.equals(this.frameworkOffHeap, that.frameworkOffHeap) &&
+					Objects.equals(this.taskHeap, that.taskHeap) &&
+					Objects.equals(this.taskOffHeap, that.taskOffHeap) &&
+					Objects.equals(this.network, that.network) &&
+					Objects.equals(this.managed, that.managed);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+				frameworkHeap,
+				frameworkOffHeap,
+				taskHeap,
+				taskOffHeap,
+				network,
+				managed);
 	}
 }
