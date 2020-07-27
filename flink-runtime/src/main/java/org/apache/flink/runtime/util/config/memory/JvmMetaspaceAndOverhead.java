@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util.config.memory;
 import org.apache.flink.configuration.MemorySize;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,5 +49,24 @@ public class JvmMetaspaceAndOverhead implements Serializable {
 
 	public MemorySize getOverhead() {
 		return overhead;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		} else if (obj instanceof JvmMetaspaceAndOverhead ) {
+			JvmMetaspaceAndOverhead that = (JvmMetaspaceAndOverhead) obj;
+			return Objects.equals(this.metaspace, that.metaspace) &&
+					Objects.equals(this.overhead, that.overhead);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+				metaspace,
+				overhead);
 	}
 }
