@@ -77,7 +77,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -284,27 +283,27 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	}
 
 	@Override
-	public CompletableFuture<Void> onStop() {
+	public void terminate() throws Exception {
 		// shut down all components
-		Throwable firstException = null;
+		Exception firstException = null;
 
 		if (resourceManagerClient != null) {
 			try {
 				resourceManagerClient.stop();
-			} catch (Throwable t) {
-				firstException = t;
+			} catch (Exception e) {
+				firstException = e;
 			}
 		}
 
 		if (nodeManagerClient != null) {
 			try {
 				nodeManagerClient.stop();
-			} catch (Throwable t) {
-				firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
+			} catch (Exception e) {
+				firstException = ExceptionUtils.firstOrSuppressed(e, firstException);
 			}
 		}
 
-		return getStopTerminationFutureOrCompletedExceptionally(firstException);
+		ExceptionUtils.tryRethrowException(firstException);
 	}
 
 	@Override

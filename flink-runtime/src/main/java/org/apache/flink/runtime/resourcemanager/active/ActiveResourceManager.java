@@ -23,7 +23,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -36,13 +35,9 @@ import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.util.FlinkException;
-
-import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Base class for {@link ResourceManager} implementations which contains some common variables and methods.
@@ -103,17 +98,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 		requestedNotAllocatedWorkerCounter = new PendingWorkerCounter();
 		requestedNotRegisteredWorkerCounter = new PendingWorkerCounter();
 		allocatedNotRegisteredWorkerResourceSpecs = new HashMap<>();
-	}
-
-	protected CompletableFuture<Void> getStopTerminationFutureOrCompletedExceptionally(@Nullable Throwable exception) {
-		final CompletableFuture<Void> terminationFuture = super.onStop();
-
-		if (exception != null) {
-			return FutureUtils.completedExceptionally(new FlinkException(
-				"Error while shutting down resource manager", exception));
-		} else {
-			return terminationFuture;
-		}
 	}
 
 	protected abstract Configuration loadClientConfiguration();
