@@ -46,7 +46,7 @@ import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
+import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -66,7 +66,7 @@ import java.util.Map;
 /**
  * Kubernetes specific implementation of the {@link ResourceManager}.
  */
-public class KubernetesResourceManager extends ActiveResourceManager<KubernetesWorkerNode>
+public class KubernetesResourceManager extends LegacyActiveResourceManager<KubernetesWorkerNode>
 	implements FlinkKubeClient.PodCallbackHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesResourceManager.class);
