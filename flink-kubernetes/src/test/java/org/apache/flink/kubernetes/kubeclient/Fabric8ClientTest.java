@@ -179,9 +179,11 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 		assertEquals(1, jmPodSpec.getContainers().size());
 		final Container jmContainer = jmPodSpec.getContainers().get(0);
 
-		assertEquals(clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
+		assertEquals(
+			String.valueOf(clusterSpecification.getMasterMemoryMB()),
 			jmContainer.getResources().getRequests().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
-		assertEquals(clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
+		assertEquals(
+			String.valueOf(clusterSpecification.getMasterMemoryMB()),
 			jmContainer.getResources().getLimits().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
 
 		assertThat(jmContainer.getPorts().stream().map(ContainerPort::getContainerPort).collect(Collectors.toList()),
@@ -232,9 +234,11 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 		assertEquals(CONTAINER_IMAGE, tmContainer.getImage());
 		assertEquals(commands, tmContainer.getArgs());
 
-		assertEquals(tmMem + Constants.RESOURCE_UNIT_MB,
+		assertEquals(
+			String.valueOf(tmMem),
 			tmContainer.getResources().getRequests().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
-		assertEquals(tmMem + Constants.RESOURCE_UNIT_MB,
+		assertEquals(
+			String.valueOf(tmMem),
 			tmContainer.getResources().getLimits().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
 		assertEquals(String.valueOf(tmCpu),
 			tmContainer.getResources().getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount());
