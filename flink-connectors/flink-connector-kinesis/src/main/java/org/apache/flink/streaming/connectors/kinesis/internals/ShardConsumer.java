@@ -124,10 +124,11 @@ public class ShardConsumer<T> implements Runnable {
 		try {
 			while (isRunning()) {
 				final RecordPublisherRunResult result = recordPublisher.run(startingPosition, batch -> {
-					batch.getDeaggregatedRecords()
-						.stream()
-						.filter(this::filterDeaggregatedRecord)
-						.forEach(this::deserializeRecordForCollectionAndUpdateState);
+					for (UserRecord userRecord : batch.getDeaggregatedRecords()) {
+						if (filterDeaggregatedRecord(userRecord)) {
+							deserializeRecordForCollectionAndUpdateState(userRecord);
+						}
+					}
 
 					shardConsumerMetricsReporter.setAverageRecordSizeBytes(batch.getAverageRecordSizeBytes());
 					shardConsumerMetricsReporter.setNumberOfAggregatedRecords(batch.getAggregatedRecordSize());
