@@ -96,7 +96,7 @@ Format Options
     </tbody>
 </table>
 
-Parquet format also supports configuration from [ParquetOutputFormat](https://www.javadoc.io/doc/org.apache.parquet/parquet-hadoop/1.10.0/org/apache/parquet/hadoop/ParquetOutputFormat.html).
+Parquet format also supports configuration from [ParquetOutputFormat](https://www.javadoc.io/doc/org.apache.parquet/parquet-hadoop/1.11.0/org/apache/parquet/hadoop/ParquetOutputFormat.html).
 For example, you can configure `parquet.compression=GZIP` to enable gzip compression.
 
 Data Type Mapping
