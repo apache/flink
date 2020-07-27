@@ -43,7 +43,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> type of the {@link ResourceIDRetrievable}
  */
-public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable> extends ResourceManagerFactory<T> {
+public abstract class LegacyActiveResourceManagerFactory<T extends ResourceIDRetrievable> extends ResourceManagerFactory<T> {
 
 	@Override
 	public ResourceManager<T> createResourceManager(

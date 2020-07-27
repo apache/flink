@@ -37,7 +37,7 @@ import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTra
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
+import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -85,7 +85,7 @@ import java.util.stream.Collectors;
  * The yarn implementation of the resource manager. Used when the system is started
  * via the resource framework YARN.
  */
-public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
+public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerNode>
 		implements AMRMClientAsync.CallbackHandler, NMClientAsync.CallbackHandler {
 
 	private static final Priority RM_REQUEST_PRIORITY = Priority.newInstance(1);

@@ -41,7 +41,7 @@ import java.util.Map;
 /**
  * Base class for {@link ResourceManager} implementations which contains some common variables and methods.
  */
-public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrievable>
+public abstract class LegacyActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		extends ResourceManager<WorkerType> {
 
 	/** The process environment variables. */
@@ -62,7 +62,7 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	/** Maps from worker's resource id to its resource spec. */
 	private final Map<ResourceID, WorkerResourceSpec> allocatedNotRegisteredWorkerResourceSpecs;
 
-	public ActiveResourceManager(
+	public LegacyActiveResourceManager(
 			Configuration flinkConfig,
 			Map<String, String> env,
 			RpcService rpcService,

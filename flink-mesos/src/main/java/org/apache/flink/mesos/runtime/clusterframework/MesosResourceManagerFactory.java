@@ -33,7 +33,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
-import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFactory;
+import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
@@ -47,7 +47,7 @@ import javax.annotation.Nullable;
 /**
  * {@link ResourceManagerFactory} which creates a {@link MesosResourceManager}.
  */
-public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
+public class MesosResourceManagerFactory extends LegacyActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MesosResourceManagerFactory.class);
 
