@@ -242,7 +242,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<Void> onStop() {
+	public final CompletableFuture<Void> onStop() {
 		try {
 			stopResourceManagerServices();
 		} catch (Exception exception) {
@@ -255,6 +255,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private void stopResourceManagerServices() throws Exception {
 		Exception exception = null;
+
+		try {
+			terminate();
+		} catch (Exception e) {
+			exception = new ResourceManagerException("Error while shutting down resource manager", e);
+		}
 
 		stopHeartbeatServices();
 
@@ -1063,6 +1069,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @throws ResourceManagerException which occurs during initialization and causes the resource manager to fail.
 	 */
 	protected abstract void initialize() throws ResourceManagerException;
+
+	/**
+	 * Terminates the framework specific components.
+	 *
+	 * @throws Exception which occurs during termination.
+	 */
+	protected abstract void terminate() throws Exception;
 
 	/**
 	 * This method can be overridden to add a (non-blocking) initialization routine to the
