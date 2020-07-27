@@ -361,7 +361,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown, SupportsLimitPushDown {
+	private static class TestValuesTableSource implements ScanTableSource,
+		LookupTableSource,
+		SupportsProjectionPushDown,
+		SupportsFilterPushDown,
+		SupportsLimitPushDown {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;

@@ -67,7 +67,7 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 		return onlyLimit
 			&& tableSourceTable != null
 			&& tableSourceTable.tableSource() instanceof SupportsLimitPushDown
-			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.startsWith("limit=["));
+			&& Arrays.stream(tableSourceTable.extraDigests()).noneMatch(str -> str.startsWith("limit=["));
 	}
 
 	@Override
@@ -81,7 +81,8 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 		TableSourceTable newTableSourceTable = applyLimit(limit, tableSourceTable);
 
 		FlinkLogicalTableSourceScan newScan = FlinkLogicalTableSourceScan.create(scan.getCluster(), newTableSourceTable);
-		call.transformTo(sort.copy(sort.getTraitSet(), Collections.singletonList(newScan)));
+		Sort newSort = sort.copy(sort.getTraitSet(), Collections.singletonList(newScan));
+		call.transformTo(newSort);
 	}
 
 	private TableSourceTable applyLimit(
@@ -107,7 +108,7 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 
 		// update extraDigests
 		String[] newExtraDigests = new String[0];
-		if (limit > 0) {
+		if (limit >= 0) {
 			String extraDigest = "limit=[" + limit + "]";
 			newExtraDigests = new String[]{extraDigest};
 		}
