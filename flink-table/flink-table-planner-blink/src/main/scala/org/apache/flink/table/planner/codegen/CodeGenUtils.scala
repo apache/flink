@@ -954,7 +954,10 @@ object CodeGenUtils {
    * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
   @deprecated
-  private def genToInternalConverterWithLegacy(ctx: CodeGeneratorContext, t: DataType): String => String = {
+  private def genToInternalConverterWithLegacy(
+      ctx: CodeGeneratorContext,
+      t: DataType)
+    : String => String = {
     if (isConverterIdentity(t)) {
       term => s"$term"
     } else {
