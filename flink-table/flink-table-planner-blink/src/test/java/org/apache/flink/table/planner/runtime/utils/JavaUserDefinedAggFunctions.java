@@ -23,21 +23,24 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.FunctionRequirement;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Test aggregator functions.
  */
 public class JavaUserDefinedAggFunctions {
 	/**
-	 * Accumulator for test requiresOver.
+	 * Accumulator for test {@link FunctionRequirement#OVER_WINDOW_ONLY}.
  	 */
 	public static class Accumulator0 extends Tuple2<Long, Integer>{}
 
 	/**
-	 * Test for requiresOver.
+	 * Test for {@link FunctionRequirement#OVER_WINDOW_ONLY}.
 	 */
 	public static class OverAgg0 extends AggregateFunction<Long, Accumulator0> {
 		@Override
@@ -55,8 +58,8 @@ public class JavaUserDefinedAggFunctions {
 		}
 
 		@Override
-		public boolean requiresOver() {
-			return true;
+		public Set<FunctionRequirement> getRequirements() {
+			return Collections.singleton(FunctionRequirement.OVER_WINDOW_ONLY);
 		}
 	}
 
