@@ -17,16 +17,6 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
-import java.util.{ArrayList => JArrayList, List => JList}
-
-import org.apache.calcite.rel.`type`._
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.RexLiteral
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.fun._
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -43,12 +33,23 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{AggregateFunction, ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
+
+import org.apache.calcite.rel.`type`._
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.fun._
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
+
+import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -1246,7 +1247,7 @@ object AggregateUtil {
     * Return true if all aggregates can be partially merged. False otherwise.
     */
   private[flink] def doAllSupportPartialMerge(
-      aggregateList: Array[UserDefinedAggregateFunction[_ <: Any, _ <: Any]]): Boolean = {
+      aggregateList: Array[ImperativeAggregateFunction[_ <: Any, _ <: Any]]): Boolean = {
     aggregateList.forall(ifMethodExistInFunction("merge", _))
   }
 
@@ -1324,7 +1325,7 @@ object AggregateUtil {
     private val aggregates: Seq[(AggregateCallMetadata, Array[Int])],
     private val distinctAccTypesWithSpecs: Seq[(TypeInformation[_], Seq[DataViewSpec[_]])]) {
 
-    def getAggregateFunctions: Array[UserDefinedAggregateFunction[_, _]] = {
+    def getAggregateFunctions: Array[ImperativeAggregateFunction[_, _]] = {
       aggregates.map(_._1.aggregateFunction).toArray
     }
 
@@ -1370,7 +1371,7 @@ object AggregateUtil {
     * function.
     */
   private[flink] case class AggregateCallMetadata(
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
+    aggregateFunction: ImperativeAggregateFunction[_, _],
     accumulatorType: TypeInformation[_],
     accumulatorSpecs: Seq[DataViewSpec[_]],
     distinctAccIndex: Int
@@ -1414,7 +1415,7 @@ object AggregateUtil {
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     // create aggregate function instances by function type and aggregate field data type.
 
-    val aggregate: UserDefinedAggregateFunction[_, _] = createFlinkAggFunction(
+    val aggregate: ImperativeAggregateFunction[_, _] = createFlinkAggFunction(
       aggregateFunction,
       needRetraction,
       aggregateInputTypes,
@@ -1542,7 +1543,7 @@ object AggregateUtil {
       needRetraction: Boolean,
       inputDataType: Seq[RelDataType],
       tableConfig: TableConfig)
-    : UserDefinedAggregateFunction[_ <: Any, _ <: Any] = {
+    : ImperativeAggregateFunction[_ <: Any, _ <: Any] = {
 
     lazy val outputType = inputDataType.get(0)
     lazy val outputTypeName = if (inputDataType.isEmpty) {
@@ -1796,10 +1797,11 @@ object AggregateUtil {
 
   private def createRowTypeForKeysAndAggregates(
       groupings: Array[Int],
-      aggregates: Array[UserDefinedAggregateFunction[_, _]],
+      aggregates: Array[ImperativeAggregateFunction[_, _]],
       aggTypes: Array[TypeInformation[_]],
       inputType: RelDataType,
-      windowKeyTypes: Option[Array[TypeInformation[_]]] = None): RowTypeInfo = {
+      windowKeyTypes: Option[Array[TypeInformation[_]]] = None)
+    : RowTypeInfo = {
 
     // get the field data types of group keys.
     val groupingTypes: Seq[TypeInformation[_]] =
@@ -1864,7 +1866,7 @@ object AggregateUtil {
   }
 
   private[flink] def containsTableAggregateFunction(
-      aggregates: Seq[UserDefinedAggregateFunction[_, _]])
+      aggregates: Seq[ImperativeAggregateFunction[_, _]])
     : Boolean = {
     aggregates.exists(_.isInstanceOf[TableAggregateFunction[_, _]])
   }

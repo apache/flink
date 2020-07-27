@@ -24,7 +24,7 @@ import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampD
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, ImperativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
@@ -314,7 +314,7 @@ object AggregateUtil extends Enumeration {
             Array.empty[DataViewSpec],
             fromLogicalTypeToDataType(a.getResultType.getLogicalType)
           )
-        case a: UserDefinedAggregateFunction[_, _] =>
+        case a: ImperativeAggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {
             case aggSqlFun: AggSqlFunction =>
               (aggSqlFun.externalAccType, aggSqlFun.externalResultType)

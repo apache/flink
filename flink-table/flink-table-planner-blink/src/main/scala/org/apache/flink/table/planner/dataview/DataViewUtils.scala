@@ -25,7 +25,7 @@ import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.data.binary.BinaryRawValueData
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.ImperativeAggregateFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.DataType
@@ -50,9 +50,10 @@ object DataViewUtils {
     */
   def useNullSerializerForStateViewFieldsFromAccType(
       index: Int,
-      aggFun: UserDefinedAggregateFunction[_, _],
+      aggFun: ImperativeAggregateFunction[_, _],
       externalAccType: DataType,
-      isStateBackedDataViews: Boolean): (DataType, Array[DataViewSpec]) = {
+      isStateBackedDataViews: Boolean)
+    : (DataType, Array[DataViewSpec]) = {
 
     val acc = aggFun.createAccumulator()
     val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec]

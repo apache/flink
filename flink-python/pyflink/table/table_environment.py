@@ -1571,7 +1571,7 @@ class TableEnvironment(object):
     def _is_aggregate_function(java_function):
         java_function_class = java_function.getClass()
         j_aggregate_function_class = get_java_class(
-            get_gateway().jvm.org.apache.flink.table.functions.UserDefinedAggregateFunction)
+            get_gateway().jvm.org.apache.flink.table.functions.ImperativeAggregateFunction)
         return j_aggregate_function_class.isAssignableFrom(java_function_class)
 
     def _register_table_function(self, name, table_function):

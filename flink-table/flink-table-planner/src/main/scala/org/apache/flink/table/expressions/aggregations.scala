@@ -17,20 +17,20 @@
  */
 package org.apache.flink.table.expressions
 
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.MultisetTypeInfo
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.ImperativeAggregateFunction
+import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
-import org.apache.flink.table.functions.utils.AggSqlFunction
-import org.apache.flink.table.typeutils.TypeCheckUtils
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.MultisetTypeInfo
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 abstract sealed class Aggregation extends PlannerExpression {
 
@@ -361,7 +361,7 @@ case class VarSamp(child: PlannerExpression) extends Aggregation {
   * Expression for calling a user-defined (table)aggregate function.
   */
 case class AggFunctionCall(
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
+    aggregateFunction: ImperativeAggregateFunction[_, _],
     resultTypeInfo: TypeInformation[_],
     accTypeInfo: TypeInformation[_],
     args: Seq[PlannerExpression])

@@ -47,7 +47,7 @@ import java.util.Set;
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
  * mentioned above. The method {@link #createAccumulator()} is defined in the
- * {@link UserDefinedAggregateFunction} function, and method {@link #getValue} is defined in
+ * {@link ImperativeAggregateFunction} function, and method {@link #getValue} is defined in
  * the {@link AggregateFunction} while other methods are explained below.
  *
  * <pre>
@@ -114,7 +114,7 @@ import java.util.Set;
  *              AggregateFunction must be put into the accumulator.
  */
 @PublicEvolving
-public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
+public abstract class AggregateFunction<T, ACC> extends ImperativeAggregateFunction<T, ACC> {
 
 	/**
 	 * Called every time when an aggregation result should be materialized.

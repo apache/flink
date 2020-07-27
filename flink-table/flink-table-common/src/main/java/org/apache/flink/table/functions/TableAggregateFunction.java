@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
  * mentioned above. The method {@link #createAccumulator()} is defined in
- * the {@link UserDefinedAggregateFunction} functions, while other methods are explained below.
+ * the {@link ImperativeAggregateFunction} functions, while other methods are explained below.
  *
  * <pre>
  * {@code
@@ -112,7 +112,7 @@ import org.apache.flink.util.Collector;
  *              the TableAggregateFunction must be put into the accumulator.
  */
 @PublicEvolving
-public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
+public abstract class TableAggregateFunction<T, ACC> extends ImperativeAggregateFunction<T, ACC> {
 
 	/**
 	 * Collects a record and forwards it. The collector can output retract messages with the retract

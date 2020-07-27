@@ -32,7 +32,7 @@ import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, ImperativeAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
@@ -244,7 +244,7 @@ abstract class TableEnvImpl(
     */
   private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: UserDefinedAggregateFunction[T, ACC])
+      function: ImperativeAggregateFunction[T, ACC])
     : Unit = {
     val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(

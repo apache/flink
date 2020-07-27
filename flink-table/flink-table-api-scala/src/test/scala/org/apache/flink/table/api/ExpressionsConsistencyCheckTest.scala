@@ -55,7 +55,7 @@ class ExpressionsConsistencyCheckTest {
   val explicitScalaToJavaStaticMethodsMapping = Map(
     "FieldExpression" -> "$",
     "UnresolvedFieldExpression" -> "$",
-    "UserDefinedAggregateFunctionCall" -> "call",
+    "ImperativeAggregateFunctionCall" -> "call",
     "ScalarFunctionCall" -> "call",
     "TableFunctionCall" -> "call",
     "concat_ws" -> "concatWs"

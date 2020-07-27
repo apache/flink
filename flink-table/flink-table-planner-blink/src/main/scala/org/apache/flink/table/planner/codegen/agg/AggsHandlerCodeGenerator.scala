@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.ImperativeAggregateFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
@@ -227,7 +227,7 @@ class AggsHandlerCodeGenerator(
             inputFieldTypes,
             constants,
             relBuilder)
-        case _: UserDefinedAggregateFunction[_, _] =>
+        case _: ImperativeAggregateFunction[_, _] =>
           new ImperativeAggCodeGen(
             ctx,
             aggInfo,
