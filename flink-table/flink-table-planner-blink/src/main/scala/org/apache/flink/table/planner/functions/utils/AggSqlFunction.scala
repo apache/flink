@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, ImperativeAggregateFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
@@ -50,7 +50,7 @@ import java.util
 class AggSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,
-    val aggregateFunction: UserDefinedAggregateFunction[_, _],
+    val aggregateFunction: ImperativeAggregateFunction[_, _],
     val externalResultType: DataType,
     val externalAccType: DataType,
     typeFactory: FlinkTypeFactory,
@@ -77,7 +77,7 @@ class AggSqlFunction(
     */
   def makeFunction(
       constants: Array[AnyRef],
-      argTypes: Array[LogicalType]): UserDefinedAggregateFunction[_, _] = aggregateFunction
+      argTypes: Array[LogicalType]): ImperativeAggregateFunction[_, _] = aggregateFunction
 
   override def isDeterministic: Boolean = aggregateFunction.isDeterministic
 
@@ -91,11 +91,12 @@ object AggSqlFunction {
   def apply(
       identifier: FunctionIdentifier,
       displayName: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
+      aggregateFunction: ImperativeAggregateFunction[_, _],
       externalResultType: DataType,
       externalAccType: DataType,
       typeFactory: FlinkTypeFactory,
-      requiresOver: Boolean): AggSqlFunction = {
+      requiresOver: Boolean)
+    : AggSqlFunction = {
 
     new AggSqlFunction(
       identifier,
@@ -109,9 +110,10 @@ object AggSqlFunction {
 
   private[flink] def createOperandTypeInference(
       name: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
+      aggregateFunction: ImperativeAggregateFunction[_, _],
       typeFactory: FlinkTypeFactory,
-      externalAccType: DataType): SqlOperandTypeInference = {
+      externalAccType: DataType)
+    : SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[AggregateFunction]] given information.
       */
@@ -161,8 +163,9 @@ object AggSqlFunction {
 
   private[flink] def createOperandTypeChecker(
       name: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      externalAccType: DataType): SqlOperandTypeChecker = {
+      aggregateFunction: ImperativeAggregateFunction[_, _],
+      externalAccType: DataType)
+    : SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 

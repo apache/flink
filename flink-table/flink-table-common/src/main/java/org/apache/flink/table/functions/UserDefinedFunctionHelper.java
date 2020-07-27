@@ -81,7 +81,7 @@ public final class UserDefinedFunctionHelper {
 	 * @return The inferred accumulator type of the AggregateFunction.
 	 */
 	public static <T, ACC> TypeInformation<T> getReturnTypeOfAggregateFunction(
-			UserDefinedAggregateFunction<T, ACC> aggregateFunction) {
+			ImperativeAggregateFunction<T, ACC> aggregateFunction) {
 		return getReturnTypeOfAggregateFunction(aggregateFunction, null);
 	}
 
@@ -94,7 +94,7 @@ public final class UserDefinedFunctionHelper {
 	 * @return The inferred accumulator type of the AggregateFunction.
 	 */
 	public static <T, ACC> TypeInformation<T> getReturnTypeOfAggregateFunction(
-			UserDefinedAggregateFunction<T, ACC> aggregateFunction,
+			ImperativeAggregateFunction<T, ACC> aggregateFunction,
 			TypeInformation<T> scalaType) {
 
 		TypeInformation<T> userProvidedType = aggregateFunction.getResultType();
@@ -105,7 +105,7 @@ public final class UserDefinedFunctionHelper {
 		} else {
 			return TypeExtractor.createTypeInfo(
 				aggregateFunction,
-				UserDefinedAggregateFunction.class,
+				ImperativeAggregateFunction.class,
 				aggregateFunction.getClass(),
 				0);
 		}
@@ -118,7 +118,7 @@ public final class UserDefinedFunctionHelper {
 	 * @return The inferred accumulator type of the AggregateFunction.
 	 */
 	public static <T, ACC> TypeInformation<ACC> getAccumulatorTypeOfAggregateFunction(
-			UserDefinedAggregateFunction<T, ACC> aggregateFunction) {
+			ImperativeAggregateFunction<T, ACC> aggregateFunction) {
 		return getAccumulatorTypeOfAggregateFunction(aggregateFunction, null);
 	}
 
@@ -131,7 +131,7 @@ public final class UserDefinedFunctionHelper {
 	 * @return The inferred accumulator type of the AggregateFunction.
 	 */
 	public static <T, ACC> TypeInformation<ACC> getAccumulatorTypeOfAggregateFunction(
-			UserDefinedAggregateFunction<T, ACC> aggregateFunction,
+			ImperativeAggregateFunction<T, ACC> aggregateFunction,
 			TypeInformation<ACC> scalaType) {
 
 		TypeInformation<ACC> userProvidedType = aggregateFunction.getAccumulatorType();
@@ -142,7 +142,7 @@ public final class UserDefinedFunctionHelper {
 		} else {
 			return TypeExtractor.createTypeInfo(
 				aggregateFunction,
-				UserDefinedAggregateFunction.class,
+				ImperativeAggregateFunction.class,
 				aggregateFunction.getClass(),
 				1);
 		}

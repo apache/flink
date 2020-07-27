@@ -32,13 +32,13 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.ImperativeAggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
@@ -409,7 +409,7 @@ public final class FunctionCatalog {
 
 	public <T, ACC> void registerTempSystemAggregateFunction(
 			String name,
-			UserDefinedAggregateFunction<T, ACC> function,
+			ImperativeAggregateFunction<T, ACC> function,
 			TypeInformation<T> resultType,
 			TypeInformation<ACC> accType) {
 		UserDefinedFunctionHelper.prepareInstance(config, function);

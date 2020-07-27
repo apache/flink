@@ -990,7 +990,7 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
   // just for testing, remove this method while
@@ -999,12 +999,12 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: TableAggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
-  private def registerUserDefinedAggregateFunction[T: TypeInformation, ACC: TypeInformation](
+  private def registerImperativeAggregateFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      f: UserDefinedAggregateFunction[T, ACC]): Unit = {
+      f: ImperativeAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserDefinedFunctionHelper
