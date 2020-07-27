@@ -263,7 +263,7 @@ public class AwsV2Util {
 			return false;
 		}
 		SdkException ase = (SdkException) e.getCause();
-		return ase instanceof LimitExceededException || ase instanceof ProvisionedThroughputExceededException || ase instanceof ResourceInUseException;
+		return ase instanceof LimitExceededException || ase instanceof ProvisionedThroughputExceededException;
 	}
 
 	/**

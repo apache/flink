@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamConsumerInfo;
 import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.shaded.com.google.common.collect.Lists;
@@ -51,9 +51,7 @@ import software.amazon.awssdk.services.kinesis.model.ResourceInUseException;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.kinesis.model.StreamDescription;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -86,7 +84,6 @@ public class KinesisProxyV2Test {
 	@Test
 	public void testDescribeStreamNormal() throws Exception {
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 
 		Properties kinesisConsumerConfig = getProperties();
@@ -105,13 +102,13 @@ public class KinesisProxyV2Test {
 			.when(mockClient.describeStream((DescribeStreamRequest) any()))
 			.thenAnswer((Answer<CompletableFuture<DescribeStreamResponse>>) invocationOnMock -> CompletableFuture.completedFuture(expectedResponse));
 
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
 
-		Map<String, String> streamArns = kinesisProxy.describeStream(streams);
-		assertEquals(streamArns.get(fakedStream1), fakedStreamArn);
-		assertEquals(streamArns.get(fakedStream2), fakedStreamArn);
+		DescribeStreamResponse response = kinesisProxy.describeStream(fakedStream1);
+		String resultStreamArn = response.streamDescription().streamARN();
+		assertEquals(resultStreamArn, fakedStreamArn);
 	}
 
 	@Test
@@ -134,7 +131,7 @@ public class KinesisProxyV2Test {
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
 
-		kinesisProxy.describeStream(streams);
+		kinesisProxy.describeStream(fakedStream1);
 	}
 
 	@Test
@@ -175,9 +172,9 @@ public class KinesisProxyV2Test {
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
 
-		Map<String, String> streamArns = kinesisProxy.describeStream(streams);
-		assertEquals(streamArns.get(fakedStream1), fakedStreamArn);
-		assertEquals(streamArns.get(fakedStream2), fakedStreamArn);
+		DescribeStreamResponse response = kinesisProxy.describeStream(fakedStream1);
+		String resultStreamArn = response.streamDescription().streamARN();
+		assertEquals(resultStreamArn, fakedStreamArn);
 	}
 
 	@Test
@@ -224,13 +221,12 @@ public class KinesisProxyV2Test {
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
 
-		Map<String, String> streamArns = kinesisProxy.describeStream(streams);
-		assertEquals(streamArns.get(fakedStream1), fakedStreamArn);
-		assertEquals(streamArns.get(fakedStream2), fakedStreamArn);
+		kinesisProxy.describeStream(fakedStream1);
+
 	}
 
 	@Test
-	public void testRegisterStreamConsumerNormal() throws Exception {
+	public void testRegisterStreamConsumerWhenConsumerIsNotRegistered() throws Exception {
 		final String fakedStream1 = "fakedstream1";
 		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
@@ -239,6 +235,7 @@ public class KinesisProxyV2Test {
 		Properties kinesisConsumerConfig = getProperties();
 		final String consumerName = kinesisConsumerConfig.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
 		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
+
 		RegisterStreamConsumerResponse expectedResponse = RegisterStreamConsumerResponse
 			.builder()
 			.consumer(
@@ -249,52 +246,105 @@ public class KinesisProxyV2Test {
 					.build()
 			)
 			.build();
+		Mockito
+			.when(mockClient.describeStreamConsumer((DescribeStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<DescribeStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceNotFoundException.builder().build()));
 		Mockito
 			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
 			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.completedFuture(expectedResponse));
 
 		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
-		Map<String, String> streamArns = new HashMap<>();
-		streamArns.put(fakedStream1, fakedStreamArn);
-		streamArns.put(fakedStream2, fakedStreamArn);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> result = kinesisProxy.registerStreamConsumer(streamArns);
-		List<FanOutStreamInfo> expectedResult = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		assertEquals(result, expectedResult);
+		FanOutStreamConsumerInfo result = kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
+		FanOutStreamConsumerInfo expectedResult = new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		assert isFanOutStreamConsumerInfoEqual(result, expectedResult);
 	}
 
 	@Test
-	public void testRegisterStreamConsumerWithUnrecoverableException() throws Exception {
+	public void testRegisterStreamConsumerWhenConsumerIsAlreadyRegistered() throws Exception {
+		final String fakedStream1 = "fakedstream1";
+		final String fakedStreamArn = "fakedstreamarn";
+		final String fakedConsumerArn = "fakedconsumerarn";
+
+		Properties kinesisConsumerConfig = getProperties();
+		final String consumerName = kinesisConsumerConfig.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
+		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
+		DescribeStreamConsumerResponse expectedResponse = DescribeStreamConsumerResponse
+			.builder()
+			.consumerDescription(
+				ConsumerDescription
+					.builder()
+					.consumerName(consumerName)
+					.consumerARN(fakedConsumerArn)
+					.streamARN(fakedStreamArn)
+					.build()
+			)
+			.build();
+		Mockito
+			.when(mockClient.describeStreamConsumer((DescribeStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<DescribeStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.completedFuture(expectedResponse));
+		Mockito
+			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceInUseException.builder().build()));
+
+		List<String> streams = Lists.newArrayList(fakedStream1);
+		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
+		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
+		FanOutStreamConsumerInfo result = kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
+		FanOutStreamConsumerInfo expectedResult = new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		assert isFanOutStreamConsumerInfoEqual(result, expectedResult);
+	}
+
+	@Test
+	public void testRegisterStreamConsumerWhenRegisterStreamConsumerMeetsUnrecoverableException() throws Exception {
 		exception.expect(ExecutionException.class);
-		exception.expectCause(CoreMatchers.isA(ResourceNotFoundException.class));
+		exception.expectCause(CoreMatchers.isA(IllegalArgumentException.class));
 
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 
 		Properties kinesisConsumerConfig = getProperties();
 		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
 		Mockito
+			.when(mockClient.describeStreamConsumer((DescribeStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<DescribeStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceNotFoundException.builder().build()));
+		Mockito
 			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
-			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceNotFoundException.builder().build()));
+			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(new IllegalArgumentException()));
 
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
-		Map<String, String> streamArns = new HashMap<>();
-		streamArns.put(fakedStream1, fakedStreamArn);
-		streamArns.put(fakedStream2, fakedStreamArn);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> result = kinesisProxy.registerStreamConsumer(streamArns);
+		kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
 	}
 
 	@Test
-	public void testRegisterStreamConsumerWithResourceInUseException() throws Exception {
+	public void testRegisterStreamConsumerWhenDescribeStreamConsumerMeetsUnrecoverableException() throws Exception {
+		exception.expect(ExecutionException.class);
+		exception.expectCause(CoreMatchers.isA(IllegalArgumentException.class));
+
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
+		final String fakedStreamArn = "fakedstreamarn";
+
+		Properties kinesisConsumerConfig = getProperties();
+		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
+		Mockito
+			.when(mockClient.describeStreamConsumer((DescribeStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<DescribeStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(new IllegalArgumentException()));
+		Mockito
+			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceNotFoundException.builder().build()));
+
+		List<String> streams = Lists.newArrayList(fakedStream1);
+		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
+		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
+		kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
+	}
+
+	@Test
+	public void testRegisterStreamConsumerWhenDescribeStreamConsumerMeetsRecoverableException() throws Exception {
+		final String fakedStream1 = "fakedstream1";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 
@@ -333,33 +383,25 @@ public class KinesisProxyV2Test {
 				}
 			);
 
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
-		Map<String, String> streamArns = new HashMap<>();
-		streamArns.put(fakedStream1, fakedStreamArn);
-		streamArns.put(fakedStream2, fakedStreamArn);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> result = kinesisProxy.registerStreamConsumer(streamArns);
-		List<FanOutStreamInfo> expectedResult = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		assertEquals(result, expectedResult);
+		FanOutStreamConsumerInfo result = kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
+		FanOutStreamConsumerInfo expectedResult = new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		assert isFanOutStreamConsumerInfoEqual(result, expectedResult);
 	}
 
 	@Test
-	public void testRegisterStreamConsumerWithResourceInUseExceptionExceedsMaxRetry() throws Exception {
+	public void testRegisterStreamConsumerWhenDescribeStreamConsumerMeetsRecoverableExceptionExceedsMaxRetries() throws Exception {
 		exception.expect(RuntimeException.class);
-		exception.expectMessage(CoreMatchers.containsString("Retries exceeded for registerStream operation - all 3 retry attempts failed."));
+		exception.expectMessage(CoreMatchers.containsString("Retries exceeded for describeStreamConsumer operation - all 2 retry attempts failed."));
 
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 
 		Properties kinesisConsumerConfig = getProperties();
 		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES, "2");
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_RETRIES, "3");
 		final String consumerName = kinesisConsumerConfig.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
 		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
 
@@ -367,7 +409,7 @@ public class KinesisProxyV2Test {
 		final Throwable[] retriableExceptions = new Throwable[]{
 			LimitExceededException.builder().build(),
 			LimitExceededException.builder().build(),
-			ProvisionedThroughputExceededException.builder().build()
+			LimitExceededException.builder().build()
 		};
 
 		DescribeStreamConsumerResponse expectedResponse = DescribeStreamConsumerResponse
@@ -395,78 +437,18 @@ public class KinesisProxyV2Test {
 				}
 			);
 
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
-		Map<String, String> streamArns = new HashMap<>();
-		streamArns.put(fakedStream1, fakedStreamArn);
-		streamArns.put(fakedStream2, fakedStreamArn);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> result = kinesisProxy.registerStreamConsumer(streamArns);
-		List<FanOutStreamInfo> expectedResult = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		assertEquals(result, expectedResult);
+		kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
 	}
 
 	@Test
-	public void testRegisterStreamConsumerWithRecoverableException() throws Exception {
-		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
-		final String fakedStreamArn = "fakedstreamarn";
-		final String fakedConsumerArn = "fakedconsumerarn";
-
-		Properties kinesisConsumerConfig = getProperties();
-		final String consumerName = kinesisConsumerConfig.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
-		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
-		RegisterStreamConsumerResponse expectedResponse = RegisterStreamConsumerResponse
-			.builder()
-			.consumer(
-				Consumer
-					.builder()
-					.consumerARN(fakedConsumerArn)
-					.consumerName(consumerName)
-					.build()
-			)
-			.build();
-		MutableInt retries = new MutableInt();
-		final Throwable[] retriableExceptions = new Throwable[]{
-			LimitExceededException.builder().build(),
-			LimitExceededException.builder().build()
-		};
-
-		Mockito
-			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
-			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> {
-					if (retries.intValue() < retriableExceptions.length) {
-						retries.increment();
-						return CompletableFuture.failedFuture(retriableExceptions[retries.intValue() - 1]);
-					}
-					return CompletableFuture.completedFuture(expectedResponse);
-				}
-			);
-
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
-		Map<String, String> streamArns = new HashMap<>();
-		streamArns.put(fakedStream1, fakedStreamArn);
-		streamArns.put(fakedStream2, fakedStreamArn);
-		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
-		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> result = kinesisProxy.registerStreamConsumer(streamArns);
-		List<FanOutStreamInfo> expectedResult = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		assertEquals(result, expectedResult);
-	}
-
-	@Test
-	public void testRegisterStreamConsumerWithRecoverableExceptionExceedsMaxRetry() throws Exception {
+	public void testRegisterStreamConsumerWhenRegisterStreamConsumerMeetsRecoverableExceptionExceedsMaxRetries() throws Exception {
 		exception.expect(RuntimeException.class);
 		exception.expectMessage(CoreMatchers.containsString("Retries exceeded for registerStream operation - all 2 retry attempts failed."));
 
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 
@@ -474,6 +456,14 @@ public class KinesisProxyV2Test {
 		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_RETRIES, "2");
 		final String consumerName = kinesisConsumerConfig.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
 		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
+
+		MutableInt retries = new MutableInt();
+		final Throwable[] retriableExceptions = new Throwable[]{
+			LimitExceededException.builder().build(),
+			LimitExceededException.builder().build(),
+			LimitExceededException.builder().build()
+		};
+
 		RegisterStreamConsumerResponse expectedResponse = RegisterStreamConsumerResponse
 			.builder()
 			.consumer(
@@ -484,13 +474,9 @@ public class KinesisProxyV2Test {
 					.build()
 			)
 			.build();
-		MutableInt retries = new MutableInt();
-		final Throwable[] retriableExceptions = new Throwable[]{
-			LimitExceededException.builder().build(),
-			LimitExceededException.builder().build(),
-			LimitExceededException.builder().build()
-		};
-
+		Mockito
+			.when(mockClient.describeStreamConsumer((DescribeStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<DescribeStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceNotFoundException.builder().build()));
 		Mockito
 			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
 			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> {
@@ -502,19 +488,83 @@ public class KinesisProxyV2Test {
 				}
 			);
 
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
-		Map<String, String> streamArns = new HashMap<>();
-		streamArns.put(fakedStream1, fakedStreamArn);
-		streamArns.put(fakedStream2, fakedStreamArn);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		kinesisProxy.registerStreamConsumer(streamArns);
+		kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
+	}
+
+	/**
+	 * Describe stream consumer - fails with one recoverable exception then fails with ResourceNotFoundException.
+	 * Register stream consumer - fails with two recoverable exception then fails with ResourceInUseException.
+	 * Describe stream consumer - first fail two recoverable exceptions then succeed.
+	 * Expects the register stream operation succeed.
+	 */
+	@Test
+	public void testRegisterStreamConsumerWithComplicatedSituation() throws Exception {
+		final String fakedStream1 = "fakedstream1";
+		final String fakedStreamArn = "fakedstreamarn";
+		final String fakedConsumerArn = "fakedconsumerarn";
+
+		Properties kinesisConsumerConfig = getProperties();
+		final String consumerName = kinesisConsumerConfig.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
+		KinesisAsyncClient mockClient = mock(KinesisAsyncClient.class);
+
+		MutableInt describeStreamConsumerRetries = new MutableInt();
+		final Throwable[] describeStreamConsumerRetriableExceptions = new Throwable[]{
+			LimitExceededException.builder().build(),
+			LimitExceededException.builder().build(),
+			ResourceNotFoundException.builder().build(),
+			LimitExceededException.builder().build(),
+			LimitExceededException.builder().build()
+		};
+
+		MutableInt registerStreamConsumerRetries = new MutableInt();
+		final Throwable[] registerStreamConsumerRetriableExceptions = new Throwable[]{
+			LimitExceededException.builder().build(),
+			LimitExceededException.builder().build(),
+			ResourceInUseException.builder().build()
+		};
+
+		DescribeStreamConsumerResponse expectedResponse = DescribeStreamConsumerResponse
+			.builder()
+			.consumerDescription(
+				ConsumerDescription
+					.builder()
+					.consumerARN(fakedConsumerArn)
+					.consumerName(consumerName)
+					.build()
+			)
+			.build();
+		Mockito
+			.when(mockClient.registerStreamConsumer((RegisterStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<RegisterStreamConsumerResponse>>) invocationOnMock -> {
+				registerStreamConsumerRetries.increment();
+				return CompletableFuture.failedFuture(registerStreamConsumerRetriableExceptions[registerStreamConsumerRetries.intValue() - 1]);
+				}
+			);
+		Mockito
+			.when(mockClient.describeStreamConsumer((DescribeStreamConsumerRequest) any()))
+			.thenAnswer((Answer<CompletableFuture<DescribeStreamConsumerResponse>>) invocationOnMock -> {
+					if (describeStreamConsumerRetries.intValue() < describeStreamConsumerRetriableExceptions.length) {
+						describeStreamConsumerRetries.increment();
+						return CompletableFuture.failedFuture(describeStreamConsumerRetriableExceptions[describeStreamConsumerRetries.intValue() - 1]);
+					}
+					return CompletableFuture.completedFuture(expectedResponse);
+				}
+			);
+
+		List<String> streams = Lists.newArrayList(fakedStream1);
+		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
+		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
+		FanOutStreamConsumerInfo result = kinesisProxy.registerStreamConsumer(fakedStream1, fakedStreamArn);
+		FanOutStreamConsumerInfo expectedResult = new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		assert isFanOutStreamConsumerInfoEqual(result, expectedResult);
 	}
 
 	@Test
 	public void testDeregisterStreamConsumerNormal() throws Exception {
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 		Properties kinesisConsumerConfig = getProperties();
@@ -524,15 +574,13 @@ public class KinesisProxyV2Test {
 		Mockito
 			.when(mockClient.deregisterStreamConsumer((DeregisterStreamConsumerRequest) any()))
 			.thenAnswer((Answer<CompletableFuture<DeregisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.completedFuture(expectedResponse));
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> deregisterStreams = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		kinesisProxy.deregisterStreamConsumer(deregisterStreams);
+		FanOutStreamConsumerInfo deregisterStream =
+			new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		kinesisProxy.deregisterStreamConsumer(deregisterStream);
 	}
 
 	@Test
@@ -555,17 +603,14 @@ public class KinesisProxyV2Test {
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> deregisterStreams = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		kinesisProxy.deregisterStreamConsumer(deregisterStreams);
+		FanOutStreamConsumerInfo deregisterStream =
+			new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		kinesisProxy.deregisterStreamConsumer(deregisterStream);
 	}
 
 	@Test
 	public void testDeregisterStreamConsumerWithResourceNotFoundException() throws Exception {
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 		Properties kinesisConsumerConfig = getProperties();
@@ -575,21 +620,18 @@ public class KinesisProxyV2Test {
 		Mockito
 			.when(mockClient.deregisterStreamConsumer((DeregisterStreamConsumerRequest) any()))
 			.thenAnswer((Answer<CompletableFuture<DeregisterStreamConsumerResponse>>) invocationOnMock -> CompletableFuture.failedFuture(ResourceNotFoundException.builder().build()));
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> deregisterStreams = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		kinesisProxy.deregisterStreamConsumer(deregisterStreams);
+		FanOutStreamConsumerInfo deregisterStream =
+			new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		kinesisProxy.deregisterStreamConsumer(deregisterStream);
 	}
 
 	@Test
 	public void testDeregisterStreamConsumerWithRecoverableException() throws Exception {
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 		Properties kinesisConsumerConfig = getProperties();
@@ -611,15 +653,13 @@ public class KinesisProxyV2Test {
 				}
 				return CompletableFuture.completedFuture(expectedResponse);
 			});
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> deregisterStreams = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		kinesisProxy.deregisterStreamConsumer(deregisterStreams);
+		FanOutStreamConsumerInfo deregisterStream =
+			new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		kinesisProxy.deregisterStreamConsumer(deregisterStream);
 	}
 
 	@Test
@@ -628,7 +668,6 @@ public class KinesisProxyV2Test {
 		exception.expectMessage(CoreMatchers.containsString("Retries exceeded for deregisterStream operation - all 2 retry attempts failed."));
 
 		final String fakedStream1 = "fakedstream1";
-		final String fakedStream2 = "fakedstream2";
 		final String fakedStreamArn = "fakedstreamarn";
 		final String fakedConsumerArn = "fakedconsumerarn";
 		Properties kinesisConsumerConfig = getProperties();
@@ -652,15 +691,13 @@ public class KinesisProxyV2Test {
 				}
 				return CompletableFuture.completedFuture(expectedResponse);
 			});
-		List<String> streams = Lists.newArrayList(fakedStream1, fakedStream2);
+		List<String> streams = Lists.newArrayList(fakedStream1);
 		KinesisProxyV2 kinesisProxy = new KinesisProxyV2(kinesisConsumerConfig, streams);
 
 		Whitebox.getField(KinesisProxyV2.class, "kinesisAsyncClient").set(kinesisProxy, mockClient);
-		List<FanOutStreamInfo> deregisterStreams = Lists.newArrayList(
-			new FanOutStreamInfo(fakedStream2, fakedStreamArn, consumerName, fakedConsumerArn),
-			new FanOutStreamInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn)
-		);
-		kinesisProxy.deregisterStreamConsumer(deregisterStreams);
+		FanOutStreamConsumerInfo deregisterStream =
+			new FanOutStreamConsumerInfo(fakedStream1, fakedStreamArn, consumerName, fakedConsumerArn);
+		kinesisProxy.deregisterStreamConsumer(deregisterStream);
 	}
 
 	private Properties getProperties() {
@@ -669,5 +706,12 @@ public class KinesisProxyV2Test {
 		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, "EFO");
 		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME, "fakedConsumer");
 		return kinesisConsumerConfig;
+	}
+
+	private boolean isFanOutStreamConsumerInfoEqual(FanOutStreamConsumerInfo a, FanOutStreamConsumerInfo b) {
+		return a.getConsumerArn().equals(b.getConsumerArn()) &&
+			a.getConsumerName().equals(b.getConsumerName()) &&
+			a.getStream().equals(b.getStream()) &&
+			a.getStreamArn().equals(b.getStreamArn());
 	}
 }

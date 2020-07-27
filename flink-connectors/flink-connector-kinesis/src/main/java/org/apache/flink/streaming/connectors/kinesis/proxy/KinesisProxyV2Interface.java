@@ -19,10 +19,10 @@ package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamConsumerInfo;
 
-import java.util.List;
-import java.util.Map;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -32,30 +32,31 @@ import java.util.concurrent.ExecutionException;
 public interface KinesisProxyV2Interface {
 	/**
 	 * Send a describeStream request via AWS SDK v2.x to get the stream arn for each stream.
-	 * @param streams The stream names to be described.
-	 * @return a map where key is the stream name and value is the streamArn.
+	 * @param stream the stream name to be described.
+	 * @return a describe stream response.
 	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the
 	 * 	                                 operation has exceeded the rate limit; this exception will be thrown
 	 * 	                                 if the backoff is interrupted.
 	 */
-	Map<String, String> describeStream(List<String> streams) throws InterruptedException, ExecutionException;
+	DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException;
 
 	/**
 	 * Send a registerStream request via AWS SDK v2.x to get the consumer arn for each stream consumer, consumer name is set via {@link FanOutRecordPublisherConfiguration}.
-	 * @param streamArns a map where key is the stream name and value is the stream arn.
-	 * @return a list of fan out stream info. {@link FanOutStreamInfo}
+	 * @param stream the stream to be registered.
+	 * @param streamArn the stream's arn to be registered.
+	 * @return a fan out stream info. {@link FanOutStreamConsumerInfo}
 	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the
 	 * 	  	                             operation has exceeded the rate limit; this exception will be thrown
 	 * 	  	                             if the backoff is interrupted.
 	 */
-	List<FanOutStreamInfo> registerStreamConsumer(Map<String, String> streamArns) throws InterruptedException, ExecutionException;
+	FanOutStreamConsumerInfo registerStreamConsumer(String stream, String streamArn) throws InterruptedException, ExecutionException;
 
 	/**
 	 * Send a deregisterStream request via AWS SDK v2.x to derigster each consumer.
-	 * @param fanOutStreamInfos a list of fan out stream info. {@link FanOutStreamInfo}
+	 * @param fanOutStreamConsumerInfo an instance of fan out stream info. {@link FanOutStreamConsumerInfo}
 	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the
 	 * 	  	  	                         operation has exceeded the rate limit; this exception will be thrown
 	 * 	  	  	                         if the backoff is interrupted.
 	 */
-	void deregisterStreamConsumer(List<FanOutStreamInfo> fanOutStreamInfos) throws InterruptedException, ExecutionException;
+	void deregisterStreamConsumer(FanOutStreamConsumerInfo fanOutStreamConsumerInfo) throws InterruptedException, ExecutionException;
 }

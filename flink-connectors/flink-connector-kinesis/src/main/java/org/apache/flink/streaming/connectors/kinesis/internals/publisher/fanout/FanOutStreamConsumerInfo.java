@@ -17,12 +17,24 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout;
 
-import java.util.Objects;
-
 /**
  * This is a data class which describe all related information when de-/registering streams.
  */
-public class FanOutStreamInfo {
+public class FanOutStreamConsumerInfo {
+	/**
+	 * Public constructor for fan out stream info.
+	 * @param stream the kinesis' stream name.
+	 * @param streamArn the kinesis' stream arn.
+	 * @param consumerName the kinesis' enhanced fan-out consumer name.
+	 * @param consumerArn the kinesis' enhanced fan-out consumer arn.
+	 */
+	public FanOutStreamConsumerInfo(String stream, String streamArn, String consumerName, String consumerArn) {
+		this.stream = stream;
+		this.streamArn = streamArn;
+		this.consumerName = consumerName;
+		this.consumerArn = consumerArn;
+	}
+
 	/** Kinesis stream name. */
 	private final String stream;
 
@@ -61,45 +73,5 @@ public class FanOutStreamInfo {
 	 */
 	public String getConsumerArn() {
 		return consumerArn;
-	}
-
-	/**
-	 * Public constructor for fan out stream info.
-	 */
-	public FanOutStreamInfo(String stream, String streamArn, String consumerName, String consumerArn) {
-		this.stream = stream;
-		this.streamArn = streamArn;
-		this.consumerName = consumerName;
-		this.consumerArn = consumerArn;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		FanOutStreamInfo that = (FanOutStreamInfo) o;
-		return stream.equals(that.stream) &&
-			streamArn.equals(that.streamArn) &&
-			consumerName.equals(that.consumerName) &&
-			consumerArn.equals(that.consumerArn);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(stream, streamArn, consumerName, consumerArn);
-	}
-
-	@Override
-	public String toString() {
-		return "FanOutStreamInfo{" +
-			"stream='" + stream + '\'' +
-			", streamArn='" + streamArn + '\'' +
-			", consumerName='" + consumerName + '\'' +
-			", consumerArn='" + consumerArn + '\'' +
-			'}';
 	}
 }

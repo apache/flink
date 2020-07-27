@@ -18,8 +18,10 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamConsumerInfo;
 import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.util.Preconditions;
 
@@ -29,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerRequest;
+import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
@@ -36,10 +39,7 @@ import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerRequest;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -93,102 +93,50 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 		return AwsV2Util.createKinesisAsyncClient(configProps, config);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public Map<String, String> describeStream(List<String> streams) throws InterruptedException, ExecutionException {
-		Map<String, String> result = new HashMap<>();
-		for (String stream : streams) {
-			DescribeStreamRequest describeStreamRequest = DescribeStreamRequest
-				.builder()
-				.streamName(stream)
-				.build();
-			DescribeStreamResponse describeStreamResponse = null;
+	public DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException {
+		DescribeStreamRequest describeStreamRequest = DescribeStreamRequest
+			.builder()
+			.streamName(stream)
+			.build();
+		DescribeStreamResponse describeStreamResponse = null;
 
-			int retryCount = 0;
-			while (retryCount <= fanOutRecordPublisherConfiguration.getDescribeStreamMaxRetries() && describeStreamResponse == null) {
-				try {
-					describeStreamResponse = kinesisAsyncClient.describeStream(describeStreamRequest).get();
-				} catch (ExecutionException ex) {
-					if (AwsV2Util.isRecoverableException(ex)) {
-						long backoffMillis = fullJitterBackoff(
-							fanOutRecordPublisherConfiguration.getDescribeStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamExpConstant(), retryCount++);
-						LOG.warn("Got recoverable AmazonServiceException when trying to describe stream " + stream + ". Backing off for "
-							+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
-						Thread.sleep(backoffMillis);
-					} else {
-						throw ex;
-					}
+		int retryCount = 0;
+		while (retryCount <= fanOutRecordPublisherConfiguration.getDescribeStreamMaxRetries() && describeStreamResponse == null) {
+			try {
+				describeStreamResponse = kinesisAsyncClient.describeStream(describeStreamRequest).get();
+			} catch (ExecutionException ex) {
+				if (AwsV2Util.isRecoverableException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						fanOutRecordPublisherConfiguration.getDescribeStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamExpConstant(), retryCount++);
+					LOG.warn("Got recoverable AmazonServiceException when trying to describe stream " + stream + ". Backing off for "
+						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
 				}
 			}
-			if (describeStreamResponse == null) {
-				throw new RuntimeException("Retries exceeded for describeStream operation - all " + fanOutRecordPublisherConfiguration.getDescribeStreamMaxRetries() +
-					" retry attempts failed.");
-			}
-			result.put(stream, describeStreamResponse.streamDescription().streamARN());
 		}
-		return result;
+		if (describeStreamResponse == null) {
+			throw new RuntimeException("Retries exceeded for describeStream operation - all " + fanOutRecordPublisherConfiguration.getDescribeStreamMaxRetries() +
+				" retry attempts failed.");
+		}
+		return describeStreamResponse;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List<FanOutStreamInfo> registerStreamConsumer(Map<String, String> streamArns) throws InterruptedException, ExecutionException {
-		Preconditions.checkArgument(fanOutRecordPublisherConfiguration.getConsumerName().isPresent());
-		String consumerName = fanOutRecordPublisherConfiguration.getConsumerName().get();
-		List<FanOutStreamInfo> result = new ArrayList<>();
-		for (Map.Entry<String, String> entry : streamArns.entrySet()) {
-			String stream = entry.getKey();
-			String streamArn = entry.getValue();
-			RegisterStreamConsumerRequest registerStreamConsumerRequest = RegisterStreamConsumerRequest
-				.builder()
-				.consumerName(consumerName)
-				.streamARN(streamArn)
-				.build();
-			FanOutStreamInfo fanOutStreamInfo = null;
-			int retryCount = 0;
-			while (retryCount <= fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() && fanOutStreamInfo == null) {
-				try {
-					RegisterStreamConsumerResponse registerStreamConsumerResponse = kinesisAsyncClient.registerStreamConsumer(registerStreamConsumerRequest).get();
-					fanOutStreamInfo = new FanOutStreamInfo(stream, streamArn, consumerName, registerStreamConsumerResponse.consumer().consumerARN());
-				} catch (ExecutionException ex) {
-					if (AwsV2Util.isResourceInUse(ex)) {
-						fanOutStreamInfo = describeStreamConsumer(stream, streamArn, consumerName);
-					} else if (AwsV2Util.isRecoverableException(ex)) {
-						long backoffMillis = fullJitterBackoff(
-							fanOutRecordPublisherConfiguration.getRegisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamExpConstant(), retryCount++);
-						LOG.warn("Got recoverable AmazonServiceException when trying to register " + stream + ". Backing off for "
-							+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
-						Thread.sleep(backoffMillis);
-					} else {
-						throw ex;
-					}
-				}
-			}
-
-			if (fanOutStreamInfo == null) {
-				throw new RuntimeException("Retries exceeded for registerStream operation - all " + fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() +
-					" retry attempts failed.");
-			}
-			result.add(fanOutStreamInfo);
-		}
-		return result;
-	}
-
-	public FanOutStreamInfo describeStreamConsumer(String stream, String streamArn, String consumerName) throws InterruptedException, ExecutionException  {
+	@VisibleForTesting
+	private FanOutStreamConsumerInfo describeStreamConsumer(String stream, String streamArn, String consumerName) throws InterruptedException, ExecutionException  {
 		DescribeStreamConsumerRequest describeStreamConsumerRequest = DescribeStreamConsumerRequest
 			.builder()
 			.streamARN(streamArn)
 			.consumerName(consumerName)
 			.build();
-		FanOutStreamInfo fanOutStreamInfo = null;
+		FanOutStreamConsumerInfo fanOutStreamConsumerInfo = null;
 		int retryCount = 0;
-		while (retryCount <= fanOutRecordPublisherConfiguration.getDescribeStreamConsumerMaxRetries() && fanOutStreamInfo == null) {
+		while (retryCount <= fanOutRecordPublisherConfiguration.getDescribeStreamConsumerMaxRetries() && fanOutStreamConsumerInfo == null) {
 			try {
 				DescribeStreamConsumerResponse describeStreamConsumerResponse = kinesisAsyncClient.describeStreamConsumer(describeStreamConsumerRequest).get();
-				fanOutStreamInfo = new FanOutStreamInfo(stream, streamArn, consumerName, describeStreamConsumerResponse.consumerDescription().consumerARN());
+				fanOutStreamConsumerInfo = new FanOutStreamConsumerInfo(stream, streamArn, consumerName, describeStreamConsumerResponse.consumerDescription().consumerARN());
 			} catch (ExecutionException ex) {
 				if (AwsV2Util.isRecoverableException(ex)) {
 					long backoffMillis = fullJitterBackoff(
@@ -202,51 +150,127 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 			}
 		}
 
-		if (fanOutStreamInfo == null) {
+		if (fanOutStreamConsumerInfo == null) {
+			throw new RuntimeException("Retries exceeded for describeStreamConsumer operation - all " + fanOutRecordPublisherConfiguration.getDescribeStreamConsumerMaxRetries() +
+				" retry attempts failed.");
+		}
+		return fanOutStreamConsumerInfo;
+	}
+
+	@VisibleForTesting
+	private FanOutStreamConsumerInfo registerStreamConsumerDirectly(String stream, String streamArn, String consumerName) throws InterruptedException, ExecutionException {
+		RegisterStreamConsumerRequest registerStreamConsumerRequest = RegisterStreamConsumerRequest
+			.builder()
+			.streamARN(streamArn)
+			.consumerName(consumerName)
+			.build();
+		FanOutStreamConsumerInfo fanOutStreamConsumerInfo = null;
+		int retryCount = 0;
+		while (retryCount <= fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() && fanOutStreamConsumerInfo == null) {
+			try {
+				RegisterStreamConsumerResponse registerStreamConsumerResponse = kinesisAsyncClient.registerStreamConsumer(registerStreamConsumerRequest).get();
+				fanOutStreamConsumerInfo = new FanOutStreamConsumerInfo(stream, streamArn, consumerName, registerStreamConsumerResponse.consumer().consumerARN());
+			} catch (ExecutionException ex) {
+				if (AwsV2Util.isRecoverableException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						fanOutRecordPublisherConfiguration.getRegisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamExpConstant(), retryCount++);
+					LOG.warn("Got recoverable AmazonServiceException when trying to register " + stream + ". Backing off for "
+						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
+			}
+		}
+		if (fanOutStreamConsumerInfo == null) {
 			throw new RuntimeException("Retries exceeded for registerStream operation - all " + fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() +
 				" retry attempts failed.");
 		}
-		return fanOutStreamInfo;
+		return fanOutStreamConsumerInfo;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void deregisterStreamConsumer(List<FanOutStreamInfo> fanOutStreamInfos) throws InterruptedException, ExecutionException {
-		for (FanOutStreamInfo fanOutStreamInfo : fanOutStreamInfos) {
-			DeregisterStreamConsumerRequest deregisterStreamConsumerRequest = DeregisterStreamConsumerRequest
-				.builder()
-				.consumerARN(fanOutStreamInfo.getConsumerArn())
-				.consumerName(fanOutStreamInfo.getConsumerName())
-				.build();
-
-			int retryCount = 0;
-			boolean deregisterSuccessFlag = false;
-			while (retryCount <= fanOutRecordPublisherConfiguration.getDeregisterStreamMaxRetries() && !deregisterSuccessFlag) {
+	public FanOutStreamConsumerInfo registerStreamConsumer(String stream, String streamArn) throws InterruptedException, ExecutionException {
+		if (this.fanOutRecordPublisherConfiguration.getEfoRegistrationType() == ConsumerConfigConstants.EFORegistrationType.NONE){
+			throw new IllegalArgumentException("EFO registration strategy of NONE can not call register stream operation.");
+		}
+		Preconditions.checkArgument(fanOutRecordPublisherConfiguration.getConsumerName().isPresent(), "Consumer name is not set.");
+		if (this.fanOutRecordPublisherConfiguration.getEfoRegistrationType() == ConsumerConfigConstants.EFORegistrationType.LAZY){
+			long backoffMillis = fullJitterBackoff(
+				fanOutRecordPublisherConfiguration.getRegisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamExpConstant(), 1);
+			Thread.sleep(backoffMillis);
+		}
+		String consumerName = fanOutRecordPublisherConfiguration.getConsumerName().get();
+		FanOutStreamConsumerInfo result;
+		try {
+			result = describeStreamConsumer(stream, streamArn, consumerName);
+		} catch (ExecutionException ex) {
+			if (AwsV2Util.isResourceNotFound(ex)) {
 				try {
-					kinesisAsyncClient.deregisterStreamConsumer(deregisterStreamConsumerRequest).get();
-					deregisterSuccessFlag = true;
-				} catch (ExecutionException ex) {
-					if (AwsV2Util.isResourceNotFound(ex)) {
-						deregisterSuccessFlag = true;
-						break;
-					}
-					if (AwsV2Util.isRecoverableException(ex)) {
-						long backoffMillis = fullJitterBackoff(
-							fanOutRecordPublisherConfiguration.getDeregisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamExpConstant(), retryCount++);
-						LOG.warn("Got recoverable AmazonServiceException when trying to deregister " + fanOutStreamInfo.getStream() + ". Backing off for "
-							+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
-						Thread.sleep(backoffMillis);
+					long backoffMillis = fullJitterBackoff(
+						fanOutRecordPublisherConfiguration.getRegisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamExpConstant(), 1);
+					Thread.sleep(backoffMillis);
+					result = registerStreamConsumerDirectly(stream, streamArn, consumerName);
+				} catch (ExecutionException ex1) {
+					if (AwsV2Util.isResourceInUse(ex1)) {
+						result = describeStreamConsumer(stream, streamArn, consumerName);
 					} else {
-						throw ex;
+						throw ex1;
 					}
 				}
+			} else {
+				throw ex;
 			}
-			if (!deregisterSuccessFlag) {
-				throw new RuntimeException("Retries exceeded for deregisterStream operation - all " + fanOutRecordPublisherConfiguration.getDeregisterStreamMaxRetries() +
-					" retry attempts failed.");
+		}
+		return result;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void deregisterStreamConsumer(FanOutStreamConsumerInfo fanOutStreamConsumerInfo) throws InterruptedException, ExecutionException {
+		if (this.fanOutRecordPublisherConfiguration.getEfoRegistrationType() == ConsumerConfigConstants.EFORegistrationType.NONE){
+			throw new IllegalArgumentException("EFO registration strategy of NONE can not call de-register stream operation.");
+		}
+		//Force deregister operation to first sleep for a while.
+		long backoffMillis = fullJitterBackoff(
+			fanOutRecordPublisherConfiguration.getDeregisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamExpConstant(), 1);
+		Thread.sleep(backoffMillis);
+
+		DeregisterStreamConsumerRequest deregisterStreamConsumerRequest = DeregisterStreamConsumerRequest
+			.builder()
+			.consumerARN(fanOutStreamConsumerInfo.getConsumerArn())
+			.consumerName(fanOutStreamConsumerInfo.getConsumerName())
+			.build();
+
+		int retryCount = 0;
+		DeregisterStreamConsumerResponse deregisterStreamConsumerResponse = null;
+		while (retryCount <= fanOutRecordPublisherConfiguration.getDeregisterStreamMaxRetries() && deregisterStreamConsumerResponse == null) {
+			try {
+				deregisterStreamConsumerResponse = kinesisAsyncClient.deregisterStreamConsumer(deregisterStreamConsumerRequest).get();
+			} catch (ExecutionException ex) {
+				if (AwsV2Util.isResourceNotFound(ex)) {
+					//it indicates that someone else has de-registered the consumer.
+					return;
+				}
+				if (AwsV2Util.isRecoverableException(ex)) {
+					backoffMillis = fullJitterBackoff(
+						fanOutRecordPublisherConfiguration.getDeregisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamExpConstant(), retryCount++);
+					LOG.warn("Got recoverable AmazonServiceException when trying to deregister " + fanOutStreamConsumerInfo.getStream() + ". Backing off for "
+						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
 			}
+		}
+		if (deregisterStreamConsumerResponse == null) {
+			throw new RuntimeException("Retries exceeded for deregisterStream operation - all " + fanOutRecordPublisherConfiguration.getDeregisterStreamMaxRetries() +
+				" retry attempts failed.");
 		}
 	}
 
