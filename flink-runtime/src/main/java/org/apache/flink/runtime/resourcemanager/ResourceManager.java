@@ -1004,10 +1004,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
-	protected void startServicesOnLeadership() {
+	private void startServicesOnLeadership() {
 		startHeartbeatServices();
 
 		slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
+
+		onLeadership();
+	}
+
+	protected void onLeadership() {
+		// noop by default
 	}
 
 	/**
