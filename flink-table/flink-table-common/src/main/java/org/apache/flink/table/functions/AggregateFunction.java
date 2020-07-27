@@ -23,10 +23,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.inference.TypeInference;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
 /**
  * Base class for user-defined aggregates.
  *
@@ -128,20 +124,6 @@ public abstract class AggregateFunction<T, ACC> extends ImperativeAggregateFunct
 	 */
 	public abstract T getValue(ACC accumulator);
 
-	/**
-	 * Returns <code>true</code> if this {@link AggregateFunction} can only be applied in an
-	 * OVER window.
-	 *
-	 * @return <code>true</code> if the {@link AggregateFunction} requires an OVER window,
-	 *         <code>false</code> otherwise.
-	 *
-	 * @deprecated Use {@link #getRequirements()} instead.
-	 */
-	@Deprecated
-	public boolean requiresOver() {
-		return false;
-	}
-
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.AGGREGATE;
@@ -150,14 +132,5 @@ public abstract class AggregateFunction<T, ACC> extends ImperativeAggregateFunct
 	@Override
 	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
 		throw new TableException("Aggregate functions are not updated to the new type system yet.");
-	}
-
-	@Override
-	public Set<FunctionRequirement> getRequirements() {
-		final HashSet<FunctionRequirement> requirements = new HashSet<>();
-		if (requiresOver()) {
-			requirements.add(FunctionRequirement.OVER_WINDOW_ONLY);
-		}
-		return Collections.unmodifiableSet(requirements);
 	}
 }
