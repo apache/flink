@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -54,6 +55,19 @@ import java.util.Properties;
  */
 @Internal
 public class AwsV2Util {
+
+	/**
+	 * Creates an Amazon Kinesis Async Client from the provided properties.
+	 * Configuration is copied from AWS SDK v1 configuration class as per:
+	 * - https://github.com/aws/aws-sdk-java-v2/blob/2.13.52/docs/LaunchChangelog.md#134-client-override-retry-configuration
+	 *
+	 * @param configProps configuration properties
+	 * @return a new Amazon Kinesis Client
+	 */
+	public static KinesisAsyncClient createKinesisAsyncClient(final Properties configProps) {
+		final ClientConfiguration config = new ClientConfigurationFactory().getConfig();
+		return createKinesisAsyncClient(configProps, config);
+	}
 
 	/**
 	 * Creates an Amazon Kinesis Async Client from the provided properties.
