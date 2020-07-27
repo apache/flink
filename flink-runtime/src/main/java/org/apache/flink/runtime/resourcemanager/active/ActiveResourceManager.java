@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -38,7 +37,6 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -221,43 +219,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 
 		public int getNumNotRegistered() {
 			return numNotRegistered;
-		}
-	}
-
-	/**
-	 * Utility class for counting pending workers per {@link WorkerResourceSpec}.
-	 */
-	@VisibleForTesting
-	static class PendingWorkerCounter {
-		private final Map<WorkerResourceSpec, Integer> pendingWorkerNums;
-
-		PendingWorkerCounter() {
-			pendingWorkerNums = new HashMap<>();
-		}
-
-		int getTotalNum() {
-			return pendingWorkerNums.values().stream().reduce(0, Integer::sum);
-		}
-
-		int getNum(final WorkerResourceSpec workerResourceSpec) {
-			return pendingWorkerNums.getOrDefault(Preconditions.checkNotNull(workerResourceSpec), 0);
-		}
-
-		int increaseAndGet(final WorkerResourceSpec workerResourceSpec) {
-			return pendingWorkerNums.compute(
-				Preconditions.checkNotNull(workerResourceSpec),
-				(ignored, num) -> num != null ? num + 1 : 1);
-		}
-
-		int decreaseAndGet(final WorkerResourceSpec workerResourceSpec) {
-			final Integer newValue = pendingWorkerNums.compute(
-				Preconditions.checkNotNull(workerResourceSpec),
-				(ignored, num) -> {
-					Preconditions.checkState(num != null && num > 0,
-						"Cannot decrease, no pending worker of spec %s.", workerResourceSpec);
-					return num == 1 ? null : num - 1;
-				});
-			return newValue != null ? newValue : 0;
 		}
 	}
 }
