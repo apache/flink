@@ -18,13 +18,9 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
+import org.apache.flink.util.Preconditions;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.ClientConfigurationFactory;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-
-import java.util.Properties;
 
 /**
  * Kinesis proxy implementation using AWS SDK v2.x - a utility class that is used as a proxy to make
@@ -39,22 +35,10 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 	/**
 	 * Create a new KinesisProxyV2 based on the supplied configuration properties.
 	 *
-	 * @param configProps configuration properties containing AWS credential and AWS region info
+	 * @param kinesisAsyncClient the kinesis async client used to communicate with Kinesis
 	 */
-	public KinesisProxyV2(final Properties configProps) {
-		this.kinesisAsyncClient = createKinesisAsyncClient(configProps);
-	}
-
-	/**
-	 * Create the Kinesis client, using the provided configuration properties.
-	 * Derived classes can override this method to customize the client configuration.
-	 *
-	 * @param configProps the properties map used to create the Kinesis Client
-	 * @return a Kinesis Client
-	 */
-	protected KinesisAsyncClient createKinesisAsyncClient(final Properties configProps) {
-		final ClientConfiguration config = new ClientConfigurationFactory().getConfig();
-		return AwsV2Util.createKinesisAsyncClient(configProps, config);
+	public KinesisProxyV2(final KinesisAsyncClient kinesisAsyncClient) {
+		this.kinesisAsyncClient = Preconditions.checkNotNull(kinesisAsyncClient);
 	}
 
 }
