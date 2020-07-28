@@ -25,7 +25,7 @@ under the License.
 
 Apache Flink 可以以多种方式在不同的环境中部署，抛开这种多样性而言，Flink 集群的基本构建方式和操作原则仍然是相同的。
 
-在这篇文章里，你将会学习如何管理和运行 Flink 任务，了解如何部署和监控应用程序、Flink如何从失败作业中进行恢复，同时你还会学习如何执行一些日常操作任务，如升级和扩容。
+在这篇文章里，你将会学习如何管理和运行 Flink 任务，了解如何部署和监控应用程序、Flink 如何从失败作业中进行恢复，同时你还会学习如何执行一些日常操作任务，如升级和扩容。
 
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
@@ -38,6 +38,7 @@ Apache Flink 可以以多种方式在不同的环境中部署，抛开这种多�
 
 * This will be replaced by the TOC
 {:toc}
+<a name="anatomy-of-this-playground"></a>
 
 ## 场景说明
 
@@ -45,7 +46,7 @@ Apache Flink 可以以多种方式在不同的环境中部署，抛开这种多�
 [Flink Session Cluster]({%link concepts/glossary.zh.md %}#flink-session-cluster) 以及一个 Kafka 集群，
 我们会在下文带领大家一起搭建这两个集群。
 
-一个Flink集群总是包含一个 
+一个 Flink 集群总是包含一个 
 [JobManager]({%link concepts/glossary.zh.md %}#flink-jobmanager) 以及一个或多个 
 [Flink TaskManager]({%link concepts/glossary.zh.md %}#flink-taskmanager)。JobManager 
 负责处理 [Job]({%link concepts/glossary.zh.md %}#flink-job) 提交、
@@ -68,11 +69,11 @@ class="offset" width="80%" />
 class="offset" width="80%" />
 
 该 Job 负责从 *input* topic 消费点击事件 `ClickEvent`，每个点击事件都包含一个 `timestamp` 和一个 `page` 属性。
-这些事件将按照 `page` 属性进行分组，然后按照每15s窗口 [windows]({%link dev/stream/operators/windows.zh.md %}) 进行统计，
+这些事件将按照 `page` 属性进行分组，然后按照每 15s 窗口 [windows]({%link dev/stream/operators/windows.zh.md %}) 进行统计，
 最终结果输出到 *output* topic 中。
 
-总共有6种不同的 page 属性，针对特定 page，我们会按照每15s产生1000个点击事件的速率生成数据。
-因此，针对特定 page，该 Flink job 应该能在每个窗口中输出1000个该 page 的点击数据。
+总共有 6 种不同的 page 属性，针对特定 page，我们会按照每 15s 产生 1000 个点击事件的速率生成数据。
+因此，针对特定 page，该 Flink job 应该能在每个窗口中输出 1000 个该 page 的点击数据。
 
 {% top %}
 
@@ -121,7 +122,7 @@ docker-compose down -v
 
 ## 环境讲解
 
-在这个搭建好的环境中你可以尝试和验证很多事情，在下面的两个部分中我们将向你展示如何与 Flink 集群进行交互以及演示并讲解Flink的一些核心特性。
+在这个搭建好的环境中你可以尝试和验证很多事情，在下面的两个部分中我们将向你展示如何与 Flink 集群进行交互以及演示并讲解 Flink 的一些核心特性。
 
 ### Flink WebUI 界面
 
@@ -200,6 +201,7 @@ docker-compose exec kafka kafka-console-consumer.sh \
 
 到目前为止，你已经学习了如何与 Flink 以及 Docker 容器进行交互，现在让我们看一些常用的操作命令。
 本节中的各部分命令不需要按任何特定的顺序执行，这些命令大部分都可以通过 [CLI](#flink-cli) 或 [RESTAPI](#flink-rest-api) 执行。
+<a name="listing-running-jobs"></a>
 
 ### 获取所有运行中的 Job
 
@@ -239,6 +241,7 @@ curl localhost:8081/jobs
 
 一旦 Job 提交，Flink 会默认为其生成一个 JobID，后续对该 Job 的
 所有操作（无论是通过 CLI 还是 REST API）都需要带上 JobID。
+<a name="observing-failure--recovery"></a>
 
 ### Job 失败与恢复
 
@@ -247,7 +250,7 @@ curl localhost:8081/jobs
 
 #### Step 1: 观察输出
 
-如[前文](#场景说明)所述，事件以特定速率生成，刚好使得每个统计窗口都包含确切的1000条记录。
+如[前文](#anatomy-of-this-playground)所述，事件以特定速率生成，刚好使得每个统计窗口都包含确切的 1000 条记录。
 因此，你可以实时查看 output topic 的输出，确定失败恢复后所有的窗口依然输出正确的统计数字，
 以此来验证 Flink 在 TaskManager 失败时能够成功恢复，而且不丢失数据、不产生数据重复。
 
@@ -298,9 +301,9 @@ docker-compose up -d taskmanager
 一旦恢复成功，它们的状态将转变为 `RUNNING`。
 
 接下来该 Job 将快速处理 Kafka input 事件的全部积压（在 Job 中断期间累积的数据），
-并以更快的速度(>24条记录/分钟)产生输出，直到它追上 kafka 的 lag 延迟为止。
+并以更快的速度(>24 条记录/分钟)产生输出，直到它追上 kafka 的 lag 延迟为止。
 此时观察 *output* topic 输出，
-你会看到在每一个时间窗口中都有按 `page` 进行分组的记录，而且计数刚好是1000。
+你会看到在每一个时间窗口中都有按 `page` 进行分组的记录，而且计数刚好是 1000。
 由于我们使用的是 [FlinkKafkaProducer]({%link dev/connectors/kafka.zh.md %}#kafka-producers-and-fault-tolerance) "至少一次"模式，因此你可能会看到一些记录重复输出多次。
 
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
@@ -329,7 +332,7 @@ docker-compose exec kafka kafka-console-consumer.sh \
 #### Step 1: 停止 Job
 
 要优雅停止 Job，需要使用 JobID 通过 CLI 或 REST API 调用 “stop” 命令。
-JobID 可以通过[获取所有运行中的 Job](#获取所有运行中的-job) 接口或 Flink WebUI 界面获取，拿到 JobID 后就可以继续停止作业了：
+JobID 可以通过[获取所有运行中的 Job](#listing-running-jobs) 接口或 Flink WebUI 界面获取，拿到 JobID 后就可以继续停止作业了：
 
 <div class="codetabs" markdown="1">
 <div data-lang="CLI" markdown="1">
@@ -449,7 +452,7 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
  
 一旦该 Job 再次处于 `RUNNING` 状态，你将从 *output* Topic 中看到数据在快速输出，
 因为刚启动的 Job 正在处理停止期间积压的大量数据。另外，你还会看到在升级期间
-没有产生任何数据丢失：所有窗口都在输出1000。
+没有产生任何数据丢失：所有窗口都在输出 1000。
 
 #### Step 2b: 重启 Job (修改并行度)
 
@@ -501,15 +504,15 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
 {% endhighlight %}
 </div>
 </div>
-现在 Job 已重新提交，但由于我们提高了并行度所以导致 TaskSlots 不够用（1个 TaskSlot 可用，总共需要3个），最终 Job 会重启失败。通过如下命令：
+现在 Job 已重新提交，但由于我们提高了并行度所以导致 TaskSlots 不够用（1 个 TaskSlot 可用，总共需要 3 个），最终 Job 会重启失败。通过如下命令：
 {% highlight bash %}
 docker-compose scale taskmanager=2
 {% endhighlight %}
-你可以向 Flink 集群添加第二个 TaskManager（为 Flink 集群提供2个 TaskSlots 资源），
+你可以向 Flink 集群添加第二个 TaskManager（为 Flink 集群提供 2 个 TaskSlots 资源），
 它会自动向 JobManager 注册，TaskManager 注册完成后，Job 会再次处于 "RUNNING" 状态。
 
 一旦 Job 再次运行起来，从 *output* Topic 的输出中你会看到在扩容期间数据依然没有丢失：
-所有窗口的计数都正好是1000。
+所有窗口的计数都正好是 1000。
 
 ### 查询 Job 指标
 
@@ -772,11 +775,11 @@ curl localhost:8081/jobs/<jod-id>
 
 * `--checkpointing` 参数开启了 [checkpoint]({%link learn-flink/fault_tolerance.zh.md %}) 配置，savepoint 是 Flink 容错机制的重要保证。
 如果你没有开启 checkpoint，那么在 
-[Job 失败与恢复](#job-失败与恢复)这一节中，你将会看到数据丢失现象发生。
+[Job 失败与恢复](#observing-failure--recovery)这一节中，你将会看到数据丢失现象发生。
 
 * `--event-time` 参数开启了 Job 的 [事件时间]({%link dev/event_time.zh.md %}) 机制，该机制会使用 `ClickEvent` 自带的时间戳进行统计。
-如果不指定该参数，Flink 将结合当前机器时间使用事件处理时间进行统计。如此一来，每个窗口计数将不再是准确的1000了。 
+如果不指定该参数，Flink 将结合当前机器时间使用事件处理时间进行统计。如此一来，每个窗口计数将不再是准确的 1000 了。 
 
 *Click Event Count* 这个 Job 还有另外一个选项，该选项默认是关闭的，你可以在 *client* 容器的 `docker-compose.yaml` 文件中添加该选项从而观察该 Job 在反压下的表现，该选项描述如下：
 
-* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12期间，而10:13期间不会）。这种现象可以通过多种[网络指标]({%link monitoring/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。
+* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12 期间，而 10:13 期间不会）。这种现象可以通过多种[网络指标]({%link monitoring/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。
