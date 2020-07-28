@@ -23,9 +23,8 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, WrapperTypeInfo}
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rex._
 
@@ -43,7 +42,10 @@ object CalcCodeGenerator {
       condition: Option[RexNode],
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[RowData] = {
-    val inputType = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
+    val inputType = inputTransform.getOutputType match {
+      case rowDataTypeInfo: RowDataTypeInfo => rowDataTypeInfo.toRowType
+      case wrapperTypeInfo: WrapperTypeInfo[_] => wrapperTypeInfo.toRowType
+    }
     // filter out time attributes
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val processCode = generateProcessCode(

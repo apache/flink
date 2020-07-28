@@ -62,7 +62,6 @@ public abstract class AbstractRowPythonScalarFunctionOperator extends AbstractPy
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);

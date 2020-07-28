@@ -347,7 +347,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		} else if (simpleTypeInfo == Types.BOOLEAN) {
 			return Optional.of(this::convertToBoolean);
 		} else if (simpleTypeInfo == Types.STRING) {
-			return Optional.of((mapper, jsonNode) -> jsonNode.asText());
+			return Optional.of(this::convertToString);
 		} else if (simpleTypeInfo == Types.INT) {
 			return Optional.of(this::convertToInt);
 		} else if (simpleTypeInfo == Types.LONG) {
@@ -378,6 +378,14 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			return Optional.of(this::convertToLocalDateTime);
 		} else {
 			return Optional.empty();
+		}
+	}
+
+	private String convertToString(ObjectMapper mapper, JsonNode jsonNode) {
+		if (jsonNode.isContainerNode()) {
+			return jsonNode.toString();
+		} else {
+			return jsonNode.asText();
 		}
 	}
 

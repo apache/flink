@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory;
+import org.apache.flink.table.planner.calcite.FlinkRexBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
@@ -57,7 +58,6 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -117,7 +117,7 @@ public class PlannerContext {
 		for (RelTraitDef traitDef : frameworkConfig.getTraitDefs()) {
 			planner.addRelTraitDef(traitDef);
 		}
-		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
+		this.cluster = FlinkRelOptClusterFactory.create(planner, new FlinkRexBuilder(typeFactory));
 	}
 
 	public SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {

@@ -19,12 +19,12 @@
 package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.python.PythonFunctionRunner;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 /**
- * The base interface of python environment manager which is used to create the Environment object and the
- * RetrievalToken of Beam Fn API.
+ * The base interface of python environment manager which is used to create the PythonEnvironment object and the
+ * RetrievalToken.
  */
 @Internal
 public interface PythonEnvironmentManager extends AutoCloseable {
@@ -35,16 +35,16 @@ public interface PythonEnvironmentManager extends AutoCloseable {
 	void open() throws Exception;
 
 	/**
-	 * Creates the Environment object used in Apache Beam Fn API.
+	 * Creates the PythonEnvironment object used in {@link PythonFunctionRunner}.
 	 *
-	 * @return The Environment object which represents the environment(process, docker, etc) the python worker would run
+	 * @return The PythonEnvironment object which represents the environment(process, docker, etc) the python worker would run
 	 *         in.
 	 */
-	RunnerApi.Environment createEnvironment() throws Exception;
+	PythonEnvironment createEnvironment() throws Exception;
 
 	/**
-	 * Creates the RetrievalToken used in Apache Beam Fn API. It contains a list of files which need to transmit through
-	 * ArtifactService provided by Apache Beam.
+	 * Creates the RetrievalToken used in {@link PythonFunctionRunner}. It contains a list of files
+	 * which need to transmit through ArtifactService provided by {@link PythonFunctionRunner}.
 	 *
 	 * @return The path of the RetrievalToken file.
 	 */

@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryUtil;
+import org.apache.flink.table.planner.calcite.FlinkSqlNameMatcher;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
@@ -69,7 +70,9 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 
 		super(
 			rootSchema,
-			SqlNameMatchers.withCaseSensitive(config != null && config.caseSensitive()),
+			new FlinkSqlNameMatcher(
+				SqlNameMatchers.withCaseSensitive(config != null && config.caseSensitive()),
+				typeFactory),
 				Stream.concat(
 					defaultSchemas.stream(),
 					Stream.of(Collections.<String>emptyList())

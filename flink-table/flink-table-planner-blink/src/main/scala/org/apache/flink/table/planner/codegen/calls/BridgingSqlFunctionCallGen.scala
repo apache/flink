@@ -39,6 +39,8 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.{validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
 
 /**
@@ -260,13 +262,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
-    enrichedDataTypes.foreach(dataType => {
-      if (!dataType.getLogicalType.supportsOutputConversion(dataType.getConversionClass)) {
-        throw new CodeGenException(
-          s"Data type '$dataType' does not support an output conversion " +
-            s"to class '${dataType.getConversionClass}'.")
-      }
-    })
+    enrichedDataTypes.foreach(validateOutputDataType)
   }
 
   private def verifyFunctionAwareOutputType(
@@ -276,13 +272,18 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val enrichedType = enrichedDataType.getLogicalType
     // logically table functions wrap atomic types into ROW, however, the physical function might
     // return an atomic type
-    if (function.getDefinition.getKind == FunctionKind.TABLE && !isCompositeType(enrichedType)) {
-      Preconditions.checkState(
-        hasRoot(returnType, LogicalTypeRoot.ROW) && returnType.getChildren.size() == 1,
-        "Logical output type of function call should be a ROW wrapping an atomic type.",
-        Seq(): _*)
-      val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
-      verifyOutputType(atomicOutputType, enrichedDataType)
+    if (function.getDefinition.getKind == FunctionKind.TABLE) {
+      if (!isCompositeType(enrichedType)) {
+        Preconditions.checkState(
+          hasRoot(returnType, LogicalTypeRoot.ROW) && returnType.getChildren.size() == 1,
+          "Logical output type of function call should be a ROW wrapping an atomic type.",
+          Seq(): _*)
+        val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
+        verifyOutputType(atomicOutputType, enrichedDataType)
+      } else {
+        // null values are skipped therefore, the result top level row will always be not null
+        verifyOutputType(returnType.copy(true), enrichedDataType)
+      }
     } else {
       verifyOutputType(returnType, enrichedDataType)
     }
@@ -301,11 +302,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
-    if (!enrichedType.supportsInputConversion(enrichedDataType.getConversionClass)) {
-      throw new CodeGenException(
-        s"Data type '$enrichedDataType' does not support an input conversion " +
-          s"to class '${enrichedDataType.getConversionClass}'.")
-    }
+    validateInputDataType(enrichedDataType)
   }
 
   private def verifyFunctionAwareImplementation(

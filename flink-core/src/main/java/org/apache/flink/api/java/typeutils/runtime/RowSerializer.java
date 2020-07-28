@@ -110,7 +110,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		int len = fieldSerializers.length;
 
 		if (from.getArity() != len) {
-			throw new RuntimeException("Row arity of from does not match serializers.");
+			throw new RuntimeException("Row arity of from (" + from.getArity() +
+				") does not match this serializers field length (" + len + ").");
 		}
 
 		Row result = new Row(from.getKind(), len);
@@ -138,7 +139,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 		if (from.getArity() != len || reuse.getArity() != len) {
 			throw new RuntimeException(
-				"Row arity of reuse or from is incompatible with this RowSerializer.");
+				"Row arity of reuse (" + reuse.getArity() + ") or from (" + from.getArity() + ") is incompatible with this serializers field length (" + len + ").");
 		}
 
 		reuse.setKind(from.getKind());
@@ -177,7 +178,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		final int len = fieldSerializers.length;
 
 		if (record.getArity() != len) {
-			throw new RuntimeException("Row arity of from does not match serializers.");
+			throw new RuntimeException("Row arity of record (" + record.getArity() + ") does not match this serializers field length (" + len + ").");
 		}
 
 		// write bitmask
@@ -221,7 +222,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		final int len = fieldSerializers.length;
 
 		if (reuse.getArity() != len) {
-			throw new RuntimeException("Row arity of from does not match serializers.");
+			throw new RuntimeException("Row arity of reuse (" + reuse.getArity() + ") does not match this serializers field length (" + len + ").");
 		}
 
 		// read bitmask
