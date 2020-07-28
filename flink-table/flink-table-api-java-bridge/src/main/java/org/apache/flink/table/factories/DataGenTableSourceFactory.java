@@ -125,9 +125,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 			String name, DataType type, String kind, ReadableConfig options) {
 		switch (kind) {
 			case RANDOM:
-				return type.getLogicalType().accept(new RandomGeneratorVisitor(name, type, options));
+				return type.getLogicalType().accept(new RandomGeneratorVisitor(name, options));
 			case SEQUENCE:
-				return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, type, options));
+				return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, options));
 			default:
 				throw new ValidationException("Unsupported generator kind: " + kind);
 		}
