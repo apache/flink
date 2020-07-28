@@ -949,8 +949,8 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testNotifyCheckpointOnClosedOperator() throws Throwable {
 		ClosingOperator operator = new ClosingOperator();
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
 			.setupOutputForSingletonOperatorChain(operator)
@@ -984,8 +984,8 @@ public class StreamTaskTest extends TestLogger {
 
 	private void testFailToConfirmCheckpointMessage(Consumer<StreamTask<?, ?>> consumer) throws Exception {
 		StreamMap<Integer, Integer> streamMap = new StreamMap<>(new FailOnNotifyCheckpointMapper<>());
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
 			.setupOutputForSingletonOperatorChain(streamMap)
@@ -1008,8 +1008,8 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testCheckpointDeclinedOnClosedOperator() throws Throwable {
 		ClosingOperator operator = new ClosingOperator();
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
 			.setupOutputForSingletonOperatorChain(operator)
