@@ -38,12 +38,12 @@ under the License.
 </dependency>
 {% endhighlight %}
 
-注意连接器目前还 __不是__ 二进制发行版的一部分，如何在集群中运行请参考 [这里] ({{ site.baseurl}}/dev/project-configuration.html)。
+注意连接器目前还 __不是__ 二进制发行版的一部分，如何在集群中运行请参考 [这里] ({{ site.baseurl}}/zh/dev/project-configuration.html)。
 
 已创建的JDBC Sink能够保证至少一次的语义。
 更有效的精确执行一次可以通过upsert语句或幂等更新实现。
 
-Example usage:
+用法示例：
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env
