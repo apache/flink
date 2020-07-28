@@ -113,8 +113,8 @@ public class SourceStreamTaskTest {
 	@Test(timeout = 60_000)
 	public void testStartDelayMetric() throws Exception {
 		long sleepTime = 42;
-		MultipleInputStreamTaskTestHarnessBuilder<String> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+		StreamTaskMailboxTestHarnessBuilder<String> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 
 		final Map<String, Metric> metrics = new ConcurrentHashMap<>();
 		final TaskMetricGroup taskMetricGroup = new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
