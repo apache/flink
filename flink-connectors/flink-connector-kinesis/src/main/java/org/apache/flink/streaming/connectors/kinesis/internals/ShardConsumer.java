@@ -22,21 +22,29 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import static java.util.Optional.ofNullable;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
@@ -59,6 +67,19 @@ public class ShardConsumer<T> implements Runnable {
 
 	private final ShardConsumerMetricsReporter shardConsumerMetricsReporter;
 
+	/** If the record publisher type is POLL or the efo registration type is NONE, then this is null. */
+	@Nullable
+	private List<FanOutStreamInfo> streamInfoList;
+
+	/** If the record publisher type is POLL or the efo registration type is NONE, then this is null. */
+	@Nullable
+	private KinesisProxyV2Interface kinesis;
+
+	@Nullable
+	private List<String> streams;
+
+	private KinesisDataFetcher.FlinkKinesisProxyV2Factory kinesisProxyV2Factory;
+
 	private StartingPosition startingPosition;
 
 	private SequenceNumber lastSequenceNum;
@@ -76,20 +97,71 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param shardConsumerMetricsReporter the reporter to report metrics to
 	 * @param shardDeserializer used to deserialize incoming records
 	 */
-	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
-						RecordPublisher recordPublisher,
-						Integer subscribedShardStateIndex,
-						StreamShardHandle subscribedShard,
-						SequenceNumber lastSequenceNum,
-						ShardConsumerMetricsReporter shardConsumerMetricsReporter,
-						KinesisDeserializationSchema<T> shardDeserializer) {
+	public ShardConsumer(
+		KinesisDataFetcher<T> fetcherRef,
+		RecordPublisher recordPublisher,
+		Integer subscribedShardStateIndex,
+		StreamShardHandle subscribedShard,
+		SequenceNumber lastSequenceNum,
+		ShardConsumerMetricsReporter shardConsumerMetricsReporter,
+		KinesisDeserializationSchema<T> shardDeserializer) {
+		this(
+			fetcherRef,
+			recordPublisher,
+			subscribedShardStateIndex,
+			subscribedShard,
+			lastSequenceNum,
+			shardConsumerMetricsReporter,
+			shardDeserializer,
+			null,
+			null,
+			null,
+			null
+		);
+	}
+
+	/**
+	 * Creates a shard consumer.
+	 *
+	 * @param fetcherRef reference to the owning fetcher
+	 * @param recordPublisher the record publisher used to read records from kinesis
+	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
+	 * @param subscribedShard the shard this consumer is subscribed to
+	 * @param lastSequenceNum the sequence number in the shard to start consuming
+	 * @param shardConsumerMetricsReporter the reporter to report metrics to
+	 * @param shardDeserializer used to deserialize incoming records
+	 * @param streams list of kinesis stream names, only needed if the record publisher type is efo, used to construct a {@link KinesisProxyV2}
+	 * @param configProps the config properties, only needed if the record publisher type is efo, used to construct a {@link KinesisProxyV2}
+	 * @param streamInfoList only non-null if the record publisher type is efo and efo registration type is EAGER
+	 */
+	public ShardConsumer(
+		KinesisDataFetcher<T> fetcherRef,
+		RecordPublisher recordPublisher,
+		Integer subscribedShardStateIndex,
+		StreamShardHandle subscribedShard,
+		SequenceNumber lastSequenceNum,
+		ShardConsumerMetricsReporter shardConsumerMetricsReporter,
+		KinesisDeserializationSchema<T> shardDeserializer,
+		@Nullable Properties configProps,
+		@Nullable List<String> streams,
+		@Nullable KinesisDataFetcher.FlinkKinesisProxyV2Factory kinesisProxyV2Factory,
+		@Nullable List<FanOutStreamInfo> streamInfoList) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.recordPublisher = checkNotNull(recordPublisher);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.shardConsumerMetricsReporter = checkNotNull(shardConsumerMetricsReporter);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
-
+		if (isEfoRecordPublisher(configProps)) {
+			checkNotNull(kinesisProxyV2Factory);
+			checkNotNull(configProps);
+			checkNotNull(streams);
+			this.streams = streams;
+			this.kinesis = kinesisProxyV2Factory.create(configProps, streams);
+			if (streamInfoList != null) {
+				this.streamInfoList = streamInfoList;
+			}
+		}
 		checkArgument(
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
 			"Should not start a ShardConsumer if the shard has already been completely read.");
@@ -119,16 +191,25 @@ public class ShardConsumer<T> implements Runnable {
 		}
 	}
 
+	private boolean isEfoRecordPublisher(@Nullable Properties configProps) {
+		return configProps != null &&
+			configProps.containsKey(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE) &&
+			configProps.getProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE).equals(ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+	}
+
 	@Override
 	public void run() {
 		try {
 			while (isRunning()) {
+				//register stream consumers here
+				if (kinesis != null && streamInfoList == null) {
+					this.streamInfoList = registerStreamConsumers();
+				}
 				final RecordPublisherRunResult result = recordPublisher.run(startingPosition, batch -> {
-					for (UserRecord userRecord : batch.getDeaggregatedRecords()) {
-						if (filterDeaggregatedRecord(userRecord)) {
-							deserializeRecordForCollectionAndUpdateState(userRecord);
-						}
-					}
+					batch.getDeaggregatedRecords()
+						.stream()
+						.filter(this::filterDeaggregatedRecord)
+						.forEach(this::deserializeRecordForCollectionAndUpdateState);
 
 					shardConsumerMetricsReporter.setAverageRecordSizeBytes(batch.getAverageRecordSizeBytes());
 					shardConsumerMetricsReporter.setNumberOfAggregatedRecords(batch.getAggregatedRecordSize());
@@ -147,7 +228,29 @@ public class ShardConsumer<T> implements Runnable {
 			}
 		} catch (Throwable t) {
 			fetcherRef.stopWithError(t);
+		} finally {
+			if (this.streamInfoList != null) {
+				try {
+					deregisterStreamConsumer();
+				} catch (Throwable t) {
+					fetcherRef.stopWithError(t);
+				}
+			}
 		}
+	}
+
+	private void deregisterStreamConsumer() throws ExecutionException, InterruptedException {
+		checkNotNull(this.streamInfoList);
+		checkNotNull(this.kinesis);
+		kinesis.deregisterStreamConsumer(this.streamInfoList);
+	}
+
+	private List<FanOutStreamInfo> registerStreamConsumers() throws ExecutionException, InterruptedException {
+		checkNotNull(this.streams);
+		checkNotNull(this.kinesis);
+
+		Map<String, String> streamArns = kinesis.describeStream(streams);
+		return kinesis.registerStreamConsumer(streamArns);
 	}
 
 	/**

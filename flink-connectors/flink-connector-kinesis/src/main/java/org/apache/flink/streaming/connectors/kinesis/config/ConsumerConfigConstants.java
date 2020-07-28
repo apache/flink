@@ -104,6 +104,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
+	/** The maximum number of describeStream attempts if we get a recoverable exception. */
+	public static final String STREAM_DESCRIBE_RETRIES = "flink.stream.describe.maxretries";
+
 	/** The base backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
@@ -124,6 +127,18 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/** The power constant for exponential backoff between each listShards attempt. */
 	public static final String LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.list.shards.backoff.expconst";
+
+	/** The maximum number of describeStreamConsumer attempts if we get a recoverable exception. */
+	public static final String DESCRIBE_STREAM_CONSUMER_RETRIES = "flink.stream.describestreamconsumer.maxretries";
+
+	/** The base backoff time between each describeStreamConsumer attempt. */
+	public static final String DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE = "flink.stream.describestreamconsumer.backoff.base";
+
+	/** The maximum backoff time between each describeStreamConsumer attempt. */
+	public static final String DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX = "flink.stream.describestreamconsumer.backoff.max";
+
+	/** The power constant for exponential backoff between each describeStreamConsumer attempt. */
+	public static final String DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describestreamconsumer.backoff.expconst";
 
 	/** The maximum number of registerStream attempts if we get a recoverable exception. */
 	public static final String REGISTER_STREAM_RETRIES = "flink.stream.registerstreamconsumer.maxretries";
@@ -229,6 +244,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
+	public static final int DEFAULT_STREAM_DESCRIBE_RETRIES = 10;
+
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
@@ -242,6 +259,14 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final double DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_LIST_SHARDS_RETRIES = 10;
+
+	public static final int DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES = 10;
+
+	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE = 200L;
+
+	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX = 1000L;
+
+	public static final double DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_REGISTER_STREAM_RETRIES = 10;
 
