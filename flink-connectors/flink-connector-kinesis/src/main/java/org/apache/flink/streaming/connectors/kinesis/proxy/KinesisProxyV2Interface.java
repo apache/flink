@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.connectors.kinesis.internals.fanout.FanOutProperties;
-import org.apache.flink.streaming.connectors.kinesis.internals.fanout.FanOutStreamInfo;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,7 @@ public interface KinesisProxyV2Interface {
 	Map<String, String> describeStream(List<String> streams) throws InterruptedException, ExecutionException;
 
 	/**
-	 * Send a registerStream request via AWS SDK v2.x to get the consumer arn for each stream consumer, consumer name is set via {@link FanOutProperties}.
+	 * Send a registerStream request via AWS SDK v2.x to get the consumer arn for each stream consumer, consumer name is set via {@link FanOutRecordPublisherConfiguration}.
 	 * @param streamArns a map where key is the stream name and value is the stream arn.
 	 * @return a list of fan out stream info. {@link FanOutStreamInfo}
 	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the

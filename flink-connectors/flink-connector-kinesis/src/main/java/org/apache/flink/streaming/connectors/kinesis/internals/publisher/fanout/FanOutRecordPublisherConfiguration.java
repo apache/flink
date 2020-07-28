@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.internals.fanout;
+package org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout;
 
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType;
@@ -35,7 +35,7 @@ import java.util.Properties;
 /**
  * This is a configuration class for enhanced fan-out components.
  */
-public class FanOutProperties {
+public class FanOutRecordPublisherConfiguration {
 
 	/**
 	 * The efo registration type for de-/registration of streams.
@@ -180,7 +180,7 @@ public class FanOutProperties {
 	 * @param configProps the configuration properties from config file.
 	 * @param streams     the streams which is sent to match the EFO consumer arn if the EFO registration mode is set to `NONE`.
 	 */
-	public FanOutProperties(Properties configProps, List<String> streams) {
+	public FanOutRecordPublisherConfiguration(Properties configProps, List<String> streams) {
 		Preconditions.checkArgument(configProps.getProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE).equals(RecordPublisherType.EFO.toString()), "Only efo record publisher can register a FanOutProperties.");
 		KinesisConfigUtil.validateEfoConfiguration(configProps, streams);
 

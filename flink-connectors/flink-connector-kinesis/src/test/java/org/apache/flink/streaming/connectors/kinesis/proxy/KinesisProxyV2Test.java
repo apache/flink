@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.internals.fanout.FanOutStreamInfo;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.shaded.com.google.common.collect.Lists;
 

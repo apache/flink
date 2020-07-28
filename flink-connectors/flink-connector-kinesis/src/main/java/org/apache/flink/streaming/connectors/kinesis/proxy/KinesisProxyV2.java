@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.connectors.kinesis.internals.fanout.FanOutProperties;
-import org.apache.flink.streaming.connectors.kinesis.internals.fanout.FanOutStreamInfo;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamInfo;
 import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.util.Preconditions;
 
@@ -58,7 +58,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 
 	private final KinesisAsyncClient kinesisAsyncClient;
 
-	private final FanOutProperties fanOutProperties;
+	private final FanOutRecordPublisherConfiguration fanOutRecordPublisherConfiguration;
 
 	/**
 	 * Create a new KinesisProxyV2 based on the supplied configuration properties.
@@ -67,7 +67,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 	 */
 	public KinesisProxyV2(final Properties configProps, List<String> streams) {
 		this.kinesisAsyncClient = createKinesisAsyncClient(configProps);
-		this.fanOutProperties = new FanOutProperties(configProps, streams);
+		this.fanOutRecordPublisherConfiguration = new FanOutRecordPublisherConfiguration(configProps, streams);
 	}
 
 	/**
@@ -107,13 +107,13 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 			DescribeStreamResponse describeStreamResponse = null;
 
 			int retryCount = 0;
-			while (retryCount <= fanOutProperties.getDescribeStreamMaxRetries() && describeStreamResponse == null) {
+			while (retryCount <= fanOutRecordPublisherConfiguration.getDescribeStreamMaxRetries() && describeStreamResponse == null) {
 				try {
 					describeStreamResponse = kinesisAsyncClient.describeStream(describeStreamRequest).get();
 				} catch (ExecutionException ex) {
 					if (AwsV2Util.isRecoverableException(ex)) {
 						long backoffMillis = fullJitterBackoff(
-							fanOutProperties.getDescribeStreamBaseBackoffMillis(), fanOutProperties.getDescribeStreamMaxBackoffMillis(), fanOutProperties.getDescribeStreamExpConstant(), retryCount++);
+							fanOutRecordPublisherConfiguration.getDescribeStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamExpConstant(), retryCount++);
 						LOG.warn("Got recoverable AmazonServiceException when trying to describe stream " + stream + ". Backing off for "
 							+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 						Thread.sleep(backoffMillis);
@@ -123,7 +123,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 				}
 			}
 			if (describeStreamResponse == null) {
-				throw new RuntimeException("Retries exceeded for describeStream operation - all " + fanOutProperties.getDescribeStreamMaxRetries() +
+				throw new RuntimeException("Retries exceeded for describeStream operation - all " + fanOutRecordPublisherConfiguration.getDescribeStreamMaxRetries() +
 					" retry attempts failed.");
 			}
 			result.put(stream, describeStreamResponse.streamDescription().streamARN());
@@ -136,8 +136,8 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 	 */
 	@Override
 	public List<FanOutStreamInfo> registerStreamConsumer(Map<String, String> streamArns) throws InterruptedException, ExecutionException {
-		Preconditions.checkArgument(fanOutProperties.getConsumerName().isPresent());
-		String consumerName = fanOutProperties.getConsumerName().get();
+		Preconditions.checkArgument(fanOutRecordPublisherConfiguration.getConsumerName().isPresent());
+		String consumerName = fanOutRecordPublisherConfiguration.getConsumerName().get();
 		List<FanOutStreamInfo> result = new ArrayList<>();
 		for (Map.Entry<String, String> entry : streamArns.entrySet()) {
 			String stream = entry.getKey();
@@ -149,7 +149,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 				.build();
 			FanOutStreamInfo fanOutStreamInfo = null;
 			int retryCount = 0;
-			while (retryCount <= fanOutProperties.getRegisterStreamMaxRetries() && fanOutStreamInfo == null) {
+			while (retryCount <= fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() && fanOutStreamInfo == null) {
 				try {
 					RegisterStreamConsumerResponse registerStreamConsumerResponse = kinesisAsyncClient.registerStreamConsumer(registerStreamConsumerRequest).get();
 					fanOutStreamInfo = new FanOutStreamInfo(stream, streamArn, consumerName, registerStreamConsumerResponse.consumer().consumerARN());
@@ -158,7 +158,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 						fanOutStreamInfo = describeStreamConsumer(stream, streamArn, consumerName);
 					} else if (AwsV2Util.isRecoverableException(ex)) {
 						long backoffMillis = fullJitterBackoff(
-							fanOutProperties.getRegisterStreamBaseBackoffMillis(), fanOutProperties.getRegisterStreamMaxBackoffMillis(), fanOutProperties.getRegisterStreamExpConstant(), retryCount++);
+							fanOutRecordPublisherConfiguration.getRegisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getRegisterStreamExpConstant(), retryCount++);
 						LOG.warn("Got recoverable AmazonServiceException when trying to register " + stream + ". Backing off for "
 							+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 						Thread.sleep(backoffMillis);
@@ -169,7 +169,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 			}
 
 			if (fanOutStreamInfo == null) {
-				throw new RuntimeException("Retries exceeded for registerStream operation - all " + fanOutProperties.getRegisterStreamMaxRetries() +
+				throw new RuntimeException("Retries exceeded for registerStream operation - all " + fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() +
 					" retry attempts failed.");
 			}
 			result.add(fanOutStreamInfo);
@@ -185,14 +185,14 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 			.build();
 		FanOutStreamInfo fanOutStreamInfo = null;
 		int retryCount = 0;
-		while (retryCount <= fanOutProperties.getDescribeStreamConsumerMaxRetries() && fanOutStreamInfo == null) {
+		while (retryCount <= fanOutRecordPublisherConfiguration.getDescribeStreamConsumerMaxRetries() && fanOutStreamInfo == null) {
 			try {
 				DescribeStreamConsumerResponse describeStreamConsumerResponse = kinesisAsyncClient.describeStreamConsumer(describeStreamConsumerRequest).get();
 				fanOutStreamInfo = new FanOutStreamInfo(stream, streamArn, consumerName, describeStreamConsumerResponse.consumerDescription().consumerARN());
 			} catch (ExecutionException ex) {
 				if (AwsV2Util.isRecoverableException(ex)) {
 					long backoffMillis = fullJitterBackoff(
-						fanOutProperties.getDescribeStreamConsumerBaseBackoffMillis(), fanOutProperties.getDescribeStreamConsumerMaxBackoffMillis(), fanOutProperties.getDescribeStreamConsumerExpConstant(), retryCount++);
+						fanOutRecordPublisherConfiguration.getDescribeStreamConsumerBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamConsumerMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDescribeStreamConsumerExpConstant(), retryCount++);
 					LOG.warn("Got recoverable AmazonServiceException when trying to describe stream consumer " + stream + ". Backing off for "
 						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 					Thread.sleep(backoffMillis);
@@ -203,7 +203,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 		}
 
 		if (fanOutStreamInfo == null) {
-			throw new RuntimeException("Retries exceeded for registerStream operation - all " + fanOutProperties.getRegisterStreamMaxRetries() +
+			throw new RuntimeException("Retries exceeded for registerStream operation - all " + fanOutRecordPublisherConfiguration.getRegisterStreamMaxRetries() +
 				" retry attempts failed.");
 		}
 		return fanOutStreamInfo;
@@ -223,7 +223,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 
 			int retryCount = 0;
 			boolean deregisterSuccessFlag = false;
-			while (retryCount <= fanOutProperties.getDeregisterStreamMaxRetries() && !deregisterSuccessFlag) {
+			while (retryCount <= fanOutRecordPublisherConfiguration.getDeregisterStreamMaxRetries() && !deregisterSuccessFlag) {
 				try {
 					kinesisAsyncClient.deregisterStreamConsumer(deregisterStreamConsumerRequest).get();
 					deregisterSuccessFlag = true;
@@ -234,7 +234,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 					}
 					if (AwsV2Util.isRecoverableException(ex)) {
 						long backoffMillis = fullJitterBackoff(
-							fanOutProperties.getDeregisterStreamBaseBackoffMillis(), fanOutProperties.getDeregisterStreamMaxBackoffMillis(), fanOutProperties.getDeregisterStreamExpConstant(), retryCount++);
+							fanOutRecordPublisherConfiguration.getDeregisterStreamBaseBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamMaxBackoffMillis(), fanOutRecordPublisherConfiguration.getDeregisterStreamExpConstant(), retryCount++);
 						LOG.warn("Got recoverable AmazonServiceException when trying to deregister " + fanOutStreamInfo.getStream() + ". Backing off for "
 							+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 						Thread.sleep(backoffMillis);
@@ -244,7 +244,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 				}
 			}
 			if (!deregisterSuccessFlag) {
-				throw new RuntimeException("Retries exceeded for deregisterStream operation - all " + fanOutProperties.getDeregisterStreamMaxRetries() +
+				throw new RuntimeException("Retries exceeded for deregisterStream operation - all " + fanOutRecordPublisherConfiguration.getDeregisterStreamMaxRetries() +
 					" retry attempts failed.");
 			}
 		}

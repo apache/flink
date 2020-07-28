@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.internals.fanout;
+package org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout;
 
 import java.util.Objects;
 
