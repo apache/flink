@@ -87,7 +87,7 @@ Flink 中事件时间的处理取决于 *watermark 生成器*，后者将带有�
 
 (4) 我们可能会思考，如何决定 watermarks 的不同生成策略
 
-每个事件都会延迟一段时间后到达，然而这些延迟有所不同，有些事件可能比其他事件延迟得更多。一种简单的方法是假定这些延迟受某个最大延迟的限制。Flink 将此策略称为 *最大无序边界(bounded-out-of-orderness)* watermark。当然，我们可以想像出更好的生成 watermark 的方法，但是对于大多数应用而言，固定延迟策略已经足够了。
+每个事件都会延迟一段时间后到达，然而这些延迟有所不同，有些事件可能比其他事件延迟得更多。一种简单的方法是假定这些延迟受某个最大延迟的限制。Flink 将此策略称为 *最大无序边界 (bounded-out-of-orderness)* watermark。当然，我们可以想像出更好的生成 watermark 的方法，但是对于大多数应用而言，固定延迟策略已经足够了。
 
 <a name="latency-vs-completeness"></a>
 ### 延迟 VS 正确性
@@ -101,7 +101,7 @@ watermarks 给了开发者流处理的一种选择，它们使开发人员在开
 <a name="latency"></a>
 ### 延迟
 
-延迟是相对于 watermarks 定义的。`Watermark(t)` 判定事件流的时间已经到达了 _t_; watermark 之后的时间戳为 &le; _t_ 的任何事件都被称之为延迟事件。
+延迟是相对于 watermarks 定义的。`Watermark(t)` 表示事件流的时间已经到达了 _t_; watermark 之后的时间戳 &le; _t_ 的任何事件都被称之为延迟事件。
 
 <a name="working-with-watermarks"></a>
 ### 使用 Watermarks
