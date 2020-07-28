@@ -53,6 +53,11 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 			.defaultValue(ROWS_PER_SECOND_DEFAULT_VALUE)
 			.withDescription("Rows per second to control the emit rate.");
 
+	public static final ConfigOption<Long> NUMBER_OF_ROWS = key("number-of-rows")
+		.longType()
+		.noDefaultValue()
+		.withDescription("Total number of rows to emit. By default, the source is unbounded.");
+
 	public static final String FIELDS = "fields";
 	public static final String KIND = "kind";
 	public static final String START = "start";
@@ -78,6 +83,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(ROWS_PER_SECOND);
+		options.add(NUMBER_OF_ROWS);
 		return options;
 	}
 
@@ -108,10 +114,11 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		Set<String> consumedOptionKeys = new HashSet<>();
 		consumedOptionKeys.add(CONNECTOR.key());
 		consumedOptionKeys.add(ROWS_PER_SECOND.key());
+		consumedOptionKeys.add(NUMBER_OF_ROWS.key());
 		optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
 		FactoryUtil.validateUnconsumedKeys(factoryIdentifier(), options.keySet(), consumedOptionKeys);
 
-		return new DataGenTableSource(fieldGenerators, schema, options.get(ROWS_PER_SECOND));
+		return new DataGenTableSource(fieldGenerators, schema, options.get(ROWS_PER_SECOND), options.get(NUMBER_OF_ROWS));
 	}
 
 	private DataGeneratorContainer createContainer(

@@ -45,28 +45,31 @@ public class DataGenTableSource implements ScanTableSource {
 	private final DataGenerator[] fieldGenerators;
 	private final TableSchema schema;
 	private final long rowsPerSecond;
+	private final Long numberOfRows;
 
-	public DataGenTableSource(DataGenerator[] fieldGenerators, TableSchema schema, long rowsPerSecond) {
+	public DataGenTableSource(DataGenerator[] fieldGenerators, TableSchema schema, long rowsPerSecond, Long numberOfRows) {
 		this.fieldGenerators = fieldGenerators;
 		this.schema = schema;
 		this.rowsPerSecond = rowsPerSecond;
+		this.numberOfRows = numberOfRows;
 	}
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
-		return SourceFunctionProvider.of(createSource(), false);
+		boolean isBounded = numberOfRows == null;
+		return SourceFunctionProvider.of(createSource(), isBounded);
 	}
 
 	@VisibleForTesting
 	public DataGeneratorSource<RowData> createSource() {
 		return new DataGeneratorSource<>(
 			new RowGenerator(fieldGenerators, schema.getFieldNames()),
-			rowsPerSecond);
+			rowsPerSecond, numberOfRows);
 	}
 
 	@Override
 	public DynamicTableSource copy() {
-		return new DataGenTableSource(fieldGenerators, schema, rowsPerSecond);
+		return new DataGenTableSource(fieldGenerators, schema, rowsPerSecond, numberOfRows);
 	}
 
 	@Override
