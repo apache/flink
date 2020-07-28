@@ -29,25 +29,24 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The DataGen connector allows for reading by data generation rules.
+The DataGen connector allows for creating tables based on in-memory data generation.
+This is useful when developing queries locally without access to external systems such as Kafka.
+Tables can include [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table) which allows for flexible record generation.
 
-The DataGen connector can work with [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table).
-This allows you to generate records flexibly.
+The DataGen connector is built-in, no additional dependencies are required.
 
-The DataGen connector is built-in.
+Usage
+-----
 
-<span class="label label-danger">Attention</span> Complex types are not supported: Array, Map, Row. Please construct these types by computed column.
+By default, a DataGen table will create an unbounded number of rows with a random value for each column.
+For variable sized types, char/varchar/string/array/map/multiset, the length can be specified.
+Additionally, a total number of rows can be specified, resulting in a bounded table.
 
-How to create a DataGen table
-----------------
+There also exists a sequence generator, where users specify a sequence of start and end values.
+Complex types cannot be generated as a sequence.
+If any column in a table is a sequence type, the table will be bounded and end with the first sequence completes.
 
-The boundedness of table: when the generation of field data in the table is completed, the reading
-is finished. So the boundedness of the table depends on the boundedness of fields.
-
-For each field, there are two ways to generate data:
-
-- Random generator is the default generator, you can specify random max and min values. For char/varchar/string, the length can be specified. It is a unbounded generator.
-- Sequence generator, you can specify sequence start and end values. It is a bounded generator, when the sequence number reaches the end value, the reading ends.
+Time types are always the local machines current system time.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -56,7 +55,7 @@ CREATE TABLE datagen (
  f_sequence INT,
  f_random INT,
  f_random_str STRING,
- ts AS localtimestamp,
+ ts TIMESTAMP(3)
  WATERMARK FOR ts AS ts
 ) WITH (
  'connector' = 'datagen',
@@ -64,6 +63,9 @@ CREATE TABLE datagen (
  -- optional options --
 
  'rows-per-second'='5',
+ 
+ -- make the table bounded
+ 'number-of-rows'='10'
 
  'fields.f_sequence.kind'='sequence',
  'fields.f_sequence.start'='1',
@@ -106,6 +108,13 @@ Connector Options
       <td>Long</td>
       <td>Rows per second to control the emit rate.</td>
     </tr>
+        <tr>
+          <td><h5>number-of-rows</h5></td>
+          <td>optional</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Long</td>
+          <td>The total number of rows to emit. By default, the table is unbounded.</td>
+        </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
