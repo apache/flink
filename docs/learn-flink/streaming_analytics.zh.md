@@ -29,7 +29,7 @@ under the License.
 
 ## Event Time and Watermarks
 
-<a name="Introduction"></a>
+<a name="introduction"></a>
 ### 概要
 
 Flink 明确支持以下三种时间语义:
@@ -42,7 +42,7 @@ Flink 明确支持以下三种时间语义:
 
 为了获得可重现的结果，例如在计算过去的特定一天里第一个小时股票的最高价格时，我们应该使用事件时间。这样的话，无论什么时间去计算都不会影响输出结果。然而如果使用 processing time 的话，实时应用程序的结果是由程序运行的时间所决定。多次运行基于 processing time 的实时程序，可能得到的结果都不相同，也可能会导致再次分析历史数据或者测试新代码变得异常困难。
 
-<a name="Working-with-Event-Time"></a>
+<a name="working-with-event-time"></a>
 ### 使用 Event Time
 
 Flink 在默认情况下是使用处理时间。也可以通过下面配置来告诉 Flink 选择哪种时间语义:
@@ -89,7 +89,7 @@ Flink 中事件时间的处理取决于 *watermark 生成器*，后者将带有�
 
 每个事件都会延迟一段时间后到达，然而这些延迟有所不同，有些事件可能比其他事件延迟得更多。一种简单的方法是假定这些延迟受某个最大延迟的限制。Flink 将此策略称为 *最大无序边界(bounded-out-of-orderness)* watermark。当然，我们可以想像出更好的生成 watermark 的方法，但是对于大多数应用而言，固定延迟策略已经足够了。
 
-<a name="Latency-vs-Completeness"></a>
+<a name="latency-vs-completeness"></a>
 ### 延迟 VS 正确性
 
 watermarks 给了开发者流处理的一种选择，它们使开发人员在开发应用程序时可以控制延迟和完整性之间的权衡。与批处理不同，批处理中的奢侈之处在于可以在产生任何结果之前完全了解输入，而使用流式传输，我们不被允许等待所有的时间都产生了，才输出排序好的数据，这与流相违背。
@@ -98,12 +98,12 @@ watermarks 给了开发者流处理的一种选择，它们使开发人员在开
 
 当然也可以实施混合解决方案，先快速产生初步结果，然后在处理其他（最新）数据时向这些结果提供更新。对于有一些对延迟的容忍程度很低，但是又对结果有很严格的要求的场景下，或许是一个福音。
 
-<a name="Latency"></a>
+<a name="latency"></a>
 ### 延迟
 
 延迟是相对于 watermarks 定义的。`Watermark(t)` 判定事件流的时间已经到达了 _t_; watermark 之后的时间戳为 &le; _t_ 的任何事件都被称之为延迟事件。
 
-<a name="Working-with-Watermarks"></a>
+<a name="working-with-watermarks"></a>
 ### 使用 Watermarks
 
 如果想要使用基于带有事件时间戳的事件流，Flink 需要知道与每个事件相关的时间戳，而且流必须包含 watermark。
@@ -133,7 +133,7 @@ Flink 在窗口的场景处理上非常有表现力。
 * Flink 支持哪种类型的窗口，以及
 * 如何使用窗口聚合来实现 DataStream 程序
 
-<a name="Introduction"></a>
+<a name="introduction-1"></a>
 ### 概要
 
 我们在操作无界数据流时，经常需要应对以下问题，我们经常把无界数据流分解成有界数据流聚合分析:
@@ -163,7 +163,7 @@ stream.
     .reduce|aggregate|process(<window function>)
 {% endhighlight %}
 
-<a name="Window-Assigners"></a>
+<a name="window-assigners"></a>
 ### 窗口分配器
 
 Flink 有一些内置的窗口分配器，如下所示：
@@ -197,7 +197,7 @@ Flink 有一些内置的窗口分配器，如下所示：
 
 我们可能在有些场景下，想使用全局 window assigner 将每个事件（相同的 key）都分配给某一个指定的全局窗口。 很多情况下，一个比较好的建议是使用 `ProcessFunction`，具体介绍在[这里]({% link learn-flink/event_driven.zh.md %}#process-functions)。
 
-<a name="Window-Functions"></a>
+<a name="window-functions"></a>
 ### 窗口应用函数
 
 我们有三种最基本的操作窗口内的事件的选项:
@@ -209,7 +209,7 @@ Flink 有一些内置的窗口分配器，如下所示：
 
 接下来展示一段 1 和 3 的示例，每一个实现都是计算传感器的最大值。在每一个一分钟大小的事件时间窗口内, 生成一个包含 `(key,end-of-window-timestamp, max_value)` 的一组结果。
 
-<a name="ProcessWindowFunction-Example"></a>
+<a name="processwindowfunction-example"></a>
 #### ProcessWindowFunction 示例
 
 {% highlight java %}
@@ -262,7 +262,7 @@ public abstract class Context implements java.io.Serializable {
 
 `windowState` 和 `globalState` 可以用来存储当前的窗口的 key、窗口或者当前 key 的每一个窗口信息。这在一些场景下会很有用，试想，我们在处理当前窗口的时候，可能会用到上一个窗口的信息。
 
-<a name="Incremental-Aggregation-Example"></a>
+<a name="incremental-aggregation-example"></a>
 #### 增量聚合示例
 
 {% highlight java %}
@@ -297,7 +297,7 @@ private static class MyWindowFunction extends ProcessWindowFunction<
 
 请注意 `Iterable<SensorReading>` 将只包含一个读数 -- `MyReducingMax` 计算出的预先汇总的最大值。
 
-<a name="Late-Events"></a>
+<a name="late-events"></a>
 ### 晚到的事件
 
 默认场景下，超过最大无序边界的事件会被删除，但是 Flink 给了我们两个选择去控制这些事件。
@@ -333,17 +333,17 @@ stream.
 
 当允许的延迟大于零时，只有那些超过最大无序边界以至于会被丢弃的事件才会被发送到侧输出流（如果已配置）。
 
-<a name="Surprises"></a>
+<a name="surprises"></a>
 ### 深入了解窗口操作
 
 Flink 的窗口 API 某些方面有一些奇怪的行为，可能和我们预期的行为不一致。 根据 [Flink 用户邮件列表](https://flink.apache.org/community.html#mailing-lists) 和其他地方一些频繁被问起的问题, 以下是一些有关 Windows 的底层事实，这些信息可能会让您感到惊讶。
 
-<a name="Sliding-Windows-Make-Copies"></a>
+<a name="sliding-windows-make-copies"></a>
 #### 滑动窗口是通过复制来实现的
 
 滑动窗口分配器可以创建许多窗口对象，并将每个事件复制到每个相关的窗口中。例如，如果您每隔 15 分钟就有 24 小时的滑动窗口，则每个事件将被复制到 4 * 24 = 96 个窗口中。
 
-<a name="Time-Windows-are-Aligned-to-the-Epoch"></a>
+<a name="time-windows-are-aligned-to-the-epoch"></a>
 #### 时间窗口会和时间对齐
 
 仅仅因为我们使用的是一个小时的处理时间窗口并在 12:05 开始运行您的应用程序，并不意味着第一个窗口将在 1:05 关闭。第一个窗口将长 55 分钟，并在 1:00 关闭。
@@ -352,6 +352,7 @@ Flink 的窗口 API 某些方面有一些奇怪的行为，可能和我们预期
 [滚动窗口]({% link dev/stream/operators/windows.zh.md %}#tumbling-windows) 和
 [滑动窗口]({% link dev/stream/operators/windows.zh.md %}#sliding-windows) 。
 
+<a name="windows-can-follow-windows"></a>
 #### window 后面可以接 window
 
 比如说:
@@ -369,7 +370,7 @@ stream
 
 之所以可行，是因为时间窗口产生的事件是根据窗口结束时的时间分配时间戳的。例如，一个小时小时的窗口所产生的所有事件都将带有标记一个小时结束的时间戳。后面的窗口内的数据消费和前面的流产生的数据是一致的。
 
-<a name="No-Results-for-Empty-TimeWindows"></a>
+<a name="no-results-for-empty-timewindows"></a>
 #### 空的时间窗口不会输出结果
 
 事件会触发窗口的创建。换句话说，如果在特定的窗口内没有事件，就不会有窗口，就不会有输出结果。
@@ -380,6 +381,7 @@ stream
 
 {% top %}
 
+<a name="hands-on"></a>
 ## 实践练习
 
 本节附带的动手练习是[Hourly Tips
@@ -387,6 +389,7 @@ Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}r
 
 {% top %}
 
+<a name="further-reading"></a>
 ## 延伸阅读
 
 - [Timely Stream Processing]({% link concepts/timely-stream-processing.zh.md %})
