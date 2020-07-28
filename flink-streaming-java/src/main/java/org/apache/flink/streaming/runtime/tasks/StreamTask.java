@@ -217,6 +217,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private Long syncSavepointId = null;
 
+	private long latestAsyncCheckpointStartDelayNanos;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -791,6 +793,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		CompletableFuture<Boolean> result = new CompletableFuture<>();
 		mainMailboxExecutor.execute(
 				() -> {
+					latestAsyncCheckpointStartDelayNanos = 1_000_000 * Math.max(
+						0,
+						System.currentTimeMillis() - checkpointMetaData.getTimestamp());
 					try {
 						result.complete(triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime));
 					}
@@ -1182,5 +1187,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		} catch (Throwable t) {
 			handleAsyncException("Caught exception while processing timer.", new TimerException(t));
 		}
+	}
+
+	protected long getAsyncCheckpointStartDelayNanos() {
+		return latestAsyncCheckpointStartDelayNanos;
 	}
 }
