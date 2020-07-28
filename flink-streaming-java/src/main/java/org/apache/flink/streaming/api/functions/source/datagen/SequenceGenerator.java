@@ -27,6 +27,9 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.util.Preconditions;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -162,6 +165,16 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
 			@Override
 			public Double next() {
 				return valuesToEmit.poll().doubleValue();
+			}
+		};
+	}
+
+	public static SequenceGenerator<BigDecimal> bigDecimalGenerator(int start, int end, int precision, int scale) {
+		return new SequenceGenerator<BigDecimal>(start, end) {
+			@Override
+			public BigDecimal next() {
+				BigDecimal decimal = new BigDecimal(valuesToEmit.poll().doubleValue(), new MathContext(precision));
+				return decimal.setScale(scale, RoundingMode.DOWN);
 			}
 		};
 	}

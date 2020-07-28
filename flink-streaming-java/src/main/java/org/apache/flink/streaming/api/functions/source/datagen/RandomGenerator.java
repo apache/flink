@@ -24,6 +24,9 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Random generator.
  */
@@ -113,6 +116,49 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
 			@Override
 			public Boolean next() {
 				return random.nextInt(0, 1) == 0;
+			}
+		};
+	}
+
+	public static <T> RandomGenerator<T[]> arrayGenerator(DataGenerator<T> generator, int len) {
+		return new RandomGenerator<T[]>() {
+
+			@Override
+			public void open(String name, FunctionInitializationContext context, RuntimeContext runtimeContext) throws Exception {
+				generator.open(name, context, runtimeContext);
+			}
+
+			@Override
+			public T[] next() {
+				@SuppressWarnings("unchecked")
+				T[] array = (T[]) new Object[len];
+
+				for (int i = 0; i < len; i++) {
+					array[i] = generator.next();
+				}
+
+				return array;
+			}
+		};
+	}
+
+	public static <K, V> RandomGenerator<Map<K, V>> mapGenerator(DataGenerator<K> key, DataGenerator<V> value, int size) {
+		return new RandomGenerator<Map<K, V>>() {
+
+			@Override
+			public void open(String name, FunctionInitializationContext context, RuntimeContext runtimeContext) throws Exception {
+				key.open(name + ".key", context, runtimeContext);
+				value.open(name + ".value", context, runtimeContext);
+			}
+
+			@Override
+			public Map<K, V> next() {
+				Map<K, V> map = new HashMap<>(size);
+				for (int i = 0; i < size; i++) {
+					map.put(key.next(), value.next());
+				}
+
+				return map;
 			}
 		};
 	}

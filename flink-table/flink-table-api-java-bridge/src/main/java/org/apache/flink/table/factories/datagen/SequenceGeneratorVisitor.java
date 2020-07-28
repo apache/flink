@@ -26,29 +26,27 @@ import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.*;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
 
 /**
  * Creates a sequential {@link DataGeneratorContainer} for a particular logical type.
  */
 @Internal
-public class SequenceGeneratorVisitor extends LogicalTypeDefaultVisitor<DataGeneratorContainer> {
-
-	private final DataType type;
+public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
 	private final ReadableConfig config;
 
@@ -64,8 +62,9 @@ public class SequenceGeneratorVisitor extends LogicalTypeDefaultVisitor<DataGene
 
 	private final ConfigOption<Long> longEnd;
 
-	public SequenceGeneratorVisitor(String name, DataType type, ReadableConfig config) {
-		this.type = type;
+	public SequenceGeneratorVisitor(String name, ReadableConfig config) {
+		super(name, config);
+
 		this.config = config;
 
 		this.startKeyStr = FIELDS + "." + name + "." + START;
@@ -160,8 +159,11 @@ public class SequenceGeneratorVisitor extends LogicalTypeDefaultVisitor<DataGene
 	}
 
 	@Override
-	protected DataGeneratorContainer defaultMethod(LogicalType logicalType) {
-		throw new ValidationException("Unsupported type: " + type);
+	public DataGeneratorContainer visit(DecimalType decimalType) {
+		return DataGeneratorContainer.of(
+			SequenceGenerator.bigDecimalGenerator(
+				config.get(intStart), config.get(intEnd), decimalType.getPrecision(), decimalType.getScale()),
+			intStart, intEnd);
 	}
 
 	private static SequenceGenerator<StringData> getSequenceStringGenerator(long start, long end) {
