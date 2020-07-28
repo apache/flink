@@ -254,6 +254,16 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	@Override
 	public BufferListener.NotificationResult notifyBufferAvailable(Buffer buffer) {
 		BufferListener.NotificationResult notificationResult = BufferListener.NotificationResult.BUFFER_NOT_USED;
+
+		// Assuming two remote channels with respective buffer managers as listeners inside LocalBufferPool.
+		// While canceler thread calling ch1#releaseAllResources, it might trigger bm2#notifyBufferAvaialble.
+		// Concurrently if task thread is recycling exclusive buffer, it might trigger bm1#notifyBufferAvailable.
+		// Then these two threads will both occupy the respective bufferQueue lock and wait for other side's
+		// bufferQueue lock to cause deadlock. So we check the isReleased state out of synchronized to resolve it.
+		if (inputChannel.isReleased()) {
+			return notificationResult;
+		}
+
 		try {
 			synchronized (bufferQueue) {
 				checkState(isWaitingForFloatingBuffers, "This channel should be waiting for floating buffers.");
