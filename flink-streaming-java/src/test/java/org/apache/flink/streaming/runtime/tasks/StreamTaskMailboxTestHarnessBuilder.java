@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
@@ -48,6 +49,7 @@ import org.apache.flink.util.function.FunctionWithException;
 import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -60,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Builder class for {@link StreamTaskMailboxTestHarness}.
  */
-public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
+public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	protected final FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory;
 	protected final TypeSerializer<OUT> outputSerializer;
 	protected final ExecutionConfig executionConfig = new ExecutionConfig();
@@ -77,6 +79,9 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	protected TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	protected Map<Long, TaskStateSnapshot> taskStateSnapshots;
 
+	protected final ArrayList<TypeSerializer<?>> inputSerializers = new ArrayList<>();
+	protected final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
+
 	private boolean setupCalled = false;
 
 	public StreamTaskMailboxTestHarnessBuilder(
@@ -84,6 +89,24 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			TypeInformation<OUT> outputType) {
 		this.taskFactory = checkNotNull(taskFactory);
 		outputSerializer = outputType.createSerializer(executionConfig);
+	}
+
+	public StreamTaskMailboxTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType) {
+		return addInput(inputType, 1);
+	}
+
+	public StreamTaskMailboxTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType, int inputChannels) {
+		return addInput(inputType, inputChannels, null);
+	}
+
+	public StreamTaskMailboxTestHarnessBuilder<OUT> addInput(
+			TypeInformation<?> inputType,
+			int inputChannels,
+			@Nullable KeySelector<?, ?> keySelector) {
+		streamConfig.setStatePartitioner(inputSerializers.size(), keySelector);
+		inputSerializers.add(inputType.createSerializer(executionConfig));
+		inputChannelsPerGate.add(inputChannels);
+		return this;
 	}
 
 	public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
@@ -125,7 +148,41 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			streamMockEnvironment);
 	}
 
-	protected abstract void initializeInputs(StreamMockEnvironment streamMockEnvironment);
+	protected void initializeInputs(StreamMockEnvironment streamMockEnvironment) {
+		inputGates = new StreamTestSingleInputGate[inputSerializers.size()];
+		List<StreamEdge> inPhysicalEdges = new LinkedList<>();
+
+		StreamOperator<?> dummyOperator = new AbstractStreamOperator<Object>() {
+			private static final long serialVersionUID = 1L;
+		};
+
+		StreamNode sourceVertexDummy = new StreamNode(0, "default group", null, dummyOperator, "source dummy", new LinkedList<>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(1, "default group", null, dummyOperator, "target dummy", new LinkedList<>(), SourceStreamTask.class);
+
+		for (int i = 0; i < inputSerializers.size(); i++) {
+			TypeSerializer<?> inputSerializer = inputSerializers.get(i);
+			inputGates[i] = new StreamTestSingleInputGate<>(
+				inputChannelsPerGate.get(i),
+				i,
+				inputSerializer,
+				bufferSize);
+
+			StreamEdge streamEdge = new StreamEdge(
+				sourceVertexDummy,
+				targetVertexDummy,
+				i + 1,
+				new LinkedList<>(),
+				new BroadcastPartitioner<>(),
+				null);
+
+			inPhysicalEdges.add(streamEdge);
+			streamMockEnvironment.addInputGate(inputGates[i].getInputGate());
+		}
+
+		streamConfig.setInPhysicalEdges(inPhysicalEdges);
+		streamConfig.setNumberOfInputs(inputGates.length);
+		streamConfig.setTypeSerializersIn(inputSerializers.toArray(new TypeSerializer[inputSerializers.size()]));
+	}
 
 	public StreamTaskMailboxTestHarnessBuilder<OUT> setupOutputForSingletonOperatorChain(StreamOperator<?> operator) {
 		return setupOutputForSingletonOperatorChain(SimpleOperatorFactory.of(operator), new OperatorID());
