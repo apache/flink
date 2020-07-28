@@ -351,7 +351,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableDatEforInitialTimestampInConfig() {
+	public void testUnparsableDateforInitialTimestampInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
