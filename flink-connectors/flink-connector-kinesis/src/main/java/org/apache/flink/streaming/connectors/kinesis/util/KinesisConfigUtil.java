@@ -187,14 +187,26 @@ public class KinesisConfigUtil {
 		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
 			"Invalid value given for list shards operation backoff exponential constant. Must be a valid non-negative double value.");
 
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE,
+			"Invalid value given for describe stream consumer operation base backoff milliseconds. Must be a valid non-negative long value.");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX,
+			"Invalid value given for describe stream consumer operation max backoff milliseconds. Must be a valid non-negative long value.");
+
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT,
+			"Invalid value given for describe stream consumer operation backoff exponential constant. Must be a valid non-negative double value.");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE,
+			"Invalid value given for describe stream consumer operation base backoff milliseconds. Must be a valid non-negative long value.");
+
 		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.REGISTER_STREAM_RETRIES,
 			"Invalid value given for maximum retry attempts for register stream operation. Must be a valid non-negative integer value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE,
-			"Invalid value given for register stream operation base backoff milliseconds. Must be a valid non-negative long value.");
-
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX,
 			"Invalid value given for register stream operation max backoff milliseconds. Must be a valid non-negative long value.");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE,
+			"Invalid value given for register stream operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
 			"Invalid value given for register stream operation backoff exponential constant. Must be a valid non-negative double value.");

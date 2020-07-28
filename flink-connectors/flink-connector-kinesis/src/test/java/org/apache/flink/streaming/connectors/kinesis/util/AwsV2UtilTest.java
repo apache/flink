@@ -36,12 +36,15 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.net.URI;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_REGION;
@@ -49,6 +52,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigCons
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleSessionName;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.webIdentityTokenFile;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -358,6 +362,16 @@ public class AwsV2UtilTest {
 		AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
 
 		verify(builder).apiCallTimeout(Duration.ofMillis(600));
+	}
+
+	@Test
+	public void testIsRecoverableException() {
+		Exception notAwsEx = new IllegalArgumentException("abc");
+		Exception awsNotRecoverableEx = ResourceNotFoundException.builder().cause(notAwsEx).build();
+		Exception awsRecoverableEx = LimitExceededException.builder().cause(notAwsEx).build();
+		assertFalse(AwsV2Util.isRecoverableException(new ExecutionException(notAwsEx)));
+		assertFalse(AwsV2Util.isRecoverableException(new ExecutionException(awsNotRecoverableEx)));
+		assertTrue(AwsV2Util.isRecoverableException(new ExecutionException(awsRecoverableEx)));
 	}
 
 	private Properties properties(final String key, final String value) {

@@ -135,6 +135,46 @@ public class FanOutProperties {
 	private final int listStreamConsumersMaxRetries;
 
 	/**
+	 * Max retries for the describe stream operation.
+	 */
+	private final int describeStreamMaxRetries;
+
+	/**
+	 * Backoff millis for the describe stream operation.
+	 */
+	private final long describeStreamBaseBackoffMillis;
+
+	/**
+	 *  Maximum backoff millis for the describe stream operation.
+	 */
+	private final long describeStreamMaxBackoffMillis;
+
+	/**
+	 * Exponential backoff power constant for the describe stream operation.
+	 */
+	private final double describeStreamExpConstant;
+
+	/**
+	 * Max retries for the describe stream consumer operation.
+	 */
+	private final int describeStreamConsumerMaxRetries;
+
+	/**
+	 * Backoff millis for the describe stream consumer operation.
+	 */
+	private final long describeStreamConsumerBaseBackoffMillis;
+
+	/**
+	 *  Maximum backoff millis for the describe stream consumer operation.
+	 */
+	private final long describeStreamConsumerMaxBackoffMillis;
+
+	/**
+	 * Exponential backoff power constant for the describe stream consumer operation.
+	 */
+	private final double describeStreamConsumerExpConstant;
+
+	/**
 	 * Creates a FanOutProperties.
 	 *
 	 * @param configProps the configuration properties from config file.
@@ -221,6 +261,30 @@ public class FanOutProperties {
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_STREAM_CONSUMERS_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_STREAM_CONSUMERS_RETRIES)));
+		this.describeStreamMaxRetries = Integer.parseInt(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES,
+				Integer.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_RETRIES)));
+		this.describeStreamBaseBackoffMillis = Long.parseLong(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
+		this.describeStreamMaxBackoffMillis = Long.parseLong(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
+		this.describeStreamExpConstant = Double.parseDouble(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
+		this.describeStreamConsumerMaxRetries = Integer.parseInt(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES,
+				Integer.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES)));
+		this.describeStreamConsumerBaseBackoffMillis = Long.parseLong(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE)));
+		this.describeStreamConsumerMaxBackoffMillis = Long.parseLong(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX)));
+		this.describeStreamConsumerExpConstant = Double.parseDouble(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT)));
 	}
 
 	// ------------------------------------------------------------------------
@@ -345,6 +409,70 @@ public class FanOutProperties {
 	 */
 	public int getListStreamConsumersMaxRetries() {
 		return listStreamConsumersMaxRetries;
+	}
+
+	// ------------------------------------------------------------------------
+	//  describeStream() related performance settings
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Get maximum retry attempts for the describe stream operation.
+	 */
+	public int getDescribeStreamMaxRetries() {
+		return describeStreamMaxRetries;
+	}
+
+	/**
+	 * Get base backoff millis for the describe stream operation.
+	 */
+	public long getDescribeStreamBaseBackoffMillis() {
+		return describeStreamBaseBackoffMillis;
+	}
+
+	/**
+	 * Get maximum backoff millis for the describe stream operation.
+	 */
+	public long getDescribeStreamMaxBackoffMillis() {
+		return describeStreamMaxBackoffMillis;
+	}
+
+	/**
+	 * Get exponential backoff power constant for the describe stream operation.
+	 */
+	public double getDescribeStreamExpConstant() {
+		return describeStreamExpConstant;
+	}
+
+	// ------------------------------------------------------------------------
+	//  describeStreamConsumer() related performance settings
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Get maximum retry attempts for the describe stream operation.
+	 */
+	public int getDescribeStreamConsumerMaxRetries() {
+		return describeStreamConsumerMaxRetries;
+	}
+
+	/**
+	 * Get base backoff millis for the describe stream operation.
+	 */
+	public long getDescribeStreamConsumerBaseBackoffMillis() {
+		return describeStreamConsumerBaseBackoffMillis;
+	}
+
+	/**
+	 * Get maximum backoff millis for the describe stream operation.
+	 */
+	public long getDescribeStreamConsumerMaxBackoffMillis() {
+		return describeStreamConsumerMaxBackoffMillis;
+	}
+
+	/**
+	 * Get exponential backoff power constant for the describe stream operation.
+	 */
+	public double getDescribeStreamConsumerExpConstant() {
+		return describeStreamConsumerExpConstant;
 	}
 
 	/**

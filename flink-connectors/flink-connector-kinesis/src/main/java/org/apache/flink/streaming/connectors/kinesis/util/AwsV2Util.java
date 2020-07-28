@@ -23,7 +23,6 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -34,12 +33,17 @@ import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
+import software.amazon.awssdk.services.kinesis.model.ResourceInUseException;
+import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
@@ -49,25 +53,13 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Utility methods specific to Amazon Web Service SDK v2.x.
  */
 @Internal
 public class AwsV2Util {
-
-	/**
-	 * Creates an Amazon Kinesis Async Client from the provided properties.
-	 * Configuration is copied from AWS SDK v1 configuration class as per:
-	 * - https://github.com/aws/aws-sdk-java-v2/blob/2.13.52/docs/LaunchChangelog.md#134-client-override-retry-configuration
-	 *
-	 * @param configProps configuration properties
-	 * @return a new Amazon Kinesis Client
-	 */
-	public static KinesisAsyncClient createKinesisAsyncClient(final Properties configProps) {
-		final ClientConfiguration config = new ClientConfigurationFactory().getConfig();
-		return createKinesisAsyncClient(configProps, config);
-	}
 
 	/**
 	 * Creates an Amazon Kinesis Async Client from the provided properties.
@@ -247,5 +239,30 @@ public class AwsV2Util {
 	 */
 	public static Region getRegion(final Properties configProps) {
 		return Region.of(configProps.getProperty(AWSConfigConstants.AWS_REGION));
+	}
+
+	/**
+	 * Whether or not an exception is recoverable.
+	 */
+	public static boolean isRecoverableException(ExecutionException e) {
+		if (!(e.getCause() instanceof SdkException)) {
+			return false;
+		}
+		SdkException ase = (SdkException) e.getCause();
+		return ase instanceof LimitExceededException || ase instanceof ProvisionedThroughputExceededException || ase instanceof ResourceInUseException;
+	}
+
+	/**
+	 * Whether or not the exception is ResourceInUse.
+	 */
+	public static boolean isResourceInUse(ExecutionException ex) {
+		return ex.getCause() instanceof ResourceInUseException;
+	}
+
+	/**
+	 * Whether or not the exception is ResourceNotFoundException.
+	 */
+	public static boolean isResourceNotFound(ExecutionException ex) {
+		return ex.getCause() instanceof ResourceNotFoundException;
 	}
 }
