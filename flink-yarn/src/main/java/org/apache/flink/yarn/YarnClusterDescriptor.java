@@ -439,7 +439,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 			try (final FileSystem fs = FileSystem.get(yarnConfiguration)) {
 				final Path applicationDir = YarnApplicationFileUploader
-						.getApplicationDirPath(fs.getHomeDirectory(), applicationId);
+						.getApplicationDirPath(getStagingDir(fs), applicationId);
 
 				Utils.deleteApplicationFiles(Collections.singletonMap(
 						YarnConfigKeys.FLINK_YARN_FILES,
@@ -682,7 +682,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.from(
 			fs,
-			fs.getHomeDirectory(),
+			getStagingDir(fs),
 			providedLibDirs,
 			appContext.getApplicationId(),
 			getFileReplication());
@@ -1052,6 +1052,16 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
+	}
+
+	/**
+	 * Returns the configured remote target home directory if set, otherwise returns the default home directory.
+	 * @param fileSystem file system used
+	 * @return the remote target home directory
+	 */
+	private Path getStagingDir(FileSystem fileSystem) {
+		final String configuredStagingDir = flinkConfiguration.getString(YarnConfigOptions.STAGING_DIRECTORY);
+		return configuredStagingDir != null ? fileSystem.makeQualified(new Path(configuredStagingDir)) : fileSystem.getHomeDirectory();
 	}
 
 	private int getFileReplication() {
