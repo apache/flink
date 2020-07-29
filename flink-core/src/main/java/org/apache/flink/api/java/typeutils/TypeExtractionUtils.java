@@ -257,12 +257,13 @@ public class TypeExtractionUtils {
 	/**
 	 * Convert ParameterizedType or Class to a Class.
 	 */
-	public static Class<?> typeToClass(Type t) {
+	@SuppressWarnings("unchecked")
+	public static <T> Class<T> typeToClass(Type t) {
 		if (t instanceof Class) {
-			return (Class<?>)t;
+			return (Class<T>) t;
 		}
 		else if (t instanceof ParameterizedType) {
-			return ((Class<?>) ((ParameterizedType) t).getRawType());
+			return ((Class<T>) ((ParameterizedType) t).getRawType());
 		}
 		throw new IllegalArgumentException("Cannot convert type to class");
 	}

@@ -57,33 +57,31 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 	}
 
 	@Override
-	@SuppressWarnings("deprecation")
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		return new AvroSerializer<>(getTypeClass());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Internal
 	private static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(Class<T> typeClass) {
 			PojoTypeExtractor pte = new PojoTypeExtractor();
 			ArrayList<Type> typeHierarchy = new ArrayList<>();
 			typeHierarchy.add(typeClass);
-			TypeInformation ti = pte.analyzePojo(typeClass, typeHierarchy, null, null, null);
+			TypeInformation<T> ti = pte.analyzePojo(typeClass, typeHierarchy, null, null, null);
 
 			if (!(ti instanceof PojoTypeInfo)) {
 				throw new IllegalStateException("Expecting type to be a PojoTypeInfo");
 			}
-			PojoTypeInfo pti =  (PojoTypeInfo) ti;
+			PojoTypeInfo<T> pti =  (PojoTypeInfo<T>) ti;
 			List<PojoField> newFields = new ArrayList<>(pti.getTotalFields());
 
 			for (int i = 0; i < pti.getArity(); i++) {
 				PojoField f = pti.getPojoFieldAt(i);
-				TypeInformation newType = f.getTypeInformation();
+				TypeInformation<?> newType = f.getTypeInformation();
 				// check if type is a CharSequence
 				if (newType instanceof GenericTypeInfo) {
 					if ((newType).getTypeClass().equals(CharSequence.class)) {
 						// replace the type by a org.apache.avro.util.Utf8
-						newType = new GenericTypeInfo(org.apache.avro.util.Utf8.class);
+						newType = new GenericTypeInfo<>(org.apache.avro.util.Utf8.class);
 					}
 				}
 				PojoField newField = new PojoField(f.getField(), newType);
