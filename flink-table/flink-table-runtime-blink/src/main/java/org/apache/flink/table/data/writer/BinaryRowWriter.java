@@ -47,6 +47,24 @@ public final class BinaryRowWriter extends AbstractBinaryWriter {
 		this.row.pointTo(segment, 0, segment.size());
 	}
 
+	@Override
+	protected int getFieldOffset(int pos) {
+		return nullBitsSizeInBytes + 8 * pos;
+	}
+
+	@Override
+	protected void setOffsetAndSize(int pos, int offset, long size) {
+		final long offsetAndSize = ((long) offset << 32) | size;
+		segment.putLong(getFieldOffset(pos), offsetAndSize);
+	}
+
+	@Override
+	protected void afterGrow() {
+		row.pointTo(segment, 0, segment.size());
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * First, reset.
 	 */
@@ -58,19 +76,80 @@ public final class BinaryRowWriter extends AbstractBinaryWriter {
 		}
 	}
 
-	/**
-	 * Default not null.
-	 */
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public void setNullAt(int pos) {
+	protected void setNullBit(int pos) {
+		BinarySegmentUtils.bitSet(segment, 0, pos + BinaryRowData.HEADER_SIZE_IN_BITS);
+	}
+
+	@Override
+	public void writeNullBoolean(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullByte(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullShort(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullInt(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullLong(int pos) {
 		setNullBit(pos);
 		segment.putLong(getFieldOffset(pos), 0L);
 	}
 
 	@Override
-	public void setNullBit(int pos) {
-		BinarySegmentUtils.bitSet(segment, 0, pos + BinaryRowData.HEADER_SIZE_IN_BITS);
+	public void writeNullFloat(int pos) {
+		writeNullLong(pos);
 	}
+
+	@Override
+	public void writeNullDouble(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullString(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullBinary(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullArray(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullMap(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullRow(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullRawValue(int pos) {
+		writeNullLong(pos);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	public void writeRowKind(RowKind kind) {
 		segment.put(0, kind.toByteValue());
@@ -111,24 +190,13 @@ public final class BinaryRowWriter extends AbstractBinaryWriter {
 		segment.putDouble(getFieldOffset(pos), value);
 	}
 
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Finally, complete write to set real size to binary.
+	 */
 	@Override
 	public void complete() {
 		row.setTotalSize(cursor);
-	}
-
-	@Override
-	public int getFieldOffset(int pos) {
-		return nullBitsSizeInBytes + 8 * pos;
-	}
-
-	@Override
-	public void setOffsetAndSize(int pos, int offset, long size) {
-		final long offsetAndSize = ((long) offset << 32) | size;
-		segment.putLong(getFieldOffset(pos), offsetAndSize);
-	}
-
-	@Override
-	public void afterGrow() {
-		row.pointTo(segment, 0, segment.size());
 	}
 }

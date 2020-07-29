@@ -453,37 +453,37 @@ public class BytesHashMapTest {
 
 		// int, string, double, long, boolean
 		if (f0 == null) {
-			writer.setNullAt(0);
+			writer.writeNullInt(0);
 		} else {
 			writer.writeInt(0, f0);
 		}
 		if (f1 == null) {
-			writer.setNullAt(1);
+			writer.writeNullString(1);
 		} else {
 			writer.writeString(1, StringData.fromString(f1));
 		}
 		if (f2 == null) {
-			writer.setNullAt(2);
+			writer.writeNullDouble(2);
 		} else {
 			writer.writeDouble(2, f2);
 		}
 		if (f3 == null) {
-			writer.setNullAt(3);
+			writer.writeNullLong(3);
 		} else {
 			writer.writeLong(3, f3);
 		}
 		if (f4 == null) {
-			writer.setNullAt(4);
+			writer.writeNullBoolean(4);
 		} else {
 			writer.writeBoolean(4, f4);
 		}
 		if (f5 == null) {
-			writer.setNullAt(5);
+			writer.writeNullFloat(5);
 		} else {
 			writer.writeFloat(5, f5);
 		}
 		if (f6 == null) {
-			writer.setNullAt(6);
+			writer.writeNullShort(6);
 		} else {
 			writer.writeShort(6, f6);
 		}

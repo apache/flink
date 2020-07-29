@@ -29,7 +29,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.writer.BinaryRowWriter
+import org.apache.flink.table.data.writer.{BinaryRowWriter, BinaryWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -40,19 +40,18 @@ import org.apache.flink.table.planner.utils.{RowDataTestUtil, TableTestUtil, Tes
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
+
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 
 import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.regex.Pattern
-
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.Seq
 import _root_.scala.collection.mutable.ArrayBuffer
@@ -456,8 +455,8 @@ object BatchTestBase {
     val writer = new BinaryRowWriter(row)
     writer.reset()
     fields.zipWithIndex.foreach { case (field, index) =>
-      if (field == null) writer.setNullAt(index)
-      else RowDataTestUtil.write(writer, index, field, types(index))
+      if (field == null) BinaryWriter.createNullSetter(types(index)).setNull(writer, index)
+      else BinaryWriter.createValueSetter(types(index)).setValue(writer, index, field)
     }
     writer.complete()
     row

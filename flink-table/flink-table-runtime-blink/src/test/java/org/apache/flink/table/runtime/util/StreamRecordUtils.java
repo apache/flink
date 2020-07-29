@@ -137,7 +137,7 @@ public class StreamRecordUtils {
 		for (int j = 0; j < fields.length; j++) {
 			Object value = fields[j];
 			if (value == null) {
-				writer.setNullAt(j);
+				writer.writeNullLong(j);
 			} else if (value instanceof Byte) {
 				writer.writeByte(j, (Byte) value);
 			} else if (value instanceof Short) {

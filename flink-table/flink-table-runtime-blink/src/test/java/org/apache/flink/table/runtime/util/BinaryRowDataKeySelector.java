@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -36,18 +34,13 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 	private static final long serialVersionUID = -2327761762415377059L;
 
 	private final int[] keyFields;
-	private final LogicalType[] inputFieldTypes;
 	private final LogicalType[] keyFieldTypes;
-	private final TypeSerializer[] keySers;
 
 	public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
 		this.keyFields = keyFields;
-		this.inputFieldTypes = inputFieldTypes;
 		this.keyFieldTypes = new LogicalType[keyFields.length];
-		this.keySers = new TypeSerializer[keyFields.length];
 		for (int i = 0; i < keyFields.length; ++i) {
 			keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
-			keySers[i] = InternalSerializers.create(keyFieldTypes[i]);
 		}
 	}
 
@@ -56,15 +49,11 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 		BinaryRowData ret = new BinaryRowData(keyFields.length);
 		BinaryRowWriter writer = new BinaryRowWriter(ret);
 		for (int i = 0; i < keyFields.length; i++) {
-			if (value.isNullAt(i)) {
-				writer.setNullAt(i);
+			if (value.isNullAt(keyFields[i])) {
+				BinaryWriter.createNullSetter(keyFieldTypes[i]).setNull(writer, i);
 			} else {
-				BinaryWriter.write(
-						writer,
-						i,
-						RowData.get(value, keyFields[i], inputFieldTypes[keyFields[i]]),
-						inputFieldTypes[keyFields[i]],
-						keySers[i]);
+				Object field = RowData.get(value, keyFields[i], keyFieldTypes[i]);
+				BinaryWriter.createValueSetter(keyFieldTypes[i]).setValue(writer, i, field);
 			}
 		}
 		writer.complete();

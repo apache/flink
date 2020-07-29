@@ -33,8 +33,7 @@ import org.apache.flink.table.data.ColumnarArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
-import org.apache.flink.table.data.writer.BinaryArrayWriter;
-import org.apache.flink.table.data.writer.BinaryWriter;
+import org.apache.flink.table.data.writer.ArrayDataWriterWrapper;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -53,8 +52,7 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 	private final LogicalType eleType;
 	private final TypeSerializer<Object> eleSer;
 
-	private transient BinaryArrayData reuseArray;
-	private transient BinaryArrayWriter reuseWriter;
+	private transient ArrayDataWriterWrapper reuseWriter;
 
 	public ArrayDataSerializer(LogicalType eleType) {
 		this.eleType = eleType;
@@ -181,27 +179,10 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 			return (BinaryArrayData) from;
 		}
 
-		int numElements = from.size();
-		if (reuseArray == null) {
-			reuseArray = new BinaryArrayData();
+		if (reuseWriter == null) {
+			reuseWriter = new ArrayDataWriterWrapper(eleType);
 		}
-		if (reuseWriter == null || reuseWriter.getNumElements() != numElements) {
-			reuseWriter = new BinaryArrayWriter(
-				reuseArray, numElements, BinaryArrayData.calculateFixLengthPartSize(eleType));
-		} else {
-			reuseWriter.reset();
-		}
-
-		for (int i = 0; i < numElements; i++) {
-			if (from.isNullAt(i)) {
-				reuseWriter.setNullAt(i, eleType);
-			} else {
-				BinaryWriter.write(reuseWriter, i, ArrayData.get(from, i, eleType), eleType, eleSer);
-			}
-		}
-		reuseWriter.complete();
-
-		return reuseArray;
+		return reuseWriter.write(from);
 	}
 
 	@Override

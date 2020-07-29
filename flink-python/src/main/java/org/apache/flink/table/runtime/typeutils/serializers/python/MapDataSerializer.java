@@ -112,21 +112,29 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	private MapData deserializeInternal(DataInputView source, BinaryArrayData keyArray, BinaryArrayData valueArray) throws IOException {
 		final int size = source.readInt();
+
 		BinaryArrayWriter keyWriter = new BinaryArrayWriter(keyArray, size, keySize);
+		BinaryWriter.ValueSetter keyValueSetter = BinaryWriter.createValueSetter(keyType);
+
 		BinaryArrayWriter valueWriter = new BinaryArrayWriter(valueArray, size, valueSize);
+		BinaryWriter.NullSetter valueNullSetter = BinaryWriter.createNullSetter(valueType);
+		BinaryWriter.ValueSetter valueValueSetter = BinaryWriter.createValueSetter(valueType);
+
 		for (int i = 0; i < size; i++) {
 			Object key = keyTypeSerializer.deserialize(source);
-			BinaryWriter.write(keyWriter, i, key, keyType, keyTypeSerializer);
+			keyValueSetter.setValue(keyWriter, i, key);
+
 			boolean isNull = source.readBoolean();
 			if (isNull) {
-				valueWriter.setNullAt(i);
+				valueNullSetter.setNull(valueWriter, i);
 			} else {
 				Object value = valueTypeSerializer.deserialize(source);
-				BinaryWriter.write(valueWriter, i, value, valueType, valueTypeSerializer);
+				valueValueSetter.setValue(valueWriter, i, value);
 			}
 		}
 		keyWriter.complete();
 		valueWriter.complete();
+
 		return BinaryMapData.valueOf(keyArray, valueArray);
 	}
 

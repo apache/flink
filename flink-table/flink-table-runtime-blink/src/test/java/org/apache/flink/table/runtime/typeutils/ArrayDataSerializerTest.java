@@ -22,14 +22,23 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.ColumnarArrayData;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.vector.heap.HeapBytesVector;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 
 /**
  * A test for the {@link ArrayDataSerializer}.
@@ -104,5 +113,57 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
 			vector.fill(v.getBytes(StandardCharsets.UTF_8));
 		}
 		return new ColumnarArrayData(vector, 0, vs.length);
+	}
+
+	@Test
+	public void testToBinaryArrayWithCompactDecimal() {
+		testToBinaryArrayWithDecimal(4);
+	}
+
+	@Test
+	public void testToBinaryArrayWithNotCompactDecimal() {
+		testToBinaryArrayWithDecimal(38);
+	}
+
+	private void testToBinaryArrayWithDecimal(int precision) {
+		DecimalData decimal = DecimalData.fromBigDecimal(new BigDecimal(123), precision, 0);
+
+		BinaryArrayData expected = new BinaryArrayData();
+		BinaryArrayWriter writer = new BinaryArrayWriter(expected, 2, 8);
+		writer.writeDecimal(0, decimal, precision);
+		writer.writeNullDecimal(1, precision);
+		writer.complete();
+
+		ArrayDataSerializer serializer = new ArrayDataSerializer(new DecimalType(precision, 0));
+		GenericArrayData genericArray = new GenericArrayData(new DecimalData[]{decimal, null});
+		BinaryArrayData actual = serializer.toBinaryArray(genericArray);
+
+		Assert.assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testToBinaryArrayWithCompactTimestamp() {
+		testToBinaryArrayWithTimestamp(3);
+	}
+
+	@Test
+	public void testToBinaryArrayWithNotCompactTimestamp() {
+		testToBinaryArrayWithTimestamp(9);
+	}
+
+	private void testToBinaryArrayWithTimestamp(int precision) {
+		TimestampData timestamp = TimestampData.fromTimestamp(new Timestamp(123));
+
+		BinaryArrayData expected = new BinaryArrayData();
+		BinaryArrayWriter writer = new BinaryArrayWriter(expected, 2, 8);
+		writer.writeTimestamp(0, timestamp, precision);
+		writer.writeNullTimestamp(1, precision);
+		writer.complete();
+
+		ArrayDataSerializer serializer = new ArrayDataSerializer(new TimestampType(precision));
+		GenericArrayData genericArray = new GenericArrayData(new TimestampData[]{timestamp, null});
+		BinaryArrayData actual = serializer.toBinaryArray(genericArray);
+
+		Assert.assertEquals(expected, actual);
 	}
 }

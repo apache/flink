@@ -704,15 +704,45 @@ object CodeGenUtils {
       t: LogicalType)
     : String = t.getTypeRoot match {
     // ordered by type root definition
-    case DECIMAL if !DecimalData.isCompact(getPrecision(t)) =>
-      s"$writerTerm.writeDecimal($indexTerm, null, ${getPrecision(t)})"
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE
-        if !TimestampData.isCompact(getPrecision(t)) =>
-      s"$writerTerm.writeTimestamp($indexTerm, null, ${getPrecision(t)})"
+    case CHAR | VARCHAR =>
+      s"$writerTerm.writeNullString($indexTerm)"
+    case BOOLEAN =>
+      s"$writerTerm.writeNullBoolean($indexTerm)"
+    case BINARY | VARBINARY =>
+      s"$writerTerm.writeNullBinary($indexTerm)"
+    case DECIMAL =>
+      s"$writerTerm.writeNullDecimal($indexTerm, ${getPrecision(t)})"
+    case TINYINT =>
+      s"$writerTerm.writeNullByte($indexTerm)"
+    case SMALLINT =>
+      s"$writerTerm.writeNullShort($indexTerm)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH =>
+      s"$writerTerm.writeNullInt($indexTerm)"
+    case BIGINT | INTERVAL_DAY_TIME =>
+      s"$writerTerm.writeNullLong($indexTerm)"
+    case FLOAT =>
+      s"$writerTerm.writeNullFloat($indexTerm)"
+    case DOUBLE =>
+      s"$writerTerm.writeNullDouble($indexTerm)"
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+      s"$writerTerm.writeNullTimestamp($indexTerm, ${getPrecision(t)})"
+    case TIMESTAMP_WITH_TIME_ZONE =>
+      throw new UnsupportedOperationException("Unsupported type: " + t)
+    case ARRAY =>
+      s"$writerTerm.writeNullArray($indexTerm)"
+    case MULTISET | MAP =>
+      s"$writerTerm.writeNullMap($indexTerm)"
+    case ROW | STRUCTURED_TYPE =>
+      s"$writerTerm.writeNullRow($indexTerm)"
     case DISTINCT_TYPE =>
-      binaryWriterWriteNull(indexTerm, writerTerm, t.asInstanceOf[DistinctType].getSourceType)
-    case _ =>
-      s"$writerTerm.setNullAt($indexTerm)"
+      binaryWriterWriteNull(
+        indexTerm,
+        writerTerm,
+        t.asInstanceOf[DistinctType].getSourceType)
+    case RAW =>
+      s"$writerTerm.writeNullRawValue($indexTerm)"
+    case NULL | SYMBOL | UNRESOLVED =>
+      throw new IllegalArgumentException("Illegal type: " + t);
   }
 
   def binaryWriterWriteField(

@@ -281,7 +281,7 @@ public class String2HashJoinOperatorTest implements Serializable {
 
 		for (int i = 0; i < s.length; i++) {
 			if (s[i] == null) {
-				writer.setNullAt(i);
+				writer.writeNullString(i);
 			} else {
 				writer.writeString(i, StringData.fromString(s[i]));
 			}

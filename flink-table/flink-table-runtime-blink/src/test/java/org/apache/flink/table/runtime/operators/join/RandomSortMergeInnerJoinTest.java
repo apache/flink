@@ -378,12 +378,12 @@ public class RandomSortMergeInnerJoinTest {
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeInt(0, i);
 		if (s1 == null) {
-			writer.setNullAt(1);
+			writer.writeNullString(1);
 		} else {
 			writer.writeString(1, StringData.fromString(s1));
 		}
 		if (s2 == null) {
-			writer.setNullAt(2);
+			writer.writeNullString(2);
 		} else {
 			writer.writeString(2, StringData.fromString(s2));
 		}

@@ -31,11 +31,8 @@ import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimestampType;
 
 import java.io.Serializable;
 
@@ -55,10 +52,108 @@ public interface BinaryWriter {
 	 */
 	void reset();
 
+	// --------------------------------------------------------------------------------------------
+
+	void writeNullBoolean(int pos);
+
+	void writeNullByte(int pos);
+
+	void writeNullShort(int pos);
+
+	void writeNullInt(int pos);
+
+	void writeNullLong(int pos);
+
+	void writeNullFloat(int pos);
+
+	void writeNullDouble(int pos);
+
+	void writeNullString(int pos);
+
+	void writeNullBinary(int pos);
+
+	void writeNullDecimal(int pos, int precision);
+
+	void writeNullTimestamp(int pos, int precision);
+
+	void writeNullArray(int pos);
+
+	void writeNullMap(int pos);
+
+	void writeNullRow(int pos);
+
+	void writeNullRawValue(int pos);
+
 	/**
-	 * Set null to this field.
+	 * Creates an accessor for setting the elements of a binary writer to {@code null} during runtime.
+	 *
+	 * @param elementType the element type of the array
 	 */
-	void setNullAt(int pos);
+	static NullSetter createNullSetter(LogicalType elementType) {
+		switch (elementType.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+				return BinaryWriter::writeNullString;
+			case BOOLEAN:
+				return BinaryWriter::writeNullBoolean;
+			case BINARY:
+			case VARBINARY:
+				return BinaryWriter::writeNullBinary;
+			case DECIMAL:
+				int decimalPrecision = getPrecision(elementType);
+				return (writer, pos) -> writer.writeNullDecimal(pos, decimalPrecision);
+			case TINYINT:
+				return BinaryWriter::writeNullByte;
+			case SMALLINT:
+				return BinaryWriter::writeNullShort;
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				return BinaryWriter::writeNullInt;
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+				return BinaryWriter::writeNullLong;
+			case FLOAT:
+				return BinaryWriter::writeNullFloat;
+			case DOUBLE:
+				return BinaryWriter::writeNullDouble;
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				int timestampPrecision = getPrecision(elementType);
+				return (writer, pos) -> writer.writeNullTimestamp(pos, timestampPrecision);
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException();
+			case ARRAY:
+				return BinaryWriter::writeNullArray;
+			case MULTISET:
+			case MAP:
+				return BinaryWriter::writeNullMap;
+			case ROW:
+			case STRUCTURED_TYPE:
+				return BinaryWriter::writeNullRow;
+			case DISTINCT_TYPE:
+				return createNullSetter(((DistinctType) elementType).getSourceType());
+			case RAW:
+				return BinaryWriter::writeNullRawValue;
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
+			default:
+				throw new IllegalArgumentException();
+		}
+	}
+
+	/**
+	 * Accessor for setting the elements of a binary writer to {@code null} during runtime.
+	 *
+	 * @see #createNullSetter(LogicalType)
+	 */
+	interface NullSetter extends Serializable {
+		void setNull(BinaryWriter writer, int pos);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	void writeBoolean(int pos, boolean value);
 
@@ -91,85 +186,7 @@ public interface BinaryWriter {
 	void writeRawValue(int pos, RawValueData<?> value, RawValueDataSerializer<?> serializer);
 
 	/**
-	 * Finally, complete write to set real size to binary.
-	 */
-	void complete();
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * @deprecated Use {@link #createValueSetter(LogicalType)} for avoiding logical types during runtime.
-	 */
-	@Deprecated
-	static void write(
-			BinaryWriter writer, int pos, Object o, LogicalType type, TypeSerializer<?> serializer) {
-		switch (type.getTypeRoot()) {
-			case BOOLEAN:
-				writer.writeBoolean(pos, (boolean) o);
-				break;
-			case TINYINT:
-				writer.writeByte(pos, (byte) o);
-				break;
-			case SMALLINT:
-				writer.writeShort(pos, (short) o);
-				break;
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-			case INTERVAL_YEAR_MONTH:
-				writer.writeInt(pos, (int) o);
-				break;
-			case BIGINT:
-			case INTERVAL_DAY_TIME:
-				writer.writeLong(pos, (long) o);
-				break;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				TimestampType timestampType = (TimestampType) type;
-				writer.writeTimestamp(pos, (TimestampData) o, timestampType.getPrecision());
-				break;
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
-				writer.writeTimestamp(pos, (TimestampData) o, lzTs.getPrecision());
-				break;
-			case FLOAT:
-				writer.writeFloat(pos, (float) o);
-				break;
-			case DOUBLE:
-				writer.writeDouble(pos, (double) o);
-				break;
-			case CHAR:
-			case VARCHAR:
-				writer.writeString(pos, (StringData) o);
-				break;
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) type;
-				writer.writeDecimal(pos, (DecimalData) o, decimalType.getPrecision());
-				break;
-			case ARRAY:
-				writer.writeArray(pos, (ArrayData) o, (ArrayDataSerializer) serializer);
-				break;
-			case MAP:
-			case MULTISET:
-				writer.writeMap(pos, (MapData) o, (MapDataSerializer) serializer);
-				break;
-			case ROW:
-			case STRUCTURED_TYPE:
-				writer.writeRow(pos, (RowData) o, (RowDataSerializer) serializer);
-				break;
-			case RAW:
-				writer.writeRawValue(pos, (RawValueData<?>) o, (RawValueDataSerializer<?>) serializer);
-				break;
-			case BINARY:
-			case VARBINARY:
-				writer.writeBinary(pos, (byte[]) o);
-				break;
-			default:
-				throw new UnsupportedOperationException("Not support type: " + type);
-		}
-	}
-
-	/**
-	 * Creates an accessor for setting the elements of an array writer during runtime.
+	 * Creates an accessor for setting the elements of an binary writer during runtime.
 	 *
 	 * @param elementType the element type of the array
 	 */
@@ -234,9 +251,16 @@ public interface BinaryWriter {
 	}
 
 	/**
-	 * Accessor for setting the elements of an array writer during runtime.
+	 * Accessor for setting the elements of a binary writer during runtime.
 	 */
 	interface ValueSetter extends Serializable {
-		void setValue(BinaryArrayWriter writer, int pos, Object value);
+		void setValue(BinaryWriter writer, int pos, Object value);
 	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Finally, complete write to set real size to binary.
+	 */
+	void complete();
 }

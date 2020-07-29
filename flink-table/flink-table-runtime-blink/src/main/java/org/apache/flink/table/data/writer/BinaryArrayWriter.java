@@ -21,10 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
-import org.apache.flink.table.types.logical.DistinctType;
-import org.apache.flink.table.types.logical.LogicalType;
-
-import java.io.Serializable;
 
 /**
  * Writer for binary array. See {@link BinaryArrayData}.
@@ -35,7 +31,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	private final int nullBitsSizeInBytes;
 	private final BinaryArrayData array;
 	private final int numElements;
-	private int fixedSize;
+	private final int fixedSize;
 
 	public BinaryArrayWriter(BinaryArrayData array, int numElements, int elementSize) {
 		this.nullBitsSizeInBytes = BinaryArrayData.calculateHeaderInBytes(numElements);
@@ -49,6 +45,32 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 		this.array = array;
 	}
 
+	public int getNumElements() {
+		return numElements;
+	}
+
+	private int getElementOffset(int pos, int elementSize) {
+		return nullBitsSizeInBytes + elementSize * pos;
+	}
+
+	@Override
+	protected int getFieldOffset(int pos) {
+		return getElementOffset(pos, 8);
+	}
+
+	@Override
+	protected void setOffsetAndSize(int pos, int offset, long size) {
+		final long offsetAndSize = ((long) offset << 32) | size;
+		segment.putLong(getElementOffset(pos, 8), offsetAndSize);
+	}
+
+	@Override
+	protected void afterGrow() {
+		array.pointTo(segment, 0, segment.size());
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * First, reset.
 	 */
@@ -61,110 +83,93 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 		this.segment.putInt(0, numElements);
 	}
 
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public void setNullBit(int ordinal) {
-		BinarySegmentUtils.bitSet(segment, 4, ordinal);
-	}
-
-	public void setNullBoolean(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.putBoolean(getElementOffset(ordinal, 1), false);
-	}
-
-	public void setNullByte(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.put(getElementOffset(ordinal, 1), (byte) 0);
-	}
-
-	public void setNullShort(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.putShort(getElementOffset(ordinal, 2), (short) 0);
-	}
-
-	public void setNullInt(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.putInt(getElementOffset(ordinal, 4), 0);
-	}
-
-	public void setNullLong(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.putLong(getElementOffset(ordinal, 8), (long) 0);
-	}
-
-	public void setNullFloat(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.putFloat(getElementOffset(ordinal, 4), (float) 0);
-	}
-
-	public void setNullDouble(int ordinal) {
-		setNullBit(ordinal);
-		// put zero into the corresponding field when set null
-		segment.putDouble(getElementOffset(ordinal, 8), (double) 0);
+	protected void setNullBit(int pos) {
+		BinarySegmentUtils.bitSet(segment, 4, pos);
 	}
 
 	@Override
-	public void setNullAt(int ordinal) {
-		setNullLong(ordinal);
-	}
-
-	/**
-	 * @deprecated Use {@link #createNullSetter(LogicalType)} for avoiding logical types during runtime.
-	 */
-	@Deprecated
-	public void setNullAt(int pos, LogicalType type) {
-		switch (type.getTypeRoot()) {
-			case BOOLEAN:
-				setNullBoolean(pos);
-				break;
-			case TINYINT:
-				setNullByte(pos);
-				break;
-			case SMALLINT:
-				setNullShort(pos);
-				break;
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-			case INTERVAL_YEAR_MONTH:
-				setNullInt(pos);
-				break;
-			case BIGINT:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-			case INTERVAL_DAY_TIME:
-				setNullLong(pos);
-				break;
-			case FLOAT:
-				setNullFloat(pos);
-				break;
-			case DOUBLE:
-				setNullDouble(pos);
-				break;
-			default:
-				setNullAt(pos);
-		}
-	}
-
-	private int getElementOffset(int pos, int elementSize) {
-		return nullBitsSizeInBytes + elementSize * pos;
+	public void writeNullBoolean(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.putBoolean(getElementOffset(pos, 1), false);
 	}
 
 	@Override
-	public int getFieldOffset(int pos) {
-		return getElementOffset(pos, 8);
+	public void writeNullByte(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.put(getElementOffset(pos, 1), (byte) 0);
 	}
 
 	@Override
-	public void setOffsetAndSize(int pos, int offset, long size) {
-		final long offsetAndSize = ((long) offset << 32) | size;
-		segment.putLong(getElementOffset(pos, 8), offsetAndSize);
+	public void writeNullShort(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.putShort(getElementOffset(pos, 2), (short) 0);
 	}
+
+	@Override
+	public void writeNullInt(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.putInt(getElementOffset(pos, 4), 0);
+	}
+
+	@Override
+	public void writeNullLong(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.putLong(getElementOffset(pos, 8), 0);
+	}
+
+	@Override
+	public void writeNullFloat(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.putFloat(getElementOffset(pos, 4), (float) 0);
+	}
+
+	@Override
+	public void writeNullDouble(int pos) {
+		setNullBit(pos);
+		// put zero into the corresponding field when set null
+		segment.putDouble(getElementOffset(pos, 8), 0);
+	}
+
+	@Override
+	public void writeNullString(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullBinary(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullArray(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullMap(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullRow(int pos) {
+		writeNullLong(pos);
+	}
+
+	@Override
+	public void writeNullRawValue(int pos) {
+		writeNullLong(pos);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void writeBoolean(int pos, boolean value) {
@@ -207,10 +212,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 		segment.putDouble(getElementOffset(pos, 8), value);
 	}
 
-	@Override
-	public void afterGrow() {
-		array.pointTo(segment, 0, segment.size());
-	}
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Finally, complete write to set real size to row.
@@ -218,71 +220,5 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	@Override
 	public void complete() {
 		array.pointTo(segment, 0, cursor);
-	}
-
-	public int getNumElements() {
-		return numElements;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates an for accessor setting the elements of an array writer to {@code null} during runtime.
-	 *
-	 * @param elementType the element type of the array
-	 */
-	public static NullSetter createNullSetter(LogicalType elementType) {
-		// ordered by type root definition
-		switch (elementType.getTypeRoot()) {
-			case CHAR:
-			case VARCHAR:
-			case BINARY:
-			case VARBINARY:
-			case DECIMAL:
-			case BIGINT:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-			case INTERVAL_DAY_TIME:
-			case ARRAY:
-			case MULTISET:
-			case MAP:
-			case ROW:
-			case STRUCTURED_TYPE:
-			case RAW:
-				return BinaryArrayWriter::setNullLong;
-			case BOOLEAN:
-				return BinaryArrayWriter::setNullBoolean;
-			case TINYINT:
-				return BinaryArrayWriter::setNullByte;
-			case SMALLINT:
-				return BinaryArrayWriter::setNullShort;
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-			case INTERVAL_YEAR_MONTH:
-				return BinaryArrayWriter::setNullInt;
-			case FLOAT:
-				return BinaryArrayWriter::setNullFloat;
-			case DOUBLE:
-				return BinaryArrayWriter::setNullDouble;
-			case TIMESTAMP_WITH_TIME_ZONE:
-				throw new UnsupportedOperationException();
-			case DISTINCT_TYPE:
-				return createNullSetter(((DistinctType) elementType).getSourceType());
-			case NULL:
-			case SYMBOL:
-			case UNRESOLVED:
-			default:
-				throw new IllegalArgumentException();
-		}
-	}
-
-	/**
-	 * Accessor for setting the elements of an array writer to {@code null} during runtime.
-	 *
-	 * @see #createNullSetter(LogicalType)
-	 */
-	public interface NullSetter extends Serializable {
-		void setNull(BinaryArrayWriter writer, int pos);
 	}
 }

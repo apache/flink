@@ -22,19 +22,25 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
@@ -45,6 +51,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
@@ -258,6 +266,64 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 		for (RowData row : testData) {
 			checkDeepEquals(row, serializer.copy(row, new GenericRowData(row.getArity() + 1)));
 		}
+	}
+
+	@Test
+	public void testToBinaryRowWithCompactDecimal() {
+		testToBinaryRowWithDecimal(4);
+	}
+
+	@Test
+	public void testToBinaryRowWithNotCompactDecimal() {
+		testToBinaryRowWithDecimal(38);
+	}
+
+	private void testToBinaryRowWithDecimal(int precision) {
+		DecimalData decimal = DecimalData.fromBigDecimal(new BigDecimal(123), precision, 0);
+
+		BinaryRowData expected = new BinaryRowData(2);
+		BinaryRowWriter writer = new BinaryRowWriter(expected);
+		writer.writeDecimal(0, decimal, precision);
+		writer.writeNullDecimal(1, precision);
+		writer.complete();
+
+		RowDataSerializer serializer = new RowDataSerializer(
+			RowType.of(new DecimalType(precision, 0), new DecimalType(precision, 0)));
+		GenericRowData genericRow = new GenericRowData(2);
+		genericRow.setField(0, decimal);
+		genericRow.setField(1, null);
+		BinaryRowData actual = serializer.toBinaryRow(genericRow);
+
+		Assert.assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testToBinaryRowWithCompactTimestamp() {
+		testToBinaryRowWithTimestamp(3);
+	}
+
+	@Test
+	public void testToBinaryRowWithNotCompactTimestamp() {
+		testToBinaryRowWithTimestamp(9);
+	}
+
+	private void testToBinaryRowWithTimestamp(int precision) {
+		TimestampData timestamp = TimestampData.fromTimestamp(new Timestamp(123));
+
+		BinaryRowData expected = new BinaryRowData(2);
+		BinaryRowWriter writer = new BinaryRowWriter(expected);
+		writer.writeTimestamp(0, timestamp, precision);
+		writer.writeNullTimestamp(1, precision);
+		writer.complete();
+
+		RowDataSerializer serializer = new RowDataSerializer(
+			RowType.of(new TimestampType(precision), new TimestampType(precision)));
+		GenericRowData genericRow = new GenericRowData(2);
+		genericRow.setField(0, timestamp);
+		genericRow.setField(1, null);
+		BinaryRowData actual = serializer.toBinaryRow(genericRow);
+
+		Assert.assertEquals(expected, actual);
 	}
 
 	/**
