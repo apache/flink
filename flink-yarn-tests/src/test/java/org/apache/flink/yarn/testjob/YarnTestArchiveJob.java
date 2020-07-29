@@ -41,6 +41,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,68 +62,76 @@ public class YarnTestArchiveJob {
 		}};
 
 	private static void archiveFilesInDirectory(File directory, String target) throws IOException {
-
 		for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
-			Files.write(Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()),
-				entry.getValue().getBytes());
+			Files.write(
+					Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()),
+					entry.getValue().getBytes());
 		}
 
 		try (FileOutputStream fos = new FileOutputStream(target);
 				GzipCompressorOutputStream gos = new GzipCompressorOutputStream(new BufferedOutputStream(fos));
 				TarArchiveOutputStream taros = new TarArchiveOutputStream(gos)) {
+
 			taros.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
 			for (File f : directory.listFiles()) {
-				taros.putArchiveEntry(new TarArchiveEntry(f,
-					directory.getName() + File.separator + f.getName()));
-				try (FileInputStream fis = new FileInputStream(f);
-						BufferedInputStream bis = new BufferedInputStream(fis)) {
+				taros.putArchiveEntry(new TarArchiveEntry(f, directory.getName() + File.separator + f.getName()));
+
+				try (FileInputStream fis = new FileInputStream(f); BufferedInputStream bis = new BufferedInputStream(fis)) {
 					IOUtils.copy(bis, taros);
 					taros.closeArchiveEntry();
 				}
 			}
 		}
+
+		for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
+			Files.delete(Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()));
+		}
+
 	}
 
 	public static JobGraph getArchiveJobGraph(File testDirectory, Configuration config) throws IOException {
 
 		final String archive = testDirectory.getAbsolutePath().concat(".tar.gz");
+		archiveFilesInDirectory(testDirectory, archive);
+		config.set(YarnConfigOptions.SHIP_ARCHIVES, Collections.singletonList(archive));
+
 		final String localizedPath = testDirectory.getName().concat(".tar.gz") + File.separator + testDirectory.getName();
 
-		archiveFilesInDirectory(testDirectory, archive);
-
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
-		env.addSource(new SourceFunctionWithArchive(LIST, localizedPath, TypeInformation.of(String.class)))
-			.setParallelism(1)
-			.addSink(new DiscardingSink<String>())
-			.setParallelism(1);
-		config.set(YarnConfigOptions.SHIP_ARCHIVES, Collections.singletonList(archive));
+		env.addSource(new SourceFunctionWithArchive<>(LIST, localizedPath, TypeInformation.of(String.class)))
+			.addSink(new DiscardingSink<>());
 
 		return env.getStreamGraph().getJobGraph();
 	}
 
 	private static class SourceFunctionWithArchive<T> extends RichSourceFunction<T> implements ResultTypeQueryable<T> {
-		private List<T> inputDataset;
-		private String resourcePath;
-		private TypeInformation returnType;
 
-		public void open(Configuration parameters) throws Exception {
-			for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
-				String content = new String(Files.readAllBytes(Paths.get(resourcePath + File.separator + entry.getKey())));
-				checkArgument(entry.getValue().equals(content), "The content of the unpacked file should be identical to the original file's.");
-			}
-		}
+		private final List<T> inputDataset;
+		private final String resourcePath;
+		private final TypeInformation<T> returnType;
 
-		SourceFunctionWithArchive(List<T> inputDataset, String resourcePath, TypeInformation returnType) {
+		SourceFunctionWithArchive(List<T> inputDataset, String resourcePath, TypeInformation<T> returnType) {
 			this.inputDataset = inputDataset;
 			this.resourcePath = resourcePath;
 			this.returnType = returnType;
 		}
 
+		public void open(Configuration parameters) throws Exception {
+			for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
+				Path path = Paths.get(resourcePath + File.separator + entry.getKey());
+				String content = new String(Files.readAllBytes(path));
+				checkArgument(entry.getValue().equals(content), "The content of the unpacked file should be identical to the original file's.");
+			}
+		}
+
 		@Override
-		public void run(SourceContext<T> ctx) throws Exception {
+		public void run(SourceContext<T> ctx) {
 			for (T t : inputDataset) {
-				ctx.collect(t);
+				synchronized (ctx.getCheckpointLock()) {
+					ctx.collect(t);
+				}
 			}
 		}
 
@@ -130,7 +139,7 @@ public class YarnTestArchiveJob {
 		public void cancel() {}
 
 		@Override
-		public TypeInformation getProducedType() {
+		public TypeInformation<T> getProducedType() {
 			return this.returnType;
 		}
 	}
