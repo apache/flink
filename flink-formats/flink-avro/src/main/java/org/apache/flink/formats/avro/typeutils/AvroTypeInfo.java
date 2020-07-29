@@ -64,7 +64,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 	@Internal
 	private static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(Class<T> typeClass) {
 			PojoTypeExtractor pte = new PojoTypeExtractor();
-			ArrayList<Type> typeHierarchy = new ArrayList<>();
+			List<Type> typeHierarchy = new ArrayList<>();
 			typeHierarchy.add(typeClass);
 			TypeInformation<T> ti = pte.analyzePojo(typeClass, typeHierarchy, null, null, null);
 
@@ -96,7 +96,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 		}
 
 		@Override
-		public <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
+		public <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, List<Type> typeHierarchy,
 				ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 			return super.analyzePojo(clazz, typeHierarchy, parameterizedType, in1Type, in2Type);
 		}
