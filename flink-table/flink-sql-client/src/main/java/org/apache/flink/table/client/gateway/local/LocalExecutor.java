@@ -485,7 +485,7 @@ public class LocalExecutor implements Executor {
 		configuration.set(DeploymentOptions.ATTACHED, false);
 
 		// create execution
-		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
+		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline, context.getClassLoader());
 
 		// wrap in classloader because CodeGenOperatorFactory#getStreamOperatorClass
 		// requires to access UDF in deployer.deploy().
@@ -542,7 +542,7 @@ public class LocalExecutor implements Executor {
 
 		// create execution
 		final ProgramDeployer deployer = new ProgramDeployer(
-				configuration, jobName, pipeline);
+				configuration, jobName, pipeline, context.getClassLoader());
 
 		JobClient jobClient;
 		// wrap in classloader because CodeGenOperatorFactory#getStreamOperatorClass

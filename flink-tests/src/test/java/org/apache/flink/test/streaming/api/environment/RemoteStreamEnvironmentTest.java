@@ -152,7 +152,7 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
 
 				@Override
 				public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
-					return (pipeline, config) -> {
+					return (pipeline, config, classLoader) -> {
 						assertTrue(pipeline instanceof StreamGraph);
 
 						actualSavepointRestoreSettings =

@@ -41,6 +41,7 @@ public class ProgramDeployer {
 	private final Configuration configuration;
 	private final Pipeline pipeline;
 	private final String jobName;
+	private final ClassLoader userCodeClassloader;
 
 	/**
 	 * Deploys a table program on the cluster.
@@ -52,10 +53,12 @@ public class ProgramDeployer {
 	public ProgramDeployer(
 			Configuration configuration,
 			String jobName,
-			Pipeline pipeline) {
+			Pipeline pipeline,
+			ClassLoader userCodeClassloader) {
 		this.configuration = configuration;
 		this.pipeline = pipeline;
 		this.jobName = jobName;
+		this.userCodeClassloader = userCodeClassloader;
 	}
 
 	public CompletableFuture<JobClient> deploy() {
@@ -79,7 +82,7 @@ public class ProgramDeployer {
 		final PipelineExecutor executor = executorFactory.getExecutor(configuration);
 		CompletableFuture<JobClient> jobClient;
 		try {
-			jobClient = executor.execute(pipeline, configuration);
+			jobClient = executor.execute(pipeline, configuration, userCodeClassloader);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not execute program.", e);
 		}
