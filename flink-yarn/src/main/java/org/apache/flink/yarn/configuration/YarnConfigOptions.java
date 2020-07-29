@@ -196,6 +196,12 @@ public class YarnConfigOptions {
 
 	// ----------------------- YARN CLI OPTIONS ------------------------------------
 
+	public static final ConfigOption<String> STAGING_DIRECTORY =
+		key("yarn.staging-directory")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Staging directory used to store YARN files while submitting applications. Per default, it uses the home directory of the configured file system.");
+
 	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
 			key("yarn.ship-directories")
 				.stringType()
