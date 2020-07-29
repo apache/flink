@@ -533,12 +533,11 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	/**
 	 * Tests that after calling {@link RestServerEndpoint#closeAsync()}, the handlers are closed
-	 * first, and we wait for in-flight requests to finish. As long as not all handlers are closed,
-	 * HTTP requests should be served.
+	 * first, and we wait for in-flight requests to finish. Once the shutdown is initiated, no further requests should
+	 * be accepted.
 	 */
 	@Test
 	public void testShouldWaitForHandlersWhenClosing() throws Exception {
-		testHandler.closeFuture = new CompletableFuture<>();
 		final HandlerBlocker handlerBlocker = new HandlerBlocker(timeout);
 		testHandler.handlerBody = id -> {
 			// Intentionally schedule the work on a different thread. This is to simulate
@@ -549,16 +548,12 @@ public class RestServerEndpointITCase extends TestLogger {
 			});
 		};
 
-		// Initiate closing RestServerEndpoint but the test handler should block.
-		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
-		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
-
+		// create an in-flight request
 		final CompletableFuture<TestResponse> request = sendRequestToTestHandler(new TestRequest(1));
 		handlerBlocker.awaitRequestToArrive();
 
-		// Allow handler to close but there is still one in-flight request which should prevent
-		// the RestServerEndpoint from closing.
-		testHandler.closeFuture.complete(null);
+		// Initiate closing RestServerEndpoint but the test handler should block due to the in-flight request
+		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
 		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
 
 		// Finish the in-flight request.
@@ -566,6 +561,32 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		request.get(timeout.getSize(), timeout.getUnit());
 		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+	}
+
+	/**
+	 * Tests that new requests are ignored after calling {@link RestServerEndpoint#closeAsync()}.
+	 */
+	@Test
+	public void testRequestsRejectedAfterShutdownInitiation() throws Exception {
+		testHandler.closeFuture = new CompletableFuture<>();
+		testHandler.handlerBody = id -> CompletableFuture.completedFuture(new TestResponse(id));
+
+		// Initiate closing RestServerEndpoint, but the test handler should block
+		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
+		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+
+		// attempt to submit a request
+		final CompletableFuture<TestResponse> request = sendRequestToTestHandler(new TestRequest(1));
+		try {
+			request.get(timeout.getSize(), timeout.getUnit());
+			fail("Request should have failed.");
+		} catch (Exception ignored) {
+			// expected
+		} finally {
+			// allow the endpoint to shut down
+			testHandler.closeFuture.complete(null);
+			closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+		}
 	}
 
 	@Test
