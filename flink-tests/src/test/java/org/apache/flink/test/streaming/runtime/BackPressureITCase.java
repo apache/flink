@@ -21,6 +21,7 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -118,6 +119,10 @@ public class BackPressureITCase extends TestLogger {
 		final JobVertex mapJobVertex = vertices.get(1);
 
 		testingMiniCluster.submitJob(jobGraph).get();
+		ClientUtils.waitUntilJobInitializationFinished(
+			() -> testingMiniCluster.getJobStatus(TEST_JOB_ID).get(),
+			() -> testingMiniCluster.requestJobResult(TEST_JOB_ID).get(),
+			ClassLoader.getSystemClassLoader());
 
 		assertJobVertexSubtasksAreBackPressured(mapJobVertex);
 		assertJobVertexSubtasksAreBackPressured(sourceJobVertex);

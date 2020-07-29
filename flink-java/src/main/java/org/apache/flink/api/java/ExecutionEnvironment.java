@@ -970,7 +970,7 @@ public class ExecutionEnvironment {
 
 		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
-			.execute(plan, configuration);
+			.execute(plan, configuration, userClassloader);
 
 		try {
 			JobClient jobClient = jobClientFuture.get();

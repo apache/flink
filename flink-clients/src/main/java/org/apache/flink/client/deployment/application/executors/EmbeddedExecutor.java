@@ -33,6 +33,7 @@ import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 	}
 
 	@Override
-	public CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration) throws MalformedURLException {
+	public CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration, ClassLoader userCodeClassloader) throws MalformedURLException {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
@@ -94,7 +95,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 			return getJobClientFuture(optJobId.get());
 		}
 
-		return submitAndGetJobClientFuture(pipeline, configuration);
+		return submitAndGetJobClientFuture(pipeline, configuration, userCodeClassloader);
 	}
 
 	private CompletableFuture<JobClient> getJobClientFuture(final JobID jobId) {
@@ -102,7 +103,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		return CompletableFuture.completedFuture(jobClientCreator.getJobClient(jobId));
 	}
 
-	private CompletableFuture<JobClient> submitAndGetJobClientFuture(final Pipeline pipeline, final Configuration configuration) throws MalformedURLException {
+	private CompletableFuture<JobClient> submitAndGetJobClientFuture(final Pipeline pipeline, final Configuration configuration, final ClassLoader userCodeClassloader) throws MalformedURLException {
 		final Time timeout = Time.milliseconds(configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
 
 		final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
@@ -122,6 +123,13 @@ public class EmbeddedExecutor implements PipelineExecutor {
 				timeout);
 
 		return jobSubmissionFuture
+				.thenApplyAsync(FunctionUtils.uncheckedFunction(jobId -> {
+					org.apache.flink.client.ClientUtils.waitUntilJobInitializationFinished(
+						() -> dispatcherGateway.requestJobStatus(jobId, timeout).get(),
+						() -> dispatcherGateway.requestJobResult(jobId, timeout).get(),
+						userCodeClassloader);
+					return jobId;
+				}))
 				.thenApplyAsync(jobID -> jobClientCreator.getJobClient(actualJobId));
 	}
 

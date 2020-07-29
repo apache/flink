@@ -31,7 +31,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.TestingBlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
-import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -58,6 +58,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -75,6 +76,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -280,15 +282,16 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	@Test
 	public void testBlobServerCleanupWhenJobSubmissionFails() throws Exception {
 		startDispatcher(new FailingJobManagerRunnerFactory(new FlinkException("Test exception")));
-		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
+		dispatcherGateway.submitJob(jobGraph, timeout).get();
 
-		try {
-			submissionFuture.get();
-			fail("Job submission was expected to fail.");
-		} catch (ExecutionException ee) {
-			assertThat(ExceptionUtils.findThrowable(ee, JobSubmissionException.class).isPresent(), is(true));
-		}
+		Optional<SerializedThrowable> maybeError = dispatcherGateway.requestJobResult(
+			jobId,
+			timeout).get().getSerializedThrowable();
 
+		assertThat(maybeError.isPresent(), is(true));
+		Throwable exception = maybeError.get().deserializeError(this.getClass().getClassLoader());
+
+		assertThat(ExceptionUtils.findThrowable(exception, JobExecutionException.class).isPresent(), is(true));
 		assertThatHABlobsHaveBeenRemoved();
 	}
 

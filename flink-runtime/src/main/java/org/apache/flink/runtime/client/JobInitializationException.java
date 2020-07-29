@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-export const BASE_URL = '.';
-export const COLOR_MAP = {
-  TOTAL: '#112641',
-  RUNNING: '#52c41a',
-  FAILED: '#f5222d',
-  FINISHED: '#1890ff',
-  CANCELED: '#fa8c16',
-  CANCELING: '#faad14',
-  CREATED: '#2f54eb',
-  DEPLOYING: '#13c2c2',
-  RECONCILING: '#eb2f96',
-  IN_PROGRESS: '#faad14',
-  SCHEDULED: '#722ed1',
-  COMPLETED: '#1890ff',
-  RESTARTING: '#13c2c2',
-  INITIALIZING: '#738df8'
-};
-export const LONG_MIN_VALUE = -9223372036854776000;
+package org.apache.flink.runtime.client;
+
+import org.apache.flink.api.common.JobID;
+
+/**
+ * An exception indicating that the job has failed in the INITIALIZING job status.
+ */
+public class JobInitializationException extends JobExecutionException {
+
+	private static final long serialVersionUID = 2818087325120827526L;
+
+	public JobInitializationException(JobID jobID, String msg, Throwable cause){
+		super(jobID, msg, cause);
+	}
+}

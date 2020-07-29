@@ -86,7 +86,7 @@ public class ExecutorDiscoveryAndJobClientTest {
 
 		@Override
 		public PipelineExecutor getExecutor(Configuration configuration) {
-			return (pipeline, executionConfig) -> CompletableFuture.completedFuture(new TestingJobClient());
+			return (pipeline, executionConfig, classLoader) -> CompletableFuture.completedFuture(new TestingJobClient());
 		}
 	}
 }
