@@ -39,7 +39,9 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsParallelismReport;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsStatisticsReport;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -53,6 +55,7 @@ import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AsyncTestValueLookupFunction;
@@ -242,6 +245,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
+	private static final ConfigOption<Integer> PARALLELISM = ConfigOptions
+			.key("parallelism")
+			.intType()
+			.defaultValue(-1);
+
+	private static final ConfigOption<Integer> ROW_COUNT = ConfigOptions
+			.key("row-count")
+			.intType()
+			.defaultValue(-1);
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -267,6 +280,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
 			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+			int parallelism = helper.getOptions().get(PARALLELISM);
+			int reportRowCount = helper.getOptions().get(ROW_COUNT);
 			return new TestValuesTableSource(
 				physicalSchema,
 				changelogMode,
@@ -278,7 +293,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				nestedProjectionSupported,
 				null,
 				null,
-				filterableFieldsSet);
+				filterableFieldsSet,
+				parallelism,
+				reportRowCount);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -298,12 +315,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		boolean isInsertOnly = helper.getOptions().get(SINK_INSERT_ONLY);
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
+		int parallelism = helper.getOptions().get(PARALLELISM);
 		TableSchema schema = context.getCatalogTable().getSchema();
 		return new TestValuesTableSink(
 			schema,
 			context.getObjectIdentifier().getObjectName(),
 			isInsertOnly,
-			runtimeSink, expectedNum);
+			runtimeSink,
+			expectedNum,
+			parallelism);
 	}
 
 	@Override
@@ -326,7 +346,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			RUNTIME_SINK,
 			SINK_EXPECTED_MESSAGES_NUM,
 			NESTED_PROJECTION_SUPPORTED,
-			FILTERABLE_FIELDS));
+			FILTERABLE_FIELDS,
+			PARALLELISM,
+			ROW_COUNT));
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -359,7 +381,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown {
+	private static class TestValuesTableSource implements
+			ScanTableSource,
+			LookupTableSource,
+			SupportsProjectionPushDown,
+			SupportsFilterPushDown,
+			SupportsParallelismReport,
+			SupportsStatisticsReport {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
@@ -372,6 +400,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private @Nullable int[] projectedFields;
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
+		private final int parallelism;
+		private final int reportRowCount;
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
@@ -384,7 +414,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				boolean nestedProjectionSupported,
 				int[] projectedFields,
 				List<ResolvedExpression> filterPredicates,
-				Set<String> filterableFields) {
+				Set<String> filterableFields,
+				int parallelism,
+				int reportRowCount) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -396,6 +428,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.projectedFields = projectedFields;
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
+			this.parallelism = parallelism;
+			this.reportRowCount = reportRowCount;
 		}
 
 		@Override
@@ -610,7 +644,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				nestedProjectionSupported,
 				projectedFields,
 				filterPredicates,
-				filterableFields);
+				filterableFields,
+				parallelism,
+				reportRowCount);
 		}
 
 		@Override
@@ -643,6 +679,18 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				}
 			}
 			return result;
+		}
+
+		@Override
+		public int reportParallelism() {
+			return parallelism;
+		}
+
+		@Override
+		public TableStats reportTableStatistics(TableStats oldStats) {
+			return reportRowCount == -1 ?
+					oldStats :
+					new TableStats(reportRowCount, oldStats.getColumnStats());
 		}
 	}
 
@@ -705,25 +753,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSink} for testing.
 	 */
-	private static class TestValuesTableSink implements DynamicTableSink {
+	private static class TestValuesTableSink implements DynamicTableSink, SupportsParallelismReport {
 
 		private final TableSchema schema;
 		private final String tableName;
 		private final boolean isInsertOnly;
 		private final String runtimeSink;
 		private final int expectedNum;
+		private final int parallelism;
 
 		private TestValuesTableSink(
 				TableSchema schema,
 				String tableName,
 				boolean isInsertOnly,
 				String runtimeSink,
-				int expectedNum) {
+				int expectedNum,
+				int parallelism) {
 			this.schema = schema;
 			this.tableName = tableName;
 			this.isInsertOnly = isInsertOnly;
 			this.runtimeSink = runtimeSink;
 			this.expectedNum = expectedNum;
+			this.parallelism = parallelism;
 		}
 
 		@Override
@@ -794,12 +845,19 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				schema,
 				tableName,
 				isInsertOnly,
-				runtimeSink, expectedNum);
+				runtimeSink,
+				expectedNum,
+				parallelism);
 		}
 
 		@Override
 		public String asSummaryString() {
 			return "TestValues";
+		}
+
+		@Override
+		public int reportParallelism() {
+			return parallelism;
 		}
 	}
 

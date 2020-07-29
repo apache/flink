@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.connector.source.abilities.SupportsParallelismReport
 import org.apache.flink.table.connector.source.{InputFormatProvider, ScanTableSource, SourceFunctionProvider}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -70,7 +71,7 @@ abstract class CommonPhysicalTableSourceScan(
     val outRowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
     val outTypeInfo = InternalTypeInfo.of(outRowType)
 
-    runtimeProvider match {
+    val transformation = runtimeProvider match {
       case provider: SourceFunctionProvider =>
         val sourceFunction = provider.createSourceFunction()
         env
@@ -80,6 +81,14 @@ abstract class CommonPhysicalTableSourceScan(
         val inputFormat = provider.createInputFormat()
         createInputFormatTransformation(env, inputFormat, name, outTypeInfo)
     }
+
+    // infer parallelism from table source
+    tableSource match {
+      case report: SupportsParallelismReport =>
+        transformation.setParallelism(report.reportParallelism())
+      case _ =>
+    }
+    transformation
   }
 
   /**

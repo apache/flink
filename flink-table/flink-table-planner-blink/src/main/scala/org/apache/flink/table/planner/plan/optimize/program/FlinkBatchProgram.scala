@@ -22,8 +22,10 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
+import org.apache.flink.table.planner.plan.rules.logical.SourceReportStatisticsRule
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.tools.RuleSets
 
 /**
   * Defines a sequence of programs to optimize flink batch table plan.
@@ -135,6 +137,12 @@ object FlinkBatchProgram {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkBatchRuleSets.PRUNE_EMPTY_RULES)
             .build(), "prune empty after predicate push down")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(RuleSets.ofList(SourceReportStatisticsRule.INSTANCE))
+            .build(), "report table statistics after predicate push down")
         .build())
 
     // join reorder

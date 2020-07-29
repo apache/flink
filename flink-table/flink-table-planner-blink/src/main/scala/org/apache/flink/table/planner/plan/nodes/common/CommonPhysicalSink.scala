@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.sink.{DynamicTableSink, OutputFormatProvider, SinkFunctionProvider}
+import org.apache.flink.table.connector.source.abilities.SupportsParallelismReport
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
@@ -96,11 +97,19 @@ class CommonPhysicalSink (
       fieldNames
     )
 
+    // infer parallelism from table sink
+    val parallelism = tableSink match {
+      case report: SupportsParallelismReport =>
+        val reported = report.reportParallelism()
+        if (reported == -1) inputTransformation.getParallelism else reported
+      case _ => inputTransformation.getParallelism
+    }
+
     new SinkTransformation(
       inputTransformation,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      inputTransformation.getParallelism).asInstanceOf[Transformation[Any]]
+      parallelism).asInstanceOf[Transformation[Any]]
   }
 
 }

@@ -1,0 +1,86 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testJoin">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], i=[$2], j=[$3])
++- LogicalFilter(condition=[=($2, $0)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, ReportTable]])
+
+== Optimized Logical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(i, a)], select=[a, b, i, j], build=[right])
+:- Exchange(distribution=[hash[a]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
++- Exchange(distribution=[hash[i]])
+   +- TableSourceScan(table=[[default_catalog, default_database, ReportTable, statistics-reported=true]], fields=[i, j])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : Source: Collection Source
+
+	 : Operator
+		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b)]], fields=[a, b])
+		ship_strategy : FORWARD
+
+ : Data Source
+	content : Source: TableSourceScan(table=[[default_catalog, default_database, ReportTable, statistics-reported=true]], fields=[i, j])
+
+	 : Operator
+		content : HashJoin(joinType=[InnerJoin], where=[(i = a)], select=[a, b, i, j], build=[right])
+		ship_strategy : HASH[i]
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithStatistics">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], i=[$2], j=[$3])
++- LogicalFilter(condition=[=($2, $0)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, ReportTable]])
+
+== Optimized Logical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(i, a)], select=[a, b, i, j], isBroadcast=[true], build=[right])
+:- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
++- Exchange(distribution=[broadcast])
+   +- TableSourceScan(table=[[default_catalog, default_database, ReportTable, statistics-reported=true]], fields=[i, j])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : Source: Collection Source
+
+	 : Operator
+		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b)]], fields=[a, b])
+		ship_strategy : FORWARD
+
+ : Data Source
+	content : Source: TableSourceScan(table=[[default_catalog, default_database, ReportTable, statistics-reported=true]], fields=[i, j])
+
+	 : Operator
+		content : HashJoin(joinType=[InnerJoin], where=[(i = a)], select=[a, b, i, j], isBroadcast=[true], build=[right])
+		ship_strategy : BROADCAST
+
+]]>
+    </Resource>
+  </TestCase>
+</Root>
