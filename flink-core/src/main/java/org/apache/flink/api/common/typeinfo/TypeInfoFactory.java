@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -29,8 +28,7 @@ import java.util.Map;
  * plugging-in user-defined {@link TypeInformation} into the Flink type system. The factory is
  * called during the type extraction phase if the corresponding type has been annotated with
  * {@link TypeInfo}. In a hierarchy of types the closest factory will be chosen while traversing
- * upwards, however, a globally registered factory has highest precedence
- * (see {@link TypeExtractor#registerFactory(Type, Class)}).
+ * upwards.
  *
  * @param <T> type for which {@link TypeInformation} is created
  */
