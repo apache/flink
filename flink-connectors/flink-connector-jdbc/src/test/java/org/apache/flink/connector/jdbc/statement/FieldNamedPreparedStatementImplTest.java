@@ -19,12 +19,9 @@
 package org.apache.flink.connector.jdbc.statement;
 
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.MySQLDialect;
-import org.apache.flink.connector.jdbc.dialect.PostgresDialect;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.HashMap;
 import java.util.List;
@@ -37,29 +34,13 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link FieldNamedPreparedStatementImpl}.
  */
-@RunWith(Parameterized.class)
 public class FieldNamedPreparedStatementImplTest {
 
-	private static final String MYSQL = "MYSQL";
-	private static final String POSTGRES = "Postgres";
-
-	@Parameterized.Parameter
-	public JdbcDialect dialect;
-
-	@Parameterized.Parameter(1)
-	public String dialectName;
-
+	private final JdbcDialect dialect = JdbcDialects.get("jdbc:mysql://localhost:3306/test")
+		.orElseThrow(() -> new RuntimeException("Unsupported dialect."));
 	private final String[] fieldNames = new String[]{"id", "name", "email", "ts", "field1", "field_2", "__field_3__"};
 	private final String[] keyFields = new String[]{"id", "__field_3__"};
 	private final String tableName = "tbl";
-
-	@Parameterized.Parameters(name = "Dialect: {1}")
-	public static Object[] testDialects() {
-		return new Object[][]{
-			new Object[]{new MySQLDialect(), MYSQL},
-			new Object[]{new PostgresDialect(), POSTGRES}
-		};
-	}
 
 	@Test
 	public void testInsertStatement() {
@@ -130,35 +111,19 @@ public class FieldNamedPreparedStatementImplTest {
 
 	@Test
 	public void testUpsertStatement() {
-		String expectUpsertStmt;
-		String expectParsedUpsertStmt;
-		if (dialectName.equals(MYSQL)) {
-			expectUpsertStmt = "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) " +
+		String upsertStmt = dialect.getUpsertStatement(tableName, fieldNames, keyFields).get();
+		assertEquals(
+			"INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) " +
 				"VALUES (:id, :name, :email, :ts, :field1, :field_2, :__field_3__) " +
 				"ON DUPLICATE KEY UPDATE `id`=VALUES(`id`), `name`=VALUES(`name`), " +
 				"`email`=VALUES(`email`), `ts`=VALUES(`ts`), `field1`=VALUES(`field1`)," +
-				" `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`)";
-			expectParsedUpsertStmt = "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) " +
+				" `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`)",
+			upsertStmt);
+		NamedStatementMatcher
+			.parsedSql("INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE " +
 				"`id`=VALUES(`id`), `name`=VALUES(`name`), `email`=VALUES(`email`), `ts`=VALUES(`ts`)," +
-				" `field1`=VALUES(`field1`), `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`)";
-		} else if (dialectName.equals(POSTGRES)) {
-			expectUpsertStmt = "INSERT INTO tbl(id, name, email, ts, field1, field_2, __field_3__) " +
-				"VALUES (:id, :name, :email, :ts, :field1, :field_2, :__field_3__) ON CONFLICT (id, __field_3__) " +
-				"DO UPDATE SET id=EXCLUDED.id, name=EXCLUDED.name, email=EXCLUDED.email, ts=EXCLUDED.ts, " +
-				"field1=EXCLUDED.field1, field_2=EXCLUDED.field_2, __field_3__=EXCLUDED.__field_3__";
-			expectParsedUpsertStmt = "INSERT INTO tbl(id, name, email, ts, field1, field_2, __field_3__) " +
-				"VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id, __field_3__) " +
-				"DO UPDATE SET id=EXCLUDED.id, name=EXCLUDED.name, email=EXCLUDED.email, ts=EXCLUDED.ts, " +
-				"field1=EXCLUDED.field1, field_2=EXCLUDED.field_2, __field_3__=EXCLUDED.__field_3__";
-		} else {
-			throw new IllegalArgumentException();
-		}
-
-		String upsertStmt = dialect.getUpsertStatement(tableName, fieldNames, keyFields).get();
-		assertEquals(expectUpsertStmt, upsertStmt);
-		NamedStatementMatcher
-			.parsedSql(expectParsedUpsertStmt)
+				" `field1`=VALUES(`field1`), `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`)")
 			.parameter("id", singletonList(1))
 			.parameter("name", singletonList(2))
 			.parameter("email", singletonList(3))
