@@ -93,6 +93,20 @@ public class DebeziumJsonDeserializationSchemaTest {
 		}
 	}
 
+	@Test
+	public void testTombstoneMessages() throws Exception {
+		DebeziumJsonDeserializationSchema deserializationSchema = new DebeziumJsonDeserializationSchema(
+			SCHEMA,
+			InternalTypeInfo.of(SCHEMA),
+			false,
+			false,
+			TimestampFormat.ISO_8601);
+		SimpleCollector collector = new SimpleCollector();
+		deserializationSchema.deserialize(null, collector);
+		deserializationSchema.deserialize(new byte[]{}, collector);
+		assertTrue(collector.list.isEmpty());
+	}
+
 	private void testDeserialization(String resourceFile, boolean schemaInclude) throws Exception {
 		List<String> lines = readLines(resourceFile);
 		DebeziumJsonDeserializationSchema deserializationSchema = new DebeziumJsonDeserializationSchema(
