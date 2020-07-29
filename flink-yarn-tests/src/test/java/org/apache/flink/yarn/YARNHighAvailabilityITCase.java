@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -310,7 +311,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		CommonTestUtils.waitUntilCondition(
 			() -> {
 				final JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).get();
-				return jobDetails.getJobVertexInfos()
+				return jobDetails.getJobStatus() == JobStatus.RUNNING && jobDetails.getJobVertexInfos()
 					.stream()
 					.map(toExecutionState())
 					.allMatch(isRunning());

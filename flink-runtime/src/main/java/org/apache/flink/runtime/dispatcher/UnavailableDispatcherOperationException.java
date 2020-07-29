@@ -16,21 +16,15 @@
  * limitations under the License.
  */
 
-export const BASE_URL = '.';
-export const COLOR_MAP = {
-  TOTAL: '#112641',
-  RUNNING: '#52c41a',
-  FAILED: '#f5222d',
-  FINISHED: '#1890ff',
-  CANCELED: '#fa8c16',
-  CANCELING: '#faad14',
-  CREATED: '#2f54eb',
-  DEPLOYING: '#13c2c2',
-  RECONCILING: '#eb2f96',
-  IN_PROGRESS: '#faad14',
-  SCHEDULED: '#722ed1',
-  COMPLETED: '#1890ff',
-  RESTARTING: '#13c2c2',
-  INITIALIZING: '#738df8'
-};
-export const LONG_MIN_VALUE = -9223372036854776000;
+package org.apache.flink.runtime.dispatcher;
+
+/**
+ * Exception indicating that a Dispatcher operation is temporarily unavailable.
+ */
+public class UnavailableDispatcherOperationException extends DispatcherException {
+	private static final long serialVersionUID = -45499335133622792L;
+
+	public UnavailableDispatcherOperationException(String message) {
+		super(message);
+	}
+}

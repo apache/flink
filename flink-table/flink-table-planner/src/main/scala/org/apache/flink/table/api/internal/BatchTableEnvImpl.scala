@@ -343,7 +343,8 @@ abstract class BatchTableEnvImpl(
       "Cannot find compatible factory for specified execution.target (=%s)",
       configuration.get(DeploymentOptions.TARGET))
 
-    val jobClientFuture = executorFactory.getExecutor(configuration).execute(plan, configuration)
+    val jobClientFuture = executorFactory.getExecutor(configuration)
+      .execute(plan, configuration, execEnv.getUserCodeClassLoader)
     try {
       jobClientFuture.get
     } catch {

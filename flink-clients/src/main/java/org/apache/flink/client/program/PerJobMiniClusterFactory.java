@@ -38,6 +38,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequestGatewa
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,13 +82,20 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * Starts a {@link MiniCluster} and submits a job.
 	 */
-	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph) throws Exception {
+	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
 		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
 		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
 		miniCluster.start();
 
 		return miniCluster
 			.submitJob(jobGraph)
+			.thenApplyAsync(FunctionUtils.uncheckedFunction(submissionResult -> {
+				org.apache.flink.client.ClientUtils.waitUntilJobInitializationFinished(
+					() -> miniCluster.getJobStatus(submissionResult.getJobID()).get(),
+					() -> miniCluster.requestJobResult(submissionResult.getJobID()).get(),
+					userCodeClassloader);
+				return submissionResult;
+			}))
 			.thenApply(result -> new PerJobMiniClusterJobClient(result.getJobID(), miniCluster))
 			.whenComplete((ignored, throwable) -> {
 				if (throwable != null) {

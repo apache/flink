@@ -77,7 +77,10 @@ public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			blockingTermination = false;
 		}
 
-		return new TestingJobManagerRunner(jobGraph.getJobID(), blockingTermination);
+		return new TestingJobManagerRunner.Builder()
+			.setJobId(jobGraph.getJobID())
+			.setBlockingTermination(blockingTermination)
+			.build();
 	}
 
 	public TestingJobManagerRunner takeCreatedJobManagerRunner() throws InterruptedException {

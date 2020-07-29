@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -32,21 +33,20 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
 	private final boolean blockingTermination;
 
-	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+	private final CompletableFuture<Void> terminationFuture;
 
 	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
 
-	private final CompletableFuture<Void> terminationFuture;
+	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 
-	public TestingJobManagerRunner(JobID jobId) {
-		this(jobId, false);
-	}
-
-	public TestingJobManagerRunner(JobID jobId, boolean blockingTermination) {
+	private TestingJobManagerRunner(JobID jobId,
+			boolean blockingTermination,
+			CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
+			CompletableFuture<ArchivedExecutionGraph> resultFuture) {
 		this.jobId = jobId;
 		this.blockingTermination = blockingTermination;
-		this.resultFuture = new CompletableFuture<>();
-		this.jobMasterGatewayFuture = new CompletableFuture<>();
+		this.jobMasterGatewayFuture = jobMasterGatewayFuture;
+		this.resultFuture = resultFuture;
 		this.terminationFuture = new CompletableFuture<>();
 
 		terminationFuture.whenComplete((ignored, ignoredThrowable) -> resultFuture.completeExceptionally(new JobNotFinishedException(jobId)));
@@ -94,4 +94,47 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	public CompletableFuture<Void> getTerminationFuture() {
 		return terminationFuture;
 	}
+
+	public void completeJobMasterGatewayFuture(JobMasterGateway testingJobMasterGateway) {
+		this.jobMasterGatewayFuture.complete(testingJobMasterGateway);
+	}
+
+	public static class Builder {
+		private JobID jobId = null;
+		private boolean blockingTermination = false;
+		private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = new CompletableFuture<>();
+		private CompletableFuture<ArchivedExecutionGraph> resultFuture = new CompletableFuture<>();
+
+		public Builder setJobId(JobID jobId) {
+			this.jobId = jobId;
+			return this;
+		}
+
+		public Builder setBlockingTermination(boolean blockingTermination) {
+			this.blockingTermination = blockingTermination;
+			return this;
+		}
+
+		public Builder setJobMasterGatewayFuture(CompletableFuture<JobMasterGateway> jobMasterGatewayFuture) {
+			Preconditions.checkNotNull(jobMasterGatewayFuture);
+			this.jobMasterGatewayFuture = jobMasterGatewayFuture;
+			return this;
+		}
+
+		public Builder setResultFuture(CompletableFuture<ArchivedExecutionGraph> resultFuture) {
+			Preconditions.checkNotNull(resultFuture);
+			this.resultFuture = resultFuture;
+			return this;
+		}
+
+		public TestingJobManagerRunner build() {
+			Preconditions.checkNotNull(jobId);
+			return new TestingJobManagerRunner(
+				jobId,
+				blockingTermination,
+				jobMasterGatewayFuture,
+				resultFuture);
+		}
+	}
+
 }
