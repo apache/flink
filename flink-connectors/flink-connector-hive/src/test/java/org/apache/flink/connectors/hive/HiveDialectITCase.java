@@ -450,6 +450,18 @@ public class HiveDialectITCase {
 		ObjectPath tablePath = new ObjectPath("default", "tbl");
 		assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
 
+		List<Row> partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		assertEquals(2, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30')").collect());
+		assertEquals(2, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30',country='china')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+
 		String partLocation = warehouse + "/part3_location";
 		tableEnv.executeSql(String.format(
 				"alter table tbl add partition (dt='2020-05-01',country='belgium') location '%s'", partLocation));

@@ -54,6 +54,7 @@ import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
+import org.apache.flink.sql.parser.dql.SqlShowPartitions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.table.api.TableException;
@@ -85,6 +86,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -230,6 +232,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
 		} else if (validated instanceof SqlShowFunctions) {
 			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
+		} else if (validated instanceof SqlShowPartitions) {
+			return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
 		} else if (validated instanceof SqlCreateView) {
 			return Optional.of(converter.convertCreateView((SqlCreateView) validated));
 		} else if (validated instanceof SqlDropView) {
@@ -669,6 +673,18 @@ public class SqlToOperationConverter {
 	/** Convert SHOW FUNCTIONS statement. */
 	private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
 		return new ShowFunctionsOperation();
+	}
+
+	/** Convert SHOW PARTITIONS statement. */
+	private Operation convertShowPartitions(SqlShowPartitions sqlShowPartitions) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlShowPartitions.fullTableName());
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		LinkedHashMap<String, String> partitionKVs = sqlShowPartitions.getPartitionKVs();
+		if (partitionKVs != null) {
+			CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(partitionKVs);
+			return new ShowPartitionsOperation(tableIdentifier, partitionSpec);
+		}
+		return new ShowPartitionsOperation(tableIdentifier, null);
 	}
 
 	/** Convert CREATE VIEW statement. */
