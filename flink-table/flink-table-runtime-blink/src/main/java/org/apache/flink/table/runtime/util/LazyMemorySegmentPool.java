@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.util;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -86,6 +87,28 @@ public class LazyMemorySegmentPool implements MemorySegmentPool, Closeable {
 		}
 		this.pageUsage++;
 		return this.cachePages.remove(this.cachePages.size() - 1);
+	}
+
+	public List<MemorySegment> allocateSegments(int required) {
+		int freePages = freePages();
+		if (freePages < required) {
+			return null;
+		}
+
+		List<MemorySegment> ret = new ArrayList<>(required);
+		for (int i = 0; i < required; i++) {
+			MemorySegment segment;
+			try {
+				segment = nextSegment();
+				Preconditions.checkNotNull(segment);
+			} catch (Throwable t) {
+				// unexpected, we should first return all temporary segments
+				returnAll(ret);
+				throw t;
+			}
+			ret.add(segment);
+		}
+		return ret;
 	}
 
 	@Override
