@@ -40,16 +40,12 @@ under the License.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
-        .<MyType>forMonotonousTimestamps()
-        .build();
+WatermarkStrategy.forMonotonousTimestamps();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
-  .forMonotonousTimestamps[MyType]()
-  .build()
+WatermarkStrategy.forMonotonousTimestamps()
 {% endhighlight %}
 </div>
 </div>

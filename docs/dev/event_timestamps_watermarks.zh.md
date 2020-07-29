@@ -35,7 +35,7 @@ under the License.
 
 时间戳的分配与 watermark 的生成是齐头并进的，其可以告诉 Flink 应用程序事件时间的进度。其可以通过指定 `WatermarkGenerator` 来配置 watermark 的生成方式。
 
-使用 Flink API 时需要设置一个同时包含 `TimestampAssigner` 和 `WatermarkGenerator` 的 `WatermarkStrategy`。`WatermarkStrategies` 工具类中也提供了许多常用的 watermark 策略，并且用户也可以在某些必要场景下构建自己的 watermark 策略。WatermarkStrategy 接口如下：
+使用 Flink API 时需要设置一个同时包含 `TimestampAssigner` 和 `WatermarkGenerator` 的 `WatermarkStrategy`。`WatermarkStrategy` 工具类中也提供了许多常用的 watermark 策略，并且用户也可以在某些必要场景下构建自己的 watermark 策略。WatermarkStrategy 接口如下：
 
 {% highlight java %}
 public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, WatermarkGeneratorSupplier<T>{
@@ -54,25 +54,23 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 }
 {% endhighlight %}
 
-如上所述，通常情况下，你不用实现此接口，而是可以使用 `WatermarkStrategies` 工具类中通用的 watermark 策略，或者可以使用这个工具类将自定义的 `TimestampAssigner` 与 `WatermarkGenerator` 进行绑定。例如，你想要要使用有界无序（bounded-out-of-orderness）watermark 生成器和一个 lambda 表达式作为时间戳分配器，那么可以按照如下方式实现：
+如上所述，通常情况下，你不用实现此接口，而是可以使用 `WatermarkStrategy` 工具类中通用的 watermark 策略，或者可以使用这个工具类将自定义的 `TimestampAssigner` 与 `WatermarkGenerator` 进行绑定。例如，你想要要使用有界无序（bounded-out-of-orderness）watermark 生成器和一个 lambda 表达式作为时间戳分配器，那么可以按照如下方式实现：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
+WatermarkStrategy
         .<Tuple2<Long, String>>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-        .withTimestampAssigner((event, timestamp) -> event.f0)
-        .build();
+        .withTimestampAssigner((event, timestamp) -> event.f0);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
+WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withTimestampAssigner(new SerializableTimestampAssigner[(Long, String)] {
     override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long = element._1
   })
-  .build()
 {% endhighlight %}
 
 (Using Scala Lambdas here currently doesn't work because Scala is stupid and it's hard to support this. #fus)
@@ -148,23 +146,21 @@ withTimestampsAndWatermarks
 
 如果数据源中的某一个分区/分片在一段时间内未发送事件数据，则意味着 `WatermarkGenerator` 也不会获得任何新数据去生成 watermark。我们称这类数据源为*空闲输入*或*空闲源*。在这种情况下，当某些其他分区仍然发送事件数据的时候就会出现问题。由于下游算子 watermark 的计算方式是取所有不同的上游并行数据源 watermark 的最小值，则其 watermark 将不会发生变化。
 
-为了解决这个问题，你可以使用 `WatermarkStrategy` 来检测空闲输入并将其标记为空闲状态。`WatermarkStrategies` 为此提供了一个工具接口：
+为了解决这个问题，你可以使用 `WatermarkStrategy` 来检测空闲输入并将其标记为空闲状态。`WatermarkStrategy` 为此提供了一个工具接口：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
+WatermarkStrategy
         .<Tuple2<Long, String>>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-        .withIdleness(Duration.ofMinutes(1))
-        .build();
+        .withIdleness(Duration.ofMinutes(1));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
+WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withIdleness(Duration.ofMinutes(1))
-  .build()
 {% endhighlight %}
 </div>
 </div>
@@ -370,9 +366,8 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 {% highlight java %}
 FlinkKafkaConsumer<MyType> kafkaSource = new FlinkKafkaConsumer<>("myTopic", schema, props);
 kafkaSource.assignTimestampsAndWatermarks(
-        WatermarkStrategies.
-                .<MyType>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-                .build());
+        WatermarkStrategy.
+                .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
 
 DataStream<MyType> stream = env.addSource(kafkaSource);
 {% endhighlight %}
@@ -381,9 +376,8 @@ DataStream<MyType> stream = env.addSource(kafkaSource);
 {% highlight scala %}
 val kafkaSource = new FlinkKafkaConsumer[MyType]("myTopic", schema, props)
 kafkaSource.assignTimestampsAndWatermarks(
-  WatermarkStrategies
-    .forBoundedOutOfOrderness[MyType](Duration.ofSeconds(20))
-    .build())
+  WatermarkStrategy
+    .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream: DataStream[MyType] = env.addSource(kafkaSource)
 {% endhighlight %}
