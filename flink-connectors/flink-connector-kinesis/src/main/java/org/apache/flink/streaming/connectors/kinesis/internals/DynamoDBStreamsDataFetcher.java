@@ -21,14 +21,11 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.DynamoDBStreamsProxy;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
 import java.util.ArrayList;
@@ -104,14 +101,9 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 		MetricGroup metricGroup,
 		KinesisDeserializationSchema<T> shardDeserializer) {
 
-		final KinesisProxyInterface kinesis = DynamoDBStreamsProxy.create(getConsumerConfiguration());
-
-		final RecordPublisher recordPublisher = new PollingRecordPublisherFactory()
-			.create(getConsumerConfiguration(), metricGroup, handle, kinesis);
-
 		return new ShardConsumer<T>(
 			this,
-			recordPublisher,
+			createRecordPublisher(getConsumerConfiguration(), metricGroup, handle),
 			subscribedShardStateIndex,
 			handle,
 			lastSeqNum,

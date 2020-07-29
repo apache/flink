@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher.FlinkKinesisProxyFactory;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
 import org.junit.Test;
 
@@ -36,15 +36,14 @@ import static org.mockito.Mockito.mock;
  */
 public class PollingRecordPublisherFactoryTest {
 
-	private final PollingRecordPublisherFactory factory = new PollingRecordPublisherFactory();
+	private final PollingRecordPublisherFactory factory = new PollingRecordPublisherFactory(mock(FlinkKinesisProxyFactory.class));
 
 	@Test
 	public void testBuildPollingRecordPublisher() {
 		RecordPublisher recordPublisher = factory.create(
 			new Properties(),
 			mock(MetricGroup.class),
-			mock(StreamShardHandle.class),
-			mock(KinesisProxyInterface.class));
+			mock(StreamShardHandle.class));
 
 		assertTrue(recordPublisher instanceof PollingRecordPublisher);
 		assertFalse(recordPublisher instanceof AdaptivePollingRecordPublisher);
@@ -58,8 +57,7 @@ public class PollingRecordPublisherFactoryTest {
 		RecordPublisher recordPublisher = factory.create(
 			properties,
 			mock(MetricGroup.class),
-			mock(StreamShardHandle.class),
-			mock(KinesisProxyInterface.class));
+			mock(StreamShardHandle.class));
 
 		assertTrue(recordPublisher instanceof PollingRecordPublisher);
 		assertTrue(recordPublisher instanceof AdaptivePollingRecordPublisher);

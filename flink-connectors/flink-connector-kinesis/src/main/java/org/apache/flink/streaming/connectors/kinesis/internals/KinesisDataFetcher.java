@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
@@ -182,6 +183,9 @@ public class KinesisDataFetcher<T> {
 
 	/** The Kinesis proxy that the fetcher will be using to discover new shards. */
 	private final KinesisProxyInterface kinesis;
+
+	/** The factory used to create record publishers that consumer from Kinesis shards. */
+	private final RecordPublisherFactory<?> recordPublisherFactory;
 
 	/** Thread that executed runFetcher(). */
 	private volatile Thread mainThread;
@@ -362,6 +366,7 @@ public class KinesisDataFetcher<T> {
 		this.watermarkTracker = watermarkTracker;
 		this.kinesisProxyFactory = checkNotNull(kinesisProxyFactory);
 		this.kinesis = kinesisProxyFactory.create(configProps);
+		this.recordPublisherFactory = createRecordPublisherFactory();
 
 		this.consumerMetricGroup = runtimeContext.getMetricGroup()
 			.addGroup(KinesisConsumerMetricConstants.KINESIS_CONSUMER_METRICS_GROUP);
@@ -401,19 +406,25 @@ public class KinesisDataFetcher<T> {
 		MetricGroup metricGroup,
 		KinesisDeserializationSchema<T> shardDeserializer) {
 
-		final KinesisProxyInterface kinesis = kinesisProxyFactory.create(configProps);
-
-		final RecordPublisher recordPublisher = new PollingRecordPublisherFactory()
-			.create(configProps, metricGroup, subscribedShard, kinesis);
-
 		return new ShardConsumer<>(
 			this,
-			recordPublisher,
+			createRecordPublisher(configProps, metricGroup, subscribedShard),
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
 			new ShardConsumerMetricsReporter(metricGroup),
 			shardDeserializer);
+	}
+
+	private RecordPublisherFactory<?> createRecordPublisherFactory() {
+		return new PollingRecordPublisherFactory(kinesisProxyFactory);
+	}
+
+	protected RecordPublisher createRecordPublisher(
+			final Properties configProps,
+			final MetricGroup metricGroup,
+			final StreamShardHandle subscribedShard) {
+		return recordPublisherFactory.create(configProps, metricGroup, subscribedShard);
 	}
 
 	/**

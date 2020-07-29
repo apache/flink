@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher.pollin
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher.FlinkKinesisProxyFactory;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
@@ -31,7 +32,13 @@ import java.util.Properties;
  * A {@link RecordPublisher} factory used to create instances of {@link PollingRecordPublisher}.
  */
 @Internal
-public class PollingRecordPublisherFactory implements RecordPublisherFactory<PollingRecordPublisher, KinesisProxyInterface> {
+public class PollingRecordPublisherFactory implements RecordPublisherFactory<PollingRecordPublisher> {
+
+	private final FlinkKinesisProxyFactory kinesisProxyFactory;
+
+	public PollingRecordPublisherFactory(FlinkKinesisProxyFactory kinesisProxyFactory) {
+		this.kinesisProxyFactory = kinesisProxyFactory;
+	}
 
 	/**
 	 * Create a {@link PollingRecordPublisher}.
@@ -40,18 +47,17 @@ public class PollingRecordPublisherFactory implements RecordPublisherFactory<Pol
 	 * @param consumerConfig the consumer configuration properties
 	 * @param metricGroup the metric group to report metrics to
 	 * @param streamShardHandle the shard this consumer is subscribed to
-	 * @param kinesisProxy the proxy instance to interact with Kinesis
 	 * @return a {@link PollingRecordPublisher}
 	 */
 	@Override
 	public PollingRecordPublisher create(
 			final Properties consumerConfig,
 			final MetricGroup metricGroup,
-			final StreamShardHandle streamShardHandle,
-			final KinesisProxyInterface kinesisProxy) {
+			final StreamShardHandle streamShardHandle) {
 
 		final PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(consumerConfig);
 		final PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(metricGroup);
+		final KinesisProxyInterface kinesisProxy = kinesisProxyFactory.create(consumerConfig);
 
 		if (configuration.isAdaptiveReads()) {
 			return new AdaptivePollingRecordPublisher(

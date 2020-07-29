@@ -152,8 +152,8 @@ public class ShardConsumer<T> implements Runnable {
 
 	/**
 	 * The loop in run() checks this before fetching next batch of records. Since this runnable will be executed
-	 * by the ExecutorService {@link KinesisDataFetcher#shardConsumersExecutor}, the only way to close down this thread
-	 * would be by calling shutdownNow() on {@link KinesisDataFetcher#shardConsumersExecutor} and let the executor service
+	 * by the ExecutorService {@code KinesisDataFetcher#shardConsumersExecutor}, the only way to close down this thread
+	 * would be by calling shutdownNow() on {@code KinesisDataFetcher#shardConsumersExecutor} and let the executor service
 	 * interrupt all currently running {@link ShardConsumer}s.
 	 */
 	private boolean isRunning() {

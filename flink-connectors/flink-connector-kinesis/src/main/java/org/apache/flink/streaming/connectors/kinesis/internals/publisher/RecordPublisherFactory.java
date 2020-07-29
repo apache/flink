@@ -20,17 +20,15 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyMarker;
 
 import java.util.Properties;
 
 /**
  * A factory interface used to create instances of {@link RecordPublisher}.
  * @param <T> the generic type of the {@link RecordPublisher}
- * @param <P> the generic type of the {@link KinesisProxyMarker}
  */
 @Internal
-public interface RecordPublisherFactory<T extends RecordPublisher, P extends KinesisProxyMarker> {
+public interface RecordPublisherFactory<T extends RecordPublisher> {
 
 	/**
 	 * Create a {@link RecordPublisher} of type {@code T}.
@@ -38,9 +36,8 @@ public interface RecordPublisherFactory<T extends RecordPublisher, P extends Kin
 	 * @param consumerConfig the properties used to configure the {@link RecordPublisher}.
 	 * @param metricGroup the {@link MetricGroup} used to report metrics to
 	 * @param streamShardHandle the stream shard in which to consume from
-	 * @param kinesis the proxy used to communicate with kinesis
 	 * @return the constructed {@link RecordPublisher}
 	 */
-	T create(Properties consumerConfig, MetricGroup metricGroup, StreamShardHandle streamShardHandle, P kinesis);
+	T create(Properties consumerConfig, MetricGroup metricGroup, StreamShardHandle streamShardHandle);
 
 }

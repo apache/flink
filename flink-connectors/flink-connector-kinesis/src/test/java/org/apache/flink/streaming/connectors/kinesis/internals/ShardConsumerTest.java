@@ -203,8 +203,8 @@ public class ShardConsumerTest {
 
 		final StreamShardHandle shardHandle = subscribedShardsStateUnderTest.get(0).getStreamShardHandle();
 
-		final RecordPublisher recordPublisher = new PollingRecordPublisherFactory()
-			.create(fetcher.getConsumerConfiguration(), mock(MetricGroup.class), shardHandle, kinesis);
+		final RecordPublisher recordPublisher = new PollingRecordPublisherFactory(config -> kinesis)
+			.create(fetcher.getConsumerConfiguration(), mock(MetricGroup.class), shardHandle);
 
 		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
 		new ShardConsumer<>(
