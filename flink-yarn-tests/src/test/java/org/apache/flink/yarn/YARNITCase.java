@@ -114,7 +114,7 @@ public class YARNITCase extends YarnTestBase {
 	public void testPerJobWithArchive() throws Exception {
 		final Configuration flinkConfig = createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
 		final JobGraph archiveJobGraph = YarnTestArchiveJob.getArchiveJobGraph(tmp.newFolder(), flinkConfig);
-		runTest(() -> deployPerJob(flinkConfig, archiveJobGraph, false));
+		runTest(() -> deployPerJob(flinkConfig, archiveJobGraph, true));
 	}
 
 	private void deployPerJob(Configuration configuration, JobGraph jobGraph, boolean withDist) throws Exception {
