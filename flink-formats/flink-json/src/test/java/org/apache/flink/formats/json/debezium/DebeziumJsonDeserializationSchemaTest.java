@@ -23,6 +23,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,6 +45,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link DebeziumJsonDeserializationSchema}.
@@ -68,6 +70,27 @@ public class DebeziumJsonDeserializationSchemaTest {
 	@Test
 	public void testSchemaExcludeDeserialization() throws Exception {
 		testDeserialization("debezium-data-schema-exclude.txt", false);
+	}
+
+	@Test
+	public void testPostgresSchemaIncludeDeserialization() throws Exception {
+		testDeserialization("debezium-postgres-data-schema-include.txt", true);
+	}
+
+	@Test
+	public void testPostgresSchemaExcludeDeserialization() throws Exception {
+		testDeserialization("debezium-postgres-data-schema-exclude.txt", false);
+	}
+
+	@Test
+	public void testPostgresDefaultReplicaIdentify() throws Exception {
+		try {
+			testDeserialization("debezium-postgres-data-replica-identity.txt", false);
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(e,
+				"The \"before\" field of UPDATE message is null, if you are using Debezium Postgres Connector, " +
+					"please check the Postgres table has been set REPLICA IDENTITY to FULL level.").isPresent());
+		}
 	}
 
 	private void testDeserialization(String resourceFile, boolean schemaInclude) throws Exception {

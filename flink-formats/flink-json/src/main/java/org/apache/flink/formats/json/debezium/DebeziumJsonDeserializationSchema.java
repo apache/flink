@@ -58,6 +58,10 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 	private static final String OP_UPDATE = "u"; // update
 	private static final String OP_DELETE = "d"; // delete
 
+	private static final String REPLICA_IDENTITY_EXCEPTION = "The \"before\" field of %s message is null, " +
+		"if you are using Debezium Postgres Connector, " +
+		"please check the Postgres table has been set REPLICA IDENTITY to FULL level.";
+
 	/** The deserializer to deserialize Debezium JSON data. */
 	private final JsonRowDataDeserializationSchema jsonDeserializer;
 
@@ -117,11 +121,17 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 				after.setRowKind(RowKind.INSERT);
 				out.collect(after);
 			} else if (OP_UPDATE.equals(op)) {
+				if (before == null) {
+					throw new IllegalStateException(String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
+				}
 				before.setRowKind(RowKind.UPDATE_BEFORE);
 				after.setRowKind(RowKind.UPDATE_AFTER);
 				out.collect(before);
 				out.collect(after);
 			} else if (OP_DELETE.equals(op)) {
+				if (before == null) {
+					throw new IllegalStateException(String.format(REPLICA_IDENTITY_EXCEPTION, "DELETE"));
+				}
 				before.setRowKind(RowKind.DELETE);
 				out.collect(before);
 			} else {
