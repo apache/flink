@@ -101,41 +101,9 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 	private SqlAggFunction createSqlAggFunction(@Nullable FunctionIdentifier identifier, FunctionDefinition definition) {
 		// legacy
 		if (definition instanceof AggregateFunctionDefinition) {
-			final AggregateFunctionDefinition aggDef = (AggregateFunctionDefinition) definition;
-			final AggregateFunction<?, ?> aggFunc = aggDef.getAggregateFunction();
-			final FunctionIdentifier adjustedIdentifier;
-			if (identifier != null) {
-				adjustedIdentifier = identifier;
-			} else {
-				adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
-			}
-			return new AggSqlFunction(
-				adjustedIdentifier,
-				aggFunc.toString(),
-				aggFunc,
-				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
-				fromLegacyInfoToDataType(aggDef.getAccumulatorTypeInfo()),
-				ShortcutUtils.unwrapTypeFactory(relBuilder),
-				aggFunc.getRequirements().contains(FunctionRequirement.OVER_WINDOW_ONLY),
-				scala.Option.empty());
+			return createLegacySqlAggregateFunction(identifier, (AggregateFunctionDefinition) definition);
 		} else if (definition instanceof TableAggregateFunctionDefinition) {
-			final TableAggregateFunctionDefinition aggDef = (TableAggregateFunctionDefinition) definition;
-			final TableAggregateFunction<?, ?> aggFunc = aggDef.getTableAggregateFunction();
-			final FunctionIdentifier adjustedIdentifier;
-			if (identifier != null) {
-				adjustedIdentifier = identifier;
-			} else {
-				adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
-			}
-			return new AggSqlFunction(
-				adjustedIdentifier,
-				aggFunc.toString(),
-				aggFunc,
-				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
-				fromLegacyInfoToDataType(aggDef.getAccumulatorTypeInfo()),
-				ShortcutUtils.unwrapTypeFactory(relBuilder),
-				false,
-				scala.Option.empty());
+			return createLegacySqlTableAggregateFunction(identifier, (TableAggregateFunctionDefinition) definition);
 		}
 
 		// new stack
@@ -150,6 +118,48 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 			identifier,
 			definition,
 			typeInference);
+	}
+
+	private SqlAggFunction createLegacySqlAggregateFunction(
+			@Nullable FunctionIdentifier identifier,
+			AggregateFunctionDefinition definition) {
+		final AggregateFunction<?, ?> aggFunc = definition.getAggregateFunction();
+			final FunctionIdentifier adjustedIdentifier;
+			if (identifier != null) {
+				adjustedIdentifier = identifier;
+			} else {
+				adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
+			}
+			return new AggSqlFunction(
+				adjustedIdentifier,
+				aggFunc.toString(),
+				aggFunc,
+				fromLegacyInfoToDataType(definition.getResultTypeInfo()),
+				fromLegacyInfoToDataType(definition.getAccumulatorTypeInfo()),
+				ShortcutUtils.unwrapTypeFactory(relBuilder),
+				aggFunc.getRequirements().contains(FunctionRequirement.OVER_WINDOW_ONLY),
+				scala.Option.empty());
+	}
+
+	private SqlAggFunction createLegacySqlTableAggregateFunction(
+			@Nullable FunctionIdentifier identifier,
+			TableAggregateFunctionDefinition definition) {
+		final TableAggregateFunction<?, ?> aggFunc = definition.getTableAggregateFunction();
+			final FunctionIdentifier adjustedIdentifier;
+			if (identifier != null) {
+				adjustedIdentifier = identifier;
+			} else {
+				adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
+			}
+			return new AggSqlFunction(
+				adjustedIdentifier,
+				aggFunc.toString(),
+				aggFunc,
+				fromLegacyInfoToDataType(definition.getResultTypeInfo()),
+				fromLegacyInfoToDataType(definition.getAccumulatorTypeInfo()),
+				ShortcutUtils.unwrapTypeFactory(relBuilder),
+				false,
+				scala.Option.empty());
 	}
 
 	@Override

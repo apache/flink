@@ -194,6 +194,10 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		return Optional.of(function);
 	}
 
+	/**
+	 * Verifies which kinds of functions are allowed to be returned from the catalog given the
+	 * context information.
+	 */
 	private boolean verifyFunctionKind(
 			@Nullable SqlFunctionCategory category,
 			FunctionIdentifier identifier,

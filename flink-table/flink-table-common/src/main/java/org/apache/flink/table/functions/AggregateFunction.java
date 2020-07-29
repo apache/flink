@@ -34,7 +34,7 @@ import org.apache.flink.table.types.inference.TypeInference;
  * aggregation result is computed.
  *
  * <p>For each set of rows that needs to be aggregated, the runtime will create an empty accumulator
- * by calling the {@link #createAccumulator()}. Subsequently, the {@code accumulate()} method of the
+ * by calling {@link #createAccumulator()}. Subsequently, the {@code accumulate()} method of the
  * function is called for each input row to update the accumulator. Once all rows have been processed,
  * the {@link #getValue(Object)} method of the function is called to compute and return the final result.
  *

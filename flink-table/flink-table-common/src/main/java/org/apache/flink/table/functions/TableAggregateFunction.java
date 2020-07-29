@@ -37,7 +37,7 @@ import org.apache.flink.util.Collector;
  * the aggregated values until a final aggregation result is computed.
  *
  * <p>For each set of rows that needs to be aggregated, the runtime will create an empty accumulator
- * by calling the {@link #createAccumulator()}. Subsequently, the {@code accumulate()} method of the
+ * by calling {@link #createAccumulator()}. Subsequently, the {@code accumulate()} method of the
  * function is called for each input row to update the accumulator. Once all rows have been processed,
  * the {@code emitValue()} or {@code emitUpdateWithRetract()} method of the function is called to compute
  * and return the final result.

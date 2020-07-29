@@ -169,7 +169,7 @@ public final class DataTypeUtils {
 	}
 
 	/**
-	 * Returns the data types of the flat representation of the given data type.
+	 * Returns the data types of the flat representation in the first level of the given data type.
 	 */
 	public static List<DataType> flattenToDataTypes(DataType dataType) {
 		final LogicalType type = dataType.getLogicalType();
@@ -182,7 +182,7 @@ public final class DataTypeUtils {
 	}
 
 	/**
-	 * Returns the names of the flat representation of the given data type.
+	 * Returns the names of the flat representation in the first level of the given data type.
 	 */
 	public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
 		final LogicalType type = dataType.getLogicalType();
