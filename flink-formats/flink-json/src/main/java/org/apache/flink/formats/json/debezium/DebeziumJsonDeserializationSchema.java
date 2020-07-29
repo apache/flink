@@ -105,6 +105,10 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 
 	@Override
 	public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
+		if (message == null || message.length == 0) {
+			// skip tombstone messages
+			return;
+		}
 		try {
 			GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
 			GenericRowData payload;
