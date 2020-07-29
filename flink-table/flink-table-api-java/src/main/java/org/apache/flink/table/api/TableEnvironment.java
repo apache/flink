@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
@@ -389,7 +388,6 @@ public interface TableEnvironment {
 	 * @param name The name under which the function will be registered globally.
 	 * @param functionClass The function class containing the implementation.
 	 */
-	@Experimental
 	void createTemporarySystemFunction(String name, Class<? extends UserDefinedFunction> functionClass);
 
 	/**
@@ -410,7 +408,6 @@ public interface TableEnvironment {
 	 * @param name The name under which the function will be registered globally.
 	 * @param functionInstance The (possibly pre-configured) function instance containing the implementation.
 	 */
-	@Experimental
 	void createTemporarySystemFunction(String name, UserDefinedFunction functionInstance);
 
 	/**
@@ -422,7 +419,6 @@ public interface TableEnvironment {
 	 * @param name The name under which the function has been registered globally.
 	 * @return true if a function existed under the given name and was removed
 	 */
-	@Experimental
 	boolean dropTemporarySystemFunction(String name);
 
 	/**
@@ -437,7 +433,6 @@ public interface TableEnvironment {
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @param functionClass The function class containing the implementation.
 	 */
-	@Experimental
 	void createFunction(String path, Class<? extends UserDefinedFunction> functionClass);
 
 	/**
@@ -452,7 +447,6 @@ public interface TableEnvironment {
 	 * @param ignoreIfExists If a function exists under the given path and this flag is set, no operation
 	 *                       is executed. An exception is thrown otherwise.
 	 */
-	@Experimental
 	void createFunction(String path, Class<? extends UserDefinedFunction> functionClass, boolean ignoreIfExists);
 
 	/**
@@ -462,7 +456,6 @@ public interface TableEnvironment {
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @return true if a function existed in the given path and was removed
 	 */
-	@Experimental
 	boolean dropFunction(String path);
 
 	/**
@@ -479,7 +472,6 @@ public interface TableEnvironment {
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @param functionClass The function class containing the implementation.
 	 */
-	@Experimental
 	void createTemporaryFunction(String path, Class<? extends UserDefinedFunction> functionClass);
 
 	/**
@@ -500,7 +492,6 @@ public interface TableEnvironment {
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @param functionInstance The (possibly pre-configured) function instance containing the implementation.
 	 */
-	@Experimental
 	void createTemporaryFunction(String path, UserDefinedFunction functionInstance);
 
 	/**
@@ -513,7 +504,6 @@ public interface TableEnvironment {
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @return true if a function existed in the given path and was removed
 	 */
-	@Experimental
 	boolean dropTemporaryFunction(String path);
 
 	/**
