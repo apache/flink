@@ -48,15 +48,15 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-		Context context,
-		ReadableConfig formatOptions) {
+			Context context,
+			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
 			public DeserializationSchema<RowData> createRuntimeDecoder(
-				DynamicTableSource.Context context,
-				DataType producedDataType) {
+					DynamicTableSource.Context context,
+					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
 					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
@@ -74,14 +74,14 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 
 	@Override
 	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-		Context context, ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+			Context context, ReadableConfig formatOptions) {
+			FactoryUtil.validateFactoryOptions(this, formatOptions);
 
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
 			public SerializationSchema<RowData> createRuntimeEncoder(
-				DynamicTableSink.Context context,
-				DataType consumedDataType) {
+					DynamicTableSink.Context context,
+					DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();
 				return new SingleValueRowDataSerialization(rowType);
 			}

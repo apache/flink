@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
- * Serialization schema that serializes an object of Flink internal data structure into a bytes.
+ * Serialization schema that serializes an object of Flink internal data structure into a SINGLE-VALUE bytes.
  */
 @Internal
 public class SingleValueRowDataSerialization implements SerializationSchema<RowData> {

@@ -42,8 +42,9 @@ public class SingleValueRowDataDeserialization implements DeserializationSchema<
 	private RowType rowType;
 	private TypeInformation<RowData> typeInfo;
 
-	public SingleValueRowDataDeserialization(RowType rowType,
-		TypeInformation<RowData> resultTypeInfo) {
+	public SingleValueRowDataDeserialization(
+			RowType rowType,
+			TypeInformation<RowData> resultTypeInfo) {
 		this.rowType = rowType;
 		this.typeInfo = resultTypeInfo;
 		this.converter = createConverter(rowType.getTypeAt(0));
