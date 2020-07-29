@@ -117,7 +117,15 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 		FileUploads uploadedFiles = null;
 		try {
-			inFlightRequestTracker.registerRequest();
+			synchronized (this) {
+				if (terminationFuture != null) {
+					log.debug("The handler instance for {} had already been closed.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
+					ctx.channel().close();
+					return;
+				}
+				inFlightRequestTracker.registerRequest();
+			}
+
 			if (!(httpRequest instanceof FullHttpRequest)) {
 				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
 				// FullHttpRequests.
