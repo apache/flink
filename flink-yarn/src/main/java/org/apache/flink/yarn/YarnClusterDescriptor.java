@@ -173,7 +173,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		getLocalFlinkDistPath(flinkConfiguration).ifPresent(this::setLocalJarPath);
-		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_DIRECTORIES).ifPresent(this::addShipFiles);
+		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_FILES).ifPresent(this::addShipFiles);
 		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_ARCHIVES).ifPresent(this::addShipArchives);
 
 		this.yarnQueue = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_QUEUE);

@@ -36,11 +36,14 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -61,6 +64,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link FlinkYarnSessionCli}.
@@ -464,6 +468,37 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		assertEquals(2, flinkYarnDescriptor.getShipFiles().size());
 
+	}
+
+	@Test
+	public void testShipFiles() throws Exception {
+		File tmpFile = tmp.newFile();
+		final String[] args = new String[]{"run", "--yarnship", tmpFile.toString()};
+		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
+		YarnClusterDescriptor flinkYarnDescriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
+
+		assertEquals(Lists.newArrayList(tmpFile), flinkYarnDescriptor.getShipFiles());
+	}
+
+	@Test
+	public void testMissingShipFiles() throws Exception {
+		File tmpFile = tmp.newFile();
+		final String[] args = new String[]{"run", "--yarnship", tmpFile.toString(), "--yarnship", "missing.file"};
+		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		try {
+			flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+			fail("Expected error for missing file");
+		} catch (ConfigurationException ce) {
+			assertEquals("Ship file missing.file does not exist", ce.getMessage());
+		}
 	}
 
 	///////////

@@ -202,12 +202,13 @@ public class YarnConfigOptions {
 			.noDefaultValue()
 			.withDescription("Staging directory used to store YARN files while submitting applications. Per default, it uses the home directory of the configured file system.");
 
-	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
-			key("yarn.ship-directories")
+	public static final ConfigOption<List<String>> SHIP_FILES =
+			key("yarn.ship-files")
 				.stringType()
 				.asList()
 				.noDefaultValue()
-				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
+				.withDeprecatedKeys("yarn.ship-directories")
+				.withDescription("A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.");
 
 	public static final ConfigOption<List<String>> SHIP_ARCHIVES =
 			key("yarn.ship-archives")
