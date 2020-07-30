@@ -228,6 +228,8 @@ public class CliFrontend {
 
 		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
+		program.initClassLoadOnEffectiveConfiguration(effectiveConfiguration);
+
 		try {
 			executeProgram(effectiveConfiguration, program);
 		} finally {
@@ -239,14 +241,14 @@ public class CliFrontend {
 		PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
-			program = buildProgram(programOptions);
+			program = buildProgram(programOptions, false);
 		} catch (FileNotFoundException e) {
 			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
 		}
 		return program;
 	}
 
-	private <T> Configuration getEffectiveConfiguration(
+	public  <T> Configuration getEffectiveConfiguration(
 			final CustomCommandLine activeCustomCommandLine,
 			final CommandLine commandLine,
 			final ProgramOptions programOptions,
@@ -289,7 +291,7 @@ public class CliFrontend {
 		// -------- build the packaged program -------------
 
 		LOG.info("Building program from JAR file");
-		final PackagedProgram program = buildProgram(programOptions);
+		final PackagedProgram program = buildProgram(programOptions, false);
 
 		try {
 			int parallelism = programOptions.getParallelism();
@@ -304,6 +306,8 @@ public class CliFrontend {
 
 			final Configuration effectiveConfiguration = getEffectiveConfiguration(
 					activeCommandLine, commandLine, programOptions, program.getJobJarAndDependencies());
+
+			program.initClassLoadOnEffectiveConfiguration(effectiveConfiguration);
 
 			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, effectiveConfiguration, parallelism, true);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
@@ -704,7 +708,7 @@ public class CliFrontend {
 	 *
 	 * @return A PackagedProgram (upon success)
 	 */
-	PackagedProgram buildProgram(final ProgramOptions runOptions)
+	PackagedProgram buildProgram(final ProgramOptions runOptions, boolean setConfiguration)
 			throws FileNotFoundException, ProgramInvocationException, CliArgsException {
 		runOptions.validate();
 
@@ -716,14 +720,16 @@ public class CliFrontend {
 		String entryPointClass = runOptions.getEntryPointClassName();
 		File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
 
-		return PackagedProgram.newBuilder()
+		PackagedProgram.Builder builder = PackagedProgram.newBuilder()
 			.setJarFile(jarFile)
 			.setUserClassPaths(classpaths)
 			.setEntryPointClassName(entryPointClass)
-			.setConfiguration(configuration)
 			.setSavepointRestoreSettings(runOptions.getSavepointRestoreSettings())
-			.setArguments(programArgs)
-			.build();
+			.setArguments(programArgs);
+		if (setConfiguration) {
+			builder.setConfiguration(configuration);
+		}
+		return builder.build();
 	}
 
 	/**

@@ -84,7 +84,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		when(programOptions.getJarFilePath()).thenReturn("/some/none/existing/path");
 
 		try {
-			frontend.buildProgram(programOptions);
+			frontend.buildProgram(programOptions, true);
 			fail("should throw an exception");
 		}
 		catch (FileNotFoundException e) {
@@ -100,7 +100,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		when(programOptions.getSavepointRestoreSettings()).thenReturn(SavepointRestoreSettings.none());
 
 		try {
-			frontend.buildProgram(programOptions);
+			frontend.buildProgram(programOptions, true);
 			fail("should throw an exception");
 		} catch (ProgramInvocationException e) {
 			// that's what we want
@@ -124,7 +124,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-		PackagedProgram prog = frontend.buildProgram(programOptions);
+		PackagedProgram prog = frontend.buildProgram(programOptions, true);
 
 		Assert.assertArrayEquals(reducedArguments, prog.getArguments());
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
@@ -147,7 +147,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-		PackagedProgram prog = frontend.buildProgram(programOptions);
+		PackagedProgram prog = frontend.buildProgram(programOptions, true);
 
 		Assert.assertArrayEquals(reducedArguments, prog.getArguments());
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
@@ -170,7 +170,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-		PackagedProgram prog = frontend.buildProgram(programOptions);
+		PackagedProgram prog = frontend.buildProgram(programOptions, true);
 
 		Assert.assertArrayEquals(reducedArguments, prog.getArguments());
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
@@ -199,7 +199,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
 		try {
-			frontend.buildProgram(programOptions);
+			frontend.buildProgram(programOptions, true);
 			fail("Should fail with an exception");
 		}
 		catch (FileNotFoundException e) {
@@ -218,7 +218,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		assertArrayEquals(new String[0], programOptions.getProgramArgs());
 
 		try {
-			frontend.buildProgram(programOptions);
+			frontend.buildProgram(programOptions, true);
 		}
 		catch (FileNotFoundException e) {
 			// that's what we want
@@ -279,7 +279,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, programOptions.getEntryPointClassName());
 			assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-			PackagedProgram prog = spy(frontend.buildProgram(programOptions));
+			PackagedProgram prog = spy(frontend.buildProgram(programOptions, true));
 
 			ClassLoader testClassLoader = new ClassLoader(prog.getUserCodeClassLoader()) {
 				@Override

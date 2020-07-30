@@ -478,6 +478,7 @@ public class ApplicationDispatcherBootstrapTest {
 					.setUserClassPaths(Collections.singletonList(new File(CliFrontendTestUtils.getTestJarPath()).toURI().toURL()))
 					.setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
 					.setArguments(String.valueOf(noOfJobs))
+					.setConfiguration(new Configuration())
 					.build();
 		} catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
 			throw new FlinkException("Could not load the provided entrypoint class.", e);

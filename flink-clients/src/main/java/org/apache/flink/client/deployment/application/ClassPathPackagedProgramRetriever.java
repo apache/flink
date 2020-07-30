@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -117,6 +118,7 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
 					.setArguments(programArguments)
 					.setJarFile(jarFile)
 					.setEntryPointClassName(jobClassName)
+					.setConfiguration(new Configuration())
 					.build();
 			}
 
@@ -125,6 +127,7 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
 				.setUserClassPaths(new ArrayList<>(userClassPaths))
 				.setEntryPointClassName(entryClass)
 				.setArguments(programArguments)
+				.setConfiguration(new Configuration())
 				.build();
 		} catch (ProgramInvocationException e) {
 			throw new FlinkException("Could not load the provided entrypoint class.", e);
