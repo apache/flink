@@ -252,32 +252,42 @@ public class HiveTableSinkITCase {
 
 	@Test(timeout = 120000)
 	public void testDefaultSerPartStreamingWrite() throws Exception {
-		testStreamingWrite(true, false, true, this::checkSuccessFiles);
+		testStreamingWrite(true, false, "textfile", this::checkSuccessFiles);
 	}
 
 	@Test(timeout = 120000)
 	public void testPartStreamingWrite() throws Exception {
-		testStreamingWrite(true, false, false, this::checkSuccessFiles);
+		testStreamingWrite(true, false, "parquet", this::checkSuccessFiles);
 	}
 
 	@Test(timeout = 120000)
 	public void testNonPartStreamingWrite() throws Exception {
-		testStreamingWrite(false, false, false, (p) -> {});
+		testStreamingWrite(false, false, "parquet", (p) -> {});
 	}
 
 	@Test(timeout = 120000)
 	public void testPartStreamingMrWrite() throws Exception {
-		testStreamingWrite(true, true, false, this::checkSuccessFiles);
+		testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
 	}
 
 	@Test(timeout = 120000)
 	public void testNonPartStreamingMrWrite() throws Exception {
-		testStreamingWrite(false, true, false, (p) -> {});
+		testStreamingWrite(false, true, "parquet", (p) -> {});
+	}
+
+	@Test(timeout = 120000)
+	public void testOrcPartStreamingWrite() throws Exception {
+		testStreamingWrite(true, false, "orc", this::checkSuccessFiles);
+	}
+
+	@Test(timeout = 120000)
+	public void testOrcPartStreamingMrWrite() throws Exception {
+		testStreamingWrite(true, true, "orc", this::checkSuccessFiles);
 	}
 
 	@Test(timeout = 120000)
 	public void testStreamingAppend() throws Exception {
-		testStreamingWrite(false, false, false, (p) -> {
+		testStreamingWrite(false, false, "parquet", (p) -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(1);
 			StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
@@ -316,7 +326,7 @@ public class HiveTableSinkITCase {
 	private void testStreamingWrite(
 			boolean part,
 			boolean useMr,
-			boolean defaultSer,
+			String format,
 			Consumer<String> pathConsumer) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
@@ -355,7 +365,7 @@ public class HiveTableSinkITCase {
 					(part ? "" : ",d string,e string") +
 					") " +
 					(part ? "partitioned by (d string,e string) " : "") +
-					(defaultSer ? "" : " stored as parquet") +
+					" stored as " + format +
 					" TBLPROPERTIES (" +
 					"'" + PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key() + "'='$d $e:00:00'," +
 					"'" + SINK_PARTITION_COMMIT_DELAY.key() + "'='1h'," +
