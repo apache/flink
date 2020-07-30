@@ -51,9 +51,7 @@ public final class ChildFirstClassLoader extends FlinkUserCodeClassLoader {
 	}
 
 	@Override
-	protected synchronized Class<?> loadClassWithoutExceptionHandling(
-			String name,
-			boolean resolve) throws ClassNotFoundException {
+	protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve) throws ClassNotFoundException {
 
 		// First, check if the class has already been loaded
 		Class<?> c = findLoadedClass(name);
@@ -124,5 +122,9 @@ public final class ChildFirstClassLoader extends FlinkUserCodeClassLoader {
 				return iter.next();
 			}
 		};
+	}
+
+	static {
+		ClassLoader.registerAsParallelCapable();
 	}
 }
