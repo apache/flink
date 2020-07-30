@@ -26,20 +26,11 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, N
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
 import org.apache.flink.table.types.logical.RowType
 
-import scala.collection.mutable
-
 /**
   * CodeGenerator for projection, Take out some fields of [[RowData]] to generate
   * a new [[RowData]].
   */
 object ProjectionCodeGenerator {
-
-  // for loop optimization will only be enabled
-  // if the number of fields to be project exceeds the limit
-  //
-  // this value is tuned by hand according to projecting
-  // some string type fields with randomized order
-  val FOR_LOOP_FIELD_LIMIT: Int = 25
 
   def generateProjectionExpression(
       ctx: CodeGeneratorContext,
@@ -51,20 +42,17 @@ object ProjectionCodeGenerator {
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM,
       reusedOutRecord: Boolean = true): GeneratedExpression = {
-    val outFieldTypes = outType.getChildren
-
-    val codeBuffer = mutable.ArrayBuffer.empty[String]
-    for (i <- inputMapping.indices) {
-      val nullTerm = s"$inputTerm.isNullAt(${inputMapping(i)})"
-      val fieldType = outFieldTypes.get(i)
-      codeBuffer.append(
-        CodeGenUtils.rowSetField(ctx, outClass, outRecordTerm, i.toString,
-          GeneratedExpression(rowFieldReadAccess(
-            ctx, inputMapping(i), inputTerm, fieldType), nullTerm, "", fieldType),
-          Some(outRecordWriterTerm)))
-    }
-
-    val setFieldsCode = codeBuffer.mkString("\n")
+    val exprGenerator = new ExprCodeGenerator(ctx, false)
+      .bindInput(inType, inputTerm = inputTerm, inputFieldMapping = Option(inputMapping))
+    val accessExprs = inputMapping.map(
+      idx => GenerateUtils.generateFieldAccess(ctx, inType, inputTerm, idx))
+    val expression = exprGenerator.generateResultExpression(
+      accessExprs,
+      outType,
+      outClass,
+      outRow = outRecordTerm,
+      outRowWriter = Option(outRecordWriterTerm),
+      reusedOutRow = reusedOutRecord)
 
     val outRowInitCode = {
       val initCode = generateRecordStatement(
@@ -76,22 +64,11 @@ object ProjectionCodeGenerator {
       }
     }
 
-    val code = if (outClass == classOf[BinaryRowData]) {
-      val writer = outRecordWriterTerm
-      val resetWriter = if (ctx.nullCheck) s"$writer.reset();" else s"$writer.resetCursor();"
-      val completeWriter: String = s"$writer.complete();"
+    val code =
       s"""
          |$outRowInitCode
-         |$resetWriter
-         |$setFieldsCode
-         |$completeWriter
+         |${expression.code}
         """.stripMargin
-    } else {
-      s"""
-         |$outRowInitCode
-         |$setFieldsCode
-        """.stripMargin
-    }
     GeneratedExpression(outRecordTerm, NEVER_NULL, code, outType)
   }
 
