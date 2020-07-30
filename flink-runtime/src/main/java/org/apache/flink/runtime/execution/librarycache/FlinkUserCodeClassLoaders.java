@@ -91,5 +91,9 @@ public class FlinkUserCodeClassLoaders {
 		ParentFirstClassLoader(URL[] urls, ClassLoader parent, Consumer<Throwable> classLoadingExceptionHandler) {
 			super(urls, parent, classLoadingExceptionHandler);
 		}
+
+		static {
+			ClassLoader.registerAsParallelCapable();
+		}
 	}
 }

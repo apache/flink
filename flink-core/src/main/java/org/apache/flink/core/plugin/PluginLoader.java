@@ -198,6 +198,8 @@ public class PluginLoader {
 				throw new IllegalStateException("Cannot retrieve platform classloader on Java 9+", e);
 			}
 			PLATFORM_OR_BOOTSTRAP_LOADER = platformLoader;
+
+			ClassLoader.registerAsParallelCapable();
 		}
 	}
 }
