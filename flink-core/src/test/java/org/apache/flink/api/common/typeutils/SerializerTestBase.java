@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -84,17 +85,25 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 	protected abstract T[] getTestData();
 
+	/**
+	 * Allows {@link TypeSerializer#createInstance()} to return null.
+	 *
+	 * <p>The {@link KryoSerializer} is one example.
+	 */
+	protected boolean allowNullInstances(TypeSerializer<T> serializer) {
+		return serializer.getClass().getName().endsWith("KryoSerializer");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Test
 	public void testInstantiate() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			if(serializer.getClass().getName().endsWith("KryoSerializer")) {
-				// the kryo serializer will return null. We ignore this test for Kryo.
+			T instance = serializer.createInstance();
+			if (instance == null && allowNullInstances(serializer)) {
 				return;
 			}
-			T instance = serializer.createInstance();
 			assertNotNull("The created instance must not be null.", instance);
 
 			Class<T> type = getTypeClass();
