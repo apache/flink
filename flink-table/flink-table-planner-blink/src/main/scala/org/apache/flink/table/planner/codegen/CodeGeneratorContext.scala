@@ -22,13 +22,14 @@ import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.GenericRowData
-import org.apache.flink.table.data.conversion.DataStructureConverter
+import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.typeutils.InternalSerializers
 import org.apache.flink.table.runtime.util.collections._
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
@@ -101,6 +102,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // LogicalType -> reused_term
   private val reusableTypeSerializers: mutable.Map[LogicalType, String] =
     mutable.Map[LogicalType,  String]()
+
+  // map of data structure converters that will be added only once
+  // DataType -> reused_term
+  private val reusableConverters: mutable.Map[DataType, String] =
+    mutable.Map[DataType,  String]()
 
   /**
     * The current method name for [[reusableLocalVariableStatements]]. You can start a new
@@ -671,28 +677,33 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
    * Adds a reusable [[DataStructureConverter]] to the member area of the generated class.
    *
-   * @param converter converter to be added
+   * @param dataType converter to be added
    * @param classLoaderTerm term to access the [[ClassLoader]] for user-defined classes
    */
   def addReusableConverter(
-      converter: DataStructureConverter[_, _],
+      dataType: DataType,
       classLoaderTerm: String = null)
     : String = {
+    reusableConverters.get(dataType) match {
+      case Some(term) =>
+        term
 
-    val converterTerm = addReusableObject(converter, "converter")
-
-    val openConverter = if (classLoaderTerm != null) {
-      s"""
-         |$converterTerm.open($classLoaderTerm);
-       """.stripMargin
-    } else {
-      s"""
-         |$converterTerm.open(getRuntimeContext().getUserCodeClassLoader());
-       """.stripMargin
+      case None =>
+        val converter = DataStructureConverters.getConverter(dataType)
+        val converterTerm = addReusableObject(converter, "converter")
+        val openConverter = if (classLoaderTerm != null) {
+          s"""
+             |$converterTerm.open($classLoaderTerm);
+           """.stripMargin
+        } else {
+          s"""
+             |$converterTerm.open(getRuntimeContext().getUserCodeClassLoader());
+           """.stripMargin
+        }
+        reusableOpenStatements.add(openConverter)
+        reusableConverters(dataType) = converterTerm
+        converterTerm
     }
-    reusableOpenStatements.add(openConverter)
-
-    converterTerm
   }
 
   /**

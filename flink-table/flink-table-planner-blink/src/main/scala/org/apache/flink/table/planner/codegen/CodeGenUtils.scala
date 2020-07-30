@@ -24,7 +24,6 @@ import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.data.binary._
-import org.apache.flink.table.data.conversion.DataStructureConverters
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -801,10 +800,9 @@ object CodeGenUtils {
     if (isInternal(sourceDataType)) {
       externalTerm => s"$externalTerm"
     } else {
-      val converter = DataStructureConverters.getConverter(sourceDataType)
       val internalTypeTerm = boxedTypeTermForType(sourceDataType.getLogicalType)
       val externalTypeTerm = typeTerm(sourceDataType.getConversionClass)
-      val converterTerm = ctx.addReusableConverter(converter)
+      val converterTerm = ctx.addReusableConverter(sourceDataType)
       externalTerm =>
         s"($internalTypeTerm) $converterTerm.toInternalOrNull(($externalTypeTerm) $externalTerm)"
     }
@@ -880,10 +878,9 @@ object CodeGenUtils {
     if (isInternal(targetDataType)) {
       s"$internalTerm"
     } else {
-      val converter = DataStructureConverters.getConverter(targetDataType)
       val internalTypeTerm = boxedTypeTermForType(targetDataType.getLogicalType)
       val externalTypeTerm = typeTerm(targetDataType.getConversionClass)
-      val converterTerm = ctx.addReusableConverter(converter)
+      val converterTerm = ctx.addReusableConverter(targetDataType)
       s"($externalTypeTerm) $converterTerm.toExternal(($internalTypeTerm) $internalTerm)"
     }
   }
