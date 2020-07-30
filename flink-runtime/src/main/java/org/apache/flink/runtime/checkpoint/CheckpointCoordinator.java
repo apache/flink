@@ -109,6 +109,8 @@ public class CheckpointCoordinator {
 	/** The executor used for asynchronous calls, like potentially blocking I/O. */
 	private final Executor executor;
 
+	private final CheckpointsCleaner checkpointsCleaner;
+
 	/** Tasks who need to be sent a message when a checkpoint is started. */
 	private final ExecutionVertex[] tasksToTrigger;
 
@@ -217,6 +219,7 @@ public class CheckpointCoordinator {
 		CompletedCheckpointStore completedCheckpointStore,
 		StateBackend checkpointStateBackend,
 		Executor executor,
+		CheckpointsCleaner checkpointsCleaner,
 		ScheduledExecutor timer,
 		SharedStateRegistryFactory sharedStateRegistryFactory,
 		CheckpointFailureManager failureManager) {
@@ -232,6 +235,7 @@ public class CheckpointCoordinator {
 			completedCheckpointStore,
 			checkpointStateBackend,
 			executor,
+			checkpointsCleaner,
 			timer,
 			sharedStateRegistryFactory,
 			failureManager,
@@ -250,6 +254,7 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			StateBackend checkpointStateBackend,
 			Executor executor,
+			CheckpointsCleaner checkpointsCleaner,
 			ScheduledExecutor timer,
 			SharedStateRegistryFactory sharedStateRegistryFactory,
 			CheckpointFailureManager failureManager,
@@ -283,6 +288,7 @@ public class CheckpointCoordinator {
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.executor = checkNotNull(executor);
+		this.checkpointsCleaner = checkNotNull(checkpointsCleaner);
 		this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
 		this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
 		this.isPreferCheckpointForRecovery = chkConfig.isPreferCheckpointForRecovery();
@@ -317,7 +323,8 @@ public class CheckpointCoordinator {
 			this::rescheduleTrigger,
 			this.clock,
 			this.minPauseBetweenCheckpoints,
-			this.pendingCheckpoints::size);
+			this.pendingCheckpoints::size,
+			this.checkpointsCleaner::getNumberOfCheckpointsToClean);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -669,7 +676,9 @@ public class CheckpointCoordinator {
 			props,
 			checkpointStorageLocation,
 			executor,
-			onCompletionPromise);
+			onCompletionPromise,
+			checkpointsCleaner,
+			this::scheduleTriggerRequest);
 
 		if (statsTracker != null) {
 			PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
@@ -1062,7 +1071,7 @@ public class CheckpointCoordinator {
 
 		try {
 			try {
-				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint(checkpointsCleaner::cleanCheckpoint);
 				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
 			}
 			catch (Exception e1) {
@@ -1102,7 +1111,7 @@ public class CheckpointCoordinator {
 			}
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
-			timer.execute(this::executeQueuedRequest);
+			scheduleTriggerRequest();
 		}
 
 		rememberRecentCheckpointId(checkpointId);
@@ -1132,6 +1141,10 @@ public class CheckpointCoordinator {
 
 		// send the "notify complete" call to all vertices, coordinators, etc.
 		sendAcknowledgeMessages(checkpointId, completedCheckpoint.getTimestamp());
+	}
+
+	void scheduleTriggerRequest() {
+		timer.execute(this::executeQueuedRequest);
 	}
 
 	private void sendAcknowledgeMessages(long checkpointId, long timestamp) {
@@ -1396,7 +1409,7 @@ public class CheckpointCoordinator {
 
 		// Load the savepoint as a checkpoint into the system
 		CompletedCheckpoint savepoint = Checkpoints.loadAndValidateCheckpoint(
-				job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
+				job, tasks, checkpointLocation, userClassLoader, allowNonRestored, checkpointsCleaner::cleanCheckpoint, this::scheduleTriggerRequest);
 
 		completedCheckpointStore.addCheckpoint(savepoint);
 
@@ -1678,7 +1691,7 @@ public class CheckpointCoordinator {
 				sendAbortedMessages(pendingCheckpoint.getCheckpointId(), pendingCheckpoint.getCheckpointTimestamp());
 				pendingCheckpoints.remove(pendingCheckpoint.getCheckpointId());
 				rememberRecentCheckpointId(pendingCheckpoint.getCheckpointId());
-				timer.execute(this::executeQueuedRequest);
+				scheduleTriggerRequest();
 			}
 		}
 	}

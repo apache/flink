@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -262,8 +263,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 				Map<OperatorID, OperatorState> operatorGroupState,
 				CheckpointProperties props) {
 
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props,
-					new TestCompletedCheckpointStorageLocation());
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props, new TestCompletedCheckpointStorageLocation(), new CheckpointsCleaner()::cleanCheckpoint, new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 		}
 
 		@Override

@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
@@ -97,7 +98,9 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 				new HashMap<>(),
 				null,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation()));
+				new TestCompletedCheckpointStorageLocation(),
+				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback()));
 
 		final RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle2 = mock(RetrievableStateHandle.class);
 		when(retrievableStateHandle2.retrieveState()).then(
@@ -109,7 +112,9 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 				new HashMap<>(),
 				null,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation())));
+				new TestCompletedCheckpointStorageLocation(),
+				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback())));
 
 		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle1, "/foobar1"));
 		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "/failing1"));
@@ -221,7 +226,9 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 				new HashMap<>(),
 				null,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation()));
+				new TestCompletedCheckpointStorageLocation(),
+				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback()));
 
 		final RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle2 = mock(RetrievableStateHandle.class);
 		when(retrievableStateHandle2.retrieveState()).then(
@@ -233,7 +240,9 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 				new HashMap<>(),
 				null,
 				CheckpointProperties.forSavepoint(true),
-				new TestCompletedCheckpointStorageLocation())));
+				new TestCompletedCheckpointStorageLocation(),
+				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback())));
 
 		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle1, "/foobar1"));
 		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "/failing1"));

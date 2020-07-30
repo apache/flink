@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -269,7 +270,9 @@ public class CheckpointCoordinatorMasterHooksTest {
 				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation());
+				new TestCompletedCheckpointStorageLocation(),
+				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
 		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
@@ -320,7 +323,9 @@ public class CheckpointCoordinatorMasterHooksTest {
 				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation());
+				new TestCompletedCheckpointStorageLocation(),
+				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
@@ -449,6 +454,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 			false,
 			false,
 			0);
+		Executor executor = Executors.directExecutor();
 		return new CheckpointCoordinator(
 				jid,
 				chkConfig,
@@ -459,7 +465,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
-				Executors.directExecutor(),
+				executor,
+				new CheckpointsCleaner(),
 				testingScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				new CheckpointFailureManager(
