@@ -133,6 +133,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -207,6 +208,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
 		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(30);
 
+		final Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> webSubmissionHandlers = initializeWebSubmissionHandlers(localAddressFuture);
+		handlers.addAll(webSubmissionHandlers);
+		final boolean hasWebSubmissionHandlers = !webSubmissionHandlers.isEmpty();
+
 		final Time timeout = restConfiguration.getTimeout();
 
 		ClusterOverviewHandler clusterOverviewHandler = new ClusterOverviewHandler(
@@ -221,7 +226,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			responseHeaders,
 			DashboardConfigurationHeaders.getInstance(),
 			restConfiguration.getRefreshInterval(),
-			restConfiguration.isWebSubmitEnabled());
+			hasWebSubmissionHandlers);
 
 		JobIdsHandler jobIdsHandler = new JobIdsHandler(
 			leaderRetriever,
@@ -662,6 +667,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			.forEachOrdered(handler -> archivingHandlers.add((JsonArchivist) handler));
 
 		return handlers;
+	}
+
+	protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeWebSubmissionHandlers(final CompletableFuture<String> localAddressFuture) {
+		return Collections.emptyList();
 	}
 
 	@Nonnull
