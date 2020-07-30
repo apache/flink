@@ -194,6 +194,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 			case SUSPENDED:
 				LOG.warn("Connection to ZooKeeper suspended. Can no longer retrieve the leader from " +
 					"ZooKeeper.");
+				notifyLeaderLoss();
 				break;
 			case RECONNECTED:
 				LOG.info("Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
@@ -201,6 +202,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 			case LOST:
 				LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
 					"ZooKeeper.");
+				notifyLeaderLoss();
 				break;
 		}
 	}
@@ -208,5 +210,16 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	@Override
 	public void unhandledError(String s, Throwable throwable) {
 		leaderListener.handleError(new FlinkException("Unhandled error in ZooKeeperLeaderRetrievalService:" + s, throwable));
+	}
+
+	private void notifyLeaderLoss() {
+		if (lastLeaderAddress != null || lastLeaderSessionID != null) {
+			LOG.debug(
+					"No leader information could be retrieved. Any listeners will be notified.");
+
+			lastLeaderAddress = null;
+			lastLeaderSessionID = null;
+			leaderListener.notifyLeaderAddress(null, null);
+		}
 	}
 }
