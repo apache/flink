@@ -49,9 +49,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link TableSource} for JDBC.
  */
 public class JdbcTableSource implements
-		StreamTableSource<Row>,
-		ProjectableTableSource<Row>,
-		LookupableTableSource<Row> {
+	StreamTableSource<Row>,
+	ProjectableTableSource<Row>,
+	LookupableTableSource<Row> {
 
 	private final JdbcOptions options;
 	private final JdbcReadOptions readOptions;
@@ -87,7 +87,7 @@ public class JdbcTableSource implements
 				fieldNames[i] = schemaFieldNames[selectFields[i]];
 			}
 			this.producedDataType =
-					TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
+				TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
 		} else {
 			this.producedDataType = schema.toRowDataType();
 		}
@@ -101,22 +101,22 @@ public class JdbcTableSource implements
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
 		return execEnv
-				.createInput(
-						getInputFormat(),
-						(RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
-				.name(explainSource());
+			.createInput(
+				getInputFormat(),
+				(RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
+			.name(explainSource());
 	}
 
 	@Override
 	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
 		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		return JdbcLookupFunction.builder()
-				.setOptions(options)
-				.setLookupOptions(lookupOptions)
-				.setFieldTypes(rowTypeInfo.getFieldTypes())
-				.setFieldNames(rowTypeInfo.getFieldNames())
-				.setKeyNames(lookupKeys)
-				.build();
+			.setOptions(options)
+			.setLookupOptions(lookupOptions)
+			.setFieldTypes(rowTypeInfo.getFieldTypes())
+			.setFieldNames(rowTypeInfo.getFieldNames())
+			.setKeyNames(lookupKeys)
+			.build();
 	}
 
 	@Override
@@ -157,9 +157,9 @@ public class JdbcTableSource implements
 	private JdbcInputFormat getInputFormat() {
 		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		JdbcInputFormat.JdbcInputFormatBuilder builder = JdbcInputFormat.buildJdbcInputFormat()
-				.setDrivername(options.getDriverName())
-				.setDBUrl(options.getDbURL())
-				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
+			.setDrivername(options.getDriverName())
+			.setDBUrl(options.getDbURL())
+			.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
 		options.getUsername().ifPresent(builder::setUsername);
 		options.getPassword().ifPresent(builder::setPassword);
 
@@ -186,7 +186,7 @@ public class JdbcTableSource implements
 
 	private String getBaseQueryStatement(RowTypeInfo rowTypeInfo) {
 		return readOptions.getQuery().orElseGet(() ->
-			options.getDialect().getSelectFromStatement(
+			options.getDialect().getSelectFromStatement(options.getSchema(),
 				options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]));
 	}
 

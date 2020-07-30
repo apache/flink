@@ -106,7 +106,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		this.cacheMaxSize = lookupOptions.getCacheMaxSize();
 		this.cacheExpireMs = lookupOptions.getCacheExpireMs();
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
-		this.query = options.getDialect().getSelectFromStatement(
+		this.query = options.getDialect().getSelectFromStatement(options.getSchema(),
 			options.getTableName(), fieldNames, keyNames);
 		this.jdbcDialect = JdbcDialects.get(dbURL)
 			.orElseThrow(() -> new UnsupportedOperationException(String.format("Unknown dbUrl:%s", dbURL)));

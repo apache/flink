@@ -37,6 +37,7 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 	private final String[] fieldNames;
 	@Nullable
 	private final String[] keyFields;
+	private final String schema;
 	private final String tableName;
 	private final JdbcDialect dialect;
 
@@ -44,12 +45,17 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 		return new JdbcDmlOptionsBuilder();
 	}
 
-	private JdbcDmlOptions(String tableName, JdbcDialect dialect, String[] fieldNames, int[] fieldTypes, String[] keyFields) {
+	private JdbcDmlOptions(String schema, String tableName, JdbcDialect dialect, String[] fieldNames, int[] fieldTypes, String[] keyFields) {
 		super(fieldTypes);
+		this.schema = schema;
 		this.tableName = Preconditions.checkNotNull(tableName, "table is empty");
 		this.dialect = Preconditions.checkNotNull(dialect, "dialect name is empty");
 		this.fieldNames = Preconditions.checkNotNull(fieldNames, "field names is empty");
 		this.keyFields = keyFields;
+	}
+
+	public String getSchema() {
+		return schema;
 	}
 
 	public String getTableName() {
@@ -79,13 +85,14 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 		JdbcDmlOptions that = (JdbcDmlOptions) o;
 		return Arrays.equals(fieldNames, that.fieldNames) &&
 			Arrays.equals(keyFields, that.keyFields) &&
+			Objects.equals(schema, that.schema) &&
 			Objects.equals(tableName, that.tableName) &&
 			Objects.equals(dialect, that.dialect);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = Objects.hash(tableName, dialect);
+		int result = Objects.hash(schema, tableName, dialect);
 		result = 31 * result + Arrays.hashCode(fieldNames);
 		result = 31 * result + Arrays.hashCode(keyFields);
 		return result;
@@ -95,6 +102,7 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 	 * Builder for {@link JdbcDmlOptions}.
 	 */
 	public static class JdbcDmlOptionsBuilder extends JdbcUpdateQueryOptionsBuilder<JdbcDmlOptionsBuilder> {
+		private String schema;
 		private String tableName;
 		private String[] fieldNames;
 		private String[] keyFields;
@@ -125,6 +133,11 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 			return this;
 		}
 
+		public JdbcDmlOptionsBuilder withSchema(String schema) {
+			this.schema = schema;
+			return self();
+		}
+
 		public JdbcDmlOptionsBuilder withTableName(String tableName) {
 			this.tableName = tableName;
 			return self();
@@ -136,7 +149,7 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 		}
 
 		public JdbcDmlOptions build() {
-			return new JdbcDmlOptions(tableName, dialect, fieldNames, fieldTypes, keyFields);
+			return new JdbcDmlOptions(schema, tableName, dialect, fieldNames, fieldTypes, keyFields);
 		}
 
 		static String[] concat(String first, String... next) {
