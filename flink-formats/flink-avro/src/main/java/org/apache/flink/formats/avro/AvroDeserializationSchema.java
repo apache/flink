@@ -39,6 +39,7 @@ import org.apache.avro.specific.SpecificRecord;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -169,5 +170,23 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 		} else {
 			return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		AvroDeserializationSchema<?> that = (AvroDeserializationSchema<?>) o;
+		return recordClazz.equals(that.recordClazz) &&
+				Objects.equals(reader, that.reader);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(recordClazz, reader);
 	}
 }
