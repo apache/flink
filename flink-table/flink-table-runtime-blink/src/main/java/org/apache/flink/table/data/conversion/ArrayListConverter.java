@@ -24,6 +24,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -58,7 +59,7 @@ public class ArrayListConverter<E> implements DataStructureConverter<ArrayData, 
 
 	@Override
 	public List<E> toExternal(ArrayData internal) {
-		return Arrays.asList(elementsConverter.toExternal(internal));
+		return new ArrayList<>(Arrays.asList(elementsConverter.toExternal(internal)));
 	}
 
 	// --------------------------------------------------------------------------------------------
