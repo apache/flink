@@ -111,7 +111,7 @@ public class FlinkUserCodeClassLoaders {
 	/**
 	 * Regular URLClassLoader that first loads from the parent and only after that from the URLs.
 	 */
-	static class ParentFirstClassLoader extends FlinkUserCodeClassLoader {
+	public static class ParentFirstClassLoader extends FlinkUserCodeClassLoader {
 
 		ParentFirstClassLoader(URL[] urls, ClassLoader parent, Consumer<Throwable> classLoadingExceptionHandler) {
 			super(urls, parent, classLoadingExceptionHandler);
