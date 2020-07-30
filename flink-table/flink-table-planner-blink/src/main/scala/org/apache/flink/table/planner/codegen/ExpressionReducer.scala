@@ -28,14 +28,15 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
+
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import java.io.File
 
-import org.apache.flink.table.data.conversion.DataStructureConverter
+import java.io.File
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -279,9 +280,9 @@ class ConstantCodeGeneratorContext(tableConfig: TableConfig)
   }
 
   override def addReusableConverter(
-      converter: DataStructureConverter[_, _],
+      dataType: DataType,
       classLoaderTerm: String = null)
     : String = {
-    super.addReusableConverter(converter, "this.getClass().getClassLoader()")
+    super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
   }
 }
