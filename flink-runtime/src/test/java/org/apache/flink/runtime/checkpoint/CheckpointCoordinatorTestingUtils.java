@@ -608,6 +608,8 @@ public class CheckpointCoordinatorTestingUtils {
 
 		private Executor ioExecutor = Executors.directExecutor();
 
+		private CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
+
 		private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
 
 		private SharedStateRegistryFactory sharedStateRegistryFactory =
@@ -719,6 +721,7 @@ public class CheckpointCoordinatorTestingUtils {
 				completedCheckpointStore,
 				checkpointStateBackend,
 				ioExecutor,
+				checkpointsCleaner,
 				timer,
 				sharedStateRegistryFactory,
 				failureManager);

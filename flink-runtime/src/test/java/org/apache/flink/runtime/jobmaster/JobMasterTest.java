@@ -127,6 +127,7 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -827,7 +828,9 @@ public class JobMasterTest extends TestLogger {
 			Collections.emptyMap(),
 			null,
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new DummyCheckpointStorageLocation());
+			new DummyCheckpointStorageLocation(),
+			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
+			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 
 		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
 		completedCheckpointStore.addCheckpoint(completedCheckpoint);

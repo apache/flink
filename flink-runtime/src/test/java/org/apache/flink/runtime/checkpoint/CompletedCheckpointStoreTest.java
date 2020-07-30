@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.util.concurrent.Executor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -48,8 +51,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	/**
 	 * Creates the {@link CompletedCheckpointStore} implementation to be tested.
 	 */
-	protected abstract CompletedCheckpointStore createCompletedCheckpoints(
-			int maxNumberOfCheckpointsToRetain) throws Exception;
+	protected abstract CompletedCheckpointStore createCompletedCheckpoints(int maxNumberOfCheckpointsToRetain, Executor executor) throws Exception;
+
+	protected CompletedCheckpointStore createCompletedCheckpoints(int maxNumberOfCheckpointsToRetain) throws Exception {
+		return createCompletedCheckpoints(maxNumberOfCheckpointsToRetain, Executors.directExecutor());
+	}
 
 	// ---------------------------------------------------------------------------------------------
 
@@ -68,7 +74,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	public void testAddAndGetLatestCheckpoint() throws Exception {
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
-		
+
 		// Empty state
 		assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
@@ -213,7 +219,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 		operatorState.registerSharedStates(sharedStateRegistry);
 
-		return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props);
+		return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props, new CheckpointsCleaner()::cleanCheckpoint);
 	}
 
 	protected void verifyCheckpointRegistered(Collection<OperatorState> operatorStates, SharedStateRegistry registry) {
@@ -260,10 +266,10 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 				long checkpointId,
 				long timestamp,
 				Map<OperatorID, OperatorState> operatorGroupState,
-				CheckpointProperties props) {
+				CheckpointProperties props,
+				CheckpointsCleaningRunner checkpointsCleaningRunner) {
 
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props,
-					new TestCompletedCheckpointStorageLocation());
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props, new TestCompletedCheckpointStorageLocation(), checkpointsCleaningRunner, new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 		}
 
 		@Override
