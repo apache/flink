@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
@@ -28,8 +29,6 @@ import org.apache.flink.table.functions.{AggregateFunction, FunctionKind, Impera
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
-import org.apache.flink.table.planner.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -40,6 +39,8 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
@@ -640,10 +641,15 @@ object AggregateUtil extends Enumeration {
       val accDataType = fromLegacyInfoToDataType(accTypeInfo)
 
       val distinctMapViewSpec = if (isStateBackedDataViews) {
-        Some(MapViewSpec(
+        val mapViewSpec = new MapViewSpec(
           s"distinctAcc_$index",
           -1, // the field index will not be used
-          accTypeInfo))
+          accDataType,
+          true,
+          accTypeInfo.getKeyType.createSerializer(new ExecutionConfig),
+          accTypeInfo.getValueType.createSerializer(new ExecutionConfig)
+        )
+        Some(mapViewSpec)
       } else {
         None
       }
