@@ -291,7 +291,7 @@ public class KinesisConfigUtil {
 			//if the registration type is NONE, then for each stream there must be an according consumer ARN
 			List<String> missingConsumerArnKeys = new ArrayList<>();
 			for (String stream : streams) {
-				String efoConsumerARNKey = ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + "." + stream;
+				String efoConsumerARNKey = ConsumerConfigConstants.efoConsumerArn(stream);
 				if (!config.containsKey(efoConsumerARNKey)) {
 					missingConsumerArnKeys.add(efoConsumerARNKey);
 				}

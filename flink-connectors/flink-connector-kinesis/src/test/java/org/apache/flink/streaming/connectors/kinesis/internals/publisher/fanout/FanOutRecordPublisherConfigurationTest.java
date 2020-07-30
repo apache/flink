@@ -91,7 +91,7 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EFORegistrationType.NONE.toString());
 		streams.forEach(
 			stream ->
-				testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + "." + stream, stream)
+				testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn(stream), stream)
 		);
 		FanOutRecordPublisherConfiguration fanOutRecordPublisherConfiguration = new FanOutRecordPublisherConfiguration(testConfig, streams);
 		Map<String, String> expectedStreamArns = new HashMap<>();
@@ -128,7 +128,7 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + "." + "fakedstream1", "fakedstream1");
+		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("fakedstream1"), "fakedstream1");
 
 		new FanOutRecordPublisherConfiguration(testConfig, streams);
 	}

@@ -246,7 +246,7 @@ public class KinesisConfigUtilTest {
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream1"), "fakedArn1");
 		List<String> streams = new ArrayList<>();
 		streams.add("stream1");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
@@ -257,8 +257,8 @@ public class KinesisConfigUtilTest {
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
-		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream2", "fakedArn2");
+		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream1"), "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream2"), "fakedArn2");
 		List<String> streams = new ArrayList<>();
 		streams.add("stream1");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
@@ -266,13 +266,13 @@ public class KinesisConfigUtilTest {
 
 	@Test
 	public void testNoneTypeEfoRegistrationTypeWithNotEnoughMatchedStreamInConfig() {
-		String msg = "Invalid efo consumer arn settings for not providing consumer arns: " + ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream2";
+		String msg = "Invalid efo consumer arn settings for not providing consumer arns: " + ConsumerConfigConstants.efoConsumerArn("stream2");
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(msg);
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream1"), "fakedArn1");
 		List<String> streams = Arrays.asList("stream1", "stream2");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
 	}

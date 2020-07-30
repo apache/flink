@@ -309,4 +309,13 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	 */
 	public static final long MAX_SHARD_GETRECORDS_INTERVAL_MILLIS = 300000L;
 
+	/**
+	 * Build the key of a efo consumer arn according to a stream name.
+	 * @param streamName the stream name the key is built upon.
+	 * @return a key of efo consumer arn.
+	 */
+	public static String efoConsumerArn(String streamName) {
+		return EFO_CONSUMER_ARN_PREFIX + "." + streamName;
+	}
+
 }

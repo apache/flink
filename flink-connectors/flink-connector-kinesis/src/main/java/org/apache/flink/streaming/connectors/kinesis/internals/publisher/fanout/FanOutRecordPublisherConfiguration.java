@@ -152,7 +152,7 @@ public class FanOutRecordPublisherConfiguration {
 			//else users should explicitly provide consumer arns.
 			streamConsumerArns = new HashMap<>();
 			for (String stream : streams) {
-				String key = ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + "." + stream;
+				String key = ConsumerConfigConstants.efoConsumerArn(stream);
 				streamConsumerArns.put(stream, configProps.getProperty(key));
 			}
 		}
