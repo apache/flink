@@ -21,9 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * DML operation that tells to write to a sink. The sink has to be looked up in a
@@ -37,6 +35,8 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 	private final QueryOperation child;
 	private final boolean overwrite;
 	private final Map<String, String> dynamicOptions;
+	private final List<String> targetColumns;
+
 
 	public CatalogSinkModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
 		this(tableIdentifier, child, Collections.emptyMap(), false, Collections.emptyMap());
@@ -48,11 +48,22 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 			Map<String, String> staticPartitions,
 			boolean overwrite,
 			Map<String, String> dynamicOptions) {
+		this(tableIdentifier, child, staticPartitions, overwrite, dynamicOptions, Collections.EMPTY_LIST);
+	}
+
+	public CatalogSinkModifyOperation(
+		ObjectIdentifier tableIdentifier,
+		QueryOperation child,
+		Map<String, String> staticPartitions,
+		boolean overwrite,
+		Map<String, String> dynamicOptions,
+		List<String> targetColumns) {
 		this.tableIdentifier = tableIdentifier;
 		this.child = child;
 		this.staticPartitions = staticPartitions;
 		this.overwrite = overwrite;
 		this.dynamicOptions = dynamicOptions;
+		this.targetColumns = targetColumns;
 	}
 
 	public ObjectIdentifier getTableIdentifier() {
@@ -74,6 +85,10 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 	@Override
 	public QueryOperation getChild() {
 		return child;
+	}
+
+	public List<String> getTargetColumns() {
+		return targetColumns;
 	}
 
 	@Override

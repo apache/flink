@@ -141,6 +141,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be
@@ -537,12 +538,19 @@ public class SqlToOperationConverter {
 			.orElseThrow(() -> new TableException(
 				"Unsupported node type " + insert.getSource().getClass().getSimpleName()));
 
+		List<String> targetColumns = new ArrayList<>();
+		if (insert.getTargetColumnList() != null) {
+			targetColumns = insert.getTargetColumnList().getList()
+				.stream().map(SqlNode::toString).collect(Collectors.toList());
+		}
+
 		return new CatalogSinkModifyOperation(
 			identifier,
 			query,
 			insert.getStaticPartitionKVs(),
 			insert.isOverwrite(),
-			dynamicOptions);
+			dynamicOptions,
+			targetColumns);
 	}
 
 	/** Convert use catalog statement. */

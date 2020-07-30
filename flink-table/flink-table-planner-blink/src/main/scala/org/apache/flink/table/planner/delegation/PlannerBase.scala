@@ -216,7 +216,7 @@ abstract class PlannerBase(
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
         val identifier = catalogSink.getTableIdentifier
         val dynamicOptions = catalogSink.getDynamicOptions
-        getTableSink(identifier, dynamicOptions).map {
+        getTableSink(identifier, catalogSink.getTargetColumns, dynamicOptions).map {
           case (table, sink: TableSink[_]) =>
             // check the logical field type and physical field type are compatible
             val queryLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
@@ -338,6 +338,7 @@ abstract class PlannerBase(
 
   private def getTableSink(
       objectIdentifier: ObjectIdentifier,
+      targetColumns: util.List[String],
       dynamicOptions: JMap[String, String])
     : Option[(CatalogTable, Any)] = {
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
@@ -355,6 +356,17 @@ abstract class PlannerBase(
         } else {
           table
         }
+
+        if(targetColumns != null && targetColumns.size() > 0){
+          val columnMap = tableToFind.getSchema.getTableColumns.map(t => (t.getName, t)).toMap
+          val columns = targetColumns.map(f => {
+            columnMap.getOrElse(f.toLowerCase,  throw new TableException(s"unknown sink target column :$f of $objectIdentifier"))
+          }).toList
+          val f = tableToFind.getSchema.getClass.getDeclaredField("columns")
+          f.setAccessible(true)
+          f.set(tableToFind.getSchema, JavaScalaConversionUtil.toJava(columns))
+        }
+
         if (isLegacyConnectorOptions(objectIdentifier, table)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orElse(null),
