@@ -140,27 +140,13 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		IOUtils.closeQuietly(fileSystem);
 	}
 
-	YarnLocalResourceDescriptor registerSingleLocalResource(
-		final String key,
-		final Path resourcePath,
-		final String relativeDstPath,
-		final boolean whetherToAddToRemotePaths,
-		final boolean whetherToAddToEnvShipResourceList) throws IOException {
-		return registerSingleLocalResource(
-			key,
-			resourcePath,
-			relativeDstPath,
-			whetherToAddToRemotePaths,
-			whetherToAddToEnvShipResourceList,
-			LocalResourceType.FILE);
-	}
-
 	/**
 	 * Register a single local/remote resource and adds it to <tt>localResources</tt>.
 	 * @param key the key to add the resource under
 	 * @param resourcePath path of the resource to be registered
 	 * @param relativeDstPath the relative path at the target location
 	 *                              (this will be prefixed by the application-specific directory)
+	 * @param resourceType type of the resource, which can be one of FILE, PATTERN, or ARCHIVE
 	 * @param whetherToAddToRemotePaths whether to add the path of local resource to <tt>remotePaths</tt>
 	 * @param whetherToAddToEnvShipResourceList whether to add the local resource to <tt>envShipResourceList</tt>
 	 *
@@ -170,9 +156,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			final String key,
 			final Path resourcePath,
 			final String relativeDstPath,
+			final LocalResourceType resourceType,
 			final boolean whetherToAddToRemotePaths,
-			final boolean whetherToAddToEnvShipResourceList,
-			final LocalResourceType resourceType) throws IOException {
+			final boolean whetherToAddToEnvShipResourceList) throws IOException {
 
 		addToRemotePaths(whetherToAddToRemotePaths, resourcePath);
 
@@ -195,8 +181,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			localFile.length(),
 			remoteFileInfo.f1,
 			LocalResourceVisibility.APPLICATION,
-			resourceType
-		);
+			resourceType);
 		addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 		localResources.put(key, descriptor.toLocalResource());
 		return descriptor;
@@ -225,13 +210,6 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return Tuple2.of(dst, fss[0].getModificationTime());
 	}
 
-	List<String> registerMultipleLocalResources(
-		final Collection<Path> shipFiles,
-		final String localResourcesDirectory
-	) throws IOException {
-		return registerMultipleLocalResources(shipFiles, localResourcesDirectory, LocalResourceType.FILE);
-	}
-
 	/**
 	 * Recursively uploads (and registers) any (user and system) files in <tt>shipFiles</tt> except
 	 * for files matching "<tt>flink-dist*.jar</tt>" which should be uploaded separately. If it is
@@ -241,14 +219,15 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * 		local or remote files to register as Yarn local resources
 	 * @param localResourcesDirectory
 	 *		the directory the localResources are uploaded to
+	 * @param resourceType
+	 *      type of the resource, which can be one of FILE, PATTERN, or ARCHIVE
 	 *
 	 * @return list of class paths with the the proper resource keys from the registration
 	 */
 	List<String> registerMultipleLocalResources(
 			final Collection<Path> shipFiles,
 			final String localResourcesDirectory,
-			LocalResourceType resourceType
-			) throws IOException {
+			final LocalResourceType resourceType) throws IOException {
 
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
@@ -295,10 +274,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 						key,
 						localPath,
 						relativePath.getParent().toString(),
+						resourceType,
 						true,
-						true,
-						resourceType
-					);
+						true);
 
 				if (!resourceDescriptor.alreadyRegisteredAsLocalResource()) {
 					if (key.endsWith("jar")) {
@@ -331,10 +309,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 				localJarPath.getName(),
 				localJarPath,
 				"",
+				LocalResourceType.FILE,
 				true,
-				false,
-				LocalResourceType.FILE
-		);
+				false);
 		return flinkDist;
 	}
 
@@ -345,34 +322,26 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * @return list of class paths with the file name
 	 */
 	List<String> registerProvidedLocalResources() {
-		return registerLocalResources(providedSharedLibs, LocalResourceVisibility.PUBLIC, LocalResourceType.FILE);
-	}
-
-	List<String> registerLocalResources(
-			Map<String, FileStatus> resources,
-			LocalResourceVisibility resourceVisibility,
-			LocalResourceType resourceType) {
 		checkNotNull(localResources);
 
 		final ArrayList<String> classPaths = new ArrayList<>();
-		resources.forEach(
-			(fileName, fileStatus) -> {
-				final Path filePath = fileStatus.getPath();
-				LOG.debug("Using remote file {} to register local resource", filePath);
+		providedSharedLibs.forEach(
+				(fileName, fileStatus) -> {
+					final Path filePath = fileStatus.getPath();
+					LOG.debug("Using remote file {} to register local resource", filePath);
 
-				final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-					.fromFileStatus(fileName, fileStatus, resourceVisibility, resourceType);
-				localResources.put(fileName, descriptor.toLocalResource());
-				remotePaths.add(filePath);
-				envShipResourceList.add(descriptor);
+					final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+							.fromFileStatus(fileName, fileStatus, LocalResourceVisibility.PUBLIC, LocalResourceType.FILE);
+					localResources.put(fileName, descriptor.toLocalResource());
+					remotePaths.add(filePath);
+					envShipResourceList.add(descriptor);
 
-				if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-					classPaths.add(fileName);
-				} else if (isFlinkDistJar(filePath.getName())) {
-					flinkDist = descriptor;
-
-				}
-			});
+					if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
+						classPaths.add(fileName);
+					} else if (isFlinkDistJar(filePath.getName())) {
+						flinkDist = descriptor;
+					}
+				});
 		return classPaths;
 	}
 
