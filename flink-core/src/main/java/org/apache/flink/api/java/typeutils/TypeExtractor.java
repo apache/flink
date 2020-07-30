@@ -1865,6 +1865,30 @@ public class TypeExtractor {
 				return null;
 			}
 			try {
+				if (field.isAnnotationPresent(TypeInfo.class)) {
+					Class<?> factoryClass = field.getAnnotation(TypeInfo.class).value();
+					if (TypeInfoFactory.class.isAssignableFrom(factoryClass)) {
+						TypeInfoFactory factory = (TypeInfoFactory<?>) InstantiationUtil.instantiate(factoryClass);
+						final Map<String, TypeInformation<?>> genericParams;
+						if (fieldType instanceof ParameterizedType) {
+							genericParams = new HashMap<>();
+							final ParameterizedType paramDefiningType = (ParameterizedType) fieldType;
+							final Type[] args = typeToClass(paramDefiningType).getTypeParameters();
+
+							final TypeInformation<?>[] subtypeInfo = createSubTypesInfo(fieldType, paramDefiningType, new ArrayList<Type>(typeHierarchy), in1Type, in2Type, true);
+							assert subtypeInfo != null;
+							for (int i = 0; i < subtypeInfo.length; i++) {
+								genericParams.put(args[i].toString(), subtypeInfo[i]);
+							}
+						} else {
+							genericParams = Collections.emptyMap();
+						}
+
+						final TypeInformation<?> createdTypeInfo = (TypeInformation<?>) factory.createTypeInfo(fieldType, genericParams);
+						pojoFields.add(new PojoField(field, createdTypeInfo));
+						continue;
+					}
+				}
 				ArrayList<Type> fieldTypeHierarchy = new ArrayList<Type>(typeHierarchy);
 				fieldTypeHierarchy.add(fieldType);
 				TypeInformation<?> ti = createTypeInfoWithTypeHierarchy(fieldTypeHierarchy, fieldType, in1Type, in2Type);

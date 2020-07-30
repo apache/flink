@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -117,6 +118,29 @@ public class TypeInfoFactoryTest {
 		MyTupleTypeInfo mtti = (MyTupleTypeInfo) tti.getTypeAt(0);
 		assertEquals(new TupleTypeInfo<>(FLOAT_TYPE_INFO, STRING_TYPE_INFO), mtti.getField0());
 		assertEquals(BOOLEAN_TYPE_INFO, mtti.getField1());
+	}
+
+	@Test
+	public void testWithFieldTypeInfoAnnotation() {
+		TypeInformation<WithFieldTypeInfoAnnotation<Double, String>> typeWithAnnotation = TypeInformation.of(
+		    new TypeHint<WithFieldTypeInfoAnnotation<Double, String>>() {});
+		TypeInformation<WithoutFieldTypeInfoAnnotation<Double, String>> typeWithoutAnnotation = TypeInformation.of(
+		    new TypeHint<WithoutFieldTypeInfoAnnotation<Double, String>>() {});
+
+		assertTrue(typeWithAnnotation instanceof PojoTypeInfo);
+		assertTrue(typeWithoutAnnotation instanceof PojoTypeInfo);
+
+		assertTrue(((PojoTypeInfo)typeWithAnnotation).getTypeAt(0) instanceof EitherTypeInfo);
+		assertTrue(((PojoTypeInfo)typeWithoutAnnotation).getTypeAt(0) instanceof GenericTypeInfo);
+
+		MapFunction<Boolean, WithFieldTypeInfoAnnotation<Boolean, String>> f = new WithFieldTypeInfoAnnotationMapper<>();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, BOOLEAN_TYPE_INFO);
+		assertTrue(ti instanceof PojoTypeInfo);
+		PojoTypeInfo tiPojo = (PojoTypeInfo)ti;
+		assertTrue(tiPojo.getTypeAt(0) instanceof EitherTypeInfo);
+		EitherTypeInfo eti = (EitherTypeInfo) tiPojo.getTypeAt(0);
+		assertEquals(BOOLEAN_TYPE_INFO, eti.getLeftType());
+		assertEquals(STRING_TYPE_INFO, eti.getRightType());
 	}
 
 	@Test(expected = InvalidTypesException.class)
@@ -466,4 +490,26 @@ public class TypeInfoFactoryTest {
 		}
 	}
 
+	// hypothesis:from out package not in the project
+	public static class OuterEither<A, B> {
+		// empty
+	}
+
+	public static class WithFieldTypeInfoAnnotation<A,B> {
+		@TypeInfo(MyEitherTypeInfoFactory.class)
+		public OuterEither<A, B> OuterEither;
+		public String id;
+	}
+
+	public static class WithoutFieldTypeInfoAnnotation<A,B> {
+		public OuterEither<A, B> OuterEither;
+		public String id;
+	}
+
+	public static class WithFieldTypeInfoAnnotationMapper<T> implements MapFunction<T, WithFieldTypeInfoAnnotation<T, String>> {
+		@Override
+		public WithFieldTypeInfoAnnotation<T, String> map(T value) throws Exception {
+			return null;
+		}
+	}
 }
