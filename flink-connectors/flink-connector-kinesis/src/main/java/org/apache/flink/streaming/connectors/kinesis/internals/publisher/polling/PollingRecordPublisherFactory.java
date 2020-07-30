@@ -32,7 +32,7 @@ import java.util.Properties;
  * A {@link RecordPublisher} factory used to create instances of {@link PollingRecordPublisher}.
  */
 @Internal
-public class PollingRecordPublisherFactory implements RecordPublisherFactory<PollingRecordPublisher> {
+public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 
 	private final FlinkKinesisProxyFactory kinesisProxyFactory;
 

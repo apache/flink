@@ -25,19 +25,18 @@ import java.util.Properties;
 
 /**
  * A factory interface used to create instances of {@link RecordPublisher}.
- * @param <T> the generic type of the {@link RecordPublisher}
  */
 @Internal
-public interface RecordPublisherFactory<T extends RecordPublisher> {
+public interface RecordPublisherFactory {
 
 	/**
-	 * Create a {@link RecordPublisher} of type {@code T}.
+	 * Create a {@link RecordPublisher}.
 	 *
 	 * @param consumerConfig the properties used to configure the {@link RecordPublisher}.
 	 * @param metricGroup the {@link MetricGroup} used to report metrics to
 	 * @param streamShardHandle the stream shard in which to consume from
 	 * @return the constructed {@link RecordPublisher}
 	 */
-	T create(Properties consumerConfig, MetricGroup metricGroup, StreamShardHandle streamShardHandle);
+	RecordPublisher create(Properties consumerConfig, MetricGroup metricGroup, StreamShardHandle streamShardHandle);
 
 }

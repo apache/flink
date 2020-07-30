@@ -185,7 +185,7 @@ public class KinesisDataFetcher<T> {
 	private final KinesisProxyInterface kinesis;
 
 	/** The factory used to create record publishers that consumer from Kinesis shards. */
-	private final RecordPublisherFactory<?> recordPublisherFactory;
+	private final RecordPublisherFactory recordPublisherFactory;
 
 	/** Thread that executed runFetcher(). */
 	private volatile Thread mainThread;
@@ -416,7 +416,7 @@ public class KinesisDataFetcher<T> {
 			shardDeserializer);
 	}
 
-	private RecordPublisherFactory<?> createRecordPublisherFactory() {
+	private RecordPublisherFactory createRecordPublisherFactory() {
 		return new PollingRecordPublisherFactory(kinesisProxyFactory);
 	}
 
