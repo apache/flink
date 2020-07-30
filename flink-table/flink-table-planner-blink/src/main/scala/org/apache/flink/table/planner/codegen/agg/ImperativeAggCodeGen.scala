@@ -31,8 +31,8 @@ import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.planner.utils.SingleElementIterator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Collector
 
@@ -365,8 +365,9 @@ class ImperativeAggCodeGen(
                    |${newExpr.code}
                    |$fieldTerm = null;
                    |if (!${newExpr.nullTerm}) {
-                   |  $fieldTerm = new $UPDATABLE_ROW(${newExpr.resultTerm}, ${
-                        PlannerTypeUtils.getArity(fieldType)});
+                   |  $fieldTerm = new $UPDATABLE_ROW(
+                   |    ${newExpr.resultTerm},
+                   |    ${getFieldCount(fieldType)});
                    |  ${generateDataViewFieldSetter(fieldTerm, viewSpecs, useBackupDataView)}
                    |}
                 """.stripMargin
