@@ -215,7 +215,8 @@ public class YarnConfigOptions {
 				.asList()
 				.noDefaultValue()
 				.withDescription("A semicolon-separated list of archives to be shipped to the YARN cluster." +
-						" They will be un-packed when localizing.");
+						" These archives will be un-packed when localizing and they can be any of the following types: " +
+						"\".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\".");
 
 	public static final ConfigOption<String> FLINK_DIST_JAR =
 			key("yarn.flink-dist-jar")

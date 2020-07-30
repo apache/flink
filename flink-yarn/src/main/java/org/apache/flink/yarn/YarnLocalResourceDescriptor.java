@@ -56,24 +56,13 @@ class YarnLocalResourceDescriptor {
 			long resourceSize,
 			long modificationTime,
 			LocalResourceVisibility visibility,
-			LocalResourceType resourceType
-			) {
+			LocalResourceType resourceType) {
 		this.resourceKey = checkNotNull(resourceKey);
 		this.path = checkNotNull(path);
 		this.size = resourceSize;
 		this.modificationTime = modificationTime;
 		this.visibility = checkNotNull(visibility);
-		this.resourceType = resourceType;
-	}
-
-	YarnLocalResourceDescriptor(
-		String resourceKey,
-		Path path,
-		long resourceSize,
-		long modificationTime,
-		LocalResourceVisibility visibility
-	) {
-		this(resourceKey, path, resourceSize, modificationTime, visibility, LocalResourceType.FILE);
+		this.resourceType = checkNotNull(resourceType);
 	}
 
 	boolean alreadyRegisteredAsLocalResource() {
@@ -114,8 +103,7 @@ class YarnLocalResourceDescriptor {
 				Long.parseLong(m.group(3)),
 				Long.parseLong(m.group(4)),
 				LocalResourceVisibility.valueOf(m.group(5)),
-				LocalResourceType.valueOf(m.group(6))
-			);
+				LocalResourceType.valueOf(m.group(6)));
 		} else {
 			throw new FlinkException("Error to parse YarnLocalResourceDescriptor from " + desc);
 		}
@@ -135,8 +123,7 @@ class YarnLocalResourceDescriptor {
 				fileStatus.getLen(),
 				fileStatus.getModificationTime(),
 				visibility,
-				resourceType
-			);
+				resourceType);
 	}
 
 	@Override
