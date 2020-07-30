@@ -229,14 +229,9 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	private void tryRemoveCompletedCheckpoint(CompletedCheckpoint completedCheckpoint, ThrowingConsumer<CompletedCheckpoint, Exception> discardCallback) {
 		try {
 			if (tryRemove(completedCheckpoint.getCheckpointID())) {
-				executor.execute(() -> {
-					try {
-						discardCallback.accept(completedCheckpoint);
-					} catch (Exception e) {
-						LOG.warn("Could not discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), e);
-					}
-				});
-
+				// async exec on the ioExecutor (FixedThreadPool of configurable size or default 4*CPU cores)
+				// of CompletedCheckpoint.discardOnSubsume()
+				completedCheckpoint.asyncDiscardCheckpointAndCountCheckpoint(discardCallback, executor);
 			}
 		} catch (Exception e) {
 			LOG.warn("Failed to subsume the old checkpoint", e);

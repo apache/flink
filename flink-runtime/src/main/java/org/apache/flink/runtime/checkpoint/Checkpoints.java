@@ -118,7 +118,9 @@ public class Checkpoints {
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			CompletedCheckpointStorageLocation location,
 			ClassLoader classLoader,
-			boolean allowNonRestoredState) throws IOException {
+			boolean allowNonRestoredState,
+			CheckpointsCleaningRunner cleanCallback,
+			SerializableRunnable checkpointCleaningFinishedCallback) throws IOException {
 
 		checkNotNull(jobId, "jobId");
 		checkNotNull(tasks, "tasks");
@@ -196,7 +198,9 @@ public class Checkpoints {
 				operatorStates,
 				checkpointMetadata.getMasterStates(),
 				props,
-				location);
+				location,
+				cleanCallback,
+				checkpointCleaningFinishedCallback);
 	}
 
 	private static void throwNonRestoredStateException(String checkpointPointer, OperatorID operatorId) {

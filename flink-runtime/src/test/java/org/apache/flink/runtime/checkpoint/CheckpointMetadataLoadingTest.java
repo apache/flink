@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -69,7 +71,7 @@ public class CheckpointMetadataLoadingTest {
 		final CompletedCheckpointStorageLocation testSavepoint = createSavepointWithOperatorSubtaskState(checkpointId, operatorId, parallelism);
 		final Map<JobVertexID, ExecutionJobVertex> tasks = createTasks(operatorId, parallelism, parallelism);
 
-		final CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, testSavepoint, cl, false);
+		final CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, testSavepoint, cl, false, new CheckpointsUtils.NoOpCleanCheckpointCallback(), new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 
 		assertEquals(jobId, loaded.getJobId());
 		assertEquals(checkpointId, loaded.getCheckpointID());
@@ -87,8 +89,8 @@ public class CheckpointMetadataLoadingTest {
 		final Map<JobVertexID, ExecutionJobVertex> tasks = createTasks(operatorId, parallelism, parallelism + 1);
 
 		try {
-			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
-			fail("Did not throw expected Exception");
+			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false, new CheckpointsUtils.NoOpCleanCheckpointCallback(), new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+				fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
 		}
@@ -106,7 +108,7 @@ public class CheckpointMetadataLoadingTest {
 		final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
 
 		try {
-			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
+			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false, new CheckpointsUtils.NoOpCleanCheckpointCallback(), new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
@@ -124,7 +126,7 @@ public class CheckpointMetadataLoadingTest {
 		final CompletedCheckpointStorageLocation testSavepoint = createSavepointWithOperatorSubtaskState(242L, operatorId, parallelism);
 		final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
 
-		final CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, true);
+		final CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, true, new CheckpointsUtils.NoOpCleanCheckpointCallback(), new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 
 		assertTrue(loaded.getOperatorStates().isEmpty());
 	}
@@ -145,7 +147,7 @@ public class CheckpointMetadataLoadingTest {
 		final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
 
 		try {
-			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
+			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false, new CheckpointsUtils.NoOpCleanCheckpointCallback(), new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("allowNonRestoredState"));

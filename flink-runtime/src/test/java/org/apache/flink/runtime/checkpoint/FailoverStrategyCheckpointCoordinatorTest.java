@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.util.concurrent.Executor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -81,8 +82,8 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 			Collections.emptyList(),
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
-			new MemoryStateBackend(),
-			Executors.directExecutor(),
+			new MemoryStateBackend(), Executors.directExecutor(),
+			new CheckpointsCleaner(),
 			manualThreadExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			mock(CheckpointFailureManager.class));

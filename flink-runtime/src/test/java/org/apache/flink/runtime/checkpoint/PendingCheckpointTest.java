@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -178,7 +179,7 @@ public class PendingCheckpointTest {
 		assertFalse(future.isDone());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 		assertTrue(pending.areTasksFullyAcknowledged());
-		pending.finalizeCheckpoint();
+		pending.finalizeCheckpoint(new CheckpointsUtils.NoOpCleanCheckpointCallback());
 		assertTrue(future.isDone());
 
 		// Finalize (missing ACKs)
@@ -187,7 +188,7 @@ public class PendingCheckpointTest {
 
 		assertFalse(future.isDone());
 		try {
-			pending.finalizeCheckpoint();
+			pending.finalizeCheckpoint(new CheckpointsUtils.NoOpCleanCheckpointCallback());
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException ignored) {
 			// Expected
@@ -263,7 +264,7 @@ public class PendingCheckpointTest {
 			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 			verify(callback, times(1)).reportSubtaskStats(nullable(JobVertexID.class), any(SubtaskStateStats.class));
 
-			pending.finalizeCheckpoint();
+			pending.finalizeCheckpoint(new CheckpointsUtils.NoOpCleanCheckpointCallback());
 			verify(callback, times(1)).reportCompletedCheckpoint(any(String.class));
 		}
 
@@ -560,7 +561,9 @@ public class PendingCheckpointTest {
 			props,
 			location,
 			executor,
-			new CompletableFuture<>());
+			new CompletableFuture<>(),
+			new CheckpointsCleaner(),
+			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
 	}
 
 	@SuppressWarnings("unchecked")

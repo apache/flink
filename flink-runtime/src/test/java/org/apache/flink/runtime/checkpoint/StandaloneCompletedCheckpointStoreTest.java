@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.util.concurrent.Executor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.junit.Test;
@@ -45,7 +47,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
 	@Override
 	protected CompletedCheckpointStore createCompletedCheckpoints(
-		int maxNumberOfCheckpointsToRetain) throws Exception {
+		int maxNumberOfCheckpointsToRetain, Executor executor) throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
 	}
@@ -99,7 +101,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testAddCheckpointWithFailedRemove() throws Exception {
 
 		final int numCheckpointsToRetain = 1;
-		CompletedCheckpointStore store = createCompletedCheckpoints(numCheckpointsToRetain);
+		CompletedCheckpointStore store = createCompletedCheckpoints(numCheckpointsToRetain, Executors.directExecutor());
 
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
@@ -165,7 +167,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			checkpointId,
 			checkpointId,
 			Collections.emptyMap(),
-			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE));
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new CheckpointsCleaner()::cleanCheckpoint);
 	}
 
 	private static CompletedCheckpoint savepoint(JobID jobId, long checkpointId) {
@@ -174,6 +177,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			checkpointId,
 			checkpointId,
 			Collections.emptyMap(),
-			CheckpointProperties.forSavepoint(true));
+			CheckpointProperties.forSavepoint(true),
+			new CheckpointsCleaner()::cleanCheckpoint);
 	}
 }

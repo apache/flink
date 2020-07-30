@@ -125,6 +125,9 @@ public class PendingCheckpoint {
 
 	private CheckpointException failureCause;
 
+	private final SerializableRunnable cleanupFinishedCallback;
+	private final CheckpointsCleaner checkpointsCleaner;
+
 	// --------------------------------------------------------------------------------------------
 
 	public PendingCheckpoint(
@@ -137,7 +140,10 @@ public class PendingCheckpoint {
 			CheckpointProperties props,
 			CheckpointStorageLocation targetLocation,
 			Executor executor,
-			CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+			CompletableFuture<CompletedCheckpoint> onCompletionPromise,
+			CheckpointsCleaner checkpointsCleaner,
+			SerializableRunnable cleanupFinishedCallback
+		) {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
@@ -158,6 +164,8 @@ public class PendingCheckpoint {
 				? Collections.emptySet() : new HashSet<>(operatorCoordinatorsToConfirm);
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 		this.onCompletionPromise = checkNotNull(onCompletionPromise);
+		this.cleanupFinishedCallback = cleanupFinishedCallback;
+		this.checkpointsCleaner = checkpointsCleaner;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -291,7 +299,7 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
-	public CompletedCheckpoint finalizeCheckpoint() throws IOException {
+	public CompletedCheckpoint finalizeCheckpoint(CheckpointsCleaningRunner cleanCallback) throws IOException {
 
 		synchronized (lock) {
 			checkState(!isDiscarded(), "checkpoint is discarded");
@@ -316,7 +324,9 @@ public class PendingCheckpoint {
 						operatorStates,
 						masterStates,
 						props,
-						finalizedLocation);
+						finalizedLocation,
+						cleanCallback,
+						cleanupFinishedCallback);
 
 				onCompletionPromise.complete(completed);
 
@@ -521,24 +531,21 @@ public class PendingCheckpoint {
 			try {
 				numAcknowledgedTasks = -1;
 				if (!discarded && releaseState) {
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
-
-							// discard the private states.
-							// unregistered shared states are still considered private at this point.
-							try {
-								StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-								targetLocation.disposeOnFailure();
-							} catch (Throwable t) {
-								LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
-									checkpointId, jobId, t);
-							} finally {
-								operatorStates.clear();
-							}
+					Runnable cleanAction = () -> {
+						// discard the private states.
+						// unregistered shared states are still considered private at this point.
+						try {
+							StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+							targetLocation.disposeOnFailure();
+						} catch (Throwable t) {
+							LOG.warn(
+								"Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+								checkpointId, jobId, t);
+						} finally {
+							operatorStates.clear();
 						}
-					});
-
+					};
+					checkpointsCleaner.cleanCheckpoint(cleanAction, cleanupFinishedCallback, executor);
 				}
 			} finally {
 				discarded = true;

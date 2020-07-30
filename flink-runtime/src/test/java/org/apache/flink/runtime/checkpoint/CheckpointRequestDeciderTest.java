@@ -47,7 +47,7 @@ public class CheckpointRequestDeciderTest {
 
 	@Test
 	public void testForce() {
-		CheckpointRequestDecider decider = decider(1, 1, Integer.MAX_VALUE, new AtomicInteger(1));
+		CheckpointRequestDecider decider = decider(1, 1, Integer.MAX_VALUE, new AtomicInteger(1), new AtomicInteger(0));
 		CheckpointTriggerRequest request = periodicSavepoint();
 		assertEquals(Optional.of(request), decider.chooseRequestToExecute(request, false, 123));
 	}
@@ -57,7 +57,7 @@ public class CheckpointRequestDeciderTest {
 		final int maxPending = 1;
 		final boolean isTriggering = false;
 		final AtomicInteger currentPending = new AtomicInteger(maxPending);
-		CheckpointRequestDecider decider = decider(Integer.MAX_VALUE, maxPending, 1, currentPending);
+		CheckpointRequestDecider decider = decider(Integer.MAX_VALUE, maxPending, 1, currentPending, new AtomicInteger(0));
 
 		CheckpointTriggerRequest request = regularCheckpoint();
 		assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
@@ -71,7 +71,8 @@ public class CheckpointRequestDeciderTest {
 		final int maxPending = 1;
 		final boolean isTriggering = false;
 		final AtomicInteger currentPending = new AtomicInteger(maxPending);
-		CheckpointRequestDecider decider = decider(Integer.MAX_VALUE, maxPending, 1, currentPending);
+		final AtomicInteger currentCleaning = new AtomicInteger(0);
+		CheckpointRequestDecider decider = decider(Integer.MAX_VALUE, maxPending, 1, currentPending, currentCleaning);
 
 		CheckpointTriggerRequest request = nonForcedSavepoint();
 		assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
@@ -80,6 +81,22 @@ public class CheckpointRequestDeciderTest {
 		assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
 	}
 
+	@Test
+	public void testEnqueueOnTooManyCleaning() {
+		final boolean isTriggering = false;
+		int maxQueuedRequests = 10;
+		int maxConcurrentCheckpointAttempts = 10;
+		// too many cleaning threshold is currently maxConcurrentCheckpointAttempts
+		AtomicInteger currentCleaning = new AtomicInteger(maxConcurrentCheckpointAttempts + 1);
+		CheckpointRequestDecider decider = decider(maxQueuedRequests, maxConcurrentCheckpointAttempts, 1, new AtomicInteger(0), currentCleaning);
+
+		CheckpointTriggerRequest request = regularCheckpoint();
+		assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
+
+		// a checkpoint has been cleaned
+		currentCleaning.decrementAndGet();
+		assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
+	}
 	@Test
 	public void testUserSubmittedPrioritized() {
 		CheckpointTriggerRequest userSubmitted = regularSavepoint();
@@ -165,7 +182,7 @@ public class CheckpointRequestDeciderTest {
 	private void testTiming(CheckpointTriggerRequest request, TriggerExpectation expectation) {
 		final long pause = 10;
 		final ManualClock clock = new ManualClock();
-		final CheckpointRequestDecider decider = new CheckpointRequestDecider(1, NO_OP, clock, pause, () -> 0, Integer.MAX_VALUE);
+		final CheckpointRequestDecider decider = new CheckpointRequestDecider(1, NO_OP, clock, pause, () -> 0, () -> 0, Integer.MAX_VALUE);
 
 		final long lastCompletionMs = clock.relativeTimeMillis();
 		final boolean isTriggering = false;
@@ -210,19 +227,19 @@ public class CheckpointRequestDeciderTest {
 	}
 
 	public CheckpointRequestDecider decider(int maxQueuedRequests) {
-		return decider(maxQueuedRequests, 1, 1, new AtomicInteger(0));
+		return decider(maxQueuedRequests, 1, 1, new AtomicInteger(0), new AtomicInteger(0));
 	}
 
-	private CheckpointRequestDecider decider(int maxQueued, int maxPending, int minPause, AtomicInteger currentPending) {
+	private CheckpointRequestDecider decider(int maxQueued, int maxPending, int minPause, AtomicInteger currentPending, AtomicInteger currentCleaning) {
 		ManualClock clock = new ManualClock();
 		clock.advanceTime(1, TimeUnit.DAYS);
-		return new CheckpointRequestDecider(maxPending, NO_OP, clock, minPause, currentPending::get, maxQueued);
+		return new CheckpointRequestDecider(maxPending, NO_OP, clock, minPause, currentPending::get, currentCleaning::get, maxQueued);
 	}
 
 	private static final Consumer<Long> NO_OP = unused -> {
 	};
 
-	private static CheckpointTriggerRequest regularCheckpoint() {
+	static CheckpointTriggerRequest regularCheckpoint() {
 		return checkpointRequest(true);
 	}
 
