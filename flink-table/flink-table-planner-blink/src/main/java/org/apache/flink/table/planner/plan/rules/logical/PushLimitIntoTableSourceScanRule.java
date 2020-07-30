@@ -107,11 +107,7 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 			.build();
 
 		// update extraDigests
-		String[] newExtraDigests = new String[0];
-		if (limit >= 0) {
-			String extraDigest = "limit=[" + limit + "]";
-			newExtraDigests = new String[]{extraDigest};
-		}
+		String[] newExtraDigests = new String[]{"limit=[" + limit + "]"};
 
 		return oldTableSourceTable.copy(
 			newTableSource,

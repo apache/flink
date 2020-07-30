@@ -111,25 +111,6 @@ LogicalProject(a=[$0], c=[$2])
 ]]>
 		</Resource>
 	</TestCase>
-	<TestCase name="testLimitWithoutOffset">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM LimitTable LIMIT 5]]>
-		</Resource>
-		<Resource name="planBefore">
-			<![CDATA[
-LogicalSort(fetch=[5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
-]]>
-		</Resource>
-		<Resource name="planAfter">
-			<![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- FlinkLogicalSort(fetch=[5])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 5]]], fields=[a, b, c])
-]]>
-		</Resource>
-	</TestCase>
 	<TestCase name="testCannotPushDownWithoutLimit">
 		<Resource name="sql">
 			<![CDATA[SELECT a, c FROM LimitTable OFFSET 10]]>
