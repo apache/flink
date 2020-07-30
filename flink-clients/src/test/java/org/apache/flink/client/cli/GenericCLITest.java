@@ -93,8 +93,7 @@ public class GenericCLITest {
 		final String[] args = {
 				"-e", "test-executor",
 				"-D" + listOption.key() + "=" + encodedListValue,
-				"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-			    "-D" + "classloader.resolve-order=parent-first"
+				"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5"
 		};
 
 		final GenericCLI cliUnderTest = new GenericCLI(
