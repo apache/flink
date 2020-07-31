@@ -19,89 +19,106 @@
 package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataview.ListViewTypeInfoFactory;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.types.DataType;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * A {@link ListView} provides List functionality for accumulators used by user-defined aggregate
- * functions {@link org.apache.flink.api.common.functions.AggregateFunction}.
+ * A {@link DataView} that provides {@link List}-like functionality in the accumulator of an {@link AggregateFunction}
+ * or {@link TableAggregateFunction} when large amounts of data are expected.
  *
- * <p>A {@link ListView} can be backed by a Java ArrayList or a state backend, depending on the
- * context in which the aggregate function is used.
+ * <p>A {@link ListView} can be backed by a Java {@link ArrayList} or can leverage Flink's state backends
+ * depending on the context in which the aggregate function is used. In many unbounded data scenarios,
+ * the {@link ListView} delegates all calls to a {@link ListState} instead of the {@link ArrayList}.
  *
- * <p>At runtime {@link ListView} will be replaced by a state ListView which is backed by a
- * {@link org.apache.flink.api.common.state.ListState} instead of {@link ArrayList} if it works
- * in streaming.
+ * <p>Note: Elements of a {@link ListView} must not be null. For heap-based state backends, {@code hashCode/equals}
+ * of the original (i.e. external) class are used. However, the serialization format will use internal
+ * data structures.
  *
- * <p>Example of an accumulator type with a {@link ListView} and an aggregate function that uses it:
+ * <p>The {@link DataType} of the view's elements is reflectively extracted from the accumulator definition.
+ * This includes the generic argument {@code T} of this class. If reflective extraction is not successful,
+ * it is possible to use a {@link DataTypeHint} on top the accumulator field. It will be mapped to the
+ * underlying collection.
+ *
+ * <p>The following examples show how to specify an {@link AggregateFunction} with a {@link ListView}:
  * <pre>{@code
  *
- *  public class MyAccum {
- *    public ListView<String> list;
- *    public long count;
+ *  public class MyAccumulator {
+ *
+ *    public ListView<String> list = new ListView<>();
+ *
+ *    // or explicit:
+ *    // {@literal @}DataTypeHint("ARRAY<STRING>")
+ *    // public ListView<String> list = new ListView<>();
+ *
+ *    public long count = 0L;
  *  }
  *
- *  public class MyAgg extends AggregateFunction<Long, MyAccum> {
+ *  public class MyAggregateFunction extends AggregateFunction<Long, MyAccumulator> {
  *
- *   @Override
- *   public MyAccum createAccumulator() {
- *     MyAccum accum = new MyAccum();
- *     accum.list = new ListView<>(Types.STRING);
- *     accum.count = 0L;
- *     return accum;
+ *   {@literal @}Override
+ *   public MyAccumulator createAccumulator() {
+ *     return new MyAccumulator();
  *   }
  *
- *   public void accumulate(MyAccum accumulator, String id) {
+ *   public void accumulate(MyAccumulator accumulator, String id) {
  *     accumulator.list.add(id);
  *     ... ...
- *     accumulator.get()
+ *     accumulator.list.get()
  *     ... ...
  *   }
  *
- *   @Override
- *   public Long getValue(MyAccum accumulator) {
+ *   {@literal @}Override
+ *   public Long getValue(MyAccumulator accumulator) {
  *     accumulator.list.add(id);
  *     ... ...
- *     accumulator.get()
+ *     accumulator.list.get()
  *     ... ...
  *     return accumulator.count;
  *   }
  * }
  *
  * }</pre>
+ *
+ * @param <T> element type
  */
 @TypeInfo(ListViewTypeInfoFactory.class)
 @PublicEvolving
 public class ListView<T> implements DataView {
-	private static final long serialVersionUID = 5502298766901215388L;
 
-	public transient TypeInformation<?> elementType;
-	public final List<T> list;
-
-	public ListView(TypeInformation<?> elementType, List<T> list) {
-		this.elementType = elementType;
-		this.list = list;
-	}
-
-	/**
-	 * Creates a list view for elements of the specified type.
-	 *
-	 * @param elementType The type of the list view elements.
-	 */
-	public ListView(TypeInformation<?> elementType) {
-		this(elementType, new ArrayList<>());
-	}
+	private List<T> list = new ArrayList<>();
 
 	/**
 	 * Creates a list view.
+	 *
+	 * <p>The {@link DataType} of the contained elements is reflectively extracted.
 	 */
 	public ListView() {
-		this(null);
+		// default constructor
+	}
+
+	/**
+	 * Returns the entire view's content as an instance of {@link List}.
+	 */
+	public List<T> getList() {
+		return list;
+	}
+
+	/**
+	 * Replaces the entire view's content with the content of the given {@link List}.
+	 */
+	public void setList(List<T> list) {
+		this.list = list;
 	}
 
 	/**
@@ -156,17 +173,49 @@ public class ListView<T> implements DataView {
 		if (this == o) {
 			return true;
 		}
-		if (o == null || getClass() != o.getClass()) {
+		if (!(o instanceof ListView)) {
 			return false;
 		}
-		ListView<?> listView = (ListView<?>) o;
-		return Objects.equals(elementType, listView.elementType) &&
-			Objects.equals(list, listView.list);
+		final ListView<?> listView = (ListView<?>) o;
+		return getList().equals(listView.getList());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(elementType, list);
+		return Objects.hash(getList());
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Utility method for creating a {@link DataType} of {@link ListView} explicitly.
+	 */
+	public static DataType newListViewDataType(DataType elementDataType) {
+		return DataTypes.STRUCTURED(
+			ListView.class,
+			DataTypes.FIELD(
+				"list",
+				DataTypes.ARRAY(elementDataType).bridgedTo(List.class)));
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Legacy
+	// --------------------------------------------------------------------------------------------
+
+	@Deprecated
+	public transient TypeInformation<?> elementType;
+
+	/**
+	 * Creates a {@link ListView} for elements of the specified type.
+	 *
+	 * @param elementType The type of the list view elements.
+	 * @deprecated This method uses the old type system. Please use a {@link DataTypeHint}
+	 *             instead if the reflective type extraction is not successful.
+	 */
+	@Deprecated
+	public ListView(TypeInformation<?> elementType) {
+		this.elementType = elementType;
+	}
 }

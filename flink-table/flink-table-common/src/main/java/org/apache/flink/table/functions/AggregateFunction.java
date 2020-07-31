@@ -21,6 +21,8 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -124,6 +126,9 @@ import org.apache.flink.table.types.inference.TypeInference;
  *
  * <p>If this aggregate function can only be applied in an OVER window, this can be declared using the
  * requirement {@link FunctionRequirement#OVER_WINDOW_ONLY} in {@link #getRequirements()}.
+ *
+ * <p>If an accumulator needs to store large amounts of data, {@link ListView} and {@link MapView}
+ * provide advanced features for leveraging Flink's state backends in unbounded data scenarios.
  *
  * <p>The following examples show how to specify an aggregate function:
  *
