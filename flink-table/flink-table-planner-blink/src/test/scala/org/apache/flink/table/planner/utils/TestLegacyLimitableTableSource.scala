@@ -41,7 +41,7 @@ import scala.collection.JavaConverters._
 /**
   * The table source which support push-down the limit to the source.
   */
-class TestLimitableTableSource(
+class TestLegacyLimitableTableSource(
     data: Seq[Row],
     rowType: RowTypeInfo,
     var limit: Long = -1,
@@ -66,7 +66,7 @@ class TestLimitableTableSource(
   }
 
   override def applyLimit(limit: Long): TableSource[Row] = {
-    new TestLimitableTableSource(data, rowType, limit, limitablePushedDown)
+    new TestLegacyLimitableTableSource(data, rowType, limit, limitablePushedDown)
   }
 
   override def isLimitPushedDown: Boolean = limitablePushedDown
@@ -84,7 +84,7 @@ class TestLimitableTableSource(
   override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(rowType)
 }
 
-object TestLimitableTableSource {
+object TestLegacyLimitableTableSource {
   def createTemporaryTable(
       tEnv: TableEnvironment,
       data: Seq[Row],
@@ -100,7 +100,7 @@ object TestLimitableTableSource {
   }
 }
 
-class TestLimitableTableSourceFactory extends StreamTableSourceFactory[Row] {
+class TestLegacyLimitableTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(
       properties: util.Map[String, String]): StreamTableSource[Row] = {
     val dp = new DescriptorProperties
@@ -117,7 +117,7 @@ class TestLimitableTableSourceFactory extends StreamTableSourceFactory[Row] {
     val limit = dp.getOptionalLong("limit").orElse(-1L)
 
     val limitablePushedDown = dp.getOptionalBoolean("limitable-push-down").orElse(false)
-    new TestLimitableTableSource(
+    new TestLegacyLimitableTableSource(
       data, tableSchema.toRowType.asInstanceOf[RowTypeInfo], limit, limitablePushedDown)
   }
 
