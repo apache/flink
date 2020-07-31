@@ -181,9 +181,6 @@ public class ExecutionContext<ClusterID> {
 			this.getClass().getClassLoader(),
 			flinkConfig);
 
-		// Initialize the TableEnvironment.
-		initializeTableEnvironment(sessionState);
-
 		LOG.debug("Deployment descriptor: {}", environment.getDeployment());
 		final CommandLine commandLine = createCommandLine(
 				environment.getDeployment(),
@@ -201,6 +198,9 @@ public class ExecutionContext<ClusterID> {
 
 		clusterId = clusterClientFactory.getClusterId(flinkConfig);
 		clusterSpec = clusterClientFactory.getClusterSpecification(flinkConfig);
+
+		// Initialize the TableEnvironment.
+		initializeTableEnvironment(sessionState);
 	}
 
 	public Configuration getFlinkConfig() {
@@ -613,7 +613,7 @@ public class ExecutionContext<ClusterID> {
 					classLoader);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
-			execEnv = ExecutionEnvironment.getExecutionEnvironment();
+			execEnv = createExecutionEnvironment();
 			executor = null;
 			tableEnv = new BatchTableEnvironmentImpl(
 					execEnv,
@@ -689,13 +689,24 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	private StreamExecutionEnvironment createStreamExecutionEnvironment() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// We need not different StreamExecutionEnvironments to build and submit flink job,
+		// instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
+		// to execute existing StreamGraph.
+		// This requires StreamExecutionEnvironment to have a full flink configuration.
+		final StreamExecutionEnvironment env = new StreamExecutionEnvironment(
+				new Configuration(flinkConfig), classLoader);
 		// for TimeCharacteristic validation in StreamTableEnvironmentImpl
 		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
 		if (environment.getExecution().getTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
 		return env;
+	}
+
+	private ExecutionEnvironment createExecutionEnvironment() {
+		ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
+		execEnv.getConfiguration().addAll(flinkConfig);
+		return execEnv;
 	}
 
 	private void registerFunctions() {

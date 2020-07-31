@@ -45,7 +45,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -409,12 +408,6 @@ public class LocalExecutor implements Executor {
 		cancelQueryInternal(context, resultId);
 	}
 
-	@Override
-	public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
-		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		return executeUpdateInternal(sessionId, context, statement);
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	private <T> void cancelQueryInternal(ExecutionContext<T> context, String resultId) {
@@ -455,49 +448,6 @@ public class LocalExecutor implements Executor {
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not locate a cluster.", e);
 		}
-	}
-
-	private <C> ProgramTargetDescriptor executeUpdateInternal(
-			String sessionId,
-			ExecutionContext<C> context,
-			String statement) {
-
-		applyUpdate(context, statement);
-
-		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
-			return null;
-		}
-
-		// create pipeline
-		final String jobName = sessionId + ": " + statement;
-		final Pipeline pipeline;
-		try {
-			pipeline = context.createPipeline(jobName);
-		} catch (Throwable t) {
-			// catch everything such that the statement does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-
-		// create a copy so that we can change settings without affecting the original config
-		Configuration configuration = new Configuration(context.getFlinkConfig());
-		// for update queries we don't wait for the job result, so run in detached mode
-		configuration.set(DeploymentOptions.ATTACHED, false);
-
-		// create execution
-		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline, context.getClassLoader());
-
-		// wrap in classloader because CodeGenOperatorFactory#getStreamOperatorClass
-		// requires to access UDF in deployer.deploy().
-		return context.wrapClassLoader(() -> {
-			try {
-				// blocking deployment
-				JobClient jobClient = deployer.deploy().get();
-				return ProgramTargetDescriptor.of(jobClient.getJobID());
-			} catch (Exception e) {
-				throw new RuntimeException("Error running SQL job.", e);
-			}
-		});
 	}
 
 	private <C> ResultDescriptor executeQueryInternal(String sessionId, ExecutionContext<C> context, String query) {
@@ -579,22 +529,6 @@ public class LocalExecutor implements Executor {
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-	}
-
-	/**
-	 * Applies the given update statement to the given table environment with query configuration.
-	 */
-	private <C> void applyUpdate(ExecutionContext<C> context, String updateStatement) {
-		final TableEnvironment tableEnv = context.getTableEnvironment();
-		try {
-			// TODO replace sqlUpdate with executeSql
-			// This needs we do more refactor, because we can't set the flinkConfig in ExecutionContext
-			// into StreamExecutionEnvironment
-			context.wrapClassLoader(() -> tableEnv.sqlUpdate(updateStatement));
-		} catch (Throwable t) {
-			// catch everything such that the statement does not crash the executor
-			throw new SqlExecutionException("Invalid SQL update statement.", t);
 		}
 	}
 

@@ -36,6 +36,7 @@ import java.util.concurrent.TimeoutException;
  * {@link TableResult} for testing.
  */
 public class TestTableResult implements TableResult {
+	private final JobClient jobClient;
 	private final TableSchema tableSchema;
 	private final ResultKind resultKind;
 	private final CloseableIterator<Row> data;
@@ -45,11 +46,12 @@ public class TestTableResult implements TableResult {
 			TableSchema.builder().field("result", DataTypes.STRING()).build(),
 			CloseableIterator.adapterForIterator(Collections.singletonList(Row.of("OK")).iterator()));
 
-	public TestTableResult(ResultKind resultKind, TableSchema tableSchema) {
-		this(resultKind, tableSchema, CloseableIterator.empty());
+	public TestTableResult(ResultKind resultKind, TableSchema tableSchema, CloseableIterator<Row> data) {
+		this(null, resultKind, tableSchema, data);
 	}
 
-	public TestTableResult(ResultKind resultKind, TableSchema tableSchema, CloseableIterator<Row> data) {
+	public TestTableResult(JobClient jobClient, ResultKind resultKind, TableSchema tableSchema, CloseableIterator<Row> data) {
+		this.jobClient = jobClient;
 		this.resultKind = resultKind;
 		this.tableSchema = tableSchema;
 		this.data = data;
@@ -57,7 +59,7 @@ public class TestTableResult implements TableResult {
 
 	@Override
 	public Optional<JobClient> getJobClient() {
-		return Optional.empty();
+		return Optional.ofNullable(jobClient);
 	}
 
 	@Override

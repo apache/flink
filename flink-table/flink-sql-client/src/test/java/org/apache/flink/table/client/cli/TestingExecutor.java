@@ -21,7 +21,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -153,11 +152,6 @@ class TestingExecutor implements Executor {
 
 	@Override
 	public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
 		throw new UnsupportedOperationException("Not implemented.");
 	}
 

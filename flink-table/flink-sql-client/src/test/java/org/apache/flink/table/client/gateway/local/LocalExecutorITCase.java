@@ -19,7 +19,6 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
@@ -40,7 +39,6 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -89,6 +87,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -256,7 +255,7 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		executor.executeUpdate(sessionId, "create database db1");
+		executor.executeSql(sessionId, "create database db1");
 
 		assertShowResult(executor.executeSql(sessionId, "SHOW DATABASES"), Arrays.asList("default_database", "db1"));
 		executor.closeSession(sessionId);
@@ -1459,27 +1458,12 @@ public class LocalExecutorITCase extends TestLogger {
 			String sessionId,
 			String statement,
 			String resultPath) throws Exception {
-		final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
-				sessionId,
-				statement);
-
-		// wait for job completion and verify result
-		boolean isRunning = true;
-		while (isRunning) {
-			Thread.sleep(50); // slow the processing down
-			final JobStatus jobStatus = clusterClient.getJobStatus(targetDescriptor.getJobId()).get();
-			switch (jobStatus) {
-			case CREATED:
-			case RUNNING:
-				continue;
-			case FINISHED:
-				isRunning = false;
-				verifySinkResult(resultPath);
-				break;
-			default:
-				fail("Unexpected job status.");
-			}
-		}
+		final TableResult tableResult = executor.executeSql(sessionId, statement);
+		checkState(tableResult.getJobClient().isPresent());
+		// wait for job completion
+		tableResult.getJobClient().get().getJobExecutionResult().get();
+		// verify result
+		verifySinkResult(resultPath);
 	}
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
