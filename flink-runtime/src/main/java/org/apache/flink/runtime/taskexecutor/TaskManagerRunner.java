@@ -26,6 +26,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -78,6 +79,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -317,21 +319,26 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	public static void runTaskManagerSecurely(String[] args, ResourceID resourceID) {
 		try {
-			final Configuration configuration = loadConfiguration(args);
-
-			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
-
-			SecurityUtils.install(new SecurityConfiguration(configuration));
-
-			SecurityUtils.getInstalledContext().runSecured(() -> {
-				runTaskManager(configuration, resourceID);
-				return null;
-			});
+			Configuration configuration = loadConfiguration(args);
+			runTaskManagerSecurely(configuration, resourceID);
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 			LOG.error("TaskManager initialization failed.", strippedThrowable);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
+	}
+
+	public static void runTaskManagerSecurely(Configuration configuration, ResourceID resourceID) throws Exception {
+		replaceGracefulExitWithHaltIfConfigured(configuration);
+		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+		FileSystem.initialize(configuration, pluginManager);
+
+		SecurityUtils.install(new SecurityConfiguration(configuration));
+
+		SecurityUtils.getInstalledContext().runSecured(() -> {
+			runTaskManager(configuration, resourceID);
+			return null;
+		});
 	}
 
 	// --------------------------------------------------------------------------------------------

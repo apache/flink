@@ -90,6 +90,7 @@ public final class Documentation {
 		public static final String EXPERT_ZOOKEEPER_HIGH_AVAILABILITY = "expert_high_availability_zk";
 		public static final String EXPERT_SECURITY_SSL = "expert_security_ssl";
 		public static final String EXPERT_ROCKSDB = "expert_rocksdb";
+		public static final String EXPERT_CLUSTER = "expert_cluster";
 
 		public static final String ALL_JOB_MANAGER = "all_jobmanager";
 		public static final String ALL_TASK_MANAGER = "all_taskmanager";

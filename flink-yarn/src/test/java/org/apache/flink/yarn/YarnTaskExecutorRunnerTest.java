@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.security.modules.SecurityModule;
@@ -52,7 +53,10 @@ public class YarnTaskExecutorRunnerTest extends TestLogger {
 		envs.put(YarnConfigKeys.KEYTAB_PATH, resourceDirPath);
 
 		Configuration configuration = new Configuration();
-		YarnTaskExecutorRunner.setupConfigurationAndInstallSecurityContext(configuration, resourceDirPath, envs);
+		YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
+
+		// the SecurityContext is installed on TaskManager startup
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 
 		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
 		Optional<SecurityModule> moduleOpt = modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
@@ -68,5 +72,4 @@ public class YarnTaskExecutorRunnerTest extends TestLogger {
 		assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB), is(new File(resourceDirPath, Utils.KEYTAB_FILE_NAME).getAbsolutePath()));
 		assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL), is("testuser1@domain"));
 	}
-
 }
