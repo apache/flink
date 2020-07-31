@@ -113,7 +113,7 @@ Format Options
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Disabled quote character for enclosing field values (false by default).
-      If true, option <code>'csv.quote-character'</code> must be set.</td>
+      If true, option <code>'csv.quote-character'</code> can not be set.</td>
     </tr>
     <tr>
       <td><h5>csv.quote-character</h5></td>
