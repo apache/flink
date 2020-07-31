@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 
 /**
@@ -77,5 +79,17 @@ public class ClusterOptions {
 			Description.builder()
 				.text("Enable the slot spread out allocation strategy. This strategy tries to spread out " +
 					"the slots evenly across all available %s.", code("TaskExecutors"))
+				.build());
+
+	@Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+	public static final ConfigOption<Boolean> HALT_ON_FATAL_ERROR =
+		key("cluster.processes.halt-on-fatal-error")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(Description.builder().text(
+				"Whether processes should halt on fatal errors instead of performing a graceful shutdown. " +
+					"In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead " +
+					"to a JVM deadlock. See %s for details.",
+				link("https://issues.apache.org/jira/browse/FLINK-16510", "FLINK-16510"))
 				.build());
 }

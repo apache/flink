@@ -37,8 +37,7 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
 	@SuppressWarnings("finally")
 	public void uncaughtException(Thread t, Throwable e) {
 		try {
-			LOG.error("FATAL: Thread '" + t.getName() +
-				"' produced an uncaught exception. Stopping the process...", e);
+			LOG.error("FATAL: Thread '{}' produced an uncaught exception. Stopping the process...", t.getName(), e);
 		}
 		finally {
 			System.exit(-17);
