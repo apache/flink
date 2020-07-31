@@ -324,6 +324,10 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 
 {% include generated/expert_fault_tolerance_section.html %}
 
+### Advanced Cluster Options
+
+{% include generated/expert_cluster_section.html %}
+
 ### Advanced Scheduling Options
 
 *These parameters can help with fine-tuning scheduling for specific situations.*
