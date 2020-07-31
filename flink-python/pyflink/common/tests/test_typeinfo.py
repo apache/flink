@@ -35,6 +35,7 @@ class TypeInfoTests(unittest.TestCase):
         self.assertEqual(True, Types.BIG_INT().is_basic_type())
         self.assertEqual(True, Types.BIG_DEC().is_basic_type())
         self.assertEqual(True, Types.INSTANT().is_basic_type())
+        self.assertEqual(False, Types.PICKLED_BYTE_ARRAY().is_basic_type())
 
         self.assertEqual(False, Types.STRING().is_tuple_type())
         self.assertEqual(1, Types.STRING().get_total_fields())

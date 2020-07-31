@@ -28,6 +28,8 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
  */
 public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
 
+	public static final PickledByteArrayTypeInfo PICKLED_BYTE_ARRAY_TYPE_INFO = new PickledByteArrayTypeInfo();
+
 	@Override
 	public boolean isBasicType() {
 		return false;

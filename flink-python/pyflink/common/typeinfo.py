@@ -19,6 +19,7 @@
 from abc import ABC, abstractmethod
 
 from py4j.java_gateway import JavaClass, JavaObject
+from typing import List, Union
 
 from pyflink.java_gateway import get_gateway
 
@@ -28,7 +29,7 @@ class TypeInformation(ABC):
     TypeInformation is the core class of Flink's type system. FLink requires a type information
     for all types that are used as input or return type of a user function. This type information
     class acts as the tool to generate serializers and comparators, and to perform semantic checks
-    such as whether the fields that are used as join/grouping keys actually existt.
+    such as whether the fields that are used as join/grouping keys actually exist.
 
     The type information also bridges between the programming languages object model and a logical
     flat schema. It maps fields from the types to columns (fields) in a flat schema. Not all fields
@@ -39,14 +40,13 @@ class TypeInformation(ABC):
     in the arrays.
         a) Basic types are indivisible and are considered as a single field.
         b) Arrays and collections are one field.
-        c) Tuples and case classes represent as many fields as the class has fields.
     To represent this properly, each type has an arity (the number of fields it contains directly),
     and a total number of fields (number of fields in the entire schema of this type, including
     nested types).
     """
 
     @abstractmethod
-    def is_basic_type(self):
+    def is_basic_type(self) -> bool:
         """
         Checks if this type information represents a basic type.
         Basic types are defined in BasicTypeInfo and are primitives, their boxing type, Strings ...
@@ -56,7 +56,7 @@ class TypeInformation(ABC):
         pass
 
     @abstractmethod
-    def is_tuple_type(self):
+    def is_tuple_type(self) -> bool:
         """
         Checks if this type information represents a Tuple type.
         Tuple types are subclasses of the Java API tuples.
@@ -66,7 +66,7 @@ class TypeInformation(ABC):
         pass
 
     @abstractmethod
-    def get_arity(self):
+    def get_arity(self) -> int:
         """
         Gets the arity of this type - the number of fields without nesting.
 
@@ -75,13 +75,13 @@ class TypeInformation(ABC):
         pass
 
     @abstractmethod
-    def get_total_fields(self):
+    def get_total_fields(self) -> int:
         """
         Gets the number of logical fields in this type. This includes its nested and transitively
         nested fields, in the case of composite types.
         The total number of fields must be at lest 1.
 
-        :return: The number of fields in this type, including its sub-fields (for composit types).
+        :return: The number of fields in this type, including its sub-fields (for composite types).
         """
         pass
 
@@ -94,19 +94,19 @@ class WrapperTypeInfo(TypeInformation):
     def __init__(self, j_typeinfo):
         self._j_typeinfo = j_typeinfo
 
-    def is_basic_type(self):
+    def is_basic_type(self) -> bool:
         return self._j_typeinfo.isBasicType()
 
-    def is_tuple_type(self):
+    def is_tuple_type(self) -> bool:
         return self._j_typeinfo.isTupleType()
 
-    def get_arity(self):
+    def get_arity(self) -> int:
         return self._j_typeinfo.getArity()
 
-    def get_total_fields(self):
+    def get_total_fields(self) -> int:
         return self._j_typeinfo.getTotalFields()
 
-    def get_java_type_info(self):
+    def get_java_type_info(self) -> JavaObject:
         return self._j_typeinfo
 
     def __eq__(self, o) -> bool:
@@ -115,7 +115,7 @@ class WrapperTypeInfo(TypeInformation):
         else:
             return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._j_typeinfo)
 
 
@@ -271,18 +271,7 @@ class PickledBytesTypeInfo(TypeInformation, ABC):
     @staticmethod
     def PICKLED_BYTE_ARRAY_TYPE_INFO():
         return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.datastream.typeinfo.python
-                               .PickledByteArrayTypeInfo())
-
-
-class BigDecimalTypeInfo(WrapperTypeInfo):
-    """
-    Type Information for BigDecimal. This type includes `precision` and `scale`.
-    """
-
-    def __init__(self, precision, scale):
-        j_type_info = get_gateway().jvm \
-            .org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo(precision, scale)
-        super(BigDecimalTypeInfo, self).__init__(j_typeinfo=j_type_info)
+                               .PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO)
 
 
 class RowTypeInfo(WrapperTypeInfo):
@@ -290,7 +279,7 @@ class RowTypeInfo(WrapperTypeInfo):
     TypeInformation for Row.
     """
 
-    def __init__(self, types, field_names=None):
+    def __init__(self, types: List[TypeInformation], field_names: List[str] = None):
         self.types = types
         self.field_names = field_names
         self.j_types_array = get_gateway().new_array(
@@ -310,24 +299,24 @@ class RowTypeInfo(WrapperTypeInfo):
                 self.j_types_array, j_names_array)
         super(RowTypeInfo, self).__init__(self._j_typeinfo)
 
-    def get_field_names(self):
+    def get_field_names(self) -> List[str]:
         j_field_names = self._j_typeinfo.getFieldNames()
         field_names = [name for name in j_field_names]
         return field_names
 
-    def get_field_index(self, field_name):
+    def get_field_index(self, field_name) -> int:
         return self._j_typeinfo.getFieldIndex(field_name)
 
-    def get_field_types(self):
+    def get_field_types(self) -> List[TypeInformation]:
         return self.types
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self._j_typeinfo.equals(other._j_typeinfo)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._j_typeinfo.hashCode()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._j_typeinfo.toString()
 
 
@@ -336,7 +325,7 @@ class TupleTypeInfo(WrapperTypeInfo):
     TypeInformation for Tuple.
     """
 
-    def __init__(self, types):
+    def __init__(self, types: List[TypeInformation]):
         self.types = types
         self.j_types_array = get_gateway().new_array(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation, len(types))
@@ -347,16 +336,16 @@ class TupleTypeInfo(WrapperTypeInfo):
         self._j_typeinfo = get_gateway().jvm \
             .org.apache.flink.api.java.typeutils.TupleTypeInfo(self.j_types_array)
 
-    def get_field_types(self):
+    def get_field_types(self) -> List[TypeInformation]:
         return self.types
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self._j_typeinfo.equals(other._j_typeinfo)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._j_typeinfo.hashCode()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._j_typeinfo.toString()
 
 
@@ -446,7 +435,7 @@ class Types(object):
             raise TypeError("Invalid element type for a primitive array.")
 
 
-def from_java_type(j_type_info):
+def from_java_type(j_type_info: JavaObject) -> TypeInformation:
     gateway = get_gateway()
     JBasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
@@ -504,7 +493,8 @@ def from_java_type(j_type_info):
         return Types.PRIMITIVE_ARRAY(Types.CHAR())
 
     JPickledBytesTypeInfo = gateway.jvm \
-        .org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo()
+        .org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo\
+        .PICKLED_BYTE_ARRAY_TYPE_INFO
     if is_instance_of(j_type_info, JPickledBytesTypeInfo):
         return Types.PICKLED_BYTE_ARRAY()
 
@@ -519,7 +509,7 @@ def from_java_type(j_type_info):
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 
 
-def is_instance_of(java_object, java_type):
+def is_instance_of(java_object: JavaObject, java_type: Union[JavaObject, JavaClass]) -> bool:
     if isinstance(java_type, JavaObject):
         return java_object.equals(java_type)
     elif isinstance(java_type, JavaClass):
