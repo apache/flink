@@ -19,7 +19,6 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
@@ -39,7 +38,6 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -57,7 +55,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
@@ -94,6 +91,7 @@ import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.C
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.createModuleReplaceVars;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -254,7 +252,7 @@ public class LocalExecutorITCase extends TestLogger {
         String sessionId = executor.openSession(session);
         assertEquals("test-session", sessionId);
 
-        executor.executeUpdate(sessionId, "create database db1");
+        executor.executeSql(sessionId, "create database db1");
 
         assertShowResult(
                 executor.executeSql(sessionId, "SHOW DATABASES"),
@@ -900,18 +898,15 @@ public class LocalExecutorITCase extends TestLogger {
             final String statement1 =
                     "INSERT INTO TableSourceSink SELECT IntegerField1 = 42,"
                             + " LowerUDF(StringField1), TimestampField1 FROM TableNumber1";
-            executeAndVerifySinkResult(
-                    executor, sessionId, statement1, () -> verifySinkResult(csvOutputPath));
+            executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
             // Case 1.2: Registered sink with lowercase insert into keyword.
             final String statement2 =
                     "insert Into TableSourceSink \n "
                             + "SELECT IntegerField1 = 42, LowerUDF(StringField1), TimestampField1 "
                             + "FROM TableNumber1";
-            executeAndVerifySinkResult(
-                    executor, sessionId, statement2, () -> verifySinkResult(csvOutputPath));
+            executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
             // Case 1.3: Execute the same statement again, the results should expect to be the same.
-            executeAndVerifySinkResult(
-                    executor, sessionId, statement2, () -> verifySinkResult(csvOutputPath));
+            executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 
             // Case 2: Temporary sink
             executor.executeSql(sessionId, "use catalog `simple-catalog`");
@@ -923,20 +918,18 @@ public class LocalExecutorITCase extends TestLogger {
             final String statement3 = "INSERT INTO MySink select * from `test-table`";
 
             // all queries are pipelined to an in-memory sink, check it is properly registered
-            executeAndVerifySinkResult(
-                    executor,
-                    sessionId,
-                    statement3,
-                    () -> {
-                        TestBaseUtils.compareResultCollections(
-                                SimpleCatalogFactory.TABLE_CONTENTS.stream()
-                                        .map(Row::toString)
-                                        .collect(Collectors.toList()),
-                                TestCollectionTableFactory.getResult().stream()
-                                        .map(Row::toString)
-                                        .collect(Collectors.toList()),
-                                Comparator.naturalOrder());
-                    });
+            final ResultDescriptor otherCatalogDesc =
+                    executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
+
+            final List<String> otherCatalogResults =
+                    retrieveTableResult(executor, sessionId, otherCatalogDesc.getResultId());
+
+            TestBaseUtils.compareResultCollections(
+                    SimpleCatalogFactory.TABLE_CONTENTS.stream()
+                            .map(Row::toString)
+                            .collect(Collectors.toList()),
+                    otherCatalogResults,
+                    Comparator.naturalOrder());
         } finally {
             executor.closeSession(sessionId);
             TestCollectionTableFactory.reset();
@@ -1875,32 +1868,14 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     private void executeAndVerifySinkResult(
-            Executor executor,
-            String sessionId,
-            String statement,
-            RunnableWithException verifyResult)
+            Executor executor, String sessionId, String statement, String resultPath)
             throws Exception {
-        final ProgramTargetDescriptor targetDescriptor =
-                executor.executeUpdate(sessionId, statement);
-
-        // wait for job completion and verify result
-        boolean isRunning = true;
-        while (isRunning) {
-            Thread.sleep(50); // slow the processing down
-            final JobStatus jobStatus =
-                    clusterClient.getJobStatus(targetDescriptor.getJobId()).get();
-            switch (jobStatus) {
-                case CREATED:
-                case RUNNING:
-                    continue;
-                case FINISHED:
-                    isRunning = false;
-                    verifyResult.run();
-                    break;
-                default:
-                    fail("Unexpected job status.");
-            }
-        }
+        final TableResult tableResult = executor.executeSql(sessionId, statement);
+        checkState(tableResult.getJobClient().isPresent());
+        // wait for job completion
+        tableResult.getJobClient().get().getJobExecutionResult().get();
+        // verify result
+        verifySinkResult(resultPath);
     }
 
     private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient)
