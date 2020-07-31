@@ -32,6 +32,7 @@ import java.util.Map;
  * @param <V> the value type of the map entries.
  */
 @Internal
+@Deprecated
 public class NullAwareMapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, NullAwareMapSerializer<K, V>> {
 	private static final int CURRENT_VERSION = 1;
 

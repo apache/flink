@@ -28,6 +28,7 @@ import org.apache.flink.util.IterableIterator;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -41,7 +42,26 @@ import java.util.Map;
 @Internal
 public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements StateDataView<N> {
 
-	private static final long serialVersionUID = 1L;
+	@Override
+	public Map<EK, EV> getMap() {
+		final Map<EK, EV> map = new HashMap<>();
+		try {
+			entries().forEach(entry -> map.put(entry.getKey(), entry.getValue()));
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		return map;
+	}
+
+	@Override
+	public void setMap(Map<EK, EV> map) {
+		clear();
+		try {
+			putAll(map);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 
 	/**
 	 * {@link StateMapViewWithKeysNotNull} is a {@link MapView} which implemented
@@ -53,8 +73,6 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 	 * @param <EV> the external type of the {@link MapView} value
 	 */
 	private abstract static class StateMapViewWithKeysNotNull<N, EK, EV> extends StateMapView<N, EK, EV> {
-
-		private static final long serialVersionUID = 2605280027745112384L;
 
 		private final Map<EK, EV> emptyState = Collections.emptyMap();
 
@@ -130,8 +148,6 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 	 * @param <EV> the external type of the {@link MapView} value
 	 */
 	private abstract static class StateMapViewWithKeysNullable<N, EK, EV> extends StateMapView<N, EK, EV> {
-
-		private static final long serialVersionUID = 2605280027745112384L;
 
 		@Override
 		public EV get(EK key) throws Exception {
@@ -305,7 +321,6 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 	 */
 	public static final class KeyedStateMapViewWithKeysNotNull<N, EK, EV> extends StateMapViewWithKeysNotNull<N, EK, EV> {
 
-		private static final long serialVersionUID = 6650061094951931356L;
 		private final MapState<EK, EV> mapState;
 
 		public KeyedStateMapViewWithKeysNotNull(MapState<EK, EV> mapState) {
@@ -328,8 +343,8 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 	 */
 	public static final class NamespacedStateMapViewWithKeysNotNull<N, EK, EV> extends StateMapViewWithKeysNotNull<N, EK, EV> {
 
-		private static final long serialVersionUID = -2793150592169689571L;
 		private final InternalMapState<?, N, EK, EV> internalMapState;
+
 		private N namespace;
 
 		public NamespacedStateMapViewWithKeysNotNull(InternalMapState<?, N, EK, EV> internalMapState) {
@@ -353,8 +368,8 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 	 */
 	public static final class KeyedStateMapViewWithKeysNullable<N, EK, EV> extends StateMapViewWithKeysNullable<N, EK, EV> {
 
-		private static final long serialVersionUID = -4222930534937318207L;
 		private final MapState<EK, EV> mapState;
+
 		private final ValueState<EV> nullState;
 
 		public KeyedStateMapViewWithKeysNullable(MapState<EK, EV> mapState, ValueState<EV> nullState) {
@@ -383,9 +398,10 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 	 */
 	public static final class NamespacedStateMapViewWithKeysNullable<N, EK, EV> extends StateMapViewWithKeysNullable<N, EK, EV> {
 
-		private static final long serialVersionUID = -6915428707804508152L;
 		private final InternalMapState<?, N, EK, EV> internalMapState;
+
 		private final InternalValueState<?, N, EV> internalNullState;
+
 		private N namespace;
 
 		public NamespacedStateMapViewWithKeysNullable(InternalMapState<?, N, EK, EV> internalMapState, InternalValueState<?, N, EV> internalNullState) {
@@ -410,5 +426,4 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 			return internalNullState;
 		}
 	}
-
 }

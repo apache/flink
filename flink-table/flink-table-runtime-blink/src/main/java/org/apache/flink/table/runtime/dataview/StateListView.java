@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.table.api.dataview.ListView;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,9 +35,28 @@ import java.util.List;
 @Internal
 public abstract class StateListView<N, EE> extends ListView<EE> implements StateDataView<N> {
 
-	private static final long serialVersionUID = 1L;
-
 	private final Iterable<EE> emptyList = Collections.emptyList();
+
+	@Override
+	public List<EE> getList() {
+		final List<EE> list = new ArrayList<>();
+		try {
+			get().forEach(list::add);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		return list;
+	}
+
+	@Override
+	public void setList(List<EE> list) {
+		clear();
+		try {
+			addAll(list);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 
 	@Override
 	public Iterable<EE> get() throws Exception {
@@ -77,7 +97,6 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
 	 */
 	public static final class KeyedStateListView<N, T> extends StateListView<N, T> {
 
-		private static final long serialVersionUID = 6526065473887440980L;
 		private final ListState<T> listState;
 
 		public KeyedStateListView(ListState<T> listState) {
@@ -100,8 +119,9 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
 	 * a keyed and namespaced state. It also support to change current namespace.
 	 */
 	public static final class NamespacedStateListView<N, T> extends StateListView<N, T> {
-		private static final long serialVersionUID = 1423184510190367940L;
+
 		private final InternalListState<?, N, T> listState;
+
 		private N namespace;
 
 		public NamespacedStateListView(InternalListState<?, N, T> listState) {

@@ -19,94 +19,104 @@
 package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataview.MapViewTypeInfoFactory;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.types.DataType;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * A {@link MapView} provides Map functionality for accumulators used by user-defined aggregate
- * functions [[AggregateFunction]].
+ * A {@link DataView} that provides {@link Map}-like functionality in the accumulator of an {@link AggregateFunction}
+ * or {@link TableAggregateFunction} when large amounts of data are expected.
  *
- * <p>A {@link MapView} can be backed by a Java HashMap or a state backend, depending on the
- * context in which the aggregation function is used.
+ * <p>A {@link MapView} can be backed by a Java {@link HashMap} or can leverage Flink's state backends
+ * depending on the context in which the aggregate function is used. In many unbounded data scenarios,
+ * the {@link MapView} delegates all calls to a {@link MapState} instead of the {@link HashMap}.
  *
- * <p>At runtime {@link MapView} will be replaced by a state MapView which is backed by a
- * {@link org.apache.flink.api.common.state.MapState} instead of {@link HashMap} if it works
- * in streaming.
+ * <p>Note: Keys of a {@link MapView} must not be null. Nulls in values are supported. For heap-based
+ * state backends, {@code hashCode/equals} of the original (i.e. external) class are used. However,
+ * the serialization format will use internal data structures.
  *
- * <p>Example of an accumulator type with a {@link MapView} and an aggregate function that uses it:
+ * <p>The {@link DataType}s of the view's keys and values are reflectively extracted from the accumulator
+ * definition. This includes the generic argument {@code K} and {@code V} of this class. If reflective
+ * extraction is not successful, it is possible to use a {@link DataTypeHint} on top the accumulator field.
+ * It will be mapped to the underlying collection.
+ *
+ * <p>The following examples show how to specify an {@link AggregateFunction} with a {@link MapView}:
  * <pre>{@code
  *
- *  public class MyAccum {
- *    public MapView<String, Integer> map;
+ *  public class MyAccumulator {
+ *
+ *    public MapView<String, Integer> map = new MapView<>();
+ *
+ *    // or explicit:
+ *    // {@literal @}DataTypeHint("MAP<STRING, INT>")
+ *    // public MapView<String, Integer> map = new MapView<>();
+ *
  *    public long count;
  *  }
  *
- *  public class MyAgg extends AggregateFunction<Long, MyAccum> {
+ *  public class MyAggregateFunction extends AggregateFunction<Long, MyAccumulator> {
  *
- *    @Override
- *    public MyAccum createAccumulator() {
- *      MyAccum accum = new MyAccum();
- *      accum.map = new MapView<>(Types.STRING, Types.INT);
- *      accum.count = 0L;
- *      return accum;
- *    }
+ *   {@literal @}Override
+ *   public MyAccumulator createAccumulator() {
+ *     return new MyAccumulator();
+ *   }
  *
- *    public void accumulate(MyAccum accumulator, String id) {
- *      try {
- *          if (!accumulator.map.contains(id)) {
- *            accumulator.map.put(id, 1);
- *            accumulator.count++;
- *          }
- *      } catch (Exception e) {
- *        e.printStackTrace();
+ *    public void accumulate(MyAccumulator accumulator, String id) {
+ *      if (!accumulator.map.contains(id)) {
+ *        accumulator.map.put(id, 1);
+ *        accumulator.count++;
  *      }
  *    }
  *
- *    @Override
- *    public Long getValue(MyAccum accumulator) {
+ *   {@literal @}Override
+ *    public Long getValue(MyAccumulator accumulator) {
  *      return accumulator.count;
  *    }
  *  }
  *
  * }</pre>
  *
+ * @param <K> key type
+ * @param <V> value type
  */
 @TypeInfo(MapViewTypeInfoFactory.class)
 @PublicEvolving
 public class MapView<K, V> implements DataView {
 
-	private static final long serialVersionUID = -6185595470714822744L;
-
-	public transient TypeInformation<?> keyType;
-	public transient TypeInformation<?> valueType;
-	public final Map<K, V> map;
-
-	public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType, Map<K, V> map) {
-		this.keyType = keyType;
-		this.valueType = valueType;
-		this.map = map;
-	}
+	private Map<K, V> map = new HashMap<>();
 
 	/**
-	 * Creates a MapView with the specified key and value types.
+	 * Creates a map view.
 	 *
-	 * @param keyType The type of keys of the MapView.
-	 * @param valueType The type of the values of the MapView.
-	 */
-	public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType) {
-		this(keyType, valueType, new HashMap<>());
-	}
-
-	/**
-	 * Creates a MapView.
+	 * <p>The {@link DataType} of keys and values is reflectively extracted.
 	 */
 	public MapView() {
-		this(null, null);
+		// default constructor
+	}
+
+	/**
+	 * Returns the entire view's content as an instance of {@link Map}.
+	 */
+	public Map<K, V> getMap() {
+		return map;
+	}
+
+	/**
+	 * Replaces the entire view's content with the content of the given {@link Map}.
+	 */
+	public void setMap(Map<K, V> map) {
+		this.map = map;
 	}
 
 	/**
@@ -223,17 +233,58 @@ public class MapView<K, V> implements DataView {
 	}
 
 	@Override
-	public boolean equals(Object other) {
-		if (other instanceof MapView) {
-			return map.equals(((MapView) other).map);
-		} else {
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof MapView)) {
 			return false;
 		}
+		final MapView<?, ?> mapView = (MapView<?, ?>) o;
+		return getMap().equals(mapView.getMap());
 	}
 
 	@Override
 	public int hashCode() {
-		return map.hashCode();
+		return Objects.hash(getMap());
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Utility method for creating a {@link DataType} of {@link MapView} explicitly.
+	 */
+	public static DataType newMapViewDataType(DataType keyDataType, DataType valueDataType) {
+		return DataTypes.STRUCTURED(
+			MapView.class,
+			DataTypes.FIELD(
+				"map",
+				DataTypes.MAP(keyDataType, valueDataType).bridgedTo(Map.class)));
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Legacy
+	// --------------------------------------------------------------------------------------------
+
+	@Deprecated
+	public transient TypeInformation<?> keyType;
+
+	@Deprecated
+	public transient TypeInformation<?> valueType;
+
+	/**
+	 * Creates a {@link MapView} with the specified key and value types.
+	 *
+	 * @param keyType The type of keys of the map view.
+	 * @param valueType The type of values of the map view.
+	 * @deprecated This method uses the old type system. Please use a {@link DataTypeHint}
+	 *             instead if the reflective type extraction is not successful.
+	 */
+	@Deprecated
+	public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType) {
+		this.keyType = keyType;
+		this.valueType = valueType;
+	}
 }

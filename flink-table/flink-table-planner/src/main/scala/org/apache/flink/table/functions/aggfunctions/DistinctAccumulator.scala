@@ -105,6 +105,6 @@ class DistinctAccumulator(var distinctValueMap: MapView[Row, JLong]) {
   }
 
   def elements(): JIterable[JMap.Entry[Row, JLong]] = {
-    distinctValueMap.map.entrySet()
+    distinctValueMap.getMap.entrySet()
   }
 }

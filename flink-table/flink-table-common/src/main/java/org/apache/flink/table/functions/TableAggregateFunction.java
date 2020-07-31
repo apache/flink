@@ -21,6 +21,8 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -130,6 +132,9 @@ import org.apache.flink.util.Collector;
  * public void emitUpdateWithRetract(ACC accumulator, RetractableCollector<T> out)
  * }
  * </pre>
+ *
+ * <p>If an accumulator needs to store large amounts of data, {@link ListView} and {@link MapView}
+ * provide advanced features for leveraging Flink's state backends in unbounded data scenarios.
  *
  * @param <T> final result type of the aggregation
  * @param <ACC> intermediate result type during the aggregation
