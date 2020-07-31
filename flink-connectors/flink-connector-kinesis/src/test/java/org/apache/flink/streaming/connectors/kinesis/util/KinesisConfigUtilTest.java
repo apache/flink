@@ -246,7 +246,7 @@ public class KinesisConfigUtilTest {
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream1"), "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
 		List<String> streams = new ArrayList<>();
 		streams.add("stream1");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
@@ -257,8 +257,8 @@ public class KinesisConfigUtilTest {
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream1"), "fakedArn1");
-		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream2"), "fakedArn2");
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream2", "fakedArn2");
 		List<String> streams = new ArrayList<>();
 		streams.add("stream1");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
@@ -266,13 +266,13 @@ public class KinesisConfigUtilTest {
 
 	@Test
 	public void testNoneTypeEfoRegistrationTypeWithNotEnoughMatchedStreamInConfig() {
-		String msg = "Invalid efo consumer arn settings for not providing consumer arns: " + ConsumerConfigConstants.efoConsumerArn("stream2");
+		String msg = "Invalid efo consumer arn settings for not providing consumer arns: " + ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream2";
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(msg);
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
 		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
-		testConfig.setProperty(ConsumerConfigConstants.efoConsumerArn("stream1"), "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
 		List<String> streams = Arrays.asList("stream1", "stream2");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
 	}
@@ -695,45 +695,45 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableIntForListStreamRetriesInConfig() {
+	public void testUnparsableIntForDescribeStreamConsumerRetriesInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum retry attempts for list stream operation");
+		exception.expectMessage("Invalid value given for maximum retry attempts for describe stream consumer operation");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_RETRIES, "unparsableInt");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableLongForListStreamBackoffBaseMillisInConfig() {
+	public void testUnparsableLongForDescribeStreamConsumerBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list stream operation base backoff milliseconds");
+		exception.expectMessage("Invalid value given for describe stream consumer operation base backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableLongForListStreamBackoffMaxMillisInConfig() {
+	public void testUnparsableLongForDescribeStreamConsumerBackoffMaxMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list stream operation max backoff milliseconds");
+		exception.expectMessage("Invalid value given for describe stream consumer operation max backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableDoublEforListStreamBackoffExponentialConstantInConfig() {
+	public void testUnparsableDoublEforDescribeStreamConsumerBackoffExponentialConstantInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list stream operation backoff exponential constant");
+		exception.expectMessage("Invalid value given for describe stream consumer operation backoff exponential constant");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
