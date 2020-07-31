@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>This interface is split into three parts: 1) methods that an implementor of this interface
  * needs to implement, 2) builder methods for building a {@code WatermarkStrategy} on a base
- * strategy, 3) convenience methods for constructing a {code WatermarkStrategy} for common built-in
+ * strategy, 3) convenience methods for constructing a {@code WatermarkStrategy} for common built-in
  * strategies or based on a {@link WatermarkGeneratorSupplier}
  *
  * <p>Implementors of this interface need only implement {@link #createWatermarkGenerator(WatermarkGeneratorSupplier.Context)}.
