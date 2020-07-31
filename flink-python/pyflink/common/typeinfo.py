@@ -90,6 +90,7 @@ class WrapperTypeInfo(TypeInformation):
     """
     A wrapper class for java TypeInformation Objects.
     """
+
     def __init__(self, j_typeinfo):
         self._j_typeinfo = j_typeinfo
 
@@ -126,47 +127,58 @@ class BasicTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def STRING_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO)
+        return WrapperTypeInfo(get_gateway().jvm
+                               .org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO)
 
     @staticmethod
     def BOOLEAN_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO)
 
     @staticmethod
     def BYTE_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BYTE_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BYTE_TYPE_INFO)
 
     @staticmethod
     def SHORT_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.SHORT_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.SHORT_TYPE_INFO)
 
     @staticmethod
     def INT_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO)
 
     @staticmethod
     def LONG_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO)
 
     @staticmethod
     def FLOAT_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO)
 
     @staticmethod
     def DOUBLE_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO)
 
     @staticmethod
     def CHAR_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.CHAR_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.CHAR_TYPE_INFO)
 
     @staticmethod
     def BIG_INT_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BIG_INT_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BIG_INT_TYPE_INFO)
 
     @staticmethod
     def INSTANT_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.INSTANT_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.INSTANT_TYPE_INFO)
 
 
 class SqlTimeTypeInfo(TypeInformation, ABC):
@@ -176,15 +188,18 @@ class SqlTimeTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def DATE():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE)
 
     @staticmethod
     def TIME():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME)
 
     @staticmethod
     def TIMESTAMP():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP)
 
 
 class LocalTimeTypeInfo(TypeInformation, ABC):
@@ -194,15 +209,19 @@ class LocalTimeTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def LOCAL_DATE():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE)
 
     @staticmethod
     def LOCAL_TIME():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME)
 
     @staticmethod
     def LOCAL_DATE_TIME():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
+            .LOCAL_DATE_TIME)
 
 
 class PrimitiveArrayTypeInfo(TypeInformation, ABC):
@@ -213,35 +232,51 @@ class PrimitiveArrayTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def BYTE_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def SHORT_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def INT_PRIMITIVE_ARRAY_TYPE_INFO():
-        WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
+        WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def LONG_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def FLOAT_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO)
 
     @staticmethod
     def CHAR_PRIMITIVE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO)
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO)
 
 
 class PickledBytesTypeInfo(TypeInformation, ABC):
@@ -260,8 +295,9 @@ class BigDecimalTypeInfo(WrapperTypeInfo):
     """
     Type Information for BigDecimal. This type includes `precision` and `scale`.
     """
+
     def __init__(self, precision, scale):
-        j_type_info = get_gateway().jvm\
+        j_type_info = get_gateway().jvm \
             .org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo(precision, scale)
         super(BigDecimalTypeInfo, self).__init__(j_typeinfo=j_type_info)
 
@@ -280,9 +316,11 @@ class RowTypeInfo(WrapperTypeInfo):
             self.j_types_array[i] = types[i].get_java_type_info()
 
         if field_names is None:
-            self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(self.j_types_array)
+            self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
+                self.j_types_array)
         else:
-            j_names_array = get_gateway().new_array(get_gateway().jvm.java.lang.String, len(field_names))
+            j_names_array = get_gateway().new_array(get_gateway().jvm.java.lang.String,
+                                                    len(field_names))
             for i in range(len(field_names)):
                 j_names_array[i] = field_names[i]
             self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
@@ -316,14 +354,14 @@ class TupleTypeInfo(WrapperTypeInfo):
     """
 
     def __init__(self, types):
-        self.types = types;
+        self.types = types
         self.j_types_array = get_gateway().new_array(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation, len(types))
 
         for i in range(len(types)):
             self.j_types_array[i] = types[i].get_java_type_info()
 
-        self._j_typeinfo = get_gateway().jvm\
+        self._j_typeinfo = get_gateway().jvm \
             .org.apache.flink.api.java.typeutils.TupleTypeInfo(self.j_types_array)
 
     def get_field_types(self):
@@ -488,7 +526,7 @@ def from_java_type(j_type_info):
     elif is_instance_of(j_type_info, JLocalTimeTypeInfo.LOCAL_DATE_TIME):
         return Types.LOCAL_DATE_TIME()
 
-    JPrimitiveArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo\
+    JPrimitiveArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo \
         .PrimitiveArrayTypeInfo
 
     if is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO):
@@ -514,7 +552,7 @@ def from_java_type(j_type_info):
         scale = j_type_info.scale()
         return Types.BIG_DEC(precision, scale)
 
-    JPickledBytesTypeInfo = gateway.jvm\
+    JPickledBytesTypeInfo = gateway.jvm \
         .org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo()
     if is_instance_of(j_type_info, JPickledBytesTypeInfo):
         return Types.PICKLED_BYTE_ARRAY()
@@ -536,4 +574,3 @@ def is_instance_of(java_object, java_type):
     elif isinstance(java_type, JavaClass):
         return java_object.getClass().isAssignableFrom(java_type._java_lang_class)
     return False
-

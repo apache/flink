@@ -17,8 +17,8 @@
 ################################################################################
 
 import unittest
-from pyflink.testing.test_case_utils import PyFlinkTestCase
-from pyflink.common.typeinfo import BasicTypeInfo, Types, RowTypeInfo
+
+from pyflink.common.typeinfo import Types, RowTypeInfo
 
 
 class TypeInfoTests(unittest.TestCase):
@@ -48,9 +48,19 @@ class TypeInfoTests(unittest.TestCase):
         self.assertEqual(False, Types.LOCAL_DATE_TIME().is_basic_type())
 
     def test_row_type(self):
-        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()]).get_field_names(), ['f0', 'f1'])
-        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()], ['a', 'b']).get_field_names(), ['a', 'b'])
+        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()])
+                         .get_field_names(), ['f0', 'f1'])
+        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()],
+                                     ['a', 'b']).get_field_names(), ['a', 'b'])
 
-        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()], ['a', 'b']) == RowTypeInfo([Types.STRING(), Types.STRING()], ['a', 'b']), True)
-        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()], ['a', 'b']) == RowTypeInfo([Types.STRING(), Types.INSTANT()], ['a', 'b']), False)
-        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()], ['a', 'b']).__str__(), "Row(a: String, b: String)")
+        self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()],
+                                     ['a', 'b']) == RowTypeInfo([Types.STRING(),
+                                                                 Types.STRING()], ['a', 'b']), True)
+        self.assertEqual(RowTypeInfo([Types.STRING(),
+                                      Types.STRING()],
+                                     ['a', 'b']) == RowTypeInfo([Types.STRING(),
+                                                                Types.INSTANT()],
+                                                                ['a', 'b']), False)
+        self.assertEqual(RowTypeInfo([Types.STRING(),
+                                      Types.STRING()],
+                                     ['a', 'b']).__str__(), "Row(a: String, b: String)")
