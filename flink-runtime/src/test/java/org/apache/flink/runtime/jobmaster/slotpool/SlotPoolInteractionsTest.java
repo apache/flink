@@ -37,22 +37,18 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.clock.Clock;
-import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
@@ -113,7 +109,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
+		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
 
 			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
@@ -143,8 +139,8 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	}
 
 	@Nonnull
-	private TestingSlotPool createTestingSlotPool(JobID jid) {
-		return new TestingSlotPool(
+	private TestingSlotPoolImpl createTestingSlotPool(JobID jid) {
+		return new TestingSlotPoolImpl(
 			jid,
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
@@ -159,7 +155,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testSlotAllocationTimeout() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
+		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
@@ -200,7 +196,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testExtraSlotsAreKept() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
+		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
@@ -261,7 +257,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testProviderAndOwnerSlotAllocationTimeout() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
+		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
 
 			final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
 
@@ -290,81 +286,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			releaseSlotFuture.get();
 
 			assertEquals(0L, pool.getNumberOfPendingRequests());
-		}
-	}
-
-	/**
-	 * Testing SlotPoolImpl which exposes internal state via some testing methods.
-	 */
-	private static final class TestingSlotPool extends SlotPoolImpl {
-
-		private volatile Consumer<SlotRequestId> releaseSlotConsumer;
-
-		private volatile Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer;
-
-		public TestingSlotPool(
-				JobID jobId,
-				Clock clock,
-				Time rpcTimeout,
-				Time idleSlotTimeout,
-				Time batchSlotTimeout) {
-			super(
-				jobId,
-				clock,
-				rpcTimeout,
-				idleSlotTimeout,
-				batchSlotTimeout);
-
-			releaseSlotConsumer = null;
-			timeoutPendingSlotRequestConsumer = null;
-		}
-
-		public void setReleaseSlotConsumer(Consumer<SlotRequestId> releaseSlotConsumer) {
-			this.releaseSlotConsumer = Preconditions.checkNotNull(releaseSlotConsumer);
-		}
-
-		public void setTimeoutPendingSlotRequestConsumer(Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer) {
-			this.timeoutPendingSlotRequestConsumer = Preconditions.checkNotNull(timeoutPendingSlotRequestConsumer);
-		}
-
-		@Override
-		public void releaseSlot(
-			@Nonnull SlotRequestId slotRequestId,
-			@Nullable Throwable cause) {
-			final Consumer<SlotRequestId> currentReleaseSlotConsumer = releaseSlotConsumer;
-
-			super.releaseSlot(slotRequestId, cause);
-
-			if (currentReleaseSlotConsumer != null) {
-				currentReleaseSlotConsumer.accept(slotRequestId);
-			}
-		}
-
-		@Override
-		protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
-			final Consumer<SlotRequestId> currentTimeoutPendingSlotRequestConsumer = timeoutPendingSlotRequestConsumer;
-
-			if (currentTimeoutPendingSlotRequestConsumer != null) {
-				currentTimeoutPendingSlotRequestConsumer.accept(slotRequestId);
-			}
-
-			super.timeoutPendingSlotRequest(slotRequestId);
-		}
-
-		boolean containsAllocatedSlot(AllocationID allocationId) {
-			return getAllocatedSlots().contains(allocationId);
-		}
-
-		boolean containsAvailableSlot(AllocationID allocationId) {
-			return getAvailableSlots().contains(allocationId);
-		}
-
-		int getNumberOfPendingRequests() {
-			return getPendingRequests().size();
-		}
-
-		int getNumberOfWaitingForResourceRequests() {
-			return getWaitingForResourceManager().size();
 		}
 	}
 }
