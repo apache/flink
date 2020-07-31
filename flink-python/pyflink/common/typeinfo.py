@@ -207,28 +207,6 @@ class SqlTimeTypeInfo(TypeInformation, ABC):
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP)
 
 
-class LocalTimeTypeInfo(TypeInformation, ABC):
-    """
-    Type information for Java LocalDate/LocalTime/LocalDateTime.
-    """
-
-    @staticmethod
-    def LOCAL_DATE():
-        return WrapperTypeInfo(
-            get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE)
-
-    @staticmethod
-    def LOCAL_TIME():
-        return WrapperTypeInfo(
-            get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME)
-
-    @staticmethod
-    def LOCAL_DATE_TIME():
-        return WrapperTypeInfo(
-            get_gateway().jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
-            .LOCAL_DATE_TIME)
-
-
 class PrimitiveArrayTypeInfo(TypeInformation, ABC):
     """
     A TypeInformation for arrays of primitive types (int, long, double, ...).
@@ -404,10 +382,6 @@ class Types(object):
     SQL_TIME = SqlTimeTypeInfo.TIME
     SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP
 
-    LOCAL_DATE = LocalTimeTypeInfo.LOCAL_DATE
-    LOCAL_TIME = LocalTimeTypeInfo.LOCAL_TIME
-    LOCAL_DATE_TIME = LocalTimeTypeInfo.LOCAL_DATE_TIME
-
     INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO
 
     PICKLED_BYTE_ARRAY = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
@@ -508,14 +482,6 @@ def from_java_type(j_type_info):
         return Types.SQL_TIME()
     elif is_instance_of(j_type_info, JSqlTimeTypeInfo.TIMESTAMP):
         return Types.SQL_TIMESTAMP()
-
-    JLocalTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
-    if is_instance_of(j_type_info, JLocalTimeTypeInfo.LOCAL_DATE):
-        return Types.LOCAL_DATE()
-    elif is_instance_of(j_type_info, JLocalTimeTypeInfo.LOCAL_TIME):
-        return Types.LOCAL_TIME()
-    elif is_instance_of(j_type_info, JLocalTimeTypeInfo.LOCAL_DATE_TIME):
-        return Types.LOCAL_DATE_TIME()
 
     JPrimitiveArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo \
         .PrimitiveArrayTypeInfo

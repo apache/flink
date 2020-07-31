@@ -43,9 +43,6 @@ class TypeInfoTests(unittest.TestCase):
         self.assertEqual(False, Types.SQL_DATE().is_basic_type())
         self.assertEqual(False, Types.SQL_TIME().is_basic_type())
         self.assertEqual(False, Types.SQL_TIMESTAMP().is_basic_type())
-        self.assertEqual(False, Types.LOCAL_DATE().is_basic_type())
-        self.assertEqual(False, Types.LOCAL_TIME().is_basic_type())
-        self.assertEqual(False, Types.LOCAL_DATE_TIME().is_basic_type())
 
     def test_row_type(self):
         self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()])
