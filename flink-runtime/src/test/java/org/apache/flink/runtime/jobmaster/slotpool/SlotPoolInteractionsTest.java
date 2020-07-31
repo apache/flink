@@ -248,44 +248,4 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			assertTrue(pool.containsAvailableSlot(allocationId));
 		}
 	}
-
-	/**
-	 * This case make sure when allocateSlot in ProviderAndOwner timeout,
-	 * it will automatically call cancelSlotAllocation as will inject future.whenComplete in ProviderAndOwner.
-	 */
-	@Test
-	public void testProviderAndOwnerSlotAllocationTimeout() throws Exception {
-		final JobID jid = new JobID();
-
-		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
-
-			final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
-
-			pool.setReleaseSlotConsumer(releaseSlotFuture::complete);
-
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
-			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-			pool.connectToResourceManager(resourceManagerGateway);
-
-			Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), pool);
-			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
-
-			// test the pending request is clear when timed out
-			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
-				new DummyScheduledUnit(),
-				SlotProfile.noRequirements(),
-				fastTimeout));
-			try {
-				future.get();
-				fail("We expected a TimeoutException.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-			}
-
-			// wait for the cancel call on the SlotPoolImpl
-			releaseSlotFuture.get();
-
-			assertEquals(0L, pool.getNumberOfPendingRequests());
-		}
-	}
 }
