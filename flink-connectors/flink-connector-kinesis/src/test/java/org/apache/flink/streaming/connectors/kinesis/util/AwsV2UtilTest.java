@@ -49,6 +49,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigCons
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleSessionName;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.webIdentityTokenFile;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -403,5 +404,25 @@ public class AwsV2UtilTest {
 		when(builder.webIdentityTokenFile(any())).thenReturn(builder);
 
 		return builder;
+	}
+
+	@Test
+	public void isUsingEfoRecordPublisher() {
+		Properties prop = new Properties();
+		assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+		prop.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		assert AwsV2Util.isUsingEfoRecordPublisher(prop);
+		prop.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.POLLING.toString());
+		assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+	}
+
+	@Test
+	public void isEagerEfoRegistrationType() {
+		Properties prop = new Properties();
+		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.EAGER.toString());
+		assert AwsV2Util.isEagerEfoRegistrationType(prop);
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
+		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
 	}
 }

@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamConsumerInfo;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
@@ -39,7 +40,10 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
@@ -54,6 +58,8 @@ import com.amazonaws.services.kinesis.model.Shard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +69,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -118,6 +125,20 @@ public class KinesisDataFetcher<T> {
 	 * The function that determines which subtask a shard should be assigned to.
 	 */
 	private final KinesisShardAssigner shardAssigner;
+
+	// ------------------------------------------------------------------------
+	//  Efo record publisher related properties
+	// ------------------------------------------------------------------------
+	/**
+	 * The kinesis proxy v2 used to de-/register stream consumer, only be set up if the record publisher is EFO and the registration type is EAGER or LAZY.
+	 */
+	@Nullable
+	private KinesisProxyV2Interface kinesisV2;
+	/**
+	 * an instance of fan out stream consumer info. Will only be set up if the record publisher is EFO and the registration type is EAGER or LAZY.
+	 */
+	@Nullable
+	private Map<String, FanOutStreamConsumerInfo> fanOutStreamConsumerInfoMap;
 
 	// ------------------------------------------------------------------------
 	//  Consumer metrics
@@ -336,19 +357,54 @@ public class KinesisDataFetcher<T> {
 	}
 
 	@VisibleForTesting
-	protected KinesisDataFetcher(List<String> streams,
-								SourceFunction.SourceContext<T> sourceContext,
-								Object checkpointLock,
-								RuntimeContext runtimeContext,
-								Properties configProps,
-								KinesisDeserializationSchema<T> deserializationSchema,
-								KinesisShardAssigner shardAssigner,
-								AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
-								WatermarkTracker watermarkTracker,
-								AtomicReference<Throwable> error,
-								List<KinesisStreamShardState> subscribedShardsState,
-								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
-								FlinkKinesisProxyFactory kinesisProxyFactory) {
+	protected KinesisDataFetcher(
+		List<String> streams,
+		SourceFunction.SourceContext<T> sourceContext,
+		Object checkpointLock,
+		RuntimeContext runtimeContext,
+		Properties configProps,
+		KinesisDeserializationSchema<T> deserializationSchema,
+		KinesisShardAssigner shardAssigner,
+		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
+		WatermarkTracker watermarkTracker,
+		AtomicReference<Throwable> error,
+		List<KinesisStreamShardState> subscribedShardsState,
+		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
+		FlinkKinesisProxyFactory kinesisProxyFactory
+	) {
+		this(streams,
+			sourceContext,
+			checkpointLock,
+			runtimeContext,
+			configProps,
+			deserializationSchema,
+			shardAssigner,
+			periodicWatermarkAssigner,
+			watermarkTracker,
+			error,
+			subscribedShardsState,
+			subscribedStreamsToLastDiscoveredShardIds,
+			kinesisProxyFactory,
+			null);
+	}
+
+	@VisibleForTesting
+	protected KinesisDataFetcher(
+		List<String> streams,
+		SourceFunction.SourceContext<T> sourceContext,
+		Object checkpointLock,
+		RuntimeContext runtimeContext,
+		Properties configProps,
+		KinesisDeserializationSchema<T> deserializationSchema,
+		KinesisShardAssigner shardAssigner,
+		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
+		WatermarkTracker watermarkTracker,
+		AtomicReference<Throwable> error,
+		List<KinesisStreamShardState> subscribedShardsState,
+		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
+		FlinkKinesisProxyFactory kinesisProxyFactory,
+		@Nullable Map<String, FanOutStreamConsumerInfo> fanOutStreamConsumerInfoMap
+	) {
 		this.streams = checkNotNull(streams);
 		this.configProps = checkNotNull(configProps);
 		this.sourceContext = checkNotNull(sourceContext);
@@ -373,6 +429,21 @@ public class KinesisDataFetcher<T> {
 		this.shardConsumersExecutor =
 			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
 		this.recordEmitter = createRecordEmitter(configProps);
+		if (AwsV2Util.isUsingEfoRecordPublisher(configProps) && !AwsV2Util.isNoneEfoRegistrationType(configProps)) {
+			this.kinesisV2 = KinesisProxyV2.create(configProps, streams);
+			if (AwsV2Util.isEagerEfoRegistrationType(configProps)) {
+				checkNotNull(fanOutStreamConsumerInfoMap, "Error when trying to set fan out stream consumer info in EAGER mode, cause it is not set by FlinkKinesisConsumer");
+				this.fanOutStreamConsumerInfoMap = fanOutStreamConsumerInfoMap;
+			} else {
+				try {
+					this.fanOutStreamConsumerInfoMap = AwsV2Util.registerStreams(streams, configProps, kinesisV2);
+				}  catch (InterruptedException ie) {
+					throw new RuntimeException("Got interrupted while trying to register stream consumers with EAGER mode.", ie);
+				} catch (ExecutionException ee) {
+					throw new RuntimeException("Got execution exceptions while trying to register stream consumers with EAGER mode.", ee);
+				}
+			}
+		}
 	}
 
 	private RecordEmitter createRecordEmitter(Properties configProps) {
@@ -541,7 +612,7 @@ public class KinesisDataFetcher<T> {
 		// we will escape from this loop only when shutdownFetcher() or stopWithError() is called
 		// TODO: have this thread emit the records for tracking backpressure
 
-		final long discoveryIntervalMillis = Long.valueOf(
+		final long discoveryIntervalMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
@@ -652,6 +723,19 @@ public class KinesisDataFetcher<T> {
 		}
 		this.recordEmitter.stop();
 
+		if (AwsV2Util.isUsingEfoRecordPublisher(configProps) && !AwsV2Util.isNoneEfoRegistrationType(configProps)) {
+			checkNotNull(fanOutStreamConsumerInfoMap, "The fan out stream consumer info map can hardly be null here.");
+			checkNotNull(kinesisV2, "The kinesis v2 proxy can hardly be null here");
+			for (FanOutStreamConsumerInfo fanOutStreamConsumerInfo: fanOutStreamConsumerInfoMap.values()) {
+				try {
+					kinesisV2.deregisterStreamConsumer(fanOutStreamConsumerInfo);
+				} catch (InterruptedException ie) {
+					throw new RuntimeException("Got interrupted while trying to register stream consumers with EAGER mode.", ie);
+				} catch (ExecutionException ee) {
+					throw new RuntimeException("Got execution exceptions while trying to register stream consumers with EAGER mode.", ee);
+				}
+			}
+		}
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
 		}

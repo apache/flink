@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamConsumerInfo;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -45,6 +46,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.util.InstantiationUtil;
@@ -52,11 +54,14 @@ import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -129,6 +134,15 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 	private AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
 	private WatermarkTracker watermarkTracker;
+
+	// ------------------------------------------------------------------------
+	//  Efo record publisher related properties
+	// ------------------------------------------------------------------------
+	/**
+	 * The map of fan out stream consumer info. Will only be set up if the record publisher is EFO and the registration type is EAGER.
+	 */
+	@Nullable
+	private Map<String, FanOutStreamConsumerInfo> fanOutStreamConsumerInfoMap;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
@@ -219,7 +233,16 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			"The provided deserialization schema is not serializable: " + deserializer.getClass().getName() + ". " +
 				"Please check that it does not contain references to non-serializable instances.");
 		this.deserializer = deserializer;
-
+		// if the record publisher type is efo and efo registration type is eager.
+		if (AwsV2Util.isUsingEfoRecordPublisher(configProps) && AwsV2Util.isEagerEfoRegistrationType(configProps)) {
+			try {
+				this.fanOutStreamConsumerInfoMap = AwsV2Util.registerStreams(streams, configProps, null);
+			} catch (InterruptedException ie) {
+				throw new RuntimeException("Got interrupted while trying to register stream consumers with EAGER mode.", ie);
+			} catch (ExecutionException ee) {
+				throw new RuntimeException("Got execution exceptions while trying to register stream consumers with EAGER mode.", ee);
+			}
+		}
 		if (LOG.isInfoEnabled()) {
 			StringBuilder sb = new StringBuilder();
 			for (String stream : streams) {

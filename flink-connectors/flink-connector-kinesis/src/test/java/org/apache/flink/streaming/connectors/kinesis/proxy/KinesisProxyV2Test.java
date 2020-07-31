@@ -497,8 +497,8 @@ public class KinesisProxyV2Test {
 	/**
 	 * Describe stream consumer - fails with one recoverable exception then fails with ResourceNotFoundException.
 	 * Register stream consumer - fails with two recoverable exception then fails with ResourceInUseException.
-	 * Describe stream consumer - first fail two recoverable exceptions then succeed.
-	 * Expects the register stream operation succeed.
+	 * Describe stream consumer - fail two recoverable exceptions then succeed.
+	 * Expects the register stream operation to succeed.
 	 */
 	@Test
 	public void testRegisterStreamConsumerWithComplicatedSituation() throws Exception {

@@ -21,6 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutStreamConsumerInfo;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.ClientConfigurationFactory;
@@ -41,6 +45,7 @@ import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.ResourceInUseException;
@@ -49,9 +54,14 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
+import javax.annotation.Nullable;
+
 import java.net.URI;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -278,5 +288,49 @@ public class AwsV2Util {
 	 */
 	public static boolean isResourceNotFound(ExecutionException ex) {
 		return ex.getCause() instanceof ResourceNotFoundException;
+	}
+
+	/**
+	 * Whether or not the config is set to be efo record publisher.
+	 */
+	public static boolean isUsingEfoRecordPublisher(Properties properties) {
+		return properties.containsKey(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE) && properties.get(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE).equals(ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+	}
+
+	/**
+	 * Whether or not the config is set to be efo registration type of EAGER.
+	 */
+	public static boolean isEagerEfoRegistrationType(Properties properties) {
+		return properties.containsKey(ConsumerConfigConstants.EFO_REGISTRATION_TYPE) && properties.get(ConsumerConfigConstants.EFO_REGISTRATION_TYPE).equals(ConsumerConfigConstants.EFORegistrationType.EAGER.toString());
+	}
+
+	/**
+	 * Whether or not the config is set to be efo registration type of LAZY.
+	 */
+	public static boolean isLazyEfoRegistrationType(Properties properties) {
+		return properties.containsKey(ConsumerConfigConstants.EFO_REGISTRATION_TYPE) && properties.get(ConsumerConfigConstants.EFO_REGISTRATION_TYPE).equals(ConsumerConfigConstants.EFORegistrationType.LAZY.toString());
+	}
+
+	/**
+	 * Whether or not the config is set to be efo registration type of NONE.
+	 */
+	public static boolean isNoneEfoRegistrationType(Properties properties) {
+		return properties.containsKey(ConsumerConfigConstants.EFO_REGISTRATION_TYPE) && properties.get(ConsumerConfigConstants.EFO_REGISTRATION_TYPE).equals(ConsumerConfigConstants.EFORegistrationType.NONE.toString());
+	}
+
+	public static Map<String, FanOutStreamConsumerInfo> registerStreams(List<String> streams, Properties configProps, @Nullable KinesisProxyV2Interface kinesisV2) throws ExecutionException, InterruptedException {
+		Map<String, FanOutStreamConsumerInfo> result = new HashMap<>();
+		KinesisProxyV2Interface kinesis;
+		if (kinesisV2 != null) {
+			kinesis = kinesisV2;
+		} else {
+			kinesis = KinesisProxyV2.create(configProps, streams);
+		}
+		for (String stream : streams) {
+			DescribeStreamResponse response = kinesis.describeStream(stream);
+			String streamArn = response.streamDescription().streamARN();
+			result.put(stream, kinesis.registerStreamConsumer(stream, streamArn));
+		}
+		return result;
 	}
 }
