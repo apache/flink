@@ -19,12 +19,18 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -34,9 +40,11 @@ import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -54,14 +62,51 @@ public class SchedulerImplTest extends TestLogger {
 	private final TestingComponentMainThreadExecutor testMainThreadExecutor =
 		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
+	private TaskManagerLocation taskManagerLocation;
+	private SimpleAckingTaskManagerGateway taskManagerGateway;
 	private TestingResourceManagerGateway resourceManagerGateway;
 	private SlotPoolBuilder slotPoolBuilder;
 
 	@Before
 	public void setUp() throws Exception {
+		taskManagerLocation = new LocalTaskManagerLocation();
+		taskManagerGateway = new SimpleAckingTaskManagerGateway();
 		resourceManagerGateway = new TestingResourceManagerGateway();
 		slotPoolBuilder = new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
 			.setResourceManagerGateway(resourceManagerGateway);
+	}
+
+	@Test
+	public void testAllocateSlot() throws Exception {
+		CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
+		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
+
+		try (SlotPoolImpl slotPool = createAndSetUpSlotPool()) {
+
+			final Scheduler scheduler = createAndSetUpScheduler(slotPool);
+
+			final CompletableFuture<LogicalSlot> allocatedSlotFuture = allocateSlot(scheduler);
+			assertFalse(allocatedSlotFuture.isDone());
+
+			final SlotRequest slotRequest = slotRequestFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			testMainThreadExecutor.execute(() -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()));
+
+			final SlotOffer slotOffer = new SlotOffer(
+				slotRequest.getAllocationId(),
+				0,
+				ResourceProfile.ANY);
+
+			testMainThreadExecutor.execute(() -> slotPool.offerSlot(
+				taskManagerLocation,
+				taskManagerGateway,
+				slotOffer));
+
+			final LogicalSlot allocatedSlot = allocatedSlotFuture.get(1, TimeUnit.SECONDS);
+			assertTrue(allocatedSlotFuture.isDone());
+			assertTrue(allocatedSlot.isAlive());
+			assertEquals(taskManagerLocation, allocatedSlot.getTaskManagerLocation());
+		}
 	}
 
 	/**
