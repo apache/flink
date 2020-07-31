@@ -721,6 +721,7 @@ SqlNodeList TableProperties():
 SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
+    boolean ifNotExists = false;
     SqlIdentifier tableName;
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
@@ -734,6 +735,11 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 }
 {
     <TABLE>
+
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
 
     tableName = CompoundIdentifier()
     [
@@ -776,7 +782,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 watermark,
                 comment,
                 tableLike,
-                isTemporary);
+                isTemporary,
+                ifNotExists);
     }
 }
 
