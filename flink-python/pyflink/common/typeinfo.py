@@ -176,6 +176,11 @@ class BasicTypeInfo(TypeInformation, ABC):
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BIG_INT_TYPE_INFO)
 
     @staticmethod
+    def BIG_DEC_TYPE_INFO():
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BIG_DEC_TYPE_INFO)
+
+    @staticmethod
     def INSTANT_TYPE_INFO():
         return WrapperTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.INSTANT_TYPE_INFO)
@@ -393,6 +398,7 @@ class Types(object):
     DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO
     CHAR = BasicTypeInfo.CHAR_TYPE_INFO
     BIG_INT = BasicTypeInfo.BIG_INT_TYPE_INFO
+    BIG_DEC = BasicTypeInfo.BIG_DEC_TYPE_INFO
 
     SQL_DATE = SqlTimeTypeInfo.DATE
     SQL_TIME = SqlTimeTypeInfo.TIME
@@ -405,21 +411,6 @@ class Types(object):
     INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO
 
     PICKLED_BYTE_ARRAY = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
-
-    @staticmethod
-    def BIG_DEC(precision=None, scale=None):
-        """
-        Returns type information for BigDecimal with precision and scale specified. A row itself
-        must not be null.
-
-        :param precision: The precision of the BigDecimal.
-        :param scale: The scale of the BigDecimal.
-        """
-
-        if precision is None and scale is None:
-            return BigDecimalTypeInfo(38, 0)
-        else:
-            return BigDecimalTypeInfo(precision, scale)
 
     @staticmethod
     def ROW(types):
@@ -506,7 +497,7 @@ def from_java_type(j_type_info):
     elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_INT_TYPE_INFO):
         return Types.BIG_INT()
     elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_DEC_TYPE_INFO):
-        return Types.BIG_DEC(38, 0)
+        return Types.BIG_DEC()
     elif is_instance_of(j_type_info, JBasicTypeInfo.INSTANT_TYPE_INFO):
         return Types.INSTANT()
 
@@ -545,12 +536,6 @@ def from_java_type(j_type_info):
         return Types.PRIMITIVE_ARRAY(Types.DOUBLE())
     elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.CHAR())
-
-    JBigDeciamlTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
-    if is_instance_of(j_type_info, JBigDeciamlTypeInfo):
-        precision = j_type_info.precision()
-        scale = j_type_info.scale()
-        return Types.BIG_DEC(precision, scale)
 
     JPickledBytesTypeInfo = gateway.jvm \
         .org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo()
