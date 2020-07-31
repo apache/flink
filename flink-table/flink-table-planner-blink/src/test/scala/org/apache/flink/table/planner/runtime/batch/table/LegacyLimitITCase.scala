@@ -18,29 +18,41 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase
+import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.utils.TestLegacyLimitableTableSource
+import org.junit.Assert.assertEquals
 import org.junit._
 
-class LimitITCase extends LegacyLimitITCase {
+class LegacyLimitITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
-    BatchTestBase.configForMiniCluster(conf)
+    super.before()
 
-    val myTableDataId = TestValuesTableFactory.registerData(TestData.data3)
-    val ddl =
-      s"""
-         |CREATE TABLE LimitTable (
-         |  a int,
-         |  b bigint,
-         |  c string
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId',
-         |  'bounded' = 'true'
-         |)
-       """.stripMargin
-    tEnv.executeSql(ddl)
+    TestLegacyLimitableTableSource.createTemporaryTable(
+      tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
+  }
+
+  @Test
+  def testFetch(): Unit = {
+    assertEquals(
+      executeQuery(tEnv.from("LimitTable").fetch(5)).size,
+      5)
+  }
+
+  @Test
+  def testOffset(): Unit = {
+    assertEquals(
+      executeQuery(tEnv.from("LimitTable").offset(5)).size,
+      16)
+  }
+
+  @Test
+  def testOffsetAndFetch(): Unit = {
+    assertEquals(
+      executeQuery(tEnv.from("LimitTable").limit(5, 5)).size,
+      5)
   }
 }

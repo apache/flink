@@ -50,7 +50,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import scala.Tuple2;
 
@@ -87,7 +86,7 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 		// we can not push filter twice
 		return tableSourceTable != null
 			&& tableSourceTable.tableSource() instanceof SupportsFilterPushDown
-			&& !Arrays.stream(tableSourceTable.extraDigests()).anyMatch(str -> str.startsWith("filter=["));
+			&& Arrays.stream(tableSourceTable.extraDigests()).noneMatch(str -> str.startsWith("filter=["));
 	}
 
 	@Override
@@ -150,7 +149,7 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
 			newTableSource,
 			getNewFlinkStatistic(oldTableSourceTable, originPredicatesSize, updatedPredicatesSize),
-			getNewExtraDigests(oldTableSourceTable, result.getAcceptedFilters())
+			getNewExtraDigests(result.getAcceptedFilters())
 		);
 		TableScan newScan = LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());
 		// check whether framework still need to do a filter
@@ -185,8 +184,7 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 		return newStatistic;
 	}
 
-	private String[] getNewExtraDigests(TableSourceTable tableSourceTable, List<ResolvedExpression> acceptedFilters) {
-		String[] oldExtraDigests = tableSourceTable.extraDigests();
+	private String[] getNewExtraDigests(List<ResolvedExpression> acceptedFilters) {
 		String extraDigest = null;
 		if (!acceptedFilters.isEmpty()) {
 			// push filter successfully
@@ -200,9 +198,6 @@ public class PushFilterIntoTableSourceScanRule extends RelOptRule {
 			// try to push filter, but insuccess
 			extraDigest = "filter=[]";
 		}
-		return Stream.concat(
-				Arrays.stream(oldExtraDigests),
-				Arrays.stream(new String[]{extraDigest}))
-			.toArray(String[]::new);
+		return new String[]{extraDigest};
 	}
 }
