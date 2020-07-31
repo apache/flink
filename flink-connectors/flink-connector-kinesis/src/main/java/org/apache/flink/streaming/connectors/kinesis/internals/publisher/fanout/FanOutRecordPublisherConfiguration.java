@@ -115,26 +115,6 @@ public class FanOutRecordPublisherConfiguration {
 	private final int deregisterStreamMaxRetries;
 
 	/**
-	 * Base backoff millis for the list stream consumers operation.
-	 */
-	private final long listStreamConsumersBaseBackoffMillis;
-
-	/**
-	 * Maximum backoff millis for the list stream consumers operation.
-	 */
-	private final long listStreamConsumersMaxBackoffMillis;
-
-	/**
-	 * Exponential backoff power constant for the list stream consumers operation.
-	 */
-	private final double listStreamConsumersExpConstant;
-
-	/**
-	 * Maximum retry attempts for the list stream operation.
-	 */
-	private final int listStreamConsumersMaxRetries;
-
-	/**
 	 * Max retries for the describe stream operation.
 	 */
 	private final int describeStreamMaxRetries;
@@ -245,22 +225,6 @@ public class FanOutRecordPublisherConfiguration {
 				ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_RETRIES)));
 
-		this.listStreamConsumersBaseBackoffMillis = Long.parseLong(
-			configProps.getProperty(
-				ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_BASE)));
-		this.listStreamConsumersMaxBackoffMillis = Long.parseLong(
-			configProps.getProperty(
-				ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_MAX)));
-		this.listStreamConsumersExpConstant = Double.parseDouble(
-			configProps.getProperty(
-				ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.listStreamConsumersMaxRetries = Integer.parseInt(
-			configProps.getProperty(
-				ConsumerConfigConstants.LIST_STREAM_CONSUMERS_RETRIES,
-				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_STREAM_CONSUMERS_RETRIES)));
 		this.describeStreamMaxRetries = Integer.parseInt(
 			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES,
 				Integer.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_RETRIES)));
@@ -378,37 +342,6 @@ public class FanOutRecordPublisherConfiguration {
 	 */
 	public int getDeregisterStreamMaxRetries() {
 		return deregisterStreamMaxRetries;
-	}
-
-	// ------------------------------------------------------------------------
-	//  listStreamConsumers() related performance settings
-	// ------------------------------------------------------------------------
-	/**
-	 * Get base backoff millis for the list stream consumers operation.
-	 */
-	public long getListStreamConsumersBaseBackoffMillis() {
-		return listStreamConsumersBaseBackoffMillis;
-	}
-
-	/**
-	 * Get maximum backoff millis for the list stream consumers operation.
-	 */
-	public long getListStreamConsumersMaxBackoffMillis() {
-		return listStreamConsumersMaxBackoffMillis;
-	}
-
-	/**
-	 * Get exponential backoff power constant for the list stream consumers operation.
-	 */
-	public double getListStreamConsumersExpConstant() {
-		return listStreamConsumersExpConstant;
-	}
-
-	/**
-	 * Get maximum retry attempts for the list stream consumers operation.
-	 */
-	public int getListStreamConsumersMaxRetries() {
-		return listStreamConsumersMaxRetries;
 	}
 
 	// ------------------------------------------------------------------------

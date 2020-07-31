@@ -164,18 +164,6 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The power constant for exponential backoff between each deregisterStream attempt. */
 	public static final String DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.deregisterstreamconsumer.backoff.expconst";
 
-	/** The maximum number of listStreamConsumers attempts if we get a recoverable exception. */
-	public static final String LIST_STREAM_CONSUMERS_RETRIES = "flink.stream.liststreamconsumer.maxretries";
-
-	/** The base backoff time between each listStreamConsumers attempt. */
-	public static final String LIST_STREAM_CONSUMERS_BACKOFF_BASE = "flink.stream.liststreamconsumer.backoff.base";
-
-	/** The maximum backoff time between each listStreamConsumer attempt. */
-	public static final String LIST_STREAM_CONSUMERS_BACKOFF_MAX = "flink.stream.liststreamconsumer.backoff.max";
-
-	/** The power constant for exponential backoff between each listStreamConsumers attempt. */
-	public static final String LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.liststreamconsumer.backoff.expconst";
-
 	/** The maximum number of subscribeToShard attempts if we get a recoverable exception. */
 	public static final String SUBSCRIBE_TO_SHARD_RETRIES = "flink.shard.subscribetoshard.maxretries";
 
@@ -283,14 +271,6 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX = 1000L;
 
 	public static final double DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
-
-	public static final int DEFAULT_LIST_STREAM_CONSUMERS_RETRIES = 10;
-
-	public static final long DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_BASE = 200L;
-
-	public static final long DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_MAX = 1000L;
-
-	public static final double DEFAULT_LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES = 5;
 

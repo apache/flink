@@ -695,45 +695,45 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableIntForListStreamRetriesInConfig() {
+	public void testUnparsableIntForDescribeStreamConsumerRetriesInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum retry attempts for list stream operation");
+		exception.expectMessage("Invalid value given for maximum retry attempts for describe stream consumer operation");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_RETRIES, "unparsableInt");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableLongForListStreamBackoffBaseMillisInConfig() {
+	public void testUnparsableLongForDescribeStreamConsumerBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list stream operation base backoff milliseconds");
+		exception.expectMessage("Invalid value given for describe stream consumer operation base backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableLongForListStreamBackoffMaxMillisInConfig() {
+	public void testUnparsableLongForDescribeStreamConsumerBackoffMaxMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list stream operation max backoff milliseconds");
+		exception.expectMessage("Invalid value given for describe stream consumer operation max backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableDoublEforListStreamBackoffExponentialConstantInConfig() {
+	public void testUnparsableDoublEforDescribeStreamConsumerBackoffExponentialConstantInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list stream operation backoff exponential constant");
+		exception.expectMessage("Invalid value given for describe stream consumer operation backoff exponential constant");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_STREAM_CONSUMERS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
