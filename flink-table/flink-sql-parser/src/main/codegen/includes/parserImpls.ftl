@@ -736,10 +736,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 {
     <TABLE>
 
-    [
-        LOOKAHEAD(3)
-        <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
+    ifNotExists = IfNotExistsOpt()
 
     tableName = CompoundIdentifier()
     [

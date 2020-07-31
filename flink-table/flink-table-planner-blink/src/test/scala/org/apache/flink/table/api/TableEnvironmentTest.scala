@@ -136,7 +136,7 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateTableAlterDropIfNotExists(): Unit = {
+  def testExecuteSqlWithCreateDropTableIfNotExists(): Unit = {
     val createTableStmt =
       """
         |CREATE TABLE IF NOT EXISTS tbl1 (
@@ -148,49 +148,22 @@ class TableEnvironmentTest {
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
+    // test crate table twice
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    val tableResult2 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
 
-    val tableResult2 = tableEnv.executeSql("ALTER TABLE tbl1 SET ('k1' = 'a', 'k2' = 'b')")
-    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
-    assertEquals(
-      Map("connector" -> "COLLECTION", "is-bounded" -> "false", "k1" -> "a", "k2" -> "b").asJava,
-      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")).getProperties)
-
-    val tableResult3 = tableEnv.executeSql("DROP TABLE tbl1")
+    val tableResult3 = tableEnv.executeSql("DROP TABLE IF EXISTS tbl1")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
   }
 
   @Test
-  def testExecuteSqlWithCreateTableIfNotExistsTwice(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE IF NOT EXISTS tbl1 (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    val tableResult1 = tableEnv.executeSql(createTableStmt)
-    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
-
-    val tableResult2 = tableEnv.executeSql(createTableStmt)
-    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
-
-    assertTrue(tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-      .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
-  }
-
-  @Test
-  def testExecuteSqlWithCreateTemporaryTableIfNotExistsTwice(): Unit = {
+  def testExecuteSqlWithCreateDropTemporaryTableIfNotExists(): Unit = {
     val createTableStmt =
       """
         |CREATE TEMPORARY TABLE IF NOT EXISTS tbl1 (
@@ -202,13 +175,16 @@ class TableEnvironmentTest {
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
+    // test crate table twice
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
-
     val tableResult2 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
-
     assertTrue(tableEnv.listTables().contains("tbl1"))
+
+    val tableResult3 = tableEnv.executeSql("DROP TEMPORARY TABLE IF EXISTS tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+    assertFalse(tableEnv.listTables().contains("tbl1"))
   }
 
   @Test
