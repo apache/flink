@@ -40,6 +40,7 @@ class TypeInformation(ABC):
     in the arrays.
         a) Basic types are indivisible and are considered as a single field.
         b) Arrays and collections are one field.
+        c) Tuples represents as many fields as the class has fields.
     To represent this properly, each type has an arity (the number of fields it contains directly),
     and a total number of fields (number of fields in the entire schema of this type, including
     nested types).
@@ -59,7 +60,6 @@ class TypeInformation(ABC):
     def is_tuple_type(self) -> bool:
         """
         Checks if this type information represents a Tuple type.
-        Tuple types are subclasses of the Java API tuples.
 
         :return: True, if this type information describes a tuple type, false otherwise.
         """
@@ -179,11 +179,6 @@ class BasicTypeInfo(TypeInformation, ABC):
     def BIG_DEC_TYPE_INFO():
         return WrapperTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.BIG_DEC_TYPE_INFO)
-
-    @staticmethod
-    def INSTANT_TYPE_INFO():
-        return WrapperTypeInfo(
-            get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.INSTANT_TYPE_INFO)
 
 
 class SqlTimeTypeInfo(TypeInformation, ABC):
@@ -371,8 +366,6 @@ class Types(object):
     SQL_TIME = SqlTimeTypeInfo.TIME
     SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP
 
-    INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO
-
     PICKLED_BYTE_ARRAY = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
 
     @staticmethod
@@ -461,8 +454,6 @@ def from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return Types.BIG_INT()
     elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_DEC_TYPE_INFO):
         return Types.BIG_DEC()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.INSTANT_TYPE_INFO):
-        return Types.INSTANT()
 
     JSqlTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
     if is_instance_of(j_type_info, JSqlTimeTypeInfo.DATE):
