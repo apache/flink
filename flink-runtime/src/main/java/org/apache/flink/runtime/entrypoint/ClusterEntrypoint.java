@@ -90,6 +90,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
+
 /**
  * Base class for the Flink cluster entry points.
  *
@@ -160,6 +162,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
+			replaceGracefulExitWithHaltIfConfigured(configuration);
 			PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
 			configureFileSystems(configuration, pluginManager);
 

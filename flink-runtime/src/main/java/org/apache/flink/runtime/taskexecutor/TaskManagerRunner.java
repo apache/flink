@@ -77,6 +77,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -309,22 +310,26 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	public static void runTaskManagerSecurely(String[] args, ResourceID resourceID) {
 		try {
-			final Configuration configuration = loadConfiguration(args);
-
-			final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
-			FileSystem.initialize(configuration, pluginManager);
-
-			SecurityUtils.install(new SecurityConfiguration(configuration));
-
-			SecurityUtils.getInstalledContext().runSecured(() -> {
-				runTaskManager(configuration, resourceID, pluginManager);
-				return null;
-			});
+			Configuration configuration = loadConfiguration(args);
+			runTaskManagerSecurely(configuration, resourceID);
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 			LOG.error("TaskManager initialization failed.", strippedThrowable);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
+	}
+
+	public static void runTaskManagerSecurely(Configuration configuration, ResourceID resourceID) throws Exception {
+		replaceGracefulExitWithHaltIfConfigured(configuration);
+		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+		FileSystem.initialize(configuration, pluginManager);
+
+		SecurityUtils.install(new SecurityConfiguration(configuration));
+
+		SecurityUtils.getInstalledContext().runSecured(() -> {
+			runTaskManager(configuration, resourceID, pluginManager);
+			return null;
+		});
 	}
 
 	// --------------------------------------------------------------------------------------------
