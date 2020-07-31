@@ -32,7 +32,6 @@ class TypeInfoTests(unittest.TestCase):
         self.assertEqual(True, Types.FLOAT().is_basic_type())
         self.assertEqual(True, Types.DOUBLE().is_basic_type())
         self.assertEqual(True, Types.CHAR().is_basic_type())
-        self.assertEqual(True, Types.VOID().is_basic_type())
         self.assertEqual(True, Types.BIG_INT().is_basic_type())
         self.assertEqual(True, Types.BIG_DEC().is_basic_type())
         self.assertEqual(True, Types.INSTANT().is_basic_type())

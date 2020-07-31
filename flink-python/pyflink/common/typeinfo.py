@@ -49,8 +49,7 @@ class TypeInformation(ABC):
     def is_basic_type(self):
         """
         Checks if this type information represents a basic type.
-        Basic types are defined in BasicTypeInfo and are primitives, their boxing type, Strings,
-        Date, Void, ...
+        Basic types are defined in BasicTypeInfo and are primitives, their boxing type, Strings ...
 
         :return:  True, if this type information describes a basic type, false otherwise.
         """
@@ -121,8 +120,8 @@ class WrapperTypeInfo(TypeInformation):
 
 class BasicTypeInfo(TypeInformation, ABC):
     """
-    Type information for primitive types (int, long, double, byte, ...), String, Date, Void,
-    BigInteger, and BigDecimal.
+    Type information for primitive types (int, long, double, byte, ...), String, BigInteger,
+    and BigDecimal.
     """
 
     @staticmethod
@@ -160,14 +159,6 @@ class BasicTypeInfo(TypeInformation, ABC):
     @staticmethod
     def CHAR_TYPE_INFO():
         return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.CHAR_TYPE_INFO)
-
-    @staticmethod
-    def DATE_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.DATE_TYPE_INFO)
-
-    @staticmethod
-    def VOID_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo.VOID_TYPE_INFO)
 
     @staticmethod
     def BIG_INT_TYPE_INFO():
@@ -354,7 +345,6 @@ class Types(object):
     built-in serializers and comparators.
     """
 
-    VOID = BasicTypeInfo.VOID_TYPE_INFO
     STRING = BasicTypeInfo.STRING_TYPE_INFO
     BYTE = BasicTypeInfo.BYTE_TYPE_INFO
     BOOLEAN = BasicTypeInfo.BOOLEAN_TYPE_INFO
@@ -475,8 +465,6 @@ def from_java_type(j_type_info):
         return Types.DOUBLE()
     elif is_instance_of(j_type_info, JBasicTypeInfo.CHAR_TYPE_INFO):
         return Types.CHAR()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.VOID_TYPE_INFO):
-        return Types.VOID()
     elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_INT_TYPE_INFO):
         return Types.BIG_INT()
     elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_DEC_TYPE_INFO):
