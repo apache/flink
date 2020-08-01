@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
-
 import org.junit.Test
 
 class TableSourceTest extends TableTestBase {
@@ -206,5 +206,48 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT COUNT(1) FROM T")
+  }
+
+  @Test
+  def testPartitionTableSource(): Unit = {
+    val ddl =
+      """
+        |CREATE TABLE PartitionableTable (
+        |  id int,
+        |  name string,
+        |  part1 string,
+        |  part2 int
+        |) PARTITIONED BY (`part1`,`part2`)
+        |WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true',
+        |  'use-partition-push-down' = 'true',
+        |  'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(ddl)
+    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+  }
+
+  @Test
+  def testPartitionTableSourceWithUdf(): Unit = {
+    val ddl =
+      """
+        |CREATE TABLE PartitionableTable (
+        |  id int,
+        |  name string,
+        |  part1 string,
+        |  part2 int
+        |) PARTITIONED BY (`part1`,`part2`)
+        |WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true',
+        |  'use-partition-push-down' = 'true',
+        |  'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(ddl)
+    util.addFunction("MyUdf", Func1)
+    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
+import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
-
 import org.junit.{Before, Test}
 
 class TableSourceTest extends TableTestBase {
@@ -54,6 +54,22 @@ class TableSourceTest extends TableTestBase {
         |)
         |""".stripMargin
     util.tableEnv.executeSql(ddl2)
+    val ddl3 =
+      """
+        |CREATE TABLE PartitionableTable (
+        |  id int,
+        |  name string,
+        |  part1 string,
+        |  part2 int
+        |) PARTITIONED BY (`part1`,`part2`)
+        |WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true',
+        |  'use-partition-push-down' = 'true',
+        |  'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(ddl3)
   }
 
   @Test
@@ -80,4 +96,14 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testPartitionTableSource(): Unit = {
+    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+  }
+
+  @Test
+  def testPartitionTableSourceWithUdf(): Unit = {
+    util.addFunction("MyUdf", Func1)
+    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
+  }
 }

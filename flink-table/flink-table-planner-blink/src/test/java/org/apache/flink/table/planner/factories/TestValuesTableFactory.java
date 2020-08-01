@@ -39,8 +39,8 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
-import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.CallExpression;
@@ -83,6 +83,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import scala.collection.Seq;
 
@@ -244,24 +245,18 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
-	private static final List<Map<String, String>> partitions = Arrays.asList(
-		new HashMap<String, String>(){{
-			put("part1", "A");
-			put("part2", "1");
-		}},
-		new HashMap<String, String>(){{
-			put("part1", "A");
-			put("part2", "2");
-		}},
-		new HashMap<String, String>(){{
-			put("part1", "B");
-			put("part2", "3");
-		}},
-		new HashMap<String, String>(){{
-			put("part1", "C");
-			put("part2", "1");
-		}}
-	);
+	private static final ConfigOption<Boolean> USE_PARTITION_PUSH_DOWN = ConfigOptions
+		.key("use-partition-push-down")
+		.booleanType()
+		.defaultValue(false);
+
+	/**
+	 * Parse partition list from Options with the format as "key1:val1, key2:val2;key1:val3, key2:val4".
+	 */
+	private static final ConfigOption<String> PARTITION_LIST = ConfigOptions
+		.key("partition-list")
+		.stringType()
+		.noDefaultValue();
 
 	@Override
 	public String factoryIdentifier() {
@@ -281,28 +276,40 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
-
+		boolean shouldPushPartitionDown = helper.getOptions().get(USE_PARTITION_PUSH_DOWN);
 		Set<String> filterableFieldsSet = new HashSet<>();
-		filterableFields.ifPresent(elements -> filterableFieldsSet.addAll(elements));
+		filterableFields.ifPresent(filterableFieldsSet::addAll);
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
+			List<Map<String, String>> partitions =
+				shouldPushPartitionDown ? parsePartitionList(helper.getOptions().get(PARTITION_LIST)) : Collections.EMPTY_LIST;
 			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+			// pushing project into scan will prune schema and we have to get the mapping between partition and row
+			Map<Map<String, String>, Collection<Row>> partition2Rows = null;
+			if (shouldPushPartitionDown) {
+				partition2Rows = mapRowsToPartitions(physicalSchema, data, partitions);
+			} else {
+				// put all data into one partition
+				partition2Rows = new HashMap<>();
+				partition2Rows.put(Collections.EMPTY_MAP, data);
+			}
+
 			return new TestValuesTableSource(
 				physicalSchema,
 				changelogMode,
 				isBounded,
 				runtimeSource,
-				data,
+				partition2Rows,
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
 				null,
 				null,
 				filterableFieldsSet,
+				Long.MAX_VALUE,
+				shouldPushPartitionDown,
 				partitions);
-				filterableFieldsSet,
-				Long.MAX_VALUE);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -350,7 +357,59 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			RUNTIME_SINK,
 			SINK_EXPECTED_MESSAGES_NUM,
 			NESTED_PROJECTION_SUPPORTED,
-			FILTERABLE_FIELDS));
+			FILTERABLE_FIELDS,
+			USE_PARTITION_PUSH_DOWN,
+			PARTITION_LIST));
+	}
+
+	private List<Map<String, String>> parsePartitionList(String partitionString) {
+		return Arrays.stream(partitionString.split(";")).map(
+			partition -> {
+				Map<String, String> spec = new HashMap<>();
+				Arrays.stream(partition.split(",")).forEach(pair -> {
+					String[] split = pair.split(":");
+					spec.put(split[0].trim(), split[1].trim());
+				});
+				return spec;
+			}
+		).collect(Collectors.toList());
+	}
+
+	private Map<Map<String, String>, Collection<Row>> mapRowsToPartitions(
+			TableSchema schema,
+			Collection<Row> rows,
+			List<Map<String, String>> partitions) {
+		if (!rows.isEmpty() && partitions.isEmpty()) {
+			throw new IllegalArgumentException(
+				"Please add partition list if use partition push down. Currently TestValuesTableSource doesn't support create partition list automatically.");
+		}
+		Map<Map<String, String>, Collection<Row>> map = new HashMap<>();
+		for (Map<String, String> partition: partitions) {
+			map.put(partition, new ArrayList<>());
+		}
+		String[] fieldnames = schema.getFieldNames();
+		boolean match = true;
+		for (Row row: rows) {
+			for (Map<String, String> partition: partitions) {
+				match = true;
+				for (Map.Entry<?, ?> entry: partition.entrySet()) {
+					int index = Arrays.asList(fieldnames).indexOf(entry.getKey());
+					if (index < 0) {
+						throw new IllegalArgumentException(
+							String.format("Illegal partition list: partition key %s is not found in schema.", entry.getKey()));
+					}
+					if (!row.getField(index).toString().equals(entry.getValue())) {
+						match = false;
+						break;
+					}
+				}
+				if (match) {
+					map.get(partition).add(row);
+					break;
+				}
+			}
+		}
+		return map;
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -387,21 +446,21 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		LookupTableSource,
 		SupportsProjectionPushDown,
 		SupportsFilterPushDown,
-		SupportsLimitPushDown {
-	private static class TestValuesTableSource implements ScanTableSource,
-		LookupTableSource, SupportsProjectionPushDown, SupportsFilterPushDown, SupportsPartitionPushDown {
+		SupportsLimitPushDown,
+		SupportsPartitionPushDown{
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private final Collection<Row> data;
+		private final Map<Map<String, String>, Collection<Row>> data;
 		private final boolean isAsync;
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
+		private final boolean shouldPushPartitionDown;
 		private long limit;
 		private List<Map<String, String>> allPartitions;
 
@@ -410,15 +469,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				ChangelogMode changelogMode,
 				boolean bounded,
 				String runtimeSource,
-				Collection<Row> data,
+				Map<Map<String, String>, Collection<Row>> data,
 				boolean isAsync,
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
 				int[] projectedFields,
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
-				long limit) {
-				Set<String> filterableFields,
+				long limit,
+				boolean shouldPushPartitionDown,
 				List<Map<String, String>> allPartitions) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
@@ -432,6 +491,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
 			this.limit = limit;
+			this.shouldPushPartitionDown = shouldPushPartitionDown;
 			this.allPartitions = allPartitions;
 		}
 
@@ -487,7 +547,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				.mapToInt(k -> k[0])
 				.toArray();
 			Map<Row, List<Row>> mapping = new HashMap<>();
-			data.forEach(record -> {
+			Collection<Row> rows;
+			if (allPartitions.equals(Collections.EMPTY_LIST)) {
+				rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
+			} else {
+				rows = new ArrayList<>();
+				allPartitions.stream()
+					.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<Row>())));
+			}
+			rows.forEach(record -> {
 				Row key = Row.of(Arrays.stream(lookupIndices)
 					.mapToObj(record::getField)
 					.toArray());
@@ -582,6 +650,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return true;
 		}
 
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
 			List<Expression> children = binExpr.getChildren();
 			Preconditions.checkArgument(children.size() == 2);
@@ -611,7 +680,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		private Comparable<?> getValue(Expression expr, Row row) {
 			if (expr instanceof ValueLiteralExpression) {
-				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
+				Optional<?> value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
 				return (Comparable<?>) value.orElse(null);
 			}
 
@@ -649,7 +718,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				filterPredicates,
 				filterableFields,
 				limit,
-				filterableFields,
+				shouldPushPartitionDown,
 				allPartitions);
 		}
 
@@ -659,29 +728,34 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		private Collection<RowData> convertToRowData(
-				Collection<Row> data,
+				Map<Map<String, String>, Collection<Row>> data,
 				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
-			for (Row value : data) {
-				if (result.size() >= limit) {
-					return result;
-				}
-				if (isRetainedAfterApplyingFilterPredicates(value)) {
-					Row projectedRow;
-					if (projectedFields == null) {
-						projectedRow = value;
-					} else {
-						Object[] newValues = new Object[projectedFields.length];
-						for (int i = 0; i < projectedFields.length; ++i) {
-							newValues[i] = value.getField(projectedFields[i]);
-						}
-						projectedRow = Row.of(newValues);
+			List<Map<String, String>> keys = Collections.EMPTY_LIST.equals(allPartitions) ?
+				Collections.singletonList(Collections.EMPTY_MAP) :
+				allPartitions;
+			for (Map<String, String> partition: keys) {
+				for (Row value : data.get(partition)) {
+					if (result.size() >= limit) {
+						return result;
 					}
-					RowData rowData = (RowData) converter.toInternal(projectedRow);
-					if (rowData != null) {
-						rowData.setRowKind(value.getKind());
-						result.add(rowData);
+					if (isRetainedAfterApplyingFilterPredicates(value)) {
+						Row projectedRow;
+						if (projectedFields == null) {
+							projectedRow = value;
+						} else {
+							Object[] newValues = new Object[projectedFields.length];
+							for (int i = 0; i < projectedFields.length; ++i) {
+								newValues[i] = value.getField(projectedFields[i]);
+							}
+							projectedRow = Row.of(newValues);
+						}
+						RowData rowData = (RowData) converter.toInternal(projectedRow);
+						if (rowData != null) {
+							rowData.setRowKind(value.getKind());
+							result.add(rowData);
+						}
 					}
 				}
 			}
@@ -690,6 +764,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public Optional<List<Map<String, String>>> listPartitions() {
+			if (!shouldPushPartitionDown) {
+				return Optional.empty();
+			}
 			return Optional.of(allPartitions);
 		}
 

@@ -60,7 +60,9 @@ public class PushPartitionIntoTableSourceScanRuleTest extends PushPartitionIntoL
 				"  partitioned by (part1, part2)\n" +
 				"  WITH (\n" +
 				" 'connector' = 'values',\n" +
-				" 'bounded' = 'true'\n" +
+				" 'bounded' = 'true',\n" +
+				" 'use-partition-push-down' = 'true',\n" +
+				" 'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'" +
 				")";
 		util().tableEnv().executeSql(ddl1);
 
@@ -74,7 +76,9 @@ public class PushPartitionIntoTableSourceScanRuleTest extends PushPartitionIntoL
 				"  partitioned by (part1, part2)\n" +
 				"  WITH (\n" +
 				" 'connector' = 'values',\n" +
-				" 'bounded' = 'true'\n" +
+				" 'bounded' = 'true',\n" +
+				" 'use-partition-push-down' = 'true',\n" +
+				" 'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'" +
 				")";
 		util().tableEnv().executeSql(ddl2);
 	}

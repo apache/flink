@@ -20,13 +20,14 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
-
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+
+import org.apache.flink.table.planner.JString
+import org.junit.Assert.assertEquals
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -169,6 +170,38 @@ class TableSourceITCase extends BatchTestBase {
       Seq(
         row(5, 5, "Record_5"))
     )
+  }
+
+
+  @Test
+  def testTableSourceWithPartitionable(): Unit = {
+    val data = Seq(
+      row(1, "ZhangSan", "A", 1),
+      row(2, "LiSi", "A", 1),
+      row(3, "Jack", "A", 2),
+      row(4, "Tom", "B", 3),
+      row(5, "Vivi", "C", 1)
+    )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE PartitionableTable (
+         |  id int,
+         |  name string,
+         |  part1 string,
+         |  part2 int
+         |) PARTITIONED BY (`part1`,`part2`)
+         |WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true',
+         |  'use-partition-push-down' = 'true',
+         |  'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'
+         |)
+         |""".stripMargin)
+
+    checkResult("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'",
+      Seq(row(3, "Jack", "A", 2)))
   }
 
   @Test
