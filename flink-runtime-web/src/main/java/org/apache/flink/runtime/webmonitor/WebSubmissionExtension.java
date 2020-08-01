@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -61,7 +62,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			Executor executor,
 			Time timeout) throws Exception {
 
-		webSubmissionHandlers = new ArrayList<>(5);
+		webSubmissionHandlers = new ArrayList<>();
 
 		final JarUploadHandler jarUploadHandler = new JarUploadHandler(
 			leaderRetriever,
@@ -78,6 +79,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			JarListHeaders.getInstance(),
 			localAddressFuture,
 			jarDir.toFile(),
+			configuration,
 			executor);
 
 		final JarRunHandler jarRunHandler = new JarRunHandler(
@@ -87,7 +89,8 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			JarRunHeaders.getInstance(),
 			jarDir,
 			configuration,
-			executor);
+			executor,
+			() -> new DetachedApplicationRunner(true));
 
 		final JarDeleteHandler jarDeleteHandler = new JarDeleteHandler(
 			leaderRetriever,
@@ -122,7 +125,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 		webSubmissionHandlers.add(Tuple2.of(JarRunHeaders.getInstance(), jarRunHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarDeleteHeaders.getInstance(), jarDeleteHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), jarPlanHandler));
-		webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), postJarPlanHandler));
+		webSubmissionHandlers.add(Tuple2.of(JarPlanPostHeaders.getInstance(), postJarPlanHandler));
 	}
 
 	@Override

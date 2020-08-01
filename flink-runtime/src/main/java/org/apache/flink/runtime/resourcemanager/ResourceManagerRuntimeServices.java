@@ -20,8 +20,9 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -50,16 +51,13 @@ public class ResourceManagerRuntimeServices {
 	public static ResourceManagerRuntimeServices fromConfiguration(
 			ResourceManagerRuntimeServicesConfiguration configuration,
 			HighAvailabilityServices highAvailabilityServices,
-			ScheduledExecutor scheduledExecutor) throws Exception {
+			ScheduledExecutor scheduledExecutor,
+			SlotManagerMetricGroup slotManagerMetricGroup) {
 
-		final SlotManagerConfiguration slotManagerConfiguration = configuration.getSlotManagerConfiguration();
-
-		final SlotManager slotManager = new SlotManager(
+		final SlotManager slotManager = new SlotManagerImpl(
 			scheduledExecutor,
-			slotManagerConfiguration.getTaskManagerRequestTimeout(),
-			slotManagerConfiguration.getSlotRequestTimeout(),
-			slotManagerConfiguration.getTaskManagerTimeout(),
-			slotManagerConfiguration.isWaitResultConsumedBeforeRelease());
+			configuration.getSlotManagerConfiguration(),
+			slotManagerMetricGroup);
 
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,

@@ -21,6 +21,7 @@ package org.apache.flink.table.client.config.entries;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -48,6 +49,12 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public static final ExecutionEntry DEFAULT_INSTANCE =
 		new ExecutionEntry(new DescriptorProperties(true));
+
+	private static final String EXECUTION_PLANNER = "planner";
+
+	public static final String EXECUTION_PLANNER_VALUE_OLD = "old";
+
+	public static final String EXECUTION_PLANNER_VALUE_BLINK = "blink";
 
 	private static final String EXECUTION_TYPE = "type";
 
@@ -77,6 +84,8 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
 
+	private static final String EXECUTION_RESULT_MODE_VALUE_TABLEAU = "tableau";
+
 	private static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 
 	private static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
@@ -97,9 +106,9 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL = "restart-strategy.max-failures-per-interval";
 
-	private static final String EXECUTION_CURRNET_CATALOG = "current-catalog";
+	public static final String EXECUTION_CURRENT_CATALOG = "current-catalog";
 
-	private static final String EXECUTION_CURRNET_DATABASE = "current-database";
+	public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
@@ -107,6 +116,12 @@ public class ExecutionEntry extends ConfigEntry {
 
 	@Override
 	protected void validate(DescriptorProperties properties) {
+		properties.validateEnumValues(
+			EXECUTION_PLANNER,
+			true,
+			Arrays.asList(
+				EXECUTION_PLANNER_VALUE_OLD,
+				EXECUTION_PLANNER_VALUE_BLINK));
 		properties.validateEnumValues(
 			EXECUTION_TYPE,
 			true,
@@ -137,20 +152,82 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateLong(EXECUTION_RESTART_STRATEGY_DELAY, true, 0);
 		properties.validateLong(EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL, true, 1);
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
-		properties.validateString(EXECUTION_CURRNET_CATALOG, true, 1);
-		properties.validateString(EXECUTION_CURRNET_DATABASE, true, 1);
+		properties.validateString(EXECUTION_CURRENT_CATALOG, true, 1);
+		properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
 	}
 
-	public boolean isStreamingExecution() {
-		return properties.getOptionalString(EXECUTION_TYPE)
-			.map((v) -> v.equals(EXECUTION_TYPE_VALUE_STREAMING))
-			.orElse(false);
+	public EnvironmentSettings getEnvironmentSettings() {
+		final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
+
+		if (inStreamingMode()) {
+			builder.inStreamingMode();
+		} else if (inBatchMode()) {
+			builder.inBatchMode();
+		}
+
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+
+		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			builder.useOldPlanner();
+		} else if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
+			builder.useBlinkPlanner();
+		}
+
+		return builder.build();
 	}
 
-	public boolean isBatchExecution() {
+	public boolean inStreamingMode() {
 		return properties.getOptionalString(EXECUTION_TYPE)
-			.map((v) -> v.equals(EXECUTION_TYPE_VALUE_BATCH))
-			.orElse(false);
+				.map((v) -> v.equals(EXECUTION_TYPE_VALUE_STREAMING))
+				.orElse(false);
+	}
+
+	public boolean inBatchMode() {
+		return properties.getOptionalString(EXECUTION_TYPE)
+				.map((v) -> v.equals(EXECUTION_TYPE_VALUE_BATCH))
+				.orElse(false);
+	}
+
+	public boolean isStreamingPlanner() {
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+
+		// Blink planner is a streaming planner
+		if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
+			return true;
+		}
+		// Old planner can be a streaming or batch planner
+		else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			return inStreamingMode();
+		}
+
+		return false;
+	}
+
+	public boolean isBatchPlanner() {
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+
+		// Blink planner is not a batch planner
+		if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
+			return false;
+		}
+		// Old planner can be a streaming or batch planner
+		else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			return inBatchMode();
+		}
+
+		return false;
+	}
+
+	public boolean isBlinkPlanner() {
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			return false;
+		}
+		return true;
 	}
 
 	public TimeCharacteristic getTimeCharacteristic() {
@@ -237,11 +314,11 @@ public class ExecutionEntry extends ConfigEntry {
 	}
 
 	public Optional<String> getCurrentCatalog() {
-		return properties.getOptionalString(EXECUTION_CURRNET_CATALOG);
+		return properties.getOptionalString(EXECUTION_CURRENT_CATALOG);
 	}
 
 	public Optional<String> getCurrentDatabase() {
-		return properties.getOptionalString(EXECUTION_CURRNET_DATABASE);
+		return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
 	}
 
 	public boolean isChangelogMode() {
@@ -254,6 +331,12 @@ public class ExecutionEntry extends ConfigEntry {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)
 			.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLE))
 			.orElse(false);
+	}
+
+	public boolean isTableauMode() {
+		return properties.getOptionalString(EXECUTION_RESULT_MODE)
+				.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLEAU))
+				.orElse(false);
 	}
 
 	public Map<String, String> asTopLevelMap() {

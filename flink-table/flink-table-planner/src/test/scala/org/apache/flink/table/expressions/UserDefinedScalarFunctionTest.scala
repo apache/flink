@@ -18,19 +18,19 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{ExpressionTestBase, GraduatedStudent, _}
+import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
+import org.apache.flink.types.Row
+
 import org.junit.Test
+
 import java.lang.{Boolean => JBoolean}
+import java.sql.{Date, Time, Timestamp}
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
@@ -226,7 +226,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func10('f6),
       "Func10(f6)",
       "Func10(f6)",
-      "1990-10-14 12:10:10.0")
+      "1990-10-14 12:10:10.000")
   }
 
   @Test

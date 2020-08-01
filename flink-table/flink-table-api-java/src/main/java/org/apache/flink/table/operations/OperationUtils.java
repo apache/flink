@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
@@ -94,7 +95,7 @@ public class OperationUtils {
 		return stringBuilder.append(childrenDescription).toString();
 	}
 
-	private static String formatParameter(String name, Object value) {
+	public static String formatParameter(String name, Object value) {
 		final StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append(name);
 		stringBuilder.append(": ");
@@ -106,6 +107,17 @@ public class OperationUtils {
 			stringBuilder.append("[").append(value).append("]");
 		}
 		return stringBuilder.toString();
+	}
+
+	public static String formatProperties(Map<String, String> properties) {
+		return properties.entrySet().stream()
+				.map(entry -> formatParameter(entry.getKey(), entry.getValue()))
+				.collect(Collectors.joining(", "));
+	}
+
+	public static String formatPartitionSpec(CatalogPartitionSpec spec) {
+		return spec.getPartitionSpec().entrySet().stream()
+				.map(entry -> entry.getKey() + "=" + entry.getValue()).collect(Collectors.joining(", "));
 	}
 
 	private OperationUtils() {

@@ -20,7 +20,7 @@
   class="no-border small"
   [nzSize]="'small'"
   [nzData]="nodes"
-  [nzScroll]="{x:((1310+left)+'px')}"
+  [nzScroll]="{x:((1360+left)+'px')}"
   [nzFrontPagination]="false"
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
@@ -33,7 +33,7 @@
       <th nzSortKey="detail.metrics.write-records" nzShowSort nzWidth="120px">Records Sent</th>
       <th nzSortKey="parallelism" nzShowSort nzWidth="120px">Parallelism</th>
       <th nzSortKey="detail.start-time" nzShowSort nzWidth="150px">Start Time</th>
-      <th nzSortKey="detail.duration" nzShowSort nzWidth="100px">Duration</th>
+      <th nzSortKey="detail.duration" nzShowSort nzWidth="150px">Duration</th>
       <th nzSortKey="detail.end-time" nzShowSort nzWidth="150px">End Time</th>
       <th nzWidth="100px" nzRight="0px">Tasks</th>
     </tr>

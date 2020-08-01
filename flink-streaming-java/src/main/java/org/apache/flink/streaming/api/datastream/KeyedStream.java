@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -49,9 +50,9 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -210,6 +211,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *     the {@link Object#hashCode()} implementation.</li>
 	 *     <li>it is an array of any type (see {@link PrimitiveArrayTypeInfo}, {@link BasicArrayTypeInfo},
 	 *     {@link ObjectArrayTypeInfo}).</li>
+	 *     <li>it is enum type</li>
 	 * </ol>,
 	 * {@code true} otherwise.
 	 */
@@ -217,11 +219,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		try {
 			return (type instanceof PojoTypeInfo)
 					? !type.getTypeClass().getMethod("hashCode").getDeclaringClass().equals(Object.class)
-					: !(type instanceof PrimitiveArrayTypeInfo || type instanceof BasicArrayTypeInfo || type instanceof ObjectArrayTypeInfo);
+					: !(isArrayType(type) || isEnumType(type));
 		} catch (NoSuchMethodException ignored) {
 			// this should never happen as we are just searching for the hashCode() method.
 		}
 		return false;
+	}
+
+	private static boolean isArrayType(TypeInformation<?> type) {
+		return type instanceof PrimitiveArrayTypeInfo || type instanceof BasicArrayTypeInfo || type instanceof ObjectArrayTypeInfo;
+	}
+
+	private static boolean isEnumType(TypeInformation<?> type) {
+		return type instanceof EnumTypeInfo;
 	}
 
 	// ------------------------------------------------------------------------
@@ -256,11 +266,12 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	@PublicEvolving
-	public <R> SingleOutputStreamOperator<R> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+	protected <R> SingleOutputStreamOperator<R> doTransform(
+			final String operatorName,
+			final TypeInformation<R> outTypeInfo,
+			final StreamOperatorFactory<R> operatorFactory) {
 
-		SingleOutputStreamOperator<R> returnStream = super.transform(operatorName, outTypeInfo, operator);
+		SingleOutputStreamOperator<R> returnStream = super.doTransform(operatorName, outTypeInfo, operatorFactory);
 
 		// inject the key selector and key type
 		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
@@ -793,7 +804,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * per key.
 	 *
 	 * @param positionToMax
-	 *            The field position in the data points to minimize. This is applicable to
+	 *            The field position in the data points to maximize. This is applicable to
 	 *            Tuple types, Scala case classes, and primitive types (which is considered
 	 *            as having one field).
 	 * @return The transformed DataStream.

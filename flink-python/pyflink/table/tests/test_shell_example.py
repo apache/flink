@@ -48,11 +48,11 @@ class ShellExampleTests(PyFlinkTestCase):
                          .field("a", DataTypes.BIGINT())
                          .field("b", DataTypes.STRING())
                          .field("c", DataTypes.STRING()))\
-            .register_table_sink("batch_sink")
+            .create_temporary_table("batch_sink")
 
         t.select("a + 1, b, c").insert_into("batch_sink")
 
-        b_env.execute()
+        bt_env.execute("batch_job")
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:
@@ -84,11 +84,11 @@ class ShellExampleTests(PyFlinkTestCase):
                          .field("a", DataTypes.BIGINT())
                          .field("b", DataTypes.STRING())
                          .field("c", DataTypes.STRING()))\
-            .register_table_sink("stream_sink")
+            .create_temporary_table("stream_sink")
 
         t.select("a + 1, b, c").insert_into("stream_sink")
 
-        s_env.execute()
+        st_env.execute("stream_job")
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:

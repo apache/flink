@@ -42,18 +42,19 @@ public interface LeaderContender {
 	void revokeLeadership();
 
 	/**
-	 * Returns the address of the {@link LeaderContender} under which other instances can connect
-	 * to it.
-	 *
-	 * @return Address of this contender.
-	 */
-	String getAddress();
-
-	/**
 	 * Callback method which is called by {@link LeaderElectionService} in case of an error in the
 	 * service thread.
 	 *
 	 * @param exception Caught exception
 	 */
 	void handleError(Exception exception);
+
+	/**
+	 * Returns the description of the {@link LeaderContender} for logging purposes.
+	 *
+	 * @return Description of this contender.
+	 */
+	default String getDescription() {
+		return "LeaderContender: " + getClass().getSimpleName();
+	}
 }

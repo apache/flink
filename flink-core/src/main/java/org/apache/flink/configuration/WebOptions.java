@@ -32,6 +32,7 @@ public class WebOptions {
 	/**
 	 * Config parameter defining the runtime monitor web-frontend server address.
 	 */
+	@Deprecated
 	public static final ConfigOption<String> ADDRESS =
 		key("web.address")
 			.noDefaultValue()
@@ -71,6 +72,7 @@ public class WebOptions {
 	/**
 	 * Config parameter to override SSL support for the JobManager Web UI.
 	 */
+	@Deprecated
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("web.ssl.enabled")
 			.defaultValue(true)
@@ -154,29 +156,29 @@ public class WebOptions {
 				" (by resampling).");
 
 	/**
-	 * Number of stack trace samples to take to determine back pressure.
+	 * Number of samples to take to determine back pressure.
 	 */
 	public static final ConfigOption<Integer> BACKPRESSURE_NUM_SAMPLES =
 		key("web.backpressure.num-samples")
 			.defaultValue(100)
 			.withDeprecatedKeys("jobmanager.web.backpressure.num-samples")
-			.withDescription("Number of stack trace samples to take to determine back pressure.");
+			.withDescription("Number of samples to take to determine back pressure.");
 
 	/**
-	 * Delay between stack trace samples to determine back pressure in milliseconds.
+	 * Delay between samples to determine back pressure in milliseconds.
 	 */
 	public static final ConfigOption<Integer> BACKPRESSURE_DELAY =
 		key("web.backpressure.delay-between-samples")
 			.defaultValue(50)
 			.withDeprecatedKeys("jobmanager.web.backpressure.delay-between-samples")
-			.withDescription("Delay between stack trace samples to determine back pressure in milliseconds.");
+			.withDescription("Delay between samples to determine back pressure in milliseconds.");
 
 	/**
 	 * Timeout for asynchronous operations by the web monitor in milliseconds.
 	 */
 	public static final ConfigOption<Long> TIMEOUT =
 		key("web.timeout")
-		.defaultValue(10L * 1000L)
+		.defaultValue(10L * 60L * 1000L)
 		.withDescription("Timeout for asynchronous operations by the web monitor in milliseconds.");
 
 	// ------------------------------------------------------------------------

@@ -41,20 +41,25 @@ public final class CliStrings {
 
 	public static final AttributedString MESSAGE_HELP = new AttributedStringBuilder()
 		.append("The following commands are available:\n\n")
-		.append(formatCommand(SqlCommand.QUIT, "Quits the SQL CLI client."))
 		.append(formatCommand(SqlCommand.CLEAR, "Clears the current terminal."))
-		.append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
-		.append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
-		.append(formatCommand(SqlCommand.SHOW_FUNCTIONS, "Shows all registered user-defined functions."))
-		.append(formatCommand(SqlCommand.DESCRIBE, "Describes the schema of a table with the given name."))
-		.append(formatCommand(SqlCommand.EXPLAIN, "Describes the execution plan of a query or table with the given name."))
-		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))
-		.append(formatCommand(SqlCommand.INSERT_INTO, "Inserts the results of a SQL SELECT query into a declared table sink."))
+		.append(formatCommand(SqlCommand.CREATE_TABLE, "Create table under current catalog and database."))
+		.append(formatCommand(SqlCommand.DROP_TABLE, "Drop table with optional catalog and database. Syntax: 'DROP TABLE [IF EXISTS] <name>;'"))
 		.append(formatCommand(SqlCommand.CREATE_VIEW, "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
+		.append(formatCommand(SqlCommand.DESCRIBE, "Describes the schema of a table with the given name."))
 		.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
-		.append(formatCommand(SqlCommand.SOURCE, "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
-		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
+		.append(formatCommand(SqlCommand.EXPLAIN, "Describes the execution plan of a query or table with the given name."))
+		.append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
+		.append(formatCommand(SqlCommand.INSERT_INTO, "Inserts the results of a SQL SELECT query into a declared table sink."))
+		.append(formatCommand(SqlCommand.INSERT_OVERWRITE, "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
+		.append(formatCommand(SqlCommand.QUIT, "Quits the SQL CLI client."))
 		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties."))
+		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))
+		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
+		.append(formatCommand(SqlCommand.SHOW_FUNCTIONS, "Shows all user-defined and built-in functions."))
+		.append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
+		.append(formatCommand(SqlCommand.SOURCE, "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
+		.append(formatCommand(SqlCommand.USE_CATALOG, "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: 'USE CATALOG <name>;'"))
+		.append(formatCommand(SqlCommand.USE, "Sets the current default database. Experimental! Syntax: 'USE <name>;'"))
 		.style(AttributedStyle.DEFAULT.underline())
 		.append("\nHint")
 		.style(AttributedStyle.DEFAULT)
@@ -117,12 +122,6 @@ public final class CliStrings {
 
 	public static final String MESSAGE_EMPTY = "Result was empty.";
 
-	public static final String MESSAGE_UNKNOWN_SQL = "Unknown or invalid SQL statement.";
-
-	public static final String MESSAGE_UNKNOWN_TABLE = "Unknown table.";
-
-	public static final String MESSAGE_RESULT_SNAPSHOT_ERROR = "Could not create a snapshot of the dynamic table.";
-
 	public static final String MESSAGE_RESULT_QUIT = "Result retrieval cancelled.";
 
 	public static final String MESSAGE_SUBMITTING_STATEMENT = "Submitting SQL update statement to the cluster...";
@@ -135,16 +134,41 @@ public final class CliStrings {
 
 	public static final String MESSAGE_UNSUPPORTED_SQL = "Unsupported SQL statement.";
 
+	public static final String MESSAGE_TABLE_CREATED = "Table has been created.";
+
+	public static final String MESSAGE_TABLE_REMOVED = "Table has been removed.";
+
+	public static final String MESSAGE_ALTER_TABLE_SUCCEEDED = "Alter table succeeded!";
+
+	public static final String MESSAGE_ALTER_TABLE_FAILED = "Alter table failed!";
+
 	public static final String MESSAGE_VIEW_CREATED = "View has been created.";
 
 	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
 
-	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
+	public static final String MESSAGE_ALTER_VIEW_SUCCEEDED = "Alter view succeeded!";
 
-	public static final String MESSAGE_VIEW_NOT_FOUND = "The given view does not exist in the current CLI session. " +
-		"Only views created with a CREATE VIEW statement can be accessed.";
+	public static final String MESSAGE_ALTER_VIEW_FAILED = "Alter view failed!";
 
-	public static final String MESSAGE_VIEW_NOT_REMOVED = "The given view cannot be removed without affecting other views.";
+	public static final String MESSAGE_FUNCTION_CREATED = "Function has been created.";
+
+	public static final String MESSAGE_FUNCTION_REMOVED = "Function has been removed.";
+
+	public static final String MESSAGE_ALTER_FUNCTION_SUCCEEDED = "Alter function succeeded!";
+
+	public static final String MESSAGE_ALTER_FUNCTION_FAILED = "Alter function failed!";
+
+	public static final String MESSAGE_DATABASE_CREATED = "Database has been created.";
+
+	public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
+
+	public static final String MESSAGE_ALTER_DATABASE_SUCCEEDED = "Alter database succeeded!";
+
+	public static final String MESSAGE_ALTER_DATABASE_FAILED = "Alter database failed!";
+
+	public static final String MESSAGE_CATALOG_CREATED = "Catalog has been created.";
+
+	public static final String MESSAGE_CATALOG_REMOVED = "Catalog has been removed.";
 
 	// --------------------------------------------------------------------------------------------
 

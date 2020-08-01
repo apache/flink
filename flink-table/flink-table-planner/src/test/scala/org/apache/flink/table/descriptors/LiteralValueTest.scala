@@ -43,15 +43,15 @@ class LiteralValueTest extends DescriptorTestBase {
   }
 
   override def descriptors(): JList[Descriptor] = {
-    val bigDecimalDesc = LiteralValue().of(Types.DECIMAL).value(new JBigDecimal(1))
-    val booleanDesc = LiteralValue().of(Types.BOOLEAN).value(false)
-    val byteDesc = LiteralValue().of(Types.BYTE).value(4.asInstanceOf[Byte])
-    val doubleDesc = LiteralValue().of(Types.DOUBLE).value(7.0)
-    val floatDesc = LiteralValue().of(Types.FLOAT).value(8.0f)
-    val intDesc = LiteralValue().of(Types.INT).value(9)
-    val longDesc = LiteralValue().of(Types.LONG).value(10L)
-    val shortDesc = LiteralValue().of(Types.SHORT).value(11.asInstanceOf[Short])
-    val stringDesc = LiteralValue().of(Types.STRING).value("12")
+    val bigDecimalDesc = new LiteralValue().of(Types.DECIMAL).value(new JBigDecimal(1))
+    val booleanDesc = new LiteralValue().of(Types.BOOLEAN).value(false)
+    val byteDesc = new LiteralValue().of(Types.BYTE).value(4.asInstanceOf[Byte])
+    val doubleDesc = new LiteralValue().of(Types.DOUBLE).value(7.0)
+    val floatDesc = new LiteralValue().of(Types.FLOAT).value(8.0f)
+    val intDesc = new LiteralValue().of(Types.INT).value(9)
+    val longDesc = new LiteralValue().of(Types.LONG).value(10L)
+    val shortDesc = new LiteralValue().of(Types.SHORT).value(11.asInstanceOf[Short])
+    val stringDesc = new LiteralValue().of(Types.STRING).value("12")
 
     // for tests with implicit type see ClassInstanceTest because literal value are not
     // supported in the top level of a hierarchy

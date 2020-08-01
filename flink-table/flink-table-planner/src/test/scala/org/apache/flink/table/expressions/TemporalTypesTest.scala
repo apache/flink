@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.sql.{Date, Time, Timestamp}
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -75,13 +75,13 @@ class TemporalTypesTest extends ExpressionTestBase {
     testTableApi(
       Timestamp.valueOf("2040-09-11 00:00:00.000"),
       "'2040-09-11 00:00:00.000'.toTimestamp",
-      "2040-09-11 00:00:00.0")
+      "2040-09-11 00:00:00.000")
 
     testAllApis(
       "1500-04-30 12:00:00".cast(Types.SQL_TIMESTAMP),
       "'1500-04-30 12:00:00'.cast(SQL_TIMESTAMP)",
       "CAST('1500-04-30 12:00:00' AS TIMESTAMP)",
-      "1500-04-30 12:00:00.0")
+      "1500-04-30 12:00:00.000")
   }
 
   @Test
@@ -171,13 +171,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       'f0.cast(Types.SQL_TIMESTAMP),
       "f0.cast(SQL_TIMESTAMP)",
       "CAST(f0 AS TIMESTAMP)",
-      "1990-10-14 00:00:00.0")
+      "1990-10-14 00:00:00.000")
 
     testAllApis(
       'f1.cast(Types.SQL_TIMESTAMP),
       "f1.cast(SQL_TIMESTAMP)",
       "CAST(f1 AS TIMESTAMP)",
-      "1970-01-01 10:20:45.0")
+      "1970-01-01 10:20:45.000")
 
     testAllApis(
       'f2.cast(Types.SQL_DATE),
@@ -198,29 +198,9 @@ class TemporalTypesTest extends ExpressionTestBase {
       "10:20:45")
 
     testTableApi(
-      'f7.cast(Types.SQL_DATE),
-      "f7.cast(SQL_DATE)",
-      "2002-11-09")
-
-    testTableApi(
-      'f7.cast(Types.SQL_DATE).cast(Types.INT),
-      "f7.cast(SQL_DATE).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f7.cast(Types.SQL_TIME),
-      "f7.cast(SQL_TIME)",
-      "00:00:12")
-
-    testTableApi(
-      'f7.cast(Types.SQL_TIME).cast(Types.INT),
-      "f7.cast(SQL_TIME).cast(INT)",
-      "12000")
-
-    testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP),
       "f8.cast(SQL_TIMESTAMP)",
-      "2016-06-27 07:23:33.0")
+      "2016-06-27 07:23:33.000")
 
     testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP).cast(Types.LONG),

@@ -19,72 +19,30 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
 
 /**
- * Context describing a session.
+ * Context describing a session, it's mainly used for user to open a new session in the backend. If client request to
+ * open a new session, the backend {@link Executor} will maintain a {@link org.apache.flink.table.client.gateway.local.ExecutionContext}
+ * for it, and each interaction the client need to attach the session id.
  */
 public class SessionContext {
 
-	private final String name;
+	private final String sessionId;
+	private final Environment sessionEnv;
 
-	private final Environment defaultEnvironment;
-
-	private final Map<String, String> sessionProperties;
-
-	private final Map<String, ViewEntry> views;
-
-	public SessionContext(String name, Environment defaultEnvironment) {
-		this.name = name;
-		this.defaultEnvironment = defaultEnvironment;
-		this.sessionProperties = new HashMap<>();
-		// the order of how views are registered matters because
-		// they might reference each other
-		this.views = new LinkedHashMap<>();
+	public SessionContext(String sessionId, Environment sessionEnv) {
+		this.sessionId = sessionId;
+		this.sessionEnv = sessionEnv;
 	}
 
-	public void setSessionProperty(String key, String value) {
-		sessionProperties.put(key, value);
+	public String getSessionId() {
+		return this.sessionId;
 	}
 
-	public void resetSessionProperties() {
-		sessionProperties.clear();
-	}
-
-	public void addView(ViewEntry viewEntry) {
-		views.put(viewEntry.getName(), viewEntry);
-	}
-
-	public void removeView(String name) {
-		views.remove(name);
-	}
-
-	public Map<String, ViewEntry> getViews() {
-		return Collections.unmodifiableMap(views);
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public Environment getEnvironment() {
-		return Environment.enrich(
-			defaultEnvironment,
-			sessionProperties,
-			views);
-	}
-
-	public SessionContext copy() {
-		final SessionContext session = new SessionContext(name, defaultEnvironment);
-		session.sessionProperties.putAll(sessionProperties);
-		session.views.putAll(views);
-		return session;
+	public Environment getSessionEnv() {
+		return this.sessionEnv;
 	}
 
 	@Override
@@ -96,18 +54,12 @@ public class SessionContext {
 			return false;
 		}
 		SessionContext context = (SessionContext) o;
-		return Objects.equals(name, context.name) &&
-			Objects.equals(defaultEnvironment, context.defaultEnvironment) &&
-			Objects.equals(sessionProperties, context.sessionProperties) &&
-			Objects.equals(views, context.views);
+		return Objects.equals(sessionId, context.sessionId) &&
+			Objects.equals(sessionEnv, context.sessionEnv);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(
-			name,
-			defaultEnvironment,
-			sessionProperties,
-			views);
+		return Objects.hash(sessionId, sessionEnv);
 	}
 }

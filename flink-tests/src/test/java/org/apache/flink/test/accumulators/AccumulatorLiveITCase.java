@@ -26,6 +26,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -144,7 +145,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		final CheckedThread submissionThread = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+				ClientUtils.submitJobAndWaitForResult(client, jobGraph, AccumulatorLiveITCase.class.getClassLoader());
 			}
 		};
 
@@ -156,7 +157,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 			FutureUtils.retrySuccessfulWithDelay(
 				() -> {
 					try {
-						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()));
+						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()).get());
 					} catch (Exception e) {
 						return FutureUtils.completedExceptionally(e);
 					}
@@ -165,7 +166,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 				deadline,
 				accumulators -> accumulators.size() == 1
 					&& accumulators.containsKey(ACCUMULATOR_NAME)
-					&& (int) accumulators.get(ACCUMULATOR_NAME).getUnchecked() == NUM_ITERATIONS,
+					&& (int) accumulators.get(ACCUMULATOR_NAME) == NUM_ITERATIONS,
 				TestingUtils.defaultScheduledExecutor()
 			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 

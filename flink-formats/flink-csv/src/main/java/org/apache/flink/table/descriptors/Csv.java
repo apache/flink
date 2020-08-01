@@ -28,6 +28,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_ALLOW_COMMENTS;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER;
+import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_ESCAPE_CHARACTER;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_FIELD_DELIMITER;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_IGNORE_PARSE_ERRORS;
@@ -75,13 +76,21 @@ public class Csv extends FormatDescriptor {
 	}
 
 	/**
-	 * Sets the line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed).
+	 * Sets the line delimiter ("\n" by default; otherwise "\r", "\r\n", or "" are allowed).
 	 *
 	 * @param delimiter the line delimiter
 	 */
 	public Csv lineDelimiter(String delimiter) {
 		Preconditions.checkNotNull(delimiter);
 		internalProperties.putString(FORMAT_LINE_DELIMITER, delimiter);
+		return this;
+	}
+
+	/**
+	 * Disable the quote character for enclosing field values.
+	 */
+	public Csv disableQuoteCharacter() {
+		internalProperties.putBoolean(FORMAT_DISABLE_QUOTE_CHARACTER, true);
 		return this;
 	}
 
@@ -150,7 +159,11 @@ public class Csv extends FormatDescriptor {
 	 * Sets the format schema with field names and the types. Required if schema is not derived.
 	 *
 	 * @param schemaType type information that describes the schema
+	 * @deprecated {@link Csv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public Csv schema(TypeInformation<Row> schemaType) {
 		Preconditions.checkNotNull(schemaType);
 		internalProperties.putString(FORMAT_SCHEMA, TypeStringUtils.writeTypeInfo(schemaType));
@@ -165,7 +178,10 @@ public class Csv extends FormatDescriptor {
 	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
 	 * is interpreted as a field renaming in the format.
+	 * @deprecated Derivation format schema from table's schema is the default behavior now.
+	 * 	So there is no need to explicitly declare to derive schema.
 	 */
+	@Deprecated
 	public Csv deriveSchema() {
 		internalProperties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
 		return this;

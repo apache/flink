@@ -28,16 +28,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -94,7 +91,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		src0.map(new NoOpMapFunction())
 				.union(src1, src2)
-				.addSink(new NoOpSinkFunction()).name("sink");
+				.addSink(new DiscardingSink<>()).name("sink");
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -121,7 +118,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		src0.map(new NoOpMapFunction())
 				.union(src1, src2)
-				.addSink(new NoOpSinkFunction()).name("sink");
+				.addSink(new DiscardingSink<>()).name("sink");
 
 		jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -146,7 +143,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		DataStream<String> src0 = env.addSource(new NoOpSourceFunction());
 		DataStream<String> src1 = env.addSource(new NoOpSourceFunction());
 
-		src0.union(src1).addSink(new NoOpSinkFunction());
+		src0.union(src1).addSink(new DiscardingSink<>());
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -178,7 +175,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		env.addSource(new NoOpSourceFunction())
 				.map(new NoOpMapFunction())
 				.filter(new NoOpFilterFunction())
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -192,7 +189,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.map(new NoOpMapFunction())
 				.startNewChain()
 				.filter(new NoOpFilterFunction())
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -221,7 +218,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.map(new NoOpMapFunction()).name("map")
 				.startNewChain()
 				.filter(new NoOpFilterFunction())
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -237,7 +234,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.startNewChain()
 				.filter(new NoOpFilterFunction())
 				.startNewChain()
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -266,9 +263,9 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		DataStream<String> src = env.addSource(new NoOpSourceFunction());
 
-		src.map(new NoOpMapFunction()).addSink(new NoOpSinkFunction());
+		src.map(new NoOpMapFunction()).addSink(new DiscardingSink<>());
 
-		src.map(new NoOpMapFunction()).addSink(new NoOpSinkFunction());
+		src.map(new NoOpMapFunction()).addSink(new DiscardingSink<>());
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 		Set<JobVertexID> vertexIds = new HashSet<>();
@@ -326,11 +323,11 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.name("source").uid("source");
 
 		src.map(new NoOpMapFunction())
-				.addSink(new NoOpSinkFunction())
+				.addSink(new DiscardingSink<>())
 				.name("sink0").uid("sink0");
 
 		src.map(new NoOpMapFunction())
-				.addSink(new NoOpSinkFunction())
+				.addSink(new DiscardingSink<>())
 				.name("sink1").uid("sink1");
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -352,13 +349,13 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		src.map(new NoOpMapFunction())
 				.keyBy(new NoOpKeySelector())
 				.reduce(new NoOpReduceFunction())
-				.addSink(new NoOpSinkFunction())
+				.addSink(new DiscardingSink<>())
 				.name("sink0").uid("sink0");
 
 		src.map(new NoOpMapFunction())
 				.keyBy(new NoOpKeySelector())
 				.reduce(new NoOpReduceFunction())
-				.addSink(new NoOpSinkFunction())
+				.addSink(new DiscardingSink<>())
 				.name("sink1").uid("sink1");
 
 		JobGraph newJobGraph = env.getStreamGraph().getJobGraph();
@@ -386,7 +383,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		env.addSource(new NoOpSourceFunction()).uid("source")
 				.map(new NoOpMapFunction()).uid("source") // Collision
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		// This call is necessary to generate the job graph
 		env.getStreamGraph().getJobGraph();
@@ -403,7 +400,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		env.addSource(new NoOpSourceFunction())
 				// Intermediate chained node
 				.map(new NoOpMapFunction()).uid("map")
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		env.getStreamGraph().getJobGraph();
 	}
@@ -418,30 +415,9 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		env.addSource(new NoOpSourceFunction()).uid("source")
 				.map(new NoOpMapFunction())
-				.addSink(new NoOpSinkFunction());
+				.addSink(new DiscardingSink<>());
 
 		env.getStreamGraph().getJobGraph();
-	}
-
-	@Test
-	public void testUserProvidedHashing() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-
-		List<String> userHashes = Arrays.asList("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-
-		env.addSource(new NoOpSourceFunction(), "src").setUidHash(userHashes.get(0))
-				.map(new NoOpMapFunction())
-				.filter(new NoOpFilterFunction())
-				.keyBy(new NoOpKeySelector())
-				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash(userHashes.get(1));
-
-		StreamGraph streamGraph = env.getStreamGraph();
-		int idx = 1;
-		for (JobVertex jobVertex : streamGraph.getJobGraph().getVertices()) {
-			List<JobVertexID> idAlternatives = jobVertex.getIdAlternatives();
-			Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
-			--idx;
-		}
 	}
 
 	@Test
@@ -485,6 +461,19 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		env
 			.addSource(new NoOpSourceFunction()).setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+			.addSink(new DiscardingSink<>()).setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testDisablingAutoUidsWorksWithKeyBy() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		env.getConfig().disableAutoGeneratedUIDs();
+
+		env
+			.addSource(new NoOpSourceFunction()).setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+			.keyBy(o -> o)
 			.addSink(new DiscardingSink<>()).setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
 		env.getStreamGraph();
@@ -544,15 +533,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		@Override
 		public void cancel() {
-		}
-	}
-
-	private static class NoOpSinkFunction implements SinkFunction<String> {
-
-		private static final long serialVersionUID = -5654199886203297279L;
-
-		@Override
-		public void invoke(String value) throws Exception {
 		}
 	}
 

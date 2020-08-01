@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.Row;
@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * Integration tests for batch SQL.
@@ -78,7 +80,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		Table in = tableEnv.fromDataSet(ds, "a,b,c");
+		Table in = tableEnv.fromDataSet(ds, $("a"), $("b"), $("c"));
 		tableEnv.registerTable("T", in);
 
 		String sqlQuery = "SELECT a, c FROM T";
@@ -102,7 +104,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet("DataSetTable", ds, "x, y, z");
+		tableEnv.createTemporaryView("DataSetTable", ds, $("x"), $("y"), $("z"));
 
 		String sqlQuery = "SELECT x FROM DataSetTable WHERE z LIKE '%Hello%'";
 		Table result = tableEnv.sqlQuery(sqlQuery);
@@ -119,7 +121,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		tableEnv.registerDataSet("AggTable", ds, "x, y, z");
+		tableEnv.createTemporaryView("AggTable", ds, $("x"), $("y"), $("z"));
 
 		String sqlQuery = "SELECT sum(x), min(x), max(x), count(y), avg(x) FROM AggTable";
 		Table result = tableEnv.sqlQuery(sqlQuery);
@@ -138,8 +140,8 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		tableEnv.registerDataSet("t1", ds1, "a, b, c");
-		tableEnv.registerDataSet("t2", ds2, "d, e, f, g, h");
+		tableEnv.createTemporaryView("t1", ds1, $("a"), $("b"), $("c"));
+		tableEnv.createTemporaryView("t2", ds2, $("d"), $("e"), $("f"), $("g"), $("h"));
 
 		String sqlQuery = "SELECT c, g FROM t1, t2 WHERE b = e";
 		Table result = tableEnv.sqlQuery(sqlQuery);
@@ -164,7 +166,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 			new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
 
 		DataSet<Tuple2<Integer, Map<String, String>>> ds1 = env.fromCollection(rows, ty);
-		tableEnv.registerDataSet("t1", ds1, "a, b");
+		tableEnv.createTemporaryView("t1", ds1, $("a"), $("b"));
 
 		String sqlQuery = "SELECT b['foo'] FROM t1";
 		Table result = tableEnv.sqlQuery(sqlQuery);

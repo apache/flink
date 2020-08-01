@@ -26,7 +26,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMes
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * These headers define the protocol for triggering a "stop-with-savepoint" action.
+ * These headers define the protocol for triggering a "stop" action.
  */
 public class StopWithSavepointTriggerHeaders
 		extends AsynchronousOperationTriggerMessageHeaders<StopWithSavepointRequestBody, SavepointTriggerMessageParameters> {
@@ -34,7 +34,7 @@ public class StopWithSavepointTriggerHeaders
 	private static final StopWithSavepointTriggerHeaders INSTANCE = new StopWithSavepointTriggerHeaders();
 
 	private static final String URL = String.format(
-			"/jobs/:%s/stop-with-savepoint",
+			"/jobs/:%s/stop",
 			JobIDPathParameter.KEY);
 
 	private StopWithSavepointTriggerHeaders() {

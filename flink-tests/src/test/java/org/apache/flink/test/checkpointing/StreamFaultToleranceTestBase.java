@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -50,15 +51,15 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 	@Parameterized.Parameters(name = "FailoverStrategy: {0}")
 	public static Collection<FailoverStrategy> parameters() {
-		return Arrays.asList(FailoverStrategy.RestartAllStrategy, FailoverStrategy.RestartPipelinedRegionStrategy);
+		return Arrays.asList(FailoverStrategy.RestartAllFailoverStrategy, FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
 	}
 
 	/**
 	 * The failover strategy to use.
 	 */
 	public enum FailoverStrategy{
-		RestartAllStrategy,
-		RestartPipelinedRegionStrategy
+		RestartAllFailoverStrategy,
+		RestartPipelinedRegionFailoverStrategy
 	}
 
 	@Parameterized.Parameter
@@ -74,10 +75,10 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
 		switch (failoverStrategy) {
-			case RestartPipelinedRegionStrategy:
+			case RestartPipelinedRegionFailoverStrategy:
 				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
 				break;
-			case RestartAllStrategy:
+			case RestartAllFailoverStrategy:
 				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 		}
 
@@ -119,16 +120,14 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+						env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
 			testProgram(env);
 
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			try {
-				cluster.getClusterClient().submitJob(jobGraph, getClass().getClassLoader()).getJobExecutionResult();
-			}
-			catch (ProgramInvocationException root) {
+				ClientUtils.submitJobAndWaitForResult(cluster.getClusterClient(), jobGraph, getClass().getClassLoader()).getJobExecutionResult();
+			} catch (ProgramInvocationException root) {
 				Throwable cause = root.getCause();
 
 				// search for nested SuccessExceptions

@@ -25,16 +25,16 @@ class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.select("a").add_columns("a + 1 as b, a + 2 as c")
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('[a, `default_catalog`.`default_database`.`plus`(a, 1), '
-                         '`default_catalog`.`default_database`.`plus`(a, 2)]',
+        self.assertEqual('[a, plus(a, 1), '
+                         'plus(a, 2)]',
                          query_operation.getProjectList().toString())
 
     def test_add_or_replace_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.select("a").add_or_replace_columns("a + 1 as b, a + 2 as a")
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('[`default_catalog`.`default_database`.`plus`(a, 2), '
-                         '`default_catalog`.`default_database`.`plus`(a, 1)]',
+        self.assertEqual('[plus(a, 2), '
+                         'plus(a, 1)]',
                          query_operation.getProjectList().toString())
 
     def test_rename_columns(self):

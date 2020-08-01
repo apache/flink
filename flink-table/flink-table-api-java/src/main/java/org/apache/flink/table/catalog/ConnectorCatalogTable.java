@@ -20,14 +20,16 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,18 +51,20 @@ import java.util.stream.Collectors;
 public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	private final TableSource<T1> tableSource;
 	private final TableSink<T2> tableSink;
+	// Flag that tells if the tableSource/tableSink is BatchTableSource/BatchTableSink.
+	// NOTES: this should be false in BLINK planner, because BLINK planner always uses StreamTableSource.
 	private final boolean isBatch;
 
-	public static <T1> ConnectorCatalogTable source(TableSource<T1> source, boolean isBatch) {
+	public static <T1> ConnectorCatalogTable<T1, ?> source(TableSource<T1> source, boolean isBatch) {
 		final TableSchema tableSchema = calculateSourceSchema(source, isBatch);
 		return new ConnectorCatalogTable<>(source, null, tableSchema, isBatch);
 	}
 
-	public static <T2> ConnectorCatalogTable sink(TableSink<T2> sink, boolean isBatch) {
+	public static <T2> ConnectorCatalogTable<?, T2> sink(TableSink<T2> sink, boolean isBatch) {
 		return new ConnectorCatalogTable<>(null, sink, sink.getTableSchema(), isBatch);
 	}
 
-	public static <T1, T2> ConnectorCatalogTable sourceAndSink(
+	public static <T1, T2> ConnectorCatalogTable<T1, T2> sourceAndSink(
 			TableSource<T1> source,
 			TableSink<T2> sink,
 			boolean isBatch) {
@@ -99,6 +103,11 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	}
 
 	@Override
+	public CatalogTable copy(Map<String, String> options) {
+		throw new UnsupportedOperationException("ConnectorCatalogTable cannot copy with new table options");
+	}
+
+	@Override
 	public CatalogBaseTable copy() {
 		return this;
 	}
@@ -113,13 +122,13 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 		return Optional.empty();
 	}
 
-	private static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
+	public static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
 		TableSchema tableSchema = source.getTableSchema();
 		if (isBatch) {
 			return tableSchema;
 		}
 
-		TypeInformation[] types = Arrays.copyOf(tableSchema.getFieldTypes(), tableSchema.getFieldCount());
+		DataType[] types = Arrays.copyOf(tableSchema.getFieldDataTypes(), tableSchema.getFieldCount());
 		String[] fieldNames = tableSchema.getFieldNames();
 		if (source instanceof DefinedRowtimeAttributes) {
 			updateRowtimeIndicators((DefinedRowtimeAttributes) source, fieldNames, types);
@@ -127,13 +136,13 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 		if (source instanceof DefinedProctimeAttribute) {
 			updateProctimeIndicator((DefinedProctimeAttribute) source, fieldNames, types);
 		}
-		return new TableSchema(fieldNames, types);
+		return TableSchema.builder().fields(fieldNames, types).build();
 	}
 
 	private static void updateRowtimeIndicators(
 			DefinedRowtimeAttributes source,
 			String[] fieldNames,
-			TypeInformation[] types) {
+			DataType[] types) {
 		List<String> rowtimeAttributes = source.getRowtimeAttributeDescriptors()
 			.stream()
 			.map(RowtimeAttributeDescriptor::getAttributeName)
@@ -141,7 +150,9 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 
 		for (int i = 0; i < fieldNames.length; i++) {
 			if (rowtimeAttributes.contains(fieldNames[i])) {
-				types[i] = TimeIndicatorTypeInfo.ROWTIME_INDICATOR;
+				// bridged to timestamp for compatible flink-planner
+				types[i] = new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3))
+						.bridgedTo(java.sql.Timestamp.class);
 			}
 		}
 	}
@@ -149,12 +160,14 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	private static void updateProctimeIndicator(
 			DefinedProctimeAttribute source,
 			String[] fieldNames,
-			TypeInformation[] types) {
+			DataType[] types) {
 		String proctimeAttribute = source.getProctimeAttribute();
 
 		for (int i = 0; i < fieldNames.length; i++) {
 			if (fieldNames[i].equals(proctimeAttribute)) {
-				types[i] = TimeIndicatorTypeInfo.PROCTIME_INDICATOR;
+				// bridged to timestamp for compatible flink-planner
+				types[i] = new AtomicDataType(new TimestampType(true, TimestampKind.PROCTIME, 3))
+						.bridgedTo(java.sql.Timestamp.class);
 				break;
 			}
 		}

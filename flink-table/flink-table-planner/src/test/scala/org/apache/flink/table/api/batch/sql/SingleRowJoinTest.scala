@@ -19,9 +19,10 @@
 package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class SingleRowJoinTest extends TableTestBase {
@@ -344,7 +345,7 @@ class SingleRowJoinTest extends TableTestBase {
             ),
             term("select", "SUM(a1) AS $f0")
           ),
-          term("select", "*($f0, 0.1) AS EXPR$0")
+          term("select", "*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0")
         )
 
     util.verifySql(query, expected)

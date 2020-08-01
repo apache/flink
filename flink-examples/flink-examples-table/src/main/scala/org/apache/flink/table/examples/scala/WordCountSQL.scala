@@ -18,7 +18,8 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 
 /**
   * Simple example that shows how the Batch SQL API is used in Scala.
@@ -43,8 +44,8 @@ object WordCountSQL {
 
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
 
-    // register the DataSet as table "WordCount"
-    tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
+    // register the DataSet as a view "WordCount"
+    tEnv.createTemporaryView("WordCount", input, $"word", $"frequency")
 
     // run a SQL query on the Table and retrieve the result as a new Table
     val table = tEnv.sqlQuery("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")

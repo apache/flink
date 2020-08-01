@@ -50,5 +50,7 @@ class StateMapView[K, V](state: MapState[K, V]) extends MapView[K, V] {
 
   override def iterator: util.Iterator[util.Map.Entry[K, V]] = state.iterator()
 
+  override def isEmpty(): Boolean = state.isEmpty
+
   override def clear(): Unit = state.clear()
 }

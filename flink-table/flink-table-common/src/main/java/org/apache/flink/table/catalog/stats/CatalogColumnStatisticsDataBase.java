@@ -28,20 +28,20 @@ public abstract class CatalogColumnStatisticsDataBase {
 	/**
 	 * number of null values.
 	 */
-	private final long nullCount;
+	private final Long nullCount;
 
 	private final Map<String, String> properties;
 
-	public CatalogColumnStatisticsDataBase(long nullCount) {
+	public CatalogColumnStatisticsDataBase(Long nullCount) {
 		this(nullCount, new HashMap<>());
 	}
 
-	public CatalogColumnStatisticsDataBase(long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataBase(Long nullCount, Map<String, String> properties) {
 		this.nullCount = nullCount;
 		this.properties = properties;
 	}
 
-	public long getNullCount() {
+	public Long getNullCount() {
 		return nullCount;
 	}
 

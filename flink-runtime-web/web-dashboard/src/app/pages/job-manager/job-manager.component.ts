@@ -28,6 +28,7 @@ export class JobManagerComponent {
   listOfNavigation = [
     { path: 'config', title: 'Configuration' },
     { path: 'logs', title: 'Logs' },
-    { path: 'stdout', title: 'Stdout' }
+    { path: 'stdout', title: 'Stdout' },
+    { path: 'log', title: 'Log List' }
   ];
 }

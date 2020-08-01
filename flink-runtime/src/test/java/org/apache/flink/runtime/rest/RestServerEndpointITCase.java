@@ -26,6 +26,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -99,6 +101,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
@@ -144,7 +147,7 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	@Parameterized.Parameters
-	public static Collection<Object[]> data() {
+	public static Collection<Object[]> data() throws Exception {
 		final Configuration config = getBaseConfig();
 
 		final String truststorePath = getTestResource("local127.truststore").getAbsolutePath();
@@ -161,8 +164,12 @@ public class RestServerEndpointITCase extends TestLogger {
 		final Configuration sslRestAuthConfig = new Configuration(sslConfig);
 		sslRestAuthConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
 
+		final Configuration sslPinningRestAuthConfig = new Configuration(sslRestAuthConfig);
+		sslPinningRestAuthConfig.setString(SecurityOptions.SSL_REST_CERT_FINGERPRINT,
+			SSLUtilsTest.getRestCertificateFingerprint(sslPinningRestAuthConfig, "flink.test"));
+
 		return Arrays.asList(new Object[][]{
-			{config}, {sslConfig}, {sslRestAuthConfig}
+			{config}, {sslConfig}, {sslRestAuthConfig}, {sslPinningRestAuthConfig}
 		});
 	}
 
@@ -585,6 +592,44 @@ public class RestServerEndpointITCase extends TestLogger {
 			assertThat(serverEndpoint2.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
 			assertThat(serverEndpoint2.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
 		}
+	}
+
+	@Test
+	public void testEndpointsMustBeUnique() throws Exception {
+		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+			Tuple2.of(new TestHeaders(), testHandler),
+			Tuple2.of(new TestHeaders(), testUploadHandler)
+		);
+
+		assertThrows("REST handler registration",
+			FlinkRuntimeException.class,
+			() -> {
+				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint(serverConfig, handlers)) {
+					restServerEndpoint.start();
+					return null;
+				}
+			});
+	}
+
+	@Test
+	public void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
+		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+			Tuple2.of(new TestHeaders(), testHandler),
+			Tuple2.of(TestUploadHeaders.INSTANCE, testHandler)
+		);
+
+		assertThrows("Duplicate REST handler",
+			FlinkRuntimeException.class,
+			() -> {
+				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint(serverConfig, handlers)) {
+					restServerEndpoint.start();
+					return null;
+				}
+			});
 	}
 
 	private static File getTestResource(final String fileName) {

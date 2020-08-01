@@ -18,58 +18,62 @@
 
 package org.apache.flink.table.utils
 
+import java.lang.{Iterable => JIterable}
 import java.util.Optional
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
-import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableConfig, TableEnvironment, TableResult}
+import org.apache.flink.table.catalog.Catalog
+import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
+import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
+import org.apache.flink.table.module.Module
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.AbstractDataType
 
 class MockTableEnvironment extends TableEnvironment {
 
   override def fromTableSource(source: TableSource[_]): Table = ???
 
-  override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = ???
-
-  override def getRegisteredExternalCatalog(name: String): ExternalCatalog = ???
-
   override def registerFunction(name: String, function: ScalarFunction): Unit = ???
 
   override def registerTable(name: String, table: Table): Unit = ???
 
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
-
-  override def registerTableSink(
-    name: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]], tableSink: TableSink[_]): Unit = ???
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = ???
-
   override def scan(tablePath: String*): Table = ???
 
-  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+  override def connect(connectorDescriptor: ConnectorDescriptor): ConnectTableDescriptor = ???
 
   override def listCatalogs(): Array[String] = ???
+
+  override def listModules(): Array[String] = ???
 
   override def listDatabases(): Array[String] = ???
 
   override def listTables(): Array[String] = ???
 
+  override def listViews(): Array[String] = ???
+
   override def listUserDefinedFunctions(): Array[String] = ???
 
+  override def listFunctions(): Array[String] = ???
+
   override def explain(table: Table): String = ???
+
+  override def explain(table: Table, extended: Boolean): String = ???
+
+  override def explain(extended: Boolean): String = ???
+
+  override def explainSql(statement: String, extraDetails: ExplainDetail*): String = ???
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = ???
 
   override def sqlQuery(query: String): Table = ???
 
-  override def sqlUpdate(stmt: String): Unit = ???
+  override def executeSql(statement: String): TableResult = ???
 
-  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
+  override def createStatementSet(): StatementSet = ???
+
+  override def sqlUpdate(stmt: String): Unit = ???
 
   override def getConfig: TableConfig = ???
 
@@ -87,14 +91,68 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def useDatabase(databaseName: String): Unit = ???
 
-  override def insertInto(
-    table: Table,
-    queryConfig: QueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = ???
+  override def insertInto(sinkPath: String, table: Table): Unit = ???
 
   override def insertInto(
     table: Table,
     sinkPath: String,
     sinkPathContinued: String*): Unit = ???
+
+  override def execute(jobName: String): JobExecutionResult = ???
+
+  override def loadModule(moduleName: String, module: Module): Unit = ???
+
+  override def unloadModule(moduleName: String): Unit = ???
+
+  override def createTemporaryView(
+    path: String,
+    view: Table): Unit = ???
+
+  override def listTemporaryTables(): Array[String] = ???
+
+  override def listTemporaryViews(): Array[String] = ???
+
+  override def from(path: String): Table = ???
+
+  override def dropTemporaryTable(path: String): Boolean = ???
+
+  override def dropTemporaryView(path: String): Boolean = ???
+
+  override def createTemporarySystemFunction(
+    name: String,
+    functionClass: Class[_ <: UserDefinedFunction]): Unit = ???
+
+  override def createTemporarySystemFunction(
+    name: String,
+    functionInstance: UserDefinedFunction): Unit = ???
+
+  override def dropTemporarySystemFunction(name: String): Boolean = ???
+
+  override def createFunction(
+    path: String,
+    functionClass: Class[_ <: UserDefinedFunction]): Unit = ???
+
+  override def createFunction(
+    path: String,
+    functionClass: Class[_ <: UserDefinedFunction], ignoreIfExists: Boolean): Unit = ???
+
+  override def dropFunction(path: String): Boolean = ???
+
+  override def createTemporaryFunction(
+    path: String,
+    functionClass: Class[_ <: UserDefinedFunction]): Unit = ???
+
+  override def createTemporaryFunction(
+    path: String,
+    functionInstance: UserDefinedFunction): Unit = ???
+
+  override def dropTemporaryFunction(path: String): Boolean = ???
+
+  override def fromValues(expression: Expression*): Table = ???
+
+  override def fromValues(rowType: AbstractDataType[_], values: Expression*): Table = ???
+
+  override def fromValues(values: JIterable[_]): Table = ???
+
+  override def fromValues(rowType: AbstractDataType[_], values: JIterable[_]): Table = ???
 }

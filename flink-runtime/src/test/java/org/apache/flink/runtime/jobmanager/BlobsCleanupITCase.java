@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
@@ -88,8 +89,8 @@ public class BlobsCleanupITCase extends TestLogger {
 
 		Configuration cfg = new Configuration();
 		cfg.setString(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
-		cfg.setString(ConfigConstants.RESTART_STRATEGY, "fixeddelay");
-		cfg.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+		cfg.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+		cfg.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 		// BLOBs are deleted from BlobCache between 1s and 2s after last reference
 		// -> the BlobCache may still have the BLOB or not (let's test both cases randomly)
 		cfg.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
@@ -214,7 +215,10 @@ public class BlobsCleanupITCase extends TestLogger {
 				assertThat(jobResult.getApplicationStatus(), is(ApplicationStatus.CANCELED));
 			} else {
 				final JobResult jobResult = resultFuture.get();
-				assertThat(jobResult.isSuccess(), is(true));
+				Throwable cause = jobResult.getSerializedThrowable()
+						.map(throwable -> throwable.deserializeError(getClass().getClassLoader()))
+						.orElse(null);
+				assertThat(ExceptionUtils.stringifyException(cause), jobResult.isSuccess(), is(true));
 			}
 
 		}
@@ -231,14 +235,16 @@ public class BlobsCleanupITCase extends TestLogger {
 	@Nonnull
 	private JobGraph createJobGraph(TestCase testCase, int numTasks) {
 		JobVertex source = new JobVertex("Source");
-		if (testCase == TestCase.JOB_FAILS || testCase == TestCase.JOB_IS_CANCELLED) {
+		if (testCase == TestCase.JOB_FAILS) {
 			source.setInvokableClass(FailingBlockingInvokable.class);
+		} else if (testCase == TestCase.JOB_IS_CANCELLED) {
+			source.setInvokableClass(BlockingNoOpInvokable.class);
 		} else {
 			source.setInvokableClass(NoOpInvokable.class);
 		}
 		source.setParallelism(numTasks);
 
-		return new JobGraph("BlobCleanupTest", source);
+		return new JobGraph(new JobID(0, testCase.ordinal()), "BlobCleanupTest", source);
 	}
 
 	/**

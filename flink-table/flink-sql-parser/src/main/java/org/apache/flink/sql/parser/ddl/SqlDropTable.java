@@ -18,8 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-
 import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -35,17 +33,23 @@ import java.util.List;
 /**
  * DROP TABLE DDL sql call.
  */
-public class SqlDropTable extends SqlDrop implements ExtendedSqlNode {
+public class SqlDropTable extends SqlDrop {
 	private static final SqlOperator OPERATOR =
 		new SqlSpecialOperator("DROP TABLE", SqlKind.DROP_TABLE);
 
 	private SqlIdentifier tableName;
 	private boolean ifExists;
+	private final boolean isTemporary;
 
-	public SqlDropTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
+	public SqlDropTable(
+			SqlParserPos pos,
+			SqlIdentifier tableName,
+			boolean ifExists,
+			boolean isTemporary) {
 		super(OPERATOR, pos, ifExists);
 		this.tableName = tableName;
 		this.ifExists = ifExists;
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -69,18 +73,21 @@ public class SqlDropTable extends SqlDrop implements ExtendedSqlNode {
 		this.ifExists = ifExists;
 	}
 
+	public boolean isTemporary() {
+		return this.isTemporary;
+	}
+
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("DROP");
+		if (isTemporary) {
+			writer.keyword("TEMPORARY");
+		}
 		writer.keyword("TABLE");
 		if (ifExists) {
 			writer.keyword("IF EXISTS");
 		}
 		tableName.unparse(writer, leftPrec, rightPrec);
-	}
-
-	public void validate() {
-		// no-op
 	}
 
 	public String[] fullTableName() {

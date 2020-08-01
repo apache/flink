@@ -38,6 +38,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskAttribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskFileUpload;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
@@ -84,7 +85,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	public FileUploadHandler(final Path uploadDir) {
 		super(true);
+
+		// the clean up of temp files when jvm exits is handled by org.apache.flink.util.ShutdownHookUtil; thus,
+		// it's no need to register those files (post chunks and upload file chunks) to java.io.DeleteOnExitHook
+		// which may lead to memory leak.
+		DiskAttribute.deleteOnExitTemporaryFile = false;
+		DiskFileUpload.deleteOnExitTemporaryFile = false;
+
 		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
+		// share the same directory with file upload for post chunks storage.
+		DiskAttribute.baseDirectory = DiskFileUpload.baseDirectory;
+
 		this.uploadDir = requireNonNull(uploadDir);
 	}
 

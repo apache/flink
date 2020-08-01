@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { Component } from '@angular/core';
 import { fromEvent, merge } from 'rxjs';
-import { filter, first, map, startWith } from 'rxjs/operators';
+import { map, startWith } from 'rxjs/operators';
 import { StatusService } from 'services';
 import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
 
@@ -28,13 +27,15 @@ import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.se
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.less']
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   collapsed = false;
   visible = false;
   online$ = merge(
     fromEvent(window, 'offline').pipe(map(() => false)),
     fromEvent(window, 'online').pipe(map(() => true))
   ).pipe(startWith(true));
+
+  webSubmitEnabled = this.statusService.configuration.features['web-submit'];
 
   showMessage() {
     if (this.statusService.listOfErrorMessage.length) {
@@ -52,25 +53,5 @@ export class AppComponent implements OnInit {
     this.monacoEditorService.layout();
   }
 
-  constructor(
-    private router: Router,
-    private activatedRoute: ActivatedRoute,
-    public statusService: StatusService,
-    private monacoEditorService: MonacoEditorService
-  ) {}
-
-  /**
-   * Auto collapse sidebar when routing data matched
-   */
-  ngOnInit(): void {
-    this.router.events
-      .pipe(
-        filter(event => event instanceof NavigationEnd),
-        filter(() => this.activatedRoute.firstChild && this.activatedRoute.firstChild.snapshot.data.collapse),
-        first()
-      )
-      .subscribe(() => {
-        this.collapsed = true;
-      });
-  }
+  constructor(public statusService: StatusService, private monacoEditorService: MonacoEditorService) {}
 }

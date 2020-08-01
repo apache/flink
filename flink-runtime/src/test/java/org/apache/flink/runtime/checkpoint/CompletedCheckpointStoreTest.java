@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
@@ -105,8 +105,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 
 		for (int i = 1; i < expected.length; i++) {
-			Collection<OperatorState> taskStates = expected[i - 1].getOperatorStates().values();
-
 			checkpoints.addCheckpoint(expected[i]);
 
 			// The ZooKeeper implementation discards asynchronously

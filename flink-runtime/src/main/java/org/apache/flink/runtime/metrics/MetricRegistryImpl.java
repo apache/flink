@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -38,12 +40,14 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,22 +58,22 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
  * connection between {@link MetricGroup MetricGroups} and {@link MetricReporter MetricReporters}.
  */
 public class MetricRegistryImpl implements MetricRegistry {
-	static final Logger LOG = LoggerFactory.getLogger(MetricRegistryImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryImpl.class);
 
 	private final Object lock = new Object();
 
-	private final List<MetricReporter> reporters;
+	private final List<ReporterAndSettings> reporters;
 	private final ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
 	private final char globalDelimiter;
-	private final List<Character> delimiters;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -93,17 +97,21 @@ public class MetricRegistryImpl implements MetricRegistry {
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
 	public MetricRegistryImpl(MetricRegistryConfiguration config, Collection<ReporterSetup> reporterConfigurations) {
+		this(config, reporterConfigurations, Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-MetricRegistry")));
+	}
+
+	@VisibleForTesting
+	MetricRegistryImpl(MetricRegistryConfiguration config, Collection<ReporterSetup> reporterConfigurations, ScheduledExecutorService scheduledExecutor) {
 		this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
 		this.scopeFormats = config.getScopeFormats();
 		this.globalDelimiter = config.getDelimiter();
-		this.delimiters = new ArrayList<>(10);
 		this.terminationFuture = new CompletableFuture<>();
 		this.isShutdown = false;
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>(4);
 
-		this.executor = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-MetricRegistry"));
+		this.executor = scheduledExecutor;
 
 		this.queryService = null;
 		this.metricQueryServiceRpcService = null;
@@ -117,48 +125,55 @@ public class MetricRegistryImpl implements MetricRegistry {
 				final String namedReporter = reporterSetup.getName();
 
 				try {
-					Optional<String> configuredPeriod = reporterSetup.getIntervalSettings();
-					TimeUnit timeunit = TimeUnit.SECONDS;
-					long period = 10;
-
-					if (configuredPeriod.isPresent()) {
-						try {
-							String[] interval = configuredPeriod.get().split(" ");
-							period = Long.parseLong(interval[0]);
-							timeunit = TimeUnit.valueOf(interval[1]);
-						}
-						catch (Exception e) {
-							LOG.error("Cannot parse report interval from config: " + configuredPeriod +
-									" - please use values like '10 SECONDS' or '500 MILLISECONDS'. " +
-									"Using default reporting interval.");
-						}
-					}
-
 					final MetricReporter reporterInstance = reporterSetup.getReporter();
 					final String className = reporterInstance.getClass().getName();
 
 					if (reporterInstance instanceof Scheduled) {
-						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
+						final Duration period = getConfiguredIntervalOrDefault(reporterSetup);
+
+						LOG.info("Periodically reporting metrics in intervals of {} for reporter {} of type {}.", TimeUtils.formatWithHighestUnit(period), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
-								new MetricRegistryImpl.ReporterTask((Scheduled) reporterInstance), period, period, timeunit);
+								new MetricRegistryImpl.ReporterTask((Scheduled) reporterInstance), period.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
 					} else {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
-					reporters.add(reporterInstance);
 
 					String delimiterForReporter = reporterSetup.getDelimiter().orElse(String.valueOf(globalDelimiter));
 					if (delimiterForReporter.length() != 1) {
 						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
 						delimiterForReporter = String.valueOf(globalDelimiter);
 					}
-					this.delimiters.add(delimiterForReporter.charAt(0));
+
+					reporters.add(new ReporterAndSettings(
+						reporterInstance,
+						new ReporterScopedSettings(
+							reporters.size(),
+							delimiterForReporter.charAt(0),
+							reporterSetup.getExcludedVariables())));
 				}
 				catch (Throwable t) {
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
 				}
 			}
 		}
+	}
+
+	private static Duration getConfiguredIntervalOrDefault(ReporterSetup reporterSetup) {
+		final Optional<String> configuredPeriod = reporterSetup.getIntervalSettings();
+		Duration period = MetricOptions.REPORTER_INTERVAL.defaultValue();
+
+		if (configuredPeriod.isPresent()) {
+			try {
+				period = TimeUtils.parseDuration(configuredPeriod.get());
+			}
+			catch (Exception e) {
+				LOG.error("Cannot parse report interval from config: " + configuredPeriod +
+					" - please use values like '10 SECONDS' or '500 MILLISECONDS'. " +
+					"Using default reporting interval.");
+			}
+		}
+		return period;
 	}
 
 	/**
@@ -221,10 +236,10 @@ public class MetricRegistryImpl implements MetricRegistry {
 		return this.globalDelimiter;
 	}
 
-	@Override
-	public char getDelimiter(int reporterIndex) {
+	@VisibleForTesting
+	char getDelimiter(int reporterIndex) {
 		try {
-			return delimiters.get(reporterIndex);
+			return reporters.get(reporterIndex).getSettings().getDelimiter();
 		} catch (IndexOutOfBoundsException e) {
 			LOG.warn("Delimiter for reporter index {} not found, returning global delimiter.", reporterIndex);
 			return this.globalDelimiter;
@@ -238,7 +253,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	@VisibleForTesting
 	public List<MetricReporter> getReporters() {
-		return reporters;
+		return reporters.stream().map(ReporterAndSettings::getReporter).collect(Collectors.toList());
 	}
 
 	/**
@@ -276,9 +291,9 @@ public class MetricRegistryImpl implements MetricRegistry {
 				}
 
 				Throwable throwable = null;
-				for (MetricReporter reporter : reporters) {
+				for (ReporterAndSettings reporterAndSettings : reporters) {
 					try {
-						reporter.close();
+						reporterAndSettings.getReporter().close();
 					} catch (Throwable t) {
 						throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 					}
@@ -331,14 +346,14 @@ public class MetricRegistryImpl implements MetricRegistry {
 			} else {
 				if (reporters != null) {
 					for (int i = 0; i < reporters.size(); i++) {
-						MetricReporter reporter = reporters.get(i);
+						ReporterAndSettings reporterAndSettings = reporters.get(i);
 						try {
-							if (reporter != null) {
-								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
-								reporter.notifyOfAddedMetric(metric, metricName, front);
+							if (reporterAndSettings != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(reporterAndSettings.getSettings(), group);
+								reporterAndSettings.getReporter().notifyOfAddedMetric(metric, metricName, front);
 							}
 						} catch (Exception e) {
-							LOG.warn("Error while registering metric.", e);
+							LOG.warn("Error while registering metric: {}.", metricName, e);
 						}
 					}
 				}
@@ -347,7 +362,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 						queryService.addMetric(metricName, metric, group);
 					}
 				} catch (Exception e) {
-					LOG.warn("Error while registering metric.", e);
+					LOG.warn("Error while registering metric: {}.", metricName, e);
 				}
 				try {
 					if (metric instanceof View) {
@@ -357,7 +372,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 						viewUpdater.notifyOfAddedView((View) metric);
 					}
 				} catch (Exception e) {
-					LOG.warn("Error while registering metric.", e);
+					LOG.warn("Error while registering metric: {}.", metricName, e);
 				}
 			}
 		}
@@ -372,13 +387,13 @@ public class MetricRegistryImpl implements MetricRegistry {
 				if (reporters != null) {
 					for (int i = 0; i < reporters.size(); i++) {
 						try {
-						MetricReporter reporter = reporters.get(i);
-							if (reporter != null) {
-								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
-								reporter.notifyOfRemovedMetric(metric, metricName, front);
+						ReporterAndSettings reporterAndSettings = reporters.get(i);
+							if (reporterAndSettings != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(reporterAndSettings.getSettings(), group);
+								reporterAndSettings.getReporter().notifyOfRemovedMetric(metric, metricName, front);
 							}
 						} catch (Exception e) {
-							LOG.warn("Error while registering metric.", e);
+							LOG.warn("Error while unregistering metric: {}.", metricName, e);
 						}
 					}
 				}
@@ -387,7 +402,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 						queryService.removeMetric(metric);
 					}
 				} catch (Exception e) {
-					LOG.warn("Error while registering metric.", e);
+					LOG.warn("Error while unregistering metric: {}.", metricName, e);
 				}
 				try {
 					if (metric instanceof View) {
@@ -396,7 +411,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 						}
 					}
 				} catch (Exception e) {
-					LOG.warn("Error while registering metric.", e);
+					LOG.warn("Error while unregistering metric: {}", metricName, e);
 				}
 			}
 		}
@@ -437,6 +452,25 @@ public class MetricRegistryImpl implements MetricRegistry {
 			} catch (Throwable t) {
 				LOG.warn("Error while reporting metrics", t);
 			}
+		}
+	}
+
+	private static class ReporterAndSettings {
+
+		private final MetricReporter reporter;
+		private final ReporterScopedSettings settings;
+
+		private ReporterAndSettings(MetricReporter reporter, ReporterScopedSettings settings) {
+			this.reporter = Preconditions.checkNotNull(reporter);
+			this.settings = Preconditions.checkNotNull(settings);
+		}
+
+		public MetricReporter getReporter() {
+			return reporter;
+		}
+
+		public ReporterScopedSettings getSettings() {
+			return settings;
 		}
 	}
 }

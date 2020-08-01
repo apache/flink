@@ -55,9 +55,9 @@ Depending on your version of Linux, Windows or MacOS, you may need to manually i
 
 #### Ubuntu Linux
 
-Install *node.js* by following [these instructions](https://github.com/joyent/node/wiki/installing-node.js-via-package-manager).
+Install *node.js* by following [these instructions](https://nodejs.org/en/download/).
 
-Verify that the installed version is at least *10.9.0*, via `npm -version`.
+Verify that the installed version is at least *10.9.0*, via `node --version`.
 
 
 #### MacOS

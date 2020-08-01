@@ -37,15 +37,23 @@ jobmanager.rpc.address: localhost
 jobmanager.rpc.port: 6123
 
 
-# The heap size for the JobManager JVM
+# The total process memory size for the JobManager.
+#
+# Note this accounts for all memory usage within the JobManager process, including JVM metaspace and other overhead.
 
-jobmanager.heap.size: 1024m
+jobmanager.memory.process.size: 1600m
 
 
-# The heap size for the TaskManager JVM
+# The total process memory size for the TaskManager.
+#
+# Note this accounts for all memory usage within the TaskManager process, including JVM metaspace and other overhead.
 
-taskmanager.heap.size: 1024m
+taskmanager.memory.process.size: 1728m
 
+# To exclude JVM metaspace and overhead, please, use total Flink memory size instead of 'taskmanager.memory.process.size'.
+# It is not recommended to set both 'taskmanager.memory.process.size' and Flink memory.
+#
+# taskmanager.memory.flink.size: 1280m
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
 
@@ -120,6 +128,12 @@ parallelism.default: 1
 #
 # state.backend.incremental: false
 
+# The failover strategy, i.e., how the job computation recovers from task failures.
+# Only restart tasks that may have been affected by the task failure, which typically includes
+# downstream tasks and potentially upstream tasks if their produced data is no longer available for consumption.
+
+jobmanager.execution.failover-strategy: region
+
 #==============================================================================
 # Rest & web frontend
 #==============================================================================
@@ -167,17 +181,6 @@ parallelism.default: 1
 #
 # io.tmp.dirs: /tmp
 
-# Specify whether TaskManager's managed memory should be allocated when starting
-# up (true) or when memory is requested.
-#
-# We recommend to set this value to 'true' only in setups for pure batch
-# processing (DataSet API). Streaming setups currently do not use the TaskManager's
-# managed memory: The 'rocksdb' state backend uses RocksDB's own memory management,
-# while the 'memory' and 'filesystem' backends explicitly keep data as objects
-# to save on serialization cost.
-#
-# taskmanager.memory.preallocate: false
-
 # The classloading resolve order. Possible values are 'child-first' (Flink's default)
 # and 'parent-first' (Java's default).
 #
@@ -191,9 +194,9 @@ parallelism.default: 1
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
 # of network buffers" error. The default min is 64MB, the default max is 1GB.
 # 
-# taskmanager.network.memory.fraction: 0.1
-# taskmanager.network.memory.min: 64mb
-# taskmanager.network.memory.max: 1gb
+# taskmanager.memory.network.fraction: 0.1
+# taskmanager.memory.network.min: 64mb
+# taskmanager.memory.network.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration

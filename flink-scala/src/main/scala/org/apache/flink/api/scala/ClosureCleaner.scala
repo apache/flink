@@ -28,8 +28,8 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
-import org.apache.flink.shaded.asm6.org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
-import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes._
+import org.apache.flink.shaded.asm7.org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
+import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes._
 
 import scala.collection.mutable
 

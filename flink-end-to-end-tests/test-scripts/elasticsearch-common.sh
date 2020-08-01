@@ -26,6 +26,12 @@ function setup_elasticsearch {
     mkdir -p $TEST_DATA_DIR
 
     local downloadUrl=$1
+    local elasticsearch_version=$2
+
+    if [ -z $elasticsearch_version ]; then
+      echo "Elasticsearch version not declared."
+      exit 1
+    fi
 
     # start downloading Elasticsearch
     echo "Downloading Elasticsearch from $downloadUrl ..."
@@ -34,6 +40,10 @@ function setup_elasticsearch {
     local elasticsearchDir=$TEST_DATA_DIR/elasticsearch
     mkdir -p $elasticsearchDir
     tar xzf $TEST_DATA_DIR/elasticsearch.tar.gz -C $elasticsearchDir --strip-components=1
+
+    if [ `uname -i` == 'aarch64' ] && [ $elasticsearch_version -ge 6 ]; then
+      echo xpack.ml.enabled: false >> $elasticsearchDir/config/elasticsearch.yml
+    fi
 
     # start Elasticsearch cluster
     $elasticsearchDir/bin/elasticsearch &
@@ -69,7 +79,7 @@ function verify_result_line_number {
     while : ; do
       curl "localhost:9200/${index}/_search?q=*&pretty&size=21" > $TEST_DATA_DIR/output || true
 
-      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
+      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ] || [ -n "$(grep "\"value\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
           echo "Elasticsearch end to end test pass."
           break
       else

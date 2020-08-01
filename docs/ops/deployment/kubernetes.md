@@ -2,7 +2,7 @@
 title:  "Kubernetes Setup"
 nav-title: Kubernetes
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,10 +23,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes how to deploy a Flink job and session cluster on [Kubernetes](https://kubernetes.io).
+This page describes how to deploy a *Flink Job* and *Session cluster* on [Kubernetes](https://kubernetes.io).
 
 * This will be replaced by the TOC
 {:toc}
+
+{% info %} This page describes deploying a [standalone](#cluster_setup.html) Flink cluster on top of Kubernetes.
+You can find more information on native Kubernetes deployments [here]({{ site.baseurl }}/ops/deployment/native_kubernetes.html).
 
 ## Setup Kubernetes
 
@@ -34,129 +37,199 @@ Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in or
 If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
 
 <div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. 
-  Otherwise Flink components are not able to self reference themselves through a Kubernetes service. 
+  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster.
+  Otherwise Flink components are not able to self reference themselves through a Kubernetes service.
 </div>
 
-## Flink session cluster on Kubernetes
+## Flink Docker image
 
-A Flink session cluster is executed as a long-running Kubernetes Deployment. 
-Note that you can run multiple Flink jobs on a session cluster.
+Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation](docker.html),
+[its tags](docker.html#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and
+[enable plugins](docker.html#using-plugins) to use the image in the Kubernetes definition files.
+
+## Deploy Flink cluster on Kubernetes
+
+Using [the common resource definitions](#common-cluster-resource-definitions), launch the common cluster components
+with the `kubectl` command:
+
+```sh
+    kubectl create -f flink-configuration-configmap.yaml
+    kubectl create -f jobmanager-service.yaml
+```
+
+Note that you could define your own customized options of `flink-conf.yaml` within `flink-configuration-configmap.yaml`.
+
+Then launch the specific components depending on whether you want to deploy a [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster.
+
+You can then access the Flink UI via different ways:
+*  `kubectl proxy`:
+
+    1. Run `kubectl proxy` in a terminal.
+    2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy) in your browser.
+
+*  `kubectl port-forward`:
+    1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
+    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
+    3. Moreover, you could use the following command below to submit jobs to the cluster:
+    {% highlight bash %}./bin/flink run -m localhost:8081 ./examples/streaming/WordCount.jar{% endhighlight %}
+
+*  Create a `NodePort` service on the rest service of jobmanager:
+    1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+    2. Run `kubectl get svc flink-jobmanager-rest` to know the `node-port` of this service and navigate to [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>) in your browser.
+    3. If you use minikube, you can get its public ip by running `minikube ip`.
+    4. Similarly to the `port-forward` solution, you could also use the following command below to submit jobs to the cluster:
+
+        {% highlight bash %}./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar{% endhighlight %}
+
+You can also access the queryable state of TaskManager if you create a `NodePort` service for it:
+  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service on taskmanager. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+  2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.md %}#querying-state) to submit the state queries.
+
+In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
+and use `kubectl` to terminate the common components:
+
+```sh
+    kubectl delete -f jobmanager-service.yaml
+    kubectl delete -f flink-configuration-configmap.yaml
+    # if created then also the rest service
+    kubectl delete -f jobmanager-rest-service.yaml
+    # if created then also the queryable state service
+    kubectl delete -f taskmanager-query-state-service.yaml
+```
+
+### Deploy Session Cluster
+
+A *Flink Session cluster* is executed as a long-running Kubernetes Deployment.
+Note that you can run multiple Flink jobs on a *Session cluster*.
 Each job needs to be submitted to the cluster after the cluster has been deployed.
 
-A basic Flink session cluster deployment in Kubernetes has three components:
+A *Flink Session cluster* deployment in Kubernetes has at least three components:
 
-* a Deployment/Job which runs the JobManager
-* a Deployment for a pool of TaskManagers
-* a Service exposing the JobManager's REST and UI ports
+* a *Deployment* which runs a [JobManager]({{ site.baseurl }}/concepts/glossary.html#flink-jobmanager)
+* a *Deployment* for a pool of [TaskManagers]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager)
+* a *Service* exposing the *JobManager's* REST and UI ports
 
-### Deploy Flink session cluster on Kubernetes
+After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Session specific resource definitions](#session-cluster-resource-definitions)
+to launch the *Session cluster* with the `kubectl` command:
 
-Using the resource definitions for a [session cluster](#session-cluster-resource-definitions), launch the cluster with the `kubectl` command:
+```sh
+    kubectl create -f jobmanager-session-deployment.yaml
+    kubectl create -f taskmanager-session-deployment.yaml
+```
 
-    kubectl create -f jobmanager-service.yaml
-    kubectl create -f jobmanager-deployment.yaml
-    kubectl create -f taskmanager-deployment.yaml
+To terminate the *Session cluster*, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes) with the `kubectl` command:
 
-You can then access the Flink UI via `kubectl proxy`:
+```sh
+    kubectl delete -f taskmanager-session-deployment.yaml
+    kubectl delete -f jobmanager-session-deployment.yaml
+```
 
-1. Run `kubectl proxy` in a terminal
-2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy) in your browser
+### Deploy Job Cluster
 
-In order to terminate the Flink session cluster, use `kubectl`:
+A *Flink Job cluster* is a dedicated cluster which runs a single job.
+You can find more details [here](#start-a-job-cluster).
 
-    kubectl delete -f jobmanager-deployment.yaml
-    kubectl delete -f taskmanager-deployment.yaml
-    kubectl delete -f jobmanager-service.yaml
+A basic *Flink Job cluster* deployment in Kubernetes has three components:
 
-## Flink job cluster on Kubernetes
+* a *Job* which runs a *JobManager*
+* a *Deployment* for a pool of *TaskManagers*
+* a *Service* exposing the *JobManager's* REST and UI ports
 
-A Flink job cluster is a dedicated cluster which runs a single job. 
-The job is part of the image and, thus, there is no extra job submission needed. 
+Check [the Job cluster specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
 
-### Creating the job-specific image
+The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
+See also [how to specify the JobManager arguments](docker.html#jobmanager-additional-command-line-arguments) to understand
+how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
-The Flink job cluster image needs to contain the user code jars of the job for which the cluster is started.
-Therefore, one needs to build a dedicated container image for every job.
-Please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) to build the Docker image.
-    
-### Deploy Flink job cluster on Kubernetes
+The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
+The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
+If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
+Alternatively, you can build [a custom image](docker.html#start-a-job-cluster) which already contains the artifacts instead.
 
-In order to deploy the a job cluster on Kubernetes please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/kubernetes/README.md#deploy-flink-job-cluster).
+After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#job-cluster-resource-definitions)
+to launch the cluster with the `kubectl` command:
 
-## Advanced Cluster Deployment
+```sh
+    kubectl create -f jobmanager-job.yaml
+    kubectl create -f taskmanager-job-deployment.yaml
+```
 
-An early version of a [Flink Helm chart](https://github.com/docker-flink/examples) is available on GitHub.
+To terminate the single job cluster, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes)
+with the `kubectl` command:
+
+```sh
+    kubectl delete -f taskmanager-job-deployment.yaml
+    kubectl delete -f jobmanager-job.yaml
+```
 
 ## Appendix
 
-### Session cluster resource definitions
+### Common cluster resource definitions
 
-The Deployment definitions use the pre-built image `flink:latest` which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
-The image is built from this [Github repository](https://github.com/docker-flink/docker-flink).
-
-`jobmanager-deployment.yaml`
+`flink-configuration-configmap.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: flink-jobmanager
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: flink
-        component: jobmanager
-    spec:
-      containers:
-      - name: jobmanager
-        image: flink:latest
-        args:
-        - jobmanager
-        ports:
-        - containerPort: 6123
-          name: rpc
-        - containerPort: 6124
-          name: blob
-        - containerPort: 6125
-          name: query
-        - containerPort: 8081
-          name: ui
-        env:
-        - name: JOB_MANAGER_RPC_ADDRESS
-          value: flink-jobmanager
-{% endhighlight %}
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.numberOfTaskSlots: 2
+    blob.server.port: 6124
+    jobmanager.rpc.port: 6123
+    taskmanager.rpc.port: 6122
+    queryable-state.proxy.ports: 6125
+    jobmanager.memory.process.size: 1600m
+    taskmanager.memory.process.size: 1728m
+    parallelism.default: 2
+  log4j-console.properties: |+
+    # This affects logging for both user code and Flink
+    rootLogger.level = INFO
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
 
-`taskmanager-deployment.yaml`
-{% highlight yaml %}
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: flink-taskmanager
-spec:
-  replicas: 2
-  template:
-    metadata:
-      labels:
-        app: flink
-        component: taskmanager
-    spec:
-      containers:
-      - name: taskmanager
-        image: flink:latest
-        args:
-        - taskmanager
-        ports:
-        - containerPort: 6121
-          name: data
-        - containerPort: 6122
-          name: rpc
-        - containerPort: 6125
-          name: query
-        env:
-        - name: JOB_MANAGER_RPC_ADDRESS
-          value: flink-jobmanager
+    # Uncomment this if you want to _only_ change Flink's logging
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+
+    # Log all infos to the console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos in the given rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
+    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = OFF
 {% endhighlight %}
 
 `jobmanager-service.yaml`
@@ -166,18 +239,261 @@ kind: Service
 metadata:
   name: flink-jobmanager
 spec:
+  type: ClusterIP
   ports:
   - name: rpc
     port: 6123
-  - name: blob
+  - name: blob-server
     port: 6124
-  - name: query
-    port: 6125
-  - name: ui
+  - name: webui
     port: 8081
   selector:
     app: flink
     component: jobmanager
+{% endhighlight %}
+
+`jobmanager-rest-service.yaml`. Optional service, that exposes the jobmanager `rest` port as public Kubernetes node's port.
+{% highlight yaml %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager-rest
+spec:
+  type: NodePort
+  ports:
+  - name: rest
+    port: 8081
+    targetPort: 8081
+    nodePort: 30081
+  selector:
+    app: flink
+    component: jobmanager
+{% endhighlight %}
+
+`taskmanager-query-state-service.yaml`. Optional service, that exposes the TaskManager port to access the queryable state as a public Kubernetes node's port.
+{% highlight yaml %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-taskmanager-query-state
+spec:
+  type: NodePort
+  ports:
+  - name: query-state
+    port: 6125
+    targetPort: 6125
+    nodePort: 30025
+  selector:
+    app: flink
+    component: taskmanager
+{% endhighlight %}
+
+### Session cluster resource definitions
+
+`jobmanager-session-deployment.yaml`
+{% highlight yaml %}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: jobmanager
+    spec:
+      containers:
+      - name: jobmanager
+        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
+        args: ["jobmanager"]
+        ports:
+        - containerPort: 6123
+          name: rpc
+        - containerPort: 6124
+          name: blob-server
+        - containerPort: 8081
+          name: webui
+        livenessProbe:
+          tcpSocket:
+            port: 6123
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+{% endhighlight %}
+
+`taskmanager-session-deployment.yaml`
+{% highlight yaml %}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+    spec:
+      containers:
+      - name: taskmanager
+        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        - containerPort: 6125
+          name: query-state
+        livenessProbe:
+          tcpSocket:
+            port: 6122
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf/
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+{% endhighlight %}
+
+### Job cluster resource definitions
+
+`jobmanager-job.yaml`
+{% highlight yaml %}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-jobmanager
+spec:
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: jobmanager
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: jobmanager
+          image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
+          env:
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          ports:
+            - containerPort: 6123
+              name: rpc
+            - containerPort: 6124
+              name: blob-server
+            - containerPort: 8081
+              name: webui
+          livenessProbe:
+            tcpSocket:
+              port: 6123
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          volumeMounts:
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf
+            - name: job-artifacts-volume
+              mountPath: /opt/flink/usrlib
+          securityContext:
+            runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      volumes:
+        - name: flink-config-volume
+          configMap:
+            name: flink-config
+            items:
+              - key: flink-conf.yaml
+                path: flink-conf.yaml
+              - key: log4j-console.properties
+                path: log4j-console.properties
+        - name: job-artifacts-volume
+          hostPath:
+            path: /host/path/to/job/artifacts
+{% endhighlight %}
+
+`taskmanager-job-deployment.yaml`
+{% highlight yaml %}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+    spec:
+      containers:
+      - name: taskmanager
+        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
+        env:
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        - containerPort: 6125
+          name: query-state
+        livenessProbe:
+          tcpSocket:
+            port: 6122
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf/
+        - name: job-artifacts-volume
+          mountPath: /opt/flink/usrlib
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+      - name: job-artifacts-volume
+        hostPath:
+          path: /host/path/to/job/artifacts
 {% endhighlight %}
 
 {% top %}

@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -46,7 +47,7 @@ import java.util.stream.Collectors;
 @PublicEvolving
 public final class CallExpression implements ResolvedExpression {
 
-	private final @Nullable ObjectIdentifier objectIdentifier;
+	private final @Nullable FunctionIdentifier functionIdentifier;
 
 	private final FunctionDefinition functionDefinition;
 
@@ -55,12 +56,12 @@ public final class CallExpression implements ResolvedExpression {
 	private final DataType dataType;
 
 	public CallExpression(
-			ObjectIdentifier objectIdentifier,
+			FunctionIdentifier functionIdentifier,
 			FunctionDefinition functionDefinition,
 			List<ResolvedExpression> args,
 			DataType dataType) {
-		this.objectIdentifier =
-			Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
+		this.functionIdentifier =
+			Preconditions.checkNotNull(functionIdentifier, "Object identifier must not be null.");
 		this.functionDefinition =
 			Preconditions.checkNotNull(functionDefinition, "Function definition must not be null.");
 		this.args = new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null."));
@@ -71,18 +72,29 @@ public final class CallExpression implements ResolvedExpression {
 			FunctionDefinition functionDefinition,
 			List<ResolvedExpression> args,
 			DataType dataType) {
-		this.objectIdentifier = null;
+		this.functionIdentifier = null;
 		this.functionDefinition = Preconditions.checkNotNull(functionDefinition, "Function definition must not be null.");
 		this.args = new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null."));
 		this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
 	}
 
-	public Optional<ObjectIdentifier> getObjectIdentifier() {
-		return Optional.ofNullable(objectIdentifier);
+	public Optional<FunctionIdentifier> getFunctionIdentifier() {
+		return Optional.ofNullable(functionIdentifier);
 	}
 
 	public FunctionDefinition getFunctionDefinition() {
 		return functionDefinition;
+	}
+
+	/**
+	 * Returns a string representation of the call's function for logging or printing to a console.
+	 */
+	public String getFunctionName() {
+		if (functionIdentifier == null) {
+			return functionDefinition.toString();
+		} else {
+			return functionIdentifier.asSummaryString();
+		}
 	}
 
 	@Override
@@ -97,18 +109,11 @@ public final class CallExpression implements ResolvedExpression {
 
 	@Override
 	public String asSummaryString() {
-		final String functionName;
-		if (objectIdentifier == null) {
-			functionName = functionDefinition.toString();
-		} else {
-			functionName = objectIdentifier.asSerializableString();
-		}
-
 		final String argList = args.stream()
 			.map(Expression::asSummaryString)
 			.collect(Collectors.joining(", ", "(", ")"));
 
-		return functionName + argList;
+		return getFunctionName() + argList;
 	}
 
 	@Override
@@ -130,7 +135,7 @@ public final class CallExpression implements ResolvedExpression {
 			return false;
 		}
 		CallExpression that = (CallExpression) o;
-		return Objects.equals(objectIdentifier, that.objectIdentifier) &&
+		return Objects.equals(functionIdentifier, that.functionIdentifier) &&
 			functionDefinition.equals(that.functionDefinition) &&
 			args.equals(that.args) &&
 			dataType.equals(that.dataType);
@@ -138,7 +143,7 @@ public final class CallExpression implements ResolvedExpression {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(objectIdentifier, functionDefinition, args, dataType);
+		return Objects.hash(functionIdentifier, functionDefinition, args, dataType);
 	}
 
 	@Override

@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -309,11 +310,13 @@ public final class DelegatingConfiguration extends Configuration {
 	@Override
 	public Map<String, String> toMap() {
 		Map<String, String> map = backingConfig.toMap();
-		Map<String, String> prefixed = new HashMap<>(map.size());
+		Map<String, String> prefixed = new HashMap<>();
 		for (Map.Entry<String, String> entry : map.entrySet()) {
-			prefixed.put(prefix + entry.getKey(), entry.getValue());
+			if (entry.getKey().startsWith(prefix)) {
+				String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+				prefixed.put(keyWithoutPrefix, entry.getValue());
+			}
 		}
-
 		return prefixed;
 	}
 
@@ -330,6 +333,21 @@ public final class DelegatingConfiguration extends Configuration {
 	@Override
 	public boolean contains(ConfigOption<?> configOption) {
 		return backingConfig.contains(prefixOption(configOption, prefix));
+	}
+
+	@Override
+	public <T> T get(ConfigOption<T> option) {
+		return backingConfig.get(prefixOption(option, prefix));
+	}
+
+	@Override
+	public <T> Optional<T> getOptional(ConfigOption<T> option) {
+		return backingConfig.getOptional(prefixOption(option, prefix));
+	}
+
+	@Override
+	public <T> Configuration set(ConfigOption<T> option, T value) {
+		return backingConfig.set(prefixOption(option, prefix), value);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -379,9 +397,12 @@ public final class DelegatingConfiguration extends Configuration {
 		}
 
 		FallbackKey[] deprecated = deprecatedKeys.toArray(new FallbackKey[0]);
-		return new ConfigOption<>(key,
+		return new ConfigOption<T>(
+			key,
+			option.getClazz(),
 			option.description(),
 			option.defaultValue(),
+			option.isList(),
 			deprecated);
 	}
 }

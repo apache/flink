@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	private final long iterationWaitTime;
 	private final boolean shouldWait;
 
-	public StreamIterationHead(Environment env) {
+	public StreamIterationHead(Environment env) throws Exception {
 		super(env);
 		final String iterationId = getConfiguration().getIterationId();
 		if (iterationId == null || iterationId.length() == 0) {
@@ -66,19 +67,17 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		StreamRecord<OUT> nextRecord = shouldWait ?
 			dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS) :
 			dataChannel.take();
 
 		if (nextRecord != null) {
-			synchronized (getCheckpointLock()) {
-				for (RecordWriterOutput<OUT> output : streamOutputs) {
-					output.collect(nextRecord);
-				}
+			for (RecordWriterOutput<OUT> output : streamOutputs) {
+				output.collect(nextRecord);
 			}
 		} else {
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 	}
 
@@ -95,10 +94,8 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
 		// If timestamps are enabled we make sure to remove cyclic watermark dependencies
 		if (isSerializingTimestamps()) {
-			synchronized (getCheckpointLock()) {
-				for (RecordWriterOutput<OUT> output : streamOutputs) {
-					output.emitWatermark(new Watermark(Long.MAX_VALUE));
-				}
+			for (RecordWriterOutput<OUT> output : streamOutputs) {
+				output.emitWatermark(new Watermark(Long.MAX_VALUE));
 			}
 		}
 	}

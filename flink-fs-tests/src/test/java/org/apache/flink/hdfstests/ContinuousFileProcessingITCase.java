@@ -30,10 +30,11 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
@@ -53,6 +54,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
@@ -78,35 +80,25 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 	//						PREPARING FOR THE TESTS
 
 	@Before
-	public void createHDFS() {
-		try {
-			baseDir = new File("./target/hdfs/hdfsTesting").getAbsoluteFile();
-			FileUtil.fullyDelete(baseDir);
+	public void createHDFS() throws IOException {
+		baseDir = new File("./target/hdfs/hdfsTesting").getAbsoluteFile();
+		FileUtil.fullyDelete(baseDir);
 
-			org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
-			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
-			hdConf.set("dfs.block.size", String.valueOf(1048576)); // this is the minimum we can set.
+		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
+		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+		hdConf.set("dfs.block.size", String.valueOf(1048576)); // this is the minimum we can set.
 
-			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-			hdfsCluster = builder.build();
+		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+		hdfsCluster = builder.build();
 
-			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
-			hdfs = new org.apache.hadoop.fs.Path(hdfsURI).getFileSystem(hdConf);
-
-		} catch (Throwable e) {
-			e.printStackTrace();
-			Assert.fail("Test failed " + e.getMessage());
-		}
+		hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
+		hdfs = new org.apache.hadoop.fs.Path(hdfsURI).getFileSystem(hdConf);
 	}
 
 	@After
 	public void destroyHDFS() {
-		try {
-			FileUtil.fullyDelete(baseDir);
-			hdfsCluster.shutdown();
-		} catch (Throwable t) {
-			throw new RuntimeException(t);
-		}
+		FileUtil.fullyDelete(baseDir);
+		hdfsCluster.shutdown();
 	}
 
 	//						END OF PREPARATIONS
@@ -139,40 +131,29 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 		DataStream<TimestampedFileInputSplit> splits = env.addSource(monitoringFunction);
 		Assert.assertEquals(1, splits.getParallelism());
 
-		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
 		// the readers can be multiple
-		DataStream<String> content = splits.transform("FileSplitReader", typeInfo, reader);
+		DataStream<String> content = splits.transform("FileSplitReader", typeInfo, new ContinuousFileReaderOperatorFactory<>(format));
 		Assert.assertEquals(PARALLELISM, content.getParallelism());
 
 		// finally for the sink we set the parallelism to 1 so that we can verify the output
 		TestingSinkFunction sink = new TestingSinkFunction();
 		content.addSink(sink).setParallelism(1);
 
-		Thread job = new Thread() {
-
-			@Override
-			public void run() {
-				try {
-					env.execute("ContinuousFileProcessingITCase Job.");
-				} catch (Exception e) {
-					Throwable th = e;
-					for (int depth = 0; depth < 20; depth++) {
-						if (th instanceof SuccessException) {
-							return;
-						} else if (th.getCause() != null) {
-							th = th.getCause();
-						} else {
-							break;
-						}
-					}
-					e.printStackTrace();
-					Assert.fail(e.getMessage());
+		CompletableFuture<Void> jobFuture = new CompletableFuture<>();
+		new Thread(() -> {
+			try {
+				env.execute("ContinuousFileProcessingITCase Job.");
+				jobFuture.complete(null);
+			} catch (Exception e) {
+				if (ExceptionUtils.findThrowable(e, SuccessException.class).isPresent()) {
+					jobFuture.complete(null);
+				} else {
+					jobFuture.completeExceptionally(e);
 				}
 			}
-		};
-		job.start();
+		}).start();
 
 		// The modification time of the last created file.
 		long lastCreatedModTime = Long.MIN_VALUE;
@@ -207,8 +188,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 			Assert.assertTrue(hdfs.exists(file));
 		}
 
-		// wait for the job to finish.
-		job.join();
+		jobFuture.get();
 	}
 
 	private static class TestingSinkFunction extends RichSinkFunction<String> {

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.shuffle;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -67,14 +67,14 @@ public class ShuffleServiceLoaderTest extends TestLogger {
 	/**
 	 * Stub implementation of {@link ShuffleServiceFactory} to test {@link ShuffleServiceLoader} utility.
 	 */
-	public static class CustomShuffleServiceFactory implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, InputGate> {
+	public static class CustomShuffleServiceFactory implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
 		@Override
 		public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(Configuration configuration) {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public ShuffleEnvironment<ResultPartitionWriter, InputGate> createShuffleEnvironment(
+		public ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> createShuffleEnvironment(
 				ShuffleEnvironmentContext shuffleEnvironmentContext) {
 			throw new UnsupportedOperationException();
 		}

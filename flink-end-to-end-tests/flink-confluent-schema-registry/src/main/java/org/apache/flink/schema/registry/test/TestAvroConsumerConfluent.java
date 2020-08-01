@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
+import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -36,7 +37,7 @@ import java.util.Properties;
  * A simple example that shows how to read from and write to Kafka with Confluent Schema Registry.
  * This will read AVRO messages from the input topic, parse them into a POJO type via checking the Schema by calling Schema registry.
  * Then this example publish the POJO type to kafka by converting the POJO to AVRO and verifying the schema.
- * --input-topic test-input --output-topic test-output --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --schema-registry-url http://localhost:8081 --group.id myconsumer
+ * --input-topic test-input --output-string-topic test-output --output-avro-topic test-avro-output --output-subject --bootstrap.servers localhost:9092 --schema-registry-url http://localhost:8081 --group.id myconsumer
  */
 public class TestAvroConsumerConfluent {
 
@@ -46,20 +47,17 @@ public class TestAvroConsumerConfluent {
 
 		if (parameterTool.getNumberOfParameters() < 6) {
 			System.out.println("Missing parameters!\n" +
-				"Usage: Kafka --input-topic <topic> --output-topic <topic> " +
+				"Usage: Kafka --input-topic <topic> --output-string-topic <topic> --output-avro-topic <topic> " +
 				"--bootstrap.servers <kafka brokers> " +
-				"--zookeeper.connect <zk quorum> " +
 				"--schema-registry-url <confluent schema registry> --group.id <some id>");
 			return;
 		}
 		Properties config = new Properties();
 		config.setProperty("bootstrap.servers", parameterTool.getRequired("bootstrap.servers"));
 		config.setProperty("group.id", parameterTool.getRequired("group.id"));
-		config.setProperty("zookeeper.connect", parameterTool.getRequired("zookeeper.connect"));
 		String schemaRegistryUrl = parameterTool.getRequired("schema-registry-url");
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
 
 		DataStreamSource<User> input = env
 			.addSource(
@@ -72,11 +70,17 @@ public class TestAvroConsumerConfluent {
 			.map((MapFunction<User, String>) SpecificRecordBase::toString);
 
 		FlinkKafkaProducer010<String> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010<>(
-			parameterTool.getRequired("output-topic"),
+			parameterTool.getRequired("output-string-topic"),
 			new SimpleStringSchema(),
 			config);
-
 		mapToString.addSink(stringFlinkKafkaProducer010);
+
+		FlinkKafkaProducer010<User> avroFlinkKafkaProducer010 = new FlinkKafkaProducer010<>(
+				parameterTool.getRequired("output-avro-topic"),
+				ConfluentRegistryAvroSerializationSchema.forSpecific(User.class, parameterTool.getRequired("output-subject"), schemaRegistryUrl),
+				config);
+		input.addSink(avroFlinkKafkaProducer010);
+
 		env.execute("Kafka 0.10 Confluent Schema Registry AVRO Example");
 	}
 }

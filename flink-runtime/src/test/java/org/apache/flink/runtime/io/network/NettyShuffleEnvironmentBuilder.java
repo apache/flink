@@ -20,56 +20,68 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+
+import java.time.Duration;
+import java.util.concurrent.Executor;
 
 /**
  * Builder for the {@link NettyShuffleEnvironment}.
  */
 public class NettyShuffleEnvironmentBuilder {
 
-	private static final String[] DEFAULT_TEMP_DIRS = new String[] {EnvironmentInformation.getTemporaryFileDirectory()};
+	private static final int DEFAULT_NETWORK_BUFFER_SIZE = 32 << 10;
+	private static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
 
-	private int numNetworkBuffers = 1024;
+	private static final String[] DEFAULT_TEMP_DIRS = {EnvironmentInformation.getTemporaryFileDirectory()};
+	private static final Duration DEFAULT_REQUEST_SEGMENTS_TIMEOUT = Duration.ofMillis(30000L);
 
-	private int networkBufferSize = 32 * 1024;
+	private int bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
-	private int partitionRequestInitialBackoff = 0;
+	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
-	private int partitionRequestMaxBackoff = 0;
+	private int partitionRequestInitialBackoff;
+
+	private int partitionRequestMaxBackoff;
 
 	private int networkBuffersPerChannel = 2;
 
 	private int floatingNetworkBuffersPerGate = 8;
 
-	private boolean isCreditBased = true;
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
-	private boolean isNetworkDetailedMetrics = false;
+	private boolean blockingShuffleCompressionEnabled = false;
+
+	private String compressionCodec = "LZ4";
 
 	private ResourceID taskManagerLocation = ResourceID.generate();
 
 	private NettyConfig nettyConfig;
 
-	private TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
-
 	private MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-	private String[] tempDirs = DEFAULT_TEMP_DIRS;
+	private ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
+
+	private Executor ioExecutor = Executors.directExecutor();
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
-		this.numNetworkBuffers = numNetworkBuffers;
+	public NettyShuffleEnvironmentBuilder setBufferSize(int bufferSize) {
+		this.bufferSize = bufferSize;
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setNetworkBufferSize(int networkBufferSize) {
-		this.networkBufferSize = networkBufferSize;
+	public NettyShuffleEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
+		this.numNetworkBuffers = numNetworkBuffers;
 		return this;
 	}
 
@@ -93,8 +105,18 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
-		this.isCreditBased = isCreditBased;
+	public NettyShuffleEnvironmentBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
+		this.compressionCodec = compressionCodec;
 		return this;
 	}
 
@@ -103,18 +125,18 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setTaskEventDispatcher(TaskEventDispatcher taskEventDispatcher) {
-		this.taskEventDispatcher = taskEventDispatcher;
-		return this;
-	}
-
 	public NettyShuffleEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
 		this.metricGroup = metricGroup;
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setTempDirs(String[] tempDirs) {
-		this.tempDirs = tempDirs;
+	public NettyShuffleEnvironmentBuilder setResultPartitionManager(ResultPartitionManager resultPartitionManager) {
+		this.resultPartitionManager = resultPartitionManager;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setIoExecutor(Executor ioExecutor) {
+		this.ioExecutor = ioExecutor;
 		return this;
 	}
 
@@ -122,17 +144,24 @@ public class NettyShuffleEnvironmentBuilder {
 		return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
 			new NettyShuffleEnvironmentConfiguration(
 				numNetworkBuffers,
-				networkBufferSize,
+				DEFAULT_NETWORK_BUFFER_SIZE,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
-				isCreditBased,
-				isNetworkDetailedMetrics,
+				DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
+				false,
 				nettyConfig,
-				tempDirs),
+				DEFAULT_TEMP_DIRS,
+				BoundedBlockingSubpartitionType.AUTO,
+				false,
+				blockingShuffleCompressionEnabled,
+				compressionCodec,
+				maxBuffersPerChannel),
 			taskManagerLocation,
-			taskEventDispatcher,
-			metricGroup);
+			new TaskEventDispatcher(),
+			resultPartitionManager,
+			metricGroup,
+			ioExecutor);
 	}
 }

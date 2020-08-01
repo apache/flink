@@ -101,18 +101,22 @@ class FunctionCodeGenerator(
     if (clazz == classOf[FlatMapFunction[_, _]]) {
       val baseClass = classOf[RichFlatMapFunction[_, _]]
       val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
+      // declaration: make variable accessible for separated method
+      reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
       (baseClass,
         s"void flatMap(Object _in1, $collectorTypeTerm $collectorTerm)",
-        List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+        List(s"$input1Term = ($inputTypeTerm) _in1;"))
     }
 
     // MapFunction
     else if (clazz == classOf[MapFunction[_, _]]) {
       val baseClass = classOf[RichMapFunction[_, _]]
       val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
+      // declaration: make variable accessible for separated method
+      reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
       (baseClass,
         "Object map(Object _in1)",
-        List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+        List(s"$input1Term = ($inputTypeTerm) _in1;"))
     }
 
     // FlatJoinFunction
@@ -121,10 +125,13 @@ class FunctionCodeGenerator(
       val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
       val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
         throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
+      // declaration: make variables accessible for separated methods
+      reusableMemberStatements.add(s"private $inputTypeTerm1 $input1Term;")
+      reusableMemberStatements.add(s"private $inputTypeTerm2 $input2Term;")
       (baseClass,
         s"void join(Object _in1, Object _in2, $collectorTypeTerm $collectorTerm)",
-        List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
-             s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+        List(s"$input1Term = ($inputTypeTerm1) _in1;",
+             s"$input2Term = ($inputTypeTerm2) _in2;"))
     }
 
     // JoinFunction
@@ -133,10 +140,13 @@ class FunctionCodeGenerator(
       val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
       val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
         throw new CodeGenException("Input 2 for JoinFunction should not be null")))
+      // declaration: make variables accessible for separated methods
+      reusableMemberStatements.add(s"private $inputTypeTerm1 $input1Term;")
+      reusableMemberStatements.add(s"private $inputTypeTerm2 $input2Term;")
       (baseClass,
         s"Object join(Object _in1, Object _in2)",
-        List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
-          s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+        List(s"$input1Term = ($inputTypeTerm1) _in1;",
+             s"$input2Term = ($inputTypeTerm2) _in2;"))
     }
 
     // ProcessFunction
@@ -155,10 +165,12 @@ class FunctionCodeGenerator(
         Nil
       }
 
+      // declaration: make variable accessible for separated method
+      reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
       (baseClass,
         s"void processElement(Object _in1, $contextTypeTerm $contextTerm, " +
           s"$collectorTypeTerm $collectorTerm)",
-        List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;") ++ globalContext)
+        List(s"$input1Term = ($inputTypeTerm) _in1;") ++ globalContext)
     }
     else {
       // TODO more functions

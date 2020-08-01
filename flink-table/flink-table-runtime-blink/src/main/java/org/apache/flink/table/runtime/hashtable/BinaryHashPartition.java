@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.hashtable;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.core.memory.SeekableDataInputView;
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
@@ -29,19 +30,18 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.table.runtime.util.RowIterator;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -50,8 +50,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class BinaryHashPartition extends AbstractPagedInputView implements SeekableDataInputView {
 
-	private final BinaryRowSerializer buildSideSerializer;
-	private final BinaryRowSerializer probeSideSerializer;
+	private final BinaryRowDataSerializer buildSideSerializer;
+	private final BinaryRowDataSerializer probeSideSerializer;
 	private final int segmentSizeBits; // the number of bits in the mem segment size;
 
 	private boolean compressionEnable;
@@ -97,7 +97,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 	 *                        with recursion level <i>n</i>.
 	 * @param initialBuffer   The initial buffer for this partition.
 	 */
-	BinaryHashPartition(BinaryHashBucketArea bucketArea, BinaryRowSerializer buildSideAccessors, BinaryRowSerializer probeSideAccessors,
+	BinaryHashPartition(BinaryHashBucketArea bucketArea, BinaryRowDataSerializer buildSideAccessors, BinaryRowDataSerializer probeSideAccessors,
 						int partitionNumber, int recursionLevel, MemorySegment initialBuffer,
 						MemorySegmentPool memPool, int segmentSize, boolean compressionEnable,
 						BlockCompressionFactory compressionCodecFactory, int compressionBlockSize) {
@@ -128,7 +128,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 	 * @param buildSideRecordCounter The number of records in the buffers.
 	 * @param segmentSize            The size of the memory segments.
 	 */
-	BinaryHashPartition(BinaryHashBucketArea area, BinaryRowSerializer buildSideAccessors, BinaryRowSerializer probeSideAccessors,
+	BinaryHashPartition(BinaryHashBucketArea area, BinaryRowDataSerializer buildSideAccessors, BinaryRowDataSerializer probeSideAccessors,
 						int partitionNumber, int recursionLevel, List<MemorySegment> buffers,
 						long buildSideRecordCounter, int segmentSize, int lastSegmentLimit) {
 		super(0);
@@ -240,7 +240,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 	 *         spilled.
 	 * @throws IOException Thrown, when this is a spilled partition and the write failed.
 	 */
-	final int insertIntoBuildBuffer(BinaryRow record) throws IOException {
+	final int insertIntoBuildBuffer(BinaryRowData record) throws IOException {
 		this.buildSideRecordCounter++;
 
 		if (isInMemory()) {
@@ -272,7 +272,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 	 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes
 	 *                     an error.
 	 */
-	final void insertIntoProbeBuffer(BinaryRow record) throws IOException {
+	final void insertIntoProbeBuffer(BinaryRowData record) throws IOException {
 		this.probeSideSerializer.serialize(record, this.probeSideBuffer);
 		this.probeSideRecordCounter++;
 	}
@@ -356,13 +356,13 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 	 *                                      requests will be retained; used for build-side outer
 	 *                                      joins.
 	 */
-	void finalizeProbePhase(List<MemorySegment> freeMemory, List<BinaryHashPartition> spilledPartitions,
+	void finalizeProbePhase(LazyMemorySegmentPool pool, List<BinaryHashPartition> spilledPartitions,
 							boolean keepUnprobedSpilledPartitions) throws IOException {
 		if (isInMemory()) {
-			this.bucketArea.returnMemory(freeMemory);
+			this.bucketArea.returnMemory(pool);
 			this.bucketArea = null;
 			// return the partition buffers
-			Collections.addAll(freeMemory, this.partitionBuffers);
+			pool.returnAll(Arrays.asList(partitionBuffers));
 			this.partitionBuffers = null;
 		} else {
 			if (bloomFilter != null) {
@@ -381,20 +381,20 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 		}
 	}
 
-	void clearAllMemory(List<MemorySegment> target) {
+	void clearAllMemory(LazyMemorySegmentPool pool) {
 		// return current buffers from build side and probe side
 		if (this.buildSideWriteBuffer != null) {
 			if (this.buildSideWriteBuffer.getCurrentSegment() != null) {
-				target.add(this.buildSideWriteBuffer.getCurrentSegment());
+				pool.returnPage(this.buildSideWriteBuffer.getCurrentSegment());
 			}
-			target.addAll(this.buildSideWriteBuffer.targetList);
+			pool.returnAll(this.buildSideWriteBuffer.targetList);
 			this.buildSideWriteBuffer.targetList.clear();
 			this.buildSideWriteBuffer = null;
 		}
 
 		// return the overflow segments
 		if (this.bucketArea != null) {
-			bucketArea.returnMemory(target);
+			bucketArea.returnMemory(pool);
 		}
 
 		if (bloomFilter != null) {
@@ -403,7 +403,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 
 		// return the partition buffers
 		if (this.partitionBuffers != null) {
-			Collections.addAll(target, this.partitionBuffers);
+			pool.returnAll(Arrays.asList(this.partitionBuffers));
 			this.partitionBuffers = null;
 		}
 
@@ -573,11 +573,11 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 	 * store all the build side data.
 	 * (After bulk load to memory, see {@link BulkBlockChannelReader}).
 	 */
-	final class PartitionIterator implements RowIterator<BinaryRow> {
+	final class PartitionIterator implements RowIterator<BinaryRowData> {
 
 		private long currentPointer;
 
-		private BinaryRow reuse;
+		private BinaryRowData reuse;
 
 		private PartitionIterator() {
 			this.reuse = buildSideSerializer.createInstance();
@@ -606,7 +606,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			return this.reuse;
 		}
 	}

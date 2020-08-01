@@ -18,12 +18,19 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.AsyncDataInput;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -69,18 +76,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCloseable {
+public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable {
 
-	protected CompletableFuture<?> isAvailable = new CompletableFuture<>();
+	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	public abstract int getNumberOfInputChannels();
 
 	public abstract boolean isFinished();
 
-	public abstract void requestPartitions() throws IOException, InterruptedException;
-
 	/**
 	 * Blocking call waiting for next {@link BufferOrEvent}.
+	 *
+	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before getting next one.
 	 *
 	 * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
 	 */
@@ -88,6 +95,8 @@ public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCl
 
 	/**
 	 * Poll the {@link BufferOrEvent}.
+	 *
+	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before polling next one.
 	 *
 	 * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()} returns true.
 	 */
@@ -101,15 +110,24 @@ public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCl
 	 * not completed futures should become completed once there are more records available.
 	 */
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return isAvailable;
+	public CompletableFuture<?> getAvailableFuture() {
+		return availabilityHelper.getAvailableFuture();
 	}
 
-	protected void resetIsAvailable() {
-		// try to avoid volatile access in isDone()}
-		if (isAvailable == AVAILABLE || isAvailable.isDone()) {
-			isAvailable = new CompletableFuture<>();
-		}
+	public abstract void resumeConsumption(int channelIndex) throws IOException;
+
+	/**
+	 * Returns the channel of this gate.
+	 */
+	public abstract InputChannel getChannel(int channelIndex);
+
+	/**
+	 * Returns the channel infos of this gate.
+	 */
+	public List<InputChannelInfo> getChannelInfos() {
+		return IntStream.range(0, getNumberOfInputChannels())
+			.mapToObj(index -> getChannel(index).getChannelInfo())
+			.collect(Collectors.toList());
 	}
 
 	/**
@@ -131,4 +149,17 @@ public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCl
 	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
 	 */
 	public abstract void setup() throws IOException;
+
+	/**
+	 * Reads the previous unaligned checkpoint states before requesting partition data.
+	 *
+	 * @param executor the dedicated executor for performing this action for all the internal channels.
+	 * @param reader the dedicated reader for unspilling the respective channel state from snapshots.
+	 * @return the future indicates whether the recovered states have already been drained or not.
+	 */
+	public abstract CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException;
+
+	public abstract void requestPartitions() throws IOException;
+
+	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
 }

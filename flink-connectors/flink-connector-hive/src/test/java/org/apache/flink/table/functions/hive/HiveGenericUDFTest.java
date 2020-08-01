@@ -19,6 +19,8 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
@@ -26,29 +28,35 @@ import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCeil;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDecode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMapKeys;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
+import org.junit.Assume;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.HashMap;
 
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_110_OR_LATER;
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Test for {@link HiveGenericUDF}.
  */
 public class HiveGenericUDFTest {
+	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
 
 	@Test
 	public void testAbs() {
@@ -90,9 +98,10 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testAddMonths() {
+	public void testAddMonths() throws Exception {
+		Assume.assumeTrue(HIVE_110_OR_LATER);
 		HiveGenericUDF udf = init(
-			GenericUDFAddMonths.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths"),
 			new Object[] {
 				null,
 				1
@@ -108,12 +117,13 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testDateFormat() {
+	public void testDateFormat() throws Exception {
+		Assume.assumeTrue(HIVE_120_OR_LATER);
 		String constYear = "y";
 		String constMonth = "M";
 
 		HiveGenericUDF udf = init(
-			GenericUDFDateFormat.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat"),
 			new Object[] {
 				null,
 				constYear
@@ -127,7 +137,7 @@ public class HiveGenericUDFTest {
 		assertEquals("2009", udf.eval("2009-08-31", constYear));
 
 		udf = init(
-			GenericUDFDateFormat.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat"),
 			new Object[] {
 				null,
 				constMonth
@@ -235,7 +245,7 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testDataDiff() {
+	public void testDateDiff() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 
 		String d = "1969-07-20";
 		String t1 = "1969-07-20 00:00:00";
@@ -338,9 +348,7 @@ public class HiveGenericUDFTest {
 		Object[] result = (Object[]) udf2.eval(udf.eval(testInput));
 
 		assertEquals(3, result.length);
-		assertEquals("1", result[0]);
-		assertEquals("2", result[1]);
-		assertEquals("3", result[2]);
+		assertThat(Arrays.asList(result), containsInAnyOrder("1", "2", "3"));
 	}
 
 	@Test
@@ -381,7 +389,7 @@ public class HiveGenericUDFTest {
 	}
 
 	private static HiveGenericUDF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
-		HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()));
+		HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
 		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
 		udf.getHiveResultType(constantArgs, argTypes);

@@ -22,66 +22,75 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document explains how to use Flink's state abstractions when developing an application.
+In this section you will learn about the APIs that Flink provides for writing
+stateful programs. Please take a look at [Stateful Stream
+Processing]({% link concepts/stateful-stream-processing.md %})
+to learn about the concepts behind stateful stream processing.
 
 * ToC
 {:toc}
 
-## Keyed State and Operator State
+## Keyed DataStream
 
-There are two basic kinds of state in Flink: `Keyed State` and `Operator State`.
+If you want to use keyed state, you first need to specify a key on a
+`DataStream` that should be used to partition the state (and also the records
+in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
+a `DataStream`. This will yield a `KeyedDataStream`, which then allows
+operations that use keyed state.
 
-### Keyed State
+A key selector function takes a single record as input and returns the key for
+that record. The key can be of any type and **must** be derived from
+deterministic computations.
 
-*Keyed State* is always relative to keys and can only be used in functions and operators on a `KeyedStream`.
+The data model of Flink is not based on key-value pairs. Therefore, you do not
+need to physically pack the data set types into keys and values. Keys are
+"virtual": they are defined as functions over the actual data to guide the
+grouping operator.
 
-You can think of Keyed State as Operator State that has been partitioned,
-or sharded, with exactly one state-partition per key.
-Each keyed-state is logically bound to a unique
-composite of <parallel-operator-instance, key>, and since each key
-"belongs" to exactly one parallel instance of a keyed operator, we can
-think of this simply as <operator, key>.
+The following example shows a key selector function that simply returns the
+field of an object:
 
-Keyed State is further organized into so-called *Key Groups*. Key Groups are the
-atomic unit by which Flink can redistribute Keyed State;
-there are exactly as many Key Groups as the defined maximum parallelism.
-During execution each parallel instance of a keyed operator works with the keys
-for one or more Key Groups.
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// some ordinary POJO
+public class WC {
+  public String word;
+  public int count;
 
-### Operator State
+  public String getWord() { return word; }
+}
+DataStream<WC> words = // [...]
+KeyedStream<WC> keyed = words
+  .keyBy(WC::getWord);
+{% endhighlight %}
 
-With *Operator State* (or *non-keyed state*), each operator state is
-bound to one parallel operator instance.
-The [Kafka Connector]({{ site.baseurl }}/dev/connectors/kafka.html) is a good motivating example for the use of Operator State
-in Flink. Each parallel instance of the Kafka consumer maintains a map
-of topic partitions and offsets as its Operator State.
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// some ordinary case class
+case class WC(word: String, count: Int)
+val words: DataStream[WC] = // [...]
+val keyed = words.keyBy( _.word )
+{% endhighlight %}
+</div>
+</div>
 
-The Operator State interfaces support redistributing state among
-parallel operator instances when the parallelism is changed. There can be different schemes for doing this redistribution.
+### Tuple Keys and Expression Keys
+{:.no_toc}
 
-## Raw and Managed State
+Flink also has two alternative ways of defining keys: tuple keys and expression
+keys. With this you can specify keys using tuple field indices or expressions
+for selecting fields of objects. We don't recommend using these today but you
+can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
+function is strictly superior: with Java lambdas they are easy to use and they
+have potentially less overhead at runtime.
 
-*Keyed State* and *Operator State* exist in two forms: *managed* and *raw*.
+{% top %}
 
-*Managed State* is represented in data structures controlled by the Flink runtime, such as internal hash tables, or RocksDB.
-Examples are "ValueState", "ListState", etc. Flink's runtime encodes
-the states and writes them into the checkpoints.
+## Using Keyed State
 
-*Raw State* is state that operators keep in their own data structures. When checkpointed, they only write a sequence of bytes into
-the checkpoint. Flink knows nothing about the state's data structures and sees only the raw bytes.
-
-All datastream functions can use managed state, but the raw state interfaces can only be used when implementing operators.
-Using managed state (rather than raw state) is recommended, since with
-managed state Flink is able to automatically redistribute state when the parallelism is
-changed, and also do better memory management.
-
-<span class="label label-danger">Attention</span> If your managed state needs custom serialization logic, please see 
-the [corresponding guide](custom_serialization.html) in order to ensure future compatibility. Flink's default serializers 
-don't need special treatment.
-
-## Using Managed Keyed State
-
-The managed keyed state interface provides access to different types of state that are all scoped to
+The keyed state interfaces provides access to different types of state that are all scoped to
 the key of the current input element. This means that this type of state can only be used
 on a `KeyedStream`, which can be created via `stream.keyBy(…)`.
 
@@ -106,20 +115,14 @@ added to the state. Contrary to `ReducingState`, the aggregate type may be diffe
 of elements that are added to the state. The interface is the same as for `ListState` but elements
 added using `add(IN)` are aggregated using a specified `AggregateFunction`.
 
-* `FoldingState<T, ACC>`: This keeps a single value that represents the aggregation of all values
-added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
-of elements that are added to the state. The interface is similar to `ListState` but elements
-added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
-
 * `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and
 retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
 views for mappings, keys and values can be retrieved using `entries()`, `keys()` and `values()` respectively.
+You can also use `isEmpty()` to check whether this map contains any key-value mappings.
 
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
-
-<span class="label label-danger">Attention</span> `FoldingState` and `FoldingStateDescriptor` have been deprecated in Flink 1.4 and will be completely removed in the future. Please use `AggregatingState` and `AggregatingStateDescriptor` instead.
 
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
@@ -132,10 +135,10 @@ To get a state handle, you have to create a `StateDescriptor`. This holds the na
 that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
 want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`,
-a `ReducingStateDescriptor`, a `FoldingStateDescriptor` or a `MapStateDescriptor`.
+a `ReducingStateDescriptor`, or a `MapStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
-Please see [here]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) for
+Please see [here]({% link dev/user_defined_functions.md %}#rich-functions) for
 information about that, but we will also see an example shortly. The `RuntimeContext` that
 is available in a `RichFunction` has these methods for accessing state:
 
@@ -143,7 +146,6 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
 * `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
-* `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
 This is an example `FlatMapFunction` that shows how all of the parts fit together:
@@ -254,7 +256,7 @@ object ExampleCountWindowAverage extends App {
     .print()
   // the printed output will be (1,4) and (1,5)
 
-  env.execute("ExampleManagedState")
+  env.execute("ExampleKeyedState")
 }
 {% endhighlight %}
 </div>
@@ -355,11 +357,32 @@ If the serializer does not support null values, it can be wrapped with `Nullable
 
 #### Cleanup of Expired State
 
-By default, expired values are only removed when they are read out explicitly, 
-e.g. by calling `ValueState.value()`.
+By default, expired values are explicitly removed on read, such as `ValueState#value`, and periodically garbage collected
+in the background if supported by the configured state backend. Background cleanup can be disabled in the `StateTtlConfig`:
 
-<span class="label label-danger">Attention</span> This means that by default if expired state is not read, 
-it won't be removed, possibly leading to ever growing state. This might change in future releases. 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .disableCleanupInBackground()
+    .build();
+{% endhighlight %}
+</div>
+ <div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .disableCleanupInBackground
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
+Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
 
 ##### Cleanup in full snapshot
 
@@ -400,35 +423,6 @@ This option is not applicable for the incremental checkpointing in the RocksDB s
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
 
-#### Cleanup in background
-
-Besides cleanup in full snapshot, you can also activate the cleanup in background. The following option 
-will activate a default background cleanup in StateTtlConfig if it is supported for the used backend:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-import org.apache.flink.api.common.state.StateTtlConfig;
-StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInBackground()
-    .build();
-{% endhighlight %}
-</div>
- <div data-lang="scala" markdown="1">
-{% highlight scala %}
-import org.apache.flink.api.common.state.StateTtlConfig
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInBackground
-    .build
-{% endhighlight %}
-</div>
-</div>
-
-For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
-Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
-
 ##### Incremental cleanup
 
 Another option is to trigger cleanup of some state entries incrementally.
@@ -438,7 +432,7 @@ The storage backend keeps a lazy global iterator for this state over all its ent
 Every time incremental cleanup is triggered, the iterator is advanced.
 The traversed state entries are checked and expired ones are cleaned up.
 
-This feature can be activated in `StateTtlConfig`:
+This feature can be configured in `StateTtlConfig`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -462,9 +456,9 @@ val ttlConfig = StateTtlConfig
 </div>
 
 This strategy has two parameters. The first one is number of checked state entries per each cleanup triggering.
-If enabled, it is always triggered per each state access.
+It is always triggered per each state access.
 The second parameter defines whether to trigger cleanup additionally per each record processing.
-If you enable the default background cleanup then this strategy will be activated for heap backend with 5 checked entries and without cleanup per record processing.
+The default background cleanup for heap backend checks 5 entries without cleanup per record processing.
 
 **Notes:**
 - If no access happens to the state or no records are processed, expired state will persist.
@@ -478,15 +472,12 @@ e.g. after restart from savepoint.
 
 ##### Cleanup during RocksDB compaction
 
-If RocksDB state backend is used, another cleanup strategy is to activate Flink specific compaction filter.
+If the RocksDB state backend is used, a Flink specific compaction filter will be called for the background cleanup.
 RocksDB periodically runs asynchronous compactions to merge state updates and reduce storage.
 Flink compaction filter checks expiration timestamp of state entries with TTL
 and excludes expired values. 
 
-This feature is disabled by default. It has to be firstly activated for the RocksDB backend
-by setting Flink configuration option `state.backend.rocksdb.ttl.compaction.filter.enabled`
-or by calling `RocksDBStateBackend::enableTtlCompactionFilter` if a custom RocksDB state backend is created for a job.
-Then any state with TTL can be configured to use the filter:
+This feature can be configured in `StateTtlConfig`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -518,7 +509,7 @@ You can change it and pass a custom value to
 `StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries)` method. 
 Updating the timestamp more often can improve cleanup speed 
 but it decreases compaction performance because it uses JNI call from native code.
-If you enable the default background cleanup then this strategy will be activated for RocksDB backend and the current timestamp will be queried each time 1000 entries have been processed.
+The default background cleanup for RocksDB backend queries the current timestamp each time 1000 entries have been processed.
 
 You can activate debug logs from the native code of RocksDB filter 
 by activating debug level for `FlinkCompactionFilter`:
@@ -555,10 +546,46 @@ val counts: DataStream[(String, Int)] = stream
     })
 {% endhighlight %}
 
-## Using Managed Operator State
+## Operator State
 
-To use managed operator state, a stateful function can implement either the more general `CheckpointedFunction`
-interface, or the `ListCheckpointed<T extends Serializable>` interface.
+*Operator State* (or *non-keyed state*) is state that is is bound to one
+parallel operator instance. The [Kafka Connector]({% link
+dev/connectors/kafka.md %}) is a good motivating example for the use of
+Operator State in Flink. Each parallel instance of the Kafka consumer maintains
+a map of topic partitions and offsets as its Operator State.
+
+The Operator State interfaces support redistributing state among parallel
+operator instances when the parallelism is changed. There are different schemes
+for doing this redistribution.
+
+In a typical stateful Flink Application you don't need operators state. It is
+mostly a special type of state that is used in source/sink implementations and
+scenarios where you don't have a key by which state can be partitioned.
+
+## Broadcast State
+
+*Broadcast State* is a special type of *Operator State*.  It was introduced to
+support use cases where records of one stream need to be broadcasted to all
+downstream tasks, where they are used to maintain the same state among all
+subtasks. This state can then be accessed while processing records of a second
+stream. As an example where broadcast state can emerge as a natural fit, one
+can imagine a low-throughput stream containing a set of rules which we want to
+evaluate against all elements coming from another stream. Having the above type
+of use cases in mind, broadcast state differs from the rest of operator states
+in that:
+
+ 1. it has a map format,
+ 2. it is only available to specific operators that have as inputs a
+    *broadcasted* stream and a *non-broadcasted* one, and
+ 3. such an operator can have *multiple broadcast states* with different names.
+
+{% top %}
+
+## Using Operator State
+
+To use operator state, a stateful function can implement the `CheckpointedFunction`
+interface.
+
 
 #### CheckpointedFunction
 
@@ -576,7 +603,7 @@ is called every time the user-defined function is initialized, be that when the 
 or be that when the function is actually recovering from an earlier checkpoint. Given this, `initializeState()` is not
 only the place where different types of state are initialized, but also where state recovery logic is included.
 
-Currently, list-style managed operator state is supported. The state
+Currently, list-style operator state is supported. The state
 is expected to be a `List` of *serializable* objects, independent from each other,
 thus eligible for redistribution upon rescaling. In other words, these objects are the finest granularity at which
 non-keyed state can be redistributed. Depending on the state accessing method,
@@ -590,7 +617,9 @@ the following redistribution schemes are defined:
     while `element2` will go to operator instance 1.
 
   - **Union redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
-    all lists. On restore/redistribution, each operator gets the complete list of state elements.
+    all lists. On restore/redistribution, each operator gets the complete list of state elements. Do not use this feature if
+    your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC
+    framesize or out-of-memory errors.
 
 Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
 to buffer elements before sending them to the outside world. It demonstrates
@@ -750,22 +779,6 @@ of all objects included by the previous checkpoint, and is then filled with the 
 As a side note, the keyed state can also be initialized in the `initializeState()` method. This can be done
 using the provided `FunctionInitializationContext`.
 
-#### ListCheckpointed
-
-The `ListCheckpointed` interface is a more limited variant of `CheckpointedFunction`,
-which only supports list-style state with even-split redistribution scheme on restore.
-It also requires the implementation of two methods:
-
-{% highlight java %}
-List<T> snapshotState(long checkpointId, long timestamp) throws Exception;
-
-void restoreState(List<T> state) throws Exception;
-{% endhighlight %}
-
-On `snapshotState()` the operator should return a list of objects to checkpoint and
-`restoreState` has to handle such a list upon recovery. If the state is not re-partitionable, you can always
-return a `Collections.singletonList(MY_STATE)` in the `snapshotState()`.
-
 ### Stateful Source Functions
 
 Stateful sources require a bit more care as opposed to other operators.
@@ -777,13 +790,16 @@ on failure/recovery), the user is required to get a lock from the source's conte
 {% highlight java %}
 public static class CounterSource
         extends RichParallelSourceFunction<Long>
-        implements ListCheckpointed<Long> {
+        implements CheckpointedFunction {
 
     /**  current offset for exactly once semantics */
     private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
+    
+    /** Our state object. */
+    private ListState<Long> state;
 
     @Override
     public void run(SourceContext<Long> ctx) {
@@ -804,14 +820,22 @@ public static class CounterSource
     }
 
     @Override
-    public List<Long> snapshotState(long checkpointId, long checkpointTimestamp) {
-        return Collections.singletonList(offset);
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
+                "state",
+                LongSerializer.INSTANCE));
+                
+        // restore any state that we might already have to our fields, initialize state
+        // is also called in case of restore.
+        for (Long l : state.get()) {
+            offset = l;
+        }
     }
 
     @Override
-    public void restoreState(List<Long> state) {
-        for (Long s : state)
-            offset = s;
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        state.clear();
+        state.add(offset);
     }
 }
 {% endhighlight %}
@@ -821,12 +845,13 @@ public static class CounterSource
 {% highlight scala %}
 class CounterSource
        extends RichParallelSourceFunction[Long]
-       with ListCheckpointed[Long] {
+       with CheckpointedFunction {
 
   @volatile
   private var isRunning = true
 
   private var offset = 0L
+  private var state: ListState[Long] = _
 
   override def run(ctx: SourceFunction.SourceContext[Long]): Unit = {
     val lock = ctx.getCheckpointLock
@@ -842,15 +867,20 @@ class CounterSource
   }
 
   override def cancel(): Unit = isRunning = false
+  
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    state = context.getOperatorStateStore.getListState(
+      new ListStateDescriptor[Long]("state", classOf[Long]))
 
-  override def restoreState(state: util.List[Long]): Unit =
-    for (s <- state) {
-      offset = s
+    for (l <- state.get().asScala) {
+      offset = l
     }
+  }
 
-  override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] =
-    Collections.singletonList(offset)
-
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    state.clear()
+    state.add(offset)
+  }
 }
 {% endhighlight %}
 </div>

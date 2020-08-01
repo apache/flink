@@ -71,6 +71,8 @@ public class StateBootstrapOperator<IN>
 			this,
 			getRuntimeContext().getIndexOfThisSubtask(),
 			timestamp,
+			getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
+			getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
 			getContainingTask().getCheckpointStorage(),
 			savepointPath);
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -37,8 +38,8 @@ public final class SlideWithSizeAndSlide {
 	private final Expression slide;
 
 	SlideWithSizeAndSlide(Expression size, Expression slide) {
-		this.size = size;
-		this.slide = slide;
+		this.size = ApiExpressionUtils.unwrapFromApi(size);
+		this.slide = ApiExpressionUtils.unwrapFromApi(slide);
 	}
 
 	/**
@@ -51,7 +52,9 @@ public final class SlideWithSizeAndSlide {
 	 *
 	 * @param timeField time attribute for streaming and batch tables
 	 * @return a tumbling window on event-time
+	 * @deprecated use {@link #on(Expression)}
 	 */
+	@Deprecated
 	public SlideWithSizeAndSlideOnTime on(String timeField) {
 		return on(ExpressionParser.parseExpression(timeField));
 	}

@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -34,7 +35,7 @@ import java.util.Set;
  * ensure uniqueness.
  *
  * <p>The serialized string representation is {@code MULTISET<t>} where {@code t} is the logical type
- * of the contained elements.
+ * of the contained elements. {@code t MULTISET} is a synonym for being closer to the SQL standard.
  *
  * <p>A conversion is possible through a map that assigns each value to an integer multiplicity
  * ({@code Map<t, Integer>}).
@@ -42,11 +43,11 @@ import java.util.Set;
 @PublicEvolving
 public final class MultisetType extends LogicalType {
 
-	private static final String FORMAT = "MULTISET<%s>";
+	public static final String FORMAT = "MULTISET<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Map.class.getName(),
-		"org.apache.flink.table.dataformat.BinaryMap");
+		MapData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Map.class;
 
@@ -82,6 +83,9 @@ public final class MultisetType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
+		if (Map.class.isAssignableFrom(clazz)) {
+			return true;
+		}
 		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
 	}
 

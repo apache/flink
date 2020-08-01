@@ -44,7 +44,7 @@ public class CliFrontendParser {
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
 	static final Option CLASS_OPTION = new Option("c", "class", true,
-			"Class with the program entry point (\"main()\" method or \"getPlan()\" method). Only needed if the " +
+			"Class with the program entry point (\"main()\" method). Only needed if the " +
 			"JAR file does not specify the class in its manifest.");
 
 	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
@@ -57,6 +57,10 @@ public class CliFrontendParser {
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 			"specified in the configuration.");
 
+	/**
+	 * @deprecated This has no effect anymore, we're keeping it to not break existing bash scripts.
+	 */
+	@Deprecated
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
 			"suppress logging output to standard out.");
 
@@ -75,11 +79,11 @@ public class CliFrontendParser {
 	public static final Option YARN_DETACHED_OPTION = new Option("yd", "yarndetached", false, "If present, runs " +
 		"the job in detached mode (deprecated; use non-YARN specific option instead)");
 
-	static final Option ARGS_OPTION = new Option("a", "arguments", true,
+	public static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
 	public static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
-			"Address of the JobManager (master) to which to connect. " +
+			"Address of the JobManager to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	public static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
@@ -107,30 +111,60 @@ public class CliFrontendParser {
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
 	static final Option CANCEL_WITH_SAVEPOINT_OPTION = new Option(
-			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
-			"directory is optional. If no directory is specified, the configured default " +
-			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
+			"s", "withSavepoint", true, "**DEPRECATION WARNING**: " +
+			"Cancelling a job with savepoint is deprecated. Use \"stop\" instead. \n Trigger" +
+			" savepoint and cancel job. The target directory is optional. If no directory is " +
+			"specified, the configured default directory (" +
+			CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
-	public static final Option STOP_WITH_SAVEPOINT = new Option("s", "withSavepoint", true,
+	public static final Option STOP_WITH_SAVEPOINT_PATH = new Option("p", "savepointPath", true,
 			"Path to the savepoint (for example hdfs:///flink/savepoint-1537). " +
 					"If no directory is specified, the configured default will be used (\"" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "\").");
 
 	public static final Option STOP_AND_DRAIN = new Option("d", "drain", false,
 			"Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
 
-	static final Option PY_OPTION = new Option("py", "python", true,
+	public static final Option PY_OPTION = new Option("py", "python", true,
 		"Python script with the program entry point. " +
 			"The dependent resources can be configured with the `--pyFiles` option.");
 
-	static final Option PYFILES_OPTION = new Option("pyfs", "pyFiles", true,
+	public static final Option PYFILES_OPTION = new Option("pyfs", "pyFiles", true,
 		"Attach custom python files for job. " +
-			"Comma can be used as the separator to specify multiple files. " +
-			"The standard python resource file suffixes such as .py/.egg/.zip are all supported." +
-			"(eg: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip)");
+			"These files will be added to the PYTHONPATH of both the local client and the remote python UDF worker. " +
+			"The standard python resource file suffixes such as .py/.egg/.zip or directory are all supported. " +
+			"Comma (',') could be used as the separator to specify multiple files " +
+			"(e.g.: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip).");
 
-	static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
+	public static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
 		"Python module with the program entry point. " +
 			"This option must be used in conjunction with `--pyFiles`.");
+
+	public static final Option PYREQUIREMENTS_OPTION = new Option("pyreq", "pyRequirements", true,
+		"Specify a requirements.txt file which defines the third-party dependencies. " +
+			"These dependencies will be installed and added to the PYTHONPATH of the python UDF worker. " +
+			"A directory which contains the installation packages of these dependencies could be specified " +
+			"optionally. Use '#' as the separator if the optional parameter exists " +
+			"(e.g.: --pyRequirements file:///tmp/requirements.txt#file:///tmp/cached_dir).");
+
+	public static final Option PYARCHIVE_OPTION = new Option("pyarch", "pyArchives", true,
+		"Add python archive files for job. The archive files will be extracted to the working directory " +
+			"of python UDF worker. Currently only zip-format is supported. For each archive file, a target directory " +
+			"be specified. If the target directory name is specified, the archive file will be extracted to a " +
+			"name can directory with the specified name. Otherwise, the archive file will be extracted to a " +
+			"directory with the same name of the archive file. The files uploaded via this option are accessible " +
+			"via relative path. '#' could be used as the separator of the archive file path and the target directory " +
+			"name. Comma (',') could be used as the separator to specify multiple archive files. " +
+			"This option can be used to upload the virtual environment, the data files used in Python UDF " +
+			"(e.g.: --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable " +
+			"py37.zip/py37/bin/python). The data files could be accessed in Python UDF, e.g.: " +
+			"f = open('data/data.txt', 'r').");
+
+	public static final Option PYEXEC_OPTION = new Option("pyexec", "pyExecutable", true,
+		"Specify the path of the python interpreter used to execute the python UDF worker " +
+			"(e.g.: --pyExecutable /usr/local/bin/python3). " +
+			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.19.0), " +
+			"Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). " +
+			"Please ensure that the specified environment meets the above requirements.");
 
 	static {
 		HELP_OPTION.setRequired(false);
@@ -174,23 +208,29 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
 
-		STOP_WITH_SAVEPOINT.setRequired(false);
-		STOP_WITH_SAVEPOINT.setArgName("withSavepoint");
-		STOP_WITH_SAVEPOINT.setOptionalArg(true);
+		STOP_WITH_SAVEPOINT_PATH.setRequired(false);
+		STOP_WITH_SAVEPOINT_PATH.setArgName("savepointPath");
+		STOP_WITH_SAVEPOINT_PATH.setOptionalArg(true);
 
 		STOP_AND_DRAIN.setRequired(false);
 
 		PY_OPTION.setRequired(false);
-		PY_OPTION.setArgName("python");
+		PY_OPTION.setArgName("pythonFile");
 
 		PYFILES_OPTION.setRequired(false);
-		PYFILES_OPTION.setArgName("pyFiles");
+		PYFILES_OPTION.setArgName("pythonFiles");
 
 		PYMODULE_OPTION.setRequired(false);
-		PYMODULE_OPTION.setArgName("pyModule");
+		PYMODULE_OPTION.setArgName("pythonModule");
+
+		PYREQUIREMENTS_OPTION.setRequired(false);
+
+		PYARCHIVE_OPTION.setRequired(false);
+
+		PYEXEC_OPTION.setRequired(false);
 	}
 
-	private static final Options RUN_OPTIONS = getRunCommandOptions();
+	static final Options RUN_OPTIONS = getRunCommandOptions();
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -212,6 +252,9 @@ public class CliFrontendParser {
 		options.addOption(PY_OPTION);
 		options.addOption(PYFILES_OPTION);
 		options.addOption(PYMODULE_OPTION);
+		options.addOption(PYREQUIREMENTS_OPTION);
+		options.addOption(PYARCHIVE_OPTION);
+		options.addOption(PYEXEC_OPTION);
 		return options;
 	}
 
@@ -219,12 +262,14 @@ public class CliFrontendParser {
 		options.addOption(CLASS_OPTION);
 		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
-		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(PY_OPTION);
 		options.addOption(PYFILES_OPTION);
 		options.addOption(PYMODULE_OPTION);
+		options.addOption(PYREQUIREMENTS_OPTION);
+		options.addOption(PYARCHIVE_OPTION);
+		options.addOption(PYEXEC_OPTION);
 		return options;
 	}
 
@@ -254,7 +299,7 @@ public class CliFrontendParser {
 
 	static Options getStopCommandOptions() {
 		return buildGeneralOptions(new Options())
-				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_SAVEPOINT_PATH)
 				.addOption(STOP_AND_DRAIN);
 	}
 
@@ -282,7 +327,9 @@ public class CliFrontendParser {
 
 	private static Options getListOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(RUNNING_OPTION);
-		return options.addOption(SCHEDULED_OPTION);
+		options.addOption(ALL_OPTION);
+		options.addOption(SCHEDULED_OPTION);
+		return options;
 	}
 
 	private static Options getCancelOptionsWithoutDeprecatedOptions(Options options) {
@@ -291,7 +338,7 @@ public class CliFrontendParser {
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
 		return options
-				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_SAVEPOINT_PATH)
 				.addOption(STOP_AND_DRAIN);
 	}
 
@@ -304,7 +351,7 @@ public class CliFrontendParser {
 	/**
 	 * Prints the help for the client.
 	 */
-	public static void printHelp(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelp(Collection<CustomCommandLine> customCommandLines) {
 		System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
 		System.out.println();
 		System.out.println("The following actions are available:");
@@ -319,7 +366,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForRun(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForRun(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -347,7 +394,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForList(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForList(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -362,7 +409,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForStop(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForStop(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -377,7 +424,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForCancel(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForCancel(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -392,7 +439,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForSavepoint(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForSavepoint(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -413,7 +460,7 @@ public class CliFrontendParser {
 	 * @param runOptions True if the run options should be printed, False to print only general options
 	 */
 	private static void printCustomCliOptions(
-			Collection<CustomCommandLine<?>> customCommandLines,
+			Collection<CustomCommandLine> customCommandLines,
 			HelpFormatter formatter,
 			boolean runOptions) {
 		// prints options from all available command-line classes
@@ -442,17 +489,6 @@ public class CliFrontendParser {
 	// --------------------------------------------------------------------------------------------
 	//  Line Parsing
 	// --------------------------------------------------------------------------------------------
-
-	public static RunOptions parseRunCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(RUN_OPTIONS, args, true);
-			return new RunOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
 
 	public static CommandLine parse(Options options, String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final DefaultParser parser = new DefaultParser();

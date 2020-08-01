@@ -107,12 +107,15 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 
 	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		// Build a map that groups tasks by TaskManager
+		Map<String, String> taskManagerId2Host = new HashMap<>();
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String taskManager = location == null ? "(unassigned)" : location.getHostname() + ':' + location.dataPort();
+			String taskManagerHost = location == null ? "(unassigned)" : location.getHostname() + ':' + location.dataPort();
+			String taskmanagerId = location == null ? "(unassigned)" : location.getResourceID().toString();
+			taskManagerId2Host.put(taskmanagerId, taskManagerHost);
 			List<AccessExecutionVertex> vertices = taskManagerVertices.computeIfAbsent(
-				taskManager,
+				taskmanagerId,
 				ignored -> new ArrayList<>(4));
 			vertices.add(vertex);
 		}
@@ -121,7 +124,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 
 		List<JobVertexTaskManagersInfo.TaskManagersInfo> taskManagersInfoList = new ArrayList<>(4);
 		for (Map.Entry<String, List<AccessExecutionVertex>> entry : taskManagerVertices.entrySet()) {
-			String host = entry.getKey();
+			String taskmanagerId = entry.getKey();
+			String host = taskManagerId2Host.get(taskmanagerId);
 			List<AccessExecutionVertex> taskVertices = entry.getValue();
 
 			int[] tasksPerState = new int[ExecutionState.values().length];
@@ -193,7 +197,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				endTime,
 				duration,
 				jobVertexMetrics,
-				statusCounts));
+				statusCounts,
+				taskmanagerId));
 		}
 
 		return new JobVertexTaskManagersInfo(jobVertex.getJobVertexId(), jobVertex.getName(), now, taskManagersInfoList);

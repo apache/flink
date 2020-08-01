@@ -19,17 +19,18 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 class OverWindowValidationTest extends TableTestBase {
 
-  private val streamUtil = streamTestUtil()
-  streamUtil.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime)
+  private val streamUtil = scalaStreamTestUtil()
+  streamUtil.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime.proctime)
 
   /**
     * All aggregates must be computed on the same window.

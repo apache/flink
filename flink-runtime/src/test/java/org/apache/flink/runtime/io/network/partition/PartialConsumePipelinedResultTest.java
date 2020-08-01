@@ -94,8 +94,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", sender, receiver);
 
-		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-			sender.getID(), receiver.getID());
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
@@ -119,7 +118,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
 			for (int i = 0; i < 8; i++) {
-				final BufferBuilder bufferBuilder = writer.getBufferBuilder();
+				final BufferBuilder bufferBuilder = writer.getBufferBuilder(0);
 				writer.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
 				Thread.sleep(50);
 				bufferBuilder.finish();
@@ -139,6 +138,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			InputGate gate = getEnvironment().getInputGate(0);
+			gate.requestPartitions();
 			Buffer buffer = gate.getNext().orElseThrow(IllegalStateException::new).getBuffer();
 			if (buffer != null) {
 				buffer.recycleBuffer();

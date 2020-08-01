@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
@@ -31,19 +32,22 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
@@ -57,7 +61,8 @@ public interface JobMasterGateway extends
 	CheckpointCoordinatorGateway,
 	FencedRpcGateway<JobMasterId>,
 	KvStateLocationOracle,
-	KvStateRegistryGateway {
+	KvStateRegistryGateway,
+	JobMasterOperatorEventGateway {
 
 	/**
 	 * Cancels the currently executed job.
@@ -166,24 +171,24 @@ public interface JobMasterGateway extends
 	 * Registers the task manager at the job manager.
 	 *
 	 * @param taskManagerRpcAddress the rpc address of the task manager
-	 * @param taskManagerLocation   location of the task manager
+	 * @param unresolvedTaskManagerLocation   unresolved location of the task manager
 	 * @param timeout               for the rpc call
 	 * @return Future registration response indicating whether the registration was successful or not
 	 */
 	CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
-			final TaskManagerLocation taskManagerLocation,
+			final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
 			@RpcTimeout final Time timeout);
 
 	/**
 	 * Sends the heartbeat to job manager from task manager.
 	 *
 	 * @param resourceID unique id of the task manager
-	 * @param accumulatorReport report containing accumulator updates
+	 * @param payload report payload
 	 */
 	void heartbeatFromTaskManager(
 		final ResourceID resourceID,
-		final AccumulatorReport accumulatorReport);
+		final TaskExecutorToJobManagerHeartbeatPayload payload);
 
 	/**
 	 * Sends heartbeat request from the resource manager.
@@ -270,4 +275,19 @@ public interface JobMasterGateway extends
 	 * @return The updated aggregate
 	 */
 	CompletableFuture<Object> updateGlobalAggregate(String aggregateName, Object aggregand, byte[] serializedAggregationFunction);
+
+	/**
+	 * Deliver a coordination request to a specified coordinator and return the response.
+	 *
+	 * @param operatorId identifying the coordinator to receive the request
+	 * @param serializedRequest serialized request to deliver
+	 * @return A future containing the response.
+	 *         The response will fail with a {@link org.apache.flink.util.FlinkException}
+	 *         if the task is not running, or no operator/coordinator exists for the given ID,
+	 *         or the coordinator cannot handle client events.
+	 */
+	CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+		OperatorID operatorId,
+		SerializedValue<CoordinationRequest> serializedRequest,
+		@RpcTimeout Time timeout);
 }

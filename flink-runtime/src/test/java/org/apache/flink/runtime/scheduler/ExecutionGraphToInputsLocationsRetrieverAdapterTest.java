@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -63,7 +63,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 		consumer.connectNewDataSetAsInput(producer1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		consumer.connectNewDataSetAsInput(producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), producer1, producer2, consumer);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(producer1, producer2, consumer);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -92,7 +92,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	public void testGetEmptyTaskManagerLocationIfVertexNotScheduled() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -110,8 +110,8 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	public void testGetTaskManagerLocationWhenScheduled() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		final TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlot();
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
+		final TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -135,7 +135,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	public void testGetNonExistingExecutionVertexWillThrowException() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 

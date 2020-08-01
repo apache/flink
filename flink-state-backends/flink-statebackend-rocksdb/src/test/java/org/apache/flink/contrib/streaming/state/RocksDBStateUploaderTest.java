@@ -21,7 +21,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -41,7 +40,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -71,7 +70,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 		generateRandomFileContent(file.getPath(), 20);
 
 		Map<StateHandleID, Path> filePaths = new HashMap<>(1);
-		filePaths.put(new StateHandleID("mockHandleID"), new Path(file.getPath()));
+		filePaths.put(new StateHandleID("mockHandleID"), file.toPath());
 		try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
 			rocksDBStateUploader.uploadFilesToCheckpointFs(filePaths, checkpointStreamFactory, new CloseableRegistry());
 			fail();
@@ -86,10 +85,10 @@ public class RocksDBStateUploaderTest extends TestLogger {
 	@Test
 	public void testMultiThreadUploadCorrectly() throws Exception {
 		File checkpointPrivateFolder = temporaryFolder.newFolder("private");
-		Path checkpointPrivateDirectory = new Path(checkpointPrivateFolder.getPath());
+		org.apache.flink.core.fs.Path checkpointPrivateDirectory = org.apache.flink.core.fs.Path.fromLocalFile(checkpointPrivateFolder);
 
 		File checkpointSharedFolder = temporaryFolder.newFolder("shared");
-		Path checkpointSharedDirectory = new Path(checkpointSharedFolder.getPath());
+		org.apache.flink.core.fs.Path checkpointSharedDirectory = org.apache.flink.core.fs.Path.fromLocalFile(checkpointSharedFolder);
 
 		FileSystem fileSystem = checkpointPrivateDirectory.getFileSystem();
 		int fileStateSizeThreshold = 1024;
@@ -157,7 +156,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 		for (int i = 0; i < sstFileCount; ++i) {
 			File file = temporaryFolder.newFile(String.format("%s/%d.sst", localFolder, i));
 			generateRandomFileContent(file.getPath(), random.nextInt(1_000_000) + fileStateSizeThreshold);
-			sstFilePaths.put(new StateHandleID(String.valueOf(i)), Path.fromLocalFile(file));
+			sstFilePaths.put(new StateHandleID(String.valueOf(i)), file.toPath());
 		}
 		return sstFilePaths;
 	}
@@ -171,7 +170,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 	}
 
 	private void assertStateContentEqual(Path stateFilePath, FSDataInputStream inputStream) throws IOException {
-		byte[] excepted = Files.readAllBytes(Paths.get(stateFilePath.toUri()));
+		byte[] excepted = Files.readAllBytes(stateFilePath);
 		byte[] actual = new byte[excepted.length];
 		IOUtils.readFully(inputStream, actual, 0, actual.length);
 		assertEquals(-1, inputStream.read());

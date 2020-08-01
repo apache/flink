@@ -17,33 +17,40 @@
  */
 package org.apache.flink.table.runtime.harness
 
-import java.lang.{Integer => JInt}
-import java.util.concurrent.ConcurrentLinkedQueue
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.harness.HarnessTestBase._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.utils.{Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.lang.{Integer => JInt}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.mutable
 
 class TableAggregateHarnessTest extends HarnessTestBase {
 
-  protected var queryConfig =
-    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
+  private val tableConfig = new TableConfig {
+    override def getMinIdleStateRetentionTime: Long = Time.seconds(2).toMilliseconds
+
+    override def getMaxIdleStateRetentionTime: Long = Time.seconds(2).toMilliseconds
+  }
   val data = new mutable.MutableList[(Int, Int)]
 
   @Test
   def testTableAggregate(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironmentImpl.create(
+      env,
+      EnvironmentSettings.newInstance().useOldPlanner().build(),
+      tableConfig)
 
     val top3 = new Top3WithMapView
     tEnv.registerFunction("top3", top3)
@@ -54,7 +61,7 @@ class TableAggregateHarnessTest extends HarnessTestBase {
       .select('a, 'b1, 'b2)
 
     val testHarness = createHarnessTester[Int, CRow, CRow](
-      resultTable.toRetractStream[Row](queryConfig), "groupBy: (a)")
+      resultTable.toRetractStream[Row], "groupBy: (a)")
 
     testHarness.open()
 
@@ -105,9 +112,11 @@ class TableAggregateHarnessTest extends HarnessTestBase {
 
   @Test
   def testTableAggregateEmitRetractValueIncrementally(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironmentImpl.create(
+      env,
+      EnvironmentSettings.newInstance().useOldPlanner().build(),
+      tableConfig)
 
     val top3 = new Top3WithEmitRetractValue
     val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
@@ -117,7 +126,7 @@ class TableAggregateHarnessTest extends HarnessTestBase {
       .select('a, 'b1, 'b2)
 
     val testHarness = createHarnessTester[Int, CRow, CRow](
-      resultTable.toRetractStream[Row](queryConfig), "groupBy: (a)")
+      resultTable.toRetractStream[Row], "groupBy: (a)")
 
     testHarness.open()
 
@@ -158,9 +167,11 @@ class TableAggregateHarnessTest extends HarnessTestBase {
 
   @Test
   def testTableAggregateWithRetractInput(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironmentImpl.create(
+      env,
+      EnvironmentSettings.newInstance().useOldPlanner().build(),
+      tableConfig)
 
     val top3 = new Top3WithMapView
     tEnv.registerFunction("top3", top3)
@@ -172,7 +183,7 @@ class TableAggregateHarnessTest extends HarnessTestBase {
       .select('b1, 'b2)
 
     val testHarness = createHarnessTester[Int, CRow, CRow](
-      resultTable.toRetractStream[Row](queryConfig), "select: (Top3WithMapView")
+      resultTable.toRetractStream[Row], "select: (Top3WithMapView")
 
     testHarness.open()
 

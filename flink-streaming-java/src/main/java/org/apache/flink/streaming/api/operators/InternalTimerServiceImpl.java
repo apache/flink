@@ -24,11 +24,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
  */
-public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
+public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 
 	private final ProcessingTimeService processingTimeService;
 
@@ -152,6 +152,8 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 				TypeSerializerSchemaCompatibility<N> namespaceSerializerCompatibility =
 					restoredTimersSnapshot.getNamespaceSerializerSnapshot().resolveSchemaCompatibility(namespaceSerializer);
 
+				restoredTimersSnapshot = null;
+
 				if (namespaceSerializerCompatibility.isIncompatible() || namespaceSerializerCompatibility.isCompatibleAfterMigration()) {
 					throw new IllegalStateException(
 						"Tried to initialize restored TimerService with new namespace serializer that requires migration or is incompatible.");
@@ -174,7 +176,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 			// re-register the restored timers (if any)
 			final InternalTimer<K, N> headTimer = processingTimeTimersQueue.peek();
 			if (headTimer != null) {
-				nextTimer = processingTimeService.registerTimer(headTimer.getTimestamp(), this);
+				nextTimer = processingTimeService.registerTimer(headTimer.getTimestamp(), this::onProcessingTime);
 			}
 			this.isInitialized = true;
 		} else {
@@ -205,7 +207,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 				if (nextTimer != null) {
 					nextTimer.cancel(false);
 				}
-				nextTimer = processingTimeService.registerTimer(time, this);
+				nextTimer = processingTimeService.registerTimer(time, this::onProcessingTime);
 			}
 		}
 	}
@@ -226,7 +228,26 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 	}
 
 	@Override
-	public void onProcessingTime(long time) throws Exception {
+	public void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception {
+		foreachTimer(consumer, eventTimeTimersQueue);
+	}
+
+	@Override
+	public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception {
+		foreachTimer(consumer, processingTimeTimersQueue);
+	}
+
+	private void foreachTimer(BiConsumerWithException<N, Long, Exception> consumer, KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> queue) throws Exception {
+		try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator = queue.iterator()) {
+			while (iterator.hasNext()) {
+				final TimerHeapInternalTimer<K, N> timer = iterator.next();
+				keyContext.setCurrentKey(timer.getKey());
+				consumer.accept(timer.getNamespace(), timer.getTimestamp());
+			}
+		}
+	}
+
+	private void onProcessingTime(long time) throws Exception {
 		// null out the timer in case the Triggerable calls registerProcessingTimeTimer()
 		// inside the callback.
 		nextTimer = null;
@@ -240,7 +261,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 		}
 
 		if (timer != null && nextTimer == null) {
-			nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this);
+			nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this::onProcessingTime);
 		}
 	}
 

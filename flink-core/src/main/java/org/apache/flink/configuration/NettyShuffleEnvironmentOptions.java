@@ -19,8 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.ConfigGroup;
-import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -28,7 +27,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options relating to network stack.
  */
 @PublicEvolving
-@ConfigGroups(groups = @ConfigGroup(name = "NetworkNetty", keyPrefix = "taskmanager.network.netty"))
 public class NettyShuffleEnvironmentOptions {
 
 	// ------------------------------------------------------------------------
@@ -39,14 +37,26 @@ public class NettyShuffleEnvironmentOptions {
 	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
 	 * the TaskManager searches for a free port.
 	 */
+	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_TASK_MANAGER})
 	public static final ConfigOption<Integer> DATA_PORT =
 		key("taskmanager.data.port")
 			.defaultValue(0)
-			.withDescription("The task manager’s port used for data exchange operations.");
+			.withDescription("The task manager’s external port used for data exchange operations.");
+
+	/**
+	 * The local network port that the task manager listen at for data exchange.
+	 */
+	public static final ConfigOption<Integer> DATA_BIND_PORT =
+		key("taskmanager.data.bind-port")
+			.intType()
+			.noDefaultValue()
+			.withDescription("The task manager's bind port used for data exchange operations. If not configured, '" +
+				DATA_PORT.key() + "' will be used.");
 
 	/**
 	 * Config parameter to override SSL support for taskmanager's data transport.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
 	public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
 		key("taskmanager.data.ssl.enabled")
 			.defaultValue(true)
@@ -54,33 +64,46 @@ public class NettyShuffleEnvironmentOptions {
 				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
 
 	/**
+	 * Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode.
+	 *
+	 * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is more effective for
+	 * IO bounded scenario when data compression ratio is high. Currently, shuffle data compression is an experimental
+	 * feature and the config option can be changed in the future.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
+		key("taskmanager.network.blocking-shuffle.compression.enabled")
+			.defaultValue(false)
+			.withDescription("Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle" +
+				" mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is" +
+				" more effective for IO bounded scenario when data compression ratio is high. Currently, shuffle data " +
+				"compression is an experimental feature and the config option can be changed in the future.");
+
+	/**
+	 * The codec to be used when compressing shuffle data.
+	 */
+	@Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
+	public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
+		key("taskmanager.network.compression.codec")
+			.defaultValue("LZ4")
+			.withDescription("The codec to be used when compressing shuffle data.");
+
+	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
 	 * lengths.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
 		key("taskmanager.network.detailed-metrics")
 			.defaultValue(false)
 			.withDescription("Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
 	/**
-	 * Boolean flag to enable/disable network credit-based flow control.
-	 *
-	 * @deprecated Will be removed for Flink 1.6 when the old code will be dropped in favour of
-	 * credit-based flow control.
-	 */
-	@Deprecated
-	public static final ConfigOption<Boolean> NETWORK_CREDIT_MODEL =
-		key("taskmanager.network.credit-model")
-			.defaultValue(true)
-			.withDeprecatedKeys("taskmanager.network.credit-based-flow-control.enabled")
-			.withDescription("Boolean flag to enable/disable network credit-based flow control.");
-
-	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
 	 *
-	 * @deprecated use {@link #NETWORK_BUFFERS_MEMORY_FRACTION}, {@link #NETWORK_BUFFERS_MEMORY_MIN},
-	 * and {@link #NETWORK_BUFFERS_MEMORY_MAX} instead
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION}, {@link TaskManagerOptions#NETWORK_MEMORY_MIN},
+	 * and {@link TaskManagerOptions#NETWORK_MEMORY_MAX} instead
 	 */
 	@Deprecated
 	public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
@@ -89,7 +112,10 @@ public class NettyShuffleEnvironmentOptions {
 
 	/**
 	 * Fraction of JVM memory to use for network buffers.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
 		key("taskmanager.network.memory.fraction")
 			.defaultValue(0.1f)
@@ -101,7 +127,10 @@ public class NettyShuffleEnvironmentOptions {
 
 	/**
 	 * Minimum memory size for network buffers.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_MIN} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
 		key("taskmanager.network.memory.min")
 			.defaultValue("64mb")
@@ -109,7 +138,10 @@ public class NettyShuffleEnvironmentOptions {
 
 	/**
 	 * Maximum memory size for network buffers.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_MAX} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =
 		key("taskmanager.network.memory.max")
 			.defaultValue("1gb")
@@ -120,17 +152,18 @@ public class NettyShuffleEnvironmentOptions {
 	 *
 	 * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 		key("taskmanager.network.memory.buffers-per-channel")
 			.defaultValue(2)
-			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
-				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
-				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
-				" for parallel serialization.");
+			.withDescription("Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel)" +
+				" in the credit-based flow control model. It should be configured at least 2 for good performance." +
+				" 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.");
 
 	/**
 	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
 		key("taskmanager.network.memory.floating-buffers-per-gate")
 			.defaultValue(8)
@@ -140,40 +173,89 @@ public class NettyShuffleEnvironmentOptions {
 				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
+	/**
+	 * Number of max buffers can be used for each output subparition.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
+		key("taskmanager.network.memory.max-buffers-per-channel")
+			.defaultValue(10)
+			.withDescription("Number of max buffers that can be used for each channel. If a channel exceeds the number of max" +
+				" buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This" +
+				" might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in" +
+				" case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed," +
+				" and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer" +
+				" producing large amount of data.");
+
+	/**
+	 * The timeout for requesting exclusive buffers for each channel.
+	 */
+	@Documentation.ExcludeFromDocumentation("This option is purely implementation related, and may be removed as the implementation changes.")
+	public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
+		key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
+			.defaultValue(30000L)
+			.withDescription("The timeout for requesting exclusive buffers for each channel. Since the number of maximum buffers and " +
+					"the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream" +
+					"tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks" +
+					"the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
+
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
+		key("taskmanager.network.blocking-shuffle.type")
+			.defaultValue("file")
+			.withDescription("The blocking shuffle type, either \"mmap\" or \"file\". The \"auto\" means selecting the property type automatically" +
+					" based on system memory architecture (64 bit for mmap and 32 bit for file). Note that the memory usage of mmap is not accounted" +
+					" by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once" +
+					" memory exceeding some threshold. Also note that this option is experimental and might be changed future.");
+
 	// ------------------------------------------------------------------------
 	//  Netty Options
 	// ------------------------------------------------------------------------
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NUM_ARENAS =
 		key("taskmanager.network.netty.num-arenas")
 			.defaultValue(-1)
 			.withDeprecatedKeys("taskmanager.net.num-arenas")
 			.withDescription("The number of Netty arenas.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NUM_THREADS_SERVER =
 		key("taskmanager.network.netty.server.numThreads")
 			.defaultValue(-1)
 			.withDeprecatedKeys("taskmanager.net.server.numThreads")
 			.withDescription("The number of Netty server threads.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NUM_THREADS_CLIENT =
 		key("taskmanager.network.netty.client.numThreads")
 			.defaultValue(-1)
 			.withDeprecatedKeys("taskmanager.net.client.numThreads")
 			.withDescription("The number of Netty client threads.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> CONNECT_BACKLOG =
 		key("taskmanager.network.netty.server.backlog")
 			.defaultValue(0) // default: 0 => Netty's default
 			.withDeprecatedKeys("taskmanager.net.server.backlog")
 			.withDescription("The netty server connection backlog.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> CLIENT_CONNECT_TIMEOUT_SECONDS =
 		key("taskmanager.network.netty.client.connectTimeoutSec")
 			.defaultValue(120) // default: 120s = 2min
 			.withDeprecatedKeys("taskmanager.net.client.connectTimeoutSec")
 			.withDescription("The Netty client connection timeout.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_RETRIES =
+		key("taskmanager.network.retries")
+			.defaultValue(0)
+			.withDeprecatedKeys("taskmanager.network.retries")
+			.withDescription("The number of retry attempts for network communication." +
+				" Currently it's only used for establishing input/output channel connections");
+
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE =
 		key("taskmanager.network.netty.sendReceiveBufferSize")
 			.defaultValue(0) // default: 0 => Netty's default
@@ -181,11 +263,14 @@ public class NettyShuffleEnvironmentOptions {
 			.withDescription("The Netty send and receive buffer size. This defaults to the system buffer size" +
 				" (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.");
 
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<String> TRANSPORT_TYPE =
 		key("taskmanager.network.netty.transport")
-			.defaultValue("nio")
+			.defaultValue("auto")
 			.withDeprecatedKeys("taskmanager.net.transport")
-			.withDescription("The Netty transport type, either \"nio\" or \"epoll\"");
+			.withDescription("The Netty transport type, either \"nio\" or \"epoll\". The \"auto\" means selecting the property mode automatically" +
+				" based on the platform. Note that the \"epoll\" mode can get better performance, less GC and have more advanced features which are" +
+				" only available on modern Linux.");
 
 	// ------------------------------------------------------------------------
 	//  Partition Request Options
@@ -194,6 +279,7 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Minimum backoff for partition requests of input channels.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
 		key("taskmanager.network.request-backoff.initial")
 			.defaultValue(100)
@@ -203,6 +289,7 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Maximum backoff for partition requests of input channels.
 	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
 		key("taskmanager.network.request-backoff.max")
 			.defaultValue(10000)
@@ -210,6 +297,11 @@ public class NettyShuffleEnvironmentOptions {
 			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
 	// ------------------------------------------------------------------------
+
+	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
+	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
+		key("taskmanager.network.partition.force-release-on-consumption")
+			.defaultValue(false);
 
 	/** Not intended to be instantiated. */
 	private NettyShuffleEnvironmentOptions() {}

@@ -32,13 +32,21 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
-  * Utilities to convert {@link TypeInformation} into a string representation and back.
-  */
+ * Utilities to convert {@link TypeInformation} into a string representation and back.
+ *
+ * @deprecated This utility is based on {@link TypeInformation}. However, the Table & SQL API is
+ *             currently updated to use {@link DataType}s based on {@link LogicalType}s. Use
+ *             {@link LogicalTypeParser} instead.
+ */
+@Deprecated
 @PublicEvolving
 public class TypeStringUtils {
 
@@ -88,11 +96,14 @@ public class TypeStringUtils {
 			return DOUBLE;
 		} else if (typeInfo.equals(Types.BIG_DEC)) {
 			return DECIMAL;
-		} else if (typeInfo.equals(Types.SQL_DATE)) {
+		} else if (typeInfo.equals(Types.SQL_DATE) || typeInfo.equals(Types.LOCAL_DATE)) {
+			// write LOCAL_DATE as "DATE" to keep compatible when using new types
 			return DATE;
-		} else if (typeInfo.equals(Types.SQL_TIME)) {
+		} else if (typeInfo.equals(Types.SQL_TIME) || typeInfo.equals(Types.LOCAL_TIME)) {
+			// write LOCAL_TIME as "TIME" to keep compatible when using new types
 			return TIME;
-		} else if (typeInfo.equals(Types.SQL_TIMESTAMP)) {
+		} else if (typeInfo.equals(Types.SQL_TIMESTAMP) || typeInfo.equals(Types.LOCAL_DATE_TIME)) {
+			// write LOCAL_DATE_TIME as "TIMESTAMP" to keep compatible when using new types
 			return TIMESTAMP;
 		} else if (typeInfo instanceof RowTypeInfo) {
 			final RowTypeInfo rt = (RowTypeInfo) typeInfo;

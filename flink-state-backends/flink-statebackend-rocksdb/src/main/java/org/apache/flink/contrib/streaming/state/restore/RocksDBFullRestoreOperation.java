@@ -47,6 +47,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDBException;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
@@ -61,6 +62,7 @@ import java.util.function.Function;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Encapsulates the process of restoring a RocksDB instance from a full snapshot.
@@ -87,6 +89,11 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 	 */
 	private StreamCompressionDecorator keygroupStreamCompressionDecorator;
 
+	/**
+	 * Write batch size used in {@link RocksDBWriteBatchWrapper}.
+	 */
+	private final long writeBatchSize;
+
 	public RocksDBFullRestoreOperation(
 		KeyGroupRange keyGroupRange,
 		int keyGroupPrefixBytes,
@@ -102,7 +109,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		@Nonnegative long writeBatchSize) {
 		super(
 			keyGroupRange,
 			keyGroupPrefixBytes,
@@ -119,6 +127,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			metricGroup,
 			restoreStateHandles,
 			ttlCompactFiltersManager);
+		checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
+		this.writeBatchSize = writeBatchSize;
 	}
 
 	/**
@@ -188,7 +198,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 	 */
 	private void restoreKVStateData() throws IOException, RocksDBException {
 		//for all key-groups in the current state handle...
-		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db)) {
+		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeBatchSize)) {
 			for (Tuple2<Integer, Long> keyGroupOffset : currentKeyGroupsStateHandle.getGroupRangeOffsets()) {
 				int keyGroup = keyGroupOffset.f0;
 

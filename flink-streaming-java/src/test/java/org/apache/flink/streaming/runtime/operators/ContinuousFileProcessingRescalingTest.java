@@ -24,23 +24,32 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
+import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness.repackageState;
+import static org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness.repartitionOperatorState;
 
 /**
  * Test processing files during rescaling.
@@ -48,197 +57,115 @@ import java.util.Queue;
 public class ContinuousFileProcessingRescalingTest {
 
 	private final int maxParallelism = 10;
+	private final int sizeOfSplit = 20;
 
+	/**
+	* Simulates the scenario of scaling down from 2 to 1 instances.
+	*/
 	@Test
 	public void testReaderScalingDown() throws Exception {
-		// simulates the scenario of scaling down from 2 to 1 instances
+		HarnessWithFormat[] beforeRescale = {};
+		try {
+			beforeRescale = buildAndStart(5, 15);
+			try (HarnessWithFormat afterRescale = buildAndStart(1, 0, 5, snapshotAndMergeState(beforeRescale))) {
 
-		final OneShotLatch waitingLatch = new OneShotLatch();
+				afterRescale.awaitEverythingProcessed();
 
-		// create the first instance and let it process the first split till element 5
-		final OneShotLatch triggerLatch1 = new OneShotLatch();
-		BlockingFileInputFormat format1 = new BlockingFileInputFormat(
-			triggerLatch1, waitingLatch, new Path("test"), 20, 5);
-		FileInputSplit[] splits = format1.createInputSplits(2);
+				for (HarnessWithFormat i : beforeRescale) {
+					i.getHarness().getOutput().clear(); // we only want output from the 2nd chunk (after the "checkpoint")
+					i.awaitEverythingProcessed();
+				}
 
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness1 = getTestHarness(format1, 2, 0);
-		testHarness1.open();
-		testHarness1.processElement(new StreamRecord<>(getTimestampedSplit(0, splits[0])));
-
-		// wait until its arrives to element 5
-		if (!triggerLatch1.isTriggered()) {
-			triggerLatch1.await();
+				Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale));
+			}
+		} finally {
+			for (HarnessWithFormat harness : beforeRescale) {
+				harness.close();
+			}
 		}
-
-		// create the second instance and let it process the second split till element 15
-		final OneShotLatch triggerLatch2 = new OneShotLatch();
-		BlockingFileInputFormat format2 = new BlockingFileInputFormat(
-			triggerLatch2, waitingLatch, new Path("test"), 20, 15);
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness2 = getTestHarness(format2, 2, 1);
-		testHarness2.open();
-		testHarness2.processElement(new StreamRecord<>(getTimestampedSplit(0, splits[1])));
-
-		// wait until its arrives to element 15
-		if (!triggerLatch2.isTriggered()) {
-			triggerLatch2.await();
-		}
-
-		// 1) clear the outputs of the two previous instances so that
-		// we can compare their newly produced outputs with the merged one
-		testHarness1.getOutput().clear();
-		testHarness2.getOutput().clear();
-
-		// 2) take the snapshots from the previous instances and merge them
-		// into a new one which will be then used to initialize a third instance
-		OperatorSubtaskState mergedState = AbstractStreamOperatorTestHarness.
-			repackageState(
-				testHarness2.snapshot(0, 0),
-				testHarness1.snapshot(0, 0)
-			);
-
-		// 3) and repartition to get the initialized state when scaling down.
-		OperatorSubtaskState initState =
-			AbstractStreamOperatorTestHarness.repartitionOperatorState(mergedState, maxParallelism, 2, 1, 0);
-
-		// create the third instance
-		final OneShotLatch wLatch = new OneShotLatch();
-		final OneShotLatch tLatch = new OneShotLatch();
-
-		BlockingFileInputFormat format = new BlockingFileInputFormat(wLatch, tLatch, new Path("test"), 20, 5);
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness = getTestHarness(format, 1, 0);
-
-		// initialize the state of the new operator with the constructed by
-		// combining the partial states of the instances above.
-		testHarness.initializeState(initState);
-		testHarness.open();
-
-		// now restart the waiting operators
-		wLatch.trigger();
-		tLatch.trigger();
-		waitingLatch.trigger();
-
-		// and wait for the processing to finish
-		synchronized (testHarness1.getCheckpointLock()) {
-			testHarness1.close();
-		}
-		synchronized (testHarness2.getCheckpointLock()) {
-			testHarness2.close();
-		}
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.close();
-		}
-
-		Queue<Object> expectedResult = new ArrayDeque<>();
-		putElementsInQ(expectedResult, testHarness1.getOutput());
-		putElementsInQ(expectedResult, testHarness2.getOutput());
-
-		Queue<Object> actualResult = new ArrayDeque<>();
-		putElementsInQ(actualResult, testHarness.getOutput());
-
-		Assert.assertEquals(20, actualResult.size());
-		Assert.assertArrayEquals(expectedResult.toArray(), actualResult.toArray());
 	}
 
+	/**
+	 * Simulates the scenario of scaling up from 1 to 2 instances.
+	 */
 	@Test
 	public void testReaderScalingUp() throws Exception {
-		// simulates the scenario of scaling up from 1 to 2 instances
+		try (HarnessWithFormat beforeRescale = buildAndStart(1, 0, 5, null, buildSplits(2))) {
+			OperatorSubtaskState snapshot = beforeRescale.getHarness().snapshot(0, 0);
+			try (
+				HarnessWithFormat afterRescale0 = buildAndStart(2, 0, 15, repartitionOperatorState(snapshot, maxParallelism, 1, 2, 0));
+				HarnessWithFormat afterRescale1 = buildAndStart(2, 1, 15, repartitionOperatorState(snapshot, maxParallelism, 1, 2, 1))) {
 
-		final OneShotLatch waitingLatch1 = new OneShotLatch();
-		final OneShotLatch triggerLatch1 = new OneShotLatch();
+				beforeRescale.getHarness().getOutput().clear();
 
-		BlockingFileInputFormat format1 = new BlockingFileInputFormat(
-			triggerLatch1, waitingLatch1, new Path("test"), 20, 5);
-		FileInputSplit[] splits = format1.createInputSplits(2);
+				for (HarnessWithFormat harness : Arrays.asList(beforeRescale, afterRescale0, afterRescale1)) {
+					harness.awaitEverythingProcessed();
+				}
 
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness1 = getTestHarness(format1, 1, 0);
-		testHarness1.open();
-
-		testHarness1.processElement(new StreamRecord<>(getTimestampedSplit(0, splits[0])));
-		testHarness1.processElement(new StreamRecord<>(getTimestampedSplit(1, splits[1])));
-
-		// wait until its arrives to element 5
-		if (!triggerLatch1.isTriggered()) {
-			triggerLatch1.await();
+				Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale0, afterRescale1));
+			}
 		}
-
-		OperatorSubtaskState snapshot = testHarness1.snapshot(0, 0);
-
-		// this will be the init state for new instance-0
-		OperatorSubtaskState initState1 =
-			AbstractStreamOperatorTestHarness.repartitionOperatorState(snapshot, maxParallelism, 1, 2, 0);
-
-		// this will be the init state for new instance-1
-		OperatorSubtaskState initState2 =
-			AbstractStreamOperatorTestHarness.repartitionOperatorState(snapshot, maxParallelism, 1, 2, 1);
-
-		// 1) clear the output of instance so that we can compare it with one created by the new instances, and
-		// 2) let the operator process the rest of its state
-		testHarness1.getOutput().clear();
-		waitingLatch1.trigger();
-
-		// create the second instance and let it process the second split till element 15
-		final OneShotLatch triggerLatch2 = new OneShotLatch();
-		final OneShotLatch waitingLatch2 = new OneShotLatch();
-
-		BlockingFileInputFormat format2 = new BlockingFileInputFormat(
-			triggerLatch2, waitingLatch2, new Path("test"), 20, 15);
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness2 = getTestHarness(format2, 2, 0);
-		testHarness2.setup();
-		testHarness2.initializeState(initState1);
-		testHarness2.open();
-
-		BlockingFileInputFormat format3 = new BlockingFileInputFormat(
-			triggerLatch2, waitingLatch2, new Path("test"), 20, 15);
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness3 = getTestHarness(format3, 2, 1);
-		testHarness3.setup();
-		testHarness3.initializeState(initState2);
-		testHarness3.open();
-
-		triggerLatch2.trigger();
-		waitingLatch2.trigger();
-
-		// and wait for the processing to finish
-		synchronized (testHarness1.getCheckpointLock()) {
-			testHarness1.close();
-		}
-		synchronized (testHarness2.getCheckpointLock()) {
-			testHarness2.close();
-		}
-		synchronized (testHarness3.getCheckpointLock()) {
-			testHarness3.close();
-		}
-
-		Queue<Object> expectedResult = new ArrayDeque<>();
-		putElementsInQ(expectedResult, testHarness1.getOutput());
-
-		Queue<Object> actualResult = new ArrayDeque<>();
-		putElementsInQ(actualResult, testHarness2.getOutput());
-		putElementsInQ(actualResult, testHarness3.getOutput());
-
-		Assert.assertEquals(35, actualResult.size());
-		Assert.assertArrayEquals(expectedResult.toArray(), actualResult.toArray());
 	}
 
-	private void putElementsInQ(Queue<Object> res, Queue<Object> partial) {
-		for (Object o : partial) {
-			if (o instanceof Watermark) {
-				continue;
-			}
-			res.add(o);
+	private HarnessWithFormat[] buildAndStart(int... elementsBeforeCheckpoint) throws Exception {
+		int count = elementsBeforeCheckpoint.length;
+		FileInputSplit[] splits = buildSplits(count);
+		HarnessWithFormat[] res = new HarnessWithFormat[count];
+		for (int i = 0; i < count; i++) {
+			res[i] = buildAndStart(2, i, elementsBeforeCheckpoint[i], null, splits[i]);
 		}
+		return res;
+	}
+
+	private HarnessWithFormat buildAndStart(
+			int noOfTasks,
+			int taskIdx,
+			int elementsBeforeCheckpoint,
+			@Nullable OperatorSubtaskState initState,
+			FileInputSplit... splits) throws Exception {
+
+		BlockingFileInputFormat format = new BlockingFileInputFormat(new Path("test"), sizeOfSplit, elementsBeforeCheckpoint);
+
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = getTestHarness(format, noOfTasks, taskIdx);
+		harness.setup();
+		if (initState != null) {
+			harness.initializeState(initState);
+		}
+		harness.open();
+		if (splits != null) {
+			for (int i = 0; i < splits.length; i++) {
+				harness.processElement(new StreamRecord<>(getTimestampedSplit(i, splits[i])));
+			}
+		}
+		HarnessWithFormat harnessWithFormat = new HarnessWithFormat(harness, format);
+		while (!format.isFirstChunkProcessed()) {
+			harnessWithFormat.mailboxProcessor.runMailboxStep();
+		}
+		return harnessWithFormat;
+	}
+
+	private OperatorSubtaskState snapshotAndMergeState(HarnessWithFormat[] hh) throws Exception {
+		OperatorSubtaskState[] oss = new OperatorSubtaskState[hh.length];
+		for (int i = 0; i < hh.length; i++) {
+			oss[i] = hh[i].getHarness().snapshot(0, 0);
+		}
+		return repartitionOperatorState(repackageState(oss), maxParallelism, hh.length, 1, 0);
+	}
+
+	private FileInputSplit[] buildSplits(int n) {
+		return new BlockingFileInputFormat(new Path("test"), sizeOfSplit, 5).createInputSplits(n);
 	}
 
 	private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> getTestHarness(
-		BlockingFileInputFormat format, int noOfTasks, int taksIdx) throws Exception {
-
-		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
-		reader.setOutputType(TypeExtractor.getInputFormatTypes(format), new ExecutionConfig());
-
+		BlockingFileInputFormat format,
+		int noOfTasks,
+		int taskIdx) throws Exception {
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness =
-			new OneInputStreamOperatorTestHarness<>(reader, maxParallelism, noOfTasks, taksIdx);
+			new OneInputStreamOperatorTestHarness<>(
+				new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), new ExecutionConfig()),
+				maxParallelism,
+				noOfTasks,
+				taskIdx);
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		return testHarness;
 	}
@@ -254,37 +181,23 @@ public class ContinuousFileProcessingRescalingTest {
 			split.getHostnames());
 	}
 
-	private static class BlockingFileInputFormat
-		extends FileInputFormat<String>
-		implements CheckpointableInputFormat<FileInputSplit, Integer> {
-
-		private final OneShotLatch triggerLatch;
-		private final OneShotLatch waitingLatch;
-
+	private static class BlockingFileInputFormat extends FileInputFormat<String> implements CheckpointableInputFormat<FileInputSplit, Integer> {
+		private boolean firstChunkTrigger = false;
+		private boolean endTrigger = false;
 		private final int elementsBeforeCheckpoint;
 		private final int linesPerSplit;
 
 		private FileInputSplit split;
+		private int state = 0;
 
-		private int state;
-
-		BlockingFileInputFormat(OneShotLatch triggerLatch,
-								OneShotLatch waitingLatch,
-								Path filePath,
-								int sizeOfSplit,
-								int elementsBeforeCheckpoint) {
+		BlockingFileInputFormat(Path filePath, int sizeOfSplit, int elementsBeforeCheckpoint) {
 			super(filePath);
-
-			this.triggerLatch = triggerLatch;
-			this.waitingLatch = waitingLatch;
 			this.elementsBeforeCheckpoint = elementsBeforeCheckpoint;
 			this.linesPerSplit = sizeOfSplit;
-
-			this.state = 0;
 		}
 
 		@Override
-		public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
+		public FileInputSplit[] createInputSplits(int minNumSplits) {
 			FileInputSplit[] splits = new FileInputSplit[minNumSplits];
 			for (int i = 0; i < minNumSplits; i++) {
 				splits[i] = new FileInputSplit(i, getFilePaths()[0], i * linesPerSplit + 1, linesPerSplit, null);
@@ -299,34 +212,86 @@ public class ContinuousFileProcessingRescalingTest {
 		}
 
 		@Override
-		public void reopen(FileInputSplit split, Integer state) throws IOException {
+		public void reopen(FileInputSplit split, Integer state) {
 			this.split = split;
 			this.state = state;
 		}
 
 		@Override
-		public Integer getCurrentState() throws IOException {
+		public Integer getCurrentState() {
 			return state;
 		}
 
 		@Override
-		public boolean reachedEnd() throws IOException {
+		public boolean reachedEnd() {
 			if (state == elementsBeforeCheckpoint) {
-				triggerLatch.trigger();
-				if (!waitingLatch.isTriggered()) {
-					try {
-						waitingLatch.await();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
+				firstChunkTrigger = true;
 			}
-			return state == linesPerSplit;
+			endTrigger = state == linesPerSplit;
+			return endTrigger;
 		}
 
 		@Override
-		public String nextRecord(String reuse) throws IOException {
+		public String nextRecord(String reuse) {
 			return reachedEnd() ? null : split.getSplitNumber() + ": test line " + state++;
 		}
+
+		public boolean isFirstChunkProcessed() {
+			return firstChunkTrigger;
+		}
+
+		public boolean isLastProcessed() {
+			return endTrigger;
+		}
+	}
+
+	private static final class HarnessWithFormat implements Closeable {
+		private final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness;
+		private final BlockingFileInputFormat format;
+		private final SteppingMailboxProcessor mailboxProcessor;
+
+		HarnessWithFormat(OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness, BlockingFileInputFormat format) {
+			this.format = format;
+			this.harness = harness;
+			this.mailboxProcessor = new SteppingMailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction, harness.getTaskMailbox(), StreamTaskActionExecutor.IMMEDIATE);
+		}
+
+		public OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> getHarness() {
+			return harness;
+		}
+
+		public BlockingFileInputFormat getFormat() {
+			return format;
+		}
+
+		void awaitEverythingProcessed() throws Exception {
+			while (!getFormat().isFirstChunkProcessed()) {
+				mailboxProcessor.runMailboxStep();
+			}
+			while (!getFormat().isLastProcessed()) {
+				mailboxProcessor.runMailboxStep();
+			}
+			getHarness().close();
+		}
+
+		@Override
+		public void close() throws IOException {
+			try {
+				harness.close();
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+			format.close();
+			mailboxProcessor.close();
+		}
+	}
+
+	private List<Object> collectOutput(HarnessWithFormat... in) {
+		return Stream.of(in)
+				.flatMap(i -> i.getHarness().getOutput().stream())
+				.filter(output -> !(output instanceof Watermark))
+				.collect(Collectors.toList());
 	}
 }

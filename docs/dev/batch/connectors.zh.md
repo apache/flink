@@ -1,7 +1,7 @@
 ---
-title:  "连接器"
-nav-parent_id: batch
-nav-pos: 4
+title:  "DataSet Connectors"
+nav-parent_id: connectors-root
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,52 +25,10 @@ under the License.
 * TOC
 {:toc}
 
-## Reading from file systems
+## Reading from and writing to file systems
 
-Flink has built-in support for the following file systems:
-
-| Filesystem                            | Scheme       | Notes  |
-| ------------------------------------- |--------------| ------ |
-| Hadoop Distributed File System (HDFS) &nbsp; | `hdfs://`    | All HDFS versions are supported |
-| Amazon S3                             | `s3://`      | Support through Hadoop file system implementation (see below) |
-| MapR file system                      | `maprfs://`  | The user has to manually place the required jar files in the `lib/` dir |
-| Alluxio                               | `alluxio://` &nbsp; | Support through Hadoop file system implementation (see below) |
-
-
-
-### Using Hadoop file system implementations
-
-Apache Flink allows users to use any file system implementing the `org.apache.hadoop.fs.FileSystem`
-interface. There are Hadoop `FileSystem` implementations for
-
-- [S3](https://aws.amazon.com/s3/) (tested)
-- [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
-- [Alluxio](http://alluxio.org/) (tested)
-- [XtreemFS](http://www.xtreemfs.org/) (tested)
-- FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
-- and many more.
-
-In order to use a Hadoop file system with Flink, make sure that
-
-- the `flink-conf.yaml` has set the `fs.hdfs.hadoopconf` property to the Hadoop configuration directory. For automated testing or running from an IDE the directory containing `flink-conf.yaml` can be set by defining the `FLINK_CONF_DIR` environment variable.
-- the Hadoop configuration (in that directory) has an entry for the required file system in a file `core-site.xml`. Examples for S3 and Alluxio are linked/shown below.
-- the required classes for using the file system are available in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink also respects the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
-
-#### Amazon S3
-
-See [Deployment & Operations - Deployment - AWS - S3: Simple Storage Service]({{ site.baseurl }}/ops/deployment/aws.html) for available S3 file system implementations, their configuration and required libraries.
-
-#### Alluxio
-
-For Alluxio support add the following entry into the `core-site.xml` file:
-
-{% highlight xml %}
-<property>
-  <name>fs.alluxio.impl</name>
-  <value>alluxio.hadoop.FileSystem</value>
-</property>
-{% endhighlight %}
-
+The Apache Flink project supports multiple [file systems]({{ site.baseurl }}/ops/filesystems/index.html) that can be used as backing stores
+for input and output connectors. 
 
 ## Connecting to other systems using Input/OutputFormat wrappers for Hadoop
 
@@ -93,7 +51,7 @@ Also, the serialization framework of Flink is able to handle classes generated f
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
 
@@ -129,35 +87,35 @@ This example is using the `HadoopInputFormat` wrapper to use an existing Hadoop 
 1. Download and compile the `azure-tables-hadoop` project. The input format developed by the project is not yet available in Maven Central, therefore, we have to build the project ourselves.
 Execute the following commands:
 
-   {% highlight bash %}
-   git clone https://github.com/mooso/azure-tables-hadoop.git
-   cd azure-tables-hadoop
-   mvn clean install
-   {% endhighlight %}
+{% highlight bash %}
+git clone https://github.com/mooso/azure-tables-hadoop.git
+cd azure-tables-hadoop
+mvn clean install
+{% endhighlight %}
 
 2. Setup a new Flink project using the quickstarts:
 
-   {% highlight bash %}
-   curl https://flink.apache.org/q/quickstart.sh | bash
-   {% endhighlight %}
+{% highlight bash %}
+curl https://flink.apache.org/q/quickstart.sh | bash
+{% endhighlight %}
 
 3. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
 
-   {% highlight xml %}
-   <dependency>
-       <groupId>org.apache.flink</groupId>
-       <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
-       <version>{{site.version}}</version>
-   </dependency>
-   <dependency>
-     <groupId>com.microsoft.hadoop</groupId>
-     <artifactId>microsoft-hadoop-azure</artifactId>
-     <version>0.0.4</version>
-   </dependency>
-   {% endhighlight %}
+{% highlight xml %}
+<dependency>
+   <groupId>org.apache.flink</groupId>
+   <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
+   <version>{{site.version}}</version>
+</dependency>
+<dependency>
+ <groupId>com.microsoft.hadoop</groupId>
+ <artifactId>microsoft-hadoop-azure</artifactId>
+ <version>0.0.4</version>
+</dependency>
+{% endhighlight %}
 
-   `flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
-   `microsoft-hadoop-azure` is adding the project we've build before to our project.
+`flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
+`microsoft-hadoop-azure` is adding the project we've build before to our project.
 
 The project is now prepared for starting to code. We recommend to import the project into an IDE, such as Eclipse or IntelliJ. (Import as a Maven project!).
 Browse to the code of the `Job.java` file. Its an empty skeleton for a Flink job.

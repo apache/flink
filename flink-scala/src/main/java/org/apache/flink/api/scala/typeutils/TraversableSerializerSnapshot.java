@@ -98,7 +98,9 @@ public class TraversableSerializerSnapshot<T extends TraversableOnce<E>, E>
 	}
 
 	@Override
-	protected boolean isOuterSnapshotCompatible(TraversableSerializer<T, E> newSerializer) {
-		return cbfCode.equals(newSerializer.cbfCode());
+	protected CompositeTypeSerializerSnapshot.OuterSchemaCompatibility resolveOuterSchemaCompatibility(TraversableSerializer<T, E> newSerializer) {
+		return (cbfCode.equals(newSerializer.cbfCode()))
+			? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+			: OuterSchemaCompatibility.INCOMPATIBLE;
 	}
 }

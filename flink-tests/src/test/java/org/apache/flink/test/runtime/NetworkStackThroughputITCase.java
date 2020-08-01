@@ -19,6 +19,7 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -78,7 +79,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordWriter<SpeedTestRecord> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			RecordWriter<SpeedTestRecord> writer = new RecordWriterBuilder<SpeedTestRecord>().build(getEnvironment().getWriter(0));
 
 			try {
 				// Determine the amount of data to send per subtask
@@ -128,7 +129,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 					SpeedTestRecord.class,
 					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
-			RecordWriter<SpeedTestRecord> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			RecordWriter<SpeedTestRecord> writer = new RecordWriterBuilder<SpeedTestRecord>().build(getEnvironment().getWriter(0));
 
 			try {
 				SpeedTestRecord record;
@@ -266,10 +267,9 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			final boolean isSlowReceiver,
 			final int parallelism) throws Exception {
 		ClusterClient<?> client = cluster.getClusterClient();
-		client.setDetached(false);
-		client.setPrintStatusDuringExecution(false);
 
-		JobExecutionResult jer = (JobExecutionResult) client.submitJob(
+		JobExecutionResult jer = ClientUtils.submitJobAndWaitForResult(
+			client,
 			createJobGraph(
 				dataVolumeGb,
 				useForwarder,

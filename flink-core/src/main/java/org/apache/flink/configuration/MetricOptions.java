@@ -19,7 +19,10 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+
+import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -57,9 +60,10 @@ public class MetricOptions {
 			.noDefaultValue()
 			.withDescription("The reporter class to use for the reporter named <name>.");
 
-	public static final ConfigOption<String> REPORTER_INTERVAL =
+	public static final ConfigOption<Duration> REPORTER_INTERVAL =
 		key("metrics.reporter.<name>.interval")
-			.noDefaultValue()
+			.durationType()
+			.defaultValue(Duration.ofSeconds(10))
 			.withDescription("The reporter interval to use for the reporter named <name>.");
 
 	public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
@@ -156,6 +160,7 @@ public class MetricOptions {
 	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that
 	 * Flink searches for a free port.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
 	public static final ConfigOption<String> QUERY_SERVICE_PORT =
 		key("metrics.internal.query-service.port")
 		.defaultValue("0")

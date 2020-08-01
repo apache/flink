@@ -18,6 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.sources.{FilterableTableSource, TableSource}
+import org.apache.flink.table.types.utils.{DataTypeUtils, TypeConversions}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
@@ -25,10 +32,6 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.{FilterableTableSource, TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
 
@@ -36,6 +39,7 @@ class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
+    val tableSchema: TableSchema,
     val tableSource: TableSource[_],
     val selectedFields: Option[Array[Int]])
   extends TableScan(cluster, traitSet, table)
@@ -43,16 +47,26 @@ class FlinkLogicalTableSourceScan(
 
   def copy(
       traitSet: RelTraitSet,
+      tableSchema: TableSchema,
       tableSource: TableSource[_],
       selectedFields: Option[Array[Int]]): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, getTable, tableSource, selectedFields)
+    new FlinkLogicalTableSourceScan(
+      cluster,
+      traitSet,
+      getTable,
+      tableSchema,
+      tableSource,
+      selectedFields)
   }
 
   override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val streamingTable = table.unwrap(classOf[TableSourceTable[_]]).isStreaming
-
-    TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
+    val rowType = table.getRowType
+    selectedFields.map(idxs => {
+      val fields = rowType.getFieldList
+      val builder = cluster.getTypeFactory.builder()
+      idxs.map(fields.get).foreach(builder.add)
+      builder.build()
+    }).getOrElse(rowType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -74,7 +88,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
-        .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
+        .item("fields", tableSchema.getFieldNames.mkString(", "))
 
     val sourceDesc = tableSource.explainSource()
     if (sourceDesc.nonEmpty) {
@@ -113,11 +127,13 @@ class FlinkLogicalTableSourceScanConverter
     val scan = rel.asInstanceOf[TableScan]
     val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
 
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     new FlinkLogicalTableSourceScan(
       rel.getCluster,
       traitSet,
       scan.getTable,
-      scan.getTable.unwrap(classOf[TableSourceTable[_]]).tableSource,
+      tableSourceTable.tableSchema,
+      tableSourceTable.tableSource,
       None
     )
   }

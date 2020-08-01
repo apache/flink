@@ -1,0 +1,126 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testDynamic">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink SELECT a, b, c FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Sort(orderBy=[b ASC, c ASC])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDynamicShuffleBy">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=[a, b, c])
++- Sort(orderBy=[b ASC, c ASC])
+   +- Exchange(distribution=[hash[b, c]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartial">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink PARTITION (b=1) SELECT a, c FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Sort(orderBy=[c ASC])
+   +- Calc(select=[a, 1:BIGINT AS EXPR$1, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStatic">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink PARTITION (b=1, c=1) SELECT a FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], EXPR$2=[1:BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Calc(select=[a, 1:BIGINT AS EXPR$1, 1:BIGINT AS EXPR$2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStaticWithValues">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink PARTITION (b=1, c=1) VALUES (5)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- LogicalProject(a=[5:BIGINT], b=[1:BIGINT], c=[1:BIGINT])
+   +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Calc(select=[5:BIGINT AS a, 1:BIGINT AS b, 1:BIGINT AS c])
+   +- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWrongFields">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWrongStatic">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink PARTITION (a=1) SELECT b, c FROM MyTable]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.zookeeper.data.Stat;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,7 +84,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 	/**
 	 * Tests that older checkpoints are not cleaned up right away when recovering. Only after
-	 * another checkpointed has been completed the old checkpoints exceeding the number of
+	 * another checkpoint has been completed the old checkpoints exceeding the number of
 	 * checkpoints to retain will be removed.
 	 */
 	@Test
@@ -281,14 +281,6 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		// the checkpoint should be discarded eventually because there is no lock on it anymore
 		recoveredTestCheckpoint.awaitDiscard();
-	}
-
-
-	static class HeapStateStorageHelper implements RetrievableStateStorageHelper<CompletedCheckpoint> {
-		@Override
-		public RetrievableStateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
-			return new HeapRetrievableStateHandle<>(state);
-		}
 	}
 
 	static class HeapRetrievableStateHandle<T extends Serializable> implements RetrievableStateHandle<T> {

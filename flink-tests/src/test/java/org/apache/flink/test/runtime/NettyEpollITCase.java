@@ -51,7 +51,6 @@ public class NettyEpollITCase extends TestLogger {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(NUM_TASK_MANAGERS);
-			env.getConfig().disableSysoutLogging();
 
 			DataStream<Integer> input = env.fromElements(1, 2, 3, 4, 1, 2, 3, 42);
 			input.keyBy(new KeySelector<Integer, Integer>() {

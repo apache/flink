@@ -44,6 +44,7 @@ import java.io.IOException;
  * @param <K> The type of the first tuple field.
  * @param <V> The type of the second tuple field.
  */
+@Deprecated
 public class SequenceFileWriter<K extends Writable, V extends Writable> extends StreamWriterBase<Tuple2<K, V>> implements InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 

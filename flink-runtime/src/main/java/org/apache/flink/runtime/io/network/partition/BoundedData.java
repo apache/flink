@@ -34,7 +34,7 @@ import java.io.IOException;
  * through the {@link #writeBuffer(Buffer)} method.
  * The write phase is ended by calling {@link #finishWrite()}.
  * After the write phase is finished, the data can be read multiple times through readers created
- * via {@link #createReader()}.
+ * via {@link #createReader(ResultSubpartitionView)}.
  * Finally, the BoundedData is dropped / deleted by calling {@link #close()}.
  *
  * <h2>Thread Safety and Concurrency</h2>
@@ -60,7 +60,15 @@ interface BoundedData extends Closeable {
 	 * Gets a reader for the bounded data. Multiple readers may be created.
 	 * This call only succeeds once the write phase was finished via {@link #finishWrite()}.
 	 */
-	BoundedData.Reader createReader() throws IOException;
+	BoundedData.Reader createReader(ResultSubpartitionView subpartitionView) throws IOException;
+
+	/**
+	 * Gets a reader for the bounded data. Multiple readers may be created.
+	 * This call only succeeds once the write phase was finished via {@link #finishWrite()}.
+	 */
+	default BoundedData.Reader createReader() throws IOException {
+		return createReader(new NoOpResultSubpartitionView());
+	}
 
 	/**
 	 * Gets the number of bytes of all written data (including the metadata in the buffer headers).

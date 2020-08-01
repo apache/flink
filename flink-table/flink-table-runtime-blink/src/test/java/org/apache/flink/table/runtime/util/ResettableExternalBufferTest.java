@@ -19,12 +19,12 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
@@ -53,32 +53,32 @@ public class ResettableExternalBufferTest {
 	private MemoryManager memManager;
 	private IOManager ioManager;
 	private Random random;
-	private BinaryRowSerializer serializer;
-	private BinaryRowSerializer multiColumnFixedLengthSerializer;
-	private BinaryRowSerializer multiColumnVariableLengthSerializer;
+	private BinaryRowDataSerializer serializer;
+	private BinaryRowDataSerializer multiColumnFixedLengthSerializer;
+	private BinaryRowDataSerializer multiColumnVariableLengthSerializer;
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Before
 	public void before() {
-		this.memManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.ioManager = new IOManagerAsync();
 		this.random = new Random();
-		this.serializer = new BinaryRowSerializer(1);
-		this.multiColumnFixedLengthSerializer = new BinaryRowSerializer(3);
-		this.multiColumnVariableLengthSerializer = new BinaryRowSerializer(5);
+		this.serializer = new BinaryRowDataSerializer(1);
+		this.multiColumnFixedLengthSerializer = new BinaryRowDataSerializer(3);
+		this.multiColumnVariableLengthSerializer = new BinaryRowDataSerializer(5);
 	}
 
-	private ResettableExternalBuffer newBuffer(long memorySize) throws MemoryAllocationException {
+	private ResettableExternalBuffer newBuffer(long memorySize) {
 		return newBuffer(memorySize, this.serializer, true);
 	}
 
 	private ResettableExternalBuffer newBuffer(long memorySize,
-			BinaryRowSerializer serializer, boolean isRowAllInFixedPart) throws MemoryAllocationException {
+			BinaryRowDataSerializer serializer, boolean isRowAllInFixedPart) {
 		return new ResettableExternalBuffer(
-				memManager, ioManager,
-				memManager.allocatePages(this, (int) (memorySize / memManager.getPageSize())),
+				ioManager,
+				new LazyMemorySegmentPool(this, memManager, (int) (memorySize / memManager.getPageSize())),
 				serializer, isRowAllInFixedPart);
 	}
 
@@ -177,9 +177,9 @@ public class ResettableExternalBufferTest {
 	public void testHugeRecord() throws Exception {
 		thrown.expect(IOException.class);
 		try (ResettableExternalBuffer buffer = new ResettableExternalBuffer(
-				memManager, ioManager,
-				memManager.allocatePages(this, 3 * DEFAULT_PAGE_SIZE / memManager.getPageSize()),
-				new BinaryRowSerializer(1),
+				ioManager,
+				new LazyMemorySegmentPool(this, memManager, 3 * DEFAULT_PAGE_SIZE / memManager.getPageSize()),
+				new BinaryRowDataSerializer(1),
 				false)) {
 			writeHuge(buffer, 10);
 			writeHuge(buffer, 50000);
@@ -531,7 +531,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private <T extends RowData> void testMultiColumnRandomAccessLess(
-			BinaryRowSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
 		int number = 30;
@@ -553,7 +553,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private <T extends RowData> void testMultiColumnRandomAccessSpill(
-			BinaryRowSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
 		int number = 4000;
@@ -575,7 +575,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private <T extends RowData> void testBufferResetWithSpillAndMultiColumnRandomAccess(
-			BinaryRowSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
 		final int tries = 100;
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
@@ -616,7 +616,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private void testIteratorOnMultiColumnEmptyBuffer(
-			BinaryRowSerializer serializer, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, boolean isRowAllInFixedPart) throws Exception {
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
 		ResettableExternalBuffer.BufferIterator iterator;
@@ -630,7 +630,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private <T extends RowData> void testRandomAccessOutOfRange(
-			BinaryRowSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
 		int number = 100;
@@ -650,7 +650,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private <T extends RowData> void testUpdateIteratorLess(
-			BinaryRowSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
 		int number = 20;
@@ -670,7 +670,7 @@ public class ResettableExternalBufferTest {
 
 			for (ResettableExternalBuffer.BufferIterator iterator : iterators) {
 				assertTrue(iterator.advanceNext());
-				BinaryRow row = iterator.getRow();
+				BinaryRowData row = iterator.getRow();
 				data.checkSame(row);
 
 				assertFalse(iterator.advanceNext());
@@ -684,7 +684,7 @@ public class ResettableExternalBufferTest {
 		for (int i = 0; i < number; i++) {
 			for (ResettableExternalBuffer.BufferIterator iterator : iterators) {
 				assertTrue(iterator.advanceNext());
-				BinaryRow row = iterator.getRow();
+				BinaryRowData row = iterator.getRow();
 				expected.get(i).checkSame(row);
 			}
 		}
@@ -699,7 +699,7 @@ public class ResettableExternalBufferTest {
 	}
 
 	private <T extends RowData> void testUpdateIteratorSpill(
-			BinaryRowSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
+			BinaryRowDataSerializer serializer, Class<T> clazz, boolean isRowAllInFixedPart) throws Exception {
 		ResettableExternalBuffer buffer = newBuffer(DEFAULT_PAGE_SIZE * 2, serializer, isRowAllInFixedPart);
 
 		int number = 100;
@@ -726,7 +726,7 @@ public class ResettableExternalBufferTest {
 			for (int j = 0; j < step; j++) {
 				for (ResettableExternalBuffer.BufferIterator iterator : iterators) {
 					assertTrue(iterator.advanceNext());
-					BinaryRow row = iterator.getRow();
+					BinaryRowData row = iterator.getRow();
 					smallExpected.get(j).checkSame(row);
 				}
 			}
@@ -742,7 +742,7 @@ public class ResettableExternalBufferTest {
 		for (int i = 0; i < number * step; i++) {
 			for (ResettableExternalBuffer.BufferIterator iterator : iterators) {
 				assertTrue(iterator.advanceNext());
-				BinaryRow row = iterator.getRow();
+				BinaryRowData row = iterator.getRow();
 				expected.get(i).checkSame(row);
 			}
 		}
@@ -757,10 +757,10 @@ public class ResettableExternalBufferTest {
 	}
 
 	private void writeHuge(ResettableExternalBuffer buffer, int size) throws IOException {
-		BinaryRow row = new BinaryRow(1);
+		BinaryRowData row = new BinaryRowData(1);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.reset();
-		writer.writeString(0, BinaryString.fromString(RandomStringUtils.random(size)));
+		writer.writeString(0, StringData.fromString(RandomStringUtils.random(size)));
 		writer.complete();
 		buffer.add(row);
 	}
@@ -797,7 +797,7 @@ public class ResettableExternalBufferTest {
 
 	private long randomInsert(ResettableExternalBuffer buffer) throws IOException {
 		long l = random.nextLong();
-		BinaryRow row = new BinaryRow(1);
+		BinaryRowData row = new BinaryRowData(1);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.reset();
 		writer.writeLong(0, l);
@@ -865,7 +865,7 @@ public class ResettableExternalBufferTest {
 	private interface RowData {
 		void insertIntoBuffer(ResettableExternalBuffer buffer) throws IOException;
 
-		void checkSame(BinaryRow row);
+		void checkSame(BinaryRowData row);
 	}
 
 	private static class FixedLengthRowData implements RowData {
@@ -883,7 +883,7 @@ public class ResettableExternalBufferTest {
 
 		@Override
 		public void insertIntoBuffer(ResettableExternalBuffer buffer) throws IOException {
-			BinaryRow row = new BinaryRow(3);
+			BinaryRowData row = new BinaryRowData(3);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.reset();
 			writer.writeBoolean(0, col0);
@@ -894,7 +894,7 @@ public class ResettableExternalBufferTest {
 		}
 
 		@Override
-		public void checkSame(BinaryRow row) {
+		public void checkSame(BinaryRowData row) {
 			assertEquals(col0, row.getBoolean(0));
 			assertEquals(col1, row.getLong(1));
 			assertEquals(col2, row.getInt(2));
@@ -904,23 +904,23 @@ public class ResettableExternalBufferTest {
 	private static class VariableLengthRowData implements RowData {
 		private boolean col0;
 		private long col1;
-		private BinaryString col2;
+		private StringData col2;
 		private int col3;
-		private BinaryString col4;
+		private StringData col4;
 		private Random random;
 
 		public VariableLengthRowData() {
 			random = new Random();
 			col0 = random.nextBoolean();
 			col1 = random.nextLong();
-			col2 = BinaryString.fromString(RandomStringUtils.random(random.nextInt(50) + 1));
+			col2 = StringData.fromString(RandomStringUtils.random(random.nextInt(50) + 1));
 			col3 = random.nextInt();
-			col4 = BinaryString.fromString(RandomStringUtils.random(random.nextInt(50) + 1));
+			col4 = StringData.fromString(RandomStringUtils.random(random.nextInt(50) + 1));
 		}
 
 		@Override
 		public void insertIntoBuffer(ResettableExternalBuffer buffer) throws IOException {
-			BinaryRow row = new BinaryRow(5);
+			BinaryRowData row = new BinaryRowData(5);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.reset();
 			writer.writeBoolean(0, col0);
@@ -933,7 +933,7 @@ public class ResettableExternalBufferTest {
 		}
 
 		@Override
-		public void checkSame(BinaryRow row) {
+		public void checkSame(BinaryRowData row) {
 			assertEquals(col0, row.getBoolean(0));
 			assertEquals(col1, row.getLong(1));
 			assertEquals(col2, row.getString(2));

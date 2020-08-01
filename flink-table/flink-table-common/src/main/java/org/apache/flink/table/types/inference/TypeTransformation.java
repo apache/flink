@@ -28,7 +28,7 @@ import org.apache.flink.table.types.DataType;
 public interface TypeTransformation {
 
 	/**
-	 * Transforms the given data type to a different data type under the given context.
+	 * Transforms the given data type to a different data type.
 	 */
-	DataType transform(CallContext callContext, DataType typeToTransform);
+	DataType transform(DataType typeToTransform);
 }

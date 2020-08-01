@@ -25,12 +25,15 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Logical type of a 4-byte single precision floating point number.
+ * Logical type of a 4-byte single precision floating point number. Compared to the SQL standard,
+ * the type does not take parameters.
  *
  * <p>The serialized string representation is {@code FLOAT}.
  */
 @PublicEvolving
 public final class FloatType extends LogicalType {
+
+	public static final int PRECISION = 7; // adopted from Calcite
 
 	private static final String FORMAT = "FLOAT";
 

@@ -26,6 +26,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,7 +34,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.table.client.config.entries.CatalogEntry.CATALOG_NAME;
+import static org.apache.flink.table.client.config.entries.ModuleEntry.MODULE_NAME;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -51,10 +54,12 @@ public class EnvironmentTest {
 	@Test
 	public void testMerging() throws Exception {
 		final Map<String, String> replaceVars1 = new HashMap<>();
+		replaceVars1.put("$VAR_PLANNER", "old");
 		replaceVars1.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars1.put("$VAR_RESULT_MODE", "table");
 		replaceVars1.put("$VAR_UPDATE_MODE", "");
 		replaceVars1.put("$VAR_MAX_ROWS", "100");
+		replaceVars1.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		final Environment env1 = EnvironmentFileUtil.parseModified(
 			DEFAULTS_ENVIRONMENT_FILE,
 			replaceVars1);
@@ -76,8 +81,13 @@ public class EnvironmentTest {
 		tables.add("TestView2");
 
 		assertEquals(tables, merged.getTables().keySet());
-		assertTrue(merged.getExecution().isStreamingExecution());
+		assertTrue(merged.getExecution().inStreamingMode());
 		assertEquals(16, merged.getExecution().getMaxParallelism());
+
+		final Map<String, String> configuration = new HashMap<>();
+		configuration.put("table.optimizer.join-reorder-enabled", "true");
+
+		assertEquals(configuration, merged.getConfiguration().asMap());
 	}
 
 	@Test
@@ -91,11 +101,57 @@ public class EnvironmentTest {
 			createCatalog("catalog2", "test")));
 	}
 
+	@Test
+	public void testDuplicateModules() {
+		exception.expect(SqlClientException.class);
+		Environment env = new Environment();
+		env.setModules(Arrays.asList(
+			createModule("module1", "test"),
+			createModule("module2", "test"),
+			createModule("module2", "test")));
+	}
+
+	@Test
+	public void testModuleOrder() {
+		Environment env1 = new Environment();
+		Environment env2 = new Environment();
+		env1.setModules(Arrays.asList(
+			createModule("b", "test"),
+			createModule("d", "test")));
+
+		env2.setModules(Arrays.asList(
+			createModule("c", "test"),
+			createModule("a", "test")));
+
+		assertEquals(
+			Arrays.asList("b", "d"), new ArrayList<>(env1.getModules().keySet())
+		);
+
+		assertEquals(
+			Arrays.asList("c", "a"), new ArrayList<>(env2.getModules().keySet())
+		);
+
+		Environment env = Environment.merge(env1, env2);
+
+		assertEquals(
+			Arrays.asList("b", "d", "c", "a"), new ArrayList<>(env.getModules().keySet())
+		);
+	}
+
 	private static Map<String, Object> createCatalog(String name, String type) {
 		Map<String, Object> prop = new HashMap<>();
 
 		prop.put(CATALOG_NAME, name);
 		prop.put(CATALOG_TYPE, type);
+
+		return prop;
+	}
+
+	private static Map<String, Object> createModule(String name, String type) {
+		Map<String, Object> prop = new HashMap<>();
+
+		prop.put(MODULE_NAME, name);
+		prop.put(MODULE_TYPE, type);
 
 		return prop;
 	}

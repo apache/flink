@@ -18,13 +18,13 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -68,7 +68,7 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 		String jarFile = JAR_FILE;
 		try {
-			JobWithJars.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
+			JarUtils.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
 		} catch (IOException e) {
 			jarFile = "target/".concat(jarFile);
 		}
@@ -81,7 +81,10 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 		String testData = getClass().getResource(TEST_DATA_FILE).toString();
 
-		PackagedProgram program = new PackagedProgram(new File(jarFile), new String[]{testData});
+		PackagedProgram program = PackagedProgram.newBuilder()
+			.setJarFile(new File(jarFile))
+			.setArguments(new String[]{testData})
+			.build();
 
 		program.invokeInteractiveModeForExecution();
 	}

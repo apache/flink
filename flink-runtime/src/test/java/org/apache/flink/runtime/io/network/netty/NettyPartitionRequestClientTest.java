@@ -18,18 +18,26 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
@@ -39,7 +47,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link NettyPartitionRequestClient}.
@@ -50,22 +57,21 @@ public class NettyPartitionRequestClientTest {
 	public void testRetriggerPartitionRequest() throws Exception {
 		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 
-		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
-		final PartitionRequestClient client = new NettyPartitionRequestClient(
-			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
+		final PartitionRequestClient client = createPartitionRequestClient(channel, handler);
 
 		final int numExclusiveBuffers = 2;
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, numExclusiveBuffers);
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
 			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
 			.setInitialBackoff(1)
 			.setMaxBackoff(2)
-			.setMemorySegmentProvider(networkBufferPool)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
@@ -109,17 +115,17 @@ public class NettyPartitionRequestClientTest {
 
 	@Test
 	public void testDoublePartitionRequest() throws Exception {
-		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
-		final PartitionRequestClient client = new NettyPartitionRequestClient(
-			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
+		final PartitionRequestClient client = createPartitionRequestClient(channel, handler);
 
 		final int numExclusiveBuffers = 2;
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, numExclusiveBuffers);
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
@@ -140,6 +146,53 @@ public class NettyPartitionRequestClientTest {
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
 		}
+	}
+
+	@Test
+	public void testResumeConsumption() throws Exception {
+		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
+		final EmbeddedChannel channel = new EmbeddedChannel(handler);
+		final PartitionRequestClient client = createPartitionRequestClient(channel, handler);
+
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
+
+		try {
+			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+			inputGate.setBufferPool(bufferPool);
+			inputGate.assignExclusiveSegments();
+			inputChannel.requestSubpartition(0);
+
+			inputChannel.resumeConsumption();
+			channel.runPendingTasks();
+			Object readFromOutbound = channel.readOutbound();
+			assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
+
+			readFromOutbound = channel.readOutbound();
+			assertThat(readFromOutbound, instanceOf(ResumeConsumption.class));
+			assertEquals(inputChannel.getInputChannelId(), ((ResumeConsumption) readFromOutbound).receiverId);
+
+			assertNull(channel.readOutbound());
+		} finally {
+			// Release all the buffer resources
+			inputGate.close();
+
+			networkBufferPool.destroyAllBufferPools();
+			networkBufferPool.destroy();
+		}
+	}
+
+	private NettyPartitionRequestClient createPartitionRequestClient(
+			Channel tcpChannel,
+			NetworkClientHandler clientHandler) throws Exception {
+		int port  = NetUtils.getAvailablePort();
+		ConnectionID connectionID = new ConnectionID(new InetSocketAddress("localhost", port), 0);
+		NettyConfig config = new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
+		NettyClient nettyClient = new NettyClient(config);
+		PartitionRequestClientFactory partitionRequestClientFactory = new PartitionRequestClientFactory(nettyClient);
+
+		return new NettyPartitionRequestClient(tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
 	}
 
 	/**

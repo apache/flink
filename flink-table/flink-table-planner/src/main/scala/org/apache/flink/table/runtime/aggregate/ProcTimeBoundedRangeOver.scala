@@ -29,7 +29,7 @@ import java.util.{ArrayList, List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
@@ -48,8 +48,9 @@ class ProcTimeBoundedRangeOver[K](
     precedingTimeBoundary: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[CRow],
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -203,6 +204,8 @@ class ProcTimeBoundedRangeOver[K](
   }
 
   override def close(): Unit = {
-    function.close()
+    if (function != null) {
+      function.close()
+    }
   }
 }

@@ -69,7 +69,7 @@ public class HadoopConfOverlay implements ContainerOverlay {
 		File hdfsSitePath = new File(hadoopConfDir, "hdfs-site.xml");
 
 		container.getEnvironmentVariables().put("HADOOP_CONF_DIR", TARGET_CONF_DIR.toString());
-		container.getDynamicConfiguration().setString(ConfigConstants.PATH_HADOOP_CONFIG, TARGET_CONF_DIR.toString());
+		container.getFlinkConfiguration().setString(ConfigConstants.PATH_HADOOP_CONFIG, TARGET_CONF_DIR.toString());
 
 		container.getArtifacts().add(ContainerSpecification.Artifact
 			.newBuilder()

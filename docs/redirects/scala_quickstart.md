@@ -1,7 +1,7 @@
 ---
 title: "Project Template for Scala"
 layout: redirect
-redirect: /dev/projectsetup/scala_api_quickstart.html
+redirect: /dev/project-configuration.html
 permalink: /quickstart/scala_api_quickstart.html
 ---
 <!--

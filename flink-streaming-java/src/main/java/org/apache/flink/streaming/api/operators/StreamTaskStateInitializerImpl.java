@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -79,24 +80,31 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	 */
 	private final Environment environment;
 
-	/** This processing time service is required to construct an internal timer service manager. */
-	private final ProcessingTimeService processingTimeService;
-
 	/** The state manager of the tasks provides the information used to restore potential previous state. */
 	private final TaskStateManager taskStateManager;
 
 	/** This object is the factory for everything related to state backends and checkpointing. */
 	private final StateBackend stateBackend;
 
+	private final TtlTimeProvider ttlTimeProvider;
+
+	public StreamTaskStateInitializerImpl(
+		Environment environment,
+		StateBackend stateBackend) {
+
+		this(environment, stateBackend, TtlTimeProvider.DEFAULT);
+	}
+
+	@VisibleForTesting
 	public StreamTaskStateInitializerImpl(
 		Environment environment,
 		StateBackend stateBackend,
-		ProcessingTimeService processingTimeService) {
+		TtlTimeProvider ttlTimeProvider) {
 
 		this.environment = environment;
 		this.taskStateManager = Preconditions.checkNotNull(environment.getTaskStateManager());
 		this.stateBackend = Preconditions.checkNotNull(stateBackend);
-		this.processingTimeService = processingTimeService;
+		this.ttlTimeProvider = ttlTimeProvider;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -105,6 +113,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	public StreamOperatorStateContext streamOperatorStateContext(
 		@Nonnull OperatorID operatorID,
 		@Nonnull String operatorClassName,
+		@Nonnull ProcessingTimeService processingTimeService,
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
@@ -155,7 +164,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
-			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, rawKeyedStateInputs);
+			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, processingTimeService, rawKeyedStateInputs);
 
 			// -------------- Preparing return value --------------
 
@@ -199,6 +208,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
+		ProcessingTimeService processingTimeService,
 		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 
 		if (keyedStatedBackend == null) {
@@ -296,7 +306,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					taskInfo.getMaxNumberOfParallelSubtasks(),
 					keyGroupRange,
 					environment.getTaskKvStateRegistry(),
-					TtlTimeProvider.DEFAULT,
+					ttlTimeProvider,
 					metricGroup,
 					stateHandles,
 					cancelStreamRegistryForRestore),

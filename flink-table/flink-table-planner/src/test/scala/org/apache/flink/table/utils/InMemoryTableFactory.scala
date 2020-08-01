@@ -18,17 +18,22 @@
 
 package org.apache.flink.table.utils
 
-import java.util
-
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.DescriptorProperties._
 import org.apache.flink.table.descriptors.Rowtime._
 import org.apache.flink.table.descriptors.Schema._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
 import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory, TableFactory}
 import org.apache.flink.table.sinks.StreamTableSink
 import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.types.logical.LogicalTypeRoot
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.types.Row
+
+import java.sql.Timestamp
+import java.util
 
 /**
   * Factory for creating stream table sources and sinks.
@@ -51,15 +56,20 @@ class InMemoryTableFactory(terminationCount: Int)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(
-      isStreamEnvironment = true,
-      supportsSourceTimestamps = true,
-      supportsSourceWatermarks = true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
+    val fieldTypes = tableSchema.getFieldDataTypes.map(t => {
+      if (t.getLogicalType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+        // force to use Timestamp because old planner only support Timestamp
+        t.bridgedTo(classOf[Timestamp])
+      } else {
+        t
+      }
+    })
 
     new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink()
-      .configure(tableSchema.getFieldNames, tableSchema.getFieldTypes)
+      .configure(tableSchema.getFieldNames, fromDataTypeToLegacyInfo(fieldTypes))
       .asInstanceOf[StreamTableSink[Row]]
   }
 
@@ -71,22 +81,27 @@ class InMemoryTableFactory(terminationCount: Int)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(
-      isStreamEnvironment = true,
-      supportsSourceTimestamps = true,
-      supportsSourceWatermarks = true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
     val tableSchema = params.getTableSchema(SCHEMA)
 
     // proctime
     val proctimeAttributeOpt = SchemaValidator.deriveProctimeAttribute(params)
 
-    val (names, types) = tableSchema.getFieldNames.zip(tableSchema.getFieldTypes)
+    val fieldTypes = tableSchema.getFieldDataTypes.map(t => {
+      if (t.getLogicalType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+        // force to use Timestamp because old planner only support Timestamp
+        t.bridgedTo(classOf[Timestamp])
+      } else {
+        t
+      }
+    })
+    val (names, types) = tableSchema.getFieldNames.zip(fromDataTypeToLegacyInfo(fieldTypes))
       .filter(_._1 != proctimeAttributeOpt.get()).unzip
     // rowtime
     val rowtimeDescriptors = SchemaValidator.deriveRowtimeAttributes(params)
     new MemoryTableSourceSinkUtil.UnsafeMemoryTableSource(
-      tableSchema,
+      TableSchema.builder().fields(tableSchema.getFieldNames, fieldTypes).build(),
       new RowTypeInfo(types, names),
       rowtimeDescriptors,
       proctimeAttributeOpt.get(),
@@ -106,6 +121,7 @@ class InMemoryTableFactory(terminationCount: Int)
 
     // schema
     properties.add(SCHEMA + ".#." + SCHEMA_TYPE)
+    properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE)
     properties.add(SCHEMA + ".#." + SCHEMA_NAME)
     properties.add(SCHEMA + ".#." + SCHEMA_FROM)
 
@@ -119,6 +135,18 @@ class InMemoryTableFactory(terminationCount: Int)
     properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS)
     properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED)
     properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY)
+
+    // watermark
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
+    // computed column
+    properties.add(SCHEMA + ".#." + EXPR)
+
+    // table constraint
+    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
     properties
   }

@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table-common</artifactId>
-	<name>flink-table-common</name>
+	<name>Flink : Table : Common</name>
 	<description>
 		This module contains extension points of the Table/SQL API.
 		It allows for implementing user-defined functions, custom
@@ -42,6 +42,34 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Used for structured types extraction. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-asm-7</artifactId>
+			<!-- managed version -->
+		</dependency>
+
+		<!-- Tools to unify display format for different languages -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>65.1</version>
+			<!-- set provided here, and will package it into planner jar -->
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 	</dependencies>
 

@@ -26,9 +26,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Assert;
@@ -64,7 +64,7 @@ public class SnapshotUtilsTest {
 
 		Path path = new Path(folder.newFolder().getAbsolutePath());
 
-		SnapshotUtils.snapshot(operator, 0, 0L, storage, path);
+		SnapshotUtils.snapshot(operator, 0, 0L, true, false, storage, path);
 
 		Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
 	}
@@ -99,7 +99,7 @@ public class SnapshotUtilsTest {
 		}
 
 		@Override
-		public void initializeState() throws Exception {
+		public void initializeState(StreamTaskStateInitializer streamTaskStateManager) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("initializeState");
 		}
 
@@ -111,17 +111,6 @@ public class SnapshotUtilsTest {
 		@Override
 		public void setKeyContextElement2(StreamRecord<?> record) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("setKeyContextElement2");
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			ACTUAL_ORDER_TRACKING.add("getChainingStrategy");
-			return null;
-		}
-
-		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-			ACTUAL_ORDER_TRACKING.add("setChainingStrategy");
 		}
 
 		@Override
@@ -139,6 +128,10 @@ public class SnapshotUtilsTest {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("notifyCheckpointComplete");
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 
 		@Override

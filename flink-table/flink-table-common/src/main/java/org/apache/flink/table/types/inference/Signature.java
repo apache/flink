@@ -32,7 +32,7 @@ import java.util.Optional;
  * Describes the signature of a function. It is meant for representing information for debugging
  * purposes.
  *
- * <p>A signature is returned from {@link InputTypeValidator#getExpectedSignatures(FunctionDefinition)}.
+ * <p>A signature is returned from {@link InputTypeStrategy#getExpectedSignatures(FunctionDefinition)}.
  */
 @PublicEvolving
 public final class Signature {

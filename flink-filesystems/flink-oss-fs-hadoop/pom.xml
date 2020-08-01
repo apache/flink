@@ -21,11 +21,12 @@ under the License.
 	<parent>
 		<artifactId>flink-filesystems</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-oss-fs-hadoop</artifactId>
+	<name>Flink : FileSystems : OSS FS</name>
 
 	<properties>
 		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
@@ -59,6 +60,11 @@ under the License.
 				<exclusion>
 					<groupId>com.aliyun.oss</groupId>
 					<artifactId>aliyun-oss-sdk</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- provided by flink-fs-hadoop-shaded -->
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -98,16 +104,6 @@ under the License.
 	<build>
 		<plugins>
 
-			<!-- this is merely an intermediate build artifact and should not be -->
-			<!-- deployed to maven central                                       -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-deploy-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
-
 			<!-- Relocate all OSS related classes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -139,6 +135,16 @@ under the License.
 								<relocation>
 									<pattern>com.aliyuncs</pattern>
 									<shadedPattern>org.apache.flink.fs.osshadoop.shaded.com.aliyuncs</shadedPattern>
+								</relocation>
+								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.fs.osshadoop.common</shadedPattern>
+								</relocation>
+								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.osshadoop.common</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

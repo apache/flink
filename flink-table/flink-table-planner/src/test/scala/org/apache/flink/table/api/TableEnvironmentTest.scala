@@ -19,17 +19,17 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironmentTest._
-import org.apache.flink.table.api.Types._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{ROWTIME_INDICATOR => ROWTIME}
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.tuple.{Tuple3 => JTuple3}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.UnitTypeInfo
+import org.apache.flink.table.api.TableEnvironmentTest._
+import org.apache.flink.table.api.Types._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME, ROWTIME_INDICATOR => ROWTIME}
+import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.types.Row
+
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TableEnvironmentTest extends TableTestBase {
@@ -543,6 +543,38 @@ class TableEnvironmentTest extends TableTestBase {
     util.verifySchema(
       util.addTable[JTuple3[Int, Long, String]]('f0, 'f1.rowtime as 'new, 'f2),
       Seq("f0" -> INT, "new" -> ROWTIME, "f2" -> STRING))
+  }
+
+  @Test
+  def testTableSchemaWithDifferentRowTypes(): Unit = {
+
+    def createInnerRow(innerFieldName: String): TypeInformation[_] = {
+      Types.ROW(
+        Array[String](innerFieldName),
+        Array[TypeInformation[_]](Types.INT()))
+    }
+
+    def createRow(innerFieldName: String): TypeInformation[_] = {
+      Types.ROW(
+        Array[String]("field"),
+        Array[TypeInformation[_]](createInnerRow(innerFieldName))
+      )
+    }
+
+    val util = streamTestUtil()
+    util.addTable("MyTableA", 'field)(createRow("A"))
+    util.addTable("MyTableB", 'field)(createRow("B"))
+
+    val actualSchema = util.tableEnv
+      .sqlQuery("SELECT MyTableA.field AS a, MyTableB.field AS b FROM MyTableA, MyTableB")
+      .getSchema
+
+    val expectedSchema = TableSchema.builder()
+      .field("a", createInnerRow("A"))
+      .field("b", createInnerRow("B"))
+      .build()
+
+    assertEquals(expectedSchema, actualSchema)
   }
 }
 

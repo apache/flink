@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
-import org.apache.flink.runtime.rpc.exceptions.RpcException;
+import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -263,7 +263,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 				unfencedGateway.foobar(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 				fail("This should have failed because we have an unfenced gateway.");
 			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof RpcException);
+				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof RpcRuntimeException);
 			}
 
 			try {
@@ -296,20 +296,11 @@ public class FencedRpcEndpointTest extends TestLogger {
 		}
 
 		protected FencedTestingEndpoint(RpcService rpcService, String value, UUID initialFencingToken) {
-			super(rpcService);
+			super(rpcService, initialFencingToken);
 
 			computationLatch = new OneShotLatch();
 
 			this.value = value;
-
-			// make sure that it looks as if we are running in the main thread
-			currentMainThread.set(Thread.currentThread());
-
-			try {
-				setFencingToken(initialFencingToken);
-			} finally {
-				currentMainThread.set(null);
-			}
 		}
 
 		@Override

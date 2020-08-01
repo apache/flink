@@ -61,7 +61,7 @@ class DataStreamSortRule
       sort.collation,
       sort.offset,
       sort.fetch,
-      description)
+      "DataStreamSortRule")
   }
   
    

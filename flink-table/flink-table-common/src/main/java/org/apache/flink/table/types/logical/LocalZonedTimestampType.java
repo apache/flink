@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.TimestampData;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,7 +44,7 @@ import java.util.Set;
  * the current session for computation and visualization.
  *
  * <p>This type fills the gap between time zone free and time zone mandatory timestamp types by allowing
- * the interpretation of UTC timestamps according to the configured session timezone. A conversion
+ * the interpretation of UTC timestamps according to the configured session time zone. A conversion
  * from and to {@code int} describes the number of seconds since epoch. A conversion from and to {@code long}
  * describes the number of milliseconds since epoch.
  *
@@ -53,18 +54,19 @@ import java.util.Set;
 @PublicEvolving
 public final class LocalZonedTimestampType extends LogicalType {
 
-	public static final int MIN_PRECISION = 0;
+	public static final int MIN_PRECISION = TimestampType.MIN_PRECISION;
 
-	public static final int MAX_PRECISION = 9;
+	public static final int MAX_PRECISION = TimestampType.MAX_PRECISION;
 
-	public static final int DEFAULT_PRECISION = 6;
+	public static final int DEFAULT_PRECISION = TimestampType.DEFAULT_PRECISION;
 
 	private static final String FORMAT = "TIMESTAMP(%d) WITH LOCAL TIME ZONE";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
 		java.time.Instant.class.getName(),
 		Integer.class.getName(),
-		Long.class.getName());
+		Long.class.getName(),
+		TimestampData.class.getName());
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.time.Instant.class.getName(),

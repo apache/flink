@@ -45,22 +45,25 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	private final Meter numRecordsInRate;
 	private final Meter numRecordsOutRate;
 	private final Meter numBuffersOutRate;
+	private final Meter idleTimePerSecond;
 
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
 		this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
 		this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
-		this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn, 60));
-		this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut, 60));
+		this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
+		this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
 
 		this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
 		this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
-		this.numRecordsInRate = meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn, 60));
-		this.numRecordsOutRate = meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut, 60));
+		this.numRecordsInRate = meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
+		this.numRecordsOutRate = meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
 
 		this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
-		this.numBuffersOutRate = meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut, 60));
+		this.numBuffersOutRate = meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
+
+		this.idleTimePerSecond = meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
 	}
 
 	public IOMetrics createSnapshot() {
@@ -89,6 +92,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 	public Counter getNumBuffersOutCounter() {
 		return numBuffersOut;
+	}
+
+	public Meter getIdleTimeMsPerSecond() {
+		return idleTimePerSecond;
 	}
 
 	// ============================================================================================

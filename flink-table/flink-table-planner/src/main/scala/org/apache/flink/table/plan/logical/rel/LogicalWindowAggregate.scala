@@ -35,11 +35,10 @@ class LogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicatorFlag: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(cluster, traitSet, child, indicatorFlag, groupSet, groupSets, aggCalls) {
+  extends Aggregate(cluster, traitSet, child, groupSet, groupSets, aggCalls) {
 
   def getWindow: LogicalWindow = window
 
@@ -50,13 +49,12 @@ class LogicalWindowAggregate(
     for (property <- namedProperties) {
       pw.item(property.name, property.property)
     }
-    pw
+    pw.item("window", window.toString)
   }
 
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
-      indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall])
@@ -68,7 +66,6 @@ class LogicalWindowAggregate(
       cluster,
       traitSet,
       input,
-      indicator,
       groupSet,
       groupSets,
       aggCalls)
@@ -81,7 +78,6 @@ class LogicalWindowAggregate(
       cluster,
       traitSet,
       input,
-      indicator,
       getGroupSet,
       getGroupSets,
       aggCalls)
@@ -120,7 +116,6 @@ object LogicalWindowAggregate {
       cluster,
       traitSet,
       aggregate.getInput,
-      aggregate.indicator,
       aggregate.getGroupSet,
       aggregate.getGroupSets,
       aggregate.getAggCallList)

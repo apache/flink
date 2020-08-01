@@ -113,7 +113,7 @@ final class MemoryMappedBoundedData implements BoundedData {
 	}
 
 	@Override
-	public BufferSlicer createReader() {
+	public BufferSlicer createReader(ResultSubpartitionView ignored) {
 		assert currentBuffer == null;
 
 		final List<ByteBuffer> buffers = fullBuffers.stream()

@@ -103,11 +103,11 @@ public class TaskExecutorITCase extends TestLogger {
 
 		miniCluster.startTaskExecutor();
 
+		final JobGraph newJobGraph = createJobGraph(PARALLELISM);
 		BlockingOperator.unblock();
+		miniCluster.submitJob(newJobGraph).get();
 
-		miniCluster.submitJob(jobGraph).get();
-
-		miniCluster.requestJobResult(jobGraph.getJobID()).get();
+		miniCluster.requestJobResult(newJobGraph.getJobID()).get();
 	}
 
 	/**
@@ -157,7 +157,7 @@ public class TaskExecutorITCase extends TestLogger {
 	private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
 		final JobGraph jobGraph = createJobGraph(parallelism);
 		final ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
 		jobGraph.setExecutionConfig(executionConfig);
 
 		return jobGraph;

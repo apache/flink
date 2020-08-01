@@ -21,10 +21,20 @@ import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 
 import scala.collection.JavaConverters._
 
 trait CommonJoin {
+
+  protected def validatePythonFunctionInJoinCondition(joinCondition: RexNode): Unit = {
+    if (containsPythonCall(joinCondition)) {
+      throw new TableException("Only inner join condition with equality predicates supports the " +
+        "Python UDF taking the inputs from the left table and the right table at the same time, " +
+        "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+    }
+  }
 
   private[flink] def joinSelectionToString(inputType: RelDataType): String = {
     inputType.getFieldNames.asScala.toList.mkString(", ")
@@ -45,6 +55,8 @@ trait CommonJoin {
       case JoinRelType.LEFT=> "LeftOuterJoin"
       case JoinRelType.RIGHT => "RightOuterJoin"
       case JoinRelType.FULL => "FullOuterJoin"
+      case JoinRelType.SEMI => "SemiJoin"
+      case JoinRelType.ANTI => "AntiJoin"
     }
   }
 

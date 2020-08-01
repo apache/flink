@@ -35,5 +35,12 @@ public enum ShuffleMode {
 	 * The producer first produces its entire result and finishes.
 	 * After that, the consumer is started and may consume the data.
 	 */
-	BATCH
+	BATCH,
+
+	/**
+	 * The shuffle mode is undefined. It leaves it up to the framework to decide the shuffle mode.
+	 * The framework will pick one of {@link ShuffleMode#BATCH} or {@link ShuffleMode#PIPELINED} in
+	 * the end.
+	 */
+	UNDEFINED
 }

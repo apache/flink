@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.{Ignore, Test}
@@ -130,7 +131,7 @@ class DistinctAggregateTest extends TableTestBase {
       ),
       term("window", "SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 900000.millis)"),
       term("select", "COUNT(DISTINCT a) AS EXPR$0", "SUM(DISTINCT a) AS EXPR$1",
-        "MAX(DISTINCT a) AS EXPR$2")
+        "MAX(a) AS EXPR$2")
     )
 
     streamUtil.verifySql(sqlQuery, expected)

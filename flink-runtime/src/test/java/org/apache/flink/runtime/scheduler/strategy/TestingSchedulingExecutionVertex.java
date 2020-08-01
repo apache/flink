@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,7 +36,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	private final Collection<TestingSchedulingResultPartition> consumedPartitions;
 
-	private final Collection<SchedulingResultPartition> producedPartitions;
+	private final Collection<TestingSchedulingResultPartition> producedPartitions;
 
 	private InputDependencyConstraint inputDependencyConstraint;
 
@@ -74,13 +73,13 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 	}
 
 	@Override
-	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
-		return Collections.unmodifiableCollection(consumedPartitions);
+	public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
+		return consumedPartitions;
 	}
 
 	@Override
-	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
-		return Collections.unmodifiableCollection(producedPartitions);
+	public Iterable<TestingSchedulingResultPartition> getProducedResults() {
+		return producedPartitions;
 	}
 
 	@Override
@@ -92,7 +91,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 		consumedPartitions.add(partition);
 	}
 
-	void addProducedPartition(SchedulingResultPartition partition) {
+	void addProducedPartition(TestingSchedulingResultPartition partition) {
 		producedPartitions.add(partition);
 	}
 }

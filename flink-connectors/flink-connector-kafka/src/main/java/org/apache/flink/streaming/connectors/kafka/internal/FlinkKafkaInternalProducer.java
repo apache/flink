@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -61,39 +63,63 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	protected final KafkaProducer<K, V> kafkaProducer;
 
+	// This lock and closed flag are introduced to workaround KAFKA-6635. Because the bug is only fixed in
+	// Kafka 2.3.0, we need this workaround before Kafka dependency is bumped to 2.3.0 to avoid deadlock
+	// between a transaction committing / aborting thread and a producer closing thread.
+	// TODO: remove the workaround after Kafka dependency is bumped to 2.3.0+
+	private final Object producerClosingLock;
+	private volatile boolean closed;
+
 	@Nullable
 	protected final String transactionalId;
 
 	public FlinkKafkaInternalProducer(Properties properties) {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
 		kafkaProducer = new KafkaProducer<>(properties);
+		producerClosingLock = new Object();
+		closed = false;
 	}
 
 	// -------------------------------- Simple proxy method calls --------------------------------
 
 	@Override
 	public void initTransactions() {
-		kafkaProducer.initTransactions();
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			kafkaProducer.initTransactions();
+		}
 	}
 
 	@Override
 	public void beginTransaction() throws ProducerFencedException {
-		kafkaProducer.beginTransaction();
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			kafkaProducer.beginTransaction();
+		}
 	}
 
 	@Override
 	public void commitTransaction() throws ProducerFencedException {
-		kafkaProducer.commitTransaction();
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			kafkaProducer.commitTransaction();
+		}
 	}
 
 	@Override
 	public void abortTransaction() throws ProducerFencedException {
-		kafkaProducer.abortTransaction();
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			kafkaProducer.abortTransaction();
+		}
 	}
 
 	@Override
 	public void sendOffsetsToTransaction(Map<TopicPartition, OffsetAndMetadata> offsets, String consumerGroupId) throws ProducerFencedException {
-		kafkaProducer.sendOffsetsToTransaction(offsets, consumerGroupId);
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			kafkaProducer.sendOffsetsToTransaction(offsets, consumerGroupId);
+		}
 	}
 
 	@Override
@@ -108,7 +134,10 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	@Override
 	public List<PartitionInfo> partitionsFor(String topic) {
-		return kafkaProducer.partitionsFor(topic);
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			return kafkaProducer.partitionsFor(topic);
+		}
 	}
 
 	@Override
@@ -118,17 +147,35 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	@Override
 	public void close() {
-		kafkaProducer.close();
+		throw new UnsupportedOperationException("Close without timeout is now allowed because it can leave lingering Kafka threads.");
 	}
 
 	@Override
 	public void close(long timeout, TimeUnit unit) {
-		kafkaProducer.close(timeout, unit);
+		synchronized (producerClosingLock) {
+			kafkaProducer.close(timeout, unit);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+						"Closed internal KafkaProducer {}. Stacktrace: {}",
+						System.identityHashCode(this),
+						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			}
+			closed = true;
+		}
 	}
 
 	@Override
 	public void close(Duration duration) {
-		kafkaProducer.close(duration);
+		synchronized (producerClosingLock) {
+			kafkaProducer.close(duration);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+						"Closed internal KafkaProducer {}. Stacktrace: {}",
+						System.identityHashCode(this),
+						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			}
+			closed = true;
+		}
 	}
 
 	// -------------------------------- New methods or methods with changed behaviour --------------------------------
@@ -137,7 +184,10 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	public void flush() {
 		kafkaProducer.flush();
 		if (transactionalId != null) {
-			flushNewPartitions();
+			synchronized (producerClosingLock) {
+				ensureNotClosed();
+				flushNewPartitions();
+			}
 		}
 	}
 
@@ -148,24 +198,40 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	 * https://github.com/apache/kafka/commit/5d2422258cb975a137a42a4e08f03573c49a387e#diff-f4ef1afd8792cd2a2e9069cd7ddea630
 	 */
 	public void resumeTransaction(long producerId, short epoch) {
-		Preconditions.checkState(producerId >= 0 && epoch >= 0, "Incorrect values for producerId %s and epoch %s", producerId, epoch);
-		LOG.info("Attempting to resume transaction {} with producerId {} and epoch {}", transactionalId, producerId, epoch);
+		synchronized (producerClosingLock) {
+			ensureNotClosed();
+			Preconditions.checkState(producerId >= 0 && epoch >= 0,
+				"Incorrect values for producerId %s and epoch %s",
+				producerId,
+				epoch);
+			LOG.info("Attempting to resume transaction {} with producerId {} and epoch {}",
+				transactionalId,
+				producerId,
+				epoch);
 
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		synchronized (transactionManager) {
-			Object nextSequence = getValue(transactionManager, "nextSequence");
+			Object transactionManager = getField(kafkaProducer, "transactionManager");
+			synchronized (transactionManager) {
+				Object topicPartitionBookkeeper =
+						getField(transactionManager, "topicPartitionBookkeeper");
 
-			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
-			invoke(nextSequence, "clear");
+				invoke(transactionManager,
+					"transitionTo",
+					getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
+				invoke(topicPartitionBookkeeper, "reset");
 
-			Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-			setValue(producerIdAndEpoch, "producerId", producerId);
-			setValue(producerIdAndEpoch, "epoch", epoch);
+				Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
+				setField(producerIdAndEpoch, "producerId", producerId);
+				setField(producerIdAndEpoch, "epoch", epoch);
 
-			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.READY"));
+				invoke(transactionManager,
+					"transitionTo",
+					getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.READY"));
 
-			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
-			setValue(transactionManager, "transactionStarted", true);
+				invoke(transactionManager,
+					"transitionTo",
+					getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
+				setField(transactionManager, "transactionStarted", true);
+			}
 		}
 	}
 
@@ -174,22 +240,28 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	}
 
 	public long getProducerId() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-		return (long) getValue(producerIdAndEpoch, "producerId");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
+		Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
+		return (long) getField(producerIdAndEpoch, "producerId");
 	}
 
 	public short getEpoch() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-		return (short) getValue(producerIdAndEpoch, "epoch");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
+		Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
+		return (short) getField(producerIdAndEpoch, "epoch");
 	}
 
 	@VisibleForTesting
 	public int getTransactionCoordinatorId() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
 		Node node = (Node) invoke(transactionManager, "coordinator", FindCoordinatorRequest.CoordinatorType.TRANSACTION);
 		return node.id();
+	}
+
+	private void ensureNotClosed() {
+		if (closed) {
+			throw new IllegalStateException(String.format("The producer %s has already been closed", System.identityHashCode(this)));
+		}
 	}
 
 	/**
@@ -201,17 +273,34 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	private void flushNewPartitions() {
 		LOG.info("Flushing new partitions");
 		TransactionalRequestResult result = enqueueNewPartitions();
-		Object sender = getValue(kafkaProducer, "sender");
+		Object sender = getField(kafkaProducer, "sender");
 		invoke(sender, "wakeup");
 		result.await();
 	}
 
+	/**
+	 * Enqueues new transactions at the transaction manager and returns a {@link
+	 * TransactionalRequestResult} that allows waiting on them.
+	 *
+	 * <p>If there are no new transactions we return a {@link TransactionalRequestResult} that is
+	 * already done.
+	 */
 	private TransactionalRequestResult enqueueNewPartitions() {
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
+		Object transactionManager = getField(kafkaProducer, "transactionManager");
 		synchronized (transactionManager) {
-			Object txnRequestHandler = invoke(transactionManager, "addPartitionsToTransactionHandler");
-			invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
-			TransactionalRequestResult result = (TransactionalRequestResult) getValue(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
+			Object newPartitionsInTransaction = getField(transactionManager, "newPartitionsInTransaction");
+			Object newPartitionsInTransactionIsEmpty = invoke(newPartitionsInTransaction, "isEmpty");
+			TransactionalRequestResult result;
+			if (newPartitionsInTransactionIsEmpty instanceof Boolean && !((Boolean) newPartitionsInTransactionIsEmpty)) {
+				Object txnRequestHandler = invoke(transactionManager, "addPartitionsToTransactionHandler");
+				invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
+				result = (TransactionalRequestResult) getField(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
+			} else {
+				// we don't have an operation but this operation string is also used in
+				// addPartitionsToTransactionHandler.
+				result = new TransactionalRequestResult("AddPartitionsToTxn");
+				result.done();
+			}
 			return result;
 		}
 	}
@@ -249,11 +338,19 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	protected static Object getValue(Object object, String fieldName) {
-		return getValue(object, object.getClass(), fieldName);
+	/**
+	 * Gets and returns the field {@code fieldName} from the given Object {@code object} using
+	 * reflection.
+	 */
+	protected static Object getField(Object object, String fieldName) {
+		return getField(object, object.getClass(), fieldName);
 	}
 
-	private static Object getValue(Object object, Class<?> clazz, String fieldName) {
+	/**
+	 * Gets and returns the field {@code fieldName} from the given Object {@code object} using
+	 * reflection.
+	 */
+	private static Object getField(Object object, Class<?> clazz, String fieldName) {
 		try {
 			Field field = clazz.getDeclaredField(fieldName);
 			field.setAccessible(true);
@@ -263,7 +360,11 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	protected static void setValue(Object object, String fieldName, Object value) {
+	/**
+	 * Sets the field {@code fieldName} on the given Object {@code object} to {@code value} using
+	 * reflection.
+	 */
+	protected static void setField(Object object, String fieldName, Object value) {
 		try {
 			Field field = object.getClass().getDeclaredField(fieldName);
 			field.setAccessible(true);

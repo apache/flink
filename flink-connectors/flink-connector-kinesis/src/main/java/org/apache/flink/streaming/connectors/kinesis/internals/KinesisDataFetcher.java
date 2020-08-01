@@ -76,9 +76,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and runs a single fetcher throughout the subtask's lifetime. The fetcher accomplishes the following:
  * <ul>
  *     <li>1. continuously poll Kinesis to discover shards that the subtask should subscribe to. The subscribed subset
- *     		  of shards, including future new shards, is non-overlapping across subtasks (no two subtasks will be
- *     		  subscribed to the same shard) and determinate across subtask restores (the subtask will always subscribe
- *     		  to the same subset of shards even after restoring)</li>
+ *            of shards, including future new shards, is non-overlapping across subtasks (no two subtasks will be
+ *            subscribed to the same shard) and determinate across subtask restores (the subtask will always subscribe
+ *            to the same subset of shards even after restoring)</li>
  *     <li>2. decide where in each discovered shard should the fetcher start subscribing to</li>
  *     <li>3. subscribe to shards by creating a single thread for each shard</li>
  * </ul>
@@ -87,6 +87,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and 2) last processed sequence numbers of each subscribed shard. Since operations on the second state will be performed
  * by multiple threads, these operations should only be done using the handler methods provided in this class.
  */
+@SuppressWarnings("unchecked")
 @Internal
 public class KinesisDataFetcher<T> {
 
@@ -195,8 +196,8 @@ public class KinesisDataFetcher<T> {
 
 	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
 	private final WatermarkTracker watermarkTracker;
-	private final transient RecordEmitter recordEmitter;
-	private transient boolean isIdle;
+	private final RecordEmitter recordEmitter;
+	private boolean isIdle;
 
 	/**
 	 * The watermark related state for each shard consumer. Entries in this map will be created when shards
@@ -270,8 +271,6 @@ public class KinesisDataFetcher<T> {
 		@Override
 		public void emit(RecordWrapper<T> record, RecordQueue<RecordWrapper<T>> queue) {
 			emitRecordAndUpdateState(record);
-			ShardWatermarkState<T> sws = shardWatermarks.get(queue.getQueueId());
-			sws.lastEmittedRecordWatermark = record.watermark;
 		}
 	}
 
@@ -282,16 +281,11 @@ public class KinesisDataFetcher<T> {
 
 		@Override
 		public RecordQueue<RecordWrapper<T>> getQueue(int producerIndex) {
-			return queues.computeIfAbsent(producerIndex, (key) -> {
-				return new RecordQueue<RecordWrapper<T>>() {
+			return queues.computeIfAbsent(producerIndex, (key) ->
+				new RecordQueue<RecordWrapper<T>>() {
 					@Override
 					public void put(RecordWrapper<T> record) {
 						emit(record, this);
-					}
-
-					@Override
-					public int getQueueId() {
-						return producerIndex;
 					}
 
 					@Override
@@ -303,8 +297,6 @@ public class KinesisDataFetcher<T> {
 					public RecordWrapper<T> peek() {
 						return null;
 					}
-
-				};
 			});
 		}
 	}
@@ -400,18 +392,20 @@ public class KinesisDataFetcher<T> {
 	 * @param shardMetricsReporter the reporter to report metrics to
 	 * @return shard consumer
 	 */
-	protected ShardConsumer createShardConsumer(
+	protected ShardConsumer<T> createShardConsumer(
 		Integer subscribedShardStateIndex,
 		StreamShardHandle subscribedShard,
 		SequenceNumber lastSequenceNum,
-		ShardMetricsReporter shardMetricsReporter) {
+		ShardMetricsReporter shardMetricsReporter,
+		KinesisDeserializationSchema<T> shardDeserializer) {
 		return new ShardConsumer<>(
 			this,
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
 			this.kinesisProxyFactory.create(configProps),
-			shardMetricsReporter);
+			shardMetricsReporter,
+			shardDeserializer);
 	}
 
 	/**
@@ -469,12 +463,20 @@ public class KinesisDataFetcher<T> {
 						seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
 					}
 
+				StreamShardHandle streamShardHandle = subscribedShardsState.get(seededStateIndex)
+					.getStreamShardHandle();
+				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
+				shardDeserializationSchema.open(() -> consumerMetricGroup
+					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+					.addGroup("shardId", streamShardHandle.getShard().getShardId())
+					.addGroup("user"));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						seededStateIndex,
-						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
+						streamShardHandle,
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
-						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex))));
+						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex)),
+						shardDeserializationSchema));
 			}
 		}
 
@@ -498,17 +500,31 @@ public class KinesisDataFetcher<T> {
 						getConsumerConfiguration().getProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS,
 							Long.toString(0)));
 					recordEmitter.setMaxLookaheadMillis(Math.max(lookaheadMillis, watermarkSyncMillis * 3));
+
+					// record emitter depends on periodic watermark
+					// it runs in a separate thread since main thread is used for discovery
+					Runnable recordEmitterRunnable = new Runnable() {
+						@Override
+						public void run() {
+							try {
+								recordEmitter.run();
+							} catch (Throwable error) {
+								// report the error that terminated the emitter loop to source thread
+								stopWithError(error);
+							}
+						}
+					};
+
+					Thread thread = new Thread(recordEmitterRunnable);
+					thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
+					thread.setDaemon(true);
+					thread.start();
 				}
 			}
 			this.shardIdleIntervalMillis = Long.parseLong(
 				getConsumerConfiguration().getProperty(ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS,
 					Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS)));
 
-			// run record emitter in separate thread since main thread is used for discovery
-			Thread thread = new Thread(this.recordEmitter);
-			thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
-			thread.setDaemon(true);
-			thread.start();
 		}
 
 		// ------------------------------------------------------------------------
@@ -549,12 +565,19 @@ public class KinesisDataFetcher<T> {
 						newShardState.getLastProcessedSequenceNum(), newStateIndex);
 				}
 
+				StreamShardHandle streamShardHandle = newShardState.getStreamShardHandle();
+				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
+				shardDeserializationSchema.open(() -> consumerMetricGroup
+					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+					.addGroup("shardId", streamShardHandle.getShard().getShardId())
+					.addGroup("user"));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum(),
-						registerShardMetrics(consumerMetricGroup, newShardState)));
+						registerShardMetrics(consumerMetricGroup, newShardState),
+						shardDeserializationSchema));
 			}
 
 			// we also check if we are running here so that we won't start the discovery sleep
@@ -628,6 +651,7 @@ public class KinesisDataFetcher<T> {
 	}
 
 	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown. */
+	@SuppressWarnings("StatementWithEmptyBody")
 	public void awaitTermination() throws InterruptedException {
 		while (!shardConsumersExecutor.awaitTermination(1, TimeUnit.MINUTES)) {
 			// Keep waiting.
@@ -707,7 +731,7 @@ public class KinesisDataFetcher<T> {
 		return configProps;
 	}
 
-	protected KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
+	private KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
 		try {
 			return InstantiationUtil.clone(deserializationSchema, runtimeContext.getUserCodeClassLoader());
 		} catch (IOException | ClassNotFoundException ex) {
@@ -722,7 +746,7 @@ public class KinesisDataFetcher<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Atomic operation to collect a record and update state to the sequence number of the record.
+	 * Prepare a record and hand it over to the {@link RecordEmitter}, which may collect it asynchronously.
 	 * This method is called by {@link ShardConsumer}s.
 	 *
 	 * @param record the record to collect
@@ -759,17 +783,18 @@ public class KinesisDataFetcher<T> {
 	}
 
 	/**
-	 * Actual record emission called from the record emitter.
+	 * Atomic operation to collect a record and update state to the sequence number of the record.
+	 * This method is called from the record emitter.
 	 *
 	 * <p>Responsible for tracking per shard watermarks and emit timestamps extracted from
 	 * the record, when a watermark assigner was configured.
-	 *
-	 * @param rw
 	 */
 	private void emitRecordAndUpdateState(RecordWrapper<T> rw) {
 		synchronized (checkpointLock) {
 			if (rw.getValue() != null) {
 				sourceContext.collectWithTimestamp(rw.getValue(), rw.timestamp);
+				ShardWatermarkState<T> sws = shardWatermarks.get(rw.shardStateIndex);
+				sws.lastEmittedRecordWatermark = rw.watermark;
 			} else {
 				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
 					rw.lastSequenceNumber,
@@ -956,22 +981,22 @@ public class KinesisDataFetcher<T> {
 	/** Timer task to update shared watermark state. */
 	private class WatermarkSyncCallback implements ProcessingTimeCallback {
 
+		private static final long LOG_INTERVAL_MILLIS = 60_000;
+
 		private final ProcessingTimeService timerService;
 		private final long interval;
-		private final MetricGroup shardMetricsGroup;
 		private long lastGlobalWatermark = Long.MIN_VALUE;
 		private long propagatedLocalWatermark = Long.MIN_VALUE;
-		private long logIntervalMillis = 60_000;
 		private int stalledWatermarkIntervalCount = 0;
 		private long lastLogged;
 
 		WatermarkSyncCallback(ProcessingTimeService timerService, long interval) {
 			this.timerService = checkNotNull(timerService);
 			this.interval = interval;
-			this.shardMetricsGroup = consumerMetricGroup.addGroup("subtaskId",
+			MetricGroup shardMetricsGroup = consumerMetricGroup.addGroup("subtaskId",
 				String.valueOf(indexOfThisConsumerSubtask));
-			this.shardMetricsGroup.gauge("localWatermark", () -> nextWatermark);
-			this.shardMetricsGroup.gauge("globalWatermark", () -> lastGlobalWatermark);
+			shardMetricsGroup.gauge("localWatermark", () -> nextWatermark);
+			shardMetricsGroup.gauge("globalWatermark", () -> lastGlobalWatermark);
 		}
 
 		public void start() {
@@ -991,7 +1016,7 @@ public class KinesisDataFetcher<T> {
 					LOG.info("WatermarkSyncCallback subtask: {} is idle", indexOfThisConsumerSubtask);
 				}
 
-				if (timestamp - lastLogged > logIntervalMillis) {
+				if (timestamp - lastLogged > LOG_INTERVAL_MILLIS) {
 					lastLogged = System.currentTimeMillis();
 					LOG.info("WatermarkSyncCallback subtask: {} local watermark: {}"
 							+ ", global watermark: {}, delta: {} timeouts: {}, emitter: {}",

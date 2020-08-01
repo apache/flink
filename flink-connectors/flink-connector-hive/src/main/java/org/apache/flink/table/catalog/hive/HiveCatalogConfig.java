@@ -23,5 +23,10 @@ package org.apache.flink.table.catalog.hive;
  */
 public class HiveCatalogConfig {
 
+	// Table related configs
 	public static final String COMMENT = "comment";
+	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
+
+	// Partition related configs
+	public static final String PARTITION_LOCATION = "partition.location";
 }

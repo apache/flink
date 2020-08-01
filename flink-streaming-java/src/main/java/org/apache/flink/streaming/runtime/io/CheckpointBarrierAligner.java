@@ -19,18 +19,25 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link CheckpointBarrierAligner} keep tracks of received {@link CheckpointBarrier} on given
@@ -43,7 +50,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointBarrierAligner.class);
 
 	/** Flags that indicate whether a channel is currently blocked/buffered. */
-	private final boolean[] blockedChannels;
+	private final Map<InputChannelInfo, Boolean> blockedChannels;
 
 	/** The total number of channels that this buffer handles data from. */
 	private final int totalNumberOfInputChannels;
@@ -68,23 +75,39 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	/** The time (in nanoseconds) that the latest alignment took. */
 	private long latestAlignmentDurationNanos;
 
-	CheckpointBarrierAligner(
-			int totalNumberOfInputChannels,
-			String taskName,
-			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
-		super(toNotifyOnCheckpoint);
-		this.totalNumberOfInputChannels = totalNumberOfInputChannels;
-		this.taskName = taskName;
+	private final InputGate[] inputGates;
 
-		this.blockedChannels = new boolean[totalNumberOfInputChannels];
+	CheckpointBarrierAligner(
+			String taskName,
+			AbstractInvokable toNotifyOnCheckpoint,
+			InputGate... inputGates) {
+		super(toNotifyOnCheckpoint);
+
+		this.taskName = taskName;
+		this.inputGates = inputGates;
+		blockedChannels = Arrays.stream(inputGates)
+			.flatMap(gate -> gate.getChannelInfos().stream())
+			.collect(Collectors.toMap(Function.identity(), info -> false));
+		totalNumberOfInputChannels = blockedChannels.size();
+	}
+
+	@Override
+	public void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
+		if (checkpointId > currentCheckpointId && isCheckpointPending()) {
+			releaseBlocksAndResetBarriers();
+			notifyAbort(currentCheckpointId, exception);
+		}
 	}
 
 	@Override
 	public void releaseBlocksAndResetBarriers() throws IOException {
 		LOG.debug("{}: End of stream alignment, feeding buffered data back.", taskName);
 
-		for (int i = 0; i < blockedChannels.length; i++) {
-			blockedChannels[i] = false;
+		for (Map.Entry<InputChannelInfo, Boolean> blockedChannel : blockedChannels.entrySet()) {
+			if (blockedChannel.getValue()) {
+				resumeConsumption(blockedChannel.getKey());
+			}
+			blockedChannel.setValue(false);
 		}
 
 		// the next barrier that comes must assume it is the first
@@ -97,34 +120,33 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public boolean isBlocked(int channelIndex) {
-		return blockedChannels[channelIndex];
+	public boolean isBlocked(InputChannelInfo channelInfo) {
+		return blockedChannels.get(channelInfo);
 	}
 
 	@Override
-	public boolean processBarrier(CheckpointBarrier receivedBarrier, int channelIndex, long bufferedBytes) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 
 		// fast path for single channel cases
 		if (totalNumberOfInputChannels == 1) {
+			resumeConsumption(channelInfo);
 			if (barrierId > currentCheckpointId) {
 				// new checkpoint
 				currentCheckpointId = barrierId;
-				notifyCheckpoint(receivedBarrier, bufferedBytes, latestAlignmentDurationNanos);
+				notifyCheckpoint(receivedBarrier, latestAlignmentDurationNanos);
 			}
-			return false;
+			return;
 		}
-
-		boolean checkpointAborted = false;
 
 		// -- general code path for multiple input channels --
 
-		if (numBarriersReceived > 0) {
+		if (isCheckpointPending()) {
 			// this is only true if some alignment is already progress and was not canceled
 
 			if (barrierId == currentCheckpointId) {
 				// regular case
-				onBarrier(channelIndex);
+				onBarrier(channelInfo);
 			}
 			else if (barrierId > currentCheckpointId) {
 				// we did not complete the current checkpoint, another started before
@@ -142,24 +164,23 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 				// abort the current checkpoint
 				releaseBlocksAndResetBarriers();
-				checkpointAborted = true;
 
-				// begin a the new checkpoint
-				beginNewAlignment(barrierId, channelIndex);
+				// begin a new checkpoint
+				beginNewAlignment(barrierId, channelInfo, receivedBarrier.getTimestamp());
 			}
 			else {
 				// ignore trailing barrier from an earlier checkpoint (obsolete now)
-				return false;
+				resumeConsumption(channelInfo);
 			}
 		}
 		else if (barrierId > currentCheckpointId) {
 			// first barrier of a new checkpoint
-			beginNewAlignment(barrierId, channelIndex);
+			beginNewAlignment(barrierId, channelInfo, receivedBarrier.getTimestamp());
 		}
 		else {
 			// either the current checkpoint was canceled (numBarriers == 0) or
 			// this barrier is from an old subsumed checkpoint
-			return false;
+			resumeConsumption(channelInfo);
 		}
 
 		// check if we have all barriers - since canceled checkpoints always have zero barriers
@@ -174,15 +195,17 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			}
 
 			releaseBlocksAndResetBarriers();
-			notifyCheckpoint(receivedBarrier, bufferedBytes, latestAlignmentDurationNanos);
-			return true;
+			notifyCheckpoint(receivedBarrier, latestAlignmentDurationNanos);
 		}
-		return checkpointAborted;
 	}
 
-	protected void beginNewAlignment(long checkpointId, int channelIndex) throws IOException {
+	protected void beginNewAlignment(
+			long checkpointId,
+			InputChannelInfo channelInfo,
+			long checkpointTimestamp) throws IOException {
+		markCheckpointStart(checkpointTimestamp);
 		currentCheckpointId = checkpointId;
-		onBarrier(channelIndex);
+		onBarrier(channelInfo);
 
 		startOfAlignmentTimestamp = System.nanoTime();
 
@@ -194,25 +217,25 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	/**
 	 * Blocks the given channel index, from which a barrier has been received.
 	 *
-	 * @param channelIndex The channel index to block.
+	 * @param channelInfo The channel to block.
 	 */
-	protected void onBarrier(int channelIndex) throws IOException {
-		if (!blockedChannels[channelIndex]) {
-			blockedChannels[channelIndex] = true;
+	protected void onBarrier(InputChannelInfo channelInfo) throws IOException {
+		if (!blockedChannels.get(channelInfo)) {
+			blockedChannels.put(channelInfo, true);
 
 			numBarriersReceived++;
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("{}: Received barrier from channel {}.", taskName, channelIndex);
+				LOG.debug("{}: Received barrier from channel {}.", taskName, channelInfo);
 			}
 		}
 		else {
-			throw new IOException("Stream corrupt: Repeated barrier for same checkpoint on input " + channelIndex);
+			throw new IOException("Stream corrupt: Repeated barrier for same checkpoint on input " + channelInfo);
 		}
 	}
 
 	@Override
-	public boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
+	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
 		final long barrierId = cancelBarrier.getCheckpointId();
 
 		// fast path for single channel cases
@@ -222,12 +245,12 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 				currentCheckpointId = barrierId;
 				notifyAbortOnCancellationBarrier(barrierId);
 			}
-			return false;
+			return;
 		}
 
 		// -- general code path for multiple input channels --
 
-		if (numBarriersReceived > 0) {
+		if (isCheckpointPending()) {
 			// this is only true if some alignment is in progress and nothing was canceled
 
 			if (barrierId == currentCheckpointId) {
@@ -238,7 +261,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 				releaseBlocksAndResetBarriers();
 				notifyAbortOnCancellationBarrier(barrierId);
-				return true;
 			}
 			else if (barrierId > currentCheckpointId) {
 				// we canceled the next which also cancels the current
@@ -257,7 +279,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 				latestAlignmentDurationNanos = 0L;
 
 				notifyAbortOnCancellationBarrier(barrierId);
-				return true;
 			}
 
 			// else: ignore trailing (cancellation) barrier from an earlier checkpoint (obsolete now)
@@ -278,28 +299,24 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			}
 
 			notifyAbortOnCancellationBarrier(barrierId);
-			return false;
 		}
 
 		// else: trailing barrier from either
 		//   - a previous (subsumed) checkpoint
 		//   - the current checkpoint if it was already canceled
-		return false;
 	}
 
 	@Override
-	public boolean processEndOfPartition() throws Exception {
+	public void processEndOfPartition() throws Exception {
 		numClosedChannels++;
 
-		if (numBarriersReceived > 0) {
+		if (isCheckpointPending()) {
 			// let the task know we skip a checkpoint
 			notifyAbort(currentCheckpointId,
 				new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
 			// no chance to complete this checkpoint
 			releaseBlocksAndResetBarriers();
-			return true;
 		}
-		return false;
 	}
 
 	@Override
@@ -317,20 +334,28 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
+	protected boolean isCheckpointPending() {
+		return numBarriersReceived > 0;
+	}
+
+	private void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
+		InputGate inputGate = inputGates[channelInfo.getGateIdx()];
+		checkState(!inputGate.isFinished(), "InputGate already finished.");
+
+		inputGate.resumeConsumption(channelInfo.getInputChannelIdx());
+	}
+
+	@VisibleForTesting
+	public int getNumClosedChannels() {
+		return numClosedChannels;
+	}
+
+	@Override
 	public String toString() {
 		return String.format("%s: last checkpoint: %d, current barriers: %d, closed channels: %d",
 			taskName,
 			currentCheckpointId,
 			numBarriersReceived,
 			numClosedChannels);
-	}
-
-	@Override
-	public void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception {
-		releaseBlocksAndResetBarriers();
-		notifyAbort(currentCheckpointId,
-			new CheckpointException(
-				"Max buffered bytes: " + maxBufferedBytes,
-				CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED));
 	}
 }

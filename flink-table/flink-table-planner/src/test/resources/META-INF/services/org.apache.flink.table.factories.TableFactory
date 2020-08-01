@@ -15,10 +15,9 @@
 
 org.apache.flink.table.factories.utils.TestFixedFormatTableFactory
 org.apache.flink.table.factories.utils.TestWildcardFormatTableSourceFactory
-org.apache.flink.table.factories.utils.TestTableSinkFactory
 org.apache.flink.table.factories.utils.TestTableSourceFactory
 org.apache.flink.table.factories.utils.TestTableFormatFactory
 org.apache.flink.table.factories.utils.TestAmbiguousTableFormatFactory
-org.apache.flink.table.factories.utils.TestExternalCatalogFactory
 org.apache.flink.table.catalog.TestExternalTableSourceFactory
 org.apache.flink.table.factories.utils.TestCatalogFactory
+org.apache.flink.table.factories.utils.TestCollectionTableFactory

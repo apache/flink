@@ -58,10 +58,21 @@ wait_job_running ${ORIGINAL_JOB}
 wait_oper_metric_num_in_records stateMap2.1 200
 
 # take a savepoint of the state machine job
-SAVEPOINT_PATH=$(take_savepoint ${ORIGINAL_JOB} ${TEST_DATA_DIR} \
+SAVEPOINT_PATH=$(stop_with_savepoint ${ORIGINAL_JOB} ${TEST_DATA_DIR} \
   | grep "Savepoint completed. Path:" | sed 's/.* //g')
 
-cancel_job ${ORIGINAL_JOB}
+wait_job_terminal_state "${ORIGINAL_JOB}" "FINISHED"
+
+# isolate the path without the scheme ("file:") and do the necessary checks
+SAVEPOINT_DIR=${SAVEPOINT_PATH#"file:"}
+
+if [ -z "$SAVEPOINT_DIR" ]; then
+  echo "Savepoint location was empty. This may mean that the stop-with-savepoint failed."
+  exit 1
+elif [ ! -d "$SAVEPOINT_DIR" ]; then
+  echo "Savepoint $SAVEPOINT_PATH does not exist."
+  exit 1
+fi
 
 JOB=$(job ${NEW_DOP})
 UPGRADED_JOB=$(${JOB} --test.job.variant upgraded \
@@ -71,5 +82,5 @@ wait_job_running ${UPGRADED_JOB}
 
 wait_oper_metric_num_in_records stateMap3.2 200
 
-# if state is errorneous and the state machine job produces alerting state transitions,
+# if state is erroneous and the state machine job produces alerting state transitions,
 # output would be non-empty and the test will not pass

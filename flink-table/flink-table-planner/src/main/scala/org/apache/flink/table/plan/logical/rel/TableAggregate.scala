@@ -24,7 +24,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.calcite.rel.{RelNode, SingleRel}
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.util.{ImmutableBitSet, Pair}
 import org.apache.flink.table.plan.nodes.CommonTableAggregate
 
@@ -69,5 +69,11 @@ abstract class TableAggregate(
       groupSets,
       aggCalls
     )
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+      .item("group", groupSet)
+      .item("tableAggregate", aggCalls)
   }
 }

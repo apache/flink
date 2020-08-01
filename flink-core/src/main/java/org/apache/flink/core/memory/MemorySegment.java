@@ -271,7 +271,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Wraps the chunk of the underlying memory located between <tt>offset</tt> and
-	 * <tt>length</tt> in a NIO ByteBuffer. The ByteBuffer has the full segment as capacity
+	 * <tt>offset + length</tt> in a NIO ByteBuffer. The ByteBuffer has the full segment as capacity
 	 * and the offset and length parameters set the buffers position and limit.
 	 *
 	 * @param offset The offset in the memory segment.
@@ -1273,7 +1273,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes to target unsafe object and pointer.
-	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 * NOTE: This is an unsafe method, no check here, please be careful.
 	 *
 	 * @param offset The position where the bytes are started to be read from in this memory segment.
 	 * @param target The unsafe memory to copy the bytes to.
@@ -1295,7 +1295,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes from source unsafe object and pointer.
-	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 * NOTE: This is an unsafe method, no check here, please be careful.
 	 *
 	 * @param offset The position where the bytes are started to be write in this memory segment.
 	 * @param source The unsafe memory to copy the bytes from.
@@ -1354,6 +1354,23 @@ public abstract class MemorySegment {
 			len--;
 		}
 		return 0;
+	}
+
+	/**
+	 * Compares two memory segment regions with different length.
+	 *
+	 * @param seg2 Segment to compare this segment with
+	 * @param offset1 Offset of this segment to start comparing
+	 * @param offset2 Offset of seg2 to start comparing
+	 * @param len1 Length of this memory region to compare
+	 * @param len2 Length of seg2 to compare
+	 *
+	 * @return 0 if equal, -1 if seg1 &lt; seg2, 1 otherwise
+	 */
+	public final int compare(MemorySegment seg2, int offset1, int offset2, int len1, int len2) {
+		final int minLength = Math.min(len1, len2);
+		int c = compare(seg2, offset1, offset2, minLength);
+		return c == 0 ? (len1 - len2) : c;
 	}
 
 	/**

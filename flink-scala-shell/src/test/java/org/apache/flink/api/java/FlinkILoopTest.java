@@ -18,32 +18,15 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.BDDMockito;
-import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.util.List;
 
 import scala.Option;
-import scala.tools.nsc.Settings;
-import scala.tools.nsc.settings.MutableSettings;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -51,53 +34,21 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration tests for {@link FlinkILoop}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(PlanExecutor.class)
-@PowerMockIgnore("javax.tools.*")
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
-	public void testConfigurationForwarding() throws Exception {
+	public void testConfigurationForwarding() {
 		Configuration configuration = new Configuration();
 		configuration.setString("foobar", "foobar");
-		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
+		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+		configuration.setInteger(JobManagerOptions.PORT, 6123);
 
-		final TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
-
-		PowerMockito.mockStatic(PlanExecutor.class);
-		BDDMockito.given(PlanExecutor.createRemoteExecutor(
-			Matchers.anyString(),
-			Matchers.anyInt(),
-			Matchers.any(Configuration.class),
-			Matchers.any(java.util.List.class),
-			Matchers.any(java.util.List.class)
-		)).willAnswer(new Answer<PlanExecutor>() {
-			@Override
-			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
-				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
-				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
-				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);
-				testPlanExecutor.setJars((List<String>) invocation.getArguments()[3]);
-				testPlanExecutor.setGlobalClasspaths((List<String>) invocation.getArguments()[4]);
-
-				return testPlanExecutor;
-			}
-		});
-
-		Settings settings = new Settings();
-		((MutableSettings.BooleanSetting) settings.usejavacp()).value_$eq(true);
-
-		flinkILoop.settings_$eq(settings);
-		flinkILoop.createInterpreter();
+		FlinkILoop flinkILoop = new FlinkILoop(configuration, Option.<String[]>empty());
 
 		ExecutionEnvironment env = flinkILoop.scalaBenv().getJavaEnv();
+		assertTrue(env instanceof ScalaShellEnvironment);
 
-		env.fromElements(1).output(new DiscardingOutputFormat<Integer>());
-
-		env.execute("Test job");
-
-		Configuration forwardedConfiguration = testPlanExecutor.getConfiguration();
-
+		Configuration forwardedConfiguration = env.getConfiguration();
 		assertEquals(configuration, forwardedConfiguration);
 	}
 
@@ -105,92 +56,16 @@ public class FlinkILoopTest extends TestLogger {
 	public void testConfigurationForwardingStreamEnvironment() {
 		Configuration configuration = new Configuration();
 		configuration.setString("foobar", "foobar");
+		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+		configuration.setInteger(JobManagerOptions.PORT, 6123);
 
-		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
+		FlinkILoop flinkILoop = new FlinkILoop(configuration, Option.<String[]>empty());
 
 		StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
+		assertTrue(streamEnv instanceof ScalaShellStreamEnvironment);
 
-		assertTrue(streamEnv instanceof RemoteStreamEnvironment);
-
-		RemoteStreamEnvironment remoteStreamEnv = (RemoteStreamEnvironment) streamEnv;
-
+		ScalaShellStreamEnvironment remoteStreamEnv = (ScalaShellStreamEnvironment) streamEnv;
 		Configuration forwardedConfiguration = remoteStreamEnv.getClientConfiguration();
-
 		assertEquals(configuration, forwardedConfiguration);
 	}
-
-	static class TestPlanExecutor extends PlanExecutor {
-
-		private String host;
-		private int port;
-		private Configuration configuration;
-		private List<String> jars;
-		private List<String> globalClasspaths;
-
-		@Override
-		public void start() throws Exception {
-
-		}
-
-		@Override
-		public void stop() throws Exception {
-
-		}
-
-		@Override
-		public boolean isRunning() {
-			return false;
-		}
-
-		@Override
-		public JobExecutionResult executePlan(Plan plan) throws Exception {
-			return null;
-		}
-
-		@Override
-		public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-			return null;
-		}
-
-		public String getHost() {
-			return host;
-		}
-
-		public void setHost(String host) {
-			this.host = host;
-		}
-
-		public int getPort() {
-			return port;
-		}
-
-		public void setPort(int port) {
-			this.port = port;
-		}
-
-		public Configuration getConfiguration() {
-			return configuration;
-		}
-
-		public void setConfiguration(Configuration configuration) {
-			this.configuration = configuration;
-		}
-
-		public List<String> getJars() {
-			return jars;
-		}
-
-		public void setJars(List<String> jars) {
-			this.jars = jars;
-		}
-
-		public List<String> getGlobalClasspaths() {
-			return globalClasspaths;
-		}
-
-		public void setGlobalClasspaths(List<String> globalClasspaths) {
-			this.globalClasspaths = globalClasspaths;
-		}
-	}
-
 }

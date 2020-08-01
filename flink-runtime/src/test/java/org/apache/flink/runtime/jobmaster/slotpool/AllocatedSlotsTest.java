@@ -142,7 +142,7 @@ public class AllocatedSlotsTest extends TestLogger {
 			allocationId,
 			taskManagerLocation,
 			0,
-			ResourceProfile.UNKNOWN,
+			ResourceProfile.ANY,
 			new SimpleAckingTaskManagerGateway());
 	}
 }

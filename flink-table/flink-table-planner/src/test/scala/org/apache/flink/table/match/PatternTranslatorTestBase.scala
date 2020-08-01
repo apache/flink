@@ -23,14 +23,15 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
+
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
@@ -58,8 +59,9 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     when(jDataStreamMock.getId).thenReturn(0)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env).asInstanceOf[StreamTableEnvironmentImpl]
-    tEnv.registerDataStream(tableName, dataStreamMock, 'f0, 'proctime.proctime)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings).asInstanceOf[StreamTableEnvironmentImpl]
+    tEnv.createTemporaryView(tableName, dataStreamMock, 'f0, 'proctime.proctime)
 
     val streamPlanner = tEnv.getPlanner.asInstanceOf[StreamPlanner]
 
@@ -68,7 +70,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
 
   def verifyPattern(matchRecognize: String, expected: Pattern[Row, _ <: Row]): Unit = {
     // create RelNode from SQL expression
-    val parsed = context._3.parse(
+    val parsed = context._3.getParser.parse(
       s"""
          |SELECT *
          |FROM $tableName

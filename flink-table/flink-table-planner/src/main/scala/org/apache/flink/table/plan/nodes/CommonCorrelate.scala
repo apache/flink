@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.plan.nodes
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
@@ -30,6 +27,10 @@ import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.types.Row
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 import scala.collection.JavaConverters._
 
@@ -46,7 +47,7 @@ trait CommonCorrelate {
     inputSchema: RowSchema,
     udtfTypeInfo: TypeInformation[Any],
     returnSchema: RowSchema,
-    joinType: SemiJoinType,
+    joinType: JoinRelType,
     rexCall: RexCall,
     pojoFieldMapping: Option[Array[Int]],
     ruleDescription: String,
@@ -74,7 +75,7 @@ trait CommonCorrelate {
          |${call.code}
          |""".stripMargin
 
-    if (joinType == SemiJoinType.LEFT) {
+    if (joinType == JoinRelType.LEFT) {
       // left outer join
 
       // in case of left outer join and the returned row of table function is empty,
@@ -98,8 +99,8 @@ trait CommonCorrelate {
            |  ${functionGenerator.collectorTerm}.collect(${outerResultExpr.resultTerm});
            |}
            |""".stripMargin
-    } else if (joinType != SemiJoinType.INNER) {
-      throw new TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
+    } else if (joinType != JoinRelType.INNER) {
+      throw new TableException(s"Unsupported JoinRelType: $joinType for correlate join.")
     }
 
     functionGenerator.generateFunction(

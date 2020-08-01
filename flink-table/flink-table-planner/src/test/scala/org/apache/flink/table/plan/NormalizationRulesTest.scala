@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.plan
 
-import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.PlannerConfig
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.CalciteConfigBuilder
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
+import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule
+import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
 class NormalizationRulesTest extends TableTestBase {
@@ -40,7 +40,7 @@ class NormalizationRulesTest extends TableTestBase {
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
-    util.tableEnv.getConfig.addPlannerConfig(cc)
+    util.tableEnv.getConfig.setPlannerConfig(cc)
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
@@ -76,7 +76,7 @@ class NormalizationRulesTest extends TableTestBase {
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
-    util.tableEnv.getConfig.addPlannerConfig(cc)
+    util.tableEnv.getConfig.setPlannerConfig(cc)
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 

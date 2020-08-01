@@ -19,10 +19,10 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,16 +32,43 @@ import java.util.Map;
 @Internal
 public class CatalogSinkModifyOperation implements ModifyOperation {
 
-	private final List<String> tablePath;
+	private final ObjectIdentifier tableIdentifier;
+	private final Map<String, String> staticPartitions;
 	private final QueryOperation child;
+	private final boolean overwrite;
+	private final Map<String, String> dynamicOptions;
 
-	public CatalogSinkModifyOperation(List<String> tablePath, QueryOperation child) {
-		this.tablePath = tablePath;
-		this.child = child;
+	public CatalogSinkModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
+		this(tableIdentifier, child, Collections.emptyMap(), false, Collections.emptyMap());
 	}
 
-	public List<String> getTablePath() {
-		return tablePath;
+	public CatalogSinkModifyOperation(
+			ObjectIdentifier tableIdentifier,
+			QueryOperation child,
+			Map<String, String> staticPartitions,
+			boolean overwrite,
+			Map<String, String> dynamicOptions) {
+		this.tableIdentifier = tableIdentifier;
+		this.child = child;
+		this.staticPartitions = staticPartitions;
+		this.overwrite = overwrite;
+		this.dynamicOptions = dynamicOptions;
+	}
+
+	public ObjectIdentifier getTableIdentifier() {
+		return tableIdentifier;
+	}
+
+	public Map<String, String> getStaticPartitions() {
+		return staticPartitions;
+	}
+
+	public boolean isOverwrite() {
+		return overwrite;
+	}
+
+	public Map<String, String> getDynamicOptions() {
+		return dynamicOptions;
 	}
 
 	@Override
@@ -57,7 +84,10 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("tablePath", tablePath);
+		params.put("identifier", tableIdentifier);
+		params.put("staticPartitions", staticPartitions);
+		params.put("overwrite", overwrite);
+		params.put("dynamicOptions", dynamicOptions);
 
 		return OperationUtils.formatWithChildren(
 			"CatalogSink",

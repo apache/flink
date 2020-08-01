@@ -24,16 +24,15 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 
 /**
@@ -53,8 +52,12 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 	private final T reuse;
 
-	public IteratorWrappingTestSingleInputGate(int bufferSize, Class<T> recordType, MutableObjectIterator<T> iterator) throws IOException, InterruptedException {
-		super(1, false);
+	public IteratorWrappingTestSingleInputGate(
+			int bufferSize,
+			int gateIndex,
+			MutableObjectIterator<T> iterator,
+			Class<T> recordType) throws IOException, InterruptedException {
+		super(1, gateIndex, false);
 
 		this.bufferSize = bufferSize;
 		this.reuse = InstantiationUtil.instantiate(recordType);
@@ -77,12 +80,13 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 				if (hasData) {
 					serializer.serializeRecord(reuse);
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+					BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 					serializer.copyToBufferBuilder(bufferBuilder);
 
 					hasData = inputIterator.next(reuse) != null;
 
 					// Call getCurrentBuffer to ensure size is set
-					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), true, 0));
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), true, 0));
 				} else {
 					inputChannel.setReleased();
 
@@ -95,7 +99,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 		inputChannel.addBufferAndAvailability(answer);
 
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		inputGate.setInputChannels(inputChannel);
 
 		return this;
 	}

@@ -31,7 +31,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -51,8 +51,6 @@ public class StreamingCustomInputSplitProgram {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.getConfig().disableSysoutLogging();
-
 		DataStream<Integer> data = env.createInput(new CustomInputFormat());
 
 		data.map(new MapFunction<Integer, Tuple2<Integer, Double>>() {
@@ -60,7 +58,7 @@ public class StreamingCustomInputSplitProgram {
 			public Tuple2<Integer, Double> map(Integer value) throws Exception {
 				return new Tuple2<Integer, Double>(value, value * 0.5);
 			}
-		}).addSink(new NoOpSink());
+		}).addSink(new DiscardingSink<>());
 
 		env.execute();
 	}
@@ -165,12 +163,6 @@ public class StreamingCustomInputSplitProgram {
 					remainingSplits.add((CustomInputSplit) split);
 				}
 			}
-		}
-	}
-
-	private static class NoOpSink implements SinkFunction<Tuple2<Integer, Double>> {
-		@Override
-		public void invoke(Tuple2<Integer, Double> value) throws Exception {
 		}
 	}
 }

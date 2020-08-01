@@ -86,7 +86,7 @@ public class PrestoS3FileSystemTest {
 		configLoader.setFlinkConfig(conf);
 
 		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
-		assertEquals("org.apache.flink.fs.s3presto.shaded.com.amazonaws.auth.ContainerCredentialsProvider",
+		assertEquals("com.amazonaws.auth.ContainerCredentialsProvider",
 			hadoopConfig.get("presto.s3.credentials-provider"));
 	}
 

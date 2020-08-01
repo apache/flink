@@ -19,12 +19,15 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.{Ignore, Test}
+
+import org.junit.Test
+
 
 class ExpressionReductionRulesTest extends TableTestBase {
 
@@ -56,16 +59,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -101,16 +104,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       )
     )
 
@@ -161,11 +164,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -197,11 +200,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       )
     )
 
@@ -254,16 +257,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -299,16 +302,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       )
     )
 
@@ -359,11 +362,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -395,11 +398,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       )
     )
 
@@ -463,19 +466,20 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-  // TODO this NPE is caused by Calcite, it shall pass when [CALCITE-1860] is fixed
-  @Ignore
+  @Test
   def testReduceDeterministicUDF(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    // if isDeterministic = true, will cause a Calcite NPE, which will be fixed in [CALCITE-1860]
     val result = table
       .select('a, 'b, 'c, DeterministicNullFunc() as 'd)
-      .where("d.isNull")
+      .where($"d".isNull)
       .select('a, 'b, 'c)
 
-    val expected: String = streamTableNode(table)
+    val expected: String = unaryNode("DataStreamCalc",
+      streamTableNode(table),
+      term("select", "a", "b", "c"),
+      term("where", s"IS NULL(null:VARCHAR(65536))")
+    )
 
     util.verifyTable(result, expected)
   }
@@ -487,7 +491,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val result = table
       .select('a, 'b, 'c, NonDeterministicNullFunc() as 'd)
-      .where("d.isNull")
+      .where($"d".isNull)
       .select('a, 'b, 'c)
 
     val expected = unaryNode(
@@ -499,6 +503,64 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testReduceDeterministicPythonUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val result = table
+      .select('a, 'b, 'c, DeterministicPythonFunc() as 'd, DeterministicNullFunc() as 'e)
+
+    val expected: String = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "c", "DeterministicPythonFunc$() AS f0")
+      ),
+      term("select", "a", "b", "c", "f0 AS d", "null:VARCHAR(65536) AS e")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testExpressionReductionWithUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    util.addFunction("MyUdf", Func1)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "CAST(2) AS constantValue")
+    )
+
+    util.verifySql("SELECT MyUdf(1) as constantValue FROM MyTable", expected)
+
+  }
+
+  @Test
+  def testExpressionReductionWithRichUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    util.addFunction("MyUdf", new RichFunc1)
+    util.tableEnv
+      .getConfig
+      .addJobParameter("int.value", "10")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "CAST(11) AS constantValue")
+    )
+
+    util.verifySql("SELECT MyUdf(1) as constantValue FROM MyTable", expected)
+  }
+
 }
 
 object NonDeterministicNullFunc extends ScalarFunction {
@@ -509,4 +571,14 @@ object NonDeterministicNullFunc extends ScalarFunction {
 object DeterministicNullFunc extends ScalarFunction {
   def eval(): String = null
   override def isDeterministic = true
+}
+
+@SerialVersionUID(1L)
+object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
+
+  def eval(): Long = 1L
+
+  override def getSerializedPythonFunction: Array[Byte] = null
+
+  override def getPythonEnv: PythonEnv = null
 }

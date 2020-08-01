@@ -81,13 +81,11 @@ public class PendingCheckpointStatsTest {
 		assertFalse(pending.reportSubtaskStats(new JobVertexID(), createSubtaskStats(0)));
 
 		long stateSize = 0;
-		long alignmentBuffered = 0;
 
 		// Report 1st task
 		for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
 			SubtaskStateStats subtask = createSubtaskStats(i);
 			stateSize += subtask.getStateSize();
-			alignmentBuffered += subtask.getAlignmentBuffered();
 
 			pending.reportSubtaskStats(task1.getJobVertexId(), subtask);
 
@@ -95,7 +93,6 @@ public class PendingCheckpointStatsTest {
 			assertEquals(subtask.getAckTimestamp(), pending.getLatestAckTimestamp());
 			assertEquals(subtask.getAckTimestamp() - triggerTimestamp, pending.getEndToEndDuration());
 			assertEquals(stateSize, pending.getStateSize());
-			assertEquals(alignmentBuffered, pending.getAlignmentBuffered());
 		}
 
 		// Don't allow overwrite
@@ -105,7 +102,6 @@ public class PendingCheckpointStatsTest {
 		for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
 			SubtaskStateStats subtask = createSubtaskStats(i);
 			stateSize += subtask.getStateSize();
-			alignmentBuffered += subtask.getAlignmentBuffered();
 
 			pending.reportSubtaskStats(task2.getJobVertexId(), subtask);
 
@@ -113,7 +109,6 @@ public class PendingCheckpointStatsTest {
 			assertEquals(subtask.getAckTimestamp(), pending.getLatestAckTimestamp());
 			assertEquals(subtask.getAckTimestamp() - triggerTimestamp, pending.getEndToEndDuration());
 			assertEquals(stateSize, pending.getStateSize());
-			assertEquals(alignmentBuffered, pending.getAlignmentBuffered());
 		}
 
 		assertEquals(task1.getNumberOfSubtasks(), task1.getNumberOfAcknowledgedSubtasks());
@@ -175,7 +170,6 @@ public class PendingCheckpointStatsTest {
 		assertEquals(pending.getLatestAckTimestamp(), completed.getLatestAckTimestamp());
 		assertEquals(pending.getEndToEndDuration(), completed.getEndToEndDuration());
 		assertEquals(pending.getStateSize(), completed.getStateSize());
-		assertEquals(pending.getAlignmentBuffered(), completed.getAlignmentBuffered());
 		assertEquals(task1, completed.getTaskStateStats(task1.getJobVertexId()));
 		assertEquals(task2, completed.getTaskStateStats(task2.getJobVertexId()));
 	}
@@ -234,7 +228,6 @@ public class PendingCheckpointStatsTest {
 		assertEquals(pending.getLatestAckTimestamp(), failed.getLatestAckTimestamp());
 		assertEquals(failureTimestamp - triggerTimestamp, failed.getEndToEndDuration());
 		assertEquals(pending.getStateSize(), failed.getStateSize());
-		assertEquals(pending.getAlignmentBuffered(), failed.getAlignmentBuffered());
 		assertEquals(task1, failed.getTaskStateStats(task1.getJobVertexId()));
 		assertEquals(task2, failed.getTaskStateStats(task2.getJobVertexId()));
 	}

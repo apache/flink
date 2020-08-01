@@ -21,8 +21,11 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
@@ -31,14 +34,21 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for allocating slots with co-location constraints with {@link SchedulerImpl}.
+ */
 public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
+
+	@Override
+	protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+		return ComponentMainThreadExecutorServiceAdapter.forMainThread();
+	}
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() throws Exception {
@@ -62,18 +72,18 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint c6 = new CoLocationConstraint(ccg);
 
 		// schedule 4 tasks from the first vertex group
-		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 0, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 1, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c2), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c3), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 3, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c4), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 0, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 1, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c2), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 2, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c3), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s8 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 4, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c5), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s9 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 5, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c6), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s10 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 3, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c4), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s11 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 4, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c5), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s12 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 5, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c6), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 0, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 1, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c2), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 2, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c3), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 3, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c4), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 0, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 1, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c2), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 2, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c3), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s8 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 4, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c5), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s9 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 5, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c6), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s10 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 3, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c4), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s11 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 4, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c5), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s12 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 5, 6, sharingGroup), sharingGroup.getSlotSharingGroupId(), c6), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		assertNotNull(s1);
 		assertNotNull(s2);
@@ -123,7 +133,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		assertTrue(testingSlotProvider.getNumberOfAvailableSlots() >= 1);
 
 		LogicalSlot single = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(new JobVertexID(), 0, 1, null)), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(new JobVertexID(), 0, 1, null)), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		assertNotNull(single);
 
 		s1.releaseSlot();
@@ -160,11 +170,11 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint c1 = new CoLocationConstraint(new CoLocationGroup());
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid1, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid2, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
-		LogicalSlot sSolo = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 0, 1, null)), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot sSolo = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid4, 0, 1, null)), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		ResourceID taskManager = s1.getTaskManagerLocation().getResourceID();
 
@@ -173,7 +183,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		sSolo.releaseSlot();
 
 		LogicalSlot sNew = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid3, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		assertEquals(taskManager, sNew.getTaskManagerLocation().getResourceID());
 
 		assertEquals(2, testingSlotProvider.getNumberOfLocalizedAssignments());
@@ -196,14 +206,14 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint c1 = new CoLocationConstraint(new CoLocationGroup());
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid1, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		s1.releaseSlot();
 
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 0, 1, null)), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 1, 2, null)), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 0, 1, null)), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid2, 1, 2, null)), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		try {
-			testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+			testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid3, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 			fail("Scheduled even though no resource was available.");
 		} catch (ExecutionException e) {
 			assertTrue(e.getCause() instanceof NoResourceAvailableException);
@@ -237,35 +247,35 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		SlotSharingGroup shareGroup = new SlotSharingGroup();
 
 		// first wave
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid1, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		// second wave
 		LogicalSlot s21 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid2, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s22 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid2, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc2), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc2), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s23 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid2, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc3), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc3), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s24 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid2, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc4), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc4), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		// third wave
 		LogicalSlot s31 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid3, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc2), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc2), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s32 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid3, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc3), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc3), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s33 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid3, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc4), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc4), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot s34 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertex(jid3, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId(), clc1), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid4, 0, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid4, 1, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid4, 2, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(jid4, 3, 4, shareGroup), shareGroup.getSlotSharingGroupId()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		assertEquals(s21.getTaskManagerLocation(), s34.getTaskManagerLocation());
 		assertEquals(s22.getTaskManagerLocation(), s31.getTaskManagerLocation());
@@ -277,7 +287,6 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		assertEquals(12, testingSlotProvider.getNumberOfUnconstrainedAssignments());
 	}
 
-	
 	@Test
 	public void testGetsNonLocalFromSharingGroupFirst() throws Exception {
 		JobVertexID jid1 = new JobVertexID();
@@ -297,25 +306,25 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 
 		// schedule something into the shared group so that both instances are in the sharing group
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId()), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		// schedule one locally to instance 1
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// schedule with co location constraint (yet unassigned) and a preference for
 		// instance 1, but it can only get instance 2
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// schedule something into the assigned co-location constraints and check that they override the
 		// other preferences
 		LogicalSlot s5 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid3, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 		LogicalSlot s6 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid3, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// check that each slot got three
 		assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
@@ -357,20 +366,19 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		s1.releaseSlot();
 		s2.releaseSlot();
 
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// still preserves the previous instance mapping)
 		assertEquals(loc1, s3.getTaskManagerLocation());
@@ -404,24 +412,23 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		s1.releaseSlot();
 		s2.releaseSlot();
 
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 
 		LogicalSlot sa = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jidx, 0, 2, null)), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jidx, 0, 2, null)), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 		LogicalSlot sb = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jidx, 1, 2, null)), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jidx, 1, 2, null)), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		try {
 			testingSlotProvider.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+					new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 			fail("should not be able to find a resource");
 		}
 		catch (ExecutionException e) {
@@ -461,14 +468,14 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		// and give locality preferences that hint at using the same shared slot for both
 		// co location constraints (which we seek to prevent)
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// check that each slot got three
 		assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
@@ -487,10 +494,6 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s3.releaseSlot();
 		s4.releaseSlot();
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
-
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 	}
 
 	@Test
@@ -510,14 +513,14 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), false, slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), false, slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// check that each slot got two
 		assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
@@ -529,13 +532,9 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s4.releaseSlot();
 
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
-
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
-		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Collections.singletonList(location), Collections.emptySet());
+		return SlotProfile.preferredLocality(ResourceProfile.UNKNOWN, Collections.singletonList(location));
 	}
 }

@@ -46,6 +46,18 @@ public class TransactionalIdsGeneratorTest {
 	}
 
 	/**
+	 * Task name may contain percent sign which should not impact the formatter.
+	 */
+	@Test
+	public void testTaskNameMayContainPercentSign() {
+		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("%pattern%", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
+
+		assertEquals(
+			new HashSet<>(Arrays.asList("%pattern%-42", "%pattern%-43", "%pattern%-44")),
+			generator.generateIdsToUse(36));
+	}
+
+	/**
 	 * Ids to abort and to use should never clash between subtasks.
 	 */
 	@Test

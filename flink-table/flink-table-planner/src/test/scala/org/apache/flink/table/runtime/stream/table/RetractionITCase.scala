@@ -20,12 +20,14 @@ package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.TableFunc0
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Before, Test}
 
 /**
   * tests for retraction
@@ -45,14 +47,22 @@ class RetractionITCase extends StreamingWithStateTestBase {
     ("flink", 1)
   )
 
+  var env: StreamExecutionEnvironment = _
+  var tEnv: StreamTableEnvironment = _
+
+  @Before
+  def setup(): Unit = {
+    env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    tEnv = StreamTableEnvironment.create(env, settings)
+
+    StreamITCase.clear
+  }
+
   // keyed groupby + keyed groupby
   @Test
   def testWordCount(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
@@ -72,11 +82,6 @@ class RetractionITCase extends StreamingWithStateTestBase {
   // keyed groupby + non-keyed groupby
   @Test
   def testGroupByAndNonKeyedGroupBy(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
@@ -96,12 +101,6 @@ class RetractionITCase extends StreamingWithStateTestBase {
   // non-keyed groupby + keyed groupby
   @Test
   def testNonKeyedGroupByAndGroupBy(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
@@ -110,7 +109,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .select('count, 'count.count)
 
     val results = resultTable.toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
     val expected = Seq("10,1")
@@ -138,8 +137,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
       (7, 8L)
     )
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
 
@@ -164,11 +163,6 @@ class RetractionITCase extends StreamingWithStateTestBase {
   // correlate should handle retraction messages correctly
   @Test
   def testCorrelate(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
     val func0 = new TableFunc0
 
     val stream = env.fromCollection(data)

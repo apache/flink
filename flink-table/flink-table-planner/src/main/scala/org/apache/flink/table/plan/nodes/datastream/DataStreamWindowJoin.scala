@@ -30,7 +30,7 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
@@ -66,6 +66,8 @@ class DataStreamWindowJoin(
     with CommonJoin
     with DataStreamRel
     with Logging {
+
+  validatePythonFunctionInJoinCondition(joinCondition)
 
   override def deriveRowType(): RelDataType = schema.relDataType
 
@@ -106,9 +108,7 @@ class DataStreamWindowJoin(
       getExpressionString)
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     val config = planner.getConfig
 
@@ -119,8 +119,8 @@ class DataStreamWindowJoin(
         "Windowed stream join does not support updates.")
     }
 
-    val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
-    val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+    val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(planner)
+    val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(planner)
 
     // get the equi-keys and other conditions
     val joinInfo = JoinInfo.of(leftNode, rightNode, joinCondition)
@@ -150,6 +150,7 @@ class DataStreamWindowJoin(
       case JoinRelType.FULL => JoinType.FULL_OUTER
       case JoinRelType.LEFT => JoinType.LEFT_OUTER
       case JoinRelType.RIGHT => JoinType.RIGHT_OUTER
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
 
     if (relativeWindowSize < 0) {
@@ -232,6 +233,7 @@ class DataStreamWindowJoin(
       case JoinType.FULL_OUTER =>
         leftDataStream.map(leftPadder).name("Full Outer Join").setParallelism(leftP)
           .union(rightDataStream.map(rightPadder).name("Full Outer Join").setParallelism(rightP))
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
   }
 

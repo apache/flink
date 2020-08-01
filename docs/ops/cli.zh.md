@@ -2,7 +2,7 @@
 title:  "命令行界面"
 nav-title: CLI
 nav-parent_id: ops
-nav-pos: 6
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,7 +27,7 @@ Flink provides a Command-Line Interface (CLI) to run programs that are packaged
 as JAR files, and control their execution.  The CLI is part
 of any Flink setup, available in local single node setups and in
 distributed setups. It is located under `<flink-home>/bin/flink`
-and connects by default to the running Flink master (JobManager) that was
+and connects by default to the running JobManager that was
 started from the same installation directory.
 
 The command line can be used to
@@ -38,10 +38,34 @@ The command line can be used to
 - list running and waiting jobs,
 - trigger and dispose savepoints, and
 
-A prerequisite to using the command line interface is that the Flink
-master (JobManager) has been started (via
-`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
+A prerequisite to using the command line interface is that the
+JobManager has been started (via
+`<flink-home>/bin/start-cluster.sh`) or that another deployment target such as YARN or Kubernetes is
 available.
+
+### Deployment targets
+
+Flink has the concept of executors for defining available deployment targets. You can see the
+available executors in the output of `bin/flink --help`, for example:
+
+```
+Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session", "yarn-per-job",
+                           "yarn-session", "yarn-application" and "kubernetes-application".
+```
+
+When running one of the `bin/flink` actions, the executor is specified using the `--executor`
+option.                  
+
+
 
 * This will be replaced by the TOC
 {:toc}
@@ -88,52 +112,61 @@ available.
                                ./examples/batch/WordCount.jar \
                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster]({{site.baseurl}}/zh/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
-        ./bin/flink run -m yarn-cluster -yn 2 \
+        ./bin/flink run -m yarn-cluster \
                                ./examples/batch/WordCount.jar \
                                --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
-                               
+
 </div>
 
 <div data-lang="python" markdown="1">
 
+<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python的版本为3.5, 3.6 或者 3.7中的一个：
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5, 3.6 or 3.7
+{% endhighlight %}
+
 -   提交一个Python Table的作业:
 
-        ./bin/flink run -py WordCount.py -j <path/to/flink-table.jar>
+        ./bin/flink run -py WordCount.py
 
 -   提交一个有多个依赖的Python Table的作业:
 
-        ./bin/flink run -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar> \
+        ./bin/flink run -py examples/python/table/batch/word_count.py \
                                 -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
+
+-   提交一个Python Table的作业，并指定依赖的jar包:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <jarFile>
 
 -   提交一个有多个依赖的Python Table的作业，Python作业的主入口通过pym选项指定:
 
-        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
+        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch
 
 -   提交一个指定并发度为16的Python Table的作业:
 
-        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py
 
 -   提交一个关闭flink日志输出的Python Table的作业:
 
-        ./bin/flink run -q -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+        ./bin/flink run -q -py examples/python/table/batch/word_count.py
 
 -   提交一个运行在detached模式下的Python Table的作业:
 
-        ./bin/flink run -d -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+        ./bin/flink run -d -py examples/python/table/batch/word_count.py
 
 -   提交一个运行在指定JobManager上的Python Table的作业:
 
         ./bin/flink run -m myJMHost:8081 \
-                            -py examples/python/table/batch/word_count.py \
-                            -j <path/to/flink-table.jar>
+                            -py examples/python/table/batch/word_count.py
 
 -   提交一个运行在有两个TaskManager的[per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn)的Python Table的作业:
 
-        ./bin/flink run -m yarn-cluster -yn 2 \
-                                 -py examples/python/table/batch/word_count.py \
-                                 -j <path/to/flink-table.jar>
+        ./bin/flink run -m yarn-cluster \
+                                 -py examples/python/table/batch/word_count.py
                                  
 </div>
 
@@ -169,29 +202,13 @@ available.
 
         ./bin/flink cancel <jobID>
 
--   Cancel a job with a savepoint:
+-   Cancel a job with a savepoint (deprecated; use "stop" instead):
 
         ./bin/flink cancel -s [targetDirectory] <jobID>
 
--   Stop a job with a savepoint (streaming jobs only):
+-   Gracefully stop a job with a savepoint (streaming jobs only):
 
-        ./bin/flink stop -s [targetDirectory] -d <jobID>
-
-
-**NOTE**: The difference between cancelling and stopping a (streaming) job is the following:
-
-On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
-soon as possible.
-If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
-until it stops.
-
-A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from
-source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
-that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
-`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint
-barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for
-a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
- job to finish processing all in-flight data.
+        ./bin/flink stop [-p targetDirectory] [-d] <jobID>
 
 ### Savepoints
 
@@ -220,7 +237,24 @@ This will trigger a savepoint for the job with ID `jobId` and YARN application I
 
 Everything else is the same as described in the above **Trigger a Savepoint** section.
 
-#### Cancel with a savepoint
+#### Stop
+
+Use the `stop` to gracefully stop a running streaming job with a savepoint.
+
+{% highlight bash %}
+./bin/flink stop [-p targetDirectory] [-d] <jobID>
+{% endhighlight %}
+
+A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from
+source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
+that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
+`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint
+barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for
+a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
+ job to finish processing all in-flight data.
+
+
+#### Cancel with a savepoint (deprecated)
 
 You can atomically trigger a savepoint and cancel a job.
 
@@ -231,6 +265,10 @@ You can atomically trigger a savepoint and cancel a job.
 If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+    <b>Note</b>: Cancelling a job with savepoint is deprecated. Use "stop" instead.
+</p>
 
 #### Restore a savepoint
 
@@ -278,9 +316,9 @@ Action "run" compiles and runs a program.
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
      -c,--class <classname>               Class with the program entry point
-                                          ("main()" method or "getPlan()" method).
-                                          Only needed if the JAR file does not
-                                          specify the class in its manifest.
+                                          ("main()" method). Only needed if the
+                                          JAR file does not specify the class in
+                                          its manifest.
      -C,--classpath <url>                 Adds a URL to each user code
                                           classloader  on all nodes in the
                                           cluster. The paths must specify a
@@ -303,17 +341,73 @@ Action "run" compiles and runs a program.
                                           program. Optional flag to override the
                                           default value specified in the
                                           configuration.
-     -py,--python <python-file>           指定Python作业的入口，依赖的资源文件可以通过
-                                          `--pyFiles`进行指定。
-     -pyfs,--pyFiles <python-files>       指定Python作业依赖的一些自定义的python文件，
-                                          如果有多个文件，可以通过逗号(,)进行分隔。支持
-                                          常用的python资源文件，例如(.py/.egg/.zip)。
-                                          (例如:--pyFiles file:///tmp/myresource.zip
-                                          ,hdfs:///$namenode_address/myresource2.zip)
-     -pym,--pyModule <python-module>      指定python程序的运行的模块入口，这个选项必须配合
-                                          `--pyFiles`一起使用。
-     -q,--sysoutLogging                   If present, suppress logging output to
-                                          standard out.
+     -py,--python <pythonFile>            Python script with the program entry
+                                          point. The dependent resources can be
+                                          configured with the `--pyFiles`
+                                          option.
+     -pyarch,--pyArchives <arg>           Add python archive files for job. The
+                                          archive files will be extracted to the
+                                          working directory of python UDF
+                                          worker. Currently only zip-format is
+                                          supported. For each archive file, a
+                                          target directory be specified. If the
+                                          target directory name is specified,
+                                          the archive file will be extracted to
+                                          a name can directory with the
+                                          specified name. Otherwise, the archive
+                                          file will be extracted to a directory
+                                          with the same name of the archive
+                                          file. The files uploaded via this
+                                          option are accessible via relative
+                                          path. '#' could be used as the
+                                          separator of the archive file path and
+                                          the target directory name. Comma (',')
+                                          could be used as the separator to
+                                          specify multiple archive files. This
+                                          option can be used to upload the
+                                          virtual environment, the data files
+                                          used in Python UDF (e.g.: --pyArchives
+                                          file:///tmp/py37.zip,file:///tmp/data.
+                                          zip#data --pyExecutable
+                                          py37.zip/py37/bin/python). The data
+                                          files could be accessed in Python UDF,
+                                          e.g.: f = open('data/data.txt', 'r').
+     -pyexec,--pyExecutable <arg>         Specify the path of the python
+                                          interpreter used to execute the python
+                                          UDF worker (e.g.: --pyExecutable
+                                          /usr/local/bin/python3). The python
+                                          UDF worker depends on a specified Python
+                                          version 3.5, 3.6 or 3.7, Apache Beam
+                                          (version == 2.19.0), Pip (version >= 7.1.0)
+                                          and SetupTools (version >= 37.0.0).
+                                          Please ensure that the specified environment
+                                          meets the above requirements.
+     -pyfs,--pyFiles <pythonFiles>        Attach custom python files for job.
+                                          These files will be added to the
+                                          PYTHONPATH of both the local client
+                                          and the remote python UDF worker. The
+                                          standard python resource file suffixes
+                                          such as .py/.egg/.zip or directory are
+                                          all supported. Comma (',') could be
+                                          used as the separator to specify
+                                          multiple files (e.g.: --pyFiles
+                                          file:///tmp/myresource.zip,hdfs:///$na
+                                          menode_address/myresource2.zip).
+     -pym,--pyModule <pythonModule>       Python module with the program entry
+                                          point. This option must be used in
+                                          conjunction with `--pyFiles`.
+     -pyreq,--pyRequirements <arg>        Specify a requirements.txt file which
+                                          defines the third-party dependencies.
+                                          These dependencies will be installed
+                                          and added to the PYTHONPATH of the
+                                          python UDF worker. A directory which
+                                          contains the installation packages of
+                                          these dependencies could be specified
+                                          optionally. Use '#' as the separator
+                                          if the optional parameter exists
+                                          (e.g.: --pyRequirements
+                                          file:///tmp/requirements.txt#file:///t
+                                          mp/cached_dir).
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
                                           from (for example
                                           hdfs:///flink/savepoint-1537).
@@ -325,16 +419,13 @@ Action "run" compiles and runs a program.
   Options for yarn-cluster mode:
      -d,--detached                        If present, runs the job in detached
                                           mode
-     -m,--jobmanager <arg>                Address of the JobManager (master) to
+     -m,--jobmanager <arg>                Address of the JobManager to
                                           which to connect. Use this flag to
                                           connect to a different JobManager than
                                           the one specified in the
                                           configuration.
-     -sae,--shutdownOnAttachedExit        If the job is submitted in attached
-                                          mode, perform a best-effort cluster
-                                          shutdown when the CLI is terminated
-                                          abruptly, e.g., in response to a user
-                                          interrupt, such as typing Ctrl + C.
+     -yat,--yarnapplicationType <arg>     Set a custom application type for the
+                                          application on YARN
      -yD <property=value>                 use value for given property
      -yd,--yarndetached                   If present, runs the job in detached
                                           mode (deprecated; use non-YARN
@@ -342,31 +433,39 @@ Action "run" compiles and runs a program.
      -yh,--yarnhelp                       Help for the Yarn session CLI.
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
-     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container
-                                          with optional unit (default: MB)
-     -yn,--yarncontainer <arg>            Number of YARN container to allocate
-                                          (=Number of Task Managers)
+     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container with
+                                          optional unit (default: MB)
+     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for the YARN
+                                          application
      -ynm,--yarnname <arg>                Set a custom name for the application
                                           on YARN
      -yq,--yarnquery                      Display available YARN resources
                                           (memory, cores)
      -yqu,--yarnqueue <arg>               Specify YARN queue.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
-     -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
-                                          (t for transfer), multiple options are
-                                          supported.
-     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container
-                                          with optional unit (default: MB)
+                                          (t for transfer)
+     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container with
+                                          optional unit (default: MB)
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
                                           sub-paths for high availability mode
-     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for
-                                          the YARN application
      -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
                                           sub-paths for high availability mode
 
+  Options for Generic CLI mode:
+       -D <property=value>   Generic configuration options for
+                             execution/deployment and for the configured executor.
+                             The available options can be found at
+                             https://ci.apache.org/projects/flink/flink-docs-stabl
+                             e/ops/config.html
+       -t,--target <arg>     The deployment target for the given application,
+                             which is equivalent to the "execution.target" config
+                             option. The currently available targets are:
+                             "remote", "local", "kubernetes-session", "yarn-per-job",
+                             "yarn-session", "yarn-application" and "kubernetes-application".
+
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -379,10 +478,10 @@ Action "info" shows the optimized execution plan of the program (JSON).
 
   Syntax: info [OPTIONS] <jar-file> <arguments>
   "info" action options:
-     -c,--class <classname>           Class with the program entry point ("main()"
-                                      method or "getPlan()" method). Only needed
-                                      if the JAR file does not specify the class
-                                      in its manifest.
+     -c,--class <classname>           Class with the program entry point
+                                      ("main()" method). Only needed if the JAR
+                                      file does not specify the class in its
+                                      manifest.
      -p,--parallelism <parallelism>   The parallelism with which to run the
                                       program. Optional flag to override the
                                       default value specified in the
@@ -393,10 +492,11 @@ Action "list" lists running and scheduled programs.
 
   Syntax: list [OPTIONS]
   "list" action options:
+     -a,--all         Show all programs and their JobIDs
      -r,--running     Show only running programs and their JobIDs
      -s,--scheduled   Show only scheduled programs and their JobIDs
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -404,8 +504,20 @@ Action "list" lists running and scheduled programs.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
+
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -420,13 +532,34 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
   "stop" action options:
      -d,--drain                           Send MAX_WATERMARK before taking the
                                           savepoint and stopping the pipelne.
-     -s,--withSavepoint <withSavepoint>   Path to the savepoint (for example
+     -p,--savepointPath <savepointPath>   Path to the savepoint (for example
                                           hdfs:///flink/savepoint-1537). If no
                                           directory is specified, the configured
                                           default will be used
                                           ("state.savepoints.dir").
+  Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
+
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -439,13 +572,16 @@ Action "cancel" cancels a running program.
 
   Syntax: cancel [OPTIONS] <Job ID>
   "cancel" action options:
-     -s,--withSavepoint <targetDirectory>   Trigger savepoint and cancel job.
+     -s,--withSavepoint <targetDirectory>   **DEPRECATION WARNING**: Cancelling
+                                            a job with savepoint is deprecated.
+                                            Use "stop" instead.
+                                            Trigger savepoint and cancel job.
                                             The target directory is optional. If
                                             no directory is specified, the
                                             configured default directory
                                             (state.savepoints.dir) is used.
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -453,8 +589,20 @@ Action "cancel" cancels a running program.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
+
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.
@@ -470,7 +618,7 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -d,--dispose <arg>       Path of savepoint to dispose.
      -j,--jarfile <jarfile>   Flink program JAR file.
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
+     -m,--jobmanager <arg>            Address of the JobManager to
                                       which to connect. Use this flag to connect
                                       to a different JobManager than the one
                                       specified in the configuration.
@@ -478,8 +626,20 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
+  Options for Generic CLI mode:
+         -D <property=value>   Generic configuration options for
+                               execution/deployment and for the configured executor.
+                               The available options can be found at
+                               https://ci.apache.org/projects/flink/flink-docs-stabl
+                               e/ops/config.html
+         -t,--target <arg>     The deployment target for the given application,
+                               which is equivalent to the "execution.target" config
+                               option. The currently available targets are:
+                               "remote", "local", "kubernetes-session", "yarn-per-job",
+                               "yarn-session", "yarn-application" and "kubernetes-application".
+
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+     -m,--jobmanager <arg>           Address of the JobManager to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
                                      in the configuration.

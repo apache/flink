@@ -38,36 +38,32 @@ To use the connector, add the following Maven dependency to your project:
 </dependency>
 {% endhighlight %}
 
-**The `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/) (ASL).
-Linking to the flink-connector-kinesis will include ASL licensed code into your application.**
+<span class="label label-danger">Attention</span> Prior to Flink version 1.10.0 the `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+Linking to the prior versions of flink-connector-kinesis will include this code into your application.
 
-The `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central as part of
-Flink releases because of the licensing issue. Therefore, you need to build the connector yourself from the source.
-
-Download the Flink source or check it out from the git repository. Then, use the following Maven command to build the module:
-{% highlight bash %}
-mvn clean install -Pinclude-kinesis -DskipTests
-# In Maven 3.3 the shading of flink-dist doesn't work properly in one run, so we need to run mvn for flink-dist again.
-cd flink-dist
-mvn clean install -Pinclude-kinesis -DskipTests
-{% endhighlight %}
-
-<span class="label label-danger">Attention</span> For Flink versions 1.4.2 and below, the KPL client version
-used by default in the Kinesis connectors, KPL 0.12.5, is no longer supported by AWS Kinesis Streams
-(see [here](https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-upgrades.html)).
-This means that when building the Kinesis connector, you will need to specify a higher version KPL client (above 0.12.6)
-in order for the Flink Kinesis Producer to work. You can do this by specifying the preferred version via the
-`aws.kinesis-kpl.version` property, like so:
-{% highlight bash %}
-mvn clean install -Pinclude-kinesis -Daws.kinesis-kpl.version=0.12.6 -DskipTests
-{% endhighlight %}
-
-The streaming connectors are not part of the binary distribution. See how to link with them for cluster
-execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
+Due to the licensing issue, the `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
 
 ## Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
-to setup Kinesis streams. Make sure to create the appropriate IAM policy and user to read / write to the Kinesis streams.
+to setup Kinesis streams.
+
+## Configuring Access to Kinesis with IAM
+Make sure to create the appropriate IAM policy to allow reading / writing to / from the Kinesis streams. See examples [here](https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html).
+
+Depending on your deployment you would choose a different Credentials Provider to allow access to Kinesis.
+By default, the `AUTO` Credentials Provider is used.
+If the access key ID and secret key are set in the configuration, the `BASIC` provider is used.
+
+A specific Credentials Provider can **optionally** be set by using the `AWSConfigConstants.AWS_CREDENTIALS_PROVIDER` setting.
+
+Supported Credential Providers are:
+* `AUTO` - Using the default AWS Credentials Provider chain that searches for credentials in the following order: `ENV_VARS`, `SYS_PROPS`, `WEB_IDENTITY_TOKEN`, `PROFILE` and EC2/ECS credentials provider.
+* `BASIC` - Using access key ID and secret key supplied as configuration.
+* `ENV_VAR` - Using `AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` environment variables.
+* `SYS_PROP` - Using Java system properties aws.accessKeyId and aws.secretKey.
+* `PROFILE` - Use AWS credentials profile file to create the AWS credentials.
+* `ASSUME_ROLE` - Create AWS credentials by assuming a role. The credentials for assuming the role must be supplied.
+* `WEB_IDENTITY_TOKEN` - Create AWS credentials by assuming a role using Web Identity Token.
 
 ## Kinesis Consumer
 
@@ -87,7 +83,7 @@ consumerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 consumerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
 
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
     "kinesis_stream_name", new SimpleStringSchema(), consumerConfig));
@@ -101,7 +97,7 @@ consumerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 consumerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
 
-val env = StreamExecutionEnvironment.getEnvironment
+val env = StreamExecutionEnvironment.getExecutionEnvironment
 
 val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
@@ -113,8 +109,7 @@ The above is a simple example of using the consumer. Configuration for the consu
 instance, the configuration keys for which can be found in `AWSConfigConstants` (AWS-specific parameters) and
 `ConsumerConfigConstants` (Kinesis consumer parameters). The example
 demonstrates consuming a single Kinesis stream in the AWS region "us-east-1". The AWS credentials are supplied using the basic method in which
-the AWS access key ID and secret access key are directly supplied in the configuration (other options are setting
-`AWSConfigConstants.AWS_CREDENTIALS_PROVIDER` to `ENV_VAR`, `SYS_PROP`, `PROFILE`, `ASSUME_ROLE`, and `AUTO`). Also, data is being consumed
+the AWS access key ID and secret access key are directly supplied in the configuration. Also, data is being consumed
 from the newest position in the Kinesis stream (the other option will be setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 
@@ -208,19 +203,71 @@ it can be passed to the consumer in the following way:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
-    "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig));
-kinesis = kinesis.assignTimestampsAndWatermarks(new CustomTimestampAssigner());
+FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>(
+    "kinesis_stream_name",
+    new SimpleStringSchema(),
+    kinesisConsumerConfig);
+consumer.setPeriodicWatermarkAssigner(new CustomAssignerWithPeriodicWatermarks());
+DataStream<String> stream = env
+	.addSource(consumer)
+	.print();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val kinesis = env.addSource(new FlinkKinesisConsumer[String](
-    "kinesis_stream_name", new SimpleStringSchema, kinesisConsumerConfig))
-kinesis = kinesis.assignTimestampsAndWatermarks(new CustomTimestampAssigner)
+val consumer = new FlinkKinesisConsumer[String](
+    "kinesis_stream_name",
+    new SimpleStringSchema(),
+    kinesisConsumerConfig);
+consumer.setPeriodicWatermarkAssigner(new CustomAssignerWithPeriodicWatermarks());
+val stream = env
+	.addSource(consumer)
+	.print();
 {% endhighlight %}
 </div>
 </div>
+
+Internally, an instance of the assigner is executed per shard / consumer thread (see threading model below).
+When an assigner is specified, for each record read from Kinesis, the extractTimestamp(T element, long previousElementTimestamp)
+is called to assign a timestamp to the record and getCurrentWatermark() to determine the new watermark for the shard.
+The watermark of the consumer subtask is then determined as the minimum watermark of all its shards and emitted periodically.
+The per shard watermark is essential to deal with varying consumption speed between shards, that otherwise could lead
+to issues with downstream logic that relies on the watermark, such as incorrect late data dropping.
+
+By default, the watermark is going to stall if shards do not deliver new records.
+The property `ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS` can be used to avoid this potential issue through a
+timeout that will allow the watermark to progress despite of idle shards.
+
+### Event Time Alignment for Shard Consumers
+
+The Flink Kinesis Consumer optionally supports synchronization between parallel consumer subtasks (and their threads)
+to avoid the event time skew related problems described in [Event time synchronization across sources](https://issues.apache.org/jira/browse/FLINK-10886).
+
+To enable synchronization, set the watermark tracker on the consumer:
+
+<div data-lang="java" markdown="1">
+{% highlight java %}
+JobManagerWatermarkTracker watermarkTracker =
+    new JobManagerWatermarkTracker("myKinesisSource");
+consumer.setWatermarkTracker(watermarkTracker);
+{% endhighlight %}
+</div>
+
+The `JobManagerWatermarkTracker` will use a global aggregate to synchronize the per subtask watermarks. Each subtask
+uses a per shard queue to control the rate at which records are emitted downstream based on how far ahead of the global
+watermark the next record in the queue is.
+
+The "emit ahead" limit is configured via `ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS`. Smaller values reduce
+the skew but also the throughput. Larger values will allow the subtask to proceed further before waiting for the global
+watermark to advance.
+
+Another variable in the throughput equation is how frequently the watermark is propagated by the tracker.
+The interval can be configured via `ConsumerConfigConstants.WATERMARK_SYNC_MILLIS`.
+Smaller values reduce emitter waits and come at the cost of increased communication with the job manager.
+
+Since records accumulate in the queues when skew occurs, increased memory consumption needs to be expected.
+How much depends on the average record size. With larger sizes, it may be necessary to adjust the emitter queue capacity via
+`ConsumerConfigConstants.WATERMARK_SYNC_QUEUE_CAPACITY`.
 
 ### Threading Model
 
@@ -243,7 +290,7 @@ on the APIs, the consumer will be competing with other non-Flink consuming appli
 Below is a list of APIs called by the consumer with description of how the consumer uses the API, as well as information
 on how to deal with any errors or warnings that the Flink Kinesis Consumer may have due to these service limits.
 
-- *[DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html)*: this is constantly called
+- *[ListShards](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_ListShards.html)*: this is constantly called
 by a single thread in each parallel consumer subtask to discover any new shards as a result of stream resharding. By default,
 the consumer performs the shard discovery at an interval of 10 seconds, and will retry indefinitely until it gets a result
 from Kinesis. If this interferes with other non-Flink consuming applications, users can slow down the consumer of
@@ -384,17 +431,14 @@ starting point. If the queue size limits throughput (below 1MB per second per
 shard), try increasing the queue limit slightly.
 
 
-## Using Non-AWS Kinesis Endpoints for Testing
+## Using Custom Kinesis Endpoints
 
-It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as
-[Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing functional testing of a Flink
-application. The AWS endpoint that would normally be inferred by the AWS region set in the Flink configuration must be overridden via a configuration property.
+It is sometimes desirable to have Flink operate as a consumer or producer against a Kinesis VPC endpoint or a non-AWS
+Kinesis endpoint such as [Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing
+functional testing of a Flink application. The AWS endpoint that would normally be inferred by the AWS region set in the
+Flink configuration must be overridden via a configuration property.
 
-To override the AWS endpoint, taking the producer for example, set the `AWSConfigConstants.AWS_ENDPOINT` property in the
-Flink configuration, in addition to the `AWSConfigConstants.AWS_REGION` required by Flink. Although the region is
-required, it will not be used to determine the AWS endpoint URL.
-
-The following example shows how one might supply the `AWSConfigConstants.AWS_ENDPOINT` configuration property:
+To override the AWS endpoint, set the `AWSConfigConstants.AWS_ENDPOINT` and `AWSConfigConstants.AWS_REGION` properties. The region will be used to sign the endpoint URL.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

@@ -18,23 +18,18 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
@@ -44,18 +39,21 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIF
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
 
 /**
  * Connector descriptor for the Apache Kafka message queue.
  */
+@PublicEvolving
 public class Kafka extends ConnectorDescriptor {
 
 	private String version;
 	private String topic;
 	private StartupMode startupMode;
 	private Map<Integer, Long> specificOffsets;
+	private long startTimestampMillis;
 	private Map<String, String> kafkaProperties;
 	private String sinkPartitionerType;
 	private Class<? extends FlinkKafkaPartitioner> sinkPartitionerClass;
@@ -184,6 +182,19 @@ public class Kafka extends ConnectorDescriptor {
 	}
 
 	/**
+	 * Configures to start reading from partition offsets of the specified timestamp.
+	 *
+	 * @param startTimestampMillis timestamp to start reading from
+	 * @see FlinkKafkaConsumerBase#setStartFromTimestamp(long)
+	 */
+	public Kafka startFromTimestamp(long startTimestampMillis) {
+		this.startupMode = StartupMode.TIMESTAMP;
+		this.specificOffsets = null;
+		this.startTimestampMillis = startTimestampMillis;
+		return this;
+	}
+
+	/**
 	 * Configures how to partition records from Flink's partitions into Kafka's partitions.
 	 *
 	 * <p>This strategy ensures that each Flink partition ends up in one Kafka partition.
@@ -263,24 +274,31 @@ public class Kafka extends ConnectorDescriptor {
 		}
 
 		if (specificOffsets != null) {
-			final List<List<String>> values = new ArrayList<>();
+			final StringBuilder stringBuilder = new StringBuilder();
+			int i = 0;
 			for (Map.Entry<Integer, Long> specificOffset : specificOffsets.entrySet()) {
-				values.add(Arrays.asList(specificOffset.getKey().toString(), specificOffset.getValue().toString()));
+				if (i != 0) {
+					stringBuilder.append(';');
+				}
+				stringBuilder.append(CONNECTOR_SPECIFIC_OFFSETS_PARTITION)
+					.append(':')
+					.append(specificOffset.getKey())
+					.append(',')
+					.append(CONNECTOR_SPECIFIC_OFFSETS_OFFSET)
+					.append(':')
+					.append(specificOffset.getValue());
+				i++;
 			}
-			properties.putIndexedFixedProperties(
-				CONNECTOR_SPECIFIC_OFFSETS,
-				Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET),
-				values);
+			properties.putString(CONNECTOR_SPECIFIC_OFFSETS, stringBuilder.toString());
+		}
+
+		if (startTimestampMillis > 0) {
+			properties.putString(CONNECTOR_STARTUP_TIMESTAMP_MILLIS, String.valueOf(startTimestampMillis));
 		}
 
 		if (kafkaProperties != null) {
-			properties.putIndexedFixedProperties(
-				CONNECTOR_PROPERTIES,
-				Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE),
-				this.kafkaProperties.entrySet().stream()
-					.map(e -> Arrays.asList(e.getKey(), e.getValue()))
-					.collect(Collectors.toList())
-				);
+			this.kafkaProperties.forEach((key, value) ->
+				properties.putString(CONNECTOR_PROPERTIES + '.' + key, value));
 		}
 
 		if (sinkPartitionerType != null) {

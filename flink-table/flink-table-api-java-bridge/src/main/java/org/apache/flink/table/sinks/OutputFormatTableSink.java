@@ -38,12 +38,9 @@ public abstract class OutputFormatTableSink<T> implements StreamTableSink<T> {
 	public abstract OutputFormat<T> getOutputFormat();
 
 	@Override
-	public final void emitDataStream(DataStream<T> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public final DataStreamSink<T> consumeDataStream(DataStream<T> dataStream) {
-		return dataStream.writeUsingOutputFormat(getOutputFormat());
+		return dataStream
+			.writeUsingOutputFormat(getOutputFormat())
+			.setParallelism(dataStream.getParallelism());
 	}
 }

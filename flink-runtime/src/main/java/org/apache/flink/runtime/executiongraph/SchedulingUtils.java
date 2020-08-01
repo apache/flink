@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
@@ -46,6 +47,24 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class SchedulingUtils {
 
+	public static CompletableFuture<Void> schedule(
+			ScheduleMode scheduleMode,
+			final Iterable<ExecutionVertex> vertices,
+			final ExecutionGraph executionGraph) {
+
+		switch (scheduleMode) {
+			case LAZY_FROM_SOURCES:
+			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
+				return scheduleLazy(vertices, executionGraph);
+
+			case EAGER:
+				return scheduleEager(vertices, executionGraph);
+
+			default:
+				throw new IllegalStateException(String.format("Schedule mode %s is invalid.", scheduleMode));
+		}
+	}
+
 	/**
 	 * Schedule vertices lazy. That means only vertices satisfying its input constraint will be scheduled.
 	 *
@@ -58,8 +77,9 @@ public class SchedulingUtils {
 
 		executionGraph.assertRunningInJobMasterMainThread();
 
+		final SlotProviderStrategy slotProviderStrategy = executionGraph.getSlotProviderStrategy();
 		final Set<AllocationID> previousAllocations = computePriorAllocationIdsIfRequiredByScheduling(
-			vertices, executionGraph.getSlotProvider());
+			vertices, slotProviderStrategy.asSlotProvider());
 
 		final ArrayList<CompletableFuture<Void>> schedulingFutures = new ArrayList<>();
 		for (ExecutionVertex executionVertex : vertices) {
@@ -68,8 +88,7 @@ public class SchedulingUtils {
 				executionVertex.checkInputDependencyConstraints()) {
 
 				final CompletableFuture<Void> schedulingVertexFuture = executionVertex.scheduleForExecution(
-					executionGraph.getSlotProvider(),
-					executionGraph.isQueuedSchedulingAllowed(),
+					slotProviderStrategy,
 					LocationPreferenceConstraint.ANY,
 					previousAllocations);
 
@@ -98,23 +117,21 @@ public class SchedulingUtils {
 		// that way we do not have any operation that can fail between allocating the slots
 		// and adding them to the list. If we had a failure in between there, that would
 		// cause the slots to get lost
-		final boolean queued = executionGraph.isQueuedSchedulingAllowed();
 
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>();
 
+		final SlotProviderStrategy slotProviderStrategy = executionGraph.getSlotProviderStrategy();
 		final Set<AllocationID> allPreviousAllocationIds = Collections.unmodifiableSet(
-			computePriorAllocationIdsIfRequiredByScheduling(vertices, executionGraph.getSlotProvider()));
+			computePriorAllocationIdsIfRequiredByScheduling(vertices, slotProviderStrategy.asSlotProvider()));
 
 		// allocate the slots (obtain all their futures)
 		for (ExecutionVertex ev : vertices) {
 			// these calls are not blocking, they only return futures
 			CompletableFuture<Execution> allocationFuture = ev.getCurrentExecutionAttempt().allocateResourcesForExecution(
-				executionGraph.getSlotProvider(),
-				queued,
+				slotProviderStrategy,
 				LocationPreferenceConstraint.ALL,
-				allPreviousAllocationIds,
-				executionGraph.getAllocationTimeout());
+				allPreviousAllocationIds);
 
 			allAllocationFutures.add(allocationFuture);
 		}

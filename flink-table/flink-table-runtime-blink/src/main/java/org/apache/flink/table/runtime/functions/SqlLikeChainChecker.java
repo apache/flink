@@ -18,8 +18,8 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import static org.apache.flink.table.dataformat.BinaryString.fromString;
+import static org.apache.flink.table.data.binary.BinaryStringData.fromString;
 
 /**
  * String Like util:
@@ -42,9 +42,9 @@ import static org.apache.flink.table.dataformat.BinaryString.fromString;
 public class SqlLikeChainChecker {
 
 	private final int minLen;
-	private final BinaryString beginPattern;
-	private final BinaryString endPattern;
-	private final BinaryString[] middlePatterns;
+	private final BinaryStringData beginPattern;
+	private final BinaryStringData endPattern;
+	private final BinaryStringData[] middlePatterns;
 	private final int[] midLens;
 	private final int beginLen;
 	private final int endLen;
@@ -55,11 +55,11 @@ public class SqlLikeChainChecker {
 		final boolean rightAnchor = !pattern.endsWith("%");
 		int len = 0;
 		// at least 2 checkers always
-		BinaryString leftPattern = null;
-		BinaryString rightPattern = null;
+		BinaryStringData leftPattern = null;
+		BinaryStringData rightPattern = null;
 		int leftLen = 0; // not -1
 		int rightLen = 0; // not -1
-		final List<BinaryString> middleCheckers = new ArrayList<>(2);
+		final List<BinaryStringData> middleCheckers = new ArrayList<>(2);
 		final List<Integer> lengths = new ArrayList<>(2);
 
 		for (int i = 0; tokens.hasMoreTokens(); i++) {
@@ -84,7 +84,7 @@ public class SqlLikeChainChecker {
 			}
 		}
 		midLens = ArrayUtils.toPrimitive(lengths.toArray(ArrayUtils.EMPTY_INTEGER_OBJECT_ARRAY));
-		middlePatterns = middleCheckers.toArray(new BinaryString[0]);
+		middlePatterns = middleCheckers.toArray(new BinaryStringData[0]);
 		minLen = len;
 		beginPattern = leftPattern;
 		endPattern = rightPattern;
@@ -92,7 +92,7 @@ public class SqlLikeChainChecker {
 		endLen = rightLen;
 	}
 
-	public boolean check(BinaryString str) {
+	public boolean check(BinaryStringData str) {
 		MemorySegment[] segments = str.getSegments();
 		int pos = str.getOffset();
 		int mark = str.getSizeInBytes();
@@ -138,7 +138,7 @@ public class SqlLikeChainChecker {
 	 * Matches the beginning of each string to a pattern.
 	 */
 	private static boolean checkBegin(
-		BinaryString pattern, MemorySegment[] segments, int start, int len) {
+		BinaryStringData pattern, MemorySegment[] segments, int start, int len) {
 		int lenSub = pattern.getSizeInBytes();
 		return len >= lenSub &&
 				SegmentsUtil.equals(pattern.getSegments(), 0, segments, start, lenSub);
@@ -148,7 +148,7 @@ public class SqlLikeChainChecker {
 	 * Matches the ending of each string to its pattern.
 	 */
 	private static boolean checkEnd(
-		BinaryString pattern, MemorySegment[] segments, int start, int len) {
+		BinaryStringData pattern, MemorySegment[] segments, int start, int len) {
 		int lenSub = pattern.getSizeInBytes();
 		return len >= lenSub && SegmentsUtil.equals(
 				pattern.getSegments(), 0, segments, start + len - lenSub, lenSub);
@@ -159,7 +159,7 @@ public class SqlLikeChainChecker {
 	 * @return Returns absolute offset of the match.
 	 */
 	private static int indexMiddle(
-		BinaryString pattern, MemorySegment[] segments, int start, int len) {
+		BinaryStringData pattern, MemorySegment[] segments, int start, int len) {
 		return SegmentsUtil.find(
 				segments, start, len,
 				pattern.getSegments(), pattern.getOffset(), pattern.getSizeInBytes());

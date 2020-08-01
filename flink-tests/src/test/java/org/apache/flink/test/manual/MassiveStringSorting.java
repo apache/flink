@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
@@ -85,7 +86,7 @@ public class MassiveStringSorting {
 			MemoryManager mm = null;
 
 			try (IOManager ioMan = new IOManagerAsync()) {
-				mm = new MemoryManager(1024 * 1024, 1);
+				mm = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 
 				TypeSerializer<String> serializer = StringSerializer.INSTANCE;
 				TypeComparator<String> comparator = new StringComparator(true);
@@ -179,7 +180,7 @@ public class MassiveStringSorting {
 			MemoryManager mm = null;
 
 			try (IOManager ioMan = new IOManagerAsync()) {
-				mm = new MemoryManager(1024 * 1024, 1);
+				mm = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 
 				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>)
 						new TypeHint<Tuple2<String, String[]>>(){}.getTypeInfo();

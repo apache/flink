@@ -32,7 +32,7 @@ import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -125,7 +125,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			Time.milliseconds(100),
 			Collections.emptyMap(),
 			SubtaskCurrentAttemptDetailsHeaders.getInstance(),
-			new ExecutionGraphCache(
+			new DefaultExecutionGraphCache(
 				restHandlerConfiguration.getTimeout(),
 				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
 			TestingUtils.defaultExecutor(),
@@ -164,7 +164,8 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			deployingTs,
 			finishedTs,
 			finishedTs - deployingTs,
-			ioMetricsInfo
+			ioMetricsInfo,
+			assignedResourceLocation.getResourceID().getResourceIdString()
 		);
 
 		assertEquals(expectedDetailsInfo, detailsInfo);

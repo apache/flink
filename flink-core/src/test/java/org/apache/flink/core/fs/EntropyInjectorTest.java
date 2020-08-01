@@ -27,6 +27,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -160,6 +161,40 @@ public class EntropyInjectorTest {
 		} catch (IOException ignored) {}
 	}
 
+	@Test
+	public void testClassLoaderFixingFs() throws Exception {
+		final String entropyKey = "__ekey__";
+		final String entropyValue = "abc";
+
+		final File folder = TMP_FOLDER.newFolder();
+
+		final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
+		final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
+
+		PluginFileSystemFactory pluginFsFactory = PluginFileSystemFactory.of(
+				new TestFileSystemFactory(entropyKey, entropyValue));
+		FileSystem testFs = pluginFsFactory.create(URI.create("test"));
+
+		FileSystemSafetyNet.initializeSafetyNetForThread();
+		FileSystem fs = FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(testFs);
+		try  {
+			OutputStreamAndPath streamAndPath = EntropyInjector.createEntropyAware(
+					fs, path, WriteMode.NO_OVERWRITE);
+
+			assertEquals(pathWithEntropy, streamAndPath.path());
+		}
+		finally {
+			FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+		}
+	}
+
+	@Test
+	public void testIsEntropyFs() {
+		final FileSystem efs = new TestEntropyInjectingFs("test", "ignored");
+
+		assertTrue(EntropyInjector.isEntropyInjecting(efs));
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static final class TestEntropyInjectingFs extends LocalFileSystem implements EntropyInjectingFileSystem {
@@ -181,6 +216,27 @@ public class EntropyInjectorTest {
 		@Override
 		public String generateEntropy() {
 			return entropy;
+		}
+	}
+
+	private static class TestFileSystemFactory implements FileSystemFactory {
+
+		private final String key;
+		private final String entropy;
+
+		TestFileSystemFactory(String key, String entropy) {
+			this.key = key;
+			this.entropy = entropy;
+		}
+
+		@Override
+		public String getScheme() {
+			return null;
+		}
+
+		@Override
+		public FileSystem create(URI fsUri) {
+			return new TestEntropyInjectingFs(key, entropy);
 		}
 	}
 }

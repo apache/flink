@@ -66,7 +66,7 @@ import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.Snapshot;
@@ -74,6 +74,7 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
@@ -91,6 +92,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBSnapshotTransformFactoryAdaptor.wrapStateSnapshotTransformFactory;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -131,8 +133,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Factory function to create column family options from state name. */
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
-	/** The DB options from the options factory. */
-	private final DBOptions dbOptions;
+	/** The container of RocksDB option factory and predefined options. */
+	private final RocksDBResourceContainer optionsContainer;
 
 	/** Path where this configured instance stores its data directory. */
 	private final File instanceBasePath;
@@ -147,6 +149,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * The write options to use in the states. We disable write ahead logging.
 	 */
 	private final WriteOptions writeOptions;
+
+	/**
+	 * The read options to use when creating iterators.
+	 * We ensure total order seek in case user misuse, see FLINK-17800 for more details.
+	 */
+	private final ReadOptions readOptions;
+
+	/**
+	 * The max memory size for one batch in {@link RocksDBWriteBatchWrapper}.
+	 */
+	private final long writeBatchSize;
 
 	/**
 	 * Information about the k/v states, maintained in the order as we create them. This is used to retrieve the
@@ -199,7 +212,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public RocksDBKeyedStateBackend(
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
-		DBOptions dbOptions,
+		RocksDBResourceContainer optionsContainer,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
@@ -219,7 +232,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder,
 		PriorityQueueSetFactory priorityQueueFactory,
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		InternalKeyContext<K> keyContext) {
+		InternalKeyContext<K> keyContext,
+		@Nonnegative long writeBatchSize) {
 
 		super(
 			kvStateRegistry,
@@ -236,14 +250,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		// ensure that we use the right merge operator, because other code relies on this
 		this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
 
-		this.dbOptions = Preconditions.checkNotNull(dbOptions);
+		this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
 
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.kvStateInformation = kvStateInformation;
 
-		this.writeOptions = new WriteOptions().setDisableWAL(true);
+		this.writeOptions = optionsContainer.getWriteOptions();
+		this.readOptions = optionsContainer.getReadOptions();
+		checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative value.");
+		this.writeBatchSize = writeBatchSize;
 		this.db = db;
 		this.rocksDBResourceGuard = rocksDBResourceGuard;
 		this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
@@ -281,7 +298,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
 
-		RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, columnInfo.columnFamilyHandle);
+		RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, columnInfo.columnFamilyHandle, readOptions);
 		iterator.seekToFirst();
 
 		final RocksStateKeysIterator<K> iteratorWrapper = new RocksStateKeysIterator<>(iterator, state, getKeySerializer(), keyGroupPrefixBytes,
@@ -350,8 +367,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			columnFamilyOptions.forEach(IOUtils::closeQuietly);
 
-			IOUtils.closeQuietly(dbOptions);
-			IOUtils.closeQuietly(writeOptions);
+			IOUtils.closeQuietly(optionsContainer);
 
 			ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();
 
@@ -372,12 +388,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	private void cleanInstanceBasePath() {
-		LOG.info("Deleting existing instance base directory {}.", instanceBasePath);
+		LOG.info("Closed RocksDB State Backend. Cleaning up RocksDB working directory {}.", instanceBasePath);
 
 		try {
 			FileUtils.deleteDirectory(instanceBasePath);
 		} catch (IOException ex) {
-			LOG.warn("Could not delete instance base path for RocksDB: " + instanceBasePath, ex);
+			LOG.warn("Could not delete RocksDB working directory: {}", instanceBasePath, ex);
 		}
 	}
 
@@ -396,6 +412,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	public WriteOptions getWriteOptions() {
 		return writeOptions;
+	}
+
+	public ReadOptions getReadOptions() {
+		return readOptions;
 	}
 
 	RocksDBSerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
@@ -453,6 +473,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (savepointSnapshotStrategy != null) {
 			savepointSnapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
 		}
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) throws Exception {
+		checkpointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
+
+		savepointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
 	}
 
 	/**
@@ -590,8 +617,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		Snapshot rocksDBSnapshot = db.getSnapshot();
 		try (
-			RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0);
-			RocksDBWriteBatchWrapper batchWriter = new RocksDBWriteBatchWrapper(db, getWriteOptions())
+			RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
+			RocksDBWriteBatchWrapper batchWriter = new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())
 		) {
 			iterator.seekToFirst();
 
@@ -665,7 +692,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		for (RocksDbKvStateInfo metaInfo : kvStateInformation.values()) {
 			//TODO maybe filterOrTransform only for k/v states
-			try (RocksIteratorWrapper rocksIterator = RocksDBOperationUtils.getRocksIterator(db, metaInfo.columnFamilyHandle)) {
+			try (RocksIteratorWrapper rocksIterator = RocksDBOperationUtils.getRocksIterator(db, metaInfo.columnFamilyHandle, readOptions)) {
 				rocksIterator.seekToFirst();
 
 				while (rocksIterator.isValid()) {
@@ -705,5 +732,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public void compactState(StateDescriptor<?, ?> stateDesc) throws RocksDBException {
 		RocksDbKvStateInfo kvStateInfo = kvStateInformation.get(stateDesc.getName());
 		db.compactRange(kvStateInfo.columnFamilyHandle);
+	}
+
+	@Nonnegative
+	long getWriteBatchSize() {
+		return writeBatchSize;
 	}
 }

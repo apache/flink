@@ -40,7 +40,13 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCa
     @classmethod
     def excluded_methods(cls):
         # open/close are not needed in Python API as they are used internally
-        return {'open', 'close'}
+        return {
+            'open',
+            'close',
+            'getFactory',
+            'getTableFactory',
+            'getFunctionDefinitionFactory',
+            'listPartitionsByFilter'}
 
 
 class CatalogDatabaseAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):

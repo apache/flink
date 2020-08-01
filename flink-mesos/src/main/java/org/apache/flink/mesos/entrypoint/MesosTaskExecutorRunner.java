@@ -21,10 +21,10 @@ package org.apache.flink.mesos.entrypoint;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
+import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -32,7 +32,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -75,7 +74,7 @@ public class MesosTaskExecutorRunner {
 			Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
-			configuration = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
+			configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 		}
 		catch (Throwable t) {
 			LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
@@ -85,16 +84,13 @@ public class MesosTaskExecutorRunner {
 
 		final Map<String, String> envs = System.getenv();
 
+		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+
 		// configure the filesystems
-		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
+		FileSystem.initialize(configuration, pluginManager);
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
-
-		// Infer the resource identifier from the environment variable
-		String containerID = Preconditions.checkNotNull(envs.get(MesosConfigKeys.ENV_FLINK_CONTAINER_ID));
-		final ResourceID resourceId = new ResourceID(containerID);
-		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
 		// Run the TM in the security context
 		SecurityConfiguration sc = new SecurityConfiguration(configuration);
@@ -102,7 +98,7 @@ public class MesosTaskExecutorRunner {
 
 		try {
 			SecurityUtils.getInstalledContext().runSecured(() -> {
-				TaskManagerRunner.runTaskManager(configuration, resourceId);
+				TaskManagerRunner.runTaskManager(configuration, pluginManager);
 
 				return 0;
 			});

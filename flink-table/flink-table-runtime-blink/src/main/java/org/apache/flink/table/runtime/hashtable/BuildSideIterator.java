@@ -20,9 +20,9 @@ package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.util.BitSet;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.RowIterator;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,9 +32,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Iterate all the elements in memory which has not been(or has been) probed during probe phase.
  */
-public class BuildSideIterator implements RowIterator<BinaryRow> {
+public class BuildSideIterator implements RowIterator<BinaryRowData> {
 
-	private final BinaryRowSerializer accessor;
+	private final BinaryRowDataSerializer accessor;
 
 	private final ArrayList<BinaryHashPartition> partitionsBeingBuilt;
 
@@ -44,13 +44,13 @@ public class BuildSideIterator implements RowIterator<BinaryRow> {
 
 	private int areaIndex;
 
-	private BinaryRow reuse;
+	private BinaryRowData reuse;
 
 	private BucketIterator bucketIterator;
 
 	BuildSideIterator(
-			BinaryRowSerializer accessor,
-			BinaryRow reuse,
+			BinaryRowDataSerializer accessor,
+			BinaryRowData reuse,
 			ArrayList<BinaryHashPartition> partitionsBeingBuilt,
 			BitSet probedSet,
 			boolean matchedOrUnmatched) {
@@ -84,18 +84,18 @@ public class BuildSideIterator implements RowIterator<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow getRow() {
+	public BinaryRowData getRow() {
 		return bucketIterator.getRow();
 	}
 
 	/**
 	 * Partition bucket iterator.
 	 */
-	public static class BucketIterator implements RowIterator<BinaryRow> {
+	public static class BucketIterator implements RowIterator<BinaryRowData> {
 
 		private BinaryHashBucketArea area;
 
-		private final BinaryRowSerializer accessor;
+		private final BinaryRowDataSerializer accessor;
 
 		private final BitSet probedSet;
 
@@ -115,14 +115,14 @@ public class BuildSideIterator implements RowIterator<BinaryRow> {
 
 		private int numInBucket;
 
-		private BinaryRow reuse;
+		private BinaryRowData reuse;
 
-		private BinaryRow instance;
+		private BinaryRowData instance;
 
 		BucketIterator(
 				BinaryHashBucketArea area,
-				BinaryRowSerializer accessor,
-				BinaryRow reuse,
+				BinaryRowDataSerializer accessor,
+				BinaryRowData reuse,
 				BitSet probedSet,
 				boolean matchedOrUnmatched) {
 			this.area = area;
@@ -152,7 +152,7 @@ public class BuildSideIterator implements RowIterator<BinaryRow> {
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			return instance;
 		}
 
@@ -188,7 +188,7 @@ public class BuildSideIterator implements RowIterator<BinaryRow> {
 			this.probedSet.setMemorySegment(bucketSegment, this.bucketInSegmentOffset + BinaryHashBucketArea.PROBED_FLAG_OFFSET);
 		}
 
-		private BinaryRow nextInBucket(BinaryRow reuse) {
+		private BinaryRowData nextInBucket(BinaryRowData reuse) {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (countInBucket != 0) {
 

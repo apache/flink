@@ -62,20 +62,6 @@ public class CsvTest extends DescriptorTestBase {
 		addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
 	}
 
-	@Test(expected = ValidationException.class)
-	public void testMissingSchema() {
-		removePropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.schema");
-	}
-
-	@Test(expected = ValidationException.class)
-	public void testDuplicateSchema() {
-		// we add an additional schema
-		addPropertyAndVerify(
-			MINIMAL_DESCRIPTOR_WITH_DERIVED_SCHEMA,
-			"format.schema",
-			"ROW<a VARCHAR, b INT, c ROW<a VARCHAR, b INT, c BOOLEAN>>");
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	@Override

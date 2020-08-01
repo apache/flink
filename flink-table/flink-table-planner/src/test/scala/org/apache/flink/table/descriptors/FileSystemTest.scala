@@ -40,7 +40,7 @@ class FileSystemTest extends DescriptorTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
-    util.Arrays.asList(FileSystem().path("/myfile"))
+    util.Arrays.asList(new FileSystem().path("/myfile"))
   }
 
   override def validator(): DescriptorValidator = {

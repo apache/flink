@@ -19,32 +19,36 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -78,6 +82,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
@@ -106,8 +111,9 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static MiniClusterWithClientResource miniClusterResource;
 
-	private static OneShotLatch waitForCheckpointLatch = new OneShotLatch();
-	private static OneShotLatch failInCheckpointLatch = new OneShotLatch();
+	private static OneShotLatch waitForCheckpointLatch;
+	private static OneShotLatch failInCheckpointLatch;
+	private static OneShotLatch blockSnapshotLatch;
 
 	@BeforeClass
 	public static void setup() throws Exception {
@@ -118,10 +124,12 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 
-		haStorageDir = TEMPORARY_FOLDER.newFolder();
+		File haStorageRootDir = TEMPORARY_FOLDER.newFolder();
+		String clusterId = UUID.randomUUID().toString();
+		haStorageDir = new File(haStorageRootDir, clusterId);
 
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageDir.toString());
-		config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, UUID.randomUUID().toString());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageRootDir.toString());
+		config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
@@ -179,6 +187,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 		waitForCheckpointLatch = new OneShotLatch();
 		failInCheckpointLatch = new OneShotLatch();
+		blockSnapshotLatch = new OneShotLatch();
 
 		ClusterClient<?> clusterClient = miniClusterResource.getClusterClient();
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
@@ -200,8 +209,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 		JobID jobID = Preconditions.checkNotNull(jobGraph.getJobID());
 
-		clusterClient.setDetached(true);
-		clusterClient.submitJob(jobGraph, ZooKeeperHighAvailabilityITCase.class.getClassLoader());
+		ClientUtils.submitJob(clusterClient, jobGraph);
 
 		// wait until we did some checkpoints
 		waitForCheckpointLatch.await();
@@ -213,7 +221,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		Files.walkFileTree(haStorageDir.toPath(), new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-				if (file.getFileName().toString().startsWith("completedCheckpoint")) {
+				if (file.getFileName().toString().startsWith(ZooKeeperUtils.HA_STORAGE_COMPLETED_CHECKPOINT)) {
 					log.debug("Moving original checkpoint file {}.", file);
 					try {
 						Files.move(file, movedCheckpointLocation.toPath().resolve(file.getFileName()));
@@ -255,6 +263,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 				return FileVisitResult.CONTINUE;
 			}
 		});
+		blockSnapshotLatch.trigger();
 
 		// now the job should be able to go to RUNNING again and then eventually to FINISHED,
 		// which it only does if it could successfully restore
@@ -330,7 +339,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static class CheckpointBlockingFunction
 			extends RichMapFunction<String, String>
-			implements CheckpointedFunction {
+			implements CheckpointedFunction, CheckpointListener {
 
 		// verify that we only call initializeState()
 		// once with isRestored() == false. All other invocations must have isRestored() == true. This
@@ -349,6 +358,14 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 		static AtomicBoolean failedAlready = new AtomicBoolean(false);
 
+		static AtomicBoolean stateRecorded = new AtomicBoolean(false);
+
+		// for checkpoint with a id not less than this id, it includes state data
+		static AtomicLong minimalCheckpointIdIncludingData = new AtomicLong(Long.MAX_VALUE);
+
+		// make sure there is at least one completed checkpoint including state data
+		static AtomicBoolean checkpointCompletedIncludingData = new AtomicBoolean(false);
+
 		// also have some state to write to the checkpoint
 		private final ValueStateDescriptor<String> stateDescriptor =
 			new ValueStateDescriptor<>("state", StringSerializer.INSTANCE);
@@ -356,16 +373,27 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		@Override
 		public String map(String value) throws Exception {
 			getRuntimeContext().getState(stateDescriptor).update("42");
+			stateRecorded.compareAndSet(false, true);
 			return value;
 		}
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			if (context.getCheckpointId() > 5) {
+			if (stateRecorded.get()) {
+				minimalCheckpointIdIncludingData.compareAndSet(Long.MAX_VALUE,
+					context.getCheckpointId());
+			}
+			if (checkpointCompletedIncludingData.get()) {
+				// there is a checkpoint completed with state data, we can trigger the failure now
 				waitForCheckpointLatch.trigger();
 				failInCheckpointLatch.await();
 				if (!failedAlready.getAndSet(true)) {
 					throw new RuntimeException("Failing on purpose.");
+				} else {
+					// make sure there would be no more successful checkpoint before job failing
+					// otherwise there might be an unexpected successful checkpoint even
+					// CheckpointFailureManager has decided to fail the job
+					blockSnapshotLatch.await();
 				}
 			}
 		}
@@ -387,13 +415,24 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 				}
 			}
 		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			if (checkpointId >= minimalCheckpointIdIncludingData.get()) {
+				checkpointCompletedIncludingData.compareAndSet(false, true);
+			}
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	/**
-	 * Reporter that exposes the {@link NumberOfFullRestartsGauge} metric.
+	 * Reporter that exposes the {@code numRestarts} metric.
 	 */
 	public static class RestartReporter implements MetricReporter {
-		static volatile NumberOfFullRestartsGauge numRestarts = null;
+		static volatile Gauge<Long> numRestarts = null;
 
 		@Override
 		public void open(MetricConfig metricConfig) {
@@ -404,9 +443,9 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		}
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String s, MetricGroup metricGroup) {
-			if (metric instanceof NumberOfFullRestartsGauge) {
-				numRestarts = (NumberOfFullRestartsGauge) metric;
+		public void notifyOfAddedMetric(Metric metric, String name, MetricGroup metricGroup) {
+			if (name.equals(MetricNames.NUM_RESTARTS)) {
+				numRestarts = (Gauge<Long>) metric;
 			}
 		}
 

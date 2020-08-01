@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABCMeta
 from datetime import timedelta
 
@@ -25,9 +24,6 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import to_j_flink_time, from_j_flink_time
 
 __all__ = ['RestartStrategies', 'RestartStrategyConfiguration']
-
-if sys.version >= '3':
-    long = int
 
 
 class RestartStrategyConfiguration(object):
@@ -89,7 +85,7 @@ class RestartStrategies(object):
         def __init__(self, restart_attempts=None, delay_between_attempts_interval=None,
                      j_restart_strategy=None):
             if j_restart_strategy is None:
-                if not isinstance(delay_between_attempts_interval, (timedelta, int, long)):
+                if not isinstance(delay_between_attempts_interval, (timedelta, int)):
                     raise TypeError("The delay_between_attempts_interval 'failure_interval' "
                                     "only supports integer and datetime.timedelta, current input "
                                     "type is %s." % type(delay_between_attempts_interval))
@@ -122,11 +118,11 @@ class RestartStrategies(object):
                      delay_between_attempts_interval=None,
                      j_restart_strategy=None):
             if j_restart_strategy is None:
-                if not isinstance(failure_interval, (timedelta, int, long)):
+                if not isinstance(failure_interval, (timedelta, int)):
                     raise TypeError("The parameter 'failure_interval' "
                                     "only supports integer and datetime.timedelta, current input "
                                     "type is %s." % type(failure_interval))
-                if not isinstance(delay_between_attempts_interval, (timedelta, int, long)):
+                if not isinstance(delay_between_attempts_interval, (timedelta, int)):
                     raise TypeError("The delay_between_attempts_interval 'failure_interval' "
                                     "only supports integer and datetime.timedelta, current input "
                                     "type is %s." % type(delay_between_attempts_interval))

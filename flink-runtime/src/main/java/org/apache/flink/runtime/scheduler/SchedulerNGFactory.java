@@ -23,8 +23,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
@@ -55,6 +56,7 @@ public interface SchedulerNGFactory {
 		JobManagerJobMetricGroup jobManagerJobMetricGroup,
 		Time slotRequestTimeout,
 		ShuffleMaster<?> shuffleMaster,
-		PartitionTracker partitionTracker) throws Exception;
+		JobMasterPartitionTracker partitionTracker,
+		ExecutionDeploymentTracker executionDeploymentTracker) throws Exception;
 
 }

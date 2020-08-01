@@ -27,6 +27,10 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.util.HadoopUtils;
 
+import org.apache.hadoop.util.VersionInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.UUID;
 
@@ -40,6 +44,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class HadoopRecoverableWriter implements RecoverableWriter {
 
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopRecoverableWriter.class);
+
 	/** The Hadoop file system on which the writer operates. */
 	private final org.apache.hadoop.fs.FileSystem fs;
 
@@ -50,12 +56,17 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 	public HadoopRecoverableWriter(org.apache.hadoop.fs.FileSystem fs) {
 		this.fs = checkNotNull(fs);
 
-		// This writer is only supported on a subset of file systems, and on
-		// specific versions. We check these schemes and versions eagerly for
-		// better error messages.
-		if (!"hdfs".equalsIgnoreCase(fs.getScheme()) || !HadoopUtils.isMinHadoopVersion(2, 7)) {
+		// This writer is only supported on a subset of file systems
+		if (!"hdfs".equalsIgnoreCase(fs.getScheme())) {
 			throw new UnsupportedOperationException(
-					"Recoverable writers on Hadoop are only supported for HDFS and for Hadoop version 2.7 or newer");
+					"Recoverable writers on Hadoop are only supported for HDFS");
+		}
+
+		// Part of functionality depends on specific versions. We check these schemes and versions eagerly for
+		// better error messages.
+		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
+			LOG.warn("WARNING: You are running on hadoop version " + VersionInfo.getVersion() + "." +
+					" If your RollingPolicy does not roll on every checkpoint/savepoint, the StreamingFileSink will throw an exception upon recovery.");
 		}
 	}
 
@@ -84,7 +95,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 
 	@Override
 	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		throw new UnsupportedOperationException();
+		return false;
 	}
 
 	@Override

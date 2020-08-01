@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.LambdaUtil;
 
 import org.slf4j.Logger;
@@ -26,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -67,17 +67,20 @@ public class StateUtil {
 	 * @param stateFuture to be discarded
 	 * @throws Exception if the discard operation failed
 	 */
-	public static void discardStateFuture(RunnableFuture<? extends StateObject> stateFuture) throws Exception {
+	public static void discardStateFuture(Future<? extends StateObject> stateFuture) throws Exception {
 		if (null != stateFuture) {
 			if (!stateFuture.cancel(true)) {
 
 				try {
 					// We attempt to get a result, in case the future completed before cancellation.
-					StateObject stateObject = FutureUtils.runIfNotDoneAndGet(stateFuture);
-
+					if (stateFuture instanceof RunnableFuture<?> && !stateFuture.isDone()) {
+						((RunnableFuture<?>) stateFuture).run();
+					}
+					StateObject stateObject = stateFuture.get();
 					if (null != stateObject) {
 						stateObject.discardState();
 					}
+
 				} catch (CancellationException | ExecutionException ex) {
 					LOG.debug("Cancelled execution of snapshot future runnable. Cancellation produced the following " +
 						"exception, which is expected an can be ignored.", ex);

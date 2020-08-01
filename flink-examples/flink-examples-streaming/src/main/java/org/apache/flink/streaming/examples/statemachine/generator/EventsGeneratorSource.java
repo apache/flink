@@ -38,7 +38,7 @@ public class EventsGeneratorSource extends RichParallelSourceFunction<Event> {
 
 	public EventsGeneratorSource(double errorProbability, int delayPerRecordMillis) {
 		checkArgument(errorProbability >= 0.0 && errorProbability <= 1.0, "error probability must be in [0.0, 1.0]");
-		checkArgument(delayPerRecordMillis >= 0, "deplay must be >= 0");
+		checkArgument(delayPerRecordMillis >= 0, "delay must be >= 0");
 
 		this.errorProbability = errorProbability;
 		this.delayPerRecordMillis = delayPerRecordMillis;

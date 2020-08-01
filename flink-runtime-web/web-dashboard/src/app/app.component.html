@@ -45,7 +45,7 @@
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
         <span><i nz-icon type="build"></i><span>Job Manager</span></span>
       </li>
-      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
+      <li *ngIf="webSubmitEnabled" nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
         <span><i nz-icon type="upload"></i><span>Submit New Job</span></span>
       </li>
     </ul>
@@ -70,10 +70,6 @@
         <span [hidden]="online$ | async">
           <strong class="offline">Lost Connection, Reconnecting Now...</strong>
         </span>
-        <nz-divider nzType="vertical"></nz-divider>
-        <a target="_blank" nz-tooltip nzTitle="Go back to the old version" href="./old-version/index.html" class="text action">
-          <i nz-icon nzType="interation" nzTheme="twotone" [twoToneColor]="'#EF5749'"></i>
-        </a>
       </div>
     </nz-header>
     <nz-content>

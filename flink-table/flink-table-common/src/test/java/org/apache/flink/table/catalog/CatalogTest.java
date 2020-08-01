@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -100,16 +101,18 @@ public abstract class CatalogTest {
 			catalog.dropFunction(path1, true);
 		}
 		if (catalog.databaseExists(db1)) {
-			catalog.dropDatabase(db1, true);
+			catalog.dropDatabase(db1, true, false);
 		}
 		if (catalog.databaseExists(db2)) {
-			catalog.dropDatabase(db2, true);
+			catalog.dropDatabase(db2, true, false);
 		}
 	}
 
 	@AfterClass
 	public static void closeup() {
-		catalog.close();
+		if (catalog != null) {
+			catalog.close();
+		}
 	}
 
 	// ------ databases ------
@@ -164,7 +167,7 @@ public abstract class CatalogTest {
 
 		assertTrue(catalog.databaseExists(db1));
 
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, true);
 
 		assertFalse(catalog.databaseExists(db1));
 	}
@@ -173,12 +176,12 @@ public abstract class CatalogTest {
 	public void testDropDb_DatabaseNotExistException() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database db1 does not exist in Catalog");
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, false);
 	}
 
 	@Test
 	public void testDropDb_DatabaseNotExist_Ignore() throws Exception {
-		catalog.dropDatabase(db1, true);
+		catalog.dropDatabase(db1, true, false);
 	}
 
 	@Test
@@ -188,7 +191,7 @@ public abstract class CatalogTest {
 
 		exception.expect(DatabaseNotEmptyException.class);
 		exception.expectMessage("Database db1 in catalog test-catalog is not empty");
-		catalog.dropDatabase(db1, true);
+		catalog.dropDatabase(db1, true, false);
 	}
 
 	@Test
@@ -256,14 +259,19 @@ public abstract class CatalogTest {
 		assertEquals(path1.getObjectName(), tables.get(0));
 
 		catalog.dropTable(path1, false);
+	}
+
+	@Test
+	public void testCreatePartitionedTable_Batch() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
 
 		// Partitioned table
-		table = createPartitionedTable();
+		CatalogTable table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
-		tables = catalog.listTables(db1);
+		List<String> tables = catalog.listTables(db1);
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
@@ -361,17 +369,6 @@ public abstract class CatalogTest {
 
 		catalog.dropTable(path1, false);
 
-		// Partitioned table
-		table = createPartitionedTable();
-		catalog.createTable(path1, table, false);
-
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
-
-		newTable = createAnotherPartitionedTable();
-		catalog.alterTable(path1, newTable, false);
-
-		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
-
 		// View
 		CatalogView view = createView();
 		catalog.createTable(path3, view, false);
@@ -383,6 +380,22 @@ public abstract class CatalogTest {
 
 		assertNotEquals(view, catalog.getTable(path3));
 		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path3));
+	}
+
+	@Test
+	public void testAlterPartitionedTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		// Partitioned table
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+
+		CatalogTable newTable = createAnotherPartitionedTable();
+		catalog.alterTable(path1, newTable, false);
+
+		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -615,6 +628,16 @@ public abstract class CatalogTest {
 	}
 
 	@Test
+	public void testCreatePythonFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogFunction pythonFunction = createPythonFunction();
+		catalog.createFunction(path1, createPythonFunction(), false);
+
+		CatalogFunction actual = catalog.getFunction(path1);
+		checkEquals(pythonFunction, actual);
+	}
+
+	@Test
 	public void testCreateFunction_DatabaseNotExistException() throws Exception {
 		assertFalse(catalog.databaseExists(db1));
 
@@ -648,6 +671,23 @@ public abstract class CatalogTest {
 		checkEquals(func, catalog.getFunction(path1));
 
 		CatalogFunction newFunc = createAnotherFunction();
+		catalog.alterFunction(path1, newFunc, false);
+		CatalogFunction actual = catalog.getFunction(path1);
+
+		assertFalse(func.getClassName().equals(actual.getClassName()));
+		checkEquals(newFunc, actual);
+	}
+
+	@Test
+	public void testAlterPythonFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogFunction func = createFunction();
+		catalog.createFunction(path1, func, false);
+
+		checkEquals(func, catalog.getFunction(path1));
+
+		CatalogFunction newFunc = createPythonFunction();
 		catalog.alterFunction(path1, newFunc, false);
 		CatalogFunction actual = catalog.getFunction(path1);
 
@@ -726,7 +766,7 @@ public abstract class CatalogTest {
 	public void testDropFunction_FunctionNotExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.dropFunction(nonExistObjectPath, true);
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, false);
 	}
 
 	// ------ partitions ------
@@ -1056,6 +1096,84 @@ public abstract class CatalogTest {
 		assertEquals(1, catalog.listPartitions(path1, createAnotherPartitionSpecSubset()).size());
 	}
 
+
+	// ------ table and column stats ------
+
+	@Test
+	public void testGetTableStats_TableNotExistException() throws Exception{
+		catalog.createDatabase(db1, createDb(), false);
+		exception.expect(org.apache.flink.table.catalog.exceptions.TableNotExistException.class);
+		catalog.getTableStatistics(path1);
+	}
+
+	@Test
+	public void testGetPartitionStats() throws Exception{
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+		CatalogTableStatistics tableStatistics = catalog.getPartitionStatistics(path1, createPartitionSpec());
+		assertEquals(-1, tableStatistics.getFileCount());
+		assertEquals(-1, tableStatistics.getRawDataSize());
+		assertEquals(-1, tableStatistics.getTotalSize());
+		assertEquals(-1, tableStatistics.getRowCount());
+	}
+
+	@Test
+	public void testAlterTableStats() throws Exception{
+		// Non-partitioned table
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createTable();
+		catalog.createTable(path1, table, false);
+		CatalogTableStatistics tableStats = new CatalogTableStatistics(100, 10, 1000, 10000);
+		catalog.alterTableStatistics(path1, tableStats, false);
+		CatalogTableStatistics actual = catalog.getTableStatistics(path1);
+
+		// we don't check fileCount and totalSize here for hive will automatically calc and set to real num.
+		assertEquals(tableStats.getRowCount(), actual.getRowCount());
+		assertEquals(tableStats.getRawDataSize(), actual.getRawDataSize());
+	}
+
+	@Test
+	public void testAlterTableStats_partitionedTable() throws Exception {
+		// alterTableStats() should do nothing for partitioned tables
+		// getTableStats() should return unknown column stats for partitioned tables
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+
+		catalog.alterTableStatistics(path1, stats, false);
+
+		assertEquals(CatalogTableStatistics.UNKNOWN, catalog.getTableStatistics(path1));
+	}
+
+	@Test
+	public void testAlterPartitionTableStats() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path1, partitionSpec, createPartition(), true);
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+		catalog.alterPartitionStatistics(path1, partitionSpec, stats, false);
+		CatalogTableStatistics actual = catalog.getPartitionStatistics(path1, partitionSpec);
+		assertEquals(stats.getRowCount(), actual.getRowCount());
+		assertEquals(stats.getRawDataSize(), actual.getRawDataSize());
+	}
+
+	@Test
+	public void testAlterTableStats_TableNotExistException() throws Exception {
+		exception.expect(TableNotExistException.class);
+		catalog.alterTableStatistics(new ObjectPath(catalog.getDefaultDatabase(), "nonexist"), CatalogTableStatistics.UNKNOWN, false);
+	}
+
+	@Test
+	public void testAlterTableStats_TableNotExistException_ignore() throws Exception {
+		catalog.alterTableStatistics(new ObjectPath("non", "exist"), CatalogTableStatistics.UNKNOWN, true);
+	}
+
+
 	// ------ utilities ------
 
 	/**
@@ -1127,6 +1245,11 @@ public abstract class CatalogTest {
 	 * @return a CatalogFunction instance
 	 */
 	protected abstract CatalogFunction createFunction();
+
+	/**
+	 * Create a Python CatalogFunction instance by specific catalog implementation.
+	 */
+	protected abstract CatalogFunction createPythonFunction();
 
 	/**
 	 * Create another CatalogFunction instance by specific catalog implementation.
@@ -1212,7 +1335,7 @@ public abstract class CatalogTest {
 
 		@Override
 		public TableSchema getSchema() {
-			return null;
+			return TableSchema.builder().build();
 		}
 
 		@Override
@@ -1241,7 +1364,8 @@ public abstract class CatalogTest {
 
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());
-		assertEquals(f1.getProperties(), f2.getProperties());
+		assertEquals(f1.isGeneric(), f2.isGeneric());
+		assertEquals(f1.getFunctionLanguage(), f2.getFunctionLanguage());
 	}
 
 	protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {

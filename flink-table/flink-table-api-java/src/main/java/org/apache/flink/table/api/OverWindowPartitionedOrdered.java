@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Partially defined over window with (optional) partitioning and order.
@@ -47,7 +47,9 @@ public final class OverWindowPartitionedOrdered {
 	 *
 	 * @param preceding preceding offset relative to the current row.
 	 * @return an over window with defined preceding
+	 * @deprecated use {@link #preceding(Expression)}
 	 */
+	@Deprecated
 	public OverWindowPartitionedOrderedPreceding preceding(String preceding) {
 		return this.preceding(ExpressionParser.parseExpression(preceding));
 	}

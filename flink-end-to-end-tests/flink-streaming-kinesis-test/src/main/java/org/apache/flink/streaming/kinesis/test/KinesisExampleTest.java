@@ -19,6 +19,7 @@ package org.apache.flink.streaming.kinesis.test;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -26,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -35,17 +35,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class KinesisExampleTest {
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisExampleTest.class);
 
-	/**
-	 * Interface to the pubsub system for this test.
-	 */
-	interface PubsubClient {
-		void createTopic(String topic, int partitions, Properties props) throws Exception;
-
-		void sendMessage(String topic, String msg);
-
-		List<String> readAllMessages(String streamName) throws Exception;
-	}
-
 	public static void main(String[] args) throws Exception {
 		LOG.info("System properties: {}", System.getProperties());
 		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
@@ -53,7 +42,7 @@ public class KinesisExampleTest {
 		String inputStream = parameterTool.getRequired("input-stream");
 		String outputStream = parameterTool.getRequired("output-stream");
 
-		PubsubClient pubsub = new KinesisPubsubClient(parameterTool.getProperties());
+		KinesisPubsubClient pubsub = new KinesisPubsubClient(parameterTool.getProperties());
 		pubsub.createTopic(inputStream, 2, parameterTool.getProperties());
 		pubsub.createTopic(outputStream, 2, parameterTool.getProperties());
 

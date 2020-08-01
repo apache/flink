@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -34,6 +35,7 @@ import org.junit.Test;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link PartitionRequestServerHandler}.
@@ -49,8 +51,7 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 		final PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
 			new ResultPartitionManager(),
 			new TaskEventDispatcher(),
-			new PartitionRequestQueue(),
-			true);
+			new PartitionRequestQueue());
 		final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
 		final ResultPartitionID partitionId = new ResultPartitionID();
 
@@ -67,5 +68,37 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 
 		final ResultPartitionID actualPartitionId = ((PartitionNotFoundException) err.cause).getPartitionId();
 		assertThat(partitionId, is(actualPartitionId));
+	}
+
+	@Test
+	public void testResumeConsumption() {
+		final InputChannelID inputChannelID = new InputChannelID();
+		final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+		final TestViewReader testViewReader = new TestViewReader(inputChannelID, 2, partitionRequestQueue);
+		final PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			partitionRequestQueue);
+		final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
+		partitionRequestQueue.notifyReaderCreated(testViewReader);
+
+		// Write the message of resume consumption to server
+		channel.writeInbound(new ResumeConsumption(inputChannelID));
+		channel.runPendingTasks();
+
+		assertTrue(testViewReader.consumptionResumed);
+	}
+
+	private static class TestViewReader extends CreditBasedSequenceNumberingViewReader {
+		private boolean consumptionResumed = false;
+
+		TestViewReader(InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
+			super(receiverId, initialCredit, requestQueue);
+		}
+
+		@Override
+		public void resumeConsumption() {
+			consumptionResumed = true;
+		}
 	}
 }

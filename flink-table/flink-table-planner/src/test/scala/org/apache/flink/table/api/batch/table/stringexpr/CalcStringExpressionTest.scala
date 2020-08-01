@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.api.batch.table.stringexpr
 
-import java.sql.{Date, Time, Timestamp}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.Types._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit._
+
+import java.sql.{Date, Time, Timestamp}
 
 class CalcStringExpressionTest extends TableTestBase {
 

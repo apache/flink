@@ -135,3 +135,19 @@ class CheckpointConfigTests(PyFlinkTestCase):
         self.checkpoint_config.set_prefer_checkpoint_for_recovery(True)
 
         self.assertTrue(self.checkpoint_config.is_prefer_checkpoint_for_recovery())
+
+    def test_is_unaligned_checkpointing_enabled(self):
+
+        self.assertFalse(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.enable_unaligned_checkpoints()
+
+        self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.disable_unaligned_checkpoints()
+
+        self.assertFalse(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.enable_unaligned_checkpoints(True)
+
+        self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())

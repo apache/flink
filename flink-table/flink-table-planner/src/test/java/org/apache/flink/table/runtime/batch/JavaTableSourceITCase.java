@@ -21,7 +21,8 @@ package org.apache.flink.table.runtime.batch;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.runtime.utils.CommonTestData;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.sources.BatchTableSource;
@@ -32,6 +33,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
+
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * Integration tests for {@link BatchTableSource}.
@@ -50,10 +53,10 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		tableEnv.registerTableSource("persons", csvTable);
+		((TableEnvironmentInternal) tableEnv).registerTableSourceInternal("persons", csvTable);
 
 		Table result = tableEnv.scan("persons")
-			.select("id, first, last, score");
+			.select($("id"), $("first"), $("last"), $("score"));
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
@@ -76,7 +79,7 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		tableEnv.registerTableSource("persons", csvTable);
+		((TableEnvironmentInternal) tableEnv).registerTableSourceInternal("persons", csvTable);
 
 		Table result = tableEnv
 			.sqlQuery("SELECT `last`, FLOOR(id), score * 2 FROM persons WHERE score < 20");

@@ -2,7 +2,7 @@
 title:  "Mesos Setup"
 nav-title: Mesos
 nav-parent_id: deployment
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -177,23 +177,22 @@ In contrast to that, the task managers will be run as Mesos tasks in the Mesos c
 
 ### Flink job cluster on Mesos
 
-A Flink job cluster is a dedicated cluster which runs a single job. 
+A Flink job cluster is a dedicated cluster which runs a single job.
 There is no extra job submission needed.
 
-In the `/bin` directory of the Flink distribution, you find one startup script 
+In the `/bin` directory of the Flink distribution, you find one startup script
 which manage the Flink processes in a Mesos cluster:
 
 1. `mesos-appmaster-job.sh`
-   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly. 
+   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly.
 
-In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml` 
+In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml`
 or pass it via `-Dmesos.master=... -Dinterval.jobgraph-path=...` to the Java process.
 
 The job graph file may be generated like this way:
 
 {% highlight java %}
 final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-jobGraph.setAllowQueuedScheduling(true);
 final String jobGraphFilename = "job.graph";
 File jobGraphFile = new File(jobGraphFilename);
 try (FileOutputStream output = new FileOutputStream(jobGraphFile);
@@ -202,9 +201,11 @@ try (FileOutputStream output = new FileOutputStream(jobGraphFile);
 }
 {% endhighlight %}
 
-Note: 
-1. Before serializing the job graph, please make sure to enable queued scheduling because slots need to be allocated lazily
-2. Make sure that all Mesos processes have the user code jar on the classpath (e.g. putting them in the lib directory)
+<span class="label label-info">Note</span> Make sure that all Mesos processes have the user code jar on the classpath. There are two ways:
+
+1. One way is putting them in the `lib/` directory, which will result in the user code jar being loaded by the system classloader.
+1. The other way is creating a `usrlib/` directory in the parent directory of `lib/` and putting the user code jar in the `usrlib/` directory.
+After launching a job cluster via `bin/mesos-appmaster-job.sh ...`, the user code jar will be loaded by the user code classloader.
 
 #### General configuration
 
@@ -214,17 +215,16 @@ For example:
 
     bin/mesos-appmaster.sh \
         -Dmesos.master=master.foobar.org:5050 \
-        -Djobmanager.heap.mb=1024 \
+        -Djobmanager.memory.process.size=1472m \
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
-        -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.heap.mb=3500 \
+        -Dtaskmanager.memory.process.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
 ### High Availability
 
-You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
+You will need to run a service like Marathon or Apache Aurora which takes care of restarting the JobManager process in case of node or process failures.
 In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html).
 
 #### Marathon
@@ -236,7 +236,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.memory.process.size=1472m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dtaskmanager.memory.process.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

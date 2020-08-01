@@ -20,34 +20,35 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.state.AsyncSnapshotCallable.AsyncSnapshotTask;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.RunnableFuture;
 
 /**
  * This class is a default implementation for StateSnapshotContext.
  */
-public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext, Closeable {
+public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext {
 
 	/** Checkpoint id of the snapshot. */
 	private final long checkpointId;
 
 	/** Checkpoint timestamp of the snapshot. */
 	private final long checkpointTimestamp;
-	
-	/** Factory for the checkpointing stream */
+
+	/** Factory for the checkpointing stream. */
 	private final CheckpointStreamFactory streamFactory;
-	
-	/** Key group range for the operator that created this context. Only for keyed operators */
+
+	/** Key group range for the operator that created this context. Only for keyed operators. */
 	private final KeyGroupRange keyGroupRange;
 
 	/**
-	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be 
+	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be
 	 * obtained from and managed by the stream task.
 	 */
 	private final CloseableRegistry closableRegistry;
@@ -58,15 +59,17 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	/** Output stream for the raw operator state. */
 	private OperatorStateCheckpointOutputStream operatorStateCheckpointOutputStream;
 
+	protected RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateCheckpointClosingFuture;
+	protected RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateCheckpointClosingFuture;
+
 	@VisibleForTesting
 	public StateSnapshotContextSynchronousImpl(long checkpointId, long checkpointTimestamp) {
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
 		this.streamFactory = null;
 		this.keyGroupRange = KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
-		this.closableRegistry = null;
+		this.closableRegistry = new CloseableRegistry();
 	}
-
 
 	public StateSnapshotContextSynchronousImpl(
 			long checkpointId,
@@ -119,31 +122,26 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 
 	@Nonnull
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateStreamFuture() throws IOException {
-		KeyedStateHandle keyGroupsStateHandle =
-			closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
-		return toDoneFutureOfSnapshotResult(keyGroupsStateHandle);
+		if (null == keyedStateCheckpointClosingFuture) {
+			StreamCloserCallable<KeyGroupsStateHandle> callable = new StreamCloserCallable<>(closableRegistry, keyedStateCheckpointOutputStream);
+			AsyncSnapshotTask asyncSnapshotTask = callable.toAsyncSnapshotFutureTask(closableRegistry);
+			keyedStateCheckpointClosingFuture = castAsKeyedStateHandle(asyncSnapshotTask);
+		}
+		return keyedStateCheckpointClosingFuture;
 	}
 
 	@Nonnull
 	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateStreamFuture() throws IOException {
-		OperatorStateHandle operatorStateHandle =
-			closeAndUnregisterStreamToObtainStateHandle(operatorStateCheckpointOutputStream);
-		return toDoneFutureOfSnapshotResult(operatorStateHandle);
-	}
-
-	private <T extends StateObject> RunnableFuture<SnapshotResult<T>> toDoneFutureOfSnapshotResult(T handle) {
-		SnapshotResult<T> snapshotResult = SnapshotResult.of(handle);
-		return DoneFuture.of(snapshotResult);
-	}
-
-	private <T extends StreamStateHandle> T closeAndUnregisterStreamToObtainStateHandle(
-		NonClosingCheckpointOutputStream<T> stream) throws IOException {
-
-		if (stream != null && closableRegistry.unregisterCloseable(stream.getDelegate())) {
-			return stream.closeAndGetHandle();
-		} else {
-			return null;
+		if (null == operatorStateCheckpointClosingFuture) {
+			StreamCloserCallable<OperatorStateHandle> callable = new StreamCloserCallable<>(closableRegistry, operatorStateCheckpointOutputStream);
+			operatorStateCheckpointClosingFuture = callable.toAsyncSnapshotFutureTask(closableRegistry);
 		}
+		return operatorStateCheckpointClosingFuture;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static RunnableFuture<SnapshotResult<KeyedStateHandle>> castAsKeyedStateHandle(RunnableFuture<?> asyncSnapshotTask) {
+		return (RunnableFuture<SnapshotResult<KeyedStateHandle>>) asyncSnapshotTask;
 	}
 
 	private <T extends StreamStateHandle> void closeAndUnregisterStream(
@@ -158,30 +156,70 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		}
 	}
 
-	@Override
-	public void close() throws IOException {
+	public void closeExceptionally() throws IOException {
 		IOException exception = null;
-
 		if (keyedStateCheckpointOutputStream != null) {
 			try {
 				closeAndUnregisterStream(keyedStateCheckpointOutputStream);
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				exception = new IOException("Could not close the raw keyed state checkpoint output stream.", e);
 			}
 		}
-
 		if (operatorStateCheckpointOutputStream != null) {
 			try {
 				closeAndUnregisterStream(operatorStateCheckpointOutputStream);
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				exception = ExceptionUtils.firstOrSuppressed(
 					new IOException("Could not close the raw operator state checkpoint output stream.", e),
 					exception);
 			}
 		}
-
+		if (keyedStateCheckpointClosingFuture != null) {
+			keyedStateCheckpointClosingFuture.cancel(true);
+		}
+		if (operatorStateCheckpointClosingFuture != null) {
+			operatorStateCheckpointClosingFuture.cancel(true);
+		}
 		if (exception != null) {
 			throw exception;
+		}
+	}
+
+	private static final class StreamCloserCallable<T extends StreamStateHandle> extends AsyncSnapshotCallable<SnapshotResult<T>> {
+
+		@Nullable
+		private final NonClosingCheckpointOutputStream<T> stream;
+		private final CloseableRegistry closableRegistry;
+
+		StreamCloserCallable(CloseableRegistry closableRegistry, @Nullable NonClosingCheckpointOutputStream<T> stream) {
+			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
+			this.stream = stream;
+		}
+
+		@Override
+		protected SnapshotResult<T> callInternal() throws Exception {
+			if (stream == null) {
+				return SnapshotResult.of(null);
+			}
+			if (!closableRegistry.unregisterCloseable(stream.getDelegate())) {
+				throw new IOException("Stream delegate appears to be closed, because it is no longer registered.");
+			}
+			T closed = stream.closeAndGetHandle();
+			return SnapshotResult.of(closed);
+		}
+
+		@Override
+		protected void cleanupProvidedResources() {
+			try {
+				if (stream != null && closableRegistry.unregisterCloseable(stream.getDelegate())) {
+					stream.closeAndGetHandle();
+				}
+			}
+			catch (IOException e) {
+				throw new IllegalStateException("Unable to cleanup a stream.", e);
+			}
 		}
 	}
 }

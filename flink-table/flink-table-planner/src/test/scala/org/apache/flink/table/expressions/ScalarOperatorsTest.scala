@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
+
 import org.junit.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
@@ -233,7 +233,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testTableApi(12.toExpr <= 'f8, "12 <= f8", "false")
 
     // string arithmetic
-    testTableApi(42.toExpr + 'f10 + 'f9, "42 + f10 + f9", "42String10")
     testTableApi('f10 + 'f9, "f10 + f9", "String10")
   }
 

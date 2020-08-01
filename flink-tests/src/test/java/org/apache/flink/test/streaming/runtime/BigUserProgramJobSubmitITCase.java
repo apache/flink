@@ -18,6 +18,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -91,8 +92,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 			StandaloneClusterId.getInstance());
 
 		try {
-			restClusterClient.setDetached(false);
-			restClusterClient.submitJob(jobGraph, BigUserProgramJobSubmitITCase.class.getClassLoader());
+			ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, BigUserProgramJobSubmitITCase.class.getClassLoader());
 
 			List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
 
@@ -103,7 +103,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 			assertEquals(expected, result);
 		} finally {
-			restClusterClient.shutdown();
+			restClusterClient.close();
 		}
 	}
 

@@ -70,7 +70,6 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 		env.setParallelism(PARALLELISM);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
 		env.getConfig().setExecutionMode(executionMode);
-		env.getConfig().disableSysoutLogging();
 
 		final long numElements = 100000L;
 		final DataSet<Long> result = env.generateSequence(1, numElements)

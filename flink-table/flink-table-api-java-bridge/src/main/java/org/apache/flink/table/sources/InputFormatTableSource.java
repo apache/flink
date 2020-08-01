@@ -20,8 +20,11 @@ package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
 /**
  * Defines an external bounded table and provides access to its data.
@@ -44,8 +47,10 @@ public abstract class InputFormatTableSource<T> implements StreamTableSource<T> 
 		return true;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public final DataStream<T> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv.createInput(getInputFormat(), getReturnType());
+		TypeInformation<T> typeInfo = (TypeInformation<T>) fromDataTypeToLegacyInfo(getProducedDataType());
+		return execEnv.createInput(getInputFormat(), typeInfo);
 	}
 }

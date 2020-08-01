@@ -22,6 +22,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -49,6 +52,44 @@ public class ConfigurationUtilsTest extends TestLogger {
 		}
 
 		assertThat(configuration.toMap().size(), is(properties.size()));
+	}
+
+	@Test
+	public void testHideSensitiveValues() {
+		final Map<String, String> keyValuePairs = new HashMap<>();
+		keyValuePairs.put("foobar", "barfoo");
+		final String secretKey1 = "secret.key";
+		keyValuePairs.put(secretKey1, "12345");
+		final String secretKey2 = "my.password";
+		keyValuePairs.put(secretKey2, "12345");
+
+		final Map<String, String> expectedKeyValuePairs = new HashMap<>(keyValuePairs);
+
+		for (String secretKey : Arrays.asList(secretKey1, secretKey2)) {
+			expectedKeyValuePairs.put(secretKey, GlobalConfiguration.HIDDEN_CONTENT);
+		}
+
+		final Map<String, String> hiddenSensitiveValues = ConfigurationUtils.hideSensitiveValues(keyValuePairs);
+
+		assertThat(hiddenSensitiveValues, is(equalTo(expectedKeyValuePairs)));
+	}
+
+	@Test
+	public void testGetPrefixedKeyValuePairs() {
+		final String prefix = "test.prefix.";
+		final Map<String, String> expectedKeyValuePairs = new HashMap<String, String>() {
+			{
+				put("k1", "v1");
+				put("k2", "v2");
+			}
+		};
+
+		final Configuration configuration =  new Configuration();
+		expectedKeyValuePairs.forEach((k, v) -> configuration.setString(prefix + k, v));
+
+		final Map<String, String> resultKeyValuePairs = ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
+
+		assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
 	}
 
 }

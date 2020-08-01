@@ -25,13 +25,14 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
-import org.apache.flink.table.api.TableConfigOptions;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
@@ -58,9 +59,9 @@ public class LongHashTableTest {
 
 	private static final int PAGE_SIZE = 32 * 1024;
 	private IOManager ioManager;
-	private BinaryRowSerializer buildSideSerializer;
-	private BinaryRowSerializer probeSideSerializer;
-	private MemoryManager memManager = new MemoryManager(896 * PAGE_SIZE, 1);
+	private BinaryRowDataSerializer buildSideSerializer;
+	private BinaryRowDataSerializer probeSideSerializer;
+	private MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 
 	private boolean useCompress;
 	private Configuration conf;
@@ -77,35 +78,34 @@ public class LongHashTableTest {
 	@Before
 	public void init() {
 		TypeInformation[] types = new TypeInformation[]{Types.INT, Types.INT};
-		this.buildSideSerializer = new BinaryRowSerializer(types.length);
-		this.probeSideSerializer = new BinaryRowSerializer(types.length);
+		this.buildSideSerializer = new BinaryRowDataSerializer(types.length);
+		this.probeSideSerializer = new BinaryRowDataSerializer(types.length);
 		this.ioManager = new IOManagerAsync();
 
 		conf = new Configuration();
-		conf.setBoolean(TableConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
+		conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
 	}
 
 	private class MyHashTable extends LongHybridHashTable {
 
 		public MyHashTable(long memorySize) {
-			super(conf, LongHashTableTest.this, buildSideSerializer, probeSideSerializer, memManager, memorySize,
-					memorySize, 0, LongHashTableTest.this.ioManager,
-					24, 200000);
+			super(conf, LongHashTableTest.this, buildSideSerializer, probeSideSerializer, memManager,
+					memorySize, LongHashTableTest.this.ioManager, 24, 200000);
 		}
 
 		@Override
-		public long getBuildLongKey(BaseRow row) {
+		public long getBuildLongKey(RowData row) {
 			return row.getInt(0);
 		}
 
 		@Override
-		public long getProbeLongKey(BaseRow row) {
+		public long getProbeLongKey(RowData row) {
 			return row.getInt(0);
 		}
 
 		@Override
-		public BinaryRow probeToBinary(BaseRow row) {
-			return (BinaryRow) row;
+		public BinaryRowData probeToBinary(RowData row) {
+			return (BinaryRowData) row;
 		}
 	}
 
@@ -116,10 +116,10 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		final MyHashTable table = new MyHashTable(500 * PAGE_SIZE);
 
@@ -138,10 +138,10 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		final MyHashTable table = new MyHashTable(300 * PAGE_SIZE);
 
@@ -166,10 +166,10 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		final MyHashTable table = new MyHashTable(100 * PAGE_SIZE);
 
@@ -191,10 +191,10 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<>(numKeys);
@@ -202,13 +202,13 @@ public class LongHashTableTest {
 		// ----------------------------------------------------------------------------------------
 		final MyHashTable table = new MyHashTable(100 * PAGE_SIZE);
 
-		BinaryRow buildRow = buildSideSerializer.createInstance();
+		BinaryRowData buildRow = buildSideSerializer.createInstance();
 		while ((buildRow = buildInput.next(buildRow)) != null) {
 			table.putBuildRow(buildRow);
 		}
 		table.endBuild();
 
-		BinaryRow probeRow = probeSideSerializer.createInstance();
+		BinaryRowData probeRow = probeSideSerializer.createInstance();
 		while ((probeRow = probeInput.next(probeRow)) != null) {
 			if (table.tryProbe(probeRow)) {
 				testJoin(table, map);
@@ -249,37 +249,37 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<BinaryRow> build1 = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		MutableObjectIterator<BinaryRow> build2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
-		MutableObjectIterator<BinaryRow> build3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
-		List<MutableObjectIterator<BinaryRow>> builds = new ArrayList<>();
+		MutableObjectIterator<BinaryRowData> build1 = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> build2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
+		MutableObjectIterator<BinaryRowData> build3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
+		List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<BinaryRow> buildInput = new UnionIterator<>(builds);
+		MutableObjectIterator<BinaryRowData> buildInput = new UnionIterator<>(builds);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probe1 = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probe2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
-		MutableObjectIterator<BinaryRow> probe3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
-		List<MutableObjectIterator<BinaryRow>> probes = new ArrayList<>();
+		MutableObjectIterator<BinaryRowData> probe1 = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probe2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
+		MutableObjectIterator<BinaryRowData> probe3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
+		List<MutableObjectIterator<BinaryRowData>> probes = new ArrayList<>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		MutableObjectIterator<BinaryRow> probeInput = new UnionIterator<>(probes);
+		MutableObjectIterator<BinaryRowData> probeInput = new UnionIterator<>(probes);
 
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<>(numKeys);
 
 		final MyHashTable table = new MyHashTable(896 * PAGE_SIZE);
 
-		BinaryRow buildRow = buildSideSerializer.createInstance();
+		BinaryRowData buildRow = buildSideSerializer.createInstance();
 		while ((buildRow = buildInput.next(buildRow)) != null) {
 			table.putBuildRow(buildRow);
 		}
 		table.endBuild();
 
-		BinaryRow probeRow = probeSideSerializer.createInstance();
+		BinaryRowData probeRow = probeSideSerializer.createInstance();
 		while ((probeRow = probeInput.next(probeRow)) != null) {
 			if (table.tryProbe(probeRow)) {
 				testJoin(table, map);
@@ -322,37 +322,37 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<BinaryRow> build1 = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		MutableObjectIterator<BinaryRow> build2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
-		MutableObjectIterator<BinaryRow> build3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
-		List<MutableObjectIterator<BinaryRow>> builds = new ArrayList<>();
+		MutableObjectIterator<BinaryRowData> build1 = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> build2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
+		MutableObjectIterator<BinaryRowData> build3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
+		List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<BinaryRow> buildInput = new UnionIterator<>(builds);
+		MutableObjectIterator<BinaryRowData> buildInput = new UnionIterator<>(builds);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probe1 = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probe2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
-		MutableObjectIterator<BinaryRow> probe3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
-		List<MutableObjectIterator<BinaryRow>> probes = new ArrayList<>();
+		MutableObjectIterator<BinaryRowData> probe1 = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probe2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
+		MutableObjectIterator<BinaryRowData> probe3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
+		List<MutableObjectIterator<BinaryRowData>> probes = new ArrayList<>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		MutableObjectIterator<BinaryRow> probeInput = new UnionIterator<>(probes);
+		MutableObjectIterator<BinaryRowData> probeInput = new UnionIterator<>(probes);
 
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<>(numKeys);
 
 		final MyHashTable table = new MyHashTable(896 * PAGE_SIZE);
 
-		BinaryRow buildRow = buildSideSerializer.createInstance();
+		BinaryRowData buildRow = buildSideSerializer.createInstance();
 		while ((buildRow = buildInput.next(buildRow)) != null) {
 			table.putBuildRow(buildRow);
 		}
 		table.endBuild();
 
-		BinaryRow probeRow = probeSideSerializer.createInstance();
+		BinaryRowData probeRow = probeSideSerializer.createInstance();
 		while ((probeRow = probeInput.next(probeRow)) != null) {
 			if (table.tryProbe(probeRow)) {
 				testJoin(table, map);
@@ -399,24 +399,24 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<BinaryRow> build1 = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		MutableObjectIterator<BinaryRow> build2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCount);
-		MutableObjectIterator<BinaryRow> build3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCount);
-		List<MutableObjectIterator<BinaryRow>> builds = new ArrayList<>();
+		MutableObjectIterator<BinaryRowData> build1 = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> build2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCount);
+		MutableObjectIterator<BinaryRowData> build3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCount);
+		List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<BinaryRow> buildInput = new UnionIterator<>(builds);
+		MutableObjectIterator<BinaryRowData> buildInput = new UnionIterator<>(builds);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probe1 = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probe2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCount);
-		MutableObjectIterator<BinaryRow> probe3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCount);
-		List<MutableObjectIterator<BinaryRow>> probes = new ArrayList<>();
+		MutableObjectIterator<BinaryRowData> probe1 = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probe2 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCount);
+		MutableObjectIterator<BinaryRowData> probe3 = new BinaryHashTableTest.ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCount);
+		List<MutableObjectIterator<BinaryRowData>> probes = new ArrayList<>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		MutableObjectIterator<BinaryRow> probeInput = new UnionIterator<>(probes);
+		MutableObjectIterator<BinaryRowData> probeInput = new UnionIterator<>(probes);
 		final MyHashTable table = new MyHashTable(896 * PAGE_SIZE);
 
 		try {
@@ -440,7 +440,7 @@ public class LongHashTableTest {
 		final int numProbeKeys = 20;
 		final int numProbeVals = 1;
 
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(
 				numBuildKeys, numBuildVals, false);
 		final MyHashTable table = new MyHashTable(100 * PAGE_SIZE);
 
@@ -463,7 +463,7 @@ public class LongHashTableTest {
 		final int numProbeKeys = 10;
 		final int numProbeVals = 1;
 
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numBuildKeys, numBuildVals, false);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numBuildKeys, numBuildVals, false);
 		final MyHashTable table = new MyHashTable(85 * PAGE_SIZE);
 
 		int expectedNumResults = (Math.min(numProbeKeys, numBuildKeys) * numBuildVals)
@@ -485,10 +485,10 @@ public class LongHashTableTest {
 		final int probeValsPerKey = 10;
 
 		// create a build input that gives 30000 pairs with 3 values sharing the same key
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
 
 		// create a probe input that gives 100000 pairs with 10 values sharing a key
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		// ----------------------------------------------------------------------------------------
 
@@ -503,13 +503,13 @@ public class LongHashTableTest {
 	}
 
 	private void testJoin(MyHashTable table, HashMap<Integer, Long> map) throws IOException {
-		BinaryRow record;
+		BinaryRowData record;
 		int numBuildValues = 0;
 
-		final BaseRow probeRec = table.getCurrentProbeRow();
+		final RowData probeRec = table.getCurrentProbeRow();
 		int key = probeRec.getInt(0);
 
-		RowIterator<BinaryRow> buildSide = table.getBuildSideIterator();
+		RowIterator<BinaryRowData> buildSide = table.getBuildSideIterator();
 		if (buildSide.advanceNext()) {
 			numBuildValues = 1;
 			record = buildSide.getRow();
@@ -535,18 +535,18 @@ public class LongHashTableTest {
 
 	private int join(
 			MyHashTable table,
-			MutableObjectIterator<BinaryRow> buildInput,
-			MutableObjectIterator<BinaryRow> probeInput) throws IOException {
+			MutableObjectIterator<BinaryRowData> buildInput,
+			MutableObjectIterator<BinaryRowData> probeInput) throws IOException {
 		int count = 0;
 
-		BinaryRow reuseBuildSizeRow = buildSideSerializer.createInstance();
-		BinaryRow buildRow;
+		BinaryRowData reuseBuildSizeRow = buildSideSerializer.createInstance();
+		BinaryRowData buildRow;
 		while ((buildRow = buildInput.next(reuseBuildSizeRow)) != null) {
 			table.putBuildRow(buildRow);
 		}
 		table.endBuild();
 
-		BinaryRow probeRow = probeSideSerializer.createInstance();
+		BinaryRowData probeRow = probeSideSerializer.createInstance();
 		while ((probeRow = probeInput.next(probeRow)) != null) {
 			if (table.tryProbe(probeRow)){
 				count += joinWithNextKey(table);
@@ -561,9 +561,9 @@ public class LongHashTableTest {
 
 	private int joinWithNextKey(MyHashTable table) throws IOException {
 		int count = 0;
-		final RowIterator<BinaryRow> buildIterator = table.getBuildSideIterator();
-		final BaseRow probeRow = table.getCurrentProbeRow();
-		BinaryRow buildRow;
+		final RowIterator<BinaryRowData> buildIterator = table.getBuildSideIterator();
+		final RowData probeRow = table.getCurrentProbeRow();
+		BinaryRowData buildRow;
 
 		buildRow = buildIterator.advanceNext() ? buildIterator.getRow() : null;
 		// get the first build side value

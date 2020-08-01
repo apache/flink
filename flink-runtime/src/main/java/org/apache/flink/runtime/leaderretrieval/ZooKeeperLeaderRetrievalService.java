@@ -21,13 +21,14 @@ package org.apache.flink.runtime.leaderretrieval;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.UnhandledErrorListener;
-import org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.curator.framework.recipes.cache.NodeCacheListener;
-import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.UnhandledErrorListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

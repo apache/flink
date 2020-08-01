@@ -18,123 +18,45 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.FlinkPlan;
-
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobClient;
 
 /**
- * An {@link ExecutionEnvironment} that never executes a job but only creates the optimized plan.
+ * An {@link ExecutionEnvironment} that never executes a job but only extracts the {@link Pipeline}.
  */
 public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
-	private final Optimizer compiler;
+	private Pipeline pipeline;
 
-	private FlinkPlan optimizerPlan;
-
-	public OptimizerPlanEnvironment(Optimizer compiler) {
-		this.compiler = compiler;
+	public Pipeline getPipeline() {
+		return pipeline;
 	}
 
-	// ------------------------------------------------------------------------
-	//  Execution Environment methods
-	// ------------------------------------------------------------------------
+	public OptimizerPlanEnvironment(Configuration configuration, ClassLoader userClassloader, int parallelism) {
+		super(configuration, userClassloader);
+		if (parallelism > 0) {
+			setParallelism(parallelism);
+		}
+	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan plan = createProgramPlan(jobName);
-		this.optimizerPlan = compiler.compile(plan);
+	public JobClient executeAsync(String jobName) {
+		pipeline = createProgramPlan();
 
 		// do not go on with anything now!
 		throw new ProgramAbortException();
 	}
 
-	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan(null, false);
-		this.optimizerPlan = compiler.compile(plan);
-
-		// do not go on with anything now!
-		throw new ProgramAbortException();
-	}
-
-	@Override
-	public void startNewSession() {
-		// do nothing
-	}
-
-	public FlinkPlan getOptimizedPlan(PackagedProgram prog) throws ProgramInvocationException {
-
-		// temporarily write syserr and sysout to a byte array.
-		PrintStream originalOut = System.out;
-		PrintStream originalErr = System.err;
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		System.setOut(new PrintStream(baos));
-		ByteArrayOutputStream baes = new ByteArrayOutputStream();
-		System.setErr(new PrintStream(baes));
-
-		setAsContext();
-		try {
-			prog.invokeInteractiveModeForExecution();
-		}
-		catch (ProgramInvocationException e) {
-			throw e;
-		}
-		catch (Throwable t) {
-			// the invocation gets aborted with the preview plan
-			if (optimizerPlan != null) {
-				return optimizerPlan;
-			} else {
-				throw new ProgramInvocationException("The program caused an error: ", t);
-			}
-		}
-		finally {
-			unsetAsContext();
-			System.setOut(originalOut);
-			System.setErr(originalErr);
-		}
-
-		String stdout = baos.toString();
-		String stderr = baes.toString();
-
-		throw new ProgramInvocationException(
-				"The program plan could not be fetched - the program aborted pre-maturely."
-						+ "\n\nSystem.err: " + (stderr.length() == 0 ? "(none)" : stderr)
-						+ "\n\nSystem.out: " + (stdout.length() == 0 ? "(none)" : stdout));
-	}
-	// ------------------------------------------------------------------------
-
-	private void setAsContext() {
-		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-
-			@Override
-			public ExecutionEnvironment createExecutionEnvironment() {
-				return OptimizerPlanEnvironment.this;
-			}
-		};
+	public void setAsContext() {
+		ExecutionEnvironmentFactory factory = () -> this;
 		initializeContextEnvironment(factory);
 	}
 
-	private void unsetAsContext() {
+	public void unsetAsContext() {
 		resetContextEnvironment();
 	}
 
-	// ------------------------------------------------------------------------
-
-	public void setPlan(FlinkPlan plan){
-		this.optimizerPlan = plan;
-	}
-
-	/**
-	 * A special exception used to abort programs when the caller is only interested in the
-	 * program plan, rather than in the full execution.
-	 */
-	public static final class ProgramAbortException extends Error {
-		private static final long serialVersionUID = 1L;
-	}
 }

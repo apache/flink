@@ -106,8 +106,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 			assertEquals(dummyRpcEndpoint2.getAddress(), dummyGateway2.getAddress());
 			assertEquals(expectedValue2, dummyGateway2.foobar(TIMEOUT).get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS));
 		} finally {
-			RpcUtils.terminateRpcEndpoint(dummyRpcEndpoint, TIMEOUT);
-			RpcUtils.terminateRpcEndpoint(dummyRpcEndpoint2, TIMEOUT);
+			RpcUtils.terminateRpcEndpoints(TIMEOUT, dummyRpcEndpoint, dummyRpcEndpoint2);
 		}
 	}
 

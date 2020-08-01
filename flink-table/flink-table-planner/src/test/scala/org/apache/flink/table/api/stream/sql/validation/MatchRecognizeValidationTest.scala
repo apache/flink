@@ -19,9 +19,11 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
+import org.hamcrest.Matchers
 import org.junit.Test
 
 class MatchRecognizeValidationTest extends TableTestBase {
@@ -40,6 +42,27 @@ class MatchRecognizeValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testMatchProctimeInSelect() = {
     val sql = "SELECT MATCH_PROCTIME() FROM MyTable"
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Python Function can not be used in MATCH_RECOGNIZE for now **/
+  @Test
+  def testMatchPythonFunction() = {
+    expectedException.expectCause(Matchers.isA(classOf[TableException]))
+    streamUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    val sql =
+      """SELECT T.aa as ta
+        |FROM MyTable
+        |MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.a as aa,
+        |    pyFunc(1,2) as bb
+        |  PATTERN (A B)
+        |  DEFINE
+        |    A AS a = 1,
+        |    B AS b = 'b'
+        |) AS T""".stripMargin
     streamUtil.verifySql(sql, "n/a")
   }
 }

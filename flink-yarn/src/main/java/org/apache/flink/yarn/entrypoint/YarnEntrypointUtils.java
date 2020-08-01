@@ -28,13 +28,10 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityContext;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -43,6 +40,10 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
+
+import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class contains utility methods for the {@link YarnSessionClusterEntrypoint} and
@@ -50,26 +51,12 @@ import java.util.Map;
  */
 public class YarnEntrypointUtils {
 
-	public static SecurityContext installSecurityContext(
-			Configuration configuration,
-			String workingDirectory) throws Exception {
-
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-
-		SecurityUtils.install(sc);
-
-		return SecurityUtils.getInstalledContext();
-	}
-
-	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env, Logger log) {
+	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env) {
 		Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
 
-		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 
 		final String zooKeeperNamespace = env.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
-
-		final Map<String, String> dynamicProperties = FlinkYarnSessionCli.getDynamicProperties(
-			env.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
 
 		final String hostname = env.get(ApplicationConstants.Environment.NM_HOST.key());
 		Preconditions.checkState(
@@ -79,15 +66,6 @@ public class YarnEntrypointUtils {
 
 		configuration.setString(JobManagerOptions.ADDRESS, hostname);
 		configuration.setString(RestOptions.ADDRESS, hostname);
-
-		// TODO: Support port ranges for the AM
-//		final String portRange = configuration.getString(
-//			ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-//			ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
-
-		for (Map.Entry<String, String> property : dynamicProperties.entrySet()) {
-			configuration.setString(property.getKey(), property.getValue());
-		}
 
 		if (zooKeeperNamespace != null) {
 			configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zooKeeperNamespace);
@@ -115,18 +93,11 @@ public class YarnEntrypointUtils {
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
 			ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
-		final String keytabPath;
+		final String keytabPath = Utils.resolveKeytabPath(workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
 
-		if (env.get(YarnConfigKeys.KEYTAB_PATH) == null) {
-			keytabPath = null;
-		} else {
-			File f = new File(workingDirectory, Utils.KEYTAB_FILE_NAME);
-			keytabPath = f.getAbsolutePath();
-		}
-
-		if (keytabPath != null && remoteKeytabPrincipal != null) {
+		if (keytabPath != null && keytabPrincipal != null) {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
 		}
 
 		final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());
@@ -146,5 +117,19 @@ public class YarnEntrypointUtils {
 
 		log.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 			currentUser.getShortUserName(), yarnClientUsername);
+	}
+
+	public static Optional<File> getUsrLibDir(final Configuration configuration) {
+		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
+				.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final Optional<File> userLibDir = tryFindUserLibDirectory();
+
+		checkState(
+				userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
+				"The %s is set to %s. But the usrlib directory does not exist.",
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+				YarnConfigOptions.UserJarInclusion.DISABLED);
+
+		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir : Optional.empty();
 	}
 }

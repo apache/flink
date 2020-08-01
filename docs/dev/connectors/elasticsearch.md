@@ -41,11 +41,6 @@ of the Elasticsearch installation:
   </thead>
   <tbody>
     <tr>
-        <td>flink-connector-elasticsearch2{{ site.scala_version_suffix }}</td>
-        <td>1.0.0</td>
-        <td>2.x</td>
-    </tr>
-    <tr>
         <td>flink-connector-elasticsearch5{{ site.scala_version_suffix }}</td>
         <td>1.3.0</td>
         <td>5.x</td>
@@ -53,13 +48,18 @@ of the Elasticsearch installation:
     <tr>
         <td>flink-connector-elasticsearch6{{ site.scala_version_suffix }}</td>
         <td>1.6.0</td>
-        <td>6 and later versions</td>
+        <td>6.x</td>
+    </tr>
+    <tr>
+        <td>flink-connector-elasticsearch7{{ site.scala_version_suffix }}</td>
+        <td>1.10.0</td>
+        <td>7 and later versions</td>
     </tr>
   </tbody>
 </table>
 
 Note that the streaming connectors are currently not part of the binary
-distribution. See [here]({{site.baseurl}}/dev/projectsetup/dependencies.html) for information
+distribution. See [here]({{site.baseurl}}/dev/project-configuration.html) for information
 about how to package the program with the libraries for cluster execution.
 
 ## Installing Elasticsearch
@@ -77,7 +77,7 @@ Elasticsearch cluster.
 The example below shows how to configure and create a sink:
 
 <div class="codetabs" markdown="1">
-<div data-lang="java, Elasticsearch 2.x / 5.x" markdown="1">
+<div data-lang="java, 5.x" markdown="1">
 {% highlight java %}
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -123,7 +123,7 @@ input.addSink(new ElasticsearchSink<>(config, transportAddresses, new Elasticsea
     }
 }));{% endhighlight %}
 </div>
-<div data-lang="java, Elasticsearch 6.x" markdown="1">
+<div data-lang="java, Elasticsearch 6.x and above" markdown="1">
 {% highlight java %}
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -184,7 +184,7 @@ esSinkBuilder.setRestClientFactory(
 input.addSink(esSinkBuilder.build());
 {% endhighlight %}
 </div>
-<div data-lang="scala, Elasticsearch 2.x / 5.x" markdown="1">
+<div data-lang="scala, 5.x" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -226,7 +226,7 @@ input.addSink(new ElasticsearchSink(config, transportAddresses, new Elasticsearc
 }))
 {% endhighlight %}
 </div>
-<div data-lang="scala, Elasticsearch 6.x" markdown="1">
+<div data-lang="scala, Elasticsearch 6.x and above" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -247,18 +247,20 @@ val httpHosts = new java.util.ArrayList[HttpHost]
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"))
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
 
-val esSinkBuilder = new ElasticsearchSink.Builer[String](
+val esSinkBuilder = new ElasticsearchSink.Builder[String](
   httpHosts,
   new ElasticsearchSinkFunction[String] {
-    def createIndexRequest(element: String): IndexRequest = {
-      val json = new java.util.HashMap[String, String]
-      json.put("data", element)
-      
-      return Requests.indexRequest()
-              .index("my-index")
-              .type("my-type")
-              .source(json)
-    }
+     def process(element: String, ctx: RuntimeContext, indexer: RequestIndexer) {
+          val json = new java.util.HashMap[String, String]
+          json.put("data", element)
+
+          val rqst: IndexRequest = Requests.indexRequest
+            .index("my-index")
+            .`type`("my-type")
+            .source(json)
+
+          indexer.add(rqst)
+     } 
   }
 )
 
@@ -266,14 +268,14 @@ val esSinkBuilder = new ElasticsearchSink.Builer[String](
 esSinkBuilder.setBulkFlushMaxActions(1)
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-esSinkBuilder.setRestClientFactory(
-  restClientBuilder -> {
-    restClientBuilder.setDefaultHeaders(...)
-    restClientBuilder.setMaxRetryTimeoutMillis(...)
-    restClientBuilder.setPathPrefix(...)
-    restClientBuilder.setHttpClientConfigCallback(...)
+esSinkBuilder.setRestClientFactory(new RestClientFactory {
+  override def configureRestClientBuilder(restClientBuilder: RestClientBuilder): Unit = {
+       restClientBuilder.setDefaultHeaders(...)
+       restClientBuilder.setMaxRetryTimeoutMillis(...)
+       restClientBuilder.setPathPrefix(...)
+       restClientBuilder.setHttpClientConfigCallback(...)
   }
-)
+})
 
 // finally, build and add the sink to the job's pipeline
 input.addSink(esSinkBuilder.build)
@@ -315,7 +317,7 @@ time of checkpoints. This effectively assures that all requests before the
 checkpoint was triggered have been successfully acknowledged by Elasticsearch, before
 proceeding to process more records sent to the sink.
 
-More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/internals/stream_checkpointing.html).
+More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/learn-flink/fault_tolerance.html).
 
 To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
 
@@ -366,10 +368,10 @@ input.addSink(new ElasticsearchSink<>(
                 int restStatusCode,
                 RequestIndexer indexer) throw Throwable {
 
-            if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
+            if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
                 // full queue; re-add document for indexing
                 indexer.add(action);
-            } else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
+            } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
                 // malformed document; simply drop request without failing sink
             } else {
                 // for all other failures, fail the sink
@@ -394,10 +396,10 @@ input.addSink(new ElasticsearchSink(
                 int restStatusCode,
                 RequestIndexer indexer) {
 
-            if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
+            if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
                 // full queue; re-add document for indexing
                 indexer.add(action)
-            } else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
+            } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
                 // malformed document; simply drop request without failing sink
             } else {
                 // for all other failures, fail the sink
@@ -462,7 +464,7 @@ More information about Elasticsearch can be found [here](https://elastic.co).
 
 For the execution of your Flink program, it is recommended to build a
 so-called uber-jar (executable jar) containing all your dependencies
-(see [here]({{site.baseurl}}/dev/projectsetup/dependencies.html) for further information).
+(see [here]({{site.baseurl}}/dev/project-configuration.html) for further information).
 
 Alternatively, you can put the connector's jar file into Flink's `lib/` folder to make it available
 system-wide, i.e. for all job being run.

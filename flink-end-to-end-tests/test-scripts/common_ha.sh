@@ -23,10 +23,9 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 # flag indicating if we have already cleared up things after a test
 CLEARED=0
 
-JM_WATCHDOG_PID=0
-TM_WATCHDOG_PID=0
-
 function stop_watchdogs() {
+    JM_WATCHDOG_PID=`cat $TEST_DATA_DIR/jm_watchdog.pid`
+    TM_WATCHDOG_PID=`cat $TEST_DATA_DIR/tm_watchdog.pid`
     if [ ${CLEARED} -eq 0 ]; then
 
         if ! [ ${JM_WATCHDOG_PID} -eq 0 ]; then
@@ -66,7 +65,7 @@ function verify_logs() {
     fi
 
     # checks that all apart from the first JM recover the failed jobgraph.
-    if ! verify_num_occurences_in_logs 'standalonesession' 'Recovered SubmittedJobGraph' ${JM_FAILURES}; then
+    if ! verify_num_occurences_in_logs 'standalonesession' 'Recovered JobGraph' ${JM_FAILURES}; then
         echo "FAILURE: A JM did not take over."
         EXIT_CODE=1
     fi
@@ -115,6 +114,7 @@ function start_jm_cmd {
 function start_ha_jm_watchdog() {
     jm_watchdog $1 $2 ${@:3} &
     JM_WATCHDOG_PID=$!
+    echo $JM_WATCHDOG_PID > $TEST_DATA_DIR/jm_watchdog.pid
     echo "Running JM watchdog @ ${JM_WATCHDOG_PID}"
 }
 
@@ -179,6 +179,7 @@ function ha_tm_watchdog() {
 function start_ha_tm_watchdog() {
     ha_tm_watchdog $1 $2 &
     TM_WATCHDOG_PID=$!
+    echo $TM_WATCHDOG_PID > $TEST_DATA_DIR/tm_watchdog.pid
     echo "Running TM watchdog @ ${TM_WATCHDOG_PID}"
 }
 

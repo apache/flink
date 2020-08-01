@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -75,6 +76,13 @@ public class InputChannelTestUtils {
 		return new SingleInputGateBuilder().setNumberOfChannels(numberOfChannels).build();
 	}
 
+	public static SingleInputGate createSingleInputGate(int numberOfChannels, MemorySegmentProvider segmentProvider) {
+		return new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.setSegmentProvider(segmentProvider)
+			.build();
+	}
+
 	public static ConnectionManager createDummyConnectionManager() throws Exception {
 		final PartitionRequestClient mockClient = mock(PartitionRequestClient.class);
 
@@ -99,7 +107,7 @@ public class InputChannelTestUtils {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionManager(partitionManager)
-			.buildLocalAndSetToGate(inputGate);
+			.buildLocalChannel(inputGate);
 	}
 
 	public static LocalInputChannel createLocalInputChannel(
@@ -112,7 +120,7 @@ public class InputChannelTestUtils {
 			.setPartitionManager(partitionManager)
 			.setInitialBackoff(initialBackoff)
 			.setMaxBackoff(maxBackoff)
-			.buildLocalAndSetToGate(inputGate);
+			.buildLocalChannel(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
@@ -123,18 +131,16 @@ public class InputChannelTestUtils {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setConnectionManager(connectionManager)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
 		SingleInputGate inputGate,
-		PartitionRequestClient client,
-		MemorySegmentProvider memorySegmentProvider) {
+		PartitionRequestClient client) {
 
 		return InputChannelBuilder.newBuilder()
 			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
-			.setMemorySegmentProvider(memorySegmentProvider)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 
 	public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(PartitionRequestClient client) {
@@ -189,6 +195,26 @@ public class InputChannelTestUtils {
 		@Override
 		public Collection<MemorySegment> requestMemorySegments() {
 			return Collections.emptyList();
+		}
+
+		@Override
+		public void recycleMemorySegments(Collection<MemorySegment> segments) {
+		}
+	}
+
+	/**
+	 * {@link MemorySegmentProvider} that provides unpooled {@link MemorySegment}s.
+	 */
+	public static class UnpooledMemorySegmentProvider implements MemorySegmentProvider {
+		private final int pageSize;
+
+		public UnpooledMemorySegmentProvider(int pageSize) {
+			this.pageSize = pageSize;
+		}
+
+		@Override
+		public Collection<MemorySegment> requestMemorySegments() {
+			return Collections.singletonList(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
 		}
 
 		@Override

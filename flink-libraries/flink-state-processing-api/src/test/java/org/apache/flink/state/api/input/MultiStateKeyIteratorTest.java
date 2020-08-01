@@ -42,7 +42,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Test for the mulit-state key iterator.
+ * Test for the multi-state key iterator.
  */
 public class MultiStateKeyIteratorTest {
 	private static final List<ValueStateDescriptor<Integer>> descriptors;

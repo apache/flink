@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.DecimalData;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -34,7 +35,8 @@ import java.util.Set;
  * digits in a number (=precision) and {@code s} is the number of digits to the right of the decimal
  * point in a number (=scale). {@code p} must have a value between 1 and 38 (both inclusive). {@code s}
  * must have a value between 0 and {@code p} (both inclusive). The default value for {@code p} is 10.
- * The default value for {@code s} is 0.
+ * The default value for {@code s} is 0. {@code NUMERIC(p, s)} and {@code DEC(p, s)} are synonyms for
+ * this type.
  */
 @PublicEvolving
 public final class DecimalType extends LogicalType {
@@ -53,7 +55,7 @@ public final class DecimalType extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		BigDecimal.class.getName(),
-		"org.apache.flink.table.dataformat.Decimal");
+		DecimalData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = BigDecimal.class;
 

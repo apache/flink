@@ -87,6 +87,25 @@ abstract class Optimizer(
   }
 
   /**
+    * Returns the logical rewrite rule set for this optimizer
+    * including a custom RuleSet configuration.
+    */
+  protected def getLogicalRewriteRuleSet: RuleSet = {
+    materializedConfig.logicalRewriteRuleSet match {
+
+      case None =>
+        getBuiltInLogicalRewriteRuleSet
+
+      case Some(ruleSet) =>
+        if (materializedConfig.replacesLogicalRewriteRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInLogicalRewriteRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
     * Returns the physical optimization rule set for this optimizer
     * including a custom RuleSet configuration.
     */
@@ -115,6 +134,13 @@ abstract class Optimizer(
     */
   protected def getBuiltInLogicalOptRuleSet: RuleSet = {
     FlinkRuleSets.LOGICAL_OPT_RULES
+  }
+
+  /**
+    * Returns the built-in logical rewrite rules that are defined by the optimizer.
+    */
+  protected def getBuiltInLogicalRewriteRuleSet: RuleSet = {
+    FlinkRuleSets.LOGICAL_REWRITE_RULES
   }
 
   /**
@@ -148,6 +174,19 @@ abstract class Optimizer(
     val normRuleSet = getNormRuleSet
     if (normRuleSet.iterator().hasNext) {
       runHepPlannerSequentially(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizeLogicalRewritePlan(relNode: RelNode): RelNode = {
+    val logicalRewriteRuleSet = getLogicalRewriteRuleSet
+    if (logicalRewriteRuleSet.iterator().hasNext) {
+      runHepPlannerSequentially(
+        HepMatchOrder.TOP_DOWN,
+        logicalRewriteRuleSet,
+        relNode,
+        relNode.getTraitSet)
     } else {
       relNode
     }

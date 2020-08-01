@@ -35,21 +35,16 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	/** Duration statistics for all completed checkpoints. */
 	private final MinMaxAvgStats duration;
 
-	/** Byte buffered during alignment for all completed checkpoints. */
-	private final MinMaxAvgStats alignmentBuffered;
-
 	CompletedCheckpointStatsSummary() {
-		this(new MinMaxAvgStats(), new MinMaxAvgStats(), new MinMaxAvgStats());
+		this(new MinMaxAvgStats(), new MinMaxAvgStats());
 	}
 
 	private CompletedCheckpointStatsSummary(
 			MinMaxAvgStats stateSize,
-			MinMaxAvgStats duration,
-			MinMaxAvgStats alignmentBuffered) {
+			MinMaxAvgStats duration) {
 
 		this.stateSize = checkNotNull(stateSize);
 		this.duration = checkNotNull(duration);
-		this.alignmentBuffered = checkNotNull(alignmentBuffered);
 	}
 
 	/**
@@ -60,7 +55,6 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	void updateSummary(CompletedCheckpointStats completed) {
 		stateSize.add(completed.getStateSize());
 		duration.add(completed.getEndToEndDuration());
-		alignmentBuffered.add(completed.getAlignmentBuffered());
 	}
 
 	/**
@@ -71,8 +65,7 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	CompletedCheckpointStatsSummary createSnapshot() {
 		return new CompletedCheckpointStatsSummary(
 				stateSize.createSnapshot(),
-				duration.createSnapshot(),
-				alignmentBuffered.createSnapshot());
+				duration.createSnapshot());
 	}
 
 	/**
@@ -91,17 +84,5 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	 */
 	public MinMaxAvgStats getEndToEndDurationStats() {
 		return duration;
-	}
-
-	/**
-	 * Returns the summary stats for the bytes buffered during alignment.
-	 *
-	 * <p>If no alignments are reported or happen (at least once mode), the
-	 * returned stats are in their initial state.
-	 *
-	 * @return Summary stats for the bytes buffered during alignment.
-	 */
-	public MinMaxAvgStats getAlignmentBufferedStats() {
-		return alignmentBuffered;
 	}
 }

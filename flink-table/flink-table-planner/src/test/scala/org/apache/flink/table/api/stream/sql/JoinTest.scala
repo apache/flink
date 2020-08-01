@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.api.stream.sql
 
-import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.join.WindowJoinUtil
-import org.apache.flink.table.utils.TableTestUtil.{term, _}
+import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
+import org.apache.calcite.rel.logical.LogicalJoin
 import org.junit.Assert._
 import org.junit.Test
 
@@ -75,8 +75,9 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
-              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), " +
+              "-(PROCTIME(proctime0), 3600000:INTERVAL HOUR)), " +
+              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -113,8 +114,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
-              "<=(CAST(c), +(CAST(c0), 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000:INTERVAL SECOND)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
@@ -151,8 +152,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
-              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000:INTERVAL HOUR))," +
+              " <=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -189,8 +190,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000)), " +
-              "<=(CAST(c), +(CAST(c0), 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000:INTERVAL MINUTE)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
@@ -285,14 +286,15 @@ class JoinTest extends TableTestBase {
         binaryNode("DataStreamWindowJoin",
           unaryNode("DataStreamCalc",
             streamTableNode(t1),
-            term("select", "a", "c", "proctime", "null AS nullField")
+            term("select", "a", "c", "proctime", "null:BIGINT AS nullField")
           ),
           unaryNode("DataStreamCalc",
             streamTableNode(t2),
-            term("select", "a", "c", "proctime", "CAST(12) AS nullField")
+            term("select", "a", "c", "proctime", "12:BIGINT AS nullField")
           ),
           term("where", "AND(=(a, a0), =(nullField, nullField0), >=(PROCTIME(proctime), " +
-            "-(PROCTIME(proctime0), 5000)), <=(PROCTIME(proctime), +(PROCTIME(proctime0), 5000)))"),
+            "-(PROCTIME(proctime0), 5000:INTERVAL SECOND)), <=(PROCTIME(proctime), " +
+            "+(PROCTIME(proctime0), 5000:INTERVAL SECOND)))"),
           term("join", "a", "c", "proctime", "nullField", "a0", "c0", "proctime0", "nullField0"),
           term("joinType", "InnerJoin")
         ),
@@ -331,8 +333,8 @@ class JoinTest extends TableTestBase {
               term("select", "a", "b", "c")
             ),
             term("where",
-              "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000)), " +
-                "<=(CAST(c), +(CAST(c0), 3600000)))"),
+              "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000:INTERVAL MINUTE)), " +
+                "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
             term("join", "a, b, c, a0, b0, c0"),
             term("joinType", "InnerJoin")
           ),
@@ -376,8 +378,8 @@ class JoinTest extends TableTestBase {
               term("select", "a", "b", "c")
             ),
             term("where",
-              "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000)), " +
-                "<=(CAST(c), +(CAST(c0), 3600000)))"),
+              "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000:INTERVAL MINUTE)), " +
+                "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
             term("join", "a, b, c, a0, b0, c0"),
             term("joinType", "InnerJoin")
           ),
@@ -419,8 +421,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
-              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000:INTERVAL HOUR))," +
+              " <=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -457,8 +459,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
-              "<=(CAST(c), +(CAST(c0), 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000:INTERVAL SECOND)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -496,8 +498,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
-              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000:INTERVAL HOUR))," +
+              " <=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "RightOuterJoin")
         ),
@@ -534,8 +536,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
-              "<=(CAST(c), +(CAST(c0), 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000:INTERVAL SECOND)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "RightOuterJoin")
         ),
@@ -573,8 +575,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
-              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000:INTERVAL HOUR))," +
+              " <=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "FullOuterJoin")
         ),
@@ -611,8 +613,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
-              "<=(CAST(c), +(CAST(c0), 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000:INTERVAL SECOND)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "FullOuterJoin")
         ),
@@ -651,8 +653,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
-              "<=(CAST(c), +(CAST(c0), 3600000)), LIKE(b, b0))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000:INTERVAL SECOND)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000:INTERVAL HOUR)), LIKE(b, b0))"),
           term("join", "a, b, c, a0, b0, c0"),
           // Since we filter on attributes b and b0 after the join, the full outer join
           // will be automatically optimized to inner join.
@@ -846,15 +848,15 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(left),
-          term("select", "a", "b", "<(b, 2) AS $f3")
+          term("select", "a", "b")
         ),
         unaryNode(
           "DataStreamCalc",
           streamTableNode(right),
           term("select", "y", "z")
         ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "$f3", "y", "z"),
+        term("where", "AND(=(a, z), <(b, 2))"),
+        term("join", "a", "b", "y", "z"),
         term("joinType", "LeftOuterJoin")
       ),
       term("select", "b", "y")
@@ -946,10 +948,10 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(right),
-          term("select", "x", "z", "<(x, 2) AS $f3")
+          term("select", "x", "z")
         ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "x", "z", "$f3"),
+        term("where", "AND(=(a, z), <(x, 2))"),
+        term("join", "a", "b", "x", "z"),
         term("joinType", "RightOuterJoin")
       ),
       term("select", "b", "x")

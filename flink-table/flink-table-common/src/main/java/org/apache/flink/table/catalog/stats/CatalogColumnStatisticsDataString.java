@@ -28,41 +28,41 @@ public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDa
 	/**
 	 * max length of all values.
 	 */
-	private final long maxLength;
+	private final Long maxLength;
 
 	/**
 	 * average length of all values.
 	 */
-	private final double avgLength;
+	private final Double avgLength;
 
 	/**
 	 * number of distinct values.
 	 */
-	private final long ndv;
+	private final Long ndv;
 
-	public CatalogColumnStatisticsDataString(long maxLength, double avgLength, long ndv, long nullCount) {
+	public CatalogColumnStatisticsDataString(Long maxLength, Double avgLength, Long ndv, Long nullCount) {
 		super(nullCount);
 		this.maxLength = maxLength;
 		this.avgLength = avgLength;
 		this.ndv = ndv;
 	}
 
-	public CatalogColumnStatisticsDataString(long maxLength, double avgLength, long ndv, long nullCount, Map<String, String> properties) {
+	public CatalogColumnStatisticsDataString(Long maxLength, Double avgLength, Long ndv, Long nullCount, Map<String, String> properties) {
 		super(nullCount, properties);
 		this.maxLength = maxLength;
 		this.avgLength = avgLength;
 		this.ndv = ndv;
 	}
 
-	public long getMaxLength() {
+	public Long getMaxLength() {
 		return maxLength;
 	}
 
-	public double getAvgLength() {
+	public Double getAvgLength() {
 		return avgLength;
 	}
 
-	public long getNdv() {
+	public Long getNdv() {
 		return ndv;
 	}
 

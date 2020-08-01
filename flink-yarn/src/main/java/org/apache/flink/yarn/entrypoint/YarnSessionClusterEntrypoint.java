@@ -21,9 +21,8 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -40,18 +39,8 @@ import java.util.Map;
  */
 public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	private final String workingDirectory;
-
-	public YarnSessionClusterEntrypoint(
-			Configuration configuration,
-			String workingDirectory) {
+	public YarnSessionClusterEntrypoint(Configuration configuration) {
 		super(configuration);
-		this.workingDirectory = Preconditions.checkNotNull(workingDirectory);
-	}
-
-	@Override
-	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
-		return YarnEntrypointUtils.installSecurityContext(configuration, workingDirectory);
 	}
 
 	@Override
@@ -60,8 +49,8 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return new SessionDispatcherResourceManagerComponentFactory(YarnResourceManagerFactory.INSTANCE);
+	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(YarnResourceManagerFactory.getInstance());
 	}
 
 	public static void main(String[] args) {
@@ -84,11 +73,9 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			LOG.warn("Could not log YARN environment information.", e);
 		}
 
-		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env, LOG);
+		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
 
-		YarnSessionClusterEntrypoint yarnSessionClusterEntrypoint = new YarnSessionClusterEntrypoint(
-			configuration,
-			workingDirectory);
+		YarnSessionClusterEntrypoint yarnSessionClusterEntrypoint = new YarnSessionClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(yarnSessionClusterEntrypoint);
 	}

@@ -21,15 +21,15 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.{Long => JLong}
 import org.apache.flink.api.common.state.{State, ValueState, ValueStateDescriptor}
 import org.apache.flink.streaming.api.TimeDomain
-import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
+import org.apache.flink.table.api.{TableConfig, Types}
 
-abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: StreamQueryConfig)
+abstract class KeyedProcessFunctionWithCleanupState[K, I, O](
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends KeyedProcessFunction[K, I, O]
   with CleanupState {
 
-  protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   // holds the latest registered cleanup timer

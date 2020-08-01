@@ -18,13 +18,18 @@
 package org.apache.flink.streaming.examples.async;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -40,7 +45,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
@@ -61,23 +65,32 @@ public class AsyncIOExample {
 	/**
 	 * A checkpointed source.
 	 */
-	private static class SimpleSource implements SourceFunction<Integer>, ListCheckpointed<Integer> {
+	private static class SimpleSource implements SourceFunction<Integer>, CheckpointedFunction {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean isRunning = true;
 		private int counter = 0;
 		private int start = 0;
 
+		private ListState<Integer> state;
+
 		@Override
-		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(start);
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
+					"state",
+					IntSerializer.INSTANCE));
+
+			// restore any state that we might already have to our fields, initialize state
+			// is also called in case of restore.
+			for (Integer i : state.get()) {
+				start = i;
+			}
 		}
 
 		@Override
-		public void restoreState(List<Integer> state) throws Exception {
-			for (Integer i : state) {
-				this.start = i;
-			}
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			state.clear();
+			state.add(start);
 		}
 
 		public SimpleSource(int maxNum) {
@@ -108,7 +121,7 @@ public class AsyncIOExample {
 
 
 	/**
-	 * An sample of {@link AsyncFunction} using a thread pool and executing working threads
+	 * An example of {@link AsyncFunction} using a thread pool and executing working threads
 	 * to simulate multiple async operations.
 	 *
 	 * <p>For the real use case in production environment, the thread pool may stay in the
@@ -142,7 +155,6 @@ public class AsyncIOExample {
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
-
 			executorService = Executors.newFixedThreadPool(30);
 		}
 
@@ -258,10 +270,10 @@ public class AsyncIOExample {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		}
 
-		// create input stream of an single integer
+		// create input stream of a single integer
 		DataStream<Integer> inputStream = env.addSource(new SimpleSource(maxCount));
 
-		// create async function, which will *wait* for a while to simulate the process of async i/o
+		// create async function, which will "wait" for a while to simulate the process of async i/o
 		AsyncFunction<Integer, String> function =
 				new SampleAsyncFunction(sleepFactor, failRatio, shutdownWaitTS);
 

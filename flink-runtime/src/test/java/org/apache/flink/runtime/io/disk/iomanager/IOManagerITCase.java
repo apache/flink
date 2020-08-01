@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -59,7 +60,7 @@ public class IOManagerITCase extends TestLogger {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+		memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		ioManager = new IOManagerAsync();
 	}
 

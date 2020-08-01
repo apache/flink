@@ -64,6 +64,19 @@ public enum BoundedBlockingSubpartitionType {
 		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
 			return BoundedBlockingSubpartition.createWithFileAndMemoryMappedReader(index, parent, tempFile);
 		}
+	},
+
+	/**
+	 * Selects the BoundedBlockingSubpartition type based on the current memory architecture. If 64-bit,
+	 * the type of {@link BoundedBlockingSubpartitionType#FILE_MMAP} is recommended. Otherwise, the type
+	 * of {@link BoundedBlockingSubpartitionType#FILE} is by default.
+	 */
+	AUTO {
+
+		@Override
+		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
+			return ResultPartitionFactory.getBoundedBlockingType().create(index, parent, tempFile, readBufferSize);
+		}
 	};
 
 	// ------------------------------------------------------------------------

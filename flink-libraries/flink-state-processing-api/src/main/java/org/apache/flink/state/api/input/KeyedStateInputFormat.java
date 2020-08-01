@@ -19,13 +19,10 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -38,11 +35,12 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.input.operator.StateReaderOperator;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
-import org.apache.flink.streaming.api.operators.KeyContext;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
@@ -63,7 +61,7 @@ import java.util.List;
  * @param <OUT> The type of the output of the {@link KeyedStateReaderFunction}.
  */
 @Internal
-public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroupRangeInputSplit> implements KeyContext {
+public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGroupRangeInputSplit> {
 
 	private static final long serialVersionUID = 8230460226049597182L;
 
@@ -71,44 +69,40 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 
 	private final StateBackend stateBackend;
 
-	private final TypeInformation<K> keyType;
+	private final Configuration configuration;
 
-	private final KeyedStateReaderFunction<K, OUT> userFunction;
-
-	private transient TypeSerializer<K> keySerializer;
+	private final StateReaderOperator<?, K, N, OUT> operator;
 
 	private transient CloseableRegistry registry;
 
 	private transient BufferingCollector<OUT> out;
 
-	private transient Iterator<K> keys;
-
-	private transient AbstractKeyedStateBackend<K> keyedStateBackend;
-
-	private transient Context ctx;
+	private transient Iterator<Tuple2<K, N>> keysAndNamespaces;
 
 	/**
 	 * Creates an input format for reading partitioned state from an operator in a savepoint.
 	 *
 	 * @param operatorState The state to be queried.
 	 * @param stateBackend  The state backed used to snapshot the operator.
-	 * @param keyType       The type information describing the key type.
-	 * @param userFunction  The {@link KeyedStateReaderFunction} called for each key in the operator.
+	 * @param configuration The underlying Flink configuration used to configure the state backend.
 	 */
 	public KeyedStateInputFormat(
 		OperatorState operatorState,
 		StateBackend stateBackend,
-		TypeInformation<K> keyType,
-		KeyedStateReaderFunction<K, OUT> userFunction) {
+		Configuration configuration,
+		StateReaderOperator<?, K, N, OUT> operator) {
 		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
-		Preconditions.checkNotNull(keyType, "The key type information cannot be null");
-		Preconditions.checkNotNull(userFunction, "The userfunction cannot be null");
+		Preconditions.checkNotNull(configuration, "The configuration cannot be null");
+		Preconditions.checkNotNull(operator, "The operator cannot be null");
 
 		this.operatorState = operatorState;
 		this.stateBackend = stateBackend;
-		this.keyType = keyType;
-		this.userFunction = userFunction;
+		// Eagerly deep copy the configuration object
+		// otherwise there will be undefined behavior
+		// when executing pipelines with multiple input formats
+		this.configuration = new Configuration(configuration);
+		this.operator = operator;
 	}
 
 	@Override
@@ -144,7 +138,6 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 	@Override
 	public void openInputFormat() {
 		out = new BufferingCollector<>();
-		keySerializer = keyType.createSerializer(getRuntimeContext().getExecutionConfig());
 	}
 
 	@Override
@@ -154,48 +147,40 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 
 		final Environment environment = new SavepointEnvironment
 			.Builder(getRuntimeContext(), split.getNumKeyGroups())
+			.setConfiguration(configuration)
 			.setSubtaskIndex(split.getSplitNumber())
 			.setPrioritizedOperatorSubtaskState(split.getPrioritizedOperatorSubtaskState())
 			.build();
 
 		final StreamOperatorStateContext context = getStreamOperatorStateContext(environment);
 
-		keyedStateBackend = (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
+		AbstractKeyedStateBackend<K> keyedStateBackend = (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
 
 		final DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getRuntimeContext().getExecutionConfig());
 		SavepointRuntimeContext ctx = new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore);
-		FunctionUtils.setFunctionRuntimeContext(userFunction, ctx);
 
-		keys = getKeyIterator(ctx);
-		this.ctx = new Context();
-	}
-
-	@SuppressWarnings("unchecked")
-	private Iterator<K> getKeyIterator(SavepointRuntimeContext ctx) throws IOException {
-		final List<StateDescriptor<?, ?>> stateDescriptors;
-		try  {
-			FunctionUtils.openFunction(userFunction, new Configuration());
-			ctx.disableStateRegistration();
-			stateDescriptors = ctx.getStateDescriptors();
+		InternalTimeServiceManager<K> timeServiceManager = (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
+		try {
+			operator.setup(getRuntimeContext().getExecutionConfig(), keyedStateBackend, timeServiceManager, ctx);
+			operator.open();
+			keysAndNamespaces = operator.getKeysAndNamespaces(ctx);
 		} catch (Exception e) {
-			throw new IOException("Failed to open user defined function", e);
+			throw new IOException("Failed to restore timer state", e);
 		}
-
-		return new MultiStateKeyIterator<>(stateDescriptors, keyedStateBackend);
 	}
 
 	private StreamOperatorStateContext getStreamOperatorStateContext(Environment environment) throws IOException {
 		StreamTaskStateInitializer initializer = new StreamTaskStateInitializerImpl(
 			environment,
-			stateBackend,
-			new NeverFireProcessingTimeService());
+			stateBackend);
 
 		try {
 			return initializer.streamOperatorStateContext(
 				operatorState.getOperatorID(),
 				operatorState.getOperatorID().toString(),
-				this,
-				keySerializer,
+				new NeverFireProcessingTimeService(),
+				operator,
+				operator.getKeyType().createSerializer(environment.getExecutionConfig()),
 				registry,
 				getRuntimeContext().getMetricGroup());
 		} catch (Exception e) {
@@ -205,12 +190,17 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 
 	@Override
 	public void close() throws IOException {
-		registry.close();
+		try {
+			operator.close();
+			registry.close();
+		} catch (Exception e) {
+			throw new IOException("Failed to close state backend", e);
+		}
 	}
 
 	@Override
 	public boolean reachedEnd() {
-		return !out.hasNext() && !keys.hasNext();
+		return !out.hasNext() && !keysAndNamespaces.hasNext();
 	}
 
 	@Override
@@ -219,29 +209,18 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 			return out.next();
 		}
 
-		final K key = keys.next();
-		setCurrentKey(key);
+		final Tuple2<K, N> keyAndNamespace = keysAndNamespaces.next();
+		operator.setCurrentKey(keyAndNamespace.f0);
 
 		try {
-			userFunction.readKey(key, ctx, out);
+			operator.processElement(keyAndNamespace.f0, keyAndNamespace.f1, out);
 		} catch (Exception e) {
 			throw new IOException("User defined function KeyedStateReaderFunction#readKey threw an exception", e);
 		}
 
-		keys.remove();
+		keysAndNamespaces.remove();
 
 		return out.next();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void setCurrentKey(Object key) {
-		keyedStateBackend.setCurrentKey((K) key);
-	}
-
-	@Override
-	public Object getCurrentKey() {
-		return keyedStateBackend.getCurrentKey();
 	}
 
 	private static KeyGroupRangeInputSplit createKeyGroupRangeInputSplit(
@@ -265,6 +244,4 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 		keyGroups.sort(Comparator.comparing(KeyGroupRange::getStartKeyGroup));
 		return keyGroups;
 	}
-
-	private static class Context implements KeyedStateReaderFunction.Context {}
 }

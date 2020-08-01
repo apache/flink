@@ -27,15 +27,16 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.utils.ZKPaths;
-import org.apache.zookeeper.KeeperException;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,7 +152,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 
@@ -171,7 +172,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 
@@ -181,8 +182,8 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
-		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration);
+	public JobGraphStore getJobGraphStore() throws Exception {
+		return ZooKeeperUtils.createJobGraphs(client, configuration);
 	}
 
 	@Override

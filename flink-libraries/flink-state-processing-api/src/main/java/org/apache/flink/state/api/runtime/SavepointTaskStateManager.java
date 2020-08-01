@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
@@ -67,8 +68,22 @@ final class SavepointTaskStateManager implements TaskStateManager {
 	}
 
 	@Override
+	public ChannelStateReader getChannelStateReader() {
+		return ChannelStateReader.NO_OP;
+	}
+
+	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
 		throw new UnsupportedOperationException(MSG);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		throw new UnsupportedOperationException(MSG);
+	}
+
+	@Override
+	public void close() {
 	}
 }
 

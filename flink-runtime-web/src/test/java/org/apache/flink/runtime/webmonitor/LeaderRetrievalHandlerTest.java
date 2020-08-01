@@ -66,7 +66,7 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 		final Time timeout = Time.seconds(10L);
 		final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
 		final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
-		final RestfulGateway gateway = TestingRestfulGateway.newBuilder().build();
+		final RestfulGateway gateway = new TestingRestfulGateway.Builder().build();
 
 		final TestingHandler testingHandler = new TestingHandler(
 			gatewayRetriever,
@@ -84,18 +84,18 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 
 		try (HttpTestClient httpClient = new HttpTestClient("localhost", bootstrap.getServerPort())) {
 			// 1. no leader gateway available --> Service unavailable
-			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
+			httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
 
-			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
+			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
 			Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
 			// 2. with leader
 			gatewayFuture.complete(gateway);
 
-			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
+			httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
 
-			response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
+			response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
 			Assert.assertEquals(HttpResponseStatus.OK, response.getStatus());
 			Assert.assertEquals(RESPONSE_MESSAGE, response.getContent());

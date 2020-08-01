@@ -24,6 +24,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -80,7 +81,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("48m"));
 		return config;
 	}
 
@@ -97,7 +98,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 1);
@@ -155,8 +155,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			SinkValidatorUpdaterAndChecker updaterAndChecker =
+						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 3);
 			env
 					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
@@ -211,8 +210,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			SinkValidatorUpdaterAndChecker updaterAndChecker =
+						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 1);
 			env
 					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
@@ -257,8 +255,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			SinkValidatorUpdaterAndChecker updaterAndChecker =
+						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 3);
 			env
 					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))

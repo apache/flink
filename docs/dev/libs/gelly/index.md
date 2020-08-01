@@ -63,7 +63,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 </div>
 </div>
 
-Note that Gelly is not part of the binary distribution. See [linking]({{ site.baseurl }}/dev/projectsetup/dependencies.html) for
+Note that Gelly is not part of the binary distribution. See [linking]({{ site.baseurl }}/dev/project-configuration.html) for
 instructions on packaging Gelly libraries into Flink user programs.
 
 The remaining sections provide a description of available methods and present several examples of how to use Gelly and how to mix it with the Flink DataSet API.
@@ -135,6 +135,6 @@ wget -O - http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.g
 
 Please submit feature requests and report issues on the user [mailing list](https://flink.apache.org/community.html#mailing-lists)
 or [Flink Jira](https://issues.apache.org/jira/browse/FLINK). We welcome suggestions for new algorithms and features as
-well as [code contributions](https://flink.apache.org/contribute-code.html).
+well as [code contributions](https://flink.apache.org/contributing/contribute-code.html).
 
 {% top %}

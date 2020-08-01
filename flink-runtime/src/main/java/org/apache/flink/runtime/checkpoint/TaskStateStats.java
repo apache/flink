@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -37,16 +38,13 @@ public class TaskStateStats implements Serializable {
 	/** ID of the task the stats belong to. */
 	private final JobVertexID jobVertexId;
 
-	/** Stats for each subtask */
 	private final SubtaskStateStats[] subtaskStats;
 
 	/** A summary of the subtask stats. */
 	private final TaskStateStatsSummary summaryStats = new TaskStateStatsSummary();
 
-	/** Number of acknowledged subtasks. */
 	private int numAcknowledgedSubtasks;
 
-	/** The latest acknowledged subtask stats. */
 	@Nullable
 	private SubtaskStateStats latestAckedSubtaskStats;
 
@@ -56,11 +54,6 @@ public class TaskStateStats implements Serializable {
 		this.subtaskStats = new SubtaskStateStats[numSubtasks];
 	}
 
-	/**
-	 * Hands in the stats for a subtask.
-	 *
-	 * @param subtask Stats for the sub task to hand in.
-	 */
 	boolean reportSubtaskStats(SubtaskStateStats subtask) {
 		checkNotNull(subtask, "Subtask stats");
 		int subtaskIndex = subtask.getSubtaskIndex();
@@ -84,37 +77,23 @@ public class TaskStateStats implements Serializable {
 	}
 
 	/**
-	 * Returns the ID of the operator the statistics belong to.
-	 *
 	 * @return ID of the operator the statistics belong to.
 	 */
 	public JobVertexID getJobVertexId() {
 		return jobVertexId;
 	}
 
-	/**
-	 * Returns the number of subtasks.
-	 *
-	 * @return Number of subtasks.
-	 */
 	public int getNumberOfSubtasks() {
 		return subtaskStats.length;
 	}
 
-	/**
-	 * Returns the number of acknowledged subtasks.
-	 *
-	 * @return Number of acknowledged subtasks.
-	 */
 	public int getNumberOfAcknowledgedSubtasks() {
 		return numAcknowledgedSubtasks;
 	}
 
 	/**
-	 * Returns the latest acknowledged subtask stats or <code>null</code>
+	 * @return The latest acknowledged subtask stats or <code>null</code>
 	 * if none was acknowledged yet.
-	 *
-	 * @return The latest acknowledged subtask stats.
 	 */
 	@Nullable
 	public SubtaskStateStats getLatestAcknowledgedSubtaskStats() {
@@ -122,10 +101,8 @@ public class TaskStateStats implements Serializable {
 	}
 
 	/**
-	 * Returns the ack timestamp of the latest acknowledged subtask or
-	 * <code>-1</code> if none was acknowledged yet.
-	 *
-	 * @return Ack timestamp of the latest acknowledged subtask or <code>-1</code>.
+	 * @return Ack timestamp of the latest acknowledged subtask or <code>-1</code> if none was
+	 * acknowledged yet..
 	 */
 	public long getLatestAckTimestamp() {
 		SubtaskStateStats subtask = latestAckedSubtaskStats;
@@ -137,23 +114,10 @@ public class TaskStateStats implements Serializable {
 	}
 
 	/**
-	 * Returns the total checkpoint state size over all subtasks.
-	 *
 	 * @return Total checkpoint state size over all subtasks.
 	 */
 	public long getStateSize() {
 		return summaryStats.getStateSizeStats().getSum();
-	}
-
-	/**
-	 * Returns the total buffered bytes during alignment over all subtasks.
-	 *
-	 * <p>Can return <code>-1</code> if the runtime did not report this.
-	 *
-	 * @return Total buffered bytes during alignment over all subtasks.
-	 */
-	public long getAlignmentBuffered() {
-		return summaryStats.getAlignmentBufferedStats().getSum();
 	}
 
 	/**
@@ -187,8 +151,6 @@ public class TaskStateStats implements Serializable {
 	}
 
 	/**
-	 * Returns the summary of the subtask stats.
-	 *
 	 * @return Summary of the subtask stats.
 	 */
 	public TaskStateStatsSummary getSummaryStats() {
@@ -206,77 +168,41 @@ public class TaskStateStats implements Serializable {
 		private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();
 		private MinMaxAvgStats syncCheckpointDuration = new MinMaxAvgStats();
 		private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
-		private MinMaxAvgStats alignmentBuffered = new MinMaxAvgStats();
 		private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
+		private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
 
-		/**
-		 * Updates the summary with the given subtask.
-		 *
-		 * @param subtaskStats Subtask stats to update the summary with.
-		 */
 		void updateSummary(SubtaskStateStats subtaskStats) {
 			stateSize.add(subtaskStats.getStateSize());
 			ackTimestamp.add(subtaskStats.getAckTimestamp());
 			syncCheckpointDuration.add(subtaskStats.getSyncCheckpointDuration());
 			asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
-			alignmentBuffered.add(subtaskStats.getAlignmentBuffered());
 			alignmentDuration.add(subtaskStats.getAlignmentDuration());
+			checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
 		}
 
-		/**
-		 * Returns the summary stats for the state size.
-		 *
-		 * @return Summary stats for the state size.
-		 */
 		public MinMaxAvgStats getStateSizeStats() {
 			return stateSize;
 		}
 
-		/**
-		 * Returns the summary stats for the ACK timestamps.
-		 *
-		 * @return Summary stats for the state size.
-		 */
 		public MinMaxAvgStats getAckTimestampStats() {
 			return ackTimestamp;
 		}
 
-		/**
-		 * Returns the summary stats for the sync checkpoint duration.
-		 *
-		 * @return Summary stats for the sync checkpoint duration.
-		 */
 		public MinMaxAvgStats getSyncCheckpointDurationStats() {
 			return syncCheckpointDuration;
 		}
 
-		/**
-		 * Returns the summary stats for the async checkpoint duration.
-		 *
-		 * @return Summary stats for the async checkpoint duration.
-		 */
 		public MinMaxAvgStats getAsyncCheckpointDurationStats() {
 			return asyncCheckpointDuration;
 		}
 
-		/**
-		 * Returns the summary stats for the buffered bytes during alignments.
-		 *
-		 * @return Summary stats for the buffered state size during alignment.
-		 */
-		public MinMaxAvgStats getAlignmentBufferedStats() {
-			return alignmentBuffered;
-		}
-
-		/**
-		 * Returns the summary stats for the alignment duration.
-		 *
-		 * @return Summary stats for the duration of the alignment.
-		 */
 		public MinMaxAvgStats getAlignmentDurationStats() {
 			return alignmentDuration;
 		}
 
+		public MinMaxAvgStats getCheckpointStartDelayStats() {
+			return checkpointStartDelay;
+		}
 	}
 
 }

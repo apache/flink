@@ -229,6 +229,15 @@ zookeeper.sasl.login-context-name: Client  # default is "Client". The value need
 For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
 You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
 
+## Zookeeper Versions
+
+Flink ships with separate Zookeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
+and thus used by default, whereas 3.5 is placed in the `opt` directory.
+
+The 3.5 client allows you to secure the Zookeeper connection via SSL, but _may_ not work with 3.4- Zookeeper installations.
+
+You can control which version is used by Flink by placing either jar in the `lib` directory.
+
 ## Bootstrap ZooKeeper
 
 If you don't have a running ZooKeeper installation, you can use the helper scripts, which ship with Flink.

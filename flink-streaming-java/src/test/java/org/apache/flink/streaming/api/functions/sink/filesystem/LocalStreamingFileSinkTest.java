@@ -20,6 +20,9 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.Tuple2Encoder;
+import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.TupleToIntegerBucketer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -401,6 +404,65 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 		// at close it is not moved to final.
 		TestUtils.checkLocalFs(outDir, 1, 3);
+	}
+
+	@Test
+	public void testClosingWithCustomizedBucketer() throws Exception {
+		final File outDir = TEMP_FOLDER.newFolder();
+		final long partMaxSize = 2L;
+		final long inactivityInterval = 100L;
+		final RollingPolicy<Tuple2<String, Integer>, Integer> rollingPolicy =
+				DefaultRollingPolicy
+						.builder()
+						.withMaxPartSize(partMaxSize)
+						.withRolloverInterval(inactivityInterval)
+						.withInactivityInterval(inactivityInterval)
+						.build();
+
+		try (
+				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+						TestUtils.createCustomizedRescalingTestSink(outDir, 1, 0, 100L, new TupleToIntegerBucketer(), new Tuple2Encoder(), rollingPolicy, new DefaultBucketFactoryImpl<>());
+		) {
+			testHarness.setup();
+			testHarness.open();
+
+			testHarness.setProcessingTime(0L);
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test2", 2), 1L));
+			TestUtils.checkLocalFs(outDir, 2, 0);
+
+			// this is to check the inactivity threshold
+			testHarness.setProcessingTime(101L);
+			TestUtils.checkLocalFs(outDir, 2, 0);
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test3", 3), 1L));
+			TestUtils.checkLocalFs(outDir, 3, 0);
+
+			testHarness.snapshot(0L, 1L);
+			TestUtils.checkLocalFs(outDir, 3, 0);
+
+			testHarness.notifyOfCompletedCheckpoint(0L);
+			TestUtils.checkLocalFs(outDir, 0, 3);
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test4", 4), 10L));
+			TestUtils.checkLocalFs(outDir, 1, 3);
+
+			testHarness.snapshot(1L, 0L);
+			testHarness.notifyOfCompletedCheckpoint(1L);
+		}
+
+		// at close all files moved to final.
+		TestUtils.checkLocalFs(outDir, 0, 4);
+
+		// check file content and bucket ID.
+		Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
+		for (Map.Entry<File, String> fileContents : contents.entrySet()) {
+			Integer bucketId = Integer.parseInt(fileContents.getKey().getParentFile().getName());
+
+			Assert.assertTrue(bucketId >= 1 && bucketId <= 4);
+			Assert.assertEquals(String.format("test%d@%d\n", bucketId, bucketId), fileContents.getValue());
+		}
 	}
 
 	@Test

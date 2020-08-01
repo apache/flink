@@ -20,11 +20,13 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -48,8 +50,8 @@ class SetOperatorsITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'd, 'e, 'f)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'd, 'e, 'f)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -68,8 +70,8 @@ class SetOperatorsITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'd, 'e, 'f)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'd, 'e, 'f)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -90,8 +92,8 @@ class SetOperatorsITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'd, 'c, 'e)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'a, 'b, 'd, 'c, 'e)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -111,8 +113,8 @@ class SetOperatorsITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'd, 'c, 'e)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'a, 'b, 'd, 'c, 'e)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -147,8 +149,8 @@ class SetOperatorsITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = env.fromElements((1, 1L, "Hi"))
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -158,8 +160,6 @@ class SetOperatorsITCase(
   }
 
   @Test
-  @Ignore
-  // calcite sql parser doesn't support EXCEPT ALL
   def testExceptAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
@@ -173,8 +173,8 @@ class SetOperatorsITCase(
     val ds1 = env.fromCollection(data1)
     val ds2 = env.fromCollection(data2)
 
-    tEnv.registerDataSet("t1", ds1, 'c)
-    tEnv.registerDataSet("t2", ds2, 'c)
+    tEnv.createTemporaryView("t1", ds1, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -195,8 +195,8 @@ class SetOperatorsITCase(
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'd, 'c, 'e)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'a, 'b, 'd, 'c, 'e)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -220,8 +220,8 @@ class SetOperatorsITCase(
     data.+=((3, 2L, "Hello world!"))
     val ds2 = env.fromCollection(Random.shuffle(data))
 
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -246,8 +246,8 @@ class SetOperatorsITCase(
     val ds1 = env.fromCollection(data1)
     val ds2 = env.fromCollection(data2)
 
-    tEnv.registerDataSet("t1", ds1, 'c)
-    tEnv.registerDataSet("t2", ds2, 'c)
+    tEnv.createTemporaryView("t1", ds1, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -266,8 +266,8 @@ class SetOperatorsITCase(
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get3TupleDataSet(env)
 
-    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t1", ds1, 'a, 'b, 'c)
+    tEnv.createTemporaryView("t2", ds2, 'a, 'b, 'c)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
@@ -281,8 +281,8 @@ class SetOperatorsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -298,8 +298,8 @@ class SetOperatorsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 

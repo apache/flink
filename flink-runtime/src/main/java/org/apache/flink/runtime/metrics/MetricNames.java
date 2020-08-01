@@ -42,8 +42,11 @@ public class MetricNames {
 	public static final String IO_NUM_BUFFERS_OUT_RATE = IO_NUM_BUFFERS_OUT + SUFFIX_RATE;
 
 	public static final String IO_CURRENT_INPUT_WATERMARK = "currentInputWatermark";
+	@Deprecated
 	public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
+	@Deprecated
 	public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
+	public static final String IO_CURRENT_INPUT_WATERMARK_PATERN = "currentInput%dWatermark";
 	public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
 
 	public static final String NUM_RUNNING_JOBS = "numRunningJobs";
@@ -51,7 +54,23 @@ public class MetricNames {
 	public static final String TASK_SLOTS_TOTAL = "taskSlotsTotal";
 	public static final String NUM_REGISTERED_TASK_MANAGERS = "numRegisteredTaskManagers";
 
+	public static final String NUM_RESTARTS = "numRestarts";
+
+	@Deprecated
+	public static final String FULL_RESTARTS = "fullRestarts";
+
 	public static final String MEMORY_USED = "Used";
 	public static final String MEMORY_COMMITTED = "Committed";
 	public static final String MEMORY_MAX = "Max";
+
+	public static final String IS_BACKPRESSURED = "isBackPressured";
+
+	public static final String CHECKPOINT_ALIGNMENT_TIME = "checkpointAlignmentTime";
+	public static final String CHECKPOINT_START_DELAY_TIME = "checkpointStartDelayNanos";
+
+	public static String currentInputWatermarkName(int index) {
+		return String.format(IO_CURRENT_INPUT_WATERMARK_PATERN, index);
+	}
+
+	public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
 }

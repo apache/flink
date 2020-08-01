@@ -60,4 +60,25 @@ public class TimeWindowTest {
 		long size = TimeUnit.DAYS.toMillis(1);
 		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1470902048450L, offset, size), 1470844800000L);
 	}
+
+	private boolean intersects(TimeWindow w0, TimeWindow w1) {
+		Assert.assertEquals(w0.intersects(w1), w1.intersects(w0));
+		return w0.intersects(w1);
+	}
+
+	@Test
+	public void testIntersect() {
+		// must intersect with itself
+		TimeWindow window = new TimeWindow(10, 20);
+		Assert.assertTrue(window.intersects(window));
+
+		// windows are next to each other
+		Assert.assertTrue(intersects(window, new TimeWindow(20, 30)));
+
+		// there is distance between the windows
+		Assert.assertFalse(intersects(window, new TimeWindow(21, 30)));
+
+		// overlaps by one
+		Assert.assertTrue(intersects(window, new TimeWindow(19, 22)));
+	}
 }

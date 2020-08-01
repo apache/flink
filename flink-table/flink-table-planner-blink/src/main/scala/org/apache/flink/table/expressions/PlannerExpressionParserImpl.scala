@@ -17,14 +17,15 @@
  */
 package org.apache.flink.table.expressions
 
-import _root_.java.math.{BigDecimal => JBigDecimal}
-import _root_.java.util.{List => JList}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.delegation.PlannerExpressionParser
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
+import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util.{List => JList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.language.implicitConversions
@@ -32,6 +33,9 @@ import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
   * The implementation of a [[PlannerExpressionParser]] which parsers expressions inside a String.
+  *
+  * <p><strong>WARNING</strong>: please keep this class in sync with PlannerExpressionParserImpl
+  * variant in flink-table-planner module.
   */
 class PlannerExpressionParserImpl extends PlannerExpressionParser {
 
@@ -305,13 +309,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val suffixFloor: PackratParser[Expression] =
     composite ~ "." ~ FLOOR ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, operand, unit)
     }
 
   lazy val suffixCeil: PackratParser[Expression] =
     composite ~ "." ~ CEIL ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.CEIL, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.CEIL, operand, unit)
     }
 
   // required because op.log(base) changes order of a parameters
@@ -496,13 +500,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val prefixFloor: PackratParser[Expression] =
     FLOOR ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, operand, unit)
     }
 
   lazy val prefixCeil: PackratParser[Expression] =
     CEIL ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.CEIL, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.CEIL, operand, unit)
     }
 
   lazy val prefixGet: PackratParser[Expression] =
@@ -719,7 +723,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   private def throwError(msg: String, next: Input): Nothing = {
     val improvedMsg = msg.replace("string matching regex `\\z'", "End of expression")
 
-    throw ExpressionParserException(
+    throw new ExpressionParserException(
       s"""Could not parse expression at column ${next.pos.column}: $improvedMsg
         |${next.pos.longString}""".stripMargin)
   }

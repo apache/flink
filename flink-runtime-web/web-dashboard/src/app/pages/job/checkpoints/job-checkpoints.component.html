@@ -49,7 +49,7 @@
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>End to End Duration: </strong> {{ checkPointStats['latest']['completed']['end_to_end_duration'] | humanizeDuration}}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>State Size: </strong> {{ checkPointStats['latest']['completed']['state_size'] | humanizeBytes }}</span>
+              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['checkpointed_data_size'] | humanizeBytes }}</span>
             </td>
             <td *ngIf="!checkPointStats['latest']['completed']">None</td>
           </tr>
@@ -82,7 +82,7 @@
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['savepoint']['latest_ack_timestamp'] | date:'HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>State Size: </strong> {{ checkPointStats['latest']['savepoint']['state_size'] | humanizeBytes }}</span>
+              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['savepoint']['state_size'] | humanizeBytes }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>Path: </strong> {{ checkPointStats['latest']['savepoint']['external_path'] }}</span>
             </td>
@@ -127,7 +127,7 @@
           <th><strong>Trigger Time</strong></th>
           <th><strong>Latest Acknowledgement</strong></th>
           <th><strong>End to End Duration</strong></th>
-          <th><strong>State Size</strong></th>
+          <th><strong>Checkpointed Data Size</strong></th>
           <th><strong>Buffered During Alignment</strong></th>
         </tr>
       </thead>
@@ -175,7 +175,7 @@
         <tr>
           <th></th>
           <th><strong>End to End Duration</strong></th>
-          <th><strong>State Size</strong></th>
+          <th><strong>Checkpointed Data Size</strong></th>
           <th><strong>Buffered During Alignment</strong></th>
         </tr>
       </thead>

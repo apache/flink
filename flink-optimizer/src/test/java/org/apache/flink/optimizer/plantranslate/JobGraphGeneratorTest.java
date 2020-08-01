@@ -40,6 +40,7 @@ import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.AbstractID;
 
@@ -73,13 +74,13 @@ public class JobGraphGeneratorTest {
 	 */
 	@Test
 	public void testResourcesForChainedOperators() throws Exception {
-		ResourceSpec resource1 = ResourceSpec.newBuilder().setCpuCores(0.1).setHeapMemoryInMB(100).build();
-		ResourceSpec resource2 = ResourceSpec.newBuilder().setCpuCores(0.2).setHeapMemoryInMB(200).build();
-		ResourceSpec resource3 = ResourceSpec.newBuilder().setCpuCores(0.3).setHeapMemoryInMB(300).build();
-		ResourceSpec resource4 = ResourceSpec.newBuilder().setCpuCores(0.4).setHeapMemoryInMB(400).build();
-		ResourceSpec resource5 = ResourceSpec.newBuilder().setCpuCores(0.5).setHeapMemoryInMB(500).build();
-		ResourceSpec resource6 = ResourceSpec.newBuilder().setCpuCores(0.6).setHeapMemoryInMB(600).build();
-		ResourceSpec resource7 = ResourceSpec.newBuilder().setCpuCores(0.7).setHeapMemoryInMB(700).build();
+		ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
+		ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
+		ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
+		ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
+		ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
+		ResourceSpec resource6 = ResourceSpec.newBuilder(0.6, 600).build();
+		ResourceSpec resource7 = ResourceSpec.newBuilder(0.7, 700).build();
 
 		Method opMethod = Operator.class.getDeclaredMethod("setResources", ResourceSpec.class);
 		opMethod.setAccessible(true);
@@ -147,12 +148,12 @@ public class JobGraphGeneratorTest {
 	 */
 	@Test
 	public void testResourcesForDeltaIteration() throws Exception{
-		ResourceSpec resource1 = ResourceSpec.newBuilder().setCpuCores(0.1).setHeapMemoryInMB(100).build();
-		ResourceSpec resource2 = ResourceSpec.newBuilder().setCpuCores(0.2).setHeapMemoryInMB(200).build();
-		ResourceSpec resource3 = ResourceSpec.newBuilder().setCpuCores(0.3).setHeapMemoryInMB(300).build();
-		ResourceSpec resource4 = ResourceSpec.newBuilder().setCpuCores(0.4).setHeapMemoryInMB(400).build();
-		ResourceSpec resource5 = ResourceSpec.newBuilder().setCpuCores(0.5).setHeapMemoryInMB(500).build();
-		ResourceSpec resource6 = ResourceSpec.newBuilder().setCpuCores(0.6).setHeapMemoryInMB(600).build();
+		ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
+		ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
+		ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
+		ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
+		ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
+		ResourceSpec resource6 = ResourceSpec.newBuilder(0.6, 600).build();
 
 		Method opMethod = Operator.class.getDeclaredMethod("setResources", ResourceSpec.class);
 		opMethod.setAccessible(true);
@@ -245,7 +246,7 @@ public class JobGraphGeneratorTest {
 			Tuple2.of(nonExecutableDirName, new DistributedCache.DistributedCacheEntry(directory2.toString(), false))
 		);
 
-		JobGraphGenerator.addUserArtifactEntries(originalArtifacts, jb);
+		JobGraphUtils.addUserArtifactEntries(originalArtifacts, jb);
 
 		Map<String, DistributedCache.DistributedCacheEntry> submittedArtifacts = jb.getUserArtifacts();
 

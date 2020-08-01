@@ -34,6 +34,7 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <T> The type of the elements that this function can extract timestamps from
  */
+@Deprecated
 @PublicEvolving
 public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeriodicWatermarks<T> {
 

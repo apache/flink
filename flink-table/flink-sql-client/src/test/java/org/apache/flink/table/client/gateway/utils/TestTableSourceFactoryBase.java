@@ -26,10 +26,12 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -39,10 +41,16 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
@@ -73,23 +81,35 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 	public List<String> supportedProperties() {
 		final List<String> properties = new ArrayList<>();
 		properties.add("connector." + testProperty);
+		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + EXPR);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
+		// table constraint
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+
 		return properties;
 	}
 
 	@Override
-	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+	public StreamTableSource<Row> createTableSource(TableSourceFactory.Context context) {
+		TableSchema schema = context.getTable().getSchema();
 		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(properties);
+		params.putProperties(context.getTable().toProperties());
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
-			params.getTableSchema(SCHEMA),
-			properties.get(testProperty),
+			schema,
+			context.getTable().getProperties().get(testProperty),
 			proctime.orElse(null),
 			rowtime);
 	}
@@ -107,7 +127,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		private final List<RowtimeAttributeDescriptor> rowtime;
 
 		public TestTableSource(TableSchema schema, String property, String proctime, List<RowtimeAttributeDescriptor> rowtime) {
-			this.schema = schema;
+			this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 			this.property = property;
 			this.proctime = proctime;
 			this.rowtime = rowtime;

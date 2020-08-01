@@ -27,12 +27,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
-	<name>flink-statebackend-rocksdb</name>
+	<name>Flink : State backends : RocksDB</name>
 
 	<packaging>jar</packaging>
 
@@ -57,7 +57,7 @@ under the License.
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>5.17.2-artisans-1.0</version>
+			<version>5.17.2-artisans-2.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -67,13 +67,6 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
@@ -89,4 +82,28 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<!-- build a test jar -->
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/benchmark/StateBackendBenchmarkUtils*</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

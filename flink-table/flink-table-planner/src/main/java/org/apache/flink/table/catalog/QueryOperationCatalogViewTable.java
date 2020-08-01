@@ -28,9 +28,14 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.AbstractTable;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A bridge between a Flink's specific {@link QueryOperationCatalogView} and a Calcite's
@@ -46,10 +51,34 @@ public class QueryOperationCatalogViewTable extends AbstractTable implements Tra
 	private final QueryOperationCatalogView catalogView;
 	private final RelProtoDataType rowType;
 
-	public static QueryOperationCatalogViewTable createCalciteTable(QueryOperationCatalogView catalogView) {
+	public static QueryOperationCatalogViewTable createCalciteTable(
+			QueryOperationCatalogView catalogView,
+			TableSchema resolvedSchema) {
 		return new QueryOperationCatalogViewTable(catalogView, typeFactory -> {
-			TableSchema tableSchema = catalogView.getSchema();
-			return ((FlinkTypeFactory) typeFactory).buildLogicalRowType(tableSchema);
+			final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
+			final RelDataType relType = flinkTypeFactory.buildLogicalRowType(resolvedSchema);
+			Boolean[] nullables = resolvedSchema
+				.getTableColumns()
+				.stream()
+				.map(c -> c.getType().getLogicalType().isNullable())
+				.toArray(Boolean[]::new);
+			final List<RelDataTypeField> fields = relType
+				.getFieldList()
+				.stream()
+				.map(f -> {
+					boolean nullable = nullables[f.getIndex()];
+					if (nullable != f.getType().isNullable()
+						&& !FlinkTypeFactory.isTimeIndicatorType(f.getType())) {
+						return new RelDataTypeFieldImpl(
+							f.getName(),
+							f.getIndex(),
+							flinkTypeFactory.createTypeWithNullability(f.getType(), nullable));
+					} else {
+						return f;
+					}
+				})
+				.collect(Collectors.toList());
+			return flinkTypeFactory.createStructType(fields);
 		});
 	}
 
@@ -60,7 +89,7 @@ public class QueryOperationCatalogViewTable extends AbstractTable implements Tra
 
 	@Override
 	public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
-		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable);
+		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable.getRelOptSchema());
 
 		RelNode relNode = relBuilder.tableOperation(catalogView.getQueryOperation()).build();
 		return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);

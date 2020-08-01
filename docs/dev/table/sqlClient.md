@@ -1,8 +1,7 @@
 ---
 title: "SQL Client"
 nav-parent_id: tableapi
-nav-pos: 100
-is_beta: true
+nav-pos: 90
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,8 +28,6 @@ Flink’s Table & SQL API makes it possible to work with queries written in the 
 The *SQL Client* aims to provide an easy way of writing, debugging, and submitting table programs to a Flink cluster without a single line of Java or Scala code. The *SQL Client CLI* allows for retrieving and visualizing real-time results from the running distributed application on the command line.
 
 <a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
-
-<span class="label label-danger">Attention</span> The SQL Client is in an early development phase. Even though the application is not production-ready yet, it can be a quite useful tool for prototyping and playing around with Flink SQL. In the future, the community plans to extend its functionality by providing a REST-based [SQL Client Gateway](sqlClient.html#limitations--future).
 
 * This will be replaced by the TOC
 {:toc}
@@ -66,7 +63,7 @@ SELECT 'Hello World';
 
 This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
 
-The CLI supports **two modes** for maintaining and visualizing results.
+The CLI supports **three modes** for maintaining and visualizing results.
 
 The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation. It can be enabled by executing the following command in the CLI:
 
@@ -80,7 +77,18 @@ The **changelog mode** does not materialize results and visualizes the result st
 SET execution.result-mode=changelog;
 {% endhighlight %}
 
-You can use the following query to see both result modes in action:
+The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
+The displaying content will be influenced by the query execution type(`execution.type`).
+
+{% highlight text %}
+SET execution.result-mode=tableau;
+{% endhighlight %}
+
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of 
+this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
+Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+
+You can use the following query to see all the result modes in action:
 
 {% highlight sql %}
 SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
@@ -106,9 +114,35 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-Both result modes can be useful during the prototyping of SQL queries. In both modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
+In *tableau mode*, if you ran the query in streaming mode, the displayed result would be:
+{% highlight text %}
++-----+----------------------+----------------------+
+| +/- |                 name |                  cnt |
++-----+----------------------+----------------------+
+|   + |                  Bob |                    1 |
+|   + |                Alice |                    1 |
+|   + |                 Greg |                    1 |
+|   - |                  Bob |                    1 |
+|   + |                  Bob |                    2 |
++-----+----------------------+----------------------+
+Received a total of 5 rows
+{% endhighlight %}
 
-<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
+And if you ran the query in batch mode, the displayed result would be:
+{% highlight text %}
++-------+-----+
+|  name | cnt |
++-------+-----+
+| Alice |   1 |
+|   Bob |   2 |
+|  Greg |   1 |
++-------+-----+
+3 rows in set
+{% endhighlight %}
+
+All these result modes can be useful during the prototyping of SQL queries. In all these modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
+
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
 
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
@@ -136,6 +170,10 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            properties.
      -h,--help                             Show the help message with
                                            descriptions of all options.
+     -hist,--history <History file path>   The file which you want to save the
+                                           command history into. If not
+                                           specified, we will auto-generate one
+                                           under your user's home directory.
      -j,--jar <JAR file>                   A JAR file to be imported into the
                                            session. The file might contain
                                            user-defined classes needed for the
@@ -149,8 +187,83 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            statements such as functions, table
                                            sources, or sinks. Can be used
                                            multiple times.
+     -pyarch,--pyArchives <arg>            Add python archive files for job. The
+                                           archive files will be extracted to
+                                           the working directory of python UDF
+                                           worker. Currently only zip-format is
+                                           supported. For each archive file, a
+                                           target directory be specified. If the
+                                           target directory name is specified,
+                                           the archive file will be extracted to
+                                           a name can directory with the
+                                           specified name. Otherwise, the
+                                           archive file will be extracted to a
+                                           directory with the same name of the
+                                           archive file. The files uploaded via
+                                           this option are accessible via
+                                           relative path. '#' could be used as
+                                           the separator of the archive file
+                                           path and the target directory name.
+                                           Comma (',') could be used as the
+                                           separator to specify multiple archive
+                                           files. This option can be used to
+                                           upload the virtual environment, the
+                                           data files used in Python UDF (e.g.:
+                                           --pyArchives
+                                           file:///tmp/py37.zip,file:///tmp/data
+                                           .zip#data --pyExecutable
+                                           py37.zip/py37/bin/python). The data
+                                           files could be accessed in Python
+                                           UDF, e.g.: f = open('data/data.txt',
+                                           'r').
+     -pyexec,--pyExecutable <arg>          Specify the path of the python
+                                           interpreter used to execute the
+                                           python UDF worker (e.g.:
+                                           --pyExecutable
+                                           /usr/local/bin/python3). The python
+                                           UDF worker depends on Python 3.5+,
+                                           Apache Beam (version == 2.19.0), Pip
+                                           (version >= 7.1.0) and SetupTools
+                                           (version >= 37.0.0). Please ensure
+                                           that the specified environment meets
+                                           the above requirements.
+     -pyfs,--pyFiles <pythonFiles>         Attach custom python files for job.
+                                           These files will be added to the
+                                           PYTHONPATH of both the local client
+                                           and the remote python UDF worker. The
+                                           standard python resource file
+                                           suffixes such as .py/.egg/.zip or
+                                           directory are all supported. Comma
+                                           (',') could be used as the separator
+                                           to specify multiple files (e.g.:
+                                           --pyFiles
+                                           file:///tmp/myresource.zip,hdfs:///$n
+                                           amenode_address/myresource2.zip).
+     -pyreq,--pyRequirements <arg>         Specify a requirements.txt file which
+                                           defines the third-party dependencies.
+                                           These dependencies will be installed
+                                           and added to the PYTHONPATH of the
+                                           python UDF worker. A directory which
+                                           contains the installation packages of
+                                           these dependencies could be specified
+                                           optionally. Use '#' as the separator
+                                           if the optional parameter exists
+                                           (e.g.: --pyRequirements
+                                           file:///tmp/requirements.txt#file:///
+                                           tmp/cached_dir).
      -s,--session <session identifier>     The identifier for a session.
                                            'default' is the default identifier.
+     -u,--update <SQL update statement>    Experimental (for testing only!):
+                                           Instructs the SQL Client to
+                                           immediately execute the given update
+                                           statement after starting up. The
+                                           process is shut down after the
+                                           statement has been submitted to the
+                                           cluster and returns an appropriate
+                                           return code. Currently, this feature
+                                           is only supported for INSERT INTO
+                                           statements that declare the target
+                                           sink table.
 {% endhighlight %}
 
 {% top %}
@@ -175,16 +288,16 @@ tables:
       type: csv
       fields:
         - name: MyField1
-          type: INT
+          data-type: INT
         - name: MyField2
-          type: VARCHAR
+          data-type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
     schema:
       - name: MyField1
-        type: INT
+        data-type: INT
       - name: MyField2
-        type: VARCHAR
+        data-type: VARCHAR
   - name: MyCustomView
     type: view
     query: "SELECT MyField2 FROM MyTableSource"
@@ -199,9 +312,23 @@ functions:
       - 7.6
       - false
 
-# Execution properties allow for changing the behavior of a table program.
+# Define available catalogs
+
+catalogs:
+   - name: catalog_1
+     type: hive
+     property-version: 1
+     hive-conf-dir: ...
+   - name: catalog_2
+     type: hive
+     property-version: 1
+     default-database: mydb2
+     hive-conf-dir: ...
+
+# Properties that change the fundamental execution behavior of a table program.
 
 execution:
+  planner: blink                    # optional: either 'blink' (default) or 'old'
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
   max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
@@ -212,29 +339,25 @@ execution:
   max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
+  current-catalog: catalog_1        # optional: name of the current catalog of the session ('default_catalog' by default)
+  current-database: mydb1           # optional: name of the current database of the current catalog
+                                    #   (default database of the current catalog by default)
   restart-strategy:                 # optional: restart strategy
     type: fallback                  #   "fallback" to global restart strategy by default
-  current-catalog: catalog_1        # optional: name of the current catalog of the session ("default_catalog" by default)
-  current-database: mydb1           # optional: name of the current database of the current catalog (default value is the default database name of the current catalog)
 
-# Deployment properties allow for describing the cluster to which table programs are submitted to.
+# Configuration options for adjusting and tuning table programs.
+
+# A full list of options and their default values can be found
+# on the dedicated "Configuration" page.
+configuration:
+  table.optimizer.join-reorder-enabled: true
+  table.exec.spill-compression.enabled: true
+  table.exec.spill-compression.block-size: 128kb
+
+# Properties that describe the cluster to which table programs are submitted to.
 
 deployment:
   response-timeout: 5000
-
-# Catalogs
-
-catalogs:
-   - name: catalog_1
-     type: hive
-     property-version: 1
-     hive-conf-dir: ...
-   - name: catalog_2
-     type: hive
-     property-version: 1
-     default-database: mydb2        # optional: name of default database of this catalog
-     hive-conf-dir: ...             # optional: path of Hive conf directory. (Default value is created by HiveConf)
-     hive-version: 1.2.1            # optional: version of Hive (2.3.4 by default)
 {% endhighlight %}
 
 This configuration:
@@ -242,11 +365,10 @@ This configuration:
 - defines an environment with a table source `MyTableSource` that reads from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
-- specifies a parallelism of 1 for queries executed in this streaming environment,
-- specifies an event-time characteristic, and
-- runs queries in the `table` result mode.
-- creates two `HiveCatalog` (type: hive) named with their own default databases and specified Hive conf directory. Hive version of the first `HiveCatalog` is `2.3.4` by default and that of the second one is specified as `1.2.1`.
-- use `catalog_1` as the current catalog of the environment upon start, and `mydb1` as the current database of the catalog.
+- connects to two Hive catalogs and uses `catalog_1` as the current catalog with `mydb1` as the current database of the catalog,
+- uses the blink planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
+- runs exploratory queries in the `table` result mode,
+- and makes some planner adjustments around join reordering and spilling via configuration options.
 
 Depending on the use case, a configuration can be split into multiple files. Therefore, environment files can be created for general purposes (*defaults environment file* using `--defaults`) as well as on a per-session basis (*session environment file* using `--environment`). Every CLI session is initialized with the default properties followed by the session properties. For example, the defaults environment file could specify all table sources that should be available for querying in every session whereas the session environment file only declares a specific state retention time and parallelism. Both default and session environment files can be passed when starting the CLI application. If no default environment file has been specified, the SQL Client searches for `./conf/sql-client-defaults.yaml` in Flink's configuration directory.
 
@@ -308,25 +430,21 @@ tables:
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
+        bootstrap.servers: localhost:9092
+        group.id: testGroup
     format:
       property-version: 1
       type: json
       schema: "ROW<rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP>"
     schema:
       - name: rideId
-        type: LONG
+        data-type: BIGINT
       - name: lon
-        type: FLOAT
+        data-type: FLOAT
       - name: lat
-        type: FLOAT
+        data-type: FLOAT
       - name: rowTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: "from-field"
@@ -335,7 +453,7 @@ tables:
             type: "periodic-bounded"
             delay: "60000"
       - name: procTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         proctime: true
 {% endhighlight %}
 
@@ -347,30 +465,42 @@ Both `connector` and `format` allow to define a property version (which is curre
 
 ### User-defined Functions
 
-The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
+The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes or Python files.
 
-In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+
+In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html)). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({{ site.baseurl }}/dev/table/python/python_config.html)) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
 - a `name` under which the function is registered,
-- the source of the function using `from` (restricted to be `class` for now),
+- the source of the function using `from` (restricted to be `class` (Java/Scala UDF) or `python` (Python UDF) for now),
+
+The Java/Scala UDF must specify:
+
 - the `class` which indicates the fully qualified class name of the function and an optional list of `constructor` parameters for instantiation.
+
+The Python UDF must specify:
+
+- the `fully-qualified-name` which indicates the fully qualified name, i.e the "[module name].[object name]" of the function.
 
 {% highlight yaml %}
 functions:
-  - name: ...               # required: name of the function
-    from: class             # required: source of the function (can only be "class" for now)
-    class: ...              # required: fully qualified class name of the function
-    constructor:            # optimal: constructor parameters of the function class
-      - ...                 # optimal: a literal parameter with implicit type
-      - class: ...          # optimal: full class name of the parameter
-        constructor:        # optimal: constructor parameters of the parameter's class
-          - type: ...       # optimal: type of the literal parameter
-            value: ...      # optimal: value of the literal parameter
+  - name: java_udf               # required: name of the function
+    from: class                  # required: source of the function
+    class: ...                   # required: fully qualified class name of the function
+    constructor:                 # optional: constructor parameters of the function class
+      - ...                      # optional: a literal parameter with implicit type
+      - class: ...               # optional: full class name of the parameter
+        constructor:             # optional: constructor parameters of the parameter's class
+          - type: ...            # optional: type of the literal parameter
+            value: ...           # optional: value of the literal parameter
+  - name: python_udf             # required: name of the function
+    from: python                 # required: source of the function 
+    fully-qualified-name: ...    # required: fully qualified class name of the function      
 {% endhighlight %}
 
-Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
+For Java/Scala UDF, make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
 
 #### Constructor Parameters
 
@@ -431,32 +561,29 @@ This process can be recursively performed until all the constructor parameters a
 Catalogs
 --------
 
-Catalogs can be defined as a set of yaml properties and are automatically registered to the environment upon starting SQL Client.
+Catalogs can be defined as a set of YAML properties and are automatically registered to the environment upon starting SQL Client.
 
-Users can specify in section `execution` that which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database. 
+Users can specify which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database.
 
 {% highlight yaml %}
-execution:
-   ...
-   current-catalog: catalog_1
-   current-database: mydb1
-
 catalogs:
    - name: catalog_1
      type: hive
      property-version: 1
      default-database: mydb2
-     hive-version: 1.2.1
      hive-conf-dir: <path of Hive conf directory>
    - name: catalog_2
      type: hive
      property-version: 1
      hive-conf-dir: <path of Hive conf directory>
+
+execution:
+   ...
+   current-catalog: catalog_1
+   current-database: mydb1
 {% endhighlight %}
 
-Currently Flink supports two types of catalog - `FlinkInMemoryCatalog` and `HiveCatalog`.
-
-For more information about catalog, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html).
+For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
 
 Detached SQL Queries
 --------------------
@@ -480,25 +607,21 @@ tables:
       version: "0.11"
       topic: OutputTopic
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
+        bootstrap.servers: localhost:9092
+        group.id: testGroup
     format:
       property-version: 1
       type: json
       derive-schema: true
     schema:
       - name: rideId
-        type: LONG
+        data-type: BIGINT
       - name: lon
-        type: FLOAT
+        data-type: FLOAT
       - name: lat
-        type: FLOAT
+        data-type: FLOAT
       - name: rideTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
 {% endhighlight %}
 
 The SQL Client makes sure that a statement is successfully submitted to the cluster. Once the query is submitted, the CLI will show information about the Flink job.
@@ -574,11 +697,11 @@ tables:
     format: # ...
     schema:
       - name: integerField
-        type: INT
+        data-type: INT
       - name: stringField
-        type: VARCHAR
+        data-type: STRING
       - name: rowtimeField
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: from-field
@@ -601,6 +724,6 @@ As shown in the example, definitions of table sources, views, and temporal table
 Limitations & Future
 --------------------
 
-The current SQL Client implementation is in a very early development stage and might change in the future as part of the bigger Flink Improvement Proposal 24 ([FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client)). Feel free to join the discussion and open issue about bugs and features that you find useful.
+The current SQL Client only supports embedded mode. In the future, the community plans to extend its functionality by providing a REST-based SQL Client Gateway, see more in [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) and [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway).
 
 {% top %}

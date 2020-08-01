@@ -35,8 +35,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.shaded.asm6.org.objectweb.asm.Type.getConstructorDescriptor;
-import static org.apache.flink.shaded.asm6.org.objectweb.asm.Type.getMethodDescriptor;
+import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescriptor;
 
 @Internal
 public class TypeExtractionUtils {
@@ -257,12 +257,13 @@ public class TypeExtractionUtils {
 	/**
 	 * Convert ParameterizedType or Class to a Class.
 	 */
-	public static Class<?> typeToClass(Type t) {
+	@SuppressWarnings("unchecked")
+	public static <T> Class<T> typeToClass(Type t) {
 		if (t instanceof Class) {
-			return (Class<?>)t;
+			return (Class<T>) t;
 		}
 		else if (t instanceof ParameterizedType) {
-			return ((Class<?>) ((ParameterizedType) t).getRawType());
+			return ((Class<T>) ((ParameterizedType) t).getRawType());
 		}
 		throw new IllegalArgumentException("Cannot convert type to class");
 	}

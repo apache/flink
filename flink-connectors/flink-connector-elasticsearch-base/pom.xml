@@ -26,18 +26,18 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch-base</name>
+	<name>Flink : Connectors : Elasticsearch base</name>
 
 	<packaging>jar</packaging>
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>2.3.5</elasticsearch.version>
+		<elasticsearch.version>5.3.3</elasticsearch.version>
 	</properties>
 
 	<dependencies>
@@ -136,6 +136,23 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!--
+			Including Log4j2 dependencies for tests is required for the
+			embedded Elasticsearch nodes used in tests to run correctly.
+		-->
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
 			<scope>test</scope>
 		</dependency>
 

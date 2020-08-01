@@ -42,7 +42,7 @@ public interface BlobService extends Closeable {
 	/**
 	 * Returns the port of the BLOB server that this BLOB service is working with.
 	 *
-	 * @return the port the blob server.
+	 * @return the port of the blob server.
 	 */
 	int getPort();
 }

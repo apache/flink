@@ -208,12 +208,11 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				completedSplitsCounter.inc();
 			} // end for all input splits
 
-			// close the collector. if it is a chaining task collector, it will close its chained tasks
-			this.output.close();
-
 			// close all chained tasks letting them report failure
 			BatchTask.closeChainedTasks(this.chainedTasks, this);
 
+			// close the output collector
+			this.output.close();
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -405,8 +404,9 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 		String sourceName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
+
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
-				getEnvironment().getMetricGroup().getOrAddOperator(sourceName));
+				getEnvironment().getMetricGroup().getOrAddOperator(sourceName), env.getExternalResourceInfoProvider());
 	}
 }

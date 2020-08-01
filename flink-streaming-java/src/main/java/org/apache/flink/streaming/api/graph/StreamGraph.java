@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -26,28 +27,31 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
 
@@ -56,10 +60,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -76,7 +76,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  */
 @Internal
-public class StreamGraph extends StreamingPlan {
+public class StreamGraph implements Pipeline {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
@@ -88,6 +88,7 @@ public class StreamGraph extends StreamingPlan {
 
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
+	private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
 	private ScheduleMode scheduleMode;
 
@@ -96,6 +97,11 @@ public class StreamGraph extends StreamingPlan {
 	private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
 
 	private TimeCharacteristic timeCharacteristic;
+
+	private GlobalDataExchangeMode globalDataExchangeMode;
+
+	/** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
+	private boolean allVerticesInSameSlotSharingGroupByDefault = true;
 
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
@@ -109,9 +115,10 @@ public class StreamGraph extends StreamingPlan {
 	private StateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
-	public StreamGraph(ExecutionConfig executionConfig, CheckpointConfig checkpointConfig) {
+	public StreamGraph(ExecutionConfig executionConfig, CheckpointConfig checkpointConfig, SavepointRestoreSettings savepointRestoreSettings) {
 		this.executionConfig = checkNotNull(executionConfig);
 		this.checkpointConfig = checkNotNull(checkpointConfig);
+		this.savepointRestoreSettings = checkNotNull(savepointRestoreSettings);
 
 		// create an empty new stream graph.
 		clear();
@@ -138,6 +145,14 @@ public class StreamGraph extends StreamingPlan {
 
 	public CheckpointConfig getCheckpointConfig() {
 		return checkpointConfig;
+	}
+
+	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
+		this.savepointRestoreSettings = savepointRestoreSettings;
+	}
+
+	public SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointRestoreSettings;
 	}
 
 	public String getJobName() {
@@ -184,6 +199,33 @@ public class StreamGraph extends StreamingPlan {
 		this.timeCharacteristic = timeCharacteristic;
 	}
 
+	public GlobalDataExchangeMode getGlobalDataExchangeMode() {
+		return globalDataExchangeMode;
+	}
+
+	public void setGlobalDataExchangeMode(GlobalDataExchangeMode globalDataExchangeMode) {
+		this.globalDataExchangeMode = globalDataExchangeMode;
+	}
+
+	/**
+	 * Set whether to put all vertices into the same slot sharing group by default.
+	 *
+	 * @param allVerticesInSameSlotSharingGroupByDefault indicates whether to put all vertices
+	 *                                                   into the same slot sharing group by default.
+	 */
+	public void setAllVerticesInSameSlotSharingGroupByDefault(boolean allVerticesInSameSlotSharingGroupByDefault) {
+		this.allVerticesInSameSlotSharingGroupByDefault = allVerticesInSameSlotSharingGroupByDefault;
+	}
+
+	/**
+	 * Gets whether to put all vertices into the same slot sharing group by default.
+	 *
+	 * @return whether to put all vertices into the same slot sharing group by default.
+	 */
+	public boolean isAllVerticesInSameSlotSharingGroupByDefault() {
+		return allVerticesInSameSlotSharingGroupByDefault;
+	}
+
 	// Checkpointing
 
 	public boolean isChainingEnabled() {
@@ -194,24 +236,46 @@ public class StreamGraph extends StreamingPlan {
 		return !vertexIDtoLoopTimeout.isEmpty();
 	}
 
-	public <IN, OUT> void addSource(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSource(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			SourceOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
+		addOperator(
+				vertexID,
+				slotSharingGroup,
+				coLocationGroup,
+				operatorFactory,
+				inTypeInfo,
+				outTypeInfo,
+				operatorName,
+				SourceOperatorStreamTask.class);
+		sources.add(vertexID);
+	}
+
+	public <IN, OUT> void addLegacySource(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
-	public <IN, OUT> void addSink(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSink(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sinks.add(vertexID);
 	}
@@ -224,18 +288,24 @@ public class StreamGraph extends StreamingPlan {
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
+		Class<? extends AbstractInvokable> invokableClass =
+				operatorFactory.isStreamSource() ? SourceStreamTask.class : OneInputStreamTask.class;
+		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo,
+				outTypeInfo, operatorName, invokableClass);
+	}
 
-		if (operatorFactory.isStreamSource()) {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorFactory, operatorName);
-		} else {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
-		}
+	private <IN, OUT> void addOperator(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName,
+			Class<? extends AbstractInvokable> invokableClass) {
 
-		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
-
-		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
-
-		setSerializers(vertexID, inSerializer, null, outSerializer);
+		addNode(vertexID, slotSharingGroup, coLocationGroup, invokableClass, operatorFactory, operatorName);
+		setSerializers(vertexID, createSerializer(inTypeInfo), null, createSerializer(outTypeInfo));
 
 		if (operatorFactory.isOutputTypeConfigurable() && outTypeInfo != null) {
 			// sets the output type which must be know at StreamGraph creation time
@@ -261,13 +331,11 @@ public class StreamGraph extends StreamingPlan {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		Class<? extends AbstractInvokable> vertexClass = taskOperatorFactory.isOperatorSelectiveReading() ?
-			TwoInputSelectableStreamTask.class : TwoInputStreamTask.class;
+		Class<? extends AbstractInvokable> vertexClass = TwoInputStreamTask.class;
 
 		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, taskOperatorFactory, operatorName);
 
-		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
-				outTypeInfo.createSerializer(executionConfig) : null;
+		TypeSerializer<OUT> outSerializer = createSerializer(outTypeInfo);
 
 		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
 
@@ -281,25 +349,51 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	protected StreamNode addNode(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		Class<? extends AbstractInvokable> vertexClass,
-		StreamOperatorFactory<?> operatorFactory,
-		String operatorName) {
+	public <OUT> void addMultipleInputOperator(
+			Integer vertexID,
+			String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			List<TypeInformation<?>> inTypeInfos,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
+
+		Class<? extends AbstractInvokable> vertexClass = MultipleInputStreamTask.class;
+
+		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, operatorFactory, operatorName);
+
+		setSerializers(vertexID, inTypeInfos, createSerializer(outTypeInfo));
+
+		if (operatorFactory.isOutputTypeConfigurable()) {
+			// sets the output type which must be know at StreamGraph creation time
+			operatorFactory.setOutputType(outTypeInfo, executionConfig);
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("CO-TASK: {}", vertexID);
+		}
+	}
+
+	protected StreamNode addNode(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			Class<? extends AbstractInvokable> vertexClass,
+			StreamOperatorFactory<?> operatorFactory,
+			String operatorName) {
 
 		if (streamNodes.containsKey(vertexID)) {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
 		StreamNode vertex = new StreamNode(
-			vertexID,
-			slotSharingGroup,
-			coLocationGroup,
-			operatorFactory,
-			operatorName,
-			new ArrayList<OutputSelector<?>>(),
-			vertexClass);
+				vertexID,
+				slotSharingGroup,
+				coLocationGroup,
+				operatorFactory,
+				operatorName,
+				new ArrayList<OutputSelector<?>>(),
+				vertexClass);
 
 		streamNodes.put(vertexID, vertex);
 
@@ -470,7 +564,7 @@ public class StreamGraph extends StreamingPlan {
 			}
 
 			if (shuffleMode == null) {
-				shuffleMode = ShuffleMode.PIPELINED;
+				shuffleMode = ShuffleMode.UNDEFINED;
 			}
 
 			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, shuffleMode);
@@ -513,16 +607,27 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
+	public void setManagedMemoryWeight(int vertexID, int managedMemoryWeight) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setManagedMemoryWeight(managedMemoryWeight);
+		}
+	}
+
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector);
+		node.setStatePartitioners(keySelector);
 		node.setStateKeySerializer(keySerializer);
 	}
 
 	public void setTwoInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector1, KeySelector<?, ?> keySelector2, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector1);
-		node.setStatePartitioner2(keySelector2);
+		node.setStatePartitioners(keySelector1, keySelector2);
+		node.setStateKeySerializer(keySerializer);
+	}
+
+	public void setMultipleInputStateKey(Integer vertexID, List<KeySelector<?, ?>> keySelectors, TypeSerializer<?> keySerializer) {
+		StreamNode node = getStreamNode(vertexID);
+		node.setStatePartitioners(keySelectors.stream().toArray(KeySelector[]::new));
 		node.setStateKeySerializer(keySerializer);
 	}
 
@@ -534,8 +639,21 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setSerializers(Integer vertexID, TypeSerializer<?> in1, TypeSerializer<?> in2, TypeSerializer<?> out) {
 		StreamNode vertex = getStreamNode(vertexID);
-		vertex.setSerializerIn1(in1);
-		vertex.setSerializerIn2(in2);
+		vertex.setSerializersIn(in1, in2);
+		vertex.setSerializerOut(out);
+	}
+
+	private <OUT> void setSerializers(
+			Integer vertexID,
+			List<TypeInformation<?>> inTypeInfos,
+			TypeSerializer<OUT> out) {
+
+		StreamNode vertex = getStreamNode(vertexID);
+
+		vertex.setSerializersIn(
+			inTypeInfos.stream()
+				.map(typeInfo -> typeInfo.createSerializer(executionConfig))
+				.toArray(TypeSerializer[]::new));
 		vertex.setSerializerOut(out);
 	}
 
@@ -543,8 +661,8 @@ public class StreamGraph extends StreamingPlan {
 		StreamNode fromVertex = getStreamNode(from);
 		StreamNode toVertex = getStreamNode(to);
 
-		toVertex.setSerializerIn1(fromVertex.getTypeSerializerOut());
-		toVertex.setSerializerOut(fromVertex.getTypeSerializerIn1());
+		toVertex.setSerializersIn(fromVertex.getTypeSerializerOut());
+		toVertex.setSerializerOut(fromVertex.getTypeSerializerIn(0));
 	}
 
 	public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
@@ -582,19 +700,29 @@ public class StreamGraph extends StreamingPlan {
 		return streamNodes.keySet();
 	}
 
-	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
+	@VisibleForTesting
+	public List<StreamEdge> getStreamEdges(int sourceId) {
+		return getStreamNode(sourceId).getOutEdges();
+	}
 
+	@VisibleForTesting
+	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
 		List<StreamEdge> result = new ArrayList<>();
 		for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
 			if (edge.getTargetId() == targetId) {
 				result.add(edge);
 			}
 		}
+		return result;
+	}
 
+	@VisibleForTesting
+	@Deprecated
+	public List<StreamEdge> getStreamEdgesOrThrow(int sourceId, int targetId) {
+		List<StreamEdge> result = getStreamEdges(sourceId, targetId);
 		if (result.isEmpty()) {
 			throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
 		}
-
 		return result;
 	}
 
@@ -658,6 +786,16 @@ public class StreamGraph extends StreamingPlan {
 		sinks.add(sink.getId());
 		setParallelism(sink.getId(), parallelism);
 		setMaxParallelism(sink.getId(), parallelism);
+		// The tail node is always in the same slot sharing group with the head node
+		// so that they can share resources (they do not use non-sharable resources,
+		// i.e. managed memory). There is no contract on how the resources should be
+		// divided for head and tail nodes at the moment. To be simple, we assign all
+		// resources to the head node and set the tail node resources to be zero if
+		// resources are specified.
+		final ResourceSpec tailResources = minResources.equals(ResourceSpec.UNKNOWN)
+			? ResourceSpec.UNKNOWN
+			: ResourceSpec.ZERO;
+		setResources(sink.getId(), tailResources, tailResources);
 
 		iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
 
@@ -699,23 +837,19 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
-	 * Gets the assembled {@link JobGraph} with a given job id.
+	 * Gets the assembled {@link JobGraph} with a random {@link JobID}.
 	 */
-	@SuppressWarnings("deprecation")
-	@Override
-	public JobGraph getJobGraph(@Nullable JobID jobID) {
-		// temporarily forbid checkpointing for iterative jobs
-		if (isIterative() && checkpointConfig.isCheckpointingEnabled() && !checkpointConfig.isForceCheckpointing()) {
-			throw new UnsupportedOperationException(
-				"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
-					+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
-					+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
-		}
+	public JobGraph getJobGraph() {
+		return getJobGraph(null);
+	}
 
+	/**
+	 * Gets the assembled {@link JobGraph} with a specified {@link JobID}.
+	 */
+	public JobGraph getJobGraph(@Nullable JobID jobID) {
 		return StreamingJobGraphGenerator.createJobGraph(this, jobID);
 	}
 
-	@Override
 	public String getStreamingPlanAsJSON() {
 		try {
 			return new JSONGenerator(this).getJSON();
@@ -725,18 +859,8 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	@Override
-	public void dumpStreamingPlanAsJSON(File file) throws IOException {
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(new FileOutputStream(file), false);
-			pw.write(getStreamingPlanAsJSON());
-			pw.flush();
-
-		} finally {
-			if (pw != null) {
-				pw.close();
-			}
-		}
+	private <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInfo) {
+		return typeInfo != null && !(typeInfo instanceof MissingTypeInfo) ?
+			typeInfo.createSerializer(executionConfig) : null;
 	}
 }

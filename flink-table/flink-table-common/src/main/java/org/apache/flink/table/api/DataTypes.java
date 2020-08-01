@@ -22,12 +22,16 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.logical.AnyType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -45,12 +49,16 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -69,12 +77,88 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
+
 /**
  * A {@link DataType} can be used to declare input and/or output types of operations. This class
- * enumerates all supported data types of the Table & SQL API.
+ * enumerates all pre-defined data types of the Table & SQL API.
+ *
+ * <p>For convenience, this class also contains methods for creating {@link UnresolvedDataType}s that
+ * need to be resolved at later stages. This is in particular useful for more complex types that are
+ * expressed as {@link Class} (see {@link #of(Class)}) or types that need to be looked up in a catalog
+ * (see {@link #of(String)}).
+ *
+ * <p>NOTE: Planners might not support every data type with the desired precision or parameter. Please
+ * see the planner compatibility and limitations section in the website documentation before using a
+ * data type.
  */
 @PublicEvolving
 public final class DataTypes {
+
+	/**
+	 * Creates an unresolved type that will be resolved to a {@link DataType} by analyzing the given
+	 * class later.
+	 *
+	 * <p>During the resolution, Java reflection is used which can be supported by {@link DataTypeHint}
+	 * annotations for nested, structured types.
+	 *
+	 * <p>It will throw an {@link ValidationException} in cases where the reflective extraction needs
+	 * more information or simply fails.
+	 *
+	 * <p>The following examples show how to use and enrich the extraction process:
+	 *
+	 * <pre>
+	 * {@code
+	 *   // returns INT
+	 *   of(Integer.class)
+	 *
+	 *   // returns TIMESTAMP(9)
+	 *   of(java.time.LocalDateTime.class)
+	 *
+	 *   // returns an anonymous, unregistered structured type
+	 *   // that is deeply integrated into the API compared to opaque RAW types
+	 *   class User {
+	 *
+	 *     // extract fields automatically
+	 *     public String name;
+	 *     public int age;
+	 *
+	 *     // enrich the extraction with precision information
+	 *     public @DataTypeHint("DECIMAL(10,2)") BigDecimal accountBalance;
+	 *
+	 *     // enrich the extraction with forcing using RAW types
+	 *     public @DataTypeHint(forceRawPattern = "scala.") Address address;
+	 *
+	 *     // enrich the extraction by specifying defaults
+	 *     public @DataTypeHint(defaultSecondPrecision = 3) Log log;
+	 *   }
+	 *   of(User.class)
+	 * }
+	 * </pre>
+	 *
+	 * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved by
+	 * the API. At other locations, a {@link DataTypeFactory} is provided.
+	 */
+	public static UnresolvedDataType of(Class<?> unresolvedClass) {
+		return new UnresolvedDataType(
+			() -> String.format("'%s'", unresolvedClass.getName()),
+			(factory) -> factory.createDataType(unresolvedClass));
+	}
+
+	/**
+	 * Creates an unresolved type that will be resolved to a {@link DataType} by using a fully or partially
+	 * defined name.
+	 *
+	 * <p>It includes both built-in types (e.g. "INT") as well as user-defined types (e.g. "mycat.mydb.Money").
+	 *
+	 * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved by
+	 * the API. At other locations, a {@link DataTypeFactory} is provided.
+	 */
+	public static UnresolvedDataType of(String unresolvedName) {
+		return new UnresolvedDataType(
+			() -> unresolvedName,
+			(factory) -> factory.createDataType(unresolvedName));
+	}
 
 	// we use SQL-like naming for data types and avoid Java keyword clashes
 	// CHECKSTYLE.OFF: MethodName
@@ -436,7 +520,7 @@ public final class DataTypes {
 	 * hours to minutes, interval of hours to seconds, interval of minutes, interval of minutes to seconds,
 	 * or interval of seconds. The value representation is the same for all types of resolutions. For
 	 * example, an interval of seconds of 70 is always represented in an interval-of-days-to-seconds
-	 * format (with default precisions): {@code +00 00:01:10.000000}).
+	 * format (with default precisions): {@code +00 00:01:10.000000}.
 	 *
 	 * <p>An interval of year-month consists of {@code +years-months} with values ranging from {@code -9999-11}
 	 * to {@code +9999-11}. The type must be parameterized to one of the following resolutions: interval
@@ -470,6 +554,25 @@ public final class DataTypes {
 	}
 
 	/**
+	 * Unresolved data type of an array of elements with same subtype.
+	 *
+	 * <p>Compared to the SQL standard, the maximum cardinality of an array cannot be specified but
+	 * is fixed at {@link Integer#MAX_VALUE}. Also, any valid type is supported as a subtype.
+	 *
+	 * <p>Note: Compared to {@link #ARRAY(DataType)}, this method produces an {@link UnresolvedDataType}.
+	 * In most of the cases, the {@link UnresolvedDataType} will be automatically resolved by the API. At
+	 * other locations, a {@link DataTypeFactory} is provided.
+	 *
+	 * @see ArrayType
+	 */
+	public static UnresolvedDataType ARRAY(AbstractDataType<?> elementDataType) {
+		Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
+		return new UnresolvedDataType(
+			() -> String.format(ArrayType.FORMAT, elementDataType),
+			factory -> ARRAY(factory.createDataType(elementDataType)));
+	}
+
+	/**
 	 * Data type of a multiset (=bag). Unlike a set, it allows for multiple instances for each of its
 	 * elements with a common subtype. Each unique value (including {@code NULL}) is mapped to some
 	 * multiplicity.
@@ -482,6 +585,27 @@ public final class DataTypes {
 	public static DataType MULTISET(DataType elementDataType) {
 		Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
 		return new CollectionDataType(new MultisetType(elementDataType.getLogicalType()), elementDataType);
+	}
+
+	/**
+	 * Unresolved data type of a multiset (=bag). Unlike a set, it allows for multiple instances for each of its
+	 * elements with a common subtype. Each unique value (including {@code NULL}) is mapped to some
+	 * multiplicity.
+	 *
+	 * <p>There is no restriction of element types; it is the responsibility of the user to ensure
+	 * uniqueness.
+	 *
+	 * <p>Note: Compared to {@link #MULTISET(DataType)}, this method produces an {@link UnresolvedDataType}. In
+	 * most of the cases, the {@link UnresolvedDataType} will be automatically resolved by the API. At other
+	 * locations, a {@link DataTypeFactory} is provided.
+	 *
+	 * @see MultisetType
+	 */
+	public static UnresolvedDataType MULTISET(AbstractDataType<?> elementDataType) {
+		Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
+		return new UnresolvedDataType(
+			() -> String.format(MultisetType.FORMAT, elementDataType),
+			factory -> MULTISET(factory.createDataType(elementDataType)));
 	}
 
 	/**
@@ -503,6 +627,27 @@ public final class DataTypes {
 	}
 
 	/**
+	 * Unresolved data type of an associative array that maps keys (including {@code NULL}) to values (including
+	 * {@code NULL}). A map cannot contain duplicate keys; each key can map to at most one value.
+	 *
+	 * <p>There is no restriction of key types; it is the responsibility of the user to ensure uniqueness.
+	 * The map type is an extension to the SQL standard.
+	 *
+	 * <p>Note: Compared to {@link #MAP(DataType, DataType)}, this method produces an {@link UnresolvedDataType}.
+	 * In most of the cases, the {@link UnresolvedDataType} will be automatically resolved by the API. At
+	 * other locations, a {@link DataTypeFactory} is provided.
+	 *
+	 * @see MapType
+	 */
+	public static UnresolvedDataType MAP(AbstractDataType<?> keyDataType, AbstractDataType<?> valueDataType) {
+		Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
+		Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
+		return new UnresolvedDataType(
+			() -> String.format(MapType.FORMAT, keyDataType, valueDataType),
+			factory -> MAP(factory.createDataType(keyDataType), factory.createDataType(valueDataType)));
+	}
+
+	/**
 	 * Data type of a sequence of fields. A field consists of a field name, field type, and an optional
 	 * description. The most specific type of a row of a table is a row type. In this case, each column
 	 * of the row corresponds to the field of the row type that has the same ordinal position as the
@@ -511,16 +656,63 @@ public final class DataTypes {
 	 * <p>Compared to the SQL standard, an optional field description simplifies the handling with
 	 * complex structures.
 	 *
+	 * <p>Use {@link #FIELD(String, DataType)} or {@link #FIELD(String, DataType, String)} to construct
+	 * fields.
+	 *
 	 * @see RowType
 	 */
 	public static DataType ROW(Field... fields) {
-		final List<RowType.RowField> logicalFields = Stream.of(fields)
+		final List<RowField> logicalFields = Stream.of(fields)
 			.map(f -> Preconditions.checkNotNull(f, "Field definition must not be null."))
-			.map(f -> new RowType.RowField(f.name, f.dataType.getLogicalType(), f.description))
+			.map(f -> new RowField(f.name, f.dataType.getLogicalType(), f.description))
 			.collect(Collectors.toList());
-		final Map<String, DataType> fieldDataTypes = Stream.of(fields)
-			.collect(Collectors.toMap(f -> f.name, f -> f.dataType));
+		final List<DataType> fieldDataTypes = Stream.of(fields)
+			.map(f -> f.dataType)
+			.collect(Collectors.toList());
 		return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
+	}
+
+	/**
+	 * Data type of a row type with no fields. It only exists for completeness.
+	 *
+	 * @see #ROW(Field...)
+	 */
+	public static DataType ROW() {
+		return ROW(new Field[0]);
+	}
+
+	/**
+	 * Unresolved data type of a sequence of fields. A field consists of a field name, field type, and
+	 * an optional description. The most specific type of a row of a table is a row type. In this case,
+	 * each column of the row corresponds to the field of the row type that has the same ordinal position
+	 * as the column.
+	 *
+	 * <p>Compared to the SQL standard, an optional field description simplifies the handling with
+	 * complex structures.
+	 *
+	 * <p>Use {@link #FIELD(String, AbstractDataType)} or {@link #FIELD(String, AbstractDataType, String)}
+	 * to construct fields.
+	 *
+	 * <p>Note: Compared to {@link #ROW(Field...)} )}, this method produces an {@link UnresolvedDataType}
+	 * with {@link UnresolvedField}s. In most of the cases, the {@link UnresolvedDataType} will be
+	 * automatically resolved by the API. At other locations, a {@link DataTypeFactory} is provided.
+	 *
+	 * @see RowType
+	 */
+	public static UnresolvedDataType ROW(AbstractField... fields) {
+		Stream.of(fields)
+			.forEach(f -> Preconditions.checkNotNull(f, "Field definition must not be null."));
+		return new UnresolvedDataType(
+			() -> String.format(
+				RowType.FORMAT,
+				Stream.of(fields).map(Object::toString).collect(Collectors.joining(", "))),
+			factory -> {
+				final Field[] fieldsArray = Stream.of(fields)
+					.map(f -> new Field(f.name, factory.createDataType(f.getAbstractDataType()), f.description))
+					.toArray(Field[]::new);
+				return ROW(fieldsArray);
+			}
+		);
 	}
 
 	/**
@@ -532,6 +724,10 @@ public final class DataTypes {
 	 *
 	 * <p>The null type is an extension to the SQL standard.
 	 *
+	 * <p>Note: The runtime does not support this type. It is a pure helper type during translation and
+	 * planning. Table columns cannot be declared with this type. Functions cannot declare return types
+	 * of this type.
+	 *
 	 * @see NullType
 	 */
 	public static DataType NULL() {
@@ -542,35 +738,105 @@ public final class DataTypes {
 	 * Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
 	 * and is only deserialized at the edges.
 	 *
-	 * <p>The any type is an extension to the SQL standard.
+	 * <p>The raw type is an extension to the SQL standard.
 	 *
-	 * <p>This method assumes that a {@link TypeSerializer} instance is present. Use {@link #ANY(TypeInformation)}
-	 * for generating a serializer from Flink's core type system automatically in subsequent layers.
+	 * <p>This method assumes that a {@link TypeSerializer} instance is present. Use {@link #RAW(Class)}
+	 * for automatically generating a serializer.
 	 *
 	 * @param clazz originating value class
 	 * @param serializer type serializer
 	 *
-	 * @see AnyType
+	 * @see RawType
 	 */
-	public static <T> DataType ANY(Class<T> clazz, TypeSerializer<T> serializer) {
-		return new AtomicDataType(new AnyType<>(clazz, serializer));
+	public static <T> DataType RAW(Class<T> clazz, TypeSerializer<T> serializer) {
+		return new AtomicDataType(new RawType<>(clazz, serializer));
+	}
+
+	/**
+	 * Unresolved data type of an arbitrary serialized type. This type is a black box within the table
+	 * ecosystem and is only deserialized at the edges.
+	 *
+	 * <p>The raw type is an extension to the SQL standard.
+	 *
+	 * <p>Compared to {@link #RAW(Class, TypeSerializer)}, this method produces an {@link UnresolvedDataType}
+	 * where no serializer is known and a generic serializer should be used. During the resolution, a
+	 * {@link DataTypes#RAW(Class, TypeSerializer)} with Flink's default RAW serializer is created and
+	 * automatically configured.
+	 *
+	 * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved by
+	 * the API. At other locations, a {@link DataTypeFactory} is provided.
+	 *
+	 * @see RawType
+	 */
+	public static <T> UnresolvedDataType RAW(Class<T> clazz) {
+		return new UnresolvedDataType(
+			() -> String.format(RawType.FORMAT, clazz.getName(), "?"),
+			factory -> factory.createRawDataType(clazz));
 	}
 
 	/**
 	 * Data type of an arbitrary serialized type backed by {@link TypeInformation}. This type is
 	 * a black box within the table ecosystem and is only deserialized at the edges.
 	 *
-	 * <p>The any type is an extension to the SQL standard.
+	 * <p>The raw type is an extension to the SQL standard.
 	 *
-	 * <p>Compared to an {@link #ANY(Class, TypeSerializer)}, this type does not contain a {@link TypeSerializer}
+	 * <p>Compared to an {@link #RAW(Class, TypeSerializer)}, this type does not contain a {@link TypeSerializer}
 	 * yet. The serializer will be generated from the enclosed {@link TypeInformation} but needs access
 	 * to the {@link ExecutionConfig} of the current execution environment. Thus, this type is just a
 	 * placeholder.
 	 *
-	 * @see TypeInformationAnyType
+	 * @see TypeInformationRawType
 	 */
-	public static <T> DataType ANY(TypeInformation<T> typeInformation) {
-		return new AtomicDataType(new TypeInformationAnyType<>(typeInformation));
+	public static <T> DataType RAW(TypeInformation<T> typeInformation) {
+		return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+	}
+
+	/**
+	 * Data type of a user-defined object structured type. Structured types contain zero, one or more
+	 * attributes. Each attribute consists of a name and a type. A type cannot be defined so that one of
+	 * its attribute types (transitively) uses itself.
+	 *
+	 * <p>There are two kinds of structured types. Types that are stored in a catalog and are identified
+	 * by an {@link ObjectIdentifier} or anonymously defined, unregistered types (usually reflectively
+	 * extracted) that are identified by an implementation {@link Class}.
+	 *
+	 * <p>This method helps in manually constructing anonymous, unregistered types. This is useful in
+	 * cases where the reflective extraction using {@link DataTypes#of(Class)} is not applicable. However,
+	 * {@link DataTypes#of(Class)} is the recommended way of creating inline structured types as it also
+	 * considers {@link DataTypeHint}s.
+	 *
+	 * <p>Structured types are converted to internal data structures by the runtime. The given implementation
+	 * class is only used at the edges of the table ecosystem (e.g. when bridging to a function or connector).
+	 * Serialization and equality ({@code hashCode/equals}) are handled by the runtime based on the logical
+	 * type. An implementation class must offer a default constructor with zero arguments or a full constructor
+	 * that assigns all attributes.
+	 *
+	 * <p>Note: A caller of this method must make sure that the {@link DataType#getConversionClass()} of the
+	 * given fields matches with the attributes of the given implementation class, otherwise an exception
+	 * might be thrown during runtime.
+	 *
+	 * @see DataTypes#of(Class)
+	 * @see StructuredType
+	 */
+	public static <T> DataType STRUCTURED(Class<T> implementationClass, Field... fields) {
+		// some basic validation of the class to prevent common mistakes
+		validateStructuredClass(implementationClass);
+
+		final StructuredType.Builder builder = StructuredType.newBuilder(implementationClass);
+		final List<StructuredAttribute> attributes = Stream.of(fields)
+			.map(f ->
+				new StructuredAttribute(
+					f.getName(),
+					f.getDataType().getLogicalType(),
+					f.getDescription().orElse(null)))
+			.collect(Collectors.toList());
+		builder.attributes(attributes);
+		builder.setFinal(true);
+		builder.setInstantiable(true);
+		final List<DataType> fieldDataTypes = Stream.of(fields)
+			.map(DataTypes.Field::getDataType)
+			.collect(Collectors.toList());
+		return new FieldsDataType(builder.build(), implementationClass, fieldDataTypes);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -676,12 +942,40 @@ public final class DataTypes {
 			Preconditions.checkNotNull(description, "Field description must not be null."));
 	}
 
+	/**
+	 * Unresolved field definition with field name and data type.
+	 *
+	 * <p>Note: Compared to {@link #FIELD(String, DataType)}, this method produces an {@link UnresolvedField}
+	 * that can contain an {@link UnresolvedDataType}.
+	 */
+	public static UnresolvedField FIELD(String name, AbstractDataType<?> fieldDataType) {
+		return new UnresolvedField(
+			Preconditions.checkNotNull(name, "Field name must not be null."),
+			Preconditions.checkNotNull(fieldDataType, "Field data type must not be null."),
+			null);
+	}
+
+	/**
+	 * Unresolved field definition with field name, unresolved data type, and a description.
+	 *
+	 * <p>Note: Compared to {@link #FIELD(String, DataType, String)}, this method produces an {@link UnresolvedField}
+	 * that can contain an {@link UnresolvedDataType}.
+	 */
+	public static UnresolvedField FIELD(String name, AbstractDataType<?> fieldDataType, String description) {
+		return new UnresolvedField(
+			Preconditions.checkNotNull(name, "Field name must not be null."),
+			Preconditions.checkNotNull(fieldDataType, "Field data type must not be null."),
+			Preconditions.checkNotNull(description, "Field description must not be null."));
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Helper classes
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Helper class for defining the resolution of an interval.
+	 *
+	 * @see #INTERVAL(Resolution)
 	 */
 	public static final class Resolution {
 
@@ -786,19 +1080,21 @@ public final class DataTypes {
 	}
 
 	/**
-	 * Helper class for defining the field of a row or structured type.
+	 * Common helper class for resolved and unresolved fields of a row or structured type.
+	 *
+	 * @see #FIELD(String, DataType)
+	 * @see #FIELD(String, DataType, String)
+	 * @see #FIELD(String, AbstractDataType)
+	 * @see #FIELD(String, AbstractDataType, String)
 	 */
-	public static final class Field {
+	public abstract static class AbstractField {
 
-		private final String name;
+		protected final String name;
 
-		private final DataType dataType;
+		protected final @Nullable String description;
 
-		private final @Nullable String description;
-
-		private Field(String name, DataType dataType, String description) {
+		private AbstractField(String name, @Nullable String description) {
 			this.name = name;
-			this.dataType = dataType;
 			this.description = description;
 		}
 
@@ -806,12 +1102,76 @@ public final class DataTypes {
 			return name;
 		}
 
+		public Optional<String> getDescription() {
+			return Optional.ofNullable(description);
+		}
+
+		protected abstract AbstractDataType<?> getAbstractDataType();
+
+		@Override
+		public String toString() {
+			if (description != null) {
+				return String.format(
+					RowField.FIELD_FORMAT_WITH_DESCRIPTION,
+					name,
+					getAbstractDataType(),
+					description);
+			}
+			return String.format(
+				RowField.FIELD_FORMAT_NO_DESCRIPTION,
+				name,
+				getAbstractDataType());
+		}
+	}
+
+	/**
+	 * Helper class for defining the field of a row or structured type.
+	 *
+	 * @see #FIELD(String, DataType)
+	 * @see #FIELD(String, DataType, String)
+	 */
+	public static final class Field extends AbstractField {
+
+		private final DataType dataType;
+
+		private Field(String name, DataType dataType, @Nullable String description) {
+			super(name, description);
+			this.dataType = dataType;
+		}
+
 		public DataType getDataType() {
 			return dataType;
 		}
 
-		public Optional<String> getDescription() {
-			return Optional.ofNullable(description);
+		@Override
+		protected AbstractDataType<?> getAbstractDataType() {
+			return dataType;
+		}
+	}
+
+	/**
+	 * Helper class for defining the unresolved field of a row or structured type.
+	 *
+	 * <p>Compared to {@link Field}, an unresolved field can contain an {@link UnresolvedDataType}.
+	 *
+	 * @see #FIELD(String, AbstractDataType)
+	 * @see #FIELD(String, AbstractDataType, String)
+	 */
+	public static final class UnresolvedField extends AbstractField {
+
+		private final AbstractDataType<?> dataType;
+
+		private UnresolvedField(
+				String name,
+				AbstractDataType<?> dataType,
+				@Nullable String description) {
+			super(name, description);
+			this.dataType = dataType;
+		}
+
+		@Override
+		protected AbstractDataType<?> getAbstractDataType() {
+			return dataType;
 		}
 	}
 

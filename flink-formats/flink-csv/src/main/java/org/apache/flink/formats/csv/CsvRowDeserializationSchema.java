@@ -213,7 +213,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 
 	// --------------------------------------------------------------------------------------------
 
-	private interface RuntimeConverter extends Serializable {
+	interface RuntimeConverter extends Serializable {
 		Object convert(JsonNode node);
 	}
 
@@ -230,7 +230,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 		return assembleRowRuntimeConverter(ignoreParseErrors, isTopLevel, fieldNames, fieldConverters);
 	}
 
-	private static RuntimeConverter[] createFieldRuntimeConverters(boolean ignoreParseErrors, TypeInformation<?>[] fieldTypes) {
+	static RuntimeConverter[] createFieldRuntimeConverters(boolean ignoreParseErrors, TypeInformation<?>[] fieldTypes) {
 		final RuntimeConverter[] fieldConverters = new RuntimeConverter[fieldTypes.length];
 		for (int i = 0; i < fieldTypes.length; i++) {
 			fieldConverters[i] = createNullableRuntimeConverter(fieldTypes[i], ignoreParseErrors);
@@ -311,6 +311,12 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 			return (node) -> Time.valueOf(node.asText());
 		} else if (info.equals(Types.SQL_TIMESTAMP)) {
 			return (node) -> Timestamp.valueOf(node.asText());
+		} else if (info.equals(Types.LOCAL_DATE)) {
+			return (node) -> Date.valueOf(node.asText()).toLocalDate();
+		} else if (info.equals(Types.LOCAL_TIME)) {
+			return (node) -> Time.valueOf(node.asText()).toLocalTime();
+		} else if (info.equals(Types.LOCAL_DATE_TIME)) {
+			return (node) -> Timestamp.valueOf(node.asText()).toLocalDateTime();
 		} else if (info instanceof RowTypeInfo) {
 			final RowTypeInfo rowTypeInfo = (RowTypeInfo) info;
 			return createRowRuntimeConverter(rowTypeInfo, ignoreParseErrors, false);
@@ -359,7 +365,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 		};
 	}
 
-	private static void validateArity(int expected, int actual, boolean ignoreParseErrors) {
+	static void validateArity(int expected, int actual, boolean ignoreParseErrors) {
 		if (expected != actual && !ignoreParseErrors) {
 			throw new RuntimeException("Row length mismatch. " + expected +
 				" fields expected but was " + actual + ".");

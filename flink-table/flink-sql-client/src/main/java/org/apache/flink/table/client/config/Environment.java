@@ -20,11 +20,12 @@ package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
+import org.apache.flink.table.client.config.entries.ConfigurationEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
+import org.apache.flink.table.client.config.entries.ModuleEntry;
 import org.apache.flink.table.client.config.entries.TableEntry;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -48,7 +49,11 @@ public class Environment {
 
 	public static final String EXECUTION_ENTRY = "execution";
 
+	public static final String CONFIGURATION_ENTRY = "table";
+
 	public static final String DEPLOYMENT_ENTRY = "deployment";
+
+	private Map<String, ModuleEntry> modules;
 
 	private Map<String, CatalogEntry> catalogs;
 
@@ -58,14 +63,36 @@ public class Environment {
 
 	private ExecutionEntry execution;
 
+	private ConfigurationEntry configuration;
+
 	private DeploymentEntry deployment;
 
 	public Environment() {
+		this.modules = new LinkedHashMap<>();
 		this.catalogs = Collections.emptyMap();
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
 		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
+		this.configuration = ConfigurationEntry.DEFAULT_INSTANCE;
 		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
+	}
+
+	public Map<String, ModuleEntry> getModules() {
+		return modules;
+	}
+
+	public void setModules(List<Map<String, Object>> modules) {
+		this.modules = new LinkedHashMap<>(modules.size());
+
+		modules.forEach(config -> {
+			final ModuleEntry entry = ModuleEntry.create(config);
+			if (this.modules.containsKey(entry.getName())) {
+				throw new SqlClientException(
+					String.format("Cannot register module '%s' because a module with this name is already registered.",
+						entry.getName()));
+			}
+			this.modules.put(entry.getName(), entry);
+		});
 	}
 
 	public Map<String, CatalogEntry> getCatalogs() {
@@ -128,6 +155,14 @@ public class Environment {
 		return execution;
 	}
 
+	public void setConfiguration(Map<String, Object> config) {
+		this.configuration = ConfigurationEntry.create(config);
+	}
+
+	public ConfigurationEntry getConfiguration() {
+		return configuration;
+	}
+
 	public void setDeployment(Map<String, Object> config) {
 		this.deployment = DeploymentEntry.create(config);
 	}
@@ -139,6 +174,11 @@ public class Environment {
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
+		sb.append("===================== Modules =====================\n");
+		modules.forEach((name, module) -> {
+			sb.append("- ").append(ModuleEntry.MODULE_NAME).append(": ").append(name).append("\n");
+			module.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+		});
 		sb.append("===================== Catalogs =====================\n");
 		catalogs.forEach((name, catalog) -> {
 			sb.append("- ").append(CatalogEntry.CATALOG_NAME).append(": ").append(name).append("\n");
@@ -156,6 +196,8 @@ public class Environment {
 		});
 		sb.append("=================== Execution ====================\n");
 		execution.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		sb.append("================== Configuration =================\n");
+		configuration.asMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		sb.append("=================== Deployment ===================\n");
 		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		return sb.toString();
@@ -191,6 +233,11 @@ public class Environment {
 	public static Environment merge(Environment env1, Environment env2) {
 		final Environment mergedEnv = new Environment();
 
+		// merge modules
+		final Map<String, ModuleEntry> modules = new LinkedHashMap<>(env1.getModules());
+		modules.putAll(env2.getModules());
+		mergedEnv.modules = modules;
+
 		// merge catalogs
 		final Map<String, CatalogEntry> catalogs = new HashMap<>(env1.getCatalogs());
 		catalogs.putAll(env2.getCatalogs());
@@ -209,33 +256,42 @@ public class Environment {
 		// merge execution properties
 		mergedEnv.execution = ExecutionEntry.merge(env1.getExecution(), env2.getExecution());
 
+		// merge configuration properties
+		mergedEnv.configuration = ConfigurationEntry.merge(env1.getConfiguration(), env2.getConfiguration());
+
 		// merge deployment properties
 		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
 
 		return mergedEnv;
 	}
 
+	public Environment clone() {
+		return enrich(this, Collections.emptyMap());
+	}
+
 	/**
-	 * Enriches an environment with new/modified properties or views and returns the new instance.
+	 * Enriches an environment with new/modified properties and returns the new instance.
 	 */
-	public static Environment enrich(
-			Environment env,
-			Map<String, String> properties,
-			Map<String, ViewEntry> views) {
+	public static Environment enrich(Environment env, Map<String, String> properties) {
 		final Environment enrichedEnv = new Environment();
 
-		// merge catalogs
+		// copy modules
+		enrichedEnv.modules = new LinkedHashMap<>(env.getModules());
+
+		// copy catalogs
 		enrichedEnv.catalogs = new LinkedHashMap<>(env.getCatalogs());
 
-		// merge tables
+		// copy tables
 		enrichedEnv.tables = new LinkedHashMap<>(env.getTables());
-		enrichedEnv.tables.putAll(views);
 
-		// merge functions
+		// copy functions
 		enrichedEnv.functions = new HashMap<>(env.getFunctions());
 
 		// enrich execution properties
 		enrichedEnv.execution = ExecutionEntry.enrich(env.execution, properties);
+
+		// enrich configuration properties
+		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, properties);
 
 		// enrich deployment properties
 		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);

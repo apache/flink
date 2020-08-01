@@ -18,17 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.io.AsyncDataInput;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.Before;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -38,15 +33,13 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test base for {@link InputGate}.
  */
-@RunWith(Parameterized.class)
 public abstract class InputGateTestBase {
 
-	@Parameter
-	public boolean enableCreditBasedFlowControl;
+	int gateIndex;
 
-	@Parameters(name = "Credit-based = {0}")
-	public static List<Boolean> parameters() {
-		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
+	@Before
+	public void resetGateIndex() {
+		gateIndex = 0;
 	}
 
 	protected void testIsAvailable(
@@ -54,29 +47,29 @@ public abstract class InputGateTestBase {
 			SingleInputGate inputGateToNotify,
 			TestInputChannel inputChannelWithNewData) throws Exception {
 
-		assertFalse(inputGateToTest.isAvailable().isDone());
+		assertFalse(inputGateToTest.getAvailableFuture().isDone());
 		assertFalse(inputGateToTest.pollNext().isPresent());
 
-		CompletableFuture<?> isAvailable = inputGateToTest.isAvailable();
+		CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
 
-		assertFalse(inputGateToTest.isAvailable().isDone());
+		assertFalse(inputGateToTest.getAvailableFuture().isDone());
 		assertFalse(inputGateToTest.pollNext().isPresent());
 
-		assertEquals(isAvailable, inputGateToTest.isAvailable());
+		assertEquals(future, inputGateToTest.getAvailableFuture());
 
 		inputChannelWithNewData.readBuffer();
 		inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
 
-		assertTrue(isAvailable.isDone());
-		assertTrue(inputGateToTest.isAvailable().isDone());
-		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+		assertTrue(future.isDone());
+		assertTrue(inputGateToTest.getAvailableFuture().isDone());
+		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
 	}
 
 	protected void testIsAvailableAfterFinished(
 		InputGate inputGateToTest,
 		Runnable endOfPartitionEvent) throws Exception {
 
-		CompletableFuture<?> available = inputGateToTest.isAvailable();
+		CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
 		assertFalse(available.isDone());
 		assertFalse(inputGateToTest.pollNext().isPresent());
 
@@ -85,8 +78,8 @@ public abstract class InputGateTestBase {
 		assertTrue(inputGateToTest.pollNext().isPresent()); // EndOfPartitionEvent
 
 		assertTrue(available.isDone());
-		assertTrue(inputGateToTest.isAvailable().isDone());
-		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+		assertTrue(inputGateToTest.getAvailableFuture().isDone());
+		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
 	}
 
 	protected SingleInputGate createInputGate() {
@@ -102,8 +95,8 @@ public abstract class InputGateTestBase {
 
 		SingleInputGateBuilder builder = new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfInputChannels)
-			.setResultPartitionType(partitionType)
-			.setIsCreditBased(enableCreditBasedFlowControl);
+			.setSingleInputGateIndex(gateIndex++)
+			.setResultPartitionType(partitionType);
 
 		if (environment != null) {
 			builder = builder.setupBufferPoolFactory(environment);

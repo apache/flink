@@ -22,12 +22,17 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.util.NetUtils;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +52,11 @@ public class TaskManagerServicesConfiguration {
 
 	private final ResourceID resourceID;
 
-	private final InetAddress taskManagerAddress;
+	private final String externalAddress;
+
+	private final InetAddress bindAddress;
+
+	private final int externalDataPort;
 
 	private final boolean localCommunicationOnly;
 
@@ -60,23 +69,6 @@ public class TaskManagerServicesConfiguration {
 	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
 
-	private final long freeHeapMemoryWithDefrag;
-
-	private final long maxJvmHeapMemory;
-
-	/**
-	 * Managed memory (in megabytes).
-	 *
-	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
-	 */
-	private final long configuredMemory;
-
-	private final MemoryType memoryType;
-
-	private final boolean preAllocateMemory;
-
-	private final float memoryFraction;
-
 	private final int pageSize;
 
 	private final long timerServiceShutdownTimeout;
@@ -87,44 +79,53 @@ public class TaskManagerServicesConfiguration {
 
 	private Optional<Time> systemResourceMetricsProbingInterval;
 
-	public TaskManagerServicesConfiguration(
+	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
+
+	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
+
+	private final String[] alwaysParentFirstLoaderPatterns;
+
+	private final int numIoThreads;
+
+	private TaskManagerServicesConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
-			InetAddress taskManagerAddress,
+			String externalAddress,
+			InetAddress bindAddress,
+			int externalDataPort,
 			boolean localCommunicationOnly,
 			String[] tmpDirPaths,
 			String[] localRecoveryStateRootDirectories,
-			long freeHeapMemoryWithDefrag,
-			long maxJvmHeapMemory,
 			boolean localRecoveryEnabled,
 			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
-			long configuredMemory,
-			MemoryType memoryType,
-			boolean preAllocateMemory,
-			float memoryFraction,
 			int pageSize,
+			TaskExecutorResourceSpec taskExecutorResourceSpec,
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-			Optional<Time> systemResourceMetricsProbingInterval) {
+			Optional<Time> systemResourceMetricsProbingInterval,
+			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+			String[] alwaysParentFirstLoaderPatterns,
+			int numIoThreads) {
 		this.configuration = checkNotNull(configuration);
 		this.resourceID = checkNotNull(resourceID);
 
-		this.taskManagerAddress = checkNotNull(taskManagerAddress);
+		this.externalAddress = checkNotNull(externalAddress);
+		this.bindAddress = checkNotNull(bindAddress);
+		this.externalDataPort = externalDataPort;
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
-		this.freeHeapMemoryWithDefrag = freeHeapMemoryWithDefrag;
-		this.maxJvmHeapMemory = maxJvmHeapMemory;
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.queryableStateConfig = queryableStateConfig;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
-		this.configuredMemory = configuredMemory;
-		this.memoryType = checkNotNull(memoryType);
-		this.preAllocateMemory = preAllocateMemory;
-		this.memoryFraction = memoryFraction;
 		this.pageSize = pageSize;
+
+		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
+		this.classLoaderResolveOrder = classLoaderResolveOrder;
+		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
+		this.numIoThreads = numIoThreads;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -146,8 +147,16 @@ public class TaskManagerServicesConfiguration {
 		return resourceID;
 	}
 
-	InetAddress getTaskManagerAddress() {
-		return taskManagerAddress;
+	String getExternalAddress() {
+		return externalAddress;
+	}
+
+	InetAddress getBindAddress() {
+		return bindAddress;
+	}
+
+	int getExternalDataPort() {
+		return externalDataPort;
 	}
 
 	boolean isLocalCommunicationOnly() {
@@ -175,44 +184,20 @@ public class TaskManagerServicesConfiguration {
 		return numberOfSlots;
 	}
 
-	public float getMemoryFraction() {
-		return memoryFraction;
-	}
-
-	/**
-	 * Returns the memory type to use.
-	 *
-	 * @return on-heap or off-heap memory
-	 */
-	MemoryType getMemoryType() {
-		return memoryType;
-	}
-
-	long getFreeHeapMemoryWithDefrag() {
-		return freeHeapMemoryWithDefrag;
-	}
-
-	long getMaxJvmHeapMemory() {
-		return maxJvmHeapMemory;
-	}
-
-	/**
-	 * Returns the size of the managed memory (in megabytes), if configured.
-	 *
-	 * @return managed memory or a default value (currently <tt>-1</tt>) if not configured
-	 *
-	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
-	 */
-	long getConfiguredMemory() {
-		return configuredMemory;
-	}
-
-	boolean isPreAllocateMemory() {
-		return preAllocateMemory;
-	}
-
 	public int getPageSize() {
 		return pageSize;
+	}
+
+	public TaskExecutorResourceSpec getTaskExecutorResourceSpec() {
+		return taskExecutorResourceSpec;
+	}
+
+	public MemorySize getNetworkMemorySize() {
+		return taskExecutorResourceSpec.getNetworkMemSize();
+	}
+
+	public MemorySize getManagedMemorySize() {
+		return taskExecutorResourceSpec.getManagedMemorySize();
 	}
 
 	long getTimerServiceShutdownTimeout() {
@@ -227,6 +212,18 @@ public class TaskManagerServicesConfiguration {
 		return retryingRegistrationConfiguration;
 	}
 
+	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
+		return classLoaderResolveOrder;
+	}
+
+	public String[] getAlwaysParentFirstLoaderPatterns() {
+		return alwaysParentFirstLoaderPatterns;
+	}
+
+	public int getNumIoThreads() {
+		return numIoThreads;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Parsing of Flink configuration
 	// --------------------------------------------------------------------------------------------
@@ -237,9 +234,7 @@ public class TaskManagerServicesConfiguration {
 	 *
 	 * @param configuration The configuration.
 	 * @param resourceID resource ID of the task manager
-	 * @param remoteAddress identifying the IP address under which the TaskManager will be accessible
-	 * @param freeHeapMemoryWithDefrag an estimate of the size of the free heap memory
-	 * @param maxJvmHeapMemory the maximum JVM heap size
+	 * @param externalAddress identifying the IP address under which the TaskManager will be accessible
 	 * @param localCommunicationOnly True if only local communication is possible.
 	 *                               Use only in cases where only one task manager runs.
 	 *
@@ -248,10 +243,9 @@ public class TaskManagerServicesConfiguration {
 	public static TaskManagerServicesConfiguration fromConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
-			InetAddress remoteAddress,
-			long freeHeapMemoryWithDefrag,
-			long maxJvmHeapMemory,
-			boolean localCommunicationOnly) {
+			String externalAddress,
+			boolean localCommunicationOnly,
+			TaskExecutorResourceSpec taskExecutorResourceSpec) throws Exception {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -263,31 +257,41 @@ public class TaskManagerServicesConfiguration {
 
 		final QueryableStateConfiguration queryableStateConfig = QueryableStateConfiguration.fromConfiguration(configuration);
 
-		boolean preAllocateMemory = configuration.getBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE);
-
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
+		final int externalDataPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+
+		String bindAddr = configuration.getString(TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
+		InetAddress bindAddress = InetAddress.getByName(bindAddr);
+
+		final String classLoaderResolveOrder =
+			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
+
+		final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
+
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,
-			remoteAddress,
+			externalAddress,
+			bindAddress,
+			externalDataPort,
 			localCommunicationOnly,
 			tmpDirs,
 			localStateRootDir,
-			freeHeapMemoryWithDefrag,
-			maxJvmHeapMemory,
 			localRecoveryMode,
 			queryableStateConfig,
 			ConfigurationParserUtils.getSlot(configuration),
-			ConfigurationParserUtils.getManagedMemorySize(configuration),
-			ConfigurationParserUtils.getMemoryType(configuration),
-			preAllocateMemory,
-			ConfigurationParserUtils.getManagedMemoryFraction(configuration),
 			ConfigurationParserUtils.getPageSize(configuration),
+			taskExecutorResourceSpec,
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
-			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
+			alwaysParentFirstLoaderPatterns,
+			numIoThreads);
 	}
 }

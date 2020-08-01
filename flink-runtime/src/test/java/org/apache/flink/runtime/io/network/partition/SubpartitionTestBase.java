@@ -24,7 +24,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -70,7 +70,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			assertEquals(1, subpartition.getTotalNumberOfBuffers());
 			assertEquals(0, subpartition.getBuffersInBacklog());
 
-			BufferConsumer bufferConsumer = createFilledBufferConsumer(4096, 4096);
+			BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
 			assertFalse(subpartition.add(bufferConsumer));
 			assertTrue(bufferConsumer.isRecycled());
@@ -91,7 +91,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		try {
 			subpartition.release();
 
-			BufferConsumer bufferConsumer = createFilledBufferConsumer(4096, 4096);
+			BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
 			assertFalse(subpartition.add(bufferConsumer));
 			assertTrue(bufferConsumer.isRecycled());
@@ -106,7 +106,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 	@Test
 	public void testReleasingReaderDoesNotReleasePartition() throws Exception {
 		final ResultSubpartition partition = createSubpartition();
-		partition.add(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
+		partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
 		partition.finish();
 
 		final ResultSubpartitionView reader = partition.createReadView(new NoOpBufferAvailablityListener());
@@ -125,7 +125,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 	@Test
 	public void testReleaseIsIdempotent() throws Exception {
 		final ResultSubpartition partition = createSubpartition();
-		partition.add(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
+		partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
 		partition.finish();
 
 		partition.release();
@@ -136,7 +136,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 	@Test
 	public void testReadAfterDispose() throws Exception {
 		final ResultSubpartition partition = createSubpartition();
-		partition.add(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
+		partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
 		partition.finish();
 
 		final ResultSubpartitionView reader = partition.createReadView(new NoOpBufferAvailablityListener());
@@ -154,7 +154,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 	public void testRecycleBufferAndConsumerOnFailure() throws Exception {
 		final ResultSubpartition subpartition = createFailingWritesSubpartition();
 		try {
-			final BufferConsumer consumer = BufferBuilderTestUtils.createFilledBufferConsumer(100);
+			final BufferConsumer consumer = BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
 
 			try {
 				subpartition.add(consumer);

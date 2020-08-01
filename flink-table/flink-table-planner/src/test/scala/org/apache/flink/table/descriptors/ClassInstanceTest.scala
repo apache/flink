@@ -33,25 +33,25 @@ class ClassInstanceTest extends DescriptorTestBase {
   }
 
   override def descriptors(): JList[Descriptor] = {
-    val desc1 = ClassInstance()
+    val desc1 = new ClassInstance()
       .of("class1")
       .parameter(Types.LONG, "1")
       .parameter(
-        ClassInstance()
+        new ClassInstance()
           .of("class2")
           .parameter(
-            ClassInstance()
+            new ClassInstance()
               .of("class3")
               .parameterString("StarryNight")
               .parameter(
-                ClassInstance()
+                new ClassInstance()
                     .of("class4"))))
       .parameter(2L)
 
-    val desc2 = ClassInstance()
+    val desc2 = new ClassInstance()
       .of("class2")
 
-    val desc3 = ClassInstance()
+    val desc3 = new ClassInstance()
       .of("org.example.Function")
       .parameter(42)
       .parameter(2.asInstanceOf[Byte])

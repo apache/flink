@@ -56,21 +56,47 @@ To speed up the build you can skip tests, QA plugins, and JavaDocs:
 mvn clean install -DskipTests -Dfast
 {% endhighlight %}
 
-The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink with HDFS and YARN.
-
 ## 构建PyFlink
 
-如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink的Jar包，如[构建Flink](##Build Flink)中所述。
-之后，进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
+#### 先决条件
+
+1. 构建Flink
+
+    如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink工程，如[构建Flink](#build-flink)中所述。
+
+2. Python的版本为3.5, 3.6 或者 3.7.
+
+    ```shell
+    $ python --version
+    # the version printed here must be 3.5, 3.6 or 3.7
+    ```
+
+3. 构建PyFlink的Cython扩展模块（可选的）
+
+    为了构建PyFlink的Cython扩展模块，您需要C编译器。在不同操作系统上安装C编译器的方式略有不同：
+
+    * **Linux** Linux操作系统通常预装有GCC。否则，您需要手动安装。例如，您可以在Ubuntu或Debian上使用命令`sudo apt-get install build-essential`安装。
+
+    * **Mac OS X** 要在Mac OS X上安装GCC，您需要下载并安装 [Xcode命令行工具](https://developer.apple.com/downloads/index.action)，该工具可在Apple的开发人员页面中找到。
+
+    您还需要使用以下命令安装依赖项：
+
+    ```shell
+    $ python -m pip install -r flink-python/dev/dev-requirements.txt
+    ```
+
+#### 安装
+
+进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
 
 {% highlight bash %}
-cd flink-python; python3 setup.py sdist bdist_wheel
+cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
 
 构建好的源码发布包和wheel包位于`./flink-python/dist/`目录下。它们均可使用pip安装,比如:
 
 {% highlight bash %}
-pip install dist/*.tar.gz
+python -m pip install dist/*.tar.gz
 {% endhighlight %}
 
 ## Dependency Shading
@@ -97,36 +123,7 @@ mvn clean install
 
 ## Hadoop Versions
 
-{% info %} Most users do not need to do this manually. The [download page]({{ site.download_url }}) contains binary packages for common Hadoop versions.
-
-Flink has dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
-
-Hadoop is only supported from version 2.4.0 upwards.
-You can also specify a specific Hadoop version to build against:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Dhadoop.version=2.6.1
-{% endhighlight %}
-
-### Packaging Hadoop into the Flink distribution
-
-If you want to build a Flink distribution that has a shaded Hadoop pre-packaged in the lib folder you can use the `include-hadoop` profile to do so. You would build Flink as described above but include the profile:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Pinclude-hadoop
-{% endhighlight %}
-
-### Vendor-specific Versions
-To check the list of supported vendor versions, look in https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera
-To build Flink against a vendor specific Hadoop version, issue the following command:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
-{% endhighlight %}
-
-The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
-
-{% top %}
+Please see the [Hadoop integration section]({{ site.baseurl }}/ops/deployment/hadoop.html) on how to handle Hadoop classes and versions.
 
 ## Scala Versions
 

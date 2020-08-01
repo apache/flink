@@ -56,6 +56,18 @@ public class ClassDataTypeConverterTest {
 
 				{java.sql.Time.class, DataTypes.TIME(0).nullable().bridgedTo(java.sql.Time.class)},
 
+				{
+					java.time.Duration.class,
+					DataTypes.INTERVAL(DataTypes.SECOND(9))
+						.bridgedTo(java.time.Duration.class)
+				},
+
+				{
+					java.time.Period.class,
+					DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH())
+						.bridgedTo(java.time.Period.class)
+				},
+
 				{BigDecimal.class, null},
 
 				{

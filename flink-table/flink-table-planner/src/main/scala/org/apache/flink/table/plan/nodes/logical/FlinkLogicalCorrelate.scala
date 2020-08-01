@@ -21,9 +21,8 @@ package org.apache.flink.table.plan.nodes.logical
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.{Correlate, CorrelationId}
+import org.apache.calcite.rel.core.{Correlate, CorrelationId, JoinRelType}
 import org.apache.calcite.rel.logical.LogicalCorrelate
-import org.apache.calcite.sql.SemiJoinType
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
@@ -34,7 +33,7 @@ class FlinkLogicalCorrelate(
     right: RelNode,
     correlationId: CorrelationId,
     requiredColumns: ImmutableBitSet,
-    joinType: SemiJoinType)
+    joinType: JoinRelType)
   extends Correlate(cluster, traitSet, left, right, correlationId, requiredColumns, joinType)
   with FlinkLogicalRel {
 
@@ -44,7 +43,7 @@ class FlinkLogicalCorrelate(
       right: RelNode,
       correlationId: CorrelationId,
       requiredColumns: ImmutableBitSet,
-      joinType: SemiJoinType): Correlate = {
+      joinType: JoinRelType): Correlate = {
 
     new FlinkLogicalCorrelate(
       cluster,

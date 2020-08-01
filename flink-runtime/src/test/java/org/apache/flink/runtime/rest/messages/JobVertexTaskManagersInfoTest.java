@@ -58,7 +58,7 @@ public class JobVertexTaskManagersInfoTest extends RestResponseMarshallingTestBa
 		for (ExecutionState executionState : ExecutionState.values()) {
 			statusCounts.put(executionState, count++);
 		}
-		taskManagersInfoList.add(new TaskManagersInfo("host1", ExecutionState.CANCELING, 1L, 2L, 3L, jobVertexMetrics, statusCounts));
+		taskManagersInfoList.add(new TaskManagersInfo("host1", ExecutionState.CANCELING, 1L, 2L, 3L, jobVertexMetrics, statusCounts, "taskmanagerId"));
 
 		return new JobVertexTaskManagersInfo(new JobVertexID(), "test", System.currentTimeMillis(), taskManagersInfoList);
 	}

@@ -28,7 +28,7 @@ import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -152,7 +153,7 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
 
 		Table t = tEnv.fromDataSet(testData(env));
-		Table result = t.select("*");
+		Table result = t.select($("*"));
 
 		List<Row> results = tEnv.toDataSet(result, Row.class).collect();
 		String expected =
@@ -179,7 +180,7 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
 
 		Table t = tEnv.fromDataSet(testData(env));
-		Table result = t.select("name");
+		Table result = t.select($("name"));
 		List<Utf8> results = tEnv.toDataSet(result, Types.GENERIC(Utf8.class)).collect();
 		String expected = "Charlie\n" +
 				"Terminator\n" +
@@ -194,8 +195,9 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 
 		Table t = tEnv.fromDataSet(testData(env));
 		Table result = t
-				.filter("type_nested.isNotNull")
-				.select("type_nested.flatten()").as("city, num, state, street, zip");
+				.filter($("type_nested").isNotNull())
+				.select($("type_nested").flatten())
+				.as("city", "num", "state", "street", "zip");
 
 		List<Address> results = tEnv.toDataSet(result, Types.POJO(Address.class)).collect();
 		String expected = USER_1.getTypeNested().toString();
@@ -208,7 +210,7 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
 
 		Table t = tEnv.fromDataSet(testData(env));
-		Table result = t.select("*");
+		Table result = t.select($("*"));
 
 		List<User> results = tEnv.toDataSet(result, Types.POJO(User.class)).collect();
 		List<User> expected = Arrays.asList(USER_1, USER_2, USER_3);

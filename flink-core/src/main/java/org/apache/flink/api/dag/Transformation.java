@@ -19,9 +19,9 @@
 package org.apache.flink.api.dag;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.util.Preconditions;
@@ -98,6 +98,8 @@ public abstract class Transformation<T> {
 	// Has to be equal to StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
 	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
 
+	public static final int DEFAULT_MANAGED_MEMORY_WEIGHT = 1;
+
 	// This is used to assign a unique ID to every Transformation
 	protected static Integer idCounter = 0;
 
@@ -135,6 +137,14 @@ public abstract class Transformation<T> {
 	 *  dynamic resource resize in future plan.
 	 */
 	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
+
+	/**
+	 * This weight indicates how much this transformation relies on managed memory, so that
+	 * transformation highly relies on managed memory would be able to acquire more managed
+	 * memory in runtime (linear association). Note that it only works in cases of UNKNOWN
+	 * resources.
+	 */
+	private int managedMemoryWeight = DEFAULT_MANAGED_MEMORY_WEIGHT;
 
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
@@ -202,9 +212,7 @@ public abstract class Transformation<T> {
 	 * @param parallelism The new parallelism to set on this {@code Transformation}.
 	 */
 	public void setParallelism(int parallelism) {
-		Preconditions.checkArgument(
-				parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
-				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+		OperatorValidationUtils.validateParallelism(parallelism);
 		this.parallelism = parallelism;
 	}
 
@@ -223,10 +231,7 @@ public abstract class Transformation<T> {
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-				"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
-						+ ". Found: " + maxParallelism);
+		OperatorValidationUtils.validateMaxParallelism(maxParallelism, UPPER_BOUND_MAX_PARALLELISM);
 		this.maxParallelism = maxParallelism;
 	}
 
@@ -237,6 +242,7 @@ public abstract class Transformation<T> {
 	 * @param preferredResources The preferred resource of this transformation.
 	 */
 	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		OperatorValidationUtils.validateResourceRequirements(minResources, preferredResources, managedMemoryWeight);
 		this.minResources = checkNotNull(minResources);
 		this.preferredResources = checkNotNull(preferredResources);
 	}
@@ -257,6 +263,34 @@ public abstract class Transformation<T> {
 	 */
 	public ResourceSpec getPreferredResources() {
 		return preferredResources;
+	}
+
+	/**
+	 * Set the managed memory weight which indicates how much this transformation relies
+	 * on managed memory, so that a transformation highly relies on managed memory would
+	 * be able to acquire more managed memory in runtime (linear association). The default
+	 * weight value is 1. Note that currently it's only allowed to set the weight in cases
+	 * of UNKNOWN resources.
+	 *
+	 * @param managedMemoryWeight The managed memory weight of this transformation
+	 *
+	 * @throws IllegalArgumentException Thrown, if non-UNKNOWN resources are already set to this transformation
+	 */
+	public void setManagedMemoryWeight(int managedMemoryWeight) {
+		OperatorValidationUtils.validateResourceRequirements(minResources, preferredResources, managedMemoryWeight);
+		this.managedMemoryWeight = managedMemoryWeight;
+	}
+
+	/**
+	 * Get the managed memory weight which indicates how much this transformation relies
+	 * on managed memory, so that a transformation highly relies on managed memory would
+	 * be able to acquire more managed memory in runtime (linear association). The default
+	 * weight value is 1. Note that it only works in cases of UNKNOWN resources.
+	 *
+	 * @return The managed memory weight of this transformation
+	 */
+	public int getManagedMemoryWeight() {
+		return managedMemoryWeight;
 	}
 
 	/**

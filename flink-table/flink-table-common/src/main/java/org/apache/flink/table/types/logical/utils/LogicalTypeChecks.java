@@ -19,25 +19,40 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Utilities for checking {@link LogicalType} and avoiding a lot of type casting and repetitive work.
@@ -61,8 +76,31 @@ public final class LogicalTypeChecks {
 
 	private static final SingleFieldIntervalExtractor SINGLE_FIELD_INTERVAL_EXTRACTOR = new SingleFieldIntervalExtractor();
 
+	private static final FieldCountExtractor FIELD_COUNT_EXTRACTOR = new FieldCountExtractor();
+
+	private static final FieldNamesExtractor FIELD_NAMES_EXTRACTOR = new FieldNamesExtractor();
+
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
+	}
+
+	/**
+	 * Checks whether a (possibly nested) logical type fulfills the given predicate.
+	 */
+	public static boolean hasNested(LogicalType logicalType, Predicate<LogicalType> predicate) {
+		final NestedTypeSearcher typeSearcher = new NestedTypeSearcher(predicate);
+		return logicalType.accept(typeSearcher).isPresent();
+	}
+
+	/**
+	 * Checks whether a (possibly nested) logical type contains {@link LegacyTypeInformationType} or
+	 * {@link TypeInformationRawType}.
+	 */
+	public static boolean hasLegacyTypes(LogicalType logicalType) {
+		return hasNested(
+			logicalType,
+			t -> t instanceof LegacyTypeInformationType || t instanceof TypeInformationRawType
+		);
 	}
 
 	public static boolean hasFamily(LogicalType logicalType, LogicalTypeFamily family) {
@@ -79,6 +117,24 @@ public final class LogicalTypeChecks {
 
 	public static boolean isProctimeAttribute(LogicalType logicalType) {
 		return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+	}
+
+	/**
+	 * Checks if the given type is a composite type.
+	 *
+	 * <p>Use {@link #getFieldCount(LogicalType)}, {@link #getFieldNames(LogicalType)},
+	 * {@link #getFieldTypes(LogicalType)} for unified handling of composite types.
+	 *
+	 * @param logicalType Logical data type to check
+	 * @return True if the type is composite type.
+	 */
+	public static boolean isCompositeType(LogicalType logicalType) {
+		if (logicalType instanceof DistinctType) {
+			return isCompositeType(((DistinctType) logicalType).getSourceType());
+		}
+
+		LogicalTypeRoot typeRoot = logicalType.getTypeRoot();
+		return typeRoot == LogicalTypeRoot.STRUCTURED_TYPE || typeRoot == LogicalTypeRoot.ROW;
 	}
 
 	public static int getLength(LogicalType logicalType) {
@@ -143,6 +199,30 @@ public final class LogicalTypeChecks {
 
 	public static boolean isSingleFieldInterval(LogicalType logicalType) {
 		return logicalType.accept(SINGLE_FIELD_INTERVAL_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field count of row and structured types. Other types return 1.
+	 */
+	public static int getFieldCount(LogicalType logicalType) {
+		return logicalType.accept(FIELD_COUNT_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field names of row and structured types.
+	 */
+	public static List<String> getFieldNames(LogicalType logicalType) {
+		return logicalType.accept(FIELD_NAMES_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field types of row and structured types.
+	 */
+	public static List<LogicalType> getFieldTypes(LogicalType logicalType) {
+		if (logicalType instanceof DistinctType) {
+			return getFieldTypes(((DistinctType) logicalType).getSourceType());
+		}
+		return logicalType.getChildren();
 	}
 
 	private LogicalTypeChecks() {
@@ -213,6 +293,16 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(BigIntType bigIntType) {
 			return BigIntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(FloatType floatType) {
+			return FloatType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(DoubleType doubleType) {
+			return DoubleType.PRECISION;
 		}
 
 		@Override
@@ -330,6 +420,103 @@ public final class LogicalTypeChecks {
 				default:
 					return false;
 			}
+		}
+	}
+
+	private static class FieldCountExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(RowType rowType) {
+			return rowType.getFieldCount();
+		}
+
+		@Override
+		public Integer visit(StructuredType structuredType) {
+			int fieldCount = 0;
+			StructuredType currentType = structuredType;
+			while (currentType != null) {
+				fieldCount += currentType.getAttributes().size();
+				currentType = currentType.getSuperType().orElse(null);
+			}
+			return fieldCount;
+		}
+
+		@Override
+		public Integer visit(DistinctType distinctType) {
+			return distinctType.getSourceType().accept(this);
+		}
+
+		@Override
+		protected Integer defaultMethod(LogicalType logicalType) {
+			// legacy
+			if (hasRoot(logicalType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+				return ((LegacyTypeInformationType<?>) logicalType).getTypeInformation().getArity();
+			}
+			return 1;
+		}
+	}
+
+	private static class FieldNamesExtractor extends Extractor<List<String>> {
+
+		@Override
+		public List<String> visit(RowType rowType) {
+			return rowType.getFieldNames();
+		}
+
+		@Override
+		public List<String> visit(StructuredType structuredType) {
+			final List<String> fieldNames = new ArrayList<>();
+			// add super fields first
+			structuredType.getSuperType()
+				.map(superType -> superType.accept(this))
+				.ifPresent(fieldNames::addAll);
+			// then specific fields
+			structuredType.getAttributes().stream()
+				.map(StructuredAttribute::getName)
+				.forEach(fieldNames::add);
+			return fieldNames;
+		}
+
+		@Override
+		public List<String> visit(DistinctType distinctType) {
+			return distinctType.getSourceType().accept(this);
+		}
+
+		@Override
+		protected List<String> defaultMethod(LogicalType logicalType) {
+			// legacy
+			if (hasRoot(logicalType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+				return Arrays.asList(
+					((CompositeType<?>) ((LegacyTypeInformationType<?>) logicalType).getTypeInformation())
+						.getFieldNames());
+			}
+			return super.defaultMethod(logicalType);
+		}
+	}
+
+	/**
+	 * Searches for a type (including children) satisfying the given predicate.
+	 */
+	private static class NestedTypeSearcher extends LogicalTypeDefaultVisitor<Optional<LogicalType>> {
+
+		private final Predicate<LogicalType> predicate;
+
+		private NestedTypeSearcher(Predicate<LogicalType> predicate) {
+			this.predicate = predicate;
+		}
+
+		@Override
+		protected Optional<LogicalType> defaultMethod(LogicalType logicalType) {
+			if (predicate.test(logicalType)) {
+				return Optional.of(logicalType);
+			}
+			for (LogicalType child : logicalType.getChildren()) {
+				final Optional<LogicalType> foundType = child.accept(this);
+				if (foundType.isPresent()) {
+					return foundType;
+				}
+			}
+			return Optional.empty();
 		}
 	}
 }

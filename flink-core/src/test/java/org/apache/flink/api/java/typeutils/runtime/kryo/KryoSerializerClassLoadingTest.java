@@ -22,14 +22,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 import static org.junit.Assert.fail;
 
@@ -39,13 +38,9 @@ import static org.junit.Assert.fail;
  */
 public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 
-	/** Class loader for the object that is not in the test class path */
-	private static final ClassLoader CLASS_LOADER =
-			new URLClassLoader(new URL[0], KryoSerializerClassLoadingTest.class.getClassLoader());
-
-	/** An object that is not in the test class path */
-	private static final Serializable OBJECT_OUT_OF_CLASSPATH =
-			CommonTestUtils.createObjectForClassNotInClassPath(CLASS_LOADER);
+	/** Class loader and object that is not in the test class path. */
+	private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
+			ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
 
 	// ------------------------------------------------------------------------
 
@@ -54,7 +49,7 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 	@Before
 	public void setupClassLoader() {
 		originalClassLoader = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(CLASS_LOADER);
+		Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
 	}
 
 	@After
@@ -67,7 +62,7 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 	@Test
 	public void guardTestAssumptions() {
 		try {
-			Class.forName(OBJECT_OUT_OF_CLASSPATH.getClass().getName());
+			Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName());
 			fail("This test's assumptions are broken");
 		}
 		catch (ClassNotFoundException ignored) {
@@ -98,11 +93,11 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 				new Integer(7),
 
 				// an object whose class is not on the classpath
-				OBJECT_OUT_OF_CLASSPATH,
+				OUTSIDE_CLASS_LOADING.getObject(),
 
 				// an object whose class IS on the classpath with a nested object whose class
 				// is NOT on the classpath
-				new Tuple1<>(OBJECT_OUT_OF_CLASSPATH)
+				new Tuple1<>(OUTSIDE_CLASS_LOADING.getObject())
 		};
 	}
 

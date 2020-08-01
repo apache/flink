@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -125,6 +127,14 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract List<KafkaServer> getBrokers();
 
+	public Properties getIdempotentProducerConfig() {
+		Properties props = new Properties();
+		props.put("enable.idempotence", "true");
+		props.put("acks", "all");
+		props.put("retries", "3");
+		return props;
+	}
+
 	// -- consumer / producer instances:
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(topics, new KafkaDeserializationSchemaWrapper<T>(deserializationSchema), props);
@@ -146,13 +156,26 @@ public abstract class KafkaTestEnvironment {
 			int partition,
 			long timeout);
 
-	public abstract <T> StreamSink<T> getProducerSink(String topic,
-			KeyedSerializationSchema<T> serSchema, Properties props,
+	public abstract <T> StreamSink<T> getProducerSink(
+			String topic,
+			SerializationSchema<T> serSchema,
+			Properties props,
 			FlinkKafkaPartitioner<T> partitioner);
 
-	public abstract <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
-														KeyedSerializationSchema<T> serSchema, Properties props,
-														FlinkKafkaPartitioner<T> partitioner);
+	@Deprecated
+	public abstract <T> DataStreamSink<T> produceIntoKafka(
+		DataStream<T> stream,
+		String topic,
+		KeyedSerializationSchema<T> serSchema,
+		Properties props,
+		FlinkKafkaPartitioner<T> partitioner);
+
+	public abstract <T> DataStreamSink<T> produceIntoKafka(
+		DataStream<T> stream,
+		String topic,
+		SerializationSchema<T> serSchema,
+		Properties props,
+		FlinkKafkaPartitioner<T> partitioner);
 
 	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
 			KafkaSerializationSchema<T> serSchema, Properties props) {
@@ -200,5 +223,16 @@ public abstract class KafkaTestEnvironment {
 		NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, remoteHost, remotePort);
 		networkFailuresProxies.add(proxy);
 		return proxy;
+	}
+
+	protected void maybePrintDanglingThreadStacktrace(String threadNameKeyword) {
+		for (Map.Entry<Thread, StackTraceElement[]> threadEntry : Thread.getAllStackTraces().entrySet()) {
+			if (threadEntry.getKey().getName().contains(threadNameKeyword)) {
+				System.out.println("Dangling thread found:");
+				for (StackTraceElement ste : threadEntry.getValue()) {
+					System.out.println(ste);
+				}
+			}
+		}
 	}
 }

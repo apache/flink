@@ -19,18 +19,13 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,8 +49,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	@Override
 	public void startScheduling() {
-		final Set<ExecutionVertexID> allVertices = getAllVerticesFromTopology();
-		allocateSlotsAndDeploy(allVertices);
+		allocateSlotsAndDeploy(SchedulingStrategyUtils.getAllVertexIdsFromTopology(schedulingTopology));
 	}
 
 	@Override
@@ -69,31 +63,17 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void onPartitionConsumable(ExecutionVertexID executionVertexId, ResultPartitionID resultPartitionId) {
+	public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
 		// Will not react to these notifications.
 	}
 
 	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
-				createExecutionVertexDeploymentOptions(verticesToDeploy);
+			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
+				schedulingTopology,
+				verticesToDeploy,
+				id -> deploymentOption);
 		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
-	}
-
-	private Set<ExecutionVertexID> getAllVerticesFromTopology() {
-		return StreamSupport
-				.stream(schedulingTopology.getVertices().spliterator(), false)
-				.map(SchedulingExecutionVertex::getId)
-				.collect(Collectors.toSet());
-	}
-
-	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
-			final Collection<ExecutionVertexID> vertices) {
-		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>(vertices.size());
-		for (ExecutionVertexID executionVertexID : vertices) {
-			executionVertexDeploymentOptions.add(
-					new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
-		}
-		return executionVertexDeploymentOptions;
 	}
 
 	/**
@@ -104,8 +84,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 		@Override
 		public SchedulingStrategy createInstance(
 				SchedulerOperations schedulerOperations,
-				SchedulingTopology schedulingTopology,
-				JobGraph jobGraph) {
+				SchedulingTopology schedulingTopology) {
 			return new EagerSchedulingStrategy(schedulerOperations, schedulingTopology);
 		}
 	}

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,12 +47,24 @@ public class TestInputChannel extends InputChannel {
 
 	private final Collection<Buffer> allReturnedBuffers = new ArrayList<>();
 
+	private final boolean reuseLastReturnBuffer;
+
+	private final boolean notifyChannelNonEmpty;
+
 	private BufferAndAvailabilityProvider lastProvider = null;
 
 	private boolean isReleased = false;
 
-	TestInputChannel(SingleInputGate inputGate, int channelIndex) {
+	private boolean isResumed;
+
+	public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
+		this(inputGate, channelIndex, true, false);
+	}
+
+	public TestInputChannel(SingleInputGate inputGate, int channelIndex, boolean reuseLastReturnBuffer, boolean notifyChannelNonEmpty) {
 		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter());
+		this.reuseLastReturnBuffer = reuseLastReturnBuffer;
+		this.notifyChannelNonEmpty = notifyChannelNonEmpty;
 	}
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
@@ -62,7 +73,9 @@ public class TestInputChannel extends InputChannel {
 
 	public TestInputChannel read(Buffer buffer, boolean moreAvailable) throws IOException, InterruptedException {
 		addBufferAndAvailability(new BufferAndAvailability(buffer, moreAvailable, 0));
-
+		if (notifyChannelNonEmpty) {
+			notifyChannelNonEmpty();
+		}
 		return this;
 	}
 
@@ -112,16 +125,14 @@ public class TestInputChannel extends InputChannel {
 
 		for (int i = 0; i < numberOfInputChannels; i++) {
 			mocks[i] = new TestInputChannel(inputGate, i);
-
-			inputGate.setInputChannel(new IntermediateResultPartitionID(), mocks[i]);
 		}
+		inputGate.setInputChannels(mocks);
 
 		return mocks;
 	}
 
 	@Override
 	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-
 	}
 
 	@Override
@@ -129,7 +140,9 @@ public class TestInputChannel extends InputChannel {
 		BufferAndAvailabilityProvider provider = buffers.poll();
 
 		if (provider != null) {
-			lastProvider = provider;
+			if (reuseLastReturnBuffer) {
+				lastProvider = provider;
+			}
 			Optional<BufferAndAvailability> baa = provider.getBufferAvailability();
 			baa.ifPresent((v) -> allReturnedBuffers.add(v.buffer()));
 			return baa;
@@ -142,7 +155,6 @@ public class TestInputChannel extends InputChannel {
 
 	@Override
 	void sendTaskEvent(TaskEvent event) throws IOException {
-
 	}
 
 	@Override
@@ -155,30 +167,21 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	@Override
-	void notifySubpartitionConsumed() throws IOException {
-
+	void releaseAllResources() throws IOException {
 	}
 
 	@Override
-	void releaseAllResources() throws IOException {
-
+	public void resumeConsumption() {
+		isResumed = true;
 	}
 
 	@Override
 	protected void notifyChannelNonEmpty() {
-
-	}
-
-	public void assertReturnedDataBuffersAreRecycled() {
-		assertReturnedBuffersAreRecycled(true, false);
+		inputGate.notifyChannelNonEmpty(this);
 	}
 
 	public void assertReturnedEventsAreRecycled() {
 		assertReturnedBuffersAreRecycled(false, true);
-	}
-
-	public void assertAllReturnedBuffersAreRecycled() {
-		assertReturnedBuffersAreRecycled(true, true);
 	}
 
 	private void assertReturnedBuffersAreRecycled(boolean assertBuffers, boolean assertEvents) {
@@ -190,6 +193,10 @@ public class TestInputChannel extends InputChannel {
 				fail("Event Buffer " + b + " not recycled");
 			}
 		}
+	}
+
+	public boolean isResumed() {
+		return isResumed;
 	}
 
 	interface BufferAndAvailabilityProvider {

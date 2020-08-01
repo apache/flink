@@ -72,7 +72,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
 		initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		this.mockEnv = new MockEnvironmentBuilder()
 			.setTaskName(HEAD_OPERATOR_NAME)
-			.setMemorySize(MEMORY_MANAGER_SIZE)
+			.setManagedMemorySize(MEMORY_MANAGER_SIZE)
 			.setInputSplitProvider(this.inputSplitProvider)
 			.setBufferSize(NETWORK_BUFFER_SIZE)
 			.setMetricGroup(new TaskMetricGroup(

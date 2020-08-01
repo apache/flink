@@ -67,8 +67,8 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.FRAMESIZE, FRAMESIZE + " b");
 
-		rpcService1 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
-		rpcService2 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
+		rpcService1 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
+		rpcService2 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
 	}
 
 	@AfterClass
@@ -84,6 +84,7 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 			fail("Expected the RPC to fail.");
 		} catch (ExecutionException e) {
 			assertThat(ExceptionUtils.findThrowable(e, AkkaRpcException.class).isPresent(), is(true));
+			assertThat(e.getCause().getMessage().contains(String.valueOf(FRAMESIZE)), is(true));
 		}
 	}
 
@@ -107,6 +108,7 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 			fail("Expected the RPC to fail.");
 		} catch (RpcException e) {
 			assertThat(ExceptionUtils.findThrowable(e, AkkaRpcException.class).isPresent(), is(true));
+			assertThat(e.getCause().getMessage().contains(String.valueOf(FRAMESIZE)), is(true));
 		}
 	}
 

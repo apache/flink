@@ -98,7 +98,7 @@ class DataStreamWindowJoinRule
       windowBounds.get.leftTimeIdx,
       windowBounds.get.rightTimeIdx,
       remainCondition,
-      description)
+      "DataStreamWindowJoinRule")
   }
 }
 

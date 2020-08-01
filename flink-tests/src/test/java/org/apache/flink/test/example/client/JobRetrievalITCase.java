@@ -20,6 +20,7 @@
 package org.apache.flink.test.example.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -77,7 +78,7 @@ public class JobRetrievalITCase extends TestLogger {
 	@After
 	public void tearDown() {
 		if (client != null) {
-			client.shutdown();
+			client.close();
 		}
 	}
 
@@ -94,8 +95,7 @@ public class JobRetrievalITCase extends TestLogger {
 		// has been attached in resumingThread
 		lock.acquire();
 
-		client.setDetached(true);
-		client.submitJob(jobGraph, JobRetrievalITCase.class.getClassLoader());
+		ClientUtils.submitJob(client, jobGraph);
 
 		final CheckedThread resumingThread = new CheckedThread("Flink-Job-Retriever") {
 			@Override

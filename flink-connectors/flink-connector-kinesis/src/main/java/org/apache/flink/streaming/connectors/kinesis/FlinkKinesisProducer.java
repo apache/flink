@@ -119,6 +119,12 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 		// create a simple wrapper for the serialization schema
 		this(new KinesisSerializationSchema<OUT>() {
+
+			@Override
+			public void open(SerializationSchema.InitializationContext context) throws Exception {
+				schema.open(context);
+			}
+
 			@Override
 			public ByteBuffer serialize(OUT element) {
 				// wrap into ByteBuffer
@@ -205,6 +211,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
+
+		schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 
 		// check and pass the configuration properties
 		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
@@ -361,7 +369,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 			if (failOnError) {
 				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
 			} else {
-				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
+				LOG.warn("An exception was thrown while processing a record: {}.", errorMessages, thrownException);
 
 				// reset, prevent double throwing
 				thrownException = null;

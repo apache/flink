@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.topology.VertexID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -27,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Id identifying {@link ExecutionVertex}.
  */
-public class ExecutionVertexID {
+public class ExecutionVertexID implements VertexID {
 	private final JobVertexID jobVertexId;
 
 	private final int subtaskIndex;

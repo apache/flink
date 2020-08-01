@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
+import org.apache.flink.runtime.rest.handler.resourcemanager.AbstractResourceManagerHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsInfo;
@@ -51,7 +52,7 @@ import java.util.concurrent.CompletionException;
 /**
  * Handler which serves detailed TaskManager information.
  */
-public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
+public class TaskManagerDetailsHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
 
 	private final MetricFetcher metricFetcher;
 	private final MetricStore metricStore;

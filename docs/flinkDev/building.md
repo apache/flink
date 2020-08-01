@@ -56,21 +56,47 @@ To speed up the build you can skip tests, QA plugins, and JavaDocs:
 mvn clean install -DskipTests -Dfast
 {% endhighlight %}
 
-The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink with HDFS and YARN.
-
 ## Build PyFlink
 
-If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](##Build Flink).
+#### Prerequisites
+
+1. Building Flink
+
+    If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
+
+2. Python version(3.5, 3.6 or 3.7) is required
+
+    ```shell
+    $ python --version
+    # the version printed here must be 3.5, 3.6 or 3.7
+    ```
+
+3. Build PyFlink with Cython extension support (optional)
+
+    To build PyFlink with Cython extension support, you’ll need a C compiler. It's a little different on how to install the C compiler on different operating systems:
+
+    * **Linux** Linux operating systems usually come with GCC pre-installed. Otherwise, you need to install it manually. For example, you can install it with command `sudo apt-get install build-essential` On Ubuntu or Debian.
+
+    * **Mac OS X** To install GCC on Mac OS X, you need to download and install "[Command Line Tools for Xcode](https://developer.apple.com/downloads/index.action)", which is available in Apple’s developer page.
+
+    You also need to install the dependencies with following command:
+
+    ```shell
+    $ python -m pip install -r flink-python/dev/dev-requirements.txt
+    ```
+
+#### Installation
+
 Then go to the root directory of flink source code and run this command to build the sdist package and wheel package:
 
 {% highlight bash %}
-cd flink-python; python3 setup.py sdist bdist_wheel
+cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
 
-The sdist and wheel package will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
+The sdist and wheel packages will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
 
 {% highlight bash %}
-pip install dist/*.tar.gz
+python -m pip install dist/*.tar.gz
 {% endhighlight %}
 
 ## Dependency Shading
@@ -97,36 +123,7 @@ mvn clean install
 
 ## Hadoop Versions
 
-{% info %} Most users do not need to do this manually. The [download page]({{ site.download_url }}) contains binary packages for common Hadoop versions.
-
-Flink has dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
-
-Hadoop is only supported from version 2.4.0 upwards.
-You can also specify a specific Hadoop version to build against:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Dhadoop.version=2.6.1
-{% endhighlight %}
-
-### Packaging Hadoop into the Flink distribution
-
-If you want to build a Flink distribution that has a shaded Hadoop pre-packaged in the lib folder you can use the `include-hadoop` profile to do so. You would build Flink as described above but include the profile:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Pinclude-hadoop
-{% endhighlight %}
-
-### Vendor-specific Versions
-To check the list of supported vendor versions, look in https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera
-To build Flink against a vendor specific Hadoop version, issue the following command:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
-{% endhighlight %}
-
-The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
-
-{% top %}
+Please see the [Hadoop integration section]({{ site.baseurl }}/ops/deployment/hadoop.html) on how to handle Hadoop classes and versions.
 
 ## Scala Versions
 

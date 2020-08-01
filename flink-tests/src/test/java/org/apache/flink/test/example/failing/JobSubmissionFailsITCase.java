@@ -19,8 +19,10 @@
 
 package org.apache.flink.test.example.failing;
 
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -64,7 +66,11 @@ public class JobSubmissionFailsITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
+
+		// to accommodate for 10 netty arenas (NUM_SLOTS / NUM_TM) x 16Mb (NettyBufferPool.ARENA_SIZE)
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("256m"));
+
 		return config;
 	}
 
@@ -123,10 +129,13 @@ public class JobSubmissionFailsITCase extends TestLogger {
 
 	private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate) throws org.apache.flink.client.program.ProgramInvocationException {
 		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-		client.setDetached(detached);
 
 		try {
-			client.submitJob(jobGraph, JobSubmissionFailsITCase.class.getClassLoader());
+			if (detached) {
+				ClientUtils.submitJob(client, jobGraph);
+			} else {
+				ClientUtils.submitJobAndWaitForResult(client, jobGraph, JobSubmissionFailsITCase.class.getClassLoader());
+			}
 			fail("Job submission should have thrown an exception.");
 		} catch (Exception e) {
 			if (!failurePredicate.test(e)) {
@@ -134,8 +143,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			}
 		}
 
-		client.setDetached(false);
-		client.submitJob(getWorkingJobGraph(), JobSubmissionFailsITCase.class.getClassLoader());
+		ClientUtils.submitJobAndWaitForResult(client, getWorkingJobGraph(), JobSubmissionFailsITCase.class.getClassLoader());
 	}
 
 	@Nonnull

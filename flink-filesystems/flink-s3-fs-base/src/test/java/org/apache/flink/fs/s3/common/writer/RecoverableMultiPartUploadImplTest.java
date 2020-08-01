@@ -19,7 +19,7 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
@@ -320,7 +320,7 @@ public class RecoverableMultiPartUploadImplTest {
 		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 
 		final RefCountedBufferingFileStream testStream =
-				new RefCountedBufferingFileStream(RefCountedFile.newFile(newFile, out), BUFFER_SIZE);
+				new RefCountedBufferingFileStream(RefCountedFileWithStream.newFile(newFile, out), BUFFER_SIZE);
 
 		testStream.write(content, 0, content.length);
 		return testStream;

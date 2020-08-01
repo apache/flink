@@ -54,7 +54,7 @@ public class PartitionTransformation<T> extends Transformation<T> {
 	 * @param partitioner The {@code StreamPartitioner}
 	 */
 	public PartitionTransformation(Transformation<T> input, StreamPartitioner<T> partitioner) {
-		this(input, partitioner, ShuffleMode.PIPELINED);
+		this(input, partitioner, ShuffleMode.UNDEFINED);
 	}
 
 	/**

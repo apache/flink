@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.api.batch.table
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class GroupWindowTest extends TableTestBase {
 
@@ -474,10 +474,10 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS EXPR$3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), " +
+            "0.5:DECIMAL(2, 1))) AS EXPR$3",
           "EXPR$4",
           "EXPR$5")
       )

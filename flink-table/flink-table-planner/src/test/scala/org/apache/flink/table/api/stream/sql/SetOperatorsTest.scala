@@ -18,7 +18,8 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
@@ -30,7 +31,7 @@ class SetOperatorsTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val resultStr = (1 to 30).mkString(", ")
+    val resultStr = (1 to 30).map(i => s"$i:BIGINT").mkString(", ")
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(table),
@@ -38,8 +39,9 @@ class SetOperatorsTest extends TableTestBase {
       term("where", s"IN(b, $resultStr)")
     )
 
+    val inStr = (1 to 30).mkString(", ")
     util.verifySql(
-      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
+      s"SELECT * FROM MyTable WHERE b in ($inStr)",
       expected)
   }
 
@@ -48,7 +50,7 @@ class SetOperatorsTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val resultStr = (1 to 30).mkString(", ")
+    val resultStr = (1 to 30).map(i => s"$i:BIGINT").mkString(", ")
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(table),
@@ -56,8 +58,9 @@ class SetOperatorsTest extends TableTestBase {
       term("where", s"NOT IN(b, $resultStr)")
     )
 
+    val notInStr = (1 to 30).mkString(", ")
     util.verifySql(
-      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
+      s"SELECT * FROM MyTable WHERE b NOT IN ($notInStr)",
       expected)
   }
 
@@ -217,15 +220,15 @@ class SetOperatorsTest extends TableTestBase {
         unaryNode("DataStreamCalc",
           values("DataStreamValues",
             tuples(List("0"))),
-          term("select", "1 AS EXPR$0, 1 AS EXPR$1")),
+          term("select", "1 AS EXPR$0, 1:BIGINT AS EXPR$1")),
         unaryNode("DataStreamCalc",
           values("DataStreamValues",
             tuples(List("0"))),
-          term("select", "2 AS EXPR$0, 2 AS EXPR$1")),
+          term("select", "2 AS EXPR$0, 2:BIGINT AS EXPR$1")),
         unaryNode("DataStreamCalc",
           values("DataStreamValues",
             tuples(List("0"))),
-          term("select", "3 AS EXPR$0, 3 AS EXPR$1"))
+          term("select", "3 AS EXPR$0, 3:BIGINT AS EXPR$1"))
       ),
       term("all", "true"),
       term("union all", "EXPR$0, EXPR$1")

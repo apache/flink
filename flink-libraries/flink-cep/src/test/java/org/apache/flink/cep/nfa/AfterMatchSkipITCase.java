@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -79,7 +79,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3),
 			Lists.newArrayList(a2, a3, a4),
 			Lists.newArrayList(a3, a4, a5),
@@ -91,7 +91,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	public void testNoSkipWithFollowedByAny() throws Exception {
 		List<List<Event>> resultingPatterns = TwoVariablesFollowedByAny.compute(AfterMatchSkipStrategy.noSkip());
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(TwoVariablesFollowedByAny.a1, TwoVariablesFollowedByAny.b1),
 			Lists.newArrayList(TwoVariablesFollowedByAny.a1, TwoVariablesFollowedByAny.b2),
 			Lists.newArrayList(TwoVariablesFollowedByAny.a2, TwoVariablesFollowedByAny.b2)
@@ -102,7 +102,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	public void testSkipToNextWithFollowedByAny() throws Exception {
 		List<List<Event>> resultingPatterns = TwoVariablesFollowedByAny.compute(AfterMatchSkipStrategy.skipToNext());
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(TwoVariablesFollowedByAny.a1, TwoVariablesFollowedByAny.b1),
 			Lists.newArrayList(TwoVariablesFollowedByAny.a2, TwoVariablesFollowedByAny.b2)
 		));
@@ -151,7 +151,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	public void testNoSkipWithQuantifierAtTheEnd() throws Exception {
 		List<List<Event>> resultingPatterns = QuantifierAtEndOfPattern.compute(AfterMatchSkipStrategy.noSkip());
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(QuantifierAtEndOfPattern.a1, QuantifierAtEndOfPattern.b1,  QuantifierAtEndOfPattern.b2,  QuantifierAtEndOfPattern.b3),
 			Lists.newArrayList(QuantifierAtEndOfPattern.a1, QuantifierAtEndOfPattern.b1,  QuantifierAtEndOfPattern.b2),
 			Lists.newArrayList(QuantifierAtEndOfPattern.a1, QuantifierAtEndOfPattern.b1)
@@ -162,7 +162,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	public void testSkipToNextWithQuantifierAtTheEnd() throws Exception {
 		List<List<Event>> resultingPatterns = QuantifierAtEndOfPattern.compute(AfterMatchSkipStrategy.skipToNext());
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(QuantifierAtEndOfPattern.a1, QuantifierAtEndOfPattern.b1)
 		));
 	}
@@ -237,7 +237,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3),
 			Lists.newArrayList(a4, a5, a6)
 		));
@@ -281,7 +281,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, ab2, ab3, ab4),
 			Lists.newArrayList(ab3, ab4, ab5, ab6)
 		));
@@ -324,7 +324,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, ab2, ab3, ab4),
 			Lists.newArrayList(ab4, ab5, ab6, ab7)
 		));
@@ -382,7 +382,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Collections.singletonList(
+		comparePatterns(resultingPatterns, Collections.singletonList(
 			Lists.newArrayList(a1, b1, c1, d1)
 		));
 	}
@@ -421,7 +421,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a2, b2)
 		));
 	}
@@ -465,7 +465,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, c1),
 			Lists.newArrayList(ab2, c2)
 		));
@@ -504,7 +504,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, c1),
 			Lists.newArrayList(ab2, c2)
 		));
@@ -549,7 +549,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, b1),
 			Lists.newArrayList(a2, b2),
 			Lists.newArrayList(a3, b4)
@@ -596,7 +596,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	public void testSkipToFirstNonExistentPositionWithoutException() throws Exception {
 		List<List<Event>> resultingPatterns = MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b"));
 
-		compareMaps(resultingPatterns, Collections.singletonList(
+		comparePatterns(resultingPatterns, Collections.singletonList(
 			Lists.newArrayList(MissedSkipTo.a, MissedSkipTo.c)
 		));
 	}
@@ -612,7 +612,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	public void testSkipToLastNonExistentPositionWithoutException() throws Exception {
 		List<List<Event>> resultingPatterns = MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b"));
 
-		compareMaps(resultingPatterns, Collections.singletonList(
+		comparePatterns(resultingPatterns, Collections.singletonList(
 			Lists.newArrayList(MissedSkipTo.a, MissedSkipTo.c)
 		));
 	}
@@ -694,7 +694,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, b1),
 			Lists.newArrayList(a2, b2),
 			Lists.newArrayList(a3, b4)
@@ -736,7 +736,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Collections.singletonList(
+		comparePatterns(resultingPatterns, Collections.singletonList(
 			Lists.newArrayList(a1, a2, a3, b1)
 		));
 	}
@@ -776,7 +776,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3, b1),
 			Lists.newArrayList(a3, b1)
 		));
@@ -817,7 +817,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3, b1),
 			Lists.newArrayList(a2, a3, b1),
 			Lists.newArrayList(a3, b1)
@@ -859,7 +859,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3, b1),
 			Lists.newArrayList(a2, a3, b1),
 			Lists.newArrayList(a3, b1)
@@ -921,7 +921,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a, b, c1, c2, c3, d),
 			Lists.newArrayList(c1, c2, c3, d)
 		));
@@ -970,7 +970,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
+		comparePatterns(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, c1, b2),
 			Lists.newArrayList(a2, c2, b1)
 		));

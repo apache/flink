@@ -19,6 +19,11 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import java.io.Serializable;
@@ -43,7 +48,7 @@ public abstract class UserDefinedFunction implements FunctionDefinition, Seriali
 	 */
 	public final String functionIdentifier() {
 		final String md5 = EncodingUtils.hex(EncodingUtils.md5(EncodingUtils.encodeObjectToString(this)));
-		return getClass().getCanonicalName().replace('.', '$').concat("$").concat(md5);
+		return getClass().getName().replace('.', '$').concat("$").concat(md5);
 	}
 
 	/**
@@ -61,6 +66,31 @@ public abstract class UserDefinedFunction implements FunctionDefinition, Seriali
 	public void close() throws Exception {
 		// do nothing
 	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The type inference for user-defined functions is automatically extracted using reflection. It
+	 * does this by analyzing implementation methods such as {@code eval() or accumulate()} and the generic
+	 * parameters of a function class if present. If the reflective information is not sufficient, it can
+	 * be supported and enriched with {@link DataTypeHint} and {@link FunctionHint} annotations.
+	 *
+	 * <p>Note: Overriding this method is only recommended for advanced users. If a custom type inference
+	 * is specified, it is the responsibility of the implementer to make sure that the output of the type
+	 * inference process matches with the implementation method:
+	 *
+	 * <p>The implementation method must comply with each {@link DataType#getConversionClass()} returned
+	 * by the type inference. For example, if {@code DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class)}
+	 * is an expected argument type, the method must accept a call {@code eval(java.sql.Timestamp)}.
+	 *
+	 * <p>Regular Java calling semantics (including type widening and autoboxing) are applied when calling
+	 * an implementation method which means that the signature can be {@code eval(java.lang.Object)}.
+	 *
+	 * <p>The runtime will take care of converting the data to the data format specified by the
+	 * {@link DataType#getConversionClass()} coming from the type inference logic.
+	 */
+	@Override
+	public abstract TypeInference getTypeInference(DataTypeFactory typeFactory);
 
 	/**
 	 * Returns the name of the UDF that is used for plan explanation and logging.

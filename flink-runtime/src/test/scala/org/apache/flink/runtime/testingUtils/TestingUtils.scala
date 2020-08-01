@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.time.Duration
 import java.util
 import java.util.Collections
 import java.util.concurrent._
@@ -28,7 +29,6 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
 
-import scala.concurrent.duration.{TimeUnit, _}
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.language.postfixOps
 
@@ -41,9 +41,9 @@ object TestingUtils {
 
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
   
-  val TESTING_DURATION = 2 minute
+  val TESTING_DURATION = Duration.ofMinutes(2L);
 
-  val TESTING_TIMEOUT = 1 minute
+  val TESTING_TIMEOUT = Duration.ofMinutes(1L);
 
   val TIMEOUT = Time.minutes(1L)
 

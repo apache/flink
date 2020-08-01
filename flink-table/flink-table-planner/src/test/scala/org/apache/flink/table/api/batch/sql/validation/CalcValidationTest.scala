@@ -19,9 +19,9 @@
 package org.apache.flink.table.api.batch.sql.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
 
 class CalcValidationTest extends TableTestBase {

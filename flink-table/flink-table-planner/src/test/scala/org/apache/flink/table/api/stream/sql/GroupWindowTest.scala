@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
@@ -160,7 +161,7 @@ class GroupWindowTest extends TableTestBase {
             "rowtime('w$) AS w$rowtime",
             "proctime('w$) AS w$proctime")
         ),
-        term("select", "EXPR$0", "+(w$end, 60000) AS EXPR$1")
+        term("select", "EXPR$0", "+(w$end, 60000:INTERVAL MINUTE) AS EXPR$1")
       )
 
     streamUtil.verifySql(sql, expected)
@@ -200,7 +201,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "w$start AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT(FLAG(QUARTER), w$start), 1))")
+            "=(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))")
       )
 
     streamUtil.verifySql(sql, expected)
@@ -244,9 +245,9 @@ class GroupWindowTest extends TableTestBase {
                 "rowtime('w$) AS w$rowtime",
                 "proctime('w$) AS w$proctime")
             ),
-            term("select", "w$rowtime AS zzzzz")
+            term("select", "w$rowtime AS $f2")
           ),
-          term("window", "TumblingGroupWindow('w$, 'zzzzz, 4.millis)"),
+          term("window", "TumblingGroupWindow('w$, '$f2, 4.millis)"),
           term("select",
             "COUNT(*) AS a",
             "start('w$) AS w$start",
@@ -292,13 +293,120 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS EXPR$3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), " +
+            "0.5:DECIMAL(2, 1))) AS EXPR$3",
           "w$start AS EXPR$4",
           "w$end AS EXPR$5")
       )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg() = {
+
+    val innerQuery =
+      """
+        |SELECT
+        | CASE a WHEN 1 THEN 1 ELSE 99 END AS correct,
+        | rowtime
+        |FROM MyTable
+      """.stripMargin
+
+    val sql =
+      "SELECT " +
+        "  sum(correct) as s, " +
+        "  avg(correct) as a, " +
+        "  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as wStart " +
+        s"FROM ($innerQuery) " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(table),
+            term("select", "rowtime", "CASE(=(a, 1), 1, 99) AS $f1")
+          ),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
+          term("select",
+            "SUM($f1) AS s",
+            "AVG($f1) AS a",
+            "start('w$) AS w$start",
+            "end('w$) AS w$end",
+            "rowtime('w$) AS w$rowtime",
+            "proctime('w$) AS w$proctime")
+        ),
+        term("select", "CAST(s) AS s", "CAST(a) AS a", "w$start AS wStart")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows() = {
+    // This test ensures that the LogicalWindowAggregate and FlinkLogicalWindowAggregate nodes'
+    // digests contain the window specs. This allows the planner to make the distinction between
+    // similar aggregations using different windows (see FLINK-15577).
+    val sql =
+      """
+        |WITH window_1h AS (
+        |    SELECT 1
+        |    FROM MyTable
+        |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+        |),
+        |
+        |window_2h AS (
+        |    SELECT 1
+        |    FROM MyTable
+        |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+        |)
+        |
+        |(SELECT * FROM window_1h)
+        |UNION ALL
+        |(SELECT * FROM window_2h)
+        |""".stripMargin
+
+    val expected =
+      binaryNode(
+        "DataStreamUnion",
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowAggregate",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(table),
+              term("select", "rowtime")
+            ),
+            // This window is the 1hr window
+            term("window", "SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 3600000.millis)"),
+            term("select")
+          ),
+          term("select", "1 AS EXPR$0")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowAggregate",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(table),
+              term("select", "rowtime")
+            ),
+            // This window is the 2hr window
+            term("window", "SlidingGroupWindow('w$, 'rowtime, 7200000.millis, 3600000.millis)"),
+            term("select")
+          ),
+          term("select", "1 AS EXPR$0")
+        ),
+        term("all", "true"),
+        term("union all", "EXPR$0")
+      )
+
     streamUtil.verifySql(sql, expected)
   }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
@@ -27,7 +28,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -39,6 +39,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,16 +66,18 @@ public final class WebMonitorUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(WebMonitorUtils.class);
 
 	/**
-	 * Singleton to hold the log and stdout file.
+	 * Singleton to hold the log file, the stdout file, the log directory.
 	 */
 	public static class LogFileLocation {
 
 		public final File logFile;
 		public final File stdOutFile;
+		public final File logDir;
 
-		private LogFileLocation(File logFile, File stdOutFile) {
+		private LogFileLocation(@Nullable File logFile, @Nullable File stdOutFile, @Nullable File logDir) {
 			this.logFile = logFile;
 			this.stdOutFile = stdOutFile;
+			this.logDir = logDir;
 		}
 
 		/**
@@ -92,16 +96,21 @@ public final class WebMonitorUtils {
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, WebOptions.LOG_PATH);
-				return new LogFileLocation(null, null);
+					logEnv, WebOptions.LOG_PATH.key());
+				return new LogFileLocation(null, null, null);
 			}
 
 			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
+			File logFile = resolveFileLocation(logFilePath);
+			File logDir = null;
+			if (logFile != null) {
+				logDir = resolveFileLocation(logFile.getParent());
+			}
 
 			LOG.info("Determined location of main cluster component log file: {}", logFilePath);
 			LOG.info("Determined location of main cluster component stdout file: {}", outFilePath);
 
-			return new LogFileLocation(resolveFileLocation(logFilePath), resolveFileLocation(outFilePath));
+			return new LogFileLocation(logFile, resolveFileLocation(outFilePath), logDir);
 		}
 
 		/**

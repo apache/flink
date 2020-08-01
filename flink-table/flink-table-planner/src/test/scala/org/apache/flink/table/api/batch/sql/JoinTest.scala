@@ -19,9 +19,10 @@
 package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class JoinTest extends TableTestBase {
@@ -75,15 +76,15 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataSetCalc",
           batchTableNode(table),
-          term("select", "a", "b", "<(b, 2) AS $f3")
+          term("select", "a", "b")
         ),
         unaryNode(
           "DataSetCalc",
           batchTableNode(table1),
           term("select", "y", "z")
         ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "$f3", "y", "z"),
+        term("where", "AND(=(a, z), <(b, 2))"),
+        term("join", "a", "b", "y", "z"),
         term("joinType", "LeftOuterJoin")
       ),
       term("select", "b", "y")
@@ -175,10 +176,10 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataSetCalc",
           batchTableNode(table1),
-          term("select", "x", "z", "<(x, 2) AS $f3")
+          term("select", "x", "z")
         ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "x", "z", "$f3"),
+        term("where", "AND(=(a, z), <(x, 2))"),
+        term("join", "a", "b", "x", "z"),
         term("joinType", "RightOuterJoin")
       ),
       term("select", "b", "x")
@@ -265,15 +266,15 @@ class JoinTest extends TableTestBase {
         unaryNode(
           "DataSetCalc",
           batchTableNode(table),
-          term("select", "a", "b", "<(b, 2) AS $f3")
+          term("select", "a", "b")
         ),
         unaryNode(
           "DataSetCalc",
           batchTableNode(table1),
-          term("select", "y", "z", ">(z, 5) AS $f3")
+          term("select", "y", "z")
         ),
-        term("where", "AND(=(a, z), $f3, $f30)"),
-        term("join", "a", "b", "$f3", "y", "z", "$f30"),
+        term("where", "AND(=(a, z), <(b, 2), >(z, 5))"),
+        term("join", "a", "b", "y", "z"),
         term("joinType", "FullOuterJoin")
       ),
       term("select", "b", "y")

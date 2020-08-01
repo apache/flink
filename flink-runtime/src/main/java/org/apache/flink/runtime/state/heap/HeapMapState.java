@@ -28,6 +28,7 @@ import org.apache.flink.queryablestate.client.state.serialization.KvStateSeriali
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -140,25 +141,31 @@ class HeapMapState<K, N, UK, UV>
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
-		return userMap == null ? null : userMap.entrySet();
+		return userMap == null ? Collections.emptySet() : userMap.entrySet();
 	}
 
 	@Override
 	public Iterable<UK> keys() {
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
-		return userMap == null ? null : userMap.keySet();
+		return userMap == null ? Collections.emptySet() : userMap.keySet();
 	}
 
 	@Override
 	public Iterable<UV> values() {
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
-		return userMap == null ? null : userMap.values();
+		return userMap == null ? Collections.emptySet() : userMap.values();
 	}
 
 	@Override
 	public Iterator<Map.Entry<UK, UV>> iterator() {
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
-		return userMap == null ? null : userMap.entrySet().iterator();
+		return userMap == null ? Collections.emptyIterator() : userMap.entrySet().iterator();
+	}
+
+	@Override
+	public boolean isEmpty() {
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		return userMap == null || userMap.isEmpty();
 	}
 
 	@Override

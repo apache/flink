@@ -30,6 +30,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
@@ -42,15 +43,18 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
@@ -160,6 +164,28 @@ public class MetricRegistryImplTest extends TestLogger {
 		Assert.assertTrue("No report was triggered.", TestReporter3.reportCount > 0);
 
 		registry.shutdown().get();
+	}
+
+	@Test
+	public void testReporterIntervalParsingErrorFallsBackToDefaultValue() throws Exception {
+		MetricConfig config = new MetricConfig();
+		// in a prior implementation the time amount was applied even if the time unit was invalid
+		// in this case this would imply using 1 SECOND as the interval (seconds is the default)
+		config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 UNICORN");
+
+		final ManuallyTriggeredScheduledExecutorService manuallyTriggeredScheduledExecutorService = new ManuallyTriggeredScheduledExecutorService();
+
+		MetricRegistryImpl registry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Collections.singletonList(ReporterSetup.forReporter("test", config, new TestReporter3())),
+			manuallyTriggeredScheduledExecutorService);
+		try {
+			Collection<ScheduledFuture<?>> scheduledTasks = manuallyTriggeredScheduledExecutorService.getScheduledTasks();
+			ScheduledFuture<?> reportTask = Iterators.getOnlyElement(scheduledTasks.iterator());
+			Assert.assertEquals(MetricOptions.REPORTER_INTERVAL.defaultValue().getSeconds(), reportTask.getDelay(TimeUnit.SECONDS));
+		} finally {
+			registry.shutdown().get();
+		}
 	}
 
 	/**
@@ -281,7 +307,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		config.setString(MetricOptions.SCOPE_DELIMITER, "_");
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D.E");
 
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config), ReporterSetup.fromConfiguration(config));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config), ReporterSetup.fromConfiguration(config, null));
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
 		assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name"));
@@ -366,7 +392,7 @@ public class MetricRegistryImplTest extends TestLogger {
 	 */
 	@Test
 	public void testQueryActorShutdown() throws Exception {
-		final FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
+		final Duration timeout = Duration.ofSeconds(10L);
 
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 

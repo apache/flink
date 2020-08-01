@@ -110,7 +110,12 @@ public class MiniClusterITCase extends TestLogger {
 		} catch (JobExecutionException e) {
 			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
 			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, "Slots required: 2, slots allocated: 1").isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Slots required: 2, slots allocated: 1";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
 		}
 	}
 
@@ -122,7 +127,12 @@ public class MiniClusterITCase extends TestLogger {
 		} catch (JobExecutionException e) {
 			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
 			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, "Could not allocate enough slots").isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Could not allocate enough slots";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
 		}
 	}
 
@@ -319,7 +329,7 @@ public class MiniClusterITCase extends TestLogger {
 			receiver.setInvokableClass(AgnosticReceiver.class);
 			receiver.setParallelism(parallelism);
 
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup(sender.getID(), receiver.getID());
+			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			sender.setSlotSharingGroup(sharingGroup);
 			forwarder.setSlotSharingGroup(sharingGroup);
 			receiver.setSlotSharingGroup(sharingGroup);

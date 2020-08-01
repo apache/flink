@@ -27,6 +27,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_IGNORE_PARSE_ERRORS;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_JSON_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE;
@@ -38,6 +39,7 @@ public class Json extends FormatDescriptor {
 
 	private Boolean failOnMissingField;
 	private Boolean deriveSchema;
+	private Boolean ignoreParseErrors;
 	private String jsonSchema;
 	private String schema;
 
@@ -60,13 +62,28 @@ public class Json extends FormatDescriptor {
 	}
 
 	/**
+	 * Sets flag whether to fail when parsing json fails.
+	 *
+	 * @param ignoreParseErrors If set to true, the operation will ignore parse errors.
+	 *                          If set to false, the operation fails when parsing json fails.
+	 */
+	public Json ignoreParseErrors(boolean ignoreParseErrors) {
+		this.ignoreParseErrors = ignoreParseErrors;
+		return this;
+	}
+
+	/**
 	 * Sets the JSON schema string with field names and the types according to the JSON schema
 	 * specification [[http://json-schema.org/specification.html]].
 	 *
 	 * <p>The schema might be nested.
 	 *
 	 * @param jsonSchema JSON schema
+	 * @deprecated {@link Json} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public Json jsonSchema(String jsonSchema) {
 		Preconditions.checkNotNull(jsonSchema);
 		this.jsonSchema = jsonSchema;
@@ -83,7 +100,11 @@ public class Json extends FormatDescriptor {
 	 * <p>The schema might be nested.
 	 *
 	 * @param schemaType type information that describes the schema
+	 * @deprecated {@link Json} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public Json schema(TypeInformation<Row> schemaType) {
 		Preconditions.checkNotNull(schemaType);
 		this.schema = TypeStringUtils.writeTypeInfo(schemaType);
@@ -100,7 +121,11 @@ public class Json extends FormatDescriptor {
 	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
 	 * is interpreted as a field renaming in the format.
+	 *
+	 * @deprecated Derivation format schema from table's schema is the default behavior now.
+	 * 	So there is no need to explicitly declare to derive schema.
 	 */
+	@Deprecated
 	public Json deriveSchema() {
 		this.deriveSchema = true;
 		this.schema = null;
@@ -126,6 +151,10 @@ public class Json extends FormatDescriptor {
 
 		if (failOnMissingField != null) {
 			properties.putBoolean(FORMAT_FAIL_ON_MISSING_FIELD, failOnMissingField);
+		}
+
+		if (ignoreParseErrors != null) {
+			properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, ignoreParseErrors);
 		}
 
 		return properties.asMap();

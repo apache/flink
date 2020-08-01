@@ -20,7 +20,10 @@ package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 
 import java.util.List;
@@ -35,19 +38,33 @@ import java.util.List;
 public interface Executor {
 
 	/**
-	 * Applies all given transformations. This should not run the transformations already, but just apply for
-	 * future execution via {@link #execute(String)}
+	 * Translates the given transformations to a Pipeline.
 	 *
-	 * @param transformations list of transformations to apply
+	 * @param transformations list of transformations
+	 * @param jobName what should be the name of the job
+	 * @return The pipeline representing the transformations.
 	 */
-	void apply(List<Transformation<?>> transformations);
+	Pipeline createPipeline(
+		List<Transformation<?>> transformations,
+		TableConfig tableConfig,
+		String jobName);
 
 	/**
-	 * Executes all the previously applied transformations via {@link #apply(List)}.
+	 * Executes the given pipeline.
 	 *
-	 * @param jobName what should be the name of the job
+	 * @param pipeline the pipeline to execute
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
-	JobExecutionResult execute(String jobName) throws Exception;
+	JobExecutionResult execute(Pipeline pipeline) throws Exception;
+
+	/**
+	 * Executes the given pipeline asynchronously.
+	 *
+	 * @param pipeline the pipeline to execute
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job,
+	 *         completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	JobClient executeAsync(Pipeline pipeline) throws Exception;
 }

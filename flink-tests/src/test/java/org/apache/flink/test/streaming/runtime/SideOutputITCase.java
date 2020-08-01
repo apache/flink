@@ -903,4 +903,87 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-5"), sideOutputResultSink.getSortedResult());
 		assertEquals(Arrays.asList(1, 2, 5), resultSink.getSortedResult());
 	}
+
+	@Test
+	public void testUnionOfTwoSideOutputs() throws Exception {
+		TestListResultSink<Integer> evensResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> oddsResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> oddsUEvensResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> evensUOddsResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> oddsUOddsResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> evensUEvensResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> oddsUEvensExternalResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(3);
+
+		DataStream<Integer> input = env.fromElements(1, 2, 3, 4);
+
+		OutputTag<Integer> oddTag = new OutputTag<Integer>("odds"){};
+		OutputTag<Integer> evenTag = new OutputTag<Integer>("even"){};
+
+		SingleOutputStreamOperator<Integer> passThroughStream =
+			input.process(new ProcessFunction<Integer, Integer>() {
+				@Override
+				public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+					if (value % 2 != 0) {
+						ctx.output(oddTag, value);
+					}
+					else {
+						ctx.output(evenTag, value);
+					}
+					out.collect(value);
+				}
+			});
+
+		DataStream<Integer> evens = passThroughStream.getSideOutput(evenTag);
+		DataStream<Integer> odds = passThroughStream.getSideOutput(oddTag);
+
+		evens.addSink(evensResultSink);
+		odds.addSink(oddsResultSink);
+		passThroughStream.addSink(resultSink);
+
+		odds.union(evens).addSink(oddsUEvensResultSink);
+		evens.union(odds).addSink(evensUOddsResultSink);
+
+		odds.union(odds).addSink(oddsUOddsResultSink);
+		evens.union(evens).addSink(evensUEvensResultSink);
+
+		odds.union(env.fromElements(2, 4)).addSink(oddsUEvensExternalResultSink);
+
+		env.execute();
+
+		assertEquals(
+			Arrays.asList(1, 3),
+			oddsResultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(2, 4),
+			evensResultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(1, 2, 3, 4),
+			resultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(1, 2, 3, 4),
+			oddsUEvensResultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(1, 2, 3, 4),
+			evensUOddsResultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(1, 1, 3, 3),
+			oddsUOddsResultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(2, 2, 4, 4),
+			evensUEvensResultSink.getSortedResult());
+
+		assertEquals(
+			Arrays.asList(1, 2, 3, 4),
+			oddsUEvensExternalResultSink.getSortedResult());
+	}
 }

@@ -59,7 +59,7 @@ public class CheckpointStatsSnapshot implements Serializable {
 			@Nullable RestoredCheckpointStats latestRestoredCheckpoint) {
 
 		this.counts = checkNotNull(counts);
-		this.summary= checkNotNull(summary);
+		this.summary = checkNotNull(summary);
 		this.history = checkNotNull(history);
 		this.latestRestoredCheckpoint = latestRestoredCheckpoint;
 	}

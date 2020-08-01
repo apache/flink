@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * Uniform genarator for binary row.
  */
-public class UniformBinaryRowGenerator implements MutableObjectIterator<BinaryRow> {
+public class UniformBinaryRowGenerator implements MutableObjectIterator<BinaryRowData> {
 
 	int numKeys;
 	int numVals;
@@ -52,7 +52,7 @@ public class UniformBinaryRowGenerator implements MutableObjectIterator<BinaryRo
 	}
 
 	@Override
-	public BinaryRow next(BinaryRow reuse) {
+	public BinaryRowData next(BinaryRowData reuse) {
 		if (!repeatKey) {
 			if (valCnt >= numVals + startVal) {
 				return null;
@@ -86,9 +86,9 @@ public class UniformBinaryRowGenerator implements MutableObjectIterator<BinaryRo
 	}
 
 	@Override
-	public BinaryRow next() {
+	public BinaryRowData next() {
 		key = new IntValue();
 		value = new IntValue();
-		return next(new BinaryRow(2));
+		return next(new BinaryRowData(2));
 	}
 }

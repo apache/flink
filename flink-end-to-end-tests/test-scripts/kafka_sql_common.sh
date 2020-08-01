@@ -31,14 +31,14 @@ function create_kafka_json_source {
     # put JSON data into Kafka
     echo "Sending messages to Kafka..."
 
-    send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 08:10:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T08:00:00Z", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T08:10:00Z", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:00:00Z", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:10:00Z", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:20:00Z", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:30:00Z", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:30:00Z", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T10:40:00Z", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' $topicName
 }
 
 function get_kafka_json_source_schema {
@@ -50,7 +50,7 @@ function get_kafka_json_source_schema {
     update-mode: append
     schema:
       - name: rowtime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: from-field
@@ -59,19 +59,16 @@ function get_kafka_json_source_schema {
             type: periodic-bounded
             delay: 2000
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: event
-        type: ROW<type VARCHAR, message VARCHAR>
+        data-type: ROW<type STRING, message STRING>
     connector:
       type: kafka
       version: "$KAFKA_SQL_VERSION"
       topic: $topicName
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        bootstrap.servers: localhost:9092
     format:
       type: json
       json-schema: >
@@ -79,7 +76,8 @@ function get_kafka_json_source_schema {
           "type": "object",
           "properties": {
             "timestamp": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             },
             "user": {
               "type": ["string", "null"]

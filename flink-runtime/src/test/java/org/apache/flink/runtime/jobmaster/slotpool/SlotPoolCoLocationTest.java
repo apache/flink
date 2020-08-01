@@ -30,14 +30,12 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -57,12 +55,9 @@ import static org.junit.Assert.assertNotEquals;
  */
 public class SlotPoolCoLocationTest extends TestLogger {
 
-	@ClassRule
-	public static final TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
-
 	@Rule
 	public final SlotPoolResource slotPoolResource =
-		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.INSTANCE);
+		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.create());
 
 	/**
 	 * Tests the scheduling of two tasks with a parallelism of 2 and a co-location constraint.
@@ -96,7 +91,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId,
 				coLocationConstraint1),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -105,7 +99,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId,
 				coLocationConstraint2),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -114,7 +107,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId,
 				coLocationConstraint1),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -123,7 +115,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId,
 				coLocationConstraint2),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -136,7 +127,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 			Collections.singletonList(new SlotOffer(
 				allocationId1,
 				0,
-				ResourceProfile.UNKNOWN)));
+				ResourceProfile.ANY)));
 
 		Collection<SlotOffer> slotOfferFuture2 = slotPoolGateway.offerSlots(
 			taskManagerLocation,
@@ -144,7 +135,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 			Collections.singletonList(new SlotOffer(
 				allocationId2,
 				0,
-				ResourceProfile.UNKNOWN)));
+				ResourceProfile.ANY)));
 
 		assertFalse(slotOfferFuture1.isEmpty());
 		assertFalse(slotOfferFuture2.isEmpty());

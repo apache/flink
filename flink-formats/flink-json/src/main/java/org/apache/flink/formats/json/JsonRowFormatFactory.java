@@ -58,12 +58,22 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
 		// create and configure
-		final JsonRowDeserializationSchema schema = new JsonRowDeserializationSchema(createTypeInformation(descriptorProperties));
+		final JsonRowDeserializationSchema.Builder schema =
+			new JsonRowDeserializationSchema.Builder(createTypeInformation(descriptorProperties));
 
 		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
-				.ifPresent(schema::setFailOnMissingField);
-
-		return schema;
+			.ifPresent(flag -> {
+				if (flag) {
+					schema.failOnMissingField();
+				}
+			});
+		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS)
+			.ifPresent(flag -> {
+				if (flag) {
+					schema.ignoreParseErrors();
+				}
+			});
+		return schema.build();
 	}
 
 	@Override
@@ -71,7 +81,7 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
 		// create and configure
-		return new JsonRowSerializationSchema(createTypeInformation(descriptorProperties));
+		return new JsonRowSerializationSchema.Builder(createTypeInformation(descriptorProperties)).build();
 	}
 
 	private TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {

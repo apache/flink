@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
@@ -53,11 +55,6 @@ public interface Buffer {
 	 * @return <tt>true</tt> if this is a real buffer, <tt>false</tt> if this is an event
 	 */
 	boolean isBuffer();
-
-	/**
-	 * Tags this buffer to represent an event.
-	 */
-	void tagAsEvent();
 
 	/**
 	 * Returns the underlying memory segment. This method is dangerous since it ignores read only protections and omits
@@ -217,4 +214,74 @@ public interface Buffer {
 	 * @return self as ByteBuf implementation.
 	 */
 	ByteBuf asByteBuf();
+
+	/**
+	 * @return whether the buffer is compressed or not.
+	 */
+	boolean isCompressed();
+
+	/**
+	 * Tags the buffer as compressed or uncompressed.
+	 */
+	void setCompressed(boolean isCompressed);
+
+	/**
+	 * Gets the type of data this buffer represents.
+	 */
+	DataType getDataType();
+
+	/**
+	 * Sets the type of data this buffer represents.
+	 */
+	void setDataType(DataType dataType);
+
+	/**
+	 * Used to identify the type of data contained in the {@link Buffer} so that we can get
+	 * the information without deserializing the serialized data.
+	 *
+	 * <p>Notes: Currently, one byte is used to serialize the ordinal of {@link DataType} in
+	 * {@link org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse}, so the
+	 * maximum number of supported data types is 128.
+	 */
+	enum DataType {
+		/**
+		 * DATA_BUFFER indicates that this buffer represents a non-event data buffer.
+		 */
+		DATA_BUFFER(true, false),
+
+		/**
+		 * EVENT_BUFFER indicates that this buffer represents serialized data of an event.
+		 * Note that this type can be further divided into more fine-grained event types
+		 * like {@link #ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER} and etc.
+		 */
+		EVENT_BUFFER(false, false),
+
+		/**
+		 * ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER indicates that this buffer represents a
+		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode.
+		 */
+		ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true);
+
+		private final boolean isBuffer;
+		private final boolean isBlockingUpstream;
+
+		DataType(boolean isBuffer, boolean isBlockingUpstream) {
+			this.isBuffer = isBuffer;
+			this.isBlockingUpstream = isBlockingUpstream;
+		}
+
+		public boolean isBuffer() {
+			return isBuffer;
+		}
+
+		public boolean isBlockingUpstream() {
+			return isBlockingUpstream;
+		}
+
+		public static DataType getDataType(AbstractEvent event) {
+			return event instanceof CheckpointBarrier && ((CheckpointBarrier) event).getCheckpointOptions().needsAlignment() ?
+					ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER :
+					EVENT_BUFFER;
+		}
+	}
 }

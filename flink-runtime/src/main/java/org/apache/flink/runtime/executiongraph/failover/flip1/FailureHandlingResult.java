@@ -41,18 +41,22 @@ public class FailureHandlingResult {
 	/** Reason why the failure is not recoverable. */
 	private final Throwable error;
 
+	/** True if the original failure was a global failure. **/
+	private final boolean globalFailure;
+
 	/**
 	 * Creates a result of a set of tasks to restart to recover from the failure.
 	 *
 	 * @param verticesToRestart containing task vertices to restart to recover from the failure
 	 * @param restartDelayMS indicate a delay before conducting the restart
 	 */
-	private FailureHandlingResult(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
+	private FailureHandlingResult(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS, boolean globalFailure) {
 		checkState(restartDelayMS >= 0);
 
 		this.verticesToRestart = Collections.unmodifiableSet(checkNotNull(verticesToRestart));
 		this.restartDelayMS = restartDelayMS;
 		this.error = null;
+		this.globalFailure = globalFailure;
 	}
 
 	/**
@@ -60,10 +64,11 @@ public class FailureHandlingResult {
 	 *
 	 * @param error reason why the failure is not recoverable
 	 */
-	private FailureHandlingResult(Throwable error) {
+	private FailureHandlingResult(Throwable error, boolean globalFailure) {
 		this.verticesToRestart = null;
 		this.restartDelayMS = -1;
 		this.error = checkNotNull(error);
+		this.globalFailure = globalFailure;
 	}
 
 	/**
@@ -115,23 +120,40 @@ public class FailureHandlingResult {
 	}
 
 	/**
+	 * Checks if this failure was a global failure, i.e., coming from a "safety net" failover that involved
+	 * all tasks and should reset also components like the coordinators.
+	 */
+	public boolean isGlobalFailure() {
+		return globalFailure;
+	}
+
+	/**
 	 * Creates a result of a set of tasks to restart to recover from the failure.
+	 *
+	 * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather than from
+	 * the failure of an individual task.
 	 *
 	 * @param verticesToRestart containing task vertices to restart to recover from the failure
 	 * @param restartDelayMS indicate a delay before conducting the restart
 	 * @return result of a set of tasks to restart to recover from the failure
 	 */
-	public static FailureHandlingResult restartable(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
-		return new FailureHandlingResult(verticesToRestart, restartDelayMS);
+	public static FailureHandlingResult restartable(
+			Set<ExecutionVertexID> verticesToRestart,
+			long restartDelayMS,
+			boolean globalFailure) {
+		return new FailureHandlingResult(verticesToRestart, restartDelayMS, globalFailure);
 	}
 
 	/**
 	 * Creates a result that the failure is not recoverable and no restarting should be conducted.
 	 *
+	 * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather than from
+	 * the failure of an individual task.
+	 *
 	 * @param error reason why the failure is not recoverable
 	 * @return result indicating the failure is not recoverable
 	 */
-	public static FailureHandlingResult unrecoverable(Throwable error) {
-		return new FailureHandlingResult(error);
+	public static FailureHandlingResult unrecoverable(Throwable error, boolean globalFailure) {
+		return new FailureHandlingResult(error, globalFailure);
 	}
 }

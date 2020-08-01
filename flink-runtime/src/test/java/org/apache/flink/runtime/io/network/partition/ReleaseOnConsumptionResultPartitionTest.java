@@ -21,8 +21,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link ReleaseOnConsumptionResultPartitionTest}.
@@ -41,9 +41,42 @@ public class ReleaseOnConsumptionResultPartitionTest extends TestLogger {
 		manager.registerResultPartition(partition);
 
 		partition.onConsumedSubpartition(0);
-		assertThat(partition.isReleased(), is(false));
+		assertFalse(partition.isReleased());
 
 		partition.onConsumedSubpartition(1);
-		assertThat(partition.isReleased(), is(true));
+		assertTrue(partition.isReleased());
+	}
+
+	@Test
+	public void testMultipleReleaseCallsAreIdempotent() {
+		final ResultPartitionManager manager = new ResultPartitionManager();
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setNumberOfSubpartitions(2)
+			.isReleasedOnConsumption(true)
+			.setResultPartitionManager(manager)
+			.build();
+		manager.registerResultPartition(partition);
+
+		partition.onConsumedSubpartition(0);
+		partition.onConsumedSubpartition(0);
+
+		assertFalse(partition.isReleased());
+	}
+
+	@Test
+	public void testReleaseAfterIdempotentCalls() {
+		final ResultPartitionManager manager = new ResultPartitionManager();
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setNumberOfSubpartitions(2)
+			.isReleasedOnConsumption(true)
+			.setResultPartitionManager(manager)
+			.build();
+		manager.registerResultPartition(partition);
+
+		partition.onConsumedSubpartition(0);
+		partition.onConsumedSubpartition(0);
+		partition.onConsumedSubpartition(1);
+
+		assertTrue(partition.isReleased());
 	}
 }

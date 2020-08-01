@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.testutils;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -56,7 +56,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 
 	// make no reconfiguration!
 	@Override
-	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader) {
+	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
 		return this;
 	}
 
@@ -86,6 +86,11 @@ public class BackendForTestStream extends MemoryStateBackend {
 
 		@Override
 		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void initializeBaseLocations() {
 			throw new UnsupportedOperationException();
 		}
 

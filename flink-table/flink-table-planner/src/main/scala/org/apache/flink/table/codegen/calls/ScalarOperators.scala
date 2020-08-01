@@ -624,10 +624,24 @@ object ScalarOperators {
     case (fromTp, toTp) if isArray(fromTp) && fromTp.getTypeClass == toTp.getTypeClass =>
       operand
 
-    // Date/Time/Timestamp -> String
-    case (dtt: SqlTimeTypeInfo[_], STRING_TYPE_INFO) =>
+    // Date -> String
+    case (SqlTimeTypeInfo.DATE, STRING_TYPE_INFO) =>
+      val method = qualifyMethod(BuiltInMethod.UNIX_DATE_TO_STRING.method)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-        (operandTerm) => s"${internalToTimePointCode(dtt, operandTerm)}.toString()"
+        (operandTerm) => s"$method($operandTerm)"
+      }
+
+    // Time -> String
+    case (SqlTimeTypeInfo.TIME, STRING_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"${internalToTimePointCode(operand.resultType, operandTerm)}.toString()"
+      }
+
+    // Timestamp -> String
+    case (SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO) =>
+      val method = qualifyMethod(BuiltInMethod.UNIX_TIMESTAMP_TO_STRING.method)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$method($operandTerm, 3)"
       }
 
     // Interval Months -> String
@@ -880,7 +894,7 @@ object ScalarOperators {
         resultType match {
           case SqlTimeTypeInfo.DATE =>
             generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+              (l, r) => s"$l $op (java.lang.Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
             }
           case SqlTimeTypeInfo.TIMESTAMP =>
             generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
@@ -895,7 +909,13 @@ object ScalarOperators {
 
       case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
-            (l, r) => s"$l $op ((int) ($r))"
+          (l, r) => s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
+            s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
+        }
+
+      case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
+          (l, r) => s"$l"
         }
 
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>

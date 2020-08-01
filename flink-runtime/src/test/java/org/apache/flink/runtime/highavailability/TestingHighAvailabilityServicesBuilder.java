@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -54,7 +54,7 @@ public class TestingHighAvailabilityServicesBuilder {
 
 	private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
 
-	private SubmittedJobGraphStore submittedJobGraphStore = new StandaloneSubmittedJobGraphStore();
+	private JobGraphStore jobGraphStore = new StandaloneJobGraphStore();
 
 	private RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
@@ -63,17 +63,17 @@ public class TestingHighAvailabilityServicesBuilder {
 
 		testingHighAvailabilityServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		testingHighAvailabilityServices.setDispatcherLeaderRetriever(dispatcherLeaderRetriever);
-		testingHighAvailabilityServices.setWebMonitorEndpointLeaderRetriever(webMonitorEndpointLeaderRetriever);
+		testingHighAvailabilityServices.setClusterRestEndpointLeaderRetriever(webMonitorEndpointLeaderRetriever);
 
 		testingHighAvailabilityServices.setJobMasterLeaderRetrieverFunction(jobMasterLeaderRetrieverFunction);
 		testingHighAvailabilityServices.setJobMasterLeaderElectionServiceFunction(jobMasterLeaderElectionServiceFunction);
 
 		testingHighAvailabilityServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
 		testingHighAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
-		testingHighAvailabilityServices.setWebMonitorEndpointLeaderElectionService(webMonitorEndpointLeaderElectionService);
+		testingHighAvailabilityServices.setClusterRestEndpointLeaderElectionService(webMonitorEndpointLeaderElectionService);
 
 		testingHighAvailabilityServices.setCheckpointRecoveryFactory(checkpointRecoveryFactory);
-		testingHighAvailabilityServices.setSubmittedJobGraphStore(submittedJobGraphStore);
+		testingHighAvailabilityServices.setJobGraphStore(jobGraphStore);
 		testingHighAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
 
 		return testingHighAvailabilityServices;
@@ -124,8 +124,8 @@ public class TestingHighAvailabilityServicesBuilder {
 		return this;
 	}
 
-	public TestingHighAvailabilityServicesBuilder setSubmittedJobGraphStore(SubmittedJobGraphStore submittedJobGraphStore) {
-		this.submittedJobGraphStore = submittedJobGraphStore;
+	public TestingHighAvailabilityServicesBuilder setJobGraphStore(JobGraphStore jobGraphStore) {
+		this.jobGraphStore = jobGraphStore;
 		return this;
 	}
 

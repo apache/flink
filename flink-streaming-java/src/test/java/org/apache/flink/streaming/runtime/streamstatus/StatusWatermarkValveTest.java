@@ -19,7 +19,10 @@
 package org.apache.flink.streaming.runtime.streamstatus;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
 
@@ -48,8 +51,8 @@ public class StatusWatermarkValveTest {
 	 * Tests that watermarks correctly advance with increasing watermarks for a single input valve.
 	 */
 	@Test
-	public void testSingleInputIncreasingWatermarks() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testSingleInputIncreasingWatermarks() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
@@ -65,8 +68,8 @@ public class StatusWatermarkValveTest {
 	 * Tests that watermarks do not advance with decreasing watermark inputs for a single input valve.
 	 */
 	@Test
-	public void testSingleInputDecreasingWatermarksYieldsNoOutput() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testSingleInputDecreasingWatermarksYieldsNoOutput() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -85,8 +88,8 @@ public class StatusWatermarkValveTest {
 	 * inputs do not yield output for a single input valve.
 	 */
 	@Test
-	public void testSingleInputStreamStatusToggling() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testSingleInputStreamStatusToggling() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
@@ -108,8 +111,8 @@ public class StatusWatermarkValveTest {
 	 * Tests that the watermark of an input channel remains intact while in the IDLE status.
 	 */
 	@Test
-	public void testSingleInputWatermarksIntactDuringIdleness() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testSingleInputWatermarksIntactDuringIdleness() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -136,8 +139,8 @@ public class StatusWatermarkValveTest {
 	 * Tests that the valve yields a watermark only when all inputs have received a watermark.
 	 */
 	@Test
-	public void testMultipleInputYieldsWatermarkOnlyWhenAllChannelsReceivesWatermarks() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputYieldsWatermarkOnlyWhenAllChannelsReceivesWatermarks() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
@@ -155,8 +158,8 @@ public class StatusWatermarkValveTest {
 	 * new min watermark across inputs advances.
 	 */
 	@Test
-	public void testMultipleInputIncreasingWatermarks() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputIncreasingWatermarks() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
@@ -189,8 +192,8 @@ public class StatusWatermarkValveTest {
 	 * Tests that for a multiple input valve, decreasing watermarks will yield no output.
 	 */
 	@Test
-	public void testMultipleInputDecreasingWatermarksYieldsNoOutput() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputDecreasingWatermarksYieldsNoOutput() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -209,8 +212,8 @@ public class StatusWatermarkValveTest {
 	 * inputs do not yield output for a multiple input valve.
 	 */
 	@Test
-	public void testMultipleInputStreamStatusToggling() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputStreamStatusToggling() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(2, valveOutput);
 
 		// this also implicitly verifies that all input channels start as active
@@ -243,8 +246,8 @@ public class StatusWatermarkValveTest {
 	 * is correctly computed and advanced from the remaining active inputs.
 	 */
 	@Test
-	public void testMultipleInputWatermarkAdvancingWithPartiallyIdleChannels() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputWatermarkAdvancingWithPartiallyIdleChannels() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(15), 0);
@@ -272,8 +275,8 @@ public class StatusWatermarkValveTest {
 	 * are output as soon remaining active channels can yield a new min watermark.
 	 */
 	@Test
-	public void testMultipleInputWatermarkAdvancingAsChannelsIndividuallyBecomeIdle() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputWatermarkAdvancingAsChannelsIndividuallyBecomeIdle() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -300,8 +303,8 @@ public class StatusWatermarkValveTest {
 	 * is independent of the order that the inputs become idle.
 	 */
 	@Test
-	public void testMultipleInputFlushMaxWatermarkAndStreamStatusOnceAllInputsBecomeIdle() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputFlushMaxWatermarkAndStreamStatusOnceAllInputsBecomeIdle() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		// -------------------------------------------------------------------------------------------
@@ -338,8 +341,8 @@ public class StatusWatermarkValveTest {
 	 * the latest watermark before they are considered for min watermark computation again.
 	 */
 	@Test
-	public void testMultipleInputWatermarkRealignmentAfterResumeActive() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testMultipleInputWatermarkRealignmentAfterResumeActive() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(10), 0);
@@ -379,8 +382,8 @@ public class StatusWatermarkValveTest {
 	 * watermark in that case.
 	 */
 	@Test
-	public void testNoOutputWhenAllActiveChannelsAreUnaligned() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+	public void testNoOutputWhenAllActiveChannelsAreUnaligned() throws Exception {
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(10), 0);
@@ -403,22 +406,32 @@ public class StatusWatermarkValveTest {
 		assertEquals(null, valveOutput.popLastSeenOutput());
 	}
 
-	private class BufferedValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
+	private static class StatusWatermarkOutput implements PushingAsyncDataInput.DataOutput {
+
 		private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
 
 		@Override
-		public void handleWatermark(Watermark watermark) {
+		public void emitWatermark(Watermark watermark) {
 			allOutputs.add(watermark);
 		}
 
 		@Override
-		public void handleStreamStatus(StreamStatus streamStatus) {
+		public void emitStreamStatus(StreamStatus streamStatus) {
 			allOutputs.add(streamStatus);
+		}
+
+		@Override
+		public void emitRecord(StreamRecord record) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+			throw new UnsupportedOperationException();
 		}
 
 		public StreamElement popLastSeenOutput() {
 			return allOutputs.poll();
 		}
 	}
-
 }

@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.resourcemanager.slotmanager.AnyMatchingSlotMatchingStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -53,7 +56,7 @@ public class ResourceManagerHATest extends TestLogger {
 
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService() {
 			@Override
-			public void confirmLeaderSessionID(UUID leaderId) {
+			public void confirmLeadership(UUID leaderId, String leaderAddress) {
 				leaderSessionIdFuture.complete(leaderId);
 			}
 		};
@@ -69,11 +72,17 @@ public class ResourceManagerHATest extends TestLogger {
 				TestingUtils.infiniteTime(),
 				TestingUtils.infiniteTime(),
 				TestingUtils.infiniteTime(),
-				true));
+				true,
+				AnyMatchingSlotMatchingStrategy.INSTANCE,
+				WorkerResourceSpec.ZERO,
+				1,
+				ResourceManagerOptions.MAX_SLOT_NUM.defaultValue(),
+				ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue()));
 		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+			rpcService.getScheduledExecutor(),
+			UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup());
 
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
@@ -82,16 +91,17 @@ public class ResourceManagerHATest extends TestLogger {
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
-				ResourceManager.RESOURCE_MANAGER_NAME,
 				rmResourceId,
 				highAvailabilityServices,
 				heartbeatServices,
 				resourceManagerRuntimeServices.getSlotManager(),
-				NoOpMetricRegistry.INSTANCE,
+				NoOpResourceManagerPartitionTracker::get,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				new ClusterInformation("localhost", 1234),
 				testingFatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup()) {
+				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
+				Time.minutes(5L),
+				RpcUtils.INF_TIMEOUT) {
 
 				@Override
 				public void revokeLeadership() {

@@ -38,14 +38,6 @@ public interface MetricRegistry {
 	char getDelimiter();
 
 	/**
-	 * Returns the configured delimiter for the reporter with the given index.
-	 *
-	 * @param index index of the reporter whose delimiter should be used
-	 * @return configured reporter delimiter, or global delimiter if index is invalid
-	 */
-	char getDelimiter(int index);
-
-	/**
 	 * Returns the number of registered reporters.
 	 */
 	int getNumberReporters();

@@ -86,7 +86,8 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 			MemorySegmentFactory
 				.allocateUnpooledSegment(Math.min(maxCapacity, MAX_CAPACITY_UPPER_BOUND));
 
-		NetworkBuffer buffer = new NetworkBuffer(segment, recycler, isBuffer);
+		Buffer.DataType dataType = isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
+		NetworkBuffer buffer = new NetworkBuffer(segment, recycler, dataType);
 		buffer.capacity(length);
 		buffer.setAllocator(NETTY_BUFFER_POOL);
 
@@ -118,7 +119,7 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
 	private static void testTagAsEvent(boolean isBuffer) {
 		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
-		buffer.tagAsEvent();
+		buffer.setDataType(Buffer.DataType.EVENT_BUFFER);
 		assertFalse(buffer.isBuffer());
 	}
 
@@ -134,7 +135,8 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
 	private static void testGetMemorySegment(boolean isBuffer) {
 		final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
-		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, isBuffer);
+		Buffer.DataType dataType = isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
+		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
 		assertSame(segment, buffer.getMemorySegment());
 	}
 

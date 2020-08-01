@@ -19,14 +19,15 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -274,7 +275,6 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		cluster.before();
 
 		ClusterClient<?> client = cluster.getClusterClient();
-		client.setDetached(true);
 
 		try {
 			// main test sequence:  start job -> eCP -> restore job -> eCP -> restore job
@@ -295,13 +295,13 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint);
 		NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
 
-		client.submitJob(initialJobGraph, ResumeCheckpointManuallyITCase.class.getClassLoader());
+		ClientUtils.submitJob(client, initialJobGraph);
 
 		// wait until all sources have been started
 		NotifyingInfiniteTupleSource.countDownLatch.await();
 
 		waitUntilExternalizedCheckpointCreated(checkpointDir, initialJobGraph.getJobID());
-		client.cancel(initialJobGraph.getJobID());
+		client.cancel(initialJobGraph.getJobID()).get();
 		waitUntilCanceled(initialJobGraph.getJobID(), client);
 
 		return getExternalizedCheckpointCheckpointPath(checkpointDir, initialJobGraph.getJobID());

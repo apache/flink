@@ -18,16 +18,18 @@
 
 source 'https://rubygems.org'
 
-ruby '>= 2.1.0'
+ruby '>= 2.4.0'
 
-gem 'jekyll', '3.7.2'
-gem 'addressable', '2.4.0'
-gem 'octokit', '~> 4.3.0'
-gem 'therubyracer', '0.12.2'
-gem 'json', '2.0.4'
+gem 'jekyll', '4.0.1'
+gem 'addressable', '2.7.0'
+gem 'octokit', '4.14.0'
+gem 'therubyracer', '0.12.3'
+gem 'json', '2.2.0'
 gem 'jekyll-multiple-languages', '2.0.3'
 gem 'jekyll-paginate', '1.1.0'
+gem 'liquid-c', '4.0.0' # speed-up site generation
+gem 'sassc', '2.2.1' # speed-up site generation
 
-group :jekyll_plugins do
-  gem 'hawkins'
-end
+# group :jekyll_plugins do
+#   gem 'hawkins'
+# end

@@ -28,13 +28,19 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import java.io.Serializable;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
 /**
  * A {@link StreamTableSource} and {@link BatchTableSource} for simple CSV files with a
@@ -64,9 +72,9 @@ public class CsvTableSource
 	 */
 	public CsvTableSource(String path, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
-			null, false, null, false);
+				IntStream.range(0, fieldNames.length).toArray(),
+				CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
+				null, false, null, false);
 	}
 
 	/**
@@ -85,20 +93,19 @@ public class CsvTableSource
 	 *                        default.
 	 */
 	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient) {
-
+			String path,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			String fieldDelim,
+			String lineDelim,
+			Character quoteCharacter,
+			boolean ignoreFirstLine,
+			String ignoreComments,
+			boolean lenient) {
 		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			fieldDelim, lineDelim,
-			quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
+				IntStream.range(0, fieldNames.length).toArray(),
+				fieldDelim, lineDelim, quoteCharacter,
+				ignoreFirstLine, ignoreComments, lenient);
 	}
 
 	/**
@@ -119,18 +126,20 @@ public class CsvTableSource
 	 *                        default.
 	 */
 	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		int[] selectedFields,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient) {
-		this(new CsvInputFormatConfig(path, fieldNames, fieldTypes, selectedFields,
-			fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient));
+			String path,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			int[] selectedFields,
+			String fieldDelim,
+			String lineDelim,
+			Character quoteCharacter,
+			boolean ignoreFirstLine,
+			String ignoreComments,
+			boolean lenient) {
+		this(new CsvInputFormatConfig(
+				path, fieldNames, TypeConversions.fromLegacyInfoToDataType(fieldTypes), selectedFields,
+				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
+				ignoreComments, lenient, false));
 	}
 
 	private CsvTableSource(CsvInputFormatConfig config) {
@@ -154,19 +163,29 @@ public class CsvTableSource
 	}
 
 	@Override
-	public TypeInformation<Row> getReturnType() {
-		return new RowTypeInfo(config.getSelectedFieldTypes(), config.getSelectedFieldNames());
+	public DataType getProducedDataType() {
+		return TableSchema.builder()
+			.fields(config.getSelectedFieldNames(), config.getSelectedFieldDataTypes())
+			.build()
+			.toRowDataType();
+	}
+
+	@SuppressWarnings("unchecked")
+	private TypeInformation<Row> getProducedTypeInformation() {
+		return (TypeInformation<Row>) fromDataTypeToLegacyInfo(getProducedDataType());
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return new TableSchema(config.fieldNames, config.fieldTypes);
+		return TableSchema.builder()
+			.fields(config.fieldNames, config.fieldTypes)
+			.build();
 	}
 
 	@Override
 	public CsvTableSource projectFields(int[] fields) {
 		if (fields.length == 0) {
-			fields = new int[]{0};
+			fields = new int[0];
 		}
 		return new CsvTableSource(config.select(fields));
 	}
@@ -178,12 +197,16 @@ public class CsvTableSource
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv.createInput(config.createInputFormat(), getReturnType()).name(explainSource());
+		return execEnv
+			.createInput(config.createInputFormat(), getProducedTypeInformation())
+			.name(explainSource());
 	}
 
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		return execEnv.createInput(config.createInputFormat(), getReturnType()).name(explainSource());
+		return execEnv
+			.createInput(config.createInputFormat(), getProducedTypeInformation())
+			.name(explainSource());
 	}
 
 	@Override
@@ -228,7 +251,7 @@ public class CsvTableSource
 	 * A builder for creating CsvTableSource instances.
 	 */
 	public static class Builder {
-		private LinkedHashMap<String, TypeInformation<?>> schema = new LinkedHashMap<>();
+		private LinkedHashMap<String, DataType> schema = new LinkedHashMap<>();
 		private Character quoteCharacter;
 		private String path;
 		private String fieldDelim = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
@@ -236,6 +259,7 @@ public class CsvTableSource
 		private boolean isIgnoreFirstLine = false;
 		private String commentPrefix;
 		private boolean lenient = false;
+		private boolean emptyColumnAsNull = false;
 
 		/**
 		 * Sets the path to the CSV file. Required.
@@ -268,19 +292,52 @@ public class CsvTableSource
 		}
 
 		/**
+		 * Adds a field with the field name and the data type. Required. This method can be
+		 * called multiple times. The call order of this method defines also the order of the fields
+		 * in a row.
+		 *
+		 * @param fieldName the field name
+		 * @param fieldType the data type of the field
+		 */
+		public Builder field(String fieldName, DataType fieldType) {
+			if (schema.containsKey(fieldName)) {
+				throw new IllegalArgumentException("Duplicate field name " + fieldName);
+			}
+			// CSV only support java.sql.Timestamp/Date/Time
+			DataType type;
+			switch (fieldType.getLogicalType().getTypeRoot()) {
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+					type = fieldType.bridgedTo(Timestamp.class);
+					break;
+				case TIME_WITHOUT_TIME_ZONE:
+					type = fieldType.bridgedTo(Time.class);
+					break;
+				case DATE:
+					type = fieldType.bridgedTo(Date.class);
+					break;
+				default:
+					type = fieldType;
+			}
+			schema.put(fieldName, type);
+			return this;
+		}
+
+		/**
 		 * Adds a field with the field name and the type information. Required. This method can be
 		 * called multiple times. The call order of this method defines also the order of the fields
 		 * in a row.
 		 *
 		 * @param fieldName the field name
 		 * @param fieldType the type information of the field
+		 * @deprecated This method will be removed in future versions as it uses the old type system. It
+		 * 	           is recommended to use {@link #field(String, DataType)} instead which uses the new type
+		 * 	           system based on {@link DataTypes}. Please make sure to use either the old or the new
+		 * 	           type system consistently to avoid unintended behavior. See the website documentation
+		 * 	           for more information.
 		 */
+		@Deprecated
 		public Builder field(String fieldName, TypeInformation<?> fieldType) {
-			if (schema.containsKey(fieldName)) {
-				throw new IllegalArgumentException("Duplicate field name " + fieldName);
-			}
-			schema.put(fieldName, fieldType);
-			return this;
+			return field(fieldName, TypeConversions.fromLegacyInfoToDataType(fieldType));
 		}
 
 		/**
@@ -320,6 +377,14 @@ public class CsvTableSource
 		}
 
 		/**
+		 * Treat empty column as null, false by default.
+		 */
+		public Builder emptyColumnAsNull() {
+			this.emptyColumnAsNull = true;
+			return this;
+		}
+
+		/**
 		 * Apply the current values and constructs a newly-created CsvTableSource.
 		 *
 		 * @return a newly-created CsvTableSource
@@ -331,18 +396,20 @@ public class CsvTableSource
 			if (schema.isEmpty()) {
 				throw new IllegalArgumentException("Fields can not be empty.");
 			}
-			return new CsvTableSource(
-				path,
-				schema.keySet().toArray(new String[0]),
-				schema.values().toArray(new TypeInformation<?>[0]),
-				fieldDelim,
-				lineDelim,
-				quoteCharacter,
-				isIgnoreFirstLine,
-				commentPrefix,
-				lenient);
-		}
 
+			return new CsvTableSource(new CsvInputFormatConfig(
+					path,
+					schema.keySet().toArray(new String[0]),
+					schema.values().toArray(new DataType[0]),
+					IntStream.range(0, schema.values().size()).toArray(),
+					fieldDelim,
+					lineDelim,
+					quoteCharacter,
+					isIgnoreFirstLine,
+					commentPrefix,
+					lenient,
+					emptyColumnAsNull));
+		}
 	}
 
 	// ------------------------------------------------------------------------------------
@@ -447,7 +514,7 @@ public class CsvTableSource
 
 		private final String path;
 		private final String[] fieldNames;
-		private final TypeInformation<?>[] fieldTypes;
+		private final DataType[] fieldTypes;
 		private final int[] selectedFields;
 
 		private final String fieldDelim;
@@ -456,18 +523,20 @@ public class CsvTableSource
 		private final boolean ignoreFirstLine;
 		private final String ignoreComments;
 		private final boolean lenient;
+		private final boolean emptyColumnAsNull;
 
 		CsvInputFormatConfig(
 			String path,
 			String[] fieldNames,
-			TypeInformation<?>[] fieldTypes,
+			DataType[] fieldTypes,
 			int[] selectedFields,
 			String fieldDelim,
 			String lineDelim,
 			Character quoteCharacter,
 			boolean ignoreFirstLine,
 			String ignoreComments,
-			boolean lenient) {
+			boolean lenient,
+			boolean emptyColumnAsNull) {
 
 			this.path = path;
 			this.fieldNames = fieldNames;
@@ -479,6 +548,7 @@ public class CsvTableSource
 			this.ignoreFirstLine = ignoreFirstLine;
 			this.ignoreComments = ignoreComments;
 			this.lenient = lenient;
+			this.emptyColumnAsNull = emptyColumnAsNull;
 		}
 
 		String[] getSelectedFieldNames() {
@@ -489,12 +559,18 @@ public class CsvTableSource
 			return selectedFieldNames;
 		}
 
-		TypeInformation<?>[] getSelectedFieldTypes() {
-			TypeInformation<?>[] selectedFieldTypes = new TypeInformation<?>[selectedFields.length];
+		DataType[] getSelectedFieldDataTypes() {
+			DataType[] selectedFieldTypes = new DataType[selectedFields.length];
 			for (int i = 0; i < selectedFields.length; i++) {
 				selectedFieldTypes[i] = fieldTypes[selectedFields[i]];
 			}
 			return selectedFieldTypes;
+		}
+
+		TypeInformation<?>[] getSelectedFieldTypes() {
+			return Arrays.stream(getSelectedFieldDataTypes())
+				.map(TypeConversions::fromDataTypeToLegacyInfo)
+				.toArray(TypeInformation[]::new);
 		}
 
 		RowCsvInputFormat createInputFormat() {
@@ -503,7 +579,8 @@ public class CsvTableSource
 				getSelectedFieldTypes(),
 				lineDelim,
 				fieldDelim,
-				selectedFields);
+				selectedFields,
+				emptyColumnAsNull);
 			inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine);
 			inputFormat.setCommentPrefix(ignoreComments);
 			inputFormat.setLenient(lenient);
@@ -515,7 +592,7 @@ public class CsvTableSource
 
 		CsvInputFormatConfig select(int[] fields) {
 			return new CsvInputFormatConfig(path, fieldNames, fieldTypes, fields,
-				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
+				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull);
 		}
 
 		@Override
@@ -528,21 +605,22 @@ public class CsvTableSource
 			}
 			CsvInputFormatConfig that = (CsvInputFormatConfig) o;
 			return ignoreFirstLine == that.ignoreFirstLine &&
-				lenient == that.lenient &&
-				Objects.equals(path, that.path) &&
-				Arrays.equals(fieldNames, that.fieldNames) &&
-				Arrays.equals(fieldTypes, that.fieldTypes) &&
-				Arrays.equals(selectedFields, that.selectedFields) &&
-				Objects.equals(fieldDelim, that.fieldDelim) &&
-				Objects.equals(lineDelim, that.lineDelim) &&
-				Objects.equals(quoteCharacter, that.quoteCharacter) &&
-				Objects.equals(ignoreComments, that.ignoreComments);
+					lenient == that.lenient &&
+					Objects.equals(path, that.path) &&
+					Arrays.equals(fieldNames, that.fieldNames) &&
+					Arrays.equals(fieldTypes, that.fieldTypes) &&
+					Arrays.equals(selectedFields, that.selectedFields) &&
+					Objects.equals(fieldDelim, that.fieldDelim) &&
+					Objects.equals(lineDelim, that.lineDelim) &&
+					Objects.equals(quoteCharacter, that.quoteCharacter) &&
+					Objects.equals(ignoreComments, that.ignoreComments) &&
+					Objects.equals(emptyColumnAsNull, that.emptyColumnAsNull);
 		}
 
 		@Override
 		public int hashCode() {
 			int result = Objects.hash(path, fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
-				ignoreComments, lenient);
+					ignoreComments, lenient, emptyColumnAsNull);
 			result = 31 * result + Arrays.hashCode(fieldNames);
 			result = 31 * result + Arrays.hashCode(fieldTypes);
 			result = 31 * result + Arrays.hashCode(selectedFields);

@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
@@ -28,8 +29,8 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -63,9 +64,11 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 	private transient boolean allIdentityConverter;
 	private transient HiveObjectConversion[] conversions;
+	private HiveShim hiveShim;
 
-	public HiveGenericUDTF(HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper) {
+	public HiveGenericUDTF(HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper, HiveShim hiveShim) {
 		this.hiveFunctionWrapper = hiveFunctionWrapper;
+		this.hiveShim = hiveShim;
 	}
 
 	@Override
@@ -73,18 +76,18 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 		function = hiveFunctionWrapper.createFunction();
 
 		function.setCollector(input -> {
-			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, input);
+			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, input, hiveShim);
 			HiveGenericUDTF.this.collect(row);
 		});
 
-		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(constantArguments, argTypes);
+		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 		returnInspector = function.initialize(argumentInspectors);
 
 		isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
 
 		conversions = new HiveObjectConversion[argumentInspectors.length];
 		for (int i = 0; i < argumentInspectors.length; i++) {
-			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i].getLogicalType());
+			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i].getLogicalType(), hiveShim);
 		}
 
 		allIdentityConverter = Arrays.stream(conversions)
@@ -129,7 +132,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 		LOG.info("Getting result type of HiveGenericUDTF with {}", hiveFunctionWrapper.getClassName());
 
 		try {
-			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(constantArguments, argTypes);
+			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 			return HiveTypeUtil.toFlinkType(
 				hiveFunctionWrapper.createFunction().initialize(argumentInspectors));
 		} catch (UDFArgumentException e) {
@@ -139,8 +142,8 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 	@Override
 	public TypeInformation getResultType() {
-		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
-			getHiveResultType(this.constantArguments, this.argTypes));
+		return TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(
+			getHiveResultType(this.constantArguments, this.argTypes).getLogicalType());
 	}
 
 	@Override

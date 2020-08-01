@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableConfig;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -30,11 +31,7 @@ import org.apache.calcite.schema.Table;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Bridge between the {@link CatalogManager} and the {@link Schema}. This way we can query Flink's specific catalogs
@@ -42,18 +39,19 @@ import java.util.stream.Stream;
  *
  * <p>The mapping for {@link Catalog}s is modeled as a strict two-level reference structure for Flink in Calcite,
  * the full path of objects is of format [catalog_name].[db_name].[meta-object_name].
- *
- * <p>It also supports {@link ExternalCatalog}s. An external catalog maps 1:1 to the Calcite's schema.
  */
 @Internal
 public class CatalogManagerCalciteSchema implements Schema {
 
 	private final CatalogManager catalogManager;
-	private boolean isBatch;
+	private final TableConfig tableConfig;
+	private boolean isStreamingMode;
 
-	public CatalogManagerCalciteSchema(CatalogManager catalogManager, boolean isBatch) {
+	public CatalogManagerCalciteSchema(
+			CatalogManager catalogManager, TableConfig tableConfig, boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
-		this.isBatch = isBatch;
+		this.tableConfig = tableConfig;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	@Override
@@ -88,22 +86,16 @@ public class CatalogManagerCalciteSchema implements Schema {
 
 	@Override
 	public Schema getSubSchema(String name) {
-		Optional<Schema> externalSchema = catalogManager.getExternalCatalog(name)
-			.map(externalCatalog -> new ExternalCatalogSchema(isBatch, name, externalCatalog));
-
-		return externalSchema.orElseGet(() ->
-			catalogManager.getCatalog(name)
-				.map(catalog -> new CatalogCalciteSchema(name, catalog))
-				.orElse(null)
-		);
+		if (catalogManager.schemaExists(name)) {
+			return new CatalogCalciteSchema(isStreamingMode, name, catalogManager, tableConfig);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public Set<String> getSubSchemaNames() {
-		return Stream.concat(
-			catalogManager.getCatalogs().stream(),
-			catalogManager.getExternalCatalogs().stream())
-			.collect(Collectors.toCollection(LinkedHashSet::new));
+		return catalogManager.listSchemas();
 	}
 
 	@Override

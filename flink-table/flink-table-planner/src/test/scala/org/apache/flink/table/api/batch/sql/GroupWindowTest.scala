@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.api.batch.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class GroupWindowTest extends TableTestBase {
 
@@ -296,7 +297,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "CAST(w$start) AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT(FLAG(QUARTER), CAST(w$start)), 1))")
+            "=(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))")
       )
 
     util.verifySql(sql, expected)
@@ -336,12 +337,112 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS EXPR$3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, " +
+            "-($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3",
           "CAST(w$start) AS EXPR$4",
           "CAST(w$end) AS EXPR$5")
+      )
+
+    util.verifySql(sql, expected)
+  }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String, Timestamp)]("MyTable", 'a, 'b, 'c, 'rowtime)
+
+    val innerQuery =
+      """
+        |SELECT
+        | CASE a WHEN 1 THEN 1 ELSE 99 END AS correct,
+        | rowtime
+        |FROM MyTable
+      """.stripMargin
+
+    val sqlQuery =
+      "SELECT " +
+        "  sum(correct) as s, " +
+        "  avg(correct) as a, " +
+        "  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as wStart " +
+        s"FROM ($innerQuery) " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetWindowAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(table),
+            term("select", "rowtime, CASE(=(a, 1), 1, 99) AS $f1")
+          ),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
+          term("select", "SUM($f1) AS s, AVG($f1) AS a, start('w$) AS w$start,"
+            + " end('w$) AS w$end, rowtime('w$) AS w$rowtime")
+        ),
+        term("select", "CAST(s) AS s", "CAST(a) AS a", "CAST(w$start) AS wStart")
+      )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows() = {
+    // This test ensures that the LogicalWindowAggregate and FlinkLogicalWindowAggregate nodes'
+    // digests contain the window specs. This allows the planner to make the distinction between
+    // similar aggregations using different windows (see FLINK-15577).
+    val util = batchTestUtil()
+    val table = util.addTable[(Timestamp)]("MyTable", 'rowtime)
+
+    val sql =
+    """
+      |WITH window_1h AS (
+      |    SELECT 1
+      |    FROM MyTable
+      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+      |),
+      |
+      |window_2h AS (
+      |    SELECT 1
+      |    FROM MyTable
+      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+      |)
+      |
+      |(SELECT * FROM window_1h)
+      |UNION ALL
+      |(SELECT * FROM window_2h)
+      |""".stripMargin
+
+    val expected =
+      binaryNode(
+        "DataSetUnion",
+        unaryNode(
+          "DataSetCalc",
+          unaryNode(
+            "DataSetWindowAggregate",
+            batchTableNode(table),
+            // This window is the 1hr window
+            term("window", "SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 3600000.millis)"),
+            term("select")
+          ),
+          term("select", "1 AS EXPR$0")
+        ),
+        unaryNode(
+          "DataSetCalc",
+          unaryNode(
+            "DataSetWindowAggregate",
+            batchTableNode(table),
+            // This window is the 2hr window
+            term("window", "SlidingGroupWindow('w$, 'rowtime, 7200000.millis, 3600000.millis)"),
+            term("select")
+          ),
+          term("select", "1 AS EXPR$0")
+        ),
+        term("all", "true"),
+        term("union", "EXPR$0")
       )
 
     util.verifySql(sql, expected)

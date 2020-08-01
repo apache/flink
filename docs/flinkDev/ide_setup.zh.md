@@ -27,8 +27,8 @@ under the License.
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{ site.baseurl }}/dev/projectsetup/java_api_quickstart.html)
-and the [Scala API]({{ site.baseurl }}/dev/projectsetup/scala_api_quickstart.html)
+refer to the [Java API]({{ site.baseurl }}/dev/project-configuration.html)
+and the [Scala API]({{ site.baseurl }}/dev/project-configuration)
 quickstart guides.
 
 **NOTE:** Whenever something is not working in your IDE, try with the Maven
@@ -72,7 +72,7 @@ to enable support for Scala projects and files:
 4. Leave the default options and successively click "Next" until you reach the SDK section.
 5. If there is no SDK listed, create one using the "+" sign on the top left.
    Select "JDK", choose the JDK home directory and click "OK".
-   Select the most suiting JDK version. NOTE: A good rule of thumb is to select 
+   Select the most suiting JDK version. NOTE: A good rule of thumb is to select
    the JDK version matching the active Maven profile.
 6. Continue by clicking "Next" until finishing the import.
 7. Right-click on the imported Flink project -> Maven -> Generate Sources and Update Folders.
@@ -88,7 +88,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
 3. Set the "Scan Scope" to "Only Java sources (including tests)".
-4. Select _8.12_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
+4. Select _8.14_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
    don't skip it!**
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Flink".
@@ -115,7 +115,32 @@ Nevertheless please make sure that code you add/modify in these modules still co
 
 ### Checkstyle For Scala
 
-Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle_config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+
+### FAQ
+
+This section lists issues that developers have run into in the past when working with IntelliJ:
+
+- Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
+
+This means that IntelliJ activated the `java11` profile despite an older JDK being used.
+Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.
+
+- Compilation fails with `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
+
+This means that IntelliJ is using JDK 11 for the project, but you are working on a Flink version which doesn't
+support Java 11.
+This commonly happens when you have setup IntelliJ to use JDK 11 and checkout older versions of Flink (<= 1.9).
+Open the project settings window (File -> Project Structure -> Project Settings: Project) and select JDK 8 as the project
+SDK.
+You may have to revert this after switching back to the new Flink version if you want to use JDK 11.
+
+- Examples fail with a `NoClassDefFoundError` for Flink classes.
+
+This is likely due to Flink dependencies being set to provided, resulting in them not being put automatically on the 
+classpath.
+You can either tick the "Include dependencies with 'Provided' scope" box in the run configuration, or create a test
+that calls the `main()` method of the example (`provided` dependencies are available on the test classpath).
 
 ## Eclipse
 
@@ -125,4 +150,38 @@ due to version incompatibilities with the bundled Scala version in Scala IDE 4.4
 
 **We recommend to use IntelliJ instead (see [above](#intellij-idea))**
 
+## PyCharm
+
+A brief guide on how to set up PyCharm for development of the flink-python module.
+
+The following documentation describes the steps to setup PyCharm 2019.1.3
+([https://www.jetbrains.com/pycharm/download/](https://www.jetbrains.com/pycharm/download/))
+with the Flink Python sources.
+
+### Importing flink-python
+If you are in the PyCharm startup interface:
+
+1. Start PyCharm and choose "Open"
+2. Select the flink-python folder in the cloned Flink repository
+
+If you have used PyCharm to open a project:
+
+1. Select "File -> Open"
+2. Select the flink-python folder in the cloned Flink repository
+
+
+### Checkstyle For Python
+The Python code checkstyle of Apache Flink should create a flake8 external tool in the project. 
+
+1. Install the flake8 in the used Python interpreter(refer to ([https://pypi.org/project/flake8/](https://pypi.org/project/flake8/)).
+2. Select "PyCharm -> Preferences... -> Tools -> External Tools -> + (The bottom left corner of the page on the right)", next configure the external tool.
+3. Set the "Name" to "flake8".
+4. Set the "Description" to "code style check".
+5. Set the "Program"  to the Python interpreter path(e.g. /usr/bin/python).
+6. Set the "Arguments" to "-m flake8 \-\-config=tox.ini"
+7. Set the "Working directory" to "$ProjectFileDir$"
+
+Now, you can check your Python code style by the operation:
+    "Right click in any file or folder in the flink-python project -> External Tools -> flake8"
+    
 {% top %}

@@ -23,15 +23,33 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-s3-fs-hadoop</artifactId>
-	<name>flink-s3-fs-hadoop</name>
+	<name>Flink : FileSystems : S3 FS Hadoop</name>
 
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- Override the flink-parent dependencyManagement definition for hadoop-common to ensure
+				${fs.hadoopshaded.version} is used for this file system -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+			</dependency>
+
+			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 
 		<!-- Flink's file system abstraction (compiled against, not bundled) -->
@@ -49,19 +67,19 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- for the behavior test suite -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<!-- for the settings that make unshaded tests run -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -80,6 +98,76 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<!-- jaxb-api is packaged as an optional dependency that is only accessible on Java 11 -->
+							<Multi-Release>true</Multi-Release>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-javax-jars</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<artifactItems>
+						<artifactItem>
+							<groupId>javax.xml.bind</groupId>
+							<artifactId>jaxb-api</artifactId>
+							<version>${jaxb.api.version}</version>
+							<type>jar</type>
+							<overWrite>true</overWrite>
+						</artifactItem>
+					</artifactItems>
+					<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-javax-libraries</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<echo message="unpacking javax jars"/>
+								<unzip dest="${project.build.directory}/classes/META-INF/versions/11">
+									<fileset dir="${project.build.directory}/temporary">
+										<include name="*"/>
+									</fileset>
+								</unzip>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
@@ -96,17 +184,12 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
+								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
-									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
 								</relocation>
-								<!-- relocate the AWS dependencies -->
-								<relocation>
-									<pattern>com.amazon</pattern>
-									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
-								</relocation>
-								<!-- shade Flink's Hadoop FS utility classes -->
+								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
@@ -117,6 +200,35 @@ under the License.
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>.gitkeep</exclude>
+										<exclude>mime.types</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/services/javax.xml.stream.*</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
+									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
+										Filter must be removed as soon as XmlResponsesSaxParser of this module is
+										dropped, for example when discontinuing support for Java 8. -->
+									<excludes>
+										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
 									</excludes>
 								</filter>
 							</filters>

@@ -40,7 +40,7 @@ class BatchTableSourceScanRule
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
 
     val sourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    sourceTable != null && !sourceTable.isStreaming
+    sourceTable != null && !sourceTable.isStreamingMode
   }
 
   def convert(rel: RelNode): RelNode = {
@@ -50,6 +50,7 @@ class BatchTableSourceScanRule
       rel.getCluster,
       traitSet,
       scan.getTable,
+      scan.tableSchema,
       scan.tableSource,
       scan.selectedFields
     )

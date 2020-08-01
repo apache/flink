@@ -33,6 +33,18 @@ public class UnregisteredMetricGroups {
 	private UnregisteredMetricGroups() {
 	}
 
+	public static ProcessMetricGroup createUnregisteredProcessMetricGroup() {
+		return new UnregisteredProcessMetricGroup();
+	}
+
+	public static ResourceManagerMetricGroup createUnregisteredResourceManagerMetricGroup() {
+		return new UnregisteredResourceManagerMetricGroup();
+	}
+
+	public static SlotManagerMetricGroup createUnregisteredSlotManagerMetricGroup() {
+		return new UnregisteredSlotManagerMetricGroup();
+	}
+
 	public static JobManagerMetricGroup createUnregisteredJobManagerMetricGroup() {
 		return new UnregisteredJobManagerMetricGroup();
 	}
@@ -55,6 +67,39 @@ public class UnregisteredMetricGroups {
 
 	public static OperatorMetricGroup createUnregisteredOperatorMetricGroup() {
 		return new UnregisteredOperatorMetricGroup();
+	}
+
+	/**
+	 * A safe drop-in replacement for {@link ProcessMetricGroup ProcessMetricGroups}.
+	 */
+	public static class UnregisteredProcessMetricGroup extends ProcessMetricGroup {
+		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+
+		public UnregisteredProcessMetricGroup() {
+			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+		}
+	}
+
+	/**
+	 * A safe drop-in replacement for {@link ResourceManagerMetricGroup ResourceManagerMetricGroups}.
+	 */
+	public static class UnregisteredResourceManagerMetricGroup extends ResourceManagerMetricGroup {
+		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+
+		UnregisteredResourceManagerMetricGroup() {
+			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+		}
+	}
+
+	/**
+	 * A safe drop-in replacement for {@link SlotManagerMetricGroup SlotManagerMetricGroups}.
+	 */
+	public static class UnregisteredSlotManagerMetricGroup extends SlotManagerMetricGroup {
+		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+
+		UnregisteredSlotManagerMetricGroup() {
+			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+		}
 	}
 
 	/**
@@ -116,7 +161,7 @@ public class UnregisteredMetricGroups {
 		private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
 		private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
 
-		protected UnregisteredTaskManagerJobMetricGroup() {
+		public UnregisteredTaskManagerJobMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskManagerMetricGroup(), DEFAULT_JOB_ID, DEFAULT_JOB_NAME);
 		}
 

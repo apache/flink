@@ -165,6 +165,6 @@ public class NettyConnectionManagerTest {
 	}
 
 	private NettyConnectionManager createNettyConnectionManager(NettyConfig config) {
-		return new NettyConnectionManager(new ResultPartitionManager(), new TaskEventDispatcher(), config, true);
+		return new NettyConnectionManager(new ResultPartitionManager(), new TaskEventDispatcher(), config);
 	}
 }

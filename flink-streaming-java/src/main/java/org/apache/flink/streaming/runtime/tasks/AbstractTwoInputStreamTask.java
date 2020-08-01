@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -29,7 +29,6 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -47,7 +46,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 	 *
 	 * @param env The task environment for this task.
 	 */
-	public AbstractTwoInputStreamTask(Environment env) {
+	public AbstractTwoInputStreamTask(Environment env) throws Exception {
 		super(env);
 
 		input1WatermarkGauge = new WatermarkGauge();
@@ -65,14 +64,14 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+		ArrayList<IndexedInputGate> inputList1 = new ArrayList<>();
+		ArrayList<IndexedInputGate> inputList2 = new ArrayList<>();
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
-			InputGate reader = getEnvironment().getInputGate(i);
+			IndexedInputGate reader = getEnvironment().getInputGate(i);
 			switch (inputType) {
 				case 1:
 					inputList1.add(reader);
@@ -95,8 +94,8 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 	}
 
 	protected abstract void createInputProcessor(
-		Collection<InputGate> inputGates1,
-		Collection<InputGate> inputGates2,
+		List<IndexedInputGate> inputGates1,
+		List<IndexedInputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) throws Exception;
 }

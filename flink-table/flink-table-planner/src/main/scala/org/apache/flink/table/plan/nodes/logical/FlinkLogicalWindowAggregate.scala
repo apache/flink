@@ -25,7 +25,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelShuttle}
+import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
@@ -42,21 +42,27 @@ class FlinkLogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls)
+  extends Aggregate(cluster, traitSet, child, groupSet, groupSets, aggCalls)
   with FlinkLogicalRel {
 
   def getWindow: LogicalWindow = window
 
   def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
 
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+    for (property <- namedProperties) {
+      pw.item(property.name, property.property)
+    }
+    pw.item("window", window.toString)
+  }
+
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
-      indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall])
@@ -68,7 +74,6 @@ class FlinkLogicalWindowAggregate(
       cluster,
       traitSet,
       input,
-      indicator,
       groupSet,
       groupSets,
       aggCalls)
@@ -131,7 +136,6 @@ class FlinkLogicalWindowAggregateConverter
       rel.getCluster,
       traitSet,
       newInput,
-      agg.indicator,
       agg.getGroupSet,
       agg.getGroupSets,
       agg.getAggCallList)

@@ -67,6 +67,21 @@
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration",
   "properties" : {
+    "features" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration:Features",
+      "properties" : {
+        "web-submit" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "flink-revision" : {
+      "type" : "string"
+    },
+    "flink-version" : {
+      "type" : "string"
+    },
     "refresh-interval" : {
       "type" : "integer"
     },
@@ -75,12 +90,187 @@
     },
     "timezone-offset" : {
       "type" : "integer"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/datasets</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns all cluster data sets.</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-2127843514">Request</button>
+        <div id="-2127843514" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#2178839">Response</button>
+        <div id="2178839" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:dataset:ClusterDataSetListResponseBody",
+  "properties" : {
+    "dataSets" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:dataset:ClusterDataSetEntry",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "isComplete" : {
+            "type" : "boolean"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/datasets/delete/:triggerid</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the status for the delete operation of a cluster data set.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>triggerid</code> - 32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-2131471052">Request</button>
+        <div id="-2131471052" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#330413108">Response</button>
+        <div id="330413108" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
+  "properties" : {
+    "operation" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationInfo",
+      "properties" : {
+        "failure-cause" : {
+          "type" : "any"
+        }
+      }
     },
-    "flink-version" : {
-      "type" : "string"
-    },
-    "flink-revision" : {
-      "type" : "string"
+    "status" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "required" : true,
+          "enum" : [ "IN_PROGRESS", "COMPLETED" ]
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/datasets/:datasetid</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>DELETE</code></td>
+      <td class="text-left">Response code: <code>202 Accepted</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Triggers the deletion of a cluster data set. This async operation would return a 'triggerid' for further query identifier.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>datasetid</code> - 32-character hexadecimal string value that identifies a cluster data set.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1341404463">Request</button>
+        <div id="1341404463" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#711384652">Response</button>
+        <div id="711384652" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+  "properties" : {
+    "request-id" : {
+      "type" : "any"
     }
   }
 }            </code>
@@ -132,6 +322,21 @@
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarFileInfo",
         "properties" : {
+          "entry" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarEntryInfo",
+              "properties" : {
+                "description" : {
+                  "type" : "string"
+                },
+                "name" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
           "id" : {
             "type" : "string"
           },
@@ -140,21 +345,6 @@
           },
           "uploaded" : {
             "type" : "integer"
-          },
-          "entry" : {
-            "type" : "array",
-            "items" : {
-              "type" : "object",
-              "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarEntryInfo",
-              "properties" : {
-                "name" : {
-                  "type" : "string"
-                },
-                "description" : {
-                  "type" : "string"
-                }
-              }
-            }
           }
         }
       }
@@ -310,6 +500,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "entryClass" : {
       "type" : "string"
     },
+    "jobId" : {
+      "type" : "any"
+    },
+    "parallelism" : {
+      "type" : "integer"
+    },
     "programArgs" : {
       "type" : "string"
     },
@@ -318,12 +514,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "items" : {
         "type" : "string"
       }
-    },
-    "parallelism" : {
-      "type" : "integer"
-    },
-    "jobId" : {
-      "type" : "any"
     }
   }
 }            </code>
@@ -358,7 +548,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left" colspan="2"><h5><strong>/jars/:jarid/plan</strong></h5></td>
     </tr>
     <tr>
-      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left" style="width: 20%">Verb: <code>POST</code></td>
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
@@ -389,8 +579,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#550027726">Request</button>
-        <div id="550027726" class="collapse">
+        <button data-toggle="collapse" data-target="#552419128">Request</button>
+        <div id="552419128" class="collapse">
           <pre>
             <code>
 {
@@ -400,6 +590,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "entryClass" : {
       "type" : "string"
     },
+    "jobId" : {
+      "type" : "any"
+    },
+    "parallelism" : {
+      "type" : "integer"
+    },
     "programArgs" : {
       "type" : "string"
     },
@@ -408,12 +604,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "items" : {
         "type" : "string"
       }
-    },
-    "parallelism" : {
-      "type" : "integer"
-    },
-    "jobId" : {
-      "type" : "any"
     }
   }
 }            </code>
@@ -423,8 +613,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1311035100">Response</button>
-        <div id="1311035100" class="collapse">
+        <button data-toggle="collapse" data-target="#1313426502">Response</button>
+        <div id="1313426502" class="collapse">
           <pre>
             <code>
 {
@@ -489,8 +679,17 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunRequestBody",
   "properties" : {
+    "allowNonRestoredState" : {
+      "type" : "boolean"
+    },
     "entryClass" : {
       "type" : "string"
+    },
+    "jobId" : {
+      "type" : "any"
+    },
+    "parallelism" : {
+      "type" : "integer"
     },
     "programArgs" : {
       "type" : "string"
@@ -500,15 +699,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "items" : {
         "type" : "string"
       }
-    },
-    "parallelism" : {
-      "type" : "integer"
-    },
-    "jobId" : {
-      "type" : "any"
-    },
-    "allowNonRestoredState" : {
-      "type" : "boolean"
     },
     "savepointPath" : {
       "type" : "string"
@@ -580,6 +770,62 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       },
       "value" : {
         "type" : "string"
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobmanager/logs</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the list of log files on the JobManager.</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#6742555">Request</button>
+        <div id="6742555" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1230246947">Response</button>
+        <div id="1230246947" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogListInfo",
+  "properties" : {
+    "logs" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer"
+          }
+        }
       }
     }
   }
@@ -717,15 +963,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody",
   "properties" : {
-    "jobGraphFileName" : {
-      "type" : "string"
-    },
-    "jobJarFileNames" : {
-      "type" : "array",
-      "items" : {
-        "type" : "string"
-      }
-    },
     "jobArtifactFileNames" : {
       "type" : "array",
       "items" : {
@@ -739,6 +976,15 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "type" : "string"
           }
         }
+      }
+    },
+    "jobGraphFileName" : {
+      "type" : "string"
+    },
+    "jobJarFileNames" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
       }
     }
   }
@@ -908,30 +1154,39 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo",
   "properties" : {
+    "duration" : {
+      "type" : "integer"
+    },
+    "end-time" : {
+      "type" : "integer"
+    },
+    "isStoppable" : {
+      "type" : "boolean"
+    },
     "jid" : {
       "type" : "any"
     },
     "name" : {
       "type" : "string"
     },
-    "isStoppable" : {
-      "type" : "boolean"
+    "now" : {
+      "type" : "integer"
+    },
+    "plan" : {
+      "type" : "string"
+    },
+    "start-time" : {
+      "type" : "integer"
     },
     "state" : {
       "type" : "string",
       "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
     },
-    "start-time" : {
-      "type" : "integer"
-    },
-    "end-time" : {
-      "type" : "integer"
-    },
-    "duration" : {
-      "type" : "integer"
-    },
-    "now" : {
-      "type" : "integer"
+    "status-counts" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "integer"
+      }
     },
     "timestamps" : {
       "type" : "object",
@@ -945,33 +1200,14 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexDetailsInfo",
         "properties" : {
-          "id" : {
-            "type" : "any"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "parallelism" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
-          },
-          "start-time" : {
+          "duration" : {
             "type" : "integer"
           },
           "end-time" : {
             "type" : "integer"
           },
-          "duration" : {
-            "type" : "integer"
-          },
-          "tasks" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "integer"
-            }
+          "id" : {
+            "type" : "any"
           },
           "metrics" : {
             "type" : "object",
@@ -983,16 +1219,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "read-bytes-complete" : {
                 "type" : "boolean"
               },
-              "write-bytes" : {
-                "type" : "integer"
-              },
-              "write-bytes-complete" : {
-                "type" : "boolean"
-              },
               "read-records" : {
                 "type" : "integer"
               },
               "read-records-complete" : {
+                "type" : "boolean"
+              },
+              "write-bytes" : {
+                "type" : "integer"
+              },
+              "write-bytes-complete" : {
                 "type" : "boolean"
               },
               "write-records" : {
@@ -1002,18 +1238,28 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                 "type" : "boolean"
               }
             }
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parallelism" : {
+            "type" : "integer"
+          },
+          "start-time" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          },
+          "tasks" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
           }
         }
       }
-    },
-    "status-counts" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "type" : "integer"
-      }
-    },
-    "plan" : {
-      "type" : "string"
     }
   }
 }            </code>
@@ -1051,7 +1297,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>mode</code> (optional): String value that specifies the termination mode. Supported values are: "cancel, stop".</li>
+<li><code>mode</code> (optional): String value that specifies the termination mode. The only supported value is: "cancel".</li>
         </ul>
       </td>
     </tr>
@@ -1138,6 +1384,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "any"
       }
     },
+    "serialized-user-task-accumulators" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "any"
+      }
+    },
     "user-task-accumulators" : {
       "type" : "array",
       "items" : {
@@ -1154,12 +1406,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "type" : "string"
           }
         }
-      }
-    },
-    "serialized-user-task-accumulators" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "type" : "any"
       }
     }
   }
@@ -1217,49 +1463,67 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Counts",
       "properties" : {
-        "restored" : {
-          "type" : "integer"
-        },
-        "total" : {
-          "type" : "integer"
-        },
-        "in_progress" : {
-          "type" : "integer"
-        },
         "completed" : {
           "type" : "integer"
         },
         "failed" : {
           "type" : "integer"
+        },
+        "in_progress" : {
+          "type" : "integer"
+        },
+        "restored" : {
+          "type" : "integer"
+        },
+        "total" : {
+          "type" : "integer"
         }
       }
     },
-    "summary" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
-      "properties" : {
-        "state_size" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
-          "properties" : {
-            "min" : {
-              "type" : "integer"
-            },
-            "max" : {
-              "type" : "integer"
-            },
-            "avg" : {
-              "type" : "integer"
+    "history" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
+        "properties" : {
+          "alignment_buffered" : {
+            "type" : "integer"
+          },
+          "end_to_end_duration" : {
+            "type" : "integer"
+          },
+          "id" : {
+            "type" : "integer"
+          },
+          "is_savepoint" : {
+            "type" : "boolean"
+          },
+          "latest_ack_timestamp" : {
+            "type" : "integer"
+          },
+          "num_acknowledged_subtasks" : {
+            "type" : "integer"
+          },
+          "num_subtasks" : {
+            "type" : "integer"
+          },
+          "state_size" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+          },
+          "tasks" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
             }
+          },
+          "trigger_timestamp" : {
+            "type" : "integer"
           }
-        },
-        "end_to_end_duration" : {
-          "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
-        },
-        "alignment_buffered" : {
-          "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
         }
       }
     },
@@ -1271,36 +1535,39 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics",
           "properties" : {
-            "id" : {
+            "alignment_buffered" : {
               "type" : "integer"
             },
-            "status" : {
-              "type" : "string",
-              "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-            },
-            "is_savepoint" : {
+            "discarded" : {
               "type" : "boolean"
-            },
-            "trigger_timestamp" : {
-              "type" : "integer"
-            },
-            "latest_ack_timestamp" : {
-              "type" : "integer"
-            },
-            "state_size" : {
-              "type" : "integer"
             },
             "end_to_end_duration" : {
               "type" : "integer"
             },
-            "alignment_buffered" : {
+            "external_path" : {
+              "type" : "string"
+            },
+            "id" : {
+              "type" : "integer"
+            },
+            "is_savepoint" : {
+              "type" : "boolean"
+            },
+            "latest_ack_timestamp" : {
+              "type" : "integer"
+            },
+            "num_acknowledged_subtasks" : {
               "type" : "integer"
             },
             "num_subtasks" : {
               "type" : "integer"
             },
-            "num_acknowledged_subtasks" : {
+            "state_size" : {
               "type" : "integer"
+            },
+            "status" : {
+              "type" : "string",
+              "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
             },
             "tasks" : {
               "type" : "object",
@@ -1308,80 +1575,76 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
                 "properties" : {
-                  "id" : {
-                    "type" : "integer"
-                  },
-                  "status" : {
-                    "type" : "string",
-                    "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-                  },
-                  "latest_ack_timestamp" : {
-                    "type" : "integer"
-                  },
-                  "state_size" : {
+                  "alignment_buffered" : {
                     "type" : "integer"
                   },
                   "end_to_end_duration" : {
                     "type" : "integer"
                   },
-                  "alignment_buffered" : {
+                  "id" : {
+                    "type" : "integer"
+                  },
+                  "latest_ack_timestamp" : {
+                    "type" : "integer"
+                  },
+                  "num_acknowledged_subtasks" : {
                     "type" : "integer"
                   },
                   "num_subtasks" : {
                     "type" : "integer"
                   },
-                  "num_acknowledged_subtasks" : {
+                  "state_size" : {
                     "type" : "integer"
+                  },
+                  "status" : {
+                    "type" : "string",
+                    "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
                   }
                 }
               }
             },
-            "external_path" : {
-              "type" : "string"
-            },
-            "discarded" : {
-              "type" : "boolean"
+            "trigger_timestamp" : {
+              "type" : "integer"
             }
           }
-        },
-        "savepoint" : {
-          "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics"
         },
         "failed" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:FailedCheckpointStatistics",
           "properties" : {
-            "id" : {
-              "type" : "integer"
-            },
-            "status" : {
-              "type" : "string",
-              "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-            },
-            "is_savepoint" : {
-              "type" : "boolean"
-            },
-            "trigger_timestamp" : {
-              "type" : "integer"
-            },
-            "latest_ack_timestamp" : {
-              "type" : "integer"
-            },
-            "state_size" : {
+            "alignment_buffered" : {
               "type" : "integer"
             },
             "end_to_end_duration" : {
               "type" : "integer"
             },
-            "alignment_buffered" : {
+            "failure_message" : {
+              "type" : "string"
+            },
+            "failure_timestamp" : {
+              "type" : "integer"
+            },
+            "id" : {
+              "type" : "integer"
+            },
+            "is_savepoint" : {
+              "type" : "boolean"
+            },
+            "latest_ack_timestamp" : {
+              "type" : "integer"
+            },
+            "num_acknowledged_subtasks" : {
               "type" : "integer"
             },
             "num_subtasks" : {
               "type" : "integer"
             },
-            "num_acknowledged_subtasks" : {
+            "state_size" : {
               "type" : "integer"
+            },
+            "status" : {
+              "type" : "string",
+              "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
             },
             "tasks" : {
               "type" : "object",
@@ -1390,11 +1653,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                 "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
               }
             },
-            "failure_timestamp" : {
+            "trigger_timestamp" : {
               "type" : "integer"
-            },
-            "failure_message" : {
-              "type" : "string"
             }
           }
         },
@@ -1402,64 +1662,50 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:RestoredCheckpointStatistics",
           "properties" : {
-            "id" : {
-              "type" : "integer"
+            "external_path" : {
+              "type" : "string"
             },
-            "restore_timestamp" : {
+            "id" : {
               "type" : "integer"
             },
             "is_savepoint" : {
               "type" : "boolean"
             },
-            "external_path" : {
-              "type" : "string"
+            "restore_timestamp" : {
+              "type" : "integer"
             }
           }
+        },
+        "savepoint" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics"
         }
       }
     },
-    "history" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
-        "properties" : {
-          "id" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-          },
-          "is_savepoint" : {
-            "type" : "boolean"
-          },
-          "trigger_timestamp" : {
-            "type" : "integer"
-          },
-          "latest_ack_timestamp" : {
-            "type" : "integer"
-          },
-          "state_size" : {
-            "type" : "integer"
-          },
-          "end_to_end_duration" : {
-            "type" : "integer"
-          },
-          "alignment_buffered" : {
-            "type" : "integer"
-          },
-          "num_subtasks" : {
-            "type" : "integer"
-          },
-          "num_acknowledged_subtasks" : {
-            "type" : "integer"
-          },
-          "tasks" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
+    "summary" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
+      "properties" : {
+        "alignment_buffered" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        },
+        "end_to_end_duration" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        },
+        "state_size" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+          "properties" : {
+            "avg" : {
+              "type" : "integer"
+            },
+            "max" : {
+              "type" : "integer"
+            },
+            "min" : {
+              "type" : "integer"
             }
           }
         }
@@ -1516,32 +1762,35 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo",
   "properties" : {
-    "mode" : {
-      "type" : "any"
+    "externalization" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo:ExternalizedCheckpointInfo",
+      "properties" : {
+        "delete_on_cancellation" : {
+          "type" : "boolean"
+        },
+        "enabled" : {
+          "type" : "boolean"
+        }
+      }
     },
     "interval" : {
-      "type" : "integer"
-    },
-    "timeout" : {
-      "type" : "integer"
-    },
-    "min_pause" : {
       "type" : "integer"
     },
     "max_concurrent" : {
       "type" : "integer"
     },
-    "externalization" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo:ExternalizedCheckpointInfo",
-      "properties" : {
-        "enabled" : {
-          "type" : "boolean"
-        },
-        "delete_on_cancellation" : {
-          "type" : "boolean"
-        }
-      }
+    "min_pause" : {
+      "type" : "integer"
+    },
+    "mode" : {
+      "type" : "any"
+    },
+    "state_backend" : {
+      "type" : "string"
+    },
+    "timeout" : {
+      "type" : "integer"
     }
   }
 }            </code>
@@ -1595,36 +1844,33 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
   "properties" : {
-    "id" : {
-      "type" : "integer"
-    },
-    "status" : {
-      "type" : "string",
-      "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-    },
-    "is_savepoint" : {
-      "type" : "boolean"
-    },
-    "trigger_timestamp" : {
-      "type" : "integer"
-    },
-    "latest_ack_timestamp" : {
-      "type" : "integer"
-    },
-    "state_size" : {
+    "alignment_buffered" : {
       "type" : "integer"
     },
     "end_to_end_duration" : {
       "type" : "integer"
     },
-    "alignment_buffered" : {
+    "id" : {
+      "type" : "integer"
+    },
+    "is_savepoint" : {
+      "type" : "boolean"
+    },
+    "latest_ack_timestamp" : {
+      "type" : "integer"
+    },
+    "num_acknowledged_subtasks" : {
       "type" : "integer"
     },
     "num_subtasks" : {
       "type" : "integer"
     },
-    "num_acknowledged_subtasks" : {
+    "state_size" : {
       "type" : "integer"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
     },
     "tasks" : {
       "type" : "object",
@@ -1632,33 +1878,36 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
         "properties" : {
-          "id" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-          },
-          "latest_ack_timestamp" : {
-            "type" : "integer"
-          },
-          "state_size" : {
+          "alignment_buffered" : {
             "type" : "integer"
           },
           "end_to_end_duration" : {
             "type" : "integer"
           },
-          "alignment_buffered" : {
+          "id" : {
+            "type" : "integer"
+          },
+          "latest_ack_timestamp" : {
+            "type" : "integer"
+          },
+          "num_acknowledged_subtasks" : {
             "type" : "integer"
           },
           "num_subtasks" : {
             "type" : "integer"
           },
-          "num_acknowledged_subtasks" : {
+          "state_size" : {
             "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
           }
         }
       }
+    },
+    "trigger_timestamp" : {
+      "type" : "integer"
     }
   }
 }            </code>
@@ -1713,68 +1962,50 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails",
   "properties" : {
+    "alignment_buffered" : {
+      "type" : "integer"
+    },
+    "end_to_end_duration" : {
+      "type" : "integer"
+    },
     "id" : {
+      "type" : "integer"
+    },
+    "latest_ack_timestamp" : {
+      "type" : "integer"
+    },
+    "num_acknowledged_subtasks" : {
+      "type" : "integer"
+    },
+    "num_subtasks" : {
+      "type" : "integer"
+    },
+    "state_size" : {
       "type" : "integer"
     },
     "status" : {
       "type" : "string",
       "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
     },
-    "latest_ack_timestamp" : {
-      "type" : "integer"
-    },
-    "state_size" : {
-      "type" : "integer"
-    },
-    "end_to_end_duration" : {
-      "type" : "integer"
-    },
-    "alignment_buffered" : {
-      "type" : "integer"
-    },
-    "num_subtasks" : {
-      "type" : "integer"
-    },
-    "num_acknowledged_subtasks" : {
-      "type" : "integer"
+    "subtasks" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:SubtaskCheckpointStatistics",
+        "properties" : {
+          "index" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      }
     },
     "summary" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:Summary",
       "properties" : {
-        "state_size" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
-          "properties" : {
-            "min" : {
-              "type" : "integer"
-            },
-            "max" : {
-              "type" : "integer"
-            },
-            "avg" : {
-              "type" : "integer"
-            }
-          }
-        },
-        "end_to_end_duration" : {
-          "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
-        },
-        "checkpoint_duration" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointDuration",
-          "properties" : {
-            "sync" : {
-              "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
-            },
-            "async" : {
-              "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
-            }
-          }
-        },
         "alignment" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointAlignment",
@@ -1788,20 +2019,42 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             }
           }
-        }
-      }
-    },
-    "subtasks" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:SubtaskCheckpointStatistics",
-        "properties" : {
-          "index" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string"
+        },
+        "checkpoint_duration" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointDuration",
+          "properties" : {
+            "async" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "sync" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            }
+          }
+        },
+        "end_to_end_duration" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        },
+        "start_delay" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        },
+        "state_size" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+          "properties" : {
+            "avg" : {
+              "type" : "integer"
+            },
+            "max" : {
+              "type" : "integer"
+            },
+            "min" : {
+              "type" : "integer"
+            }
           }
         }
       }
@@ -1885,6 +2138,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       </td>
     </tr>
     <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>maxExceptions</code> (optional): Comma-separated list of integer values that specifies the upper limit of exceptions to return.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
       <td colspan="2">
         <button data-toggle="collapse" data-target="#-1011644505">Request</button>
         <div id="-1011644505" class="collapse">
@@ -1905,12 +2168,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo",
   "properties" : {
-    "root-exception" : {
-      "type" : "string"
-    },
-    "timestamp" : {
-      "type" : "integer"
-    },
     "all-exceptions" : {
       "type" : "array",
       "items" : {
@@ -1920,10 +2177,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "exception" : {
             "type" : "string"
           },
-          "task" : {
+          "location" : {
             "type" : "string"
           },
-          "location" : {
+          "task" : {
             "type" : "string"
           },
           "timestamp" : {
@@ -1931,6 +2188,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           }
         }
       }
+    },
+    "root-exception" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "integer"
     },
     "truncated" : {
       "type" : "boolean"
@@ -1986,6 +2249,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobExecutionResultResponseBody",
   "properties" : {
+    "job-execution-result" : {
+      "type" : "any"
+    },
     "status" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
@@ -1997,9 +2263,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "enum" : [ "IN_PROGRESS", "COMPLETED" ]
         }
       }
-    },
-    "job-execution-result" : {
-      "type" : "any"
     }
   }
 }            </code>
@@ -2229,6 +2492,15 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
   "properties" : {
+    "operation" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationInfo",
+      "properties" : {
+        "failure-cause" : {
+          "type" : "any"
+        }
+      }
+    },
     "status" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
@@ -2239,9 +2511,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "enum" : [ "IN_PROGRESS", "COMPLETED" ]
         }
       }
-    },
-    "operation" : {
-      "type" : "any"
     }
   }
 }            </code>
@@ -2283,11 +2552,11 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:SavepointTriggerRequestBody",
   "properties" : {
-    "target-directory" : {
-      "type" : "string"
-    },
     "cancel-job" : {
       "type" : "boolean"
+    },
+    "target-directory" : {
+      "type" : "string"
     }
   }
 }            </code>
@@ -2360,6 +2629,18 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
   "properties" : {
+    "operation" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:SavepointInfo",
+      "properties" : {
+        "failure-cause" : {
+          "type" : "any"
+        },
+        "location" : {
+          "type" : "string"
+        }
+      }
+    },
     "status" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
@@ -2370,9 +2651,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "enum" : [ "IN_PROGRESS", "COMPLETED" ]
         }
       }
-    },
-    "operation" : {
-      "type" : "any"
     }
   }
 }            </code>
@@ -2385,7 +2663,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
 <table class="table table-bordered">
   <tbody>
     <tr>
-      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/stop-with-savepoint</strong></h5></td>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/stop</strong></h5></td>
     </tr>
     <tr>
       <td class="text-left" style="width: 20%">Verb: <code>POST</code></td>
@@ -2406,19 +2684,19 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1622419335">Request</button>
-        <div id="1622419335" class="collapse">
+        <button data-toggle="collapse" data-target="#1146617568">Request</button>
+        <div id="1146617568" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:stop:StopWithSavepointRequestBody",
   "properties" : {
+    "drain" : {
+      "type" : "boolean"
+    },
     "targetDirectory" : {
       "type" : "string"
-    },
-    "endOfEventTime" : {
-      "type" : "boolean"
     }
   }
 }            </code>
@@ -2428,8 +2706,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1441715731">Response</button>
-        <div id="1441715731" class="collapse">
+        <button data-toggle="collapse" data-target="#965913964">Response</button>
+        <div id="965913964" class="collapse">
           <pre>
             <code>
 {
@@ -2497,39 +2775,29 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "name" : {
       "type" : "string"
     },
-    "parallelism" : {
+    "now" : {
       "type" : "integer"
     },
-    "now" : {
+    "parallelism" : {
       "type" : "integer"
     },
     "subtasks" : {
       "type" : "array",
       "items" : {
         "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:VertexTaskDetail",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
         "properties" : {
-          "subtask" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
-          },
           "attempt" : {
             "type" : "integer"
           },
-          "host" : {
-            "type" : "string"
-          },
-          "start-time" : {
+          "duration" : {
             "type" : "integer"
           },
           "end-time" : {
             "type" : "integer"
           },
-          "duration" : {
-            "type" : "integer"
+          "host" : {
+            "type" : "string"
           },
           "metrics" : {
             "type" : "object",
@@ -2541,16 +2809,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "read-bytes-complete" : {
                 "type" : "boolean"
               },
-              "write-bytes" : {
-                "type" : "integer"
-              },
-              "write-bytes-complete" : {
-                "type" : "boolean"
-              },
               "read-records" : {
                 "type" : "integer"
               },
               "read-records-complete" : {
+                "type" : "boolean"
+              },
+              "write-bytes" : {
+                "type" : "integer"
+              },
+              "write-bytes-complete" : {
                 "type" : "boolean"
               },
               "write-records" : {
@@ -2561,8 +2829,21 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               }
             }
           },
+          "start-time" : {
+            "type" : "integer"
+          },
           "start_time" : {
             "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          },
+          "subtask" : {
+            "type" : "integer"
+          },
+          "taskmanager-id" : {
+            "type" : "string"
           }
         }
       }
@@ -2692,10 +2973,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo",
   "properties" : {
-    "status" : {
-      "type" : "string",
-      "enum" : [ "deprecated", "ok" ]
-    },
     "backpressure-level" : {
       "type" : "string",
       "enum" : [ "ok", "low", "high" ]
@@ -2703,21 +2980,25 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "end-timestamp" : {
       "type" : "integer"
     },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "deprecated", "ok" ]
+    },
     "subtasks" : {
       "type" : "array",
       "items" : {
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo",
         "properties" : {
-          "subtask" : {
-            "type" : "integer"
-          },
           "backpressure-level" : {
             "type" : "string",
             "enum" : [ "ok", "low", "high" ]
           },
           "ratio" : {
             "type" : "number"
+          },
+          "subtask" : {
+            "type" : "integer"
           }
         }
       }
@@ -2845,14 +3126,14 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtasksAllAccumulatorsInfo:SubtaskAccumulatorsInfo",
         "properties" : {
-          "subtask" : {
-            "type" : "integer"
-          },
           "attempt" : {
             "type" : "integer"
           },
           "host" : {
             "type" : "string"
+          },
+          "subtask" : {
+            "type" : "integer"
           },
           "user-accumulators" : {
             "type" : "array",
@@ -2989,27 +3270,17 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
   "properties" : {
-    "subtask" : {
-      "type" : "integer"
-    },
-    "status" : {
-      "type" : "string",
-      "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
-    },
     "attempt" : {
       "type" : "integer"
     },
-    "host" : {
-      "type" : "string"
-    },
-    "start-time" : {
+    "duration" : {
       "type" : "integer"
     },
     "end-time" : {
       "type" : "integer"
     },
-    "duration" : {
-      "type" : "integer"
+    "host" : {
+      "type" : "string"
     },
     "metrics" : {
       "type" : "object",
@@ -3021,16 +3292,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "read-bytes-complete" : {
           "type" : "boolean"
         },
-        "write-bytes" : {
-          "type" : "integer"
-        },
-        "write-bytes-complete" : {
-          "type" : "boolean"
-        },
         "read-records" : {
           "type" : "integer"
         },
         "read-records-complete" : {
+          "type" : "boolean"
+        },
+        "write-bytes" : {
+          "type" : "integer"
+        },
+        "write-bytes-complete" : {
           "type" : "boolean"
         },
         "write-records" : {
@@ -3040,6 +3311,22 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "boolean"
         }
       }
+    },
+    "start-time" : {
+      "type" : "integer"
+    },
+    "start_time" : {
+      "type" : "integer"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+    },
+    "subtask" : {
+      "type" : "integer"
+    },
+    "taskmanager-id" : {
+      "type" : "string"
     }
   }
 }            </code>
@@ -3095,27 +3382,17 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
   "properties" : {
-    "subtask" : {
-      "type" : "integer"
-    },
-    "status" : {
-      "type" : "string",
-      "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
-    },
     "attempt" : {
       "type" : "integer"
     },
-    "host" : {
-      "type" : "string"
-    },
-    "start-time" : {
+    "duration" : {
       "type" : "integer"
     },
     "end-time" : {
       "type" : "integer"
     },
-    "duration" : {
-      "type" : "integer"
+    "host" : {
+      "type" : "string"
     },
     "metrics" : {
       "type" : "object",
@@ -3127,16 +3404,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "read-bytes-complete" : {
           "type" : "boolean"
         },
-        "write-bytes" : {
-          "type" : "integer"
-        },
-        "write-bytes-complete" : {
-          "type" : "boolean"
-        },
         "read-records" : {
           "type" : "integer"
         },
         "read-records-complete" : {
+          "type" : "boolean"
+        },
+        "write-bytes" : {
+          "type" : "integer"
+        },
+        "write-bytes-complete" : {
           "type" : "boolean"
         },
         "write-records" : {
@@ -3146,6 +3423,22 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "boolean"
         }
       }
+    },
+    "start-time" : {
+      "type" : "integer"
+    },
+    "start_time" : {
+      "type" : "integer"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+    },
+    "subtask" : {
+      "type" : "integer"
+    },
+    "taskmanager-id" : {
+      "type" : "string"
     }
   }
 }            </code>
@@ -3201,14 +3494,14 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptAccumulatorsInfo",
   "properties" : {
-    "subtask" : {
-      "type" : "integer"
-    },
     "attempt" : {
       "type" : "integer"
     },
     "id" : {
       "type" : "string"
+    },
+    "subtask" : {
+      "type" : "integer"
     },
     "user-accumulators" : {
       "type" : "array",
@@ -3355,13 +3648,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtasksTimesInfo:SubtaskTimeInfo",
         "properties" : {
-          "subtask" : {
+          "duration" : {
             "type" : "integer"
           },
           "host" : {
             "type" : "string"
           },
-          "duration" : {
+          "subtask" : {
             "type" : "integer"
           },
           "timestamps" : {
@@ -3440,21 +3733,14 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
         "properties" : {
-          "host" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
-          },
-          "start-time" : {
+          "duration" : {
             "type" : "integer"
           },
           "end-time" : {
             "type" : "integer"
           },
-          "duration" : {
-            "type" : "integer"
+          "host" : {
+            "type" : "string"
           },
           "metrics" : {
             "type" : "object",
@@ -3466,16 +3752,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "read-bytes-complete" : {
                 "type" : "boolean"
               },
-              "write-bytes" : {
-                "type" : "integer"
-              },
-              "write-bytes-complete" : {
-                "type" : "boolean"
-              },
               "read-records" : {
                 "type" : "integer"
               },
               "read-records-complete" : {
+                "type" : "boolean"
+              },
+              "write-bytes" : {
+                "type" : "integer"
+              },
+              "write-bytes-complete" : {
                 "type" : "boolean"
               },
               "write-records" : {
@@ -3486,16 +3772,75 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               }
             }
           },
+          "start-time" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          },
           "status-counts" : {
             "type" : "object",
             "additionalProperties" : {
               "type" : "integer"
             }
+          },
+          "taskmanager-id" : {
+            "type" : "string"
           }
         }
       }
     }
   }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/vertices/:vertexid/watermarks</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the watermarks for all subtasks of a task.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1153325552">Request</button>
+        <div id="1153325552" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1464053913">Response</button>
+        <div id="1464053913" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -3536,20 +3881,11 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:legacy:messages:ClusterOverviewWithVersion",
   "properties" : {
-    "taskmanagers" : {
-      "type" : "integer"
+    "flink-commit" : {
+      "type" : "string"
     },
-    "slots-total" : {
-      "type" : "integer"
-    },
-    "slots-available" : {
-      "type" : "integer"
-    },
-    "jobs-running" : {
-      "type" : "integer"
-    },
-    "jobs-finished" : {
-      "type" : "integer"
+    "flink-version" : {
+      "type" : "string"
     },
     "jobs-cancelled" : {
       "type" : "integer"
@@ -3557,11 +3893,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "jobs-failed" : {
       "type" : "integer"
     },
-    "flink-version" : {
-      "type" : "string"
+    "jobs-finished" : {
+      "type" : "integer"
     },
-    "flink-commit" : {
-      "type" : "string"
+    "jobs-running" : {
+      "type" : "integer"
+    },
+    "slots-available" : {
+      "type" : "integer"
+    },
+    "slots-total" : {
+      "type" : "integer"
+    },
+    "taskmanagers" : {
+      "type" : "integer"
     }
   }
 }            </code>
@@ -3666,6 +4011,15 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
   "properties" : {
+    "operation" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationInfo",
+      "properties" : {
+        "failure-cause" : {
+          "type" : "any"
+        }
+      }
+    },
     "status" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
@@ -3676,9 +4030,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "enum" : [ "IN_PROGRESS", "COMPLETED" ]
         }
       }
-    },
-    "operation" : {
-      "type" : "any"
     }
   }
 }            </code>
@@ -3727,20 +4078,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerInfo",
         "properties" : {
-          "id" : {
-            "type" : "any"
-          },
-          "path" : {
-            "type" : "string"
-          },
           "dataPort" : {
             "type" : "integer"
           },
-          "timeSinceLastHeartbeat" : {
-            "type" : "integer"
-          },
-          "slotsNumber" : {
-            "type" : "integer"
+          "freeResource" : {
+            "type" : "object",
+            "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
           },
           "freeSlots" : {
             "type" : "integer"
@@ -3752,13 +4095,52 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "cpuCores" : {
                 "type" : "integer"
               },
-              "physicalMemory" : {
-                "type" : "integer"
-              },
               "freeMemory" : {
                 "type" : "integer"
               },
               "managedMemory" : {
+                "type" : "integer"
+              },
+              "physicalMemory" : {
+                "type" : "integer"
+              }
+            }
+          },
+          "id" : {
+            "type" : "any"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "slotsNumber" : {
+            "type" : "integer"
+          },
+          "timeSinceLastHeartbeat" : {
+            "type" : "integer"
+          },
+          "totalResource" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+            "properties" : {
+              "cpuCores" : {
+                "type" : "number"
+              },
+              "extendedResources" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "number"
+                }
+              },
+              "managedMemory" : {
+                "type" : "integer"
+              },
+              "networkMemory" : {
+                "type" : "integer"
+              },
+              "taskHeapMemory" : {
+                "type" : "integer"
+              },
+              "taskOffHeapMemory" : {
                 "type" : "integer"
               }
             }
@@ -3867,20 +4249,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerDetailsInfo",
   "properties" : {
-    "id" : {
-      "type" : "any"
-    },
-    "path" : {
-      "type" : "string"
-    },
     "dataPort" : {
       "type" : "integer"
     },
-    "timeSinceLastHeartbeat" : {
-      "type" : "integer"
-    },
-    "slotsNumber" : {
-      "type" : "integer"
+    "freeResource" : {
+      "type" : "object",
+      "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
     },
     "freeSlots" : {
       "type" : "integer"
@@ -3892,61 +4266,31 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "cpuCores" : {
           "type" : "integer"
         },
-        "physicalMemory" : {
-          "type" : "integer"
-        },
         "freeMemory" : {
           "type" : "integer"
         },
         "managedMemory" : {
           "type" : "integer"
+        },
+        "physicalMemory" : {
+          "type" : "integer"
         }
       }
+    },
+    "id" : {
+      "type" : "any"
     },
     "metrics" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerMetricsInfo",
       "properties" : {
-        "heapUsed" : {
-          "type" : "integer"
-        },
-        "heapCommitted" : {
-          "type" : "integer"
-        },
-        "heapMax" : {
-          "type" : "integer"
-        },
-        "nonHeapUsed" : {
-          "type" : "integer"
-        },
-        "nonHeapCommitted" : {
-          "type" : "integer"
-        },
-        "nonHeapMax" : {
-          "type" : "integer"
-        },
         "directCount" : {
-          "type" : "integer"
-        },
-        "directUsed" : {
           "type" : "integer"
         },
         "directMax" : {
           "type" : "integer"
         },
-        "mappedCount" : {
-          "type" : "integer"
-        },
-        "mappedUsed" : {
-          "type" : "integer"
-        },
-        "mappedMax" : {
-          "type" : "integer"
-        },
-        "memorySegmentsAvailable" : {
-          "type" : "integer"
-        },
-        "memorySegmentsTotal" : {
+        "directUsed" : {
           "type" : "integer"
         },
         "garbageCollectors" : {
@@ -3955,16 +4299,151 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerMetricsInfo:GarbageCollectorInfo",
             "properties" : {
-              "name" : {
-                "type" : "string"
-              },
               "count" : {
                 "type" : "integer"
+              },
+              "name" : {
+                "type" : "string"
               },
               "time" : {
                 "type" : "integer"
               }
             }
+          }
+        },
+        "heapCommitted" : {
+          "type" : "integer"
+        },
+        "heapMax" : {
+          "type" : "integer"
+        },
+        "heapUsed" : {
+          "type" : "integer"
+        },
+        "mappedCount" : {
+          "type" : "integer"
+        },
+        "mappedMax" : {
+          "type" : "integer"
+        },
+        "mappedUsed" : {
+          "type" : "integer"
+        },
+        "memorySegmentsAvailable" : {
+          "type" : "integer"
+        },
+        "memorySegmentsTotal" : {
+          "type" : "integer"
+        },
+        "nonHeapCommitted" : {
+          "type" : "integer"
+        },
+        "nonHeapMax" : {
+          "type" : "integer"
+        },
+        "nonHeapUsed" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "path" : {
+      "type" : "string"
+    },
+    "slotsNumber" : {
+      "type" : "integer"
+    },
+    "timeSinceLastHeartbeat" : {
+      "type" : "integer"
+    },
+    "totalResource" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+      "properties" : {
+        "cpuCores" : {
+          "type" : "number"
+        },
+        "extendedResources" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "number"
+          }
+        },
+        "managedMemory" : {
+          "type" : "integer"
+        },
+        "networkMemory" : {
+          "type" : "integer"
+        },
+        "taskHeapMemory" : {
+          "type" : "integer"
+        },
+        "taskOffHeapMemory" : {
+          "type" : "integer"
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/taskmanagers/:taskmanagerid/logs</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the list of log files on a TaskManager.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>taskmanagerid</code> - 32-character hexadecimal string that identifies a task manager.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-584340868">Request</button>
+        <div id="-584340868" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#639163524">Response</button>
+        <div id="639163524" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogListInfo",
+  "properties" : {
+    "logs" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer"
           }
         }
       }
@@ -4028,6 +4507,72 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             <code>
 {
   "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/taskmanagers/:taskmanagerid/thread-dump</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the thread dump of the requested TaskManager.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>taskmanagerid</code> - 32-character hexadecimal string that identifies a task manager.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#451701794">Request</button>
+        <div id="451701794" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1465230704">Response</button>
+        <div id="1465230704" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo",
+  "properties" : {
+    "threadInfos" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo:ThreadInfo",
+        "properties" : {
+          "stringifiedThreadInfo" : {
+            "type" : "string"
+          },
+          "threadName" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
 }            </code>
           </pre>
          </div>

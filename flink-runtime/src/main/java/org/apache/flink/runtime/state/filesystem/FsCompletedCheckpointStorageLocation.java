@@ -26,7 +26,7 @@ import java.io.IOException;
 
 /**
  * A {@link CompletedCheckpointStorageLocation} that resides on a file system.
- * This locattion is internally represented through the checkpoint directory plus the metadata file.
+ * This location is internally represented through the checkpoint directory plus the metadata file.
  */
 public class FsCompletedCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
 
@@ -55,6 +55,10 @@ public class FsCompletedCheckpointStorageLocation implements CompletedCheckpoint
 	@Override
 	public String getExternalPointer() {
 		return externalPointer;
+	}
+
+	public Path getExclusiveCheckpointDir() {
+		return exclusiveCheckpointDir;
 	}
 
 	@Override

@@ -100,6 +100,13 @@ public abstract class RegisteredRpcConnection<F extends Serializable, G extends 
 		}
 	}
 
+	/**
+	 * Tries to reconnect to the {@link #targetAddress} by cancelling the pending registration
+	 * and starting a new pending registration.
+	 *
+	 * @return {@code false} if the connection has been closed or a concurrent modification has happened;
+	 * otherwise {@code true}
+	 */
 	public boolean tryReconnect() {
 		checkState(isConnected(), "Cannot reconnect to an unknown destination.");
 

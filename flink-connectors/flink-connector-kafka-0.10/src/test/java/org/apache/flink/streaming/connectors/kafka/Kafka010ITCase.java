@@ -167,6 +167,11 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		runAutoOffsetRetrievalAndCommitToKafka();
 	}
 
+	@Test(timeout = 60000)
+	public void testCollectingSchema() throws Exception {
+		runCollectingSchemaTest();
+	}
+
 	/**
 	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */
@@ -182,8 +187,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Long> streamWithTimestamps = env.addSource(new SourceFunction<Long>() {
 			private static final long serialVersionUID = -2255105836471289626L;
@@ -224,8 +228,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		FlinkKafkaConsumer010<Long> kafkaSource = new FlinkKafkaConsumer010<>(topic, new LimitedLongDeserializer(), standardProps);
 		kafkaSource.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Long>() {

@@ -122,6 +122,10 @@ public abstract class AbstractBlobCache implements Closeable {
 		this.serverAddress = serverAddress;
 	}
 
+	public File getStorageDir() {
+		return storageDir;
+	}
+
 	/**
 	 * Returns local copy of the file for the BLOB with the given key.
 	 *

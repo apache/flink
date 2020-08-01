@@ -185,14 +185,43 @@ public class KinesisConfigUtilTest {
 	// ----------------------------------------------------------------------
 
 	@Test
-	public void testAwsRegionOrEndpointInConsumerConfig() {
-		String expectedMessage = String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+	public void testNoAwsRegionOrEndpointInConsumerConfig() {
+		String expectedMessage = String.format("For FlinkKinesisConsumer AWS region ('%s') and/or AWS endpoint ('%s') must be set in the config.",
 				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT);
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(expectedMessage);
 
 		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testAwsRegionAndEndpointInConsumerConfig() {
+		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testAwsRegionInConsumerConfig() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testEndpointInConsumerConfig() {
+		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
 		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");

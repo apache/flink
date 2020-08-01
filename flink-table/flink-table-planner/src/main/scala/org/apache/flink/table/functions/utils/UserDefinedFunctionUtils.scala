@@ -19,16 +19,6 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
-import java.sql.{Date, Time, Timestamp}
-import java.util
-
-import com.google.common.primitives.Primitives
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
-import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -36,11 +26,21 @@ import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtract
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.dataview._
+import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.typeutils.FieldInfoUtils
-import org.apache.flink.util.InstantiationUtil
+
+import com.google.common.primitives.Primitives
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
+
+import java.lang.reflect.{Method, Modifier}
+import java.lang.{Integer => JInt, Long => JLong}
+import java.sql.{Date, Time, Timestamp}
+import java.util
 
 import scala.collection.mutable
 
@@ -67,11 +67,11 @@ object UserDefinedFunctionUtils {
     * of [[TypeInformation]]. Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
-      function: UserDefinedAggregateFunction[_, _],
-      signature: Seq[TypeInformation[_]])
+    function: ImperativeAggregateFunction[_, _],
+    signature: Seq[TypeInformation[_]])
   : Option[Array[Class[_]]] = {
     val accType = TypeExtractor.createTypeInfo(
-      function, classOf[UserDefinedAggregateFunction[_, _]], function.getClass, 1)
+      function, classOf[ImperativeAggregateFunction[_, _]], function.getClass, 1)
     val input = (Array(accType) ++ signature).toSeq
     getUserDefinedMethod(
       function,
@@ -292,11 +292,11 @@ object UserDefinedFunctionUtils {
   def createAggregateSqlFunction(
       name: String,
       displayName: String,
-      aggFunction: UserDefinedAggregateFunction[_, _],
+      aggFunction: ImperativeAggregateFunction[_, _],
       resultType: TypeInformation[_],
       accTypeInfo: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
-  : SqlFunction = {
+    : SqlFunction = {
     //check if a qualified accumulate method exists before create Sql function
     checkAndExtractMethods(aggFunction, "accumulate")
 
@@ -474,8 +474,8 @@ object UserDefinedFunctionUtils {
             case map: MapViewTypeInfo[_, _] =>
               val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
               if (mapView != null) {
-                val keyTypeInfo = mapView.keyTypeInfo
-                val valueTypeInfo = mapView.valueTypeInfo
+                val keyTypeInfo = mapView.keyType
+                val valueTypeInfo = mapView.valueType
                 val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
                   new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
                 } else {
@@ -499,7 +499,7 @@ object UserDefinedFunctionUtils {
             case list: ListViewTypeInfo[_] =>
               val listView = field.get(acc).asInstanceOf[ListView[_]]
               if (listView != null) {
-                val elementTypeInfo = listView.elementTypeInfo
+                val elementTypeInfo = listView.elementType
                 val newTypeInfo = if (elementTypeInfo != null) {
                   new ListViewTypeInfo(elementTypeInfo)
                 } else {

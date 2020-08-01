@@ -18,25 +18,26 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.util
-
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
-import org.apache.calcite.util.Optionality
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.{AggregateFunction, FunctionRequirement, TableAggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions.{AggregateFunction, FunctionRequirement, ImperativeAggregateFunction, TableAggregateFunction}
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
+import org.apache.calcite.util.Optionality
+
+import java.util
 
 /**
-  * Calcite wrapper for user-defined aggregate functions. Current, the aggregate function can be an
-  * [[AggregateFunction]] or a [[TableAggregateFunction]]
+  * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
+  * an [[AggregateFunction]] or a [[TableAggregateFunction]]
   *
   * @param name function name (used by SQL parser)
   * @param displayName name to be displayed in operator name
@@ -48,7 +49,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 class AggSqlFunction(
     name: String,
     displayName: String,
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
+    aggregateFunction: ImperativeAggregateFunction[_, _],
     val returnType: TypeInformation[_],
     val accType: TypeInformation[_],
     typeFactory: FlinkTypeFactory,
@@ -56,8 +57,8 @@ class AggSqlFunction(
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(returnType, typeFactory),
-    createOperandTypeInference(aggregateFunction, typeFactory),
-    createOperandTypeChecker(aggregateFunction),
+    createOperandTypeInference(aggregateFunction, typeFactory, accType),
+    createOperandTypeChecker(aggregateFunction, accType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
@@ -67,7 +68,7 @@ class AggSqlFunction(
     typeFactory
   ) {
 
-  def getFunction: UserDefinedAggregateFunction[_, _] = aggregateFunction
+  def getFunction: ImperativeAggregateFunction[_, _] = aggregateFunction
 
   override def isDeterministic: Boolean = aggregateFunction.isDeterministic
 
@@ -81,10 +82,11 @@ object AggSqlFunction {
   def apply(
       name: String,
       displayName: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
+      aggregateFunction: ImperativeAggregateFunction[_, _],
       returnType: TypeInformation[_],
       accType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory): AggSqlFunction = {
+      typeFactory: FlinkTypeFactory)
+    : AggSqlFunction = {
 
     val requiresOver = aggregateFunction match {
       case a: AggregateFunction[_, _] =>
@@ -103,8 +105,9 @@ object AggSqlFunction {
   }
 
   private[flink] def createOperandTypeInference(
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      typeFactory: FlinkTypeFactory)
+    aggregateFunction: ImperativeAggregateFunction[_, _],
+    typeFactory: FlinkTypeFactory,
+    accType: TypeInformation[_])
   : SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[AggregateFunction]] given information.
@@ -117,11 +120,13 @@ object AggSqlFunction {
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
+        val actualSignature = accType +: operandTypeInfo
+
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
           .getOrElse(
             throw new ValidationException(
               s"Given parameters of function do not match any signature. \n" +
-                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Actual: ${signatureToString(actualSignature)} \n" +
                 s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
@@ -153,8 +158,10 @@ object AggSqlFunction {
     }
   }
 
-  private[flink] def createOperandTypeChecker(aggregateFunction: UserDefinedAggregateFunction[_, _])
-  : SqlOperandTypeChecker = {
+  private[flink] def createOperandTypeChecker(
+      aggregateFunction: ImperativeAggregateFunction[_, _],
+      accType: TypeInformation[_])
+    : SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
@@ -195,13 +202,15 @@ object AggSqlFunction {
       : Boolean = {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
+        val actualSignature = accType +: operandTypeInfo
+
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function do not match any signature. \n" +
-                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Actual: ${signatureToString(actualSignature)} \n" +
                 s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}")
           } else {
             false

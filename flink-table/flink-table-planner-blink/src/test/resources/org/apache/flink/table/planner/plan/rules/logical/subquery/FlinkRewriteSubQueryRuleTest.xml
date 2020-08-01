@@ -1,0 +1,612 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNotCountStarInScalarQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(e) FROM y WHERE d > 10) > 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[>($3, 0)])
+      +- LogicalJoin(condition=[true], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
+            +- LogicalProject(e=[$1])
+               +- LogicalFilter(condition=[>($0, 10)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotEmptyGroupByInScalarQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10 GROUP BY f) > 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($SCALAR_QUERY({
+LogicalProject(EXPR$0=[$1])
+  LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+    LogicalProject(f=[$2])
+      LogicalFilter(condition=[>($0, 10)])
+        LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[>($3, 0)])
+      +- LogicalJoin(condition=[true], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalAggregate(group=[{}], agg#0=[SINGLE_VALUE($0)])
+            +- LogicalProject(EXPR$0=[$1])
+               +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+                  +- LogicalProject(f=[$2])
+                     +- LogicalFilter(condition=[>($0, 10)])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSqlFromTpcDsQ41">
+    <Resource name="sql">
+      <![CDATA[
+SELECT DISTINCT (i_product_name)
+FROM item i1
+WHERE i_manufact_id BETWEEN 738 AND 738 + 40
+  AND (SELECT count(*) AS item_cnt
+FROM item
+WHERE (i_manufact = i1.i_manufact AND
+  ((i_category = 'Women' AND
+    (i_color = 'powder' OR i_color = 'khaki') AND
+    (i_units = 'Ounce' OR i_units = 'Oz') AND
+    (i_size = 'medium' OR i_size = 'extra large')
+  ) OR
+    (i_category = 'Women' AND
+      (i_color = 'brown' OR i_color = 'honeydew') AND
+      (i_units = 'Bunch' OR i_units = 'Ton') AND
+      (i_size = 'N/A' OR i_size = 'small')
+    ) OR
+    (i_category = 'Men' AND
+      (i_color = 'floral' OR i_color = 'deep') AND
+      (i_units = 'N/A' OR i_units = 'Dozen') AND
+      (i_size = 'petite' OR i_size = 'large')
+    ) OR
+    (i_category = 'Men' AND
+      (i_color = 'light' OR i_color = 'cornflower') AND
+      (i_units = 'Box' OR i_units = 'Pound') AND
+      (i_size = 'medium' OR i_size = 'extra large')
+    ))) OR
+  (i_manufact = i1.i_manufact AND
+    ((i_category = 'Women' AND
+      (i_color = 'midnight' OR i_color = 'snow') AND
+      (i_units = 'Pallet' OR i_units = 'Gross') AND
+      (i_size = 'medium' OR i_size = 'extra large')
+    ) OR
+      (i_category = 'Women' AND
+        (i_color = 'cyan' OR i_color = 'papaya') AND
+        (i_units = 'Cup' OR i_units = 'Dram') AND
+        (i_size = 'N/A' OR i_size = 'small')
+      ) OR
+      (i_category = 'Men' AND
+        (i_color = 'orange' OR i_color = 'frosted') AND
+        (i_units = 'Each' OR i_units = 'Tbl') AND
+        (i_size = 'petite' OR i_size = 'large')
+      ) OR
+      (i_category = 'Men' AND
+        (i_color = 'forest' OR i_color = 'ghost') AND
+        (i_units = 'Lb' OR i_units = 'Bundle') AND
+        (i_size = 'medium' OR i_size = 'extra large')
+      )))) > 0
+ORDER BY i_product_name
+LIMIT 100
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
++- LogicalAggregate(group=[{0}])
+   +- LogicalProject(i_product_name=[$2])
+      +- LogicalFilter(condition=[AND(>=($0, 738), <=($0, +(738, 40)), >($SCALAR_QUERY({
+LogicalAggregate(group=[{}], item_cnt=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[OR(AND(=($1, $cor0.i_manufact), OR(AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'powder'), =($4, _UTF-16LE'khaki')), OR(=($5, _UTF-16LE'Ounce'), =($5, _UTF-16LE'Oz')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))), AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'brown'), =($4, _UTF-16LE'honeydew')), OR(=($5, _UTF-16LE'Bunch'), =($5, _UTF-16LE'Ton')), OR(=($6, _UTF-16LE'N/A'), =($6, _UTF-16LE'small'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'floral'), =($4, _UTF-16LE'deep')), OR(=($5, _UTF-16LE'N/A'), =($5, _UTF-16LE'Dozen')), OR(=($6, _UTF-16LE'petite'), =($6, _UTF-16LE'large'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'light'), =($4, _UTF-16LE'cornflower')), OR(=($5, _UTF-16LE'Box'), =($5, _UTF-16LE'Pound')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))))), AND(=($1, $cor0.i_manufact), OR(AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'midnight'), =($4, _UTF-16LE'snow')), OR(=($5, _UTF-16LE'Pallet'), =($5, _UTF-16LE'Gross')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))), AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'cyan'), =($4, _UTF-16LE'papaya')), OR(=($5, _UTF-16LE'Cup'), =($5, _UTF-16LE'Dram')), OR(=($6, _UTF-16LE'N/A'), =($6, _UTF-16LE'small'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'orange'), =($4, _UTF-16LE'frosted')), OR(=($5, _UTF-16LE'Each'), =($5, _UTF-16LE'Tbl')), OR(=($6, _UTF-16LE'petite'), =($6, _UTF-16LE'large'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'forest'), =($4, _UTF-16LE'ghost')), OR(=($5, _UTF-16LE'Lb'), =($5, _UTF-16LE'Bundle')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))))))])
+      LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_manufact_id, i_manufact, i_product_name, i_category, i_color, i_units, i_size)]]])
+}), 0))], variablesSet=[[$cor0]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_manufact_id, i_manufact, i_product_name, i_category, i_color, i_units, i_size)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
++- LogicalAggregate(group=[{0}])
+   +- LogicalProject(i_product_name=[$2])
+      +- LogicalFilter(condition=[AND(>=($0, 738), <=($0, +(738, 40)))])
+         +- LogicalJoin(condition=[=($7, $1)], joinType=[semi])
+            :- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_manufact_id, i_manufact, i_product_name, i_category, i_color, i_units, i_size)]]])
+            +- LogicalProject(i_manufact=[$1])
+               +- LogicalFilter(condition=[OR(AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'powder'), =($4, _UTF-16LE'khaki')), OR(=($5, _UTF-16LE'Ounce'), =($5, _UTF-16LE'Oz')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))), AND(=(_UTF-16LE'Women', $3), OR(=($4, _UTF-16LE'brown'), =($4, _UTF-16LE'honeydew')), OR(=($5, _UTF-16LE'Bunch'), =($5, _UTF-16LE'Ton')), OR(=($6, _UTF-16LE'N/A'), =($6, _UTF-16LE'small'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'floral'), =($4, _UTF-16LE'deep')), OR(=($5, _UTF-16LE'N/A'), =($5, _UTF-16LE'Dozen')), OR(=($6, _UTF-16LE'petite'), =($6, _UTF-16LE'large'))), AND(=(_UTF-16LE'Men', $3), OR(=($4, _UTF-16LE'light'), =($4, _UTF-16LE'cornflower')), OR(=($5, _UTF-16LE'Box'), =($5, _UTF-16LE'Pound')), OR(=(_UTF-16LE'medium', $6), =(_UTF-16LE'extra large', $6))), AND(=(_UTF-16LE'Women', $3), OR(=($4, _UTF-16LE'midnight'), =($4, _UTF-16LE'snow')), OR(=($5, _UTF-16LE'Pallet'), =($5, _UTF-16LE'Gross')), OR(=(_UTF-16LE'medium', $6), =(_UTF-16LE'extra large', $6))), AND(=(_UTF-16LE'Women', $3), OR(=($4, _UTF-16LE'cyan'), =($4, _UTF-16LE'papaya')), OR(=($5, _UTF-16LE'Cup'), =($5, _UTF-16LE'Dram')), OR(=(_UTF-16LE'N/A', $6), =(_UTF-16LE'small', $6))), AND(=(_UTF-16LE'Men', $3), OR(=($4, _UTF-16LE'orange'), =($4, _UTF-16LE'frosted')), OR(=($5, _UTF-16LE'Each'), =($5, _UTF-16LE'Tbl')), OR(=(_UTF-16LE'petite', $6), =(_UTF-16LE'large', $6))), AND(=(_UTF-16LE'Men', $3), OR(=($4, _UTF-16LE'forest'), =($4, _UTF-16LE'ghost')), OR(=($5, _UTF-16LE'Lb'), =($5, _UTF-16LE'Bundle')), OR(=(_UTF-16LE'medium', $6), =(_UTF-16LE'extra large', $6))))])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_manufact_id, i_manufact, i_product_name, i_category, i_color, i_units, i_size)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0)], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0.9]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0.9:DECIMAL(2, 1))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>=($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 1)], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 0.1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>=($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0.1:DECIMAL(2, 1))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation5">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<(0, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation6">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<(0.99:DECIMAL(3, 2), $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation7">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=(1, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithCorrelation8">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=(0.01:DECIMAL(3, 2), $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=($cor0.a, $0)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0.9]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0.9:DECIMAL(2, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>=($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 0.1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>=($SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}), 0.1:DECIMAL(2, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation5">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE d > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<(0, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation6">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE d > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<(0.99:DECIMAL(3, 2), $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation7">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE d > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=(1, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSupportedConversionWithoutCorrelation8">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE d > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=(0.01:DECIMAL(3, 2), $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -29,6 +29,7 @@ import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
@@ -237,5 +238,25 @@ public class NFACompilerTest extends TestLogger {
 		assertThat(NFACompiler.canProduceEmptyMatches(Pattern.begin("a")), is(false));
 		assertThat(NFACompiler.canProduceEmptyMatches(Pattern.begin("a").oneOrMore()), is(false));
 		assertThat(NFACompiler.canProduceEmptyMatches(Pattern.begin("a").oneOrMore().next("b").optional()), is(false));
+	}
+
+	@Test
+	public void testWindowTimeCorrectlySet() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").followedBy("middle").within(Time.seconds(10))
+				.followedBy("then").within(Time.seconds(20)).followedBy("end");
+
+		NFACompiler.NFAFactoryCompiler<Event> factory = new NFACompiler.NFAFactoryCompiler<>(pattern);
+		factory.compileFactory();
+		assertEquals(10000, factory.getWindowTime());
+	}
+
+	@Test
+	public void testMultipleWindowTimeWithZeroLength() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").followedBy("middle").within(Time.seconds(10))
+			.followedBy("then").within(Time.seconds(0)).followedBy("end");
+
+		NFACompiler.NFAFactoryCompiler<Event> factory = new NFACompiler.NFAFactoryCompiler<>(pattern);
+		factory.compileFactory();
+		assertEquals(0, factory.getWindowTime());
 	}
 }

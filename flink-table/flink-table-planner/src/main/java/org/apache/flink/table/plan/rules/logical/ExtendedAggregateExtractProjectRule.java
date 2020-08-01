@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.plan.rules.logical;
 
-import org.apache.flink.table.expressions.ResolvedFieldReference;
+import org.apache.flink.table.expressions.PlannerResolvedFieldReference;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.rel.LogicalTableAggregate;
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate;
 import org.apache.flink.table.plan.logical.rel.LogicalWindowTableAggregate;
 import org.apache.flink.table.plan.logical.rel.TableAggregate;
 
+import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
@@ -63,7 +64,12 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 	public static final ExtendedAggregateExtractProjectRule INSTANCE =
 		new ExtendedAggregateExtractProjectRule(
 			operand(SingleRel.class,
-				operand(RelNode.class, any())), RelFactories.LOGICAL_BUILDER);
+				operand(RelNode.class, any())),
+			RelBuilder.proto(
+				Contexts.of(
+					RelFactories.DEFAULT_STRUCT,
+					RelBuilder.Config.DEFAULT
+						.withPruneInputOfAggregate(false))));
 
 	public ExtendedAggregateExtractProjectRule(
 		RelOptRuleOperand operand,
@@ -207,7 +213,7 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 	}
 
 	private int getWindowTimeFieldIndex(LogicalWindow logicalWindow, RelNode input) {
-		ResolvedFieldReference timeAttribute = (ResolvedFieldReference) logicalWindow.timeAttribute();
+		PlannerResolvedFieldReference timeAttribute = (PlannerResolvedFieldReference) logicalWindow.timeAttribute();
 		return input.getRowType().getFieldNames().indexOf(timeAttribute.name());
 	}
 

@@ -2,7 +2,7 @@ This README gives an overview of how to build and contribute to the documentatio
 
 The documentation is included with the source of Apache Flink in order to ensure that you always
 have docs corresponding to your checked out version. The online documentation at
-http://flink.apache.org/ is also generated from the files found here.
+https://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
@@ -42,8 +42,7 @@ If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
 start a web server at `localhost:4000` and watch the docs directory for
 updates. Use this mode to preview changes locally. 
 
-If you have ruby 2.0 or greater, 
-you can call the script with the incremental flag `build_docs.sh -i`.
+You can call the script with the incremental flag `build_docs.sh -i`.
 Jekyll will then serve a live preview at `localhost:4000`,
 and it will be much faster because it will only rebuild the pages corresponding
 to files that are modified. Note that if you are making changes that affect
@@ -65,7 +64,7 @@ Configuration descriptions are auto generated from code. To trigger the generati
 mvn -Pgenerate-config-docs install
 ```
 
-The resulting html files will be written to `_include/generated`. Tables are regenerated each time the command is invoked.
+The resulting html files will be written to `_includes/generated`. Tables are regenerated each time the command is invoked.
 These tables can be directly included into the documentation:
 
 ```

@@ -27,6 +27,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -164,8 +165,6 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 		SavepointSource.initializeForTest();
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		client.setDetached(true);
-
 		JobID jobId = jobGraph.getJobID();
 
 		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
@@ -173,8 +172,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 		String dirPath = getTempDirPath(new AbstractID().toHexString());
 
 		try {
-			client.setDetached(true);
-			JobSubmissionResult result = client.submitJob(jobGraph, SavepointReaderITCase.class.getClassLoader());
+			JobSubmissionResult result = ClientUtils.submitJob(client, jobGraph);
 
 			boolean finished = false;
 			while (deadline.hasTimeLeft()) {
@@ -198,7 +196,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 			CompletableFuture<String> path = client.triggerSavepoint(result.getJobID(), dirPath);
 			return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 		} finally {
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 		}
 	}
 

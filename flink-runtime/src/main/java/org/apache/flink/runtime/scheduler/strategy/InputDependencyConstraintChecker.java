@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,11 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
-import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 
 /**
  * A wrapper class for {@link InputDependencyConstraint} checker.
@@ -45,13 +43,18 @@ public class InputDependencyConstraintChecker {
 		new SchedulingIntermediateDataSetManager();
 
 	public boolean check(final SchedulingExecutionVertex schedulingExecutionVertex) {
+		if (Iterables.isEmpty(schedulingExecutionVertex.getConsumedResults())) {
+			return true;
+		}
+
 		final InputDependencyConstraint inputConstraint = schedulingExecutionVertex.getInputDependencyConstraint();
-		if (schedulingExecutionVertex.getConsumedResultPartitions().isEmpty() || ALL.equals(inputConstraint)) {
-			return checkAll(schedulingExecutionVertex);
-		} else if (ANY.equals(inputConstraint)) {
-			return checkAny(schedulingExecutionVertex);
-		} else {
-			throw new IllegalArgumentException();
+		switch (inputConstraint) {
+			case ANY:
+				return checkAny(schedulingExecutionVertex);
+			case ALL:
+				return checkAll(schedulingExecutionVertex);
+			default:
+				throw new IllegalStateException("Unknown InputDependencyConstraint " + inputConstraint);
 		}
 	}
 
@@ -68,23 +71,29 @@ public class InputDependencyConstraintChecker {
 	}
 
 	private boolean checkAll(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		return schedulingExecutionVertex.getConsumedResultPartitions()
-			.stream()
-			.allMatch(this::partitionConsumable);
+		for (SchedulingResultPartition consumedResultPartition : schedulingExecutionVertex.getConsumedResults()) {
+			if (!partitionConsumable(consumedResultPartition)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private boolean checkAny(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		return schedulingExecutionVertex.getConsumedResultPartitions()
-			.stream()
-			.anyMatch(this::partitionConsumable);
+		for (SchedulingResultPartition consumedResultPartition : schedulingExecutionVertex.getConsumedResults()) {
+			if (partitionConsumable(consumedResultPartition)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean partitionConsumable(SchedulingResultPartition partition) {
-		if (BLOCKING.equals(partition.getPartitionType())) {
+		if (BLOCKING.equals(partition.getResultType())) {
 			return intermediateDataSetManager.allPartitionsFinished(partition);
 		} else {
-			SchedulingResultPartition.ResultPartitionState state = partition.getState();
-			return PRODUCING.equals(state) || DONE.equals(state);
+			final ResultPartitionState state = partition.getState();
+			return ResultPartitionState.CONSUMABLE.equals(state);
 		}
 	}
 

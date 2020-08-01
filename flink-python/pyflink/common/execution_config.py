@@ -15,16 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.common.restart_strategy import RestartStrategies
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
-
-if sys.version >= '3':
-    unicode = str
 
 __all__ = ['ExecutionConfig']
 
@@ -554,7 +550,7 @@ class ExecutionConfig(object):
         Configuration = gateway.jvm.org.apache.flink.configuration.Configuration
         j_global_job_parameters = Configuration()
         for key in global_job_parameters_dict:
-            if not isinstance(global_job_parameters_dict[key], (str, unicode)):
+            if not isinstance(global_job_parameters_dict[key], str):
                 value = str(global_job_parameters_dict[key])
             else:
                 value = global_job_parameters_dict[key]

@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -191,7 +192,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 			.setJobID(jobID)
 			.setJobVertexID(jobVertexID)
 			.setTaskName("test")
-			.setMemorySize(1024L * 1024L)
+			.setManagedMemorySize(1024L * 1024L)
 			.setInputSplitProvider(new MockInputSplitProvider())
 			.setBufferSize(1024 * 1024)
 			.setTaskStateManager(new TestTaskStateManager(localRecoveryConfig))
@@ -233,13 +234,14 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 			protected StreamTaskStateInitializer createStreamTaskStateManager(
 				Environment env,
 				StateBackend stateBackend,
-				ProcessingTimeService processingTimeService) {
+				TtlTimeProvider ttlTimeProvider) {
 
-				return new StreamTaskStateInitializerImpl(env, stateBackend, processingTimeService) {
+				return new StreamTaskStateInitializerImpl(env, stateBackend) {
 					@Override
 					protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 						AbstractKeyedStateBackend<K> keyedStatedBackend,
 						KeyContext keyContext,
+						ProcessingTimeService processingTimeService,
 						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 
 						return null;

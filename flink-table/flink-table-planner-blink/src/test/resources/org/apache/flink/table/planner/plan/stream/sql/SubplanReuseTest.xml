@@ -1,0 +1,687 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicUdf">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a FROM x WHERE b > random_udf(a))
+UNION ALL
+(SELECT a FROM x WHERE b > random_udf(a))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalFilter(condition=[>($1, random_udf($0))])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[>($1, random_udf($0))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a], where=[>(b, random_udf(a))], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDisableReuseTableSource">
+    <Resource name="sql">
+      <![CDATA[
+WITH t AS (SELECT * FROM x, y WHERE x.a = y.d)
+SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7], c0=[$8], d0=[$9], e0=[$10], f0=[$11])
++- LogicalFilter(condition=[AND(=($1, $10), <($0, 10), >($6, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      :  +- LogicalFilter(condition=[=($0, $3)])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[=($0, $3)])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[b]])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b, c], where=[<(a, 10)])
+:     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[hash[d]])
+:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[hash[e]])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b, c], where=[>(a, 5)])
+      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Exchange(distribution=[hash[d]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableReuseTableSource">
+    <Resource name="sql">
+      <![CDATA[
+WITH t AS (SELECT x.a AS a, x.b AS b, y.d AS d, y.e AS e FROM x, y WHERE x.a = y.d)
+SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7])
++- LogicalFilter(condition=[AND(=($1, $7), <($0, 10), >($4, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+      :  +- LogicalFilter(condition=[=($0, $3)])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+         +- LogicalFilter(condition=[=($0, $3)])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[b]])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+:     +- Exchange(distribution=[hash[d]], reuse_id=[2])
+:        +- Calc(select=[d, e])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[hash[e]])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b], where=[>(a, 5)])
+      :     +- Reused(reference_id=[1])
+      +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnAggregateWithNonDeterministicAggCall">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
++- LogicalFilter(condition=[AND(=(CAST($1):BIGINT, $5), >($4, 1))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], a=[MyFirst($1)], b=[MyLast($2)])
+      :  +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalAggregate(group=[{0}], a=[MyFirst($1)], b=[MyLast($2)])
+         +- LogicalProject(c=[$2], a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a1, b0])
++- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[a0]])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[c, a, b], where=[>(a, 1)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnCalc">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, c FROM x WHERE c LIKE 'test%')
+(SELECT r.a, LOWER(c) AS c, y.e FROM r, y WHERE r.a = y.d)
+UNION ALL
+(SELECT r.a, LOWER(c) AS c, y.e FROM r, y WHERE r.a = y.d)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], c=[LOWER($2)], e=[$4])
+:  +- LogicalFilter(condition=[=($0, $3)])
+:     +- LogicalJoin(condition=[true], joinType=[inner])
+:        :- LogicalProject(a=[$0], b=[$1], c=[$2])
+:        :  +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'test%')])
+:        :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], c=[LOWER($2)], e=[$4])
+   +- LogicalFilter(condition=[=($0, $3)])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2])
+         :  +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'test%')])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, c, e])
+:- Calc(select=[a, LOWER(c) AS c, e], reuse_id=[1])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, c], where=[LIKE(c, _UTF-16LE'test%')])
+:     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[hash[d]])
+:        +- Calc(select=[d, e])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicProject">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a, random_udf() FROM x WHERE a > 10)
+UNION ALL
+(SELECT a, random_udf() FROM x WHERE a > 10)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
+:  +- LogicalFilter(condition=[>($0, 10)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0], EXPR$1=[random_udf()])
+   +- LogicalFilter(condition=[>($0, 10)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, EXPR$1])
+:- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, c, v FROM x, LATERAL TABLE(str_split(c, '-')) AS T(v))
+SELECT * FROM r r1, r r2 WHERE r1.v = r2.v
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3], a0=[$4], b0=[$5], c0=[$6], v0=[$7])
++- LogicalFilter(condition=[=($3, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3])
+      :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :     :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :     +- LogicalTableFunctionScan(invocation=[str_split($cor0.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3])
+         +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableFunctionScan(invocation=[str_split($cor1.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(f0, f00)], select=[a, b, c, f0, a0, b0, c0, f00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[f0]])
+:  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f0]])
+   +- Correlate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTF">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
+SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7])
++- LogicalFilter(condition=[=($2, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
+      :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :     :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
+         +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[c]])
+:  +- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f0]])
+   +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnExchange">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, c FROM x WHERE c LIKE 'test%')
+SELECT * FROM r, y WHERE a = d AND e > 10
+UNION ALL
+SELECT * FROM r, y WHERE a = d AND f <> ''
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+:  +- LogicalFilter(condition=[AND(=($0, $3), >($4, 10))])
+:     +- LogicalJoin(condition=[true], joinType=[inner])
+:        :- LogicalProject(a=[$0], b=[$1], c=[$2])
+:        :  +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'test%')])
+:        :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+   +- LogicalFilter(condition=[AND(=($0, $3), <>($5, _UTF-16LE''))])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2])
+         :  +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'test%')])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b, c, d, e, f])
+:- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  :- Exchange(distribution=[hash[a]], reuse_id=[1])
+:  :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'test%')])
+:  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[hash[d]])
+:     +- Calc(select=[d, e, f], where=[>(e, 10)])
+:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Reused(reference_id=[1])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, e, f], where=[<>(f, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnGroupAggregate">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
++- LogicalFilter(condition=[AND(=(CAST($1):BIGINT, $5), >($4, 1))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+      :  +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+         +- LogicalProject(c=[$2], a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a1, b0])
++- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[a0]])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[c, a, b], where=[>(a, 1)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON ABS(a) = ABS(d) OR c = f
+           WHERE b > 1 and e < 2)
+
+SELECT a, b FROM r
+UNION ALL
+SELECT a, b * 2 AS b FROM r
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+:     +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+:        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], b=[*($1, 2)])
+   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+      +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b])
+:  +- Join(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], reuse_id=[1])
+:     :- Exchange(distribution=[single])
+:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[single])
+:        +- Calc(select=[d, e, f], where=[<(e, 2)])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Calc(select=[a, *(b, 2) AS b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnJoinNonDeterministicJoinCondition">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
+           WHERE b > 1 and e < 2)
+
+SELECT a, b FROM r
+UNION ALL
+SELECT a, b * 2 AS b FROM r
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+:     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+:        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], b=[*($1, 2)])
+   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+      +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b])
+:  +- Join(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], reuse_id=[1])
+:     :- Exchange(distribution=[single])
+:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[single])
+:        +- Calc(select=[d, e, f], where=[<(e, 2)])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Calc(select=[a, *(b, 2) AS b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnOverWindow">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
+:     +- OverAggregate(orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, RANK(*) AS w0$o0], reuse_id=[1])
+:        +- Exchange(distribution=[single])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, w0$o0], where=[>(b, 10)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnLimit">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b FROM x LIMIT 10)
+
+SELECT a, b FROM r WHERE a > 10
+UNION ALL
+SELECT a, b * 2 AS b FROM r WHERE b < 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalFilter(condition=[>($0, 10)])
+:     +- LogicalSort(fetch=[10])
+:        +- LogicalProject(a=[$0], b=[$1])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0], b=[*($1, 2)])
+   +- LogicalFilter(condition=[<($1, 10)])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b], where=[>(a, 10)])
+:  +- Limit(offset=[0], fetch=[10], reuse_id=[1])
+:     +- Exchange(distribution=[single])
+:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCall">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[MyFirst($2) OVER (PARTITION BY $2 ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[MyFirst($2) OVER (PARTITION BY $2 ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
+:     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, MyFirst(c) AS w0$o0], reuse_id=[1])
+:        +- Exchange(distribution=[hash[c]])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, w0$o0], where=[>(b, 10)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnSort">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.a > 1 AND r2.b < 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
++- LogicalFilter(condition=[AND(=($1, $4), >($1, 1), <($5, 10))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+      :  +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+         +- LogicalProject(c=[$2], a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a, a0)], select=[c, a, b, c0, a0, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[c, a, b], where=[>(a, 1)])
+:     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
+:        +- Exchange(distribution=[hash[c]])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[c, a, b], where=[<(b, 10)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnSortLimit">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC LIMIT 10)
+
+SELECT a, b FROM r WHERE a > 10
+UNION ALL
+SELECT a, b * 2 AS b FROM r WHERE b < 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$1], b=[$2])
+:  +- LogicalFilter(condition=[>($1, 10)])
+:     +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
+:        +- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+:           +- LogicalProject(c=[$2], a=[$0], b=[$1])
+:              +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$1], b=[*($2, 2)])
+   +- LogicalFilter(condition=[<($2, 10)])
+      +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
+         +- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+            +- LogicalProject(c=[$2], a=[$0], b=[$1])
+               +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b], where=[>(a, 10)])
+:  +- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], strategy=[RetractStrategy], reuse_id=[1])
+:     +- Exchange(distribution=[single])
+:        +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+:           +- Exchange(distribution=[hash[c]])
+:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseWithDynamicFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalIntersect(all=[false])
+:  :- LogicalProject(random=[$0])
+:  :  +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:  :     +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:  :        +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:  +- LogicalProject(random=[$0])
+:     +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:        +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(random=[$0])
+   +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+      +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[random]])
+:  +- GroupAggregate(groupBy=[random], select=[random])
+:     +- Exchange(distribution=[hash[random]])
+:        +- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:           :- Exchange(distribution=[hash[random]], reuse_id=[1])
+:           :  +- Calc(select=[random])
+:           :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
+:           :        +- Exchange(distribution=[single])
+:           :           +- Calc(select=[a AS random, RAND() AS EXPR$1])
+:           :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:           +- Reused(reference_id=[1])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

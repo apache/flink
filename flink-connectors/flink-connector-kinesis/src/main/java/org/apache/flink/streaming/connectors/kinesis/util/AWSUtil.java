@@ -31,6 +31,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
+import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
@@ -85,10 +86,11 @@ public class AWSUtil {
 				.withClientConfiguration(awsClientConfig);
 
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
-			// Set signingRegion as null, to facilitate mocking Kinesis for local tests
+			// If an endpoint is specified, we give preference to using an endpoint and use the region property to
+			// sign the request.
 			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
-													configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
-													null));
+				configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
+				configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 		} else {
 			builder.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 		}
@@ -171,6 +173,13 @@ public class AWSUtil {
 						configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
 						.withExternalId(configProps.getProperty(AWSConfigConstants.externalId(configPrefix)))
 						.withStsClient(baseCredentials)
+						.build();
+
+			case WEB_IDENTITY_TOKEN:
+				return WebIdentityTokenCredentialsProvider.builder()
+						.roleArn(configProps.getProperty(AWSConfigConstants.roleArn(configPrefix), null))
+						.roleSessionName(configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix), null))
+						.webIdentityTokenFile(configProps.getProperty(AWSConfigConstants.webIdentityTokenFile(configPrefix), null))
 						.build();
 
 			default:

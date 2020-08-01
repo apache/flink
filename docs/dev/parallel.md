@@ -82,7 +82,7 @@ env.execute("Word Count Example")
 
 ### Execution Environment Level
 
-As mentioned [here]({{ site.baseurl }}/dev/api_concepts.html#anatomy-of-a-flink-program) Flink
+As mentioned [here]({% link dev/datastream_api.md %}#anatomy-of-a-flink-program) Flink
 programs are executed in the context of an execution environment. An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
@@ -190,7 +190,7 @@ The maximum parallelism can be set in places where you can also set a parallelis
 `setMaxParallelism()` to set the maximum parallelism.
 
 The default setting for the maximum parallelism is roughly `operatorParallelism + (operatorParallelism / 2)` with
-a lower bound of `127` and an upper bound of `32768`.
+a lower bound of `128` and an upper bound of `32768`.
 
 <span class="label label-danger">Attention</span> Setting the maximum parallelism to a very large
 value can be detrimental to performance because some state backends have to keep internal data
