@@ -30,6 +30,9 @@ public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
 
 	public static final PickledByteArrayTypeInfo PICKLED_BYTE_ARRAY_TYPE_INFO = new PickledByteArrayTypeInfo();
 
+	protected PickledByteArrayTypeInfo() {
+	}
+
 	@Override
 	public boolean isBasicType() {
 		return false;
@@ -62,7 +65,6 @@ public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
 
 	@Override
 	public TypeSerializer<byte[]> createSerializer(ExecutionConfig config) {
-
 		return BytePrimitiveArraySerializer.INSTANCE;
 	}
 

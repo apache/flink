@@ -228,7 +228,7 @@ class PrimitiveArrayTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def INT_PRIMITIVE_ARRAY_TYPE_INFO():
-        WrapperTypeInfo(
+        return WrapperTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
 
@@ -299,7 +299,7 @@ class RowTypeInfo(WrapperTypeInfo):
         field_names = [name for name in j_field_names]
         return field_names
 
-    def get_field_index(self, field_name) -> int:
+    def get_field_index(self, field_name: str) -> int:
         return self._j_typeinfo.getFieldIndex(field_name)
 
     def get_field_types(self) -> List[TypeInformation]:
@@ -369,7 +369,7 @@ class Types(object):
     PICKLED_BYTE_ARRAY = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
 
     @staticmethod
-    def ROW(types):
+    def ROW(types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types. A row itself must not be
         null.
@@ -379,7 +379,7 @@ class Types(object):
         return RowTypeInfo(types)
 
     @staticmethod
-    def ROW_NAMED(names, types):
+    def ROW_NAMED(names: List[str], types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types and with given names. A row
         must not be null.
@@ -390,7 +390,7 @@ class Types(object):
         return RowTypeInfo(types, names)
 
     @staticmethod
-    def TUPLE(types):
+    def TUPLE(types: List[TypeInformation]):
         """
         Returns type information for Tuple with fields of the given types. A Tuple itself must not
         be null.
@@ -400,7 +400,7 @@ class Types(object):
         return TupleTypeInfo(types)
 
     @staticmethod
-    def PRIMITIVE_ARRAY(element_type):
+    def PRIMITIVE_ARRAY(element_type: TypeInformation):
         """
         Returns type information for arrays of primitive type (such as byte[]). The array must not
         be null.
@@ -428,79 +428,87 @@ class Types(object):
             raise TypeError("Invalid element type for a primitive array.")
 
 
-def from_java_type(j_type_info: JavaObject) -> TypeInformation:
+def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     gateway = get_gateway()
     JBasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
-    if is_instance_of(j_type_info, JBasicTypeInfo.STRING_TYPE_INFO):
+    if _is_instance_of(j_type_info, JBasicTypeInfo.STRING_TYPE_INFO):
         return Types.STRING()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.BOOLEAN_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.BOOLEAN_TYPE_INFO):
         return Types.BOOLEAN()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.BYTE_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.BYTE_TYPE_INFO):
         return Types.BYTE()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.SHORT_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.SHORT_TYPE_INFO):
         return Types.SHORT()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.INT_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.INT_TYPE_INFO):
         return Types.INT()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.LONG_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.LONG_TYPE_INFO):
         return Types.LONG()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.FLOAT_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.FLOAT_TYPE_INFO):
         return Types.FLOAT()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.DOUBLE_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.DOUBLE_TYPE_INFO):
         return Types.DOUBLE()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.CHAR_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.CHAR_TYPE_INFO):
         return Types.CHAR()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_INT_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.BIG_INT_TYPE_INFO):
         return Types.BIG_INT()
-    elif is_instance_of(j_type_info, JBasicTypeInfo.BIG_DEC_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.BIG_DEC_TYPE_INFO):
         return Types.BIG_DEC()
 
     JSqlTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
-    if is_instance_of(j_type_info, JSqlTimeTypeInfo.DATE):
+    if _is_instance_of(j_type_info, JSqlTimeTypeInfo.DATE):
         return Types.SQL_DATE()
-    elif is_instance_of(j_type_info, JSqlTimeTypeInfo.TIME):
+    elif _is_instance_of(j_type_info, JSqlTimeTypeInfo.TIME):
         return Types.SQL_TIME()
-    elif is_instance_of(j_type_info, JSqlTimeTypeInfo.TIMESTAMP):
+    elif _is_instance_of(j_type_info, JSqlTimeTypeInfo.TIMESTAMP):
         return Types.SQL_TIMESTAMP()
 
     JPrimitiveArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo \
         .PrimitiveArrayTypeInfo
 
-    if is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO):
+    if _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.BOOLEAN())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.BYTE())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.SHORT())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.INT())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.LONG())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.FLOAT())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.DOUBLE())
-    elif is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO):
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.CHAR())
 
     JPickledBytesTypeInfo = gateway.jvm \
         .org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo\
         .PICKLED_BYTE_ARRAY_TYPE_INFO
-    if is_instance_of(j_type_info, JPickledBytesTypeInfo):
+    if _is_instance_of(j_type_info, JPickledBytesTypeInfo):
         return Types.PICKLED_BYTE_ARRAY()
 
     JRowTypeInfo = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo
-    if is_instance_of(j_type_info, JRowTypeInfo):
+    if _is_instance_of(j_type_info, JRowTypeInfo):
         j_row_field_names = j_type_info.getFieldNames()
         j_row_field_types = j_type_info.getFieldTypes()
-        row_field_types = [from_java_type(j_row_field_type) for j_row_field_type in
+        row_field_types = [_from_java_type(j_row_field_type) for j_row_field_type in
                            j_row_field_types]
         return Types.ROW_NAMED(j_row_field_names, row_field_types)
+
+    JTupleTypeInfo = gateway.jvm.org.apache.flink.api.java.typeutils.TupleTypeInfo
+    if _is_instance_of(j_type_info, JTupleTypeInfo):
+        j_field_types = []
+        for i in range(j_type_info.getArity()):
+            j_field_types.append(j_type_info.getTypeAt(i))
+        field_types = [_from_java_type(j_field_type) for j_field_type in j_field_types]
+        return TupleTypeInfo(field_types)
 
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 
 
-def is_instance_of(java_object: JavaObject, java_type: Union[JavaObject, JavaClass]) -> bool:
+def _is_instance_of(java_object: JavaObject, java_type: Union[JavaObject, JavaClass]) -> bool:
     if isinstance(java_type, JavaObject):
         return java_object.equals(java_type)
     elif isinstance(java_type, JavaClass):
