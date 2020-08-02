@@ -23,7 +23,7 @@ import org.junit.Test;
 import java.net.ServerSocket;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -49,16 +49,10 @@ public class JMXServiceTest {
 	 */
 	@Test
 	public void testJMXServiceInitWithInvalidPorts() throws Exception {
-		ServerSocket socket = null;
-		try {
-			socket = new ServerSocket(23456);
-			assertEquals(23456, socket.getLocalPort());
+		try (ServerSocket socket = new ServerSocket(34567)) {
+			assertEquals(34567, socket.getLocalPort());
 			JMXService.startInstance("23456");
-			assertNull(JMXService.getInstance());
-		} finally {
-			if (socket != null) {
-				socket.close();
-			}
+			assertFalse(JMXService.getInstance().isPresent());
 		}
 	}
 }

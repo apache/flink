@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -34,10 +35,14 @@ public class JMXServerOptions {
 	public static final ConfigOption<String>JMX_SERVER_PORT =
 		key("jmx.server.port")
 			.noDefaultValue()
-			.withDescription("The port range for the JMX server to start the registry. The " +
-				"port config can be a single port: \"9123\", a range of ports: \"50100-50200\", " +
-				"or a list of ranges and ports: \"50100-50200,50300-50400,51234\". \n" +
-				"this option overrides metrics.reporter.*.port configurations.");
+			.withDescription(
+			new Description.DescriptionBuilder()
+				.text("The port range for the JMX server to start the registry. The " +
+					"port config can be a single port: \"9123\", a range of ports: \"50100-50200\", " +
+					"or a list of ranges and ports: \"50100-50200,50300-50400,51234\". ")
+				.linebreak()
+				.text("This option overrides metrics.reporter.*.port option.")
+				.build());
 
 	// ------------------------------------------------------------------------
 

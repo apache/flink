@@ -31,6 +31,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import java.lang.management.ManagementFactory;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -60,10 +61,11 @@ public class JMXServerTest {
 		MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
 		try {
-			JMXServer server = JMXService.getInstance();
+			Optional<JMXServer> server = JMXService.getInstance();
+			assertTrue(server.isPresent());
 			mBeanServer.registerMBean(testObject, testObjectName);
 
-			JMXServiceURL url = new JMXServiceURL("service:jmx:rmi://localhost:" + server.getPort() + "/jndi/rmi://localhost:" + server.getPort() + "/jmxrmi");
+			JMXServiceURL url = new JMXServiceURL("service:jmx:rmi://localhost:" + server.get().getPort() + "/jndi/rmi://localhost:" + server.get().getPort() + "/jmxrmi");
 			JMXConnector jmxConn = JMXConnectorFactory.connect(url);
 			MBeanServerConnection mbeanConnConn = jmxConn.getMBeanServerConnection();
 

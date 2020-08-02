@@ -36,11 +36,9 @@ public class JMXService {
 
 	/**
 	 * Acquire the global singleton JMXServer instance.
-	 *
-	 * @return JMXServer static instance.
 	 */
-	public static JMXServer getInstance() {
-		return jmxServer;
+	public static Optional<JMXServer> getInstance() {
+		return Optional.ofNullable(jmxServer);
 	}
 
 	/**
@@ -60,7 +58,7 @@ public class JMXService {
 					jmxServer = startJMXServerWithPortRanges(ports);
 				}
 				if (jmxServer == null) {
-					LOG.error("Could not start JMx server on any configured port(s) in: " + portsConfig);
+					LOG.error("Could not start JMX server on any configured port(s) in: " + portsConfig);
 				}
 			}
 		} else {
@@ -79,11 +77,7 @@ public class JMXService {
 	}
 
 	public static Optional<Integer> getPort() {
-		if (jmxServer == null) {
-			return Optional.empty();
-		} else {
-			return Optional.of(jmxServer.getPort());
-		}
+		return Optional.ofNullable(jmxServer).map(JMXServer::getPort);
 	}
 
 	private static JMXServer startJMXServerWithPortRanges(Iterator<Integer> ports) {
