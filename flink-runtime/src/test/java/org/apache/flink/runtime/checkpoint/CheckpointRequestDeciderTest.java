@@ -119,13 +119,13 @@ public class CheckpointRequestDeciderTest {
 	public void testSavepointTiming() {
 		testTiming(regularSavepoint(), TriggerExpectation.IMMEDIATELY);
 		testTiming(periodicSavepoint(), TriggerExpectation.IMMEDIATELY);
-		testTiming(nonForcedSavepoint(), TriggerExpectation.AFTER_PAUSE);
+		testTiming(nonForcedSavepoint(), TriggerExpectation.IMMEDIATELY);
 	}
 
 	@Test
 	public void testCheckpointTiming() {
 		testTiming(regularCheckpoint(), TriggerExpectation.DROPPED);
-		testTiming(manualCheckpoint(), TriggerExpectation.AFTER_PAUSE);
+		testTiming(manualCheckpoint(), TriggerExpectation.IMMEDIATELY);
 	}
 
 	private enum TriggerExpectation {IMMEDIATELY, AFTER_PAUSE, DROPPED}
