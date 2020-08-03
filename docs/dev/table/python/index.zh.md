@@ -31,6 +31,7 @@ Python Table API允许用户使用Python语言开发[Table API]({{ site.baseurl 
 ## Where to go next?
 
 - [环境安装]({{ site.baseurl }}/zh/dev/table/python/installation.html): 介绍了如何设置Python Table API的执行环境。
+- [Python数据类型]({{ site.baseurl }}/zh/dev/table/python/python_types.html): 介绍Python数据类型。
 - [自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html): 有关如何定义Python用户自定义函数的说明。
 - [自定义向量化函数]({{ site.baseurl }}/zh/dev/table/python/vectorized_python_udfs.html): 有关如何定义向量化Python用户自定义函数的说明。
 - [PyFlink Table 和 Pandas DataFrame 互转]({{ site.baseurl }}/zh/dev/table/python/conversion_of_pandas.html): 介绍了PyFlink Table和Pandas DataFrame之间如何互转。
