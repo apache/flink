@@ -25,33 +25,28 @@ under the License.
 * ToC
 {:toc}
 
-## Monitoring Current Event Time
+<a name="monitoring-current-event-time"></a>
 
-Flink's [event time]({{ site.baseurl }}/dev/event_time.html) and watermark support are powerful features for handling
-out-of-order events. However, it's harder to understand what exactly is going on because the progress of time
-is tracked within the system.
+## 监控当前事件时间（Event Time）
 
-Low watermarks of each task can be accessed through Flink web interface or [metrics system]({{ site.baseurl }}/monitoring/metrics.html).
+Flink 的[事件时间]({% link dev/event_time.zh.md %})和 watermark 支持对于处理乱序事件是十分强大的特性。然而，由于是系统内部跟踪时间进度，所以很难了解究竟正在发生什么。
 
-Each Task in Flink exposes a metric called `currentInputWatermark` that represents the lowest watermark received
-by this task. This long value represents the "current event time".
-The value is calculated by taking the minimum of all watermarks received by upstream operators. This means that 
-the event time tracked with watermarks is always dominated by the furthest-behind source.
+可以通过 Flink web 界面或[指标系统]({% link monitoring/metrics.zh.md %})访问 task 的 low watermarks。
 
-The low watermark metric is accessible **using the web interface**, by choosing a task in the metric tab,
-and selecting the `<taskNr>.currentInputWatermark` metric. In the new box you'll now be able to see 
-the current low watermark of the task.
+Flink 中的 task 通过调用 `currentInputWatermark` 方法暴露一个指标，该指标表示当前 task 所接收到的 the lowest watermark。这个 long 类型值表示“当前事件时间”。该值通过获取上游算子收到的所有 watermarks 的最小值来计算。这意味着用 watermarks 跟踪的事件时间总是由最落后的 source 控制。
 
-Another way of getting the metric is using one of the **metric reporters**, as described in the documentation
-for the [metrics system]({{ site.baseurl }}/monitoring/metrics.html).
-For local setups, we recommend using the JMX metric reporter and a tool like [VisualVM](https://visualvm.github.io/).
+**使用 web 界面**可以访问 low watermark 指标，在指标选项卡中选择一个 task，然后选择 ```<taskNr>.currentInputWatermark``` 指标。在新的显示框中，你可以看到此 task 的当前 low watermark。
+
+获取指标的另一种方式是使用**指标报告器**之一，如[指标系统]({% link monitoring/metrics.zh.md %})文档所述。对于本地集群设置，我们推荐使用 JMX 指标报告器和类似于 [VisualVM](https://visualvm.github.io/) 的工具。
 
 
 
 
-## Handling Event Time Stragglers
+<a name="handling-event-time-stragglers"></a>
 
-  - Approach 1: Watermark stays late (indicated completeness), windows fire early
-  - Approach 2: Watermark heuristic with maximum lateness, windows accept late data
+## 处理散乱的事件时间
+
+  - 方式 1：延迟的 Watermark（表明完整性），窗口提前触发
+  - 方式 2：具有最大延迟启发式的 Watermark，窗口接受迟到的数据
 
 {% top %}
