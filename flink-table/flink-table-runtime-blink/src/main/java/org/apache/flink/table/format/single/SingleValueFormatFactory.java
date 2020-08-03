@@ -23,6 +23,9 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -51,7 +54,7 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 			Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
-
+		validateTableSchema(context.getCatalogTable().getSchema());
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
 			public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -75,8 +78,8 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 	@Override
 	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
 			Context context, ReadableConfig formatOptions) {
-			FactoryUtil.validateFactoryOptions(this, formatOptions);
-
+		FactoryUtil.validateFactoryOptions(this, formatOptions);
+		validateTableSchema(context.getCatalogTable().getSchema());
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
 			public SerializationSchema<RowData> createRuntimeEncoder(
@@ -106,6 +109,16 @@ public class SingleValueFormatFactory implements DeserializationFormatFactory, S
 	@Override
 	public Set<ConfigOption<?>> optionalOptions() {
 		return Collections.emptySet();
+	}
+
+	private static void validateTableSchema(TableSchema tableSchema) {
+		long physicalColumnCount = tableSchema.getTableColumns()
+			.stream()
+			.filter(TableColumn::isGenerated)
+			.count();
+		if (physicalColumnCount > 1) {
+			throw new ValidationException("Single value should have only one physical column");
+		}
 	}
 
 }
