@@ -343,7 +343,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		containerInfo.addAllVolumes(params.containerVolumes());
 		taskInfo.setContainer(containerInfo);
 
-		LOG.debug("Starting TaskExecutor {} with command: {}", slaveId, taskInfo.getCommand().getValue());
+		LOG.info("Starting TaskExecutor {} with command: {}", slaveId, taskInfo.getCommand().getValue());
 
 		return taskInfo.build();
 	}
