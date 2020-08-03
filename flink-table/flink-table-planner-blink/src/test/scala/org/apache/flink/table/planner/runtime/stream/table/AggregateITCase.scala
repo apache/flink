@@ -52,10 +52,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDistinctUDAGG(): Unit = {
-    val testAgg = new DataViewTestAgg
     val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e)
-      .select('e, testAgg.distinct('d, 'e))
+      .select('e, call(classOf[DataViewTestAgg], 'd, 'e).distinct())
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -275,10 +274,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val testAgg = new DataViewTestAgg
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, distinct('c), testAgg('c, 'b))
+      .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -364,10 +362,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val testAgg = new DataViewTestAgg
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, distinct('c), testAgg('c, 'b))
+      .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
     val sink = new TestingRetractSink
     t.toRetractStream[Row].addSink(sink).setParallelism(1)

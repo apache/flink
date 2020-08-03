@@ -32,6 +32,10 @@ import java.io.IOException;
  */
 @Internal
 public class NullSerializer extends TypeSerializerSingleton<Object> {
+
+	// TODO move this class to org.apache.flink.table.runtime.typeutils
+	//  after we dropped the legacy ListView/MapView logic
+
 	private static final long serialVersionUID = -5381596724707742625L;
 
 	public static final NullSerializer INSTANCE = new NullSerializer();
@@ -60,7 +64,7 @@ public class NullSerializer extends TypeSerializerSingleton<Object> {
 
 	@Override
 	public int getLength() {
-		return 0;
+		return 1;
 	}
 
 	@Override
@@ -76,12 +80,13 @@ public class NullSerializer extends TypeSerializerSingleton<Object> {
 
 	@Override
 	public Object deserialize(Object reuse, DataInputView source) throws IOException {
+		source.readByte();
 		return null;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-
+		target.writeByte(source.readByte());
 	}
 
 	@Override

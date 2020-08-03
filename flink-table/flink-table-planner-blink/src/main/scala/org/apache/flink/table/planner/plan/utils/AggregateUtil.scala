@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampData}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
@@ -39,6 +40,7 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
@@ -66,6 +68,7 @@ import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -340,7 +343,7 @@ object AggregateUtil extends Enumeration {
         call,
         index,
         argIndexes,
-        udf,
+        udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
         hasStateBackedDataViews,
         needsRetraction)
 
@@ -360,19 +363,21 @@ object AggregateUtil extends Enumeration {
       call: AggregateCall,
       index: Int,
       argIndexes: Array[Int],
-      udf: UserDefinedFunction,
+      udf: ImperativeAggregateFunction[_, _],
       hasStateBackedDataViews: Boolean,
       needsRetraction: Boolean)
     : AggregateInfo = {
 
     val function = call.getAggregation.asInstanceOf[BridgingSqlAggFunction]
 
+    val dataTypeFactory = function.getDataTypeFactory
+
     val inference = function.getTypeInference
 
     // not all information is available in the call context of aggregate functions at this location
     // e.g. literal information is lost because the aggregation is split into multiple operators
     val callContext = new OperatorBindingCallContext(
-      function.getDataTypeFactory,
+      dataTypeFactory,
       udf,
       new AggCallBinding(
         function.getTypeFactory,
@@ -401,6 +406,7 @@ object AggregateUtil extends Enumeration {
       inference.getOutputTypeStrategy)
 
     createAggregateInfo(
+      dataTypeFactory,
       call,
       udf,
       index,
@@ -413,8 +419,9 @@ object AggregateUtil extends Enumeration {
   }
 
   private def createAggregateInfo(
+      dataTypeFactory: DataTypeFactory,
       call: AggregateCall,
-      udf: UserDefinedFunction,
+      udf: ImperativeAggregateFunction[_, _],
       index: Int,
       argIndexes: Array[Int],
       inputDataTypes: Array[DataType],
@@ -424,7 +431,18 @@ object AggregateUtil extends Enumeration {
       hasStateBackedDataViews: Boolean)
     : AggregateInfo = {
 
-    // TODO handle data views here
+    // extract data views and adapt the data views in the accumulator type
+    // if a view is backed by a state backend
+    val dataViewSpecs: Array[DataViewSpec] = if (hasStateBackedDataViews) {
+      DataViewUtils.extractDataViews(index, accumulatorDataType).asScala.toArray
+    } else {
+      Array()
+    }
+    val adjustedAccumulatorDataType = if (hasStateBackedDataViews) {
+      DataViewUtils.replaceDataViewsWithNull(accumulatorDataType)
+    } else {
+      accumulatorDataType
+    }
 
     AggregateInfo(
         call,
@@ -432,8 +450,8 @@ object AggregateUtil extends Enumeration {
         index,
         argIndexes,
         inputDataTypes,
-        Array(accumulatorDataType),
-        Array(),
+        Array(adjustedAccumulatorDataType),
+        dataViewSpecs,
         outputDataType,
         needsRetraction)
   }

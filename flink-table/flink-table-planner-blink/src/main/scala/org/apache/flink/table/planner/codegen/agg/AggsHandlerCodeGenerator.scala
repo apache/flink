@@ -1291,7 +1291,7 @@ object AggsHandlerCodeGenerator {
       case Some(serializer) =>
         ctx.addReusableObject(serializer, "serializer")
       case None =>
-        throw new UnsupportedOperationException("Data type serialization not supported.")
+        ctx.addReusableExternalSerializer(dataType())
     }
   }
 }

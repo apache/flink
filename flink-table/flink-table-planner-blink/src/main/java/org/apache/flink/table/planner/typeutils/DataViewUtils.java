@@ -20,27 +20,119 @@ package org.apache.flink.table.planner.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.dataview.NullSerializer;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.inference.TypeTransformation;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasNested;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utilities to deal with {@link DataView}s.
+ *
+ * <p>A {@link DataView} is either represented as a regular {@link StructuredType} or as a {@link RawType}
+ * that serializes to {@code null} when backed by a state backend. In the latter case, a {@link DataViewSpec}
+ * contains all information necessary to store and retrieve data from state.
  */
 @Internal
 public final class DataViewUtils {
 
+	/**
+	 * Searches for data views in the data type of an accumulator and extracts them.
+	 */
+	public static List<DataViewSpec> extractDataViews(int aggIndex, DataType accumulatorDataType) {
+		final LogicalType accumulatorType = accumulatorDataType.getLogicalType();
+		if (!hasRoot(accumulatorType, LogicalTypeRoot.ROW) &&
+				!hasRoot(accumulatorType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+			return Collections.emptyList();
+		}
+		final List<String> fieldNames = getFieldNames(accumulatorType);
+		final List<DataType> fieldDataTypes = accumulatorDataType.getChildren();
+
+		final List<DataViewSpec> specs = new ArrayList<>();
+		for (int fieldIndex = 0; fieldIndex < fieldDataTypes.size(); fieldIndex++) {
+			final DataType fieldDataType = fieldDataTypes.get(fieldIndex);
+			final LogicalType fieldType = fieldDataType.getLogicalType();
+			if (isDataView(fieldType, ListView.class)) {
+				specs.add(
+					new ListViewSpec(
+						createStateId(aggIndex, fieldNames.get(fieldIndex)),
+						fieldIndex,
+						fieldDataType.getChildren().get(0))
+				);
+			} else if (isDataView(fieldType, MapView.class)) {
+				specs.add(
+					new MapViewSpec(
+						createStateId(aggIndex, fieldNames.get(fieldIndex)),
+						fieldIndex,
+						fieldDataType.getChildren().get(0),
+						false)
+				);
+			}
+			if (fieldType.getChildren().stream().anyMatch(c -> hasNested(c, t -> isDataView(t, DataView.class)))) {
+				throw new TableException(
+					"Data views are only supported in the first level of a composite accumulator type.");
+			}
+		}
+		return specs;
+	}
+
+	/**
+	 * Adapts the data type of an accumulator regarding data views.
+	 */
+	public static DataType replaceDataViewsWithNull(DataType accumulatorDataType) {
+		return DataTypeUtils.transform(accumulatorDataType, DataViewsTransformation.INSTANCE);
+	}
+
+	private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
+		return hasRoot(t, LogicalTypeRoot.STRUCTURED_TYPE) &&
+			((StructuredType) t).getImplementationClass().map(viewClass::isAssignableFrom).orElse(false);
+	}
+
+	private static String createStateId(int fieldIndex, String fieldName) {
+		return "agg" + fieldIndex + "$" + fieldName;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class DataViewsTransformation implements TypeTransformation {
+
+		static final DataViewsTransformation INSTANCE = new DataViewsTransformation();
+
+		@Override
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		public DataType transform(DataType dataType) {
+			if (isDataView(dataType.getLogicalType(), DataView.class)) {
+				return DataTypes.RAW(dataType.getConversionClass(), (TypeSerializer)  NullSerializer.INSTANCE);
+			}
+			return dataType;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Information about a {@link DataView}.
+	 * Information about a {@link DataView} stored in state.
 	 */
 	public abstract static class DataViewSpec {
 
