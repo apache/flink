@@ -288,7 +288,11 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new CollectionDataType(newLogicalType, newElementType));
+			return transformation.transform(
+				new CollectionDataType(
+					newLogicalType,
+					collectionDataType.getConversionClass(),
+					newElementType));
 		}
 
 		@Override
@@ -338,7 +342,11 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new FieldsDataType(newLogicalType, newDataTypes));
+			return transformation.transform(
+				new FieldsDataType(
+					newLogicalType,
+					fieldsDataType.getConversionClass(),
+					newDataTypes));
 		}
 
 		@Override
@@ -355,7 +363,12 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new KeyValueDataType(newLogicalType, newKeyType, newValueType));
+			return transformation.transform(
+				new KeyValueDataType(
+					newLogicalType,
+					keyValueDataType.getConversionClass(),
+					newKeyType,
+					newValueType));
 		}
 
 		// ----------------------------------------------------------------------------------------
