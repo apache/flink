@@ -118,6 +118,9 @@ class WrapperTypeInfo(TypeInformation):
     def __hash__(self) -> int:
         return hash(self._j_typeinfo)
 
+    def __str__(self):
+        return self._j_typeinfo.toString()
+
 
 class BasicTypeInfo(TypeInformation, ABC):
     """
@@ -312,7 +315,7 @@ class RowTypeInfo(WrapperTypeInfo):
         return self._j_typeinfo.hashCode()
 
     def __str__(self) -> str:
-        return self._j_typeinfo.toString()
+        return "RowTypeInfo[%s]" % ', '.join([field_type.__str__() for field_type in self.types])
 
 
 class TupleTypeInfo(WrapperTypeInfo):
@@ -341,7 +344,7 @@ class TupleTypeInfo(WrapperTypeInfo):
         return self._j_typeinfo.hashCode()
 
     def __str__(self) -> str:
-        return self._j_typeinfo.toString()
+        return "TupleTypeInfo[%s]" % ', '.join([field_type.__str__() for field_type in self.types])
 
 
 class Types(object):
