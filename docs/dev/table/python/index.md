@@ -30,6 +30,7 @@ Apache Flink has provided Python Table API support since 1.9.0.
 ## Where to go next?
 
 - [Installation]({{ site.baseurl }}/dev/table/python/installation.html): Introduction of how to set up the Python Table API execution environment.
+- [Python Data Types]({{ site.baseurl }}/dev/table/python/python_types.html): Introduction of Python data types.
 - [User-defined Functions]({{ site.baseurl }}/dev/table/python/python_udfs.html): Explanation of how to define Python user-defined functions.
 - [Vectorized User-defined Functions]({{ site.baseurl }}/dev/table/python/vectorized_python_udfs.html): Explanation of how to define vectorized Python user-defined functions.
 - [Conversions between PyFlink Table and Pandas DataFrame]({{ site.baseurl }}/dev/table/python/conversion_of_pandas.html): Explanation of how to convert between PyFlink Table and Pandas DataFrame.

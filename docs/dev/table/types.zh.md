@@ -54,19 +54,22 @@ Flink 的数据类型和 SQL 标准的 *数据类型* 术语类似，但也包�
 
 ### Table API 的数据类型
 
-JVM API 的用户可以在 Table API 中使用 `org.apache.flink.table.types.DataType` 的实例，以及定义连接器（Connector）、Catalog 或者用户自定义函数（User-Defined Function）。
+JVM API 的用户可以在 Table API 中、定义连接器（Connector）、Catalog 或者用户自定义函数（User-Defined Function）中使用
+`org.apache.flink.table.types.DataType` 的实例。Python API的用户可以在 Python Table API中、Python 用户自定义函数
+（Python User-Defined Function）中使用`pyflink.table.types.DataType` 的实例。
 
 一个 `DataType` 实例有两个作用：
-- **逻辑类型的声明**，它不表达具体物理类型的存储和转换，但是定义了基于 JVM 的语言和 Table 编程环境之间的边界。
-- *可选的：* **向 Planner 提供有关数据的物理表示的提示**，这对于边界 API 很有用。
+- **逻辑类型的声明**，它不表达具体物理类型的存储和转换，但是定义了基于 JVM 的语言或者 Python 语言和 Table 编程环境之间的边界。
+- *可选的：* **向 Planner 提供有关数据的物理表示的提示**，这对于边界 API 很有用。当前只支持在Java／Scala Table API中使用，Python Table API中尚不支持该功能。
 
 对于基于 JVM 的语言，所有预定义的数据类型都在 `org.apache.flink.table.api.DataTypes` 里提供。
-
-建议使用星号将全部的 API 导入到 Table 程序中以便于使用：
+对于 Python 的语言，所有预定义的数据类型都在 `pyflink.table.types.DataTypes` 里提供。
 
 <div class="codetabs" markdown="1">
 
 <div data-lang="Java" markdown="1">
+建议使用星号将全部的 API 导入到 Table 程序中以便于使用：
+
 {% highlight java %}
 import static org.apache.flink.table.api.DataTypes.*;
 
@@ -75,12 +78,22 @@ DataType t = INTERVAL(DAY(), SECOND(3));
 </div>
 
 <div data-lang="Scala" markdown="1">
+建议使用星号将全部的 API 导入到 Table 程序中以便于使用：
+
 {% highlight scala %}
 import org.apache.flink.table.api.DataTypes._
 
 val t: DataType = INTERVAL(DAY(), SECOND(3));
 {% endhighlight %}
 </div>
+
+<div data-lang="Python" markdown="1">
+
+{% highlight python %}
+from pyflink.table.types import DataTypes
+
+t = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(3))
+{% endhighlight %}
 
 </div>
 
@@ -122,6 +135,8 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 
 <span class="label label-danger">注意</span> 请注意，通常只有在扩展 API 时才需要物理提示。
 预定义的 Source、Sink、Function 的用户不需要定义这样的提示。在 Table 编程中（例如 `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`）这些提示将被忽略。
+
+<span class="label label-danger">注意</span> 请注意，物理提示当前在Python Table API中尚不支持。
 
 Planner 兼容性
 ---------------------
@@ -207,6 +222,7 @@ Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Informat
 ------------------
 
 本节列出了所有预定义的数据类型。对于基于 JVM 的 Table API，这些类型也可以从 `org.apache.flink.table.api.DataTypes` 中找到。
+对于Python Table API, 这些类型可以从 `pyflink.table.types.DataTypes` 中找到。
 
 ### 字符串
 
@@ -229,11 +245,6 @@ CHAR(n)
 {% highlight java %}
 DataTypes.CHAR(n)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `CHAR(n)` 声明，其中 `n` 表示字符数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
 
 **JVM 类型**
 
@@ -242,6 +253,17 @@ DataTypes.CHAR(n)
 |`java.lang.String`                       | X     | X      | *缺省*               |
 |`byte[]`                                 | X     | X      | 假设使用 UTF-8 编码。 |
 |`org.apache.flink.table.data.StringData` | X     | X      | 内部数据结构。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+尚不支持
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `CHAR(n)` 声明，其中 `n` 表示字符数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
 
 #### `VARCHAR` / `STRING`
 
@@ -266,13 +288,6 @@ DataTypes.VARCHAR(n)
 
 DataTypes.STRING()
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `VARCHAR(n)` 声明，其中 `n` 表示最大的字符数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
-
-`STRING` 等价于 `VARCHAR(2147483647)`.
 
 **JVM 类型**
 
@@ -281,6 +296,23 @@ DataTypes.STRING()
 |`java.lang.String`                       | X     | X      | *缺省*               |
 |`byte[]`                                 | X     | X      | 假设使用 UTF-8 编码。 |
 |`org.apache.flink.table.data.StringData` | X     | X      | 内部数据结构。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.VARCHAR(n)
+
+DataTypes.STRING()
+{% endhighlight %}
+
+<span class="label label-danger">注意</span> 当前，声明`DataTypes.VARCHAR(n)`中的所指定的最大的字符数量 `n` 必须为 `2,147,483,647`。
+</div>
+</div>
+
+此类型用 `VARCHAR(n)` 声明，其中 `n` 表示最大的字符数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
+
+`STRING` 等价于 `VARCHAR(2147483647)`.
 
 ### 二进制字符串
 
@@ -303,17 +335,23 @@ BINARY(n)
 {% highlight java %}
 DataTypes.BINARY(n)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `BINARY(n)` 声明，其中 `n` 是字节数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
 
 **JVM 类型**
 
 | Java 类型          | 输入 | 输出 | 备注                 |
 |:-------------------|:-----:|:------:|:------------------------|
 |`byte[]`            | X     | X      | *缺省*               |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+尚不支持
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `BINARY(n)` 声明，其中 `n` 是字节数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
 
 #### `VARBINARY` / `BYTES`
 
@@ -338,19 +376,29 @@ DataTypes.VARBINARY(n)
 
 DataTypes.BYTES()
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `VARBINARY(n)` 声明，其中 `n` 是最大的字节数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
-
-`BYTES` 等价于 `VARBINARY(2147483647)`。
 
 **JVM 类型**
 
 | Java 类型          | 输入 | 输出 | 备注                 |
 |:-------------------|:-----:|:------:|:------------------------|
 |`byte[]`            | X     | X      | *缺省*               |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.VARBINARY(n)
+
+DataTypes.BYTES()
+{% endhighlight %}
+
+<span class="label label-danger">注意</span> 当前，声明`DataTypes.VARBINARY(n)`中的所指定的最大的字符数量 `n` 必须为 `2,147,483,647`。
+</div>
+</div>
+
+此类型用 `VARBINARY(n)` 声明，其中 `n` 是最大的字节数量。`n` 的值必须在 `1` 和 `2,147,483,647` 之间（含边界值）。如果未指定长度，`n` 等于 `1`。
+
+`BYTES` 等价于 `VARBINARY(2147483647)`。
 
 ### 精确数值
 
@@ -382,13 +430,6 @@ NUMERIC(p, s)
 {% highlight java %}
 DataTypes.DECIMAL(p, s)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `DECIMAL(p, s)` 声明，其中 `p` 是数字的位数（*精度*），`s` 是数字中小数点右边的位数（*尾数*）。`p` 的值必须介于 `1` 和 `38` 之间（含边界值）。`s` 的值必须介于 `0` 和 `p` 之间（含边界值）。其中 `p` 的缺省值是 `10`，`s` 的缺省值是 `0`。
-
-`NUMERIC(p, s)` 和 `DEC(p, s)` 都等价于这个类型。
 
 **JVM 类型**
 
@@ -396,6 +437,21 @@ DataTypes.DECIMAL(p, s)
 |:-----------------------------------------|:-----:|:------:|:------------------------|
 |`java.math.BigDecimal`                    | X     | X      | *缺省*               |
 |`org.apache.flink.table.data.DecimalData` | X     | X      | 内部数据结构。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.DECIMAL(p, s)
+{% endhighlight %}
+
+<span class="label label-danger">注意</span> 当前，声明`DataTypes.DECIMAL(p, s)`中的所指定的精度 `p` 必须为`38`，尾数 `n` 必须为 `18`。
+</div>
+</div>
+
+此类型用 `DECIMAL(p, s)` 声明，其中 `p` 是数字的位数（*精度*），`s` 是数字中小数点右边的位数（*尾数*）。`p` 的值必须介于 `1` 和 `38` 之间（含边界值）。`s` 的值必须介于 `0` 和 `p` 之间（含边界值）。其中 `p` 的缺省值是 `10`，`s` 的缺省值是 `0`。
+
+`NUMERIC(p, s)` 和 `DEC(p, s)` 都等价于这个类型。
 
 #### `TINYINT`
 
@@ -415,9 +471,6 @@ TINYINT
 {% highlight java %}
 DataTypes.TINYINT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -425,6 +478,15 @@ DataTypes.TINYINT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Byte`    | X     | X      | *缺省*                                    |
 |`byte`              | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TINYINT()
+{% endhighlight %}
+</div>
+</div>
 
 #### `SMALLINT`
 
@@ -444,9 +506,6 @@ SMALLINT
 {% highlight java %}
 DataTypes.SMALLINT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -454,6 +513,15 @@ DataTypes.SMALLINT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Short`   | X     | X      | *缺省*                                    |
 |`short`             | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.SMALLINT()
+{% endhighlight %}
+</div>
+</div>
 
 #### `INT`
 
@@ -475,11 +543,6 @@ INTEGER
 {% highlight java %}
 DataTypes.INT()
 {% endhighlight %}
-</div>
-
-</div>
-
-`INTEGER` 等价于此类型。
 
 **JVM 类型**
 
@@ -487,6 +550,17 @@ DataTypes.INT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Integer` | X     | X      | *缺省*                                    |
 |`int`               | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.INT()
+{% endhighlight %}
+</div>
+</div>
+
+`INTEGER` 等价于此类型。
 
 #### `BIGINT`
 
@@ -506,9 +580,6 @@ BIGINT
 {% highlight java %}
 DataTypes.BIGINT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -516,6 +587,15 @@ DataTypes.BIGINT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Long`    | X     | X      | *缺省*                                    |
 |`long`              | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.BIGINT()
+{% endhighlight %}
+</div>
+</div>
 
 ### 近似数值
 
@@ -539,9 +619,6 @@ FLOAT
 {% highlight java %}
 DataTypes.FLOAT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -549,6 +626,15 @@ DataTypes.FLOAT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Float`   | X     | X      | *缺省*                                    |
 |`float`             | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.FLOAT()
+{% endhighlight %}
+</div>
+</div>
 
 #### `DOUBLE`
 
@@ -570,11 +656,6 @@ DOUBLE PRECISION
 {% highlight java %}
 DataTypes.DOUBLE()
 {% endhighlight %}
-</div>
-
-</div>
-
-`DOUBLE PRECISION` 等价于此类型。
 
 **JVM 类型**
 
@@ -582,6 +663,17 @@ DataTypes.DOUBLE()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Double`  | X     | X      | *缺省*                                    |
 |`double`            | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.DOUBLE()
+{% endhighlight %}
+</div>
+</div>
+
+`DOUBLE PRECISION` 等价于此类型。
 
 ### 日期和时间
 
@@ -605,9 +697,6 @@ DATE
 {% highlight java %}
 DataTypes.DATE()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -617,6 +706,15 @@ DataTypes.DATE()
 |`java.sql.Date`       | X     | X      |                                              |
 |`java.lang.Integer`   | X     | X      | 描述从 Epoch 算起的天数。    |
 |`int`                 | X     | (X)    | 描述从 Epoch 算起的天数。<br>仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.DATE()
+{% endhighlight %}
+</div>
+</div>
 
 #### `TIME`
 
@@ -639,11 +737,6 @@ TIME(p)
 {% highlight java %}
 DataTypes.TIME(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `TIME(p)` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `0`。
 
 **JVM 类型**
 
@@ -655,6 +748,19 @@ DataTypes.TIME(p)
 |`int`                 | X     | (X)    | 描述自当天以来的毫秒数。<br>仅当类型不可为空时才输出。 |
 |`java.lang.Long`      | X     | X      | 描述自当天以来的纳秒数。     |
 |`long`                | X     | (X)    | 描述自当天以来的纳秒数。<br>仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TIME(p)
+{% endhighlight %}
+
+<span class="label label-danger">注意</span> 当前，声明`DataTypes.TIME(p)`中的所指定的精度 `p` 必须为`0`。
+</div>
+</div>
+
+此类型用 `TIME(p)` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `0`。
 
 #### `TIMESTAMP`
 
@@ -682,13 +788,6 @@ TIMESTAMP(p) WITHOUT TIME ZONE
 {% highlight java %}
 DataTypes.TIMESTAMP(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `TIMESTAMP(p)` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `6`。
-
-`TIMESTAMP(p) WITHOUT TIME ZONE` 等价于此类型。
 
 **JVM 类型**
 
@@ -697,6 +796,21 @@ DataTypes.TIMESTAMP(p)
 |`java.time.LocalDateTime`                   | X     | X      | *缺省*                            |
 |`java.sql.Timestamp`                        | X     | X      |                                   |
 |`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。                      |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TIMESTAMP(p)
+{% endhighlight %}
+
+<span class="label label-danger">注意</span> 当前，声明`DataTypes.TIMESTAMP(p)`中的所指定的精度 `p` 必须为`3`。
+</div>
+</div>
+
+此类型用 `TIMESTAMP(p)` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `6`。
+
+`TIMESTAMP(p) WITHOUT TIME ZONE` 等价于此类型。
 
 #### `TIMESTAMP WITH TIME ZONE`
 
@@ -722,11 +836,6 @@ TIMESTAMP(p) WITH TIME ZONE
 {% highlight java %}
 DataTypes.TIMESTAMP_WITH_TIME_ZONE(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `TIMESTAMP(p) WITH TIME ZONE` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `6`。
 
 **JVM 类型**
 
@@ -734,6 +843,17 @@ DataTypes.TIMESTAMP_WITH_TIME_ZONE(p)
 |:--------------------------|:-----:|:------:|:---------------------|
 |`java.time.OffsetDateTime` | X     | X      | *缺省*            |
 |`java.time.ZonedDateTime`  | X     |        | 忽略时区 ID。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+尚不支持
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `TIMESTAMP(p) WITH TIME ZONE` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `6`。
 
 #### `TIMESTAMP WITH LOCAL TIME ZONE`
 
@@ -761,11 +881,6 @@ TIMESTAMP(p) WITH LOCAL TIME ZONE
 {% highlight java %}
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `TIMESTAMP(p) WITH LOCAL TIME ZONE` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `6`。
 
 **JVM 类型**
 
@@ -777,6 +892,19 @@ DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 |`java.lang.Long`                            | X     | X      | 描述从 Epoch 算起的毫秒数。                          |
 |`long`                                      | X     | (X)    | 描述从 Epoch 算起的毫秒数。<br>仅当类型不可为空时才输出 |
 |`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。                                       |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
+{% endhighlight %}
+
+<span class="label label-danger">注意</span> 当前，声明`DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)`中的所指定的精度 `p` 必须为3。
+</div>
+</div>
+
+此类型用 `TIMESTAMP(p) WITH LOCAL TIME ZONE` 声明，其中 `p` 是秒的小数部分的位数（*精度*）。`p` 的值必须介于 `0` 和 `9` 之间（含边界值）。如果未指定精度，则 `p` 等于 `6`。
 
 #### `INTERVAL YEAR TO MONTH`
 
@@ -811,11 +939,6 @@ DataTypes.INTERVAL(DataTypes.YEAR(p))
 DataTypes.INTERVAL(DataTypes.YEAR(p), DataTypes.MONTH())
 DataTypes.INTERVAL(DataTypes.MONTH())
 {% endhighlight %}
-</div>
-
-</div>
-
-可以使用以上组合来声明类型，其中 `p` 是年数（*年精度*）的位数。`p` 的值必须介于 `1` 和 `4` 之间（含边界值）。如果未指定年精度，`p` 则等于 `2`。
 
 **JVM 类型**
 
@@ -825,7 +948,21 @@ DataTypes.INTERVAL(DataTypes.MONTH())
 |`java.lang.Integer` | X     | X      | 描述月的数量。    |
 |`int`               | X     | (X)    | 描述月的数量。<br>仅当类型不可为空时才输出。 |
 
-#### `INTERVAL DAY TO MONTH`
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.INTERVAL(DataTypes.YEAR())
+DataTypes.INTERVAL(DataTypes.YEAR(p))
+DataTypes.INTERVAL(DataTypes.YEAR(p), DataTypes.MONTH())
+DataTypes.INTERVAL(DataTypes.MONTH())
+{% endhighlight %}
+</div>
+</div>
+
+可以使用以上组合来声明类型，其中 `p` 是年数（*年精度*）的位数。`p` 的值必须介于 `1` 和 `4` 之间（含边界值）。如果未指定年精度，`p` 则等于 `2`。
+
+#### `INTERVAL DAY TO SECOND`
 
 一组 Day-Time Interval 数据类型。
 
@@ -881,11 +1018,6 @@ DataTypes.INTERVAL(DataTypes.MINUTE(), DataTypes.SECOND(p2))
 DataTypes.INTERVAL(DataTypes.SECOND())
 DataTypes.INTERVAL(DataTypes.SECOND(p2))
 {% endhighlight %}
-</div>
-
-</div>
-
-可以使用以上组合来声明类型，其中 `p1` 是天数（*天精度*）的位数，`p2` 是秒的小数部分的位数（*小数精度*）。`p1` 的值必须介于 `1` 和之间 `6`（含边界值），`p2` 的值必须介于 `0` 和之间 `9`（含边界值）。如果 `p1` 未指定值，则缺省等于 `2`，如果 `p2` 未指定值，则缺省等于 `6`。
 
 **JVM 类型**
 
@@ -894,6 +1026,28 @@ DataTypes.INTERVAL(DataTypes.SECOND(p2))
 |`java.time.Duration` | X     | X      | *缺省*                             |
 |`java.lang.Long`     | X     | X      | 描述毫秒数。 |
 |`long`               | X     | (X)    | 描述毫秒数。<br>仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.INTERVAL(DataTypes.DAY())
+DataTypes.INTERVAL(DataTypes.DAY(p1))
+DataTypes.INTERVAL(DataTypes.DAY(p1), DataTypes.HOUR())
+DataTypes.INTERVAL(DataTypes.DAY(p1), DataTypes.MINUTE())
+DataTypes.INTERVAL(DataTypes.DAY(p1), DataTypes.SECOND(p2))
+DataTypes.INTERVAL(DataTypes.HOUR())
+DataTypes.INTERVAL(DataTypes.HOUR(), DataTypes.MINUTE())
+DataTypes.INTERVAL(DataTypes.HOUR(), DataTypes.SECOND(p2))
+DataTypes.INTERVAL(DataTypes.MINUTE())
+DataTypes.INTERVAL(DataTypes.MINUTE(), DataTypes.SECOND(p2))
+DataTypes.INTERVAL(DataTypes.SECOND())
+DataTypes.INTERVAL(DataTypes.SECOND(p2))
+{% endhighlight %}
+</div>
+</div>
+
+可以使用以上组合来声明类型，其中 `p1` 是天数（*天精度*）的位数，`p2` 是秒的小数部分的位数（*小数精度*）。`p1` 的值必须介于 `1` 和之间 `6`（含边界值），`p2` 的值必须介于 `0` 和之间 `9`（含边界值）。如果 `p1` 未指定值，则缺省等于 `2`，如果 `p2` 未指定值，则缺省等于 `6`。
 
 ### 结构化的数据类型
 
@@ -918,13 +1072,6 @@ t ARRAY
 {% highlight java %}
 DataTypes.ARRAY(t)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `ARRAY<t>` 声明，其中 `t` 是所包含元素的数据类型。
-
-`t ARRAY` 接近等价于 SQL 标准。例如，`INT ARRAY` 等价于 `ARRAY<INT>`。
 
 **JVM 类型**
 
@@ -934,6 +1081,19 @@ DataTypes.ARRAY(t)
 | `java.util.List<t>`                    | X     | X      |                                   |
 | `java.util.List<t>` 的*子类型*          | X     |        |                                   |
 |`org.apache.flink.table.data.ArrayData` | X     | X      | 内部数据结构。                    |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.ARRAY(t)
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `ARRAY<t>` 声明，其中 `t` 是所包含元素的数据类型。
+
+`t ARRAY` 接近等价于 SQL 标准。例如，`INT ARRAY` 等价于 `ARRAY<INT>`。
 
 #### `MAP`
 
@@ -957,11 +1117,6 @@ MAP<kt, vt>
 {% highlight java %}
 DataTypes.MAP(kt, vt)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `MAP<kt, vt>` 声明，其中 `kt` 是键的数据类型，`vt` 是值的数据类型。
 
 **JVM 类型**
 
@@ -970,6 +1125,17 @@ DataTypes.MAP(kt, vt)
 | `java.util.Map<kt, vt>`               | X     | X      | *缺省*         |
 | `java.util.Map<kt, vt>` 的*子类型*    | X     |        |                |
 |`org.apache.flink.table.data.MapData`  | X     | X      | 内部数据结构。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.MAP(kt, vt)
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `MAP<kt, vt>` 声明，其中 `kt` 是键的数据类型，`vt` 是值的数据类型。
 
 #### `MULTISET`
 
@@ -992,13 +1158,6 @@ t MULTISET
 {% highlight java %}
 DataTypes.MULTISET(t)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `MULTISET<t>` 声明，其中 `t` 是所包含元素的数据类型。
-
-`t MULTISET` 接近等价于 SQL 标准。例如，`INT MULTISET` 等价于 `MULTISET<INT>`。
 
 **JVM 类型**
 
@@ -1007,6 +1166,19 @@ DataTypes.MULTISET(t)
 |`java.util.Map<t, java.lang.Integer>`             | X     | X      | 将每个值可多重地分配给一个整数 *缺省*                 |
 | `java.util.Map<t, java.lang.Integer>` 的*子类型* | X     |        |                                                       |
 |`org.apache.flink.table.data.MapData`             | X     | X      | 内部数据结构。                                        |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.MULTISET(t)
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `MULTISET<t>` 声明，其中 `t` 是所包含元素的数据类型。
+
+`t MULTISET` 接近等价于 SQL 标准。例如，`INT MULTISET` 等价于 `MULTISET<INT>`。
 
 #### `ROW`
 
@@ -1037,13 +1209,6 @@ ROW(n0 t0 'd0', n1 t1 'd1', ...)
 DataTypes.ROW(DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...)
 DataTypes.ROW(DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `ROW<n0 t0 'd0', n1 t1 'd1', ...>` 声明，其中 `n` 是唯一的字段名称，`t` 是字段的逻辑类型，`d` 是字段的描述。
-
-`ROW(...)` 接近等价于 SQL 标准。例如，`ROW(myField INT, myOtherField BOOLEAN)` 等价于 `ROW<myField INT, myOtherField BOOLEAN>`。
 
 **JVM 类型**
 
@@ -1051,6 +1216,20 @@ DataTypes.ROW(DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...)
 |:-------------------------------------|:-----:|:------:|:------------------------|
 |`org.apache.flink.types.Row`          | X     | X      | *缺省*                  |
 |`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。          |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.ROW([DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...])
+DataTypes.ROW([DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...])
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `ROW<n0 t0 'd0', n1 t1 'd1', ...>` 声明，其中 `n` 是唯一的字段名称，`t` 是字段的逻辑类型，`d` 是字段的描述。
+
+`ROW(...)` 接近等价于 SQL 标准。例如，`ROW(myField INT, myOtherField BOOLEAN)` 等价于 `ROW<myField INT, myOtherField BOOLEAN>`。
 
 ### 用户自定义数据类型
 
@@ -1107,6 +1286,15 @@ class User {
 
 DataTypes.of(User.class);
 {% endhighlight %}
+
+**JVM 类型**
+
+| Java 类型                            | 输入  | 输出   | 备注                                                  |
+|:-------------------------------------|:-----:|:------:|:------------------------------------------------------|
+|*类型*                               | X     | X      | 原始类或子类（用于输入）或超类（用于输出）*缺省*      |
+|`org.apache.flink.types.Row`          | X     | X      | 代表一行数据的结构化类型。                            |
+|`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。                                        |
+
 </div>
 
 <div data-lang="Scala" markdown="1">
@@ -1126,9 +1314,6 @@ case class User(
 
 DataTypes.of(classOf[User])
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -1137,6 +1322,10 @@ DataTypes.of(classOf[User])
 |*类型*                               | X     | X      | 原始类或子类（用于输入）或超类（用于输出）*缺省*      |
 |`org.apache.flink.types.Row`          | X     | X      | 代表一行数据的结构化类型。                            |
 |`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。                                        |
+
+</div>
+
+</div>
 
 ### 其他数据类型
 
@@ -1158,9 +1347,6 @@ BOOLEAN
 {% highlight java %}
 DataTypes.BOOLEAN()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -1168,6 +1354,15 @@ DataTypes.BOOLEAN()
 |:-------------------|:-----:|:------:|:-------------------------------------|
 |`java.lang.Boolean` | X     | X      | *缺省*                            |
 |`boolean`           | X     | (X)    | 仅当类型不可为空时才输出。 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.BOOLEAN()
+{% endhighlight %}
+</div>
+</div>
 
 #### `RAW`
 
@@ -1191,13 +1386,6 @@ DataTypes.RAW(class, serializer)
 
 DataTypes.RAW(class)
 {% endhighlight %}
-</div>
-
-</div>
-
-此类型用 `RAW('class', 'snapshot')` 声明，其中 `class` 是原始类，`snapshot` 是 Base64 编码的序列化的 `TypeSerializerSnapshot`。通常，类型字符串不是直接声明的，而是在持久化类型时生成的。
-
-在 API 中，可以通过直接提供 `Class` + `TypeSerializer` 或通过传递 `TypeInformation` 并让框架从那里提取 `Class` + `TypeSerializer` 来声明 `RAW` 类型。
 
 **JVM 类型**
 
@@ -1206,6 +1394,19 @@ DataTypes.RAW(class)
 |*类型*                                     | X     | X      | 原始类或子类（用于输入）或超类（用于输出）。 *缺省* |
 |`byte[]`                                   |       | X      |                                                     |
 |`org.apache.flink.table.data.RawValueData` | X     | X      | 内部数据结构。                                      |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+尚不支持
+{% endhighlight %}
+</div>
+</div>
+
+此类型用 `RAW('class', 'snapshot')` 声明，其中 `class` 是原始类，`snapshot` 是 Base64 编码的序列化的 `TypeSerializerSnapshot`。通常，类型字符串不是直接声明的，而是在持久化类型时生成的。
+
+在 API 中，可以通过直接提供 `Class` + `TypeSerializer` 或通过传递 `TypeInformation` 并让框架从那里提取 `Class` + `TypeSerializer` 来声明 `RAW` 类型。
 
 #### `NULL`
 
@@ -1231,9 +1432,6 @@ NULL
 {% highlight java %}
 DataTypes.NULL()
 {% endhighlight %}
-</div>
-
-</div>
 
 **JVM 类型**
 
@@ -1241,6 +1439,15 @@ DataTypes.NULL()
 |:------------------|:-----:|:------:|:-------------------------------------|
 |`java.lang.Object` | X     | X      | *缺省*                            |
 |*任何类型*        |       | (X)    | 任何非基本数据类型              |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+尚不支持
+{% endhighlight %}
+</div>
+</div>
 
 数据类型注解
 ---------------------
