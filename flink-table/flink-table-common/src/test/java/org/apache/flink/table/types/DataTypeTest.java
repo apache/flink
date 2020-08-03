@@ -20,10 +20,15 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -34,9 +39,11 @@ import static org.apache.flink.table.api.DataTypes.CHAR;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
@@ -135,5 +142,26 @@ public class DataTypeTest {
 	@Test
 	public void testConversionEquality() {
 		assertEquals(DataTypes.VARCHAR(2).bridgedTo(String.class), DataTypes.VARCHAR(2));
+	}
+
+	@Test
+	public void testArrayInternalElementConversion() {
+		final DataType arrayDataType = ARRAY(STRING()).bridgedTo(ArrayData.class);
+
+		final List<DataType> children = Collections.singletonList(
+			STRING().bridgedTo(StringData.class));
+
+		assertEquals(children, arrayDataType.getChildren());
+	}
+
+	@Test
+	public void testMapInternalElementConversion() {
+		final DataType mapDataType = MAP(STRING(), ROW()).bridgedTo(MapData.class);
+
+		final List<DataType> children = Arrays.asList(
+			STRING().bridgedTo(StringData.class),
+			ROW().bridgedTo(RowData.class));
+
+		assertEquals(children, mapDataType.getChildren());
 	}
 }

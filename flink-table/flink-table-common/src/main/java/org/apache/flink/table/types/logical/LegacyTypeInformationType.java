@@ -29,6 +29,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
+
 /**
  * This type is a temporary solution to fully support the old type system stack through the new
  * stack. Many types can be mapped directly to the new type system, however, some types such as
@@ -79,12 +81,12 @@ public final class LegacyTypeInformationType<T> extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
-		return typeInfo.getTypeClass().isAssignableFrom(clazz);
+		return typeInfo.getTypeClass().isAssignableFrom(clazz) || clazz == toInternalConversionClass(this);
 	}
 
 	@Override
 	public boolean supportsOutputConversion(Class<?> clazz) {
-		return clazz.isAssignableFrom(typeInfo.getTypeClass());
+		return clazz.isAssignableFrom(typeInfo.getTypeClass()) || clazz == toInternalConversionClass(this);
 	}
 
 	@Override
