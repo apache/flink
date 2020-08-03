@@ -40,7 +40,7 @@ Flink 明确支持以下三种时间语义:
 
 * _处理时间(processing time)：_ Flink pipeline 中具体算子处理事件的时间
 
-为了获得可重现的结果，例如在计算过去的特定一天里第一个小时股票的最高价格时，我们应该使用事件时间。这样的话，无论什么时间去计算都不会影响输出结果。然而如果使用 processing time 的话，实时应用程序的结果是由程序运行的时间所决定。多次运行基于 processing time 的实时程序，可能得到的结果都不相同，也可能会导致再次分析历史数据或者测试新代码变得异常困难。
+为了获得可重现的结果，例如在计算过去的特定一天里第一个小时股票的最高价格时，我们应该使用事件时间。这样的话，无论什么时间去计算都不会影响输出结果。然而如果使用处理时间的话，实时应用程序的结果是由程序运行的时间所决定。多次运行基于处理时间的实时程序，可能得到的结果都不相同，也可能会导致再次分析历史数据或者测试新代码变得异常困难。
 
 <a name="working-with-event-time"></a>
 ### 使用 Event Time
@@ -53,7 +53,7 @@ final StreamExecutionEnvironment env =
 env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 {% endhighlight %}
 
-如果想要使用事件时间，需要额外给 Flink 提供一个时间戳提取器和 Watermark 生成器，Flink 将使用它们来跟踪事件时间的进度。这将在选节[使用 Watermarks]({% link learn-flink/streaming_analytics.zh.md %}#Working-with-Watermarks) 中介绍，但是首先我们需要解释一下 watermarks 是什么。
+如果想要使用事件时间，需要额外给 Flink 提供一个时间戳提取器和 Watermark 生成器，Flink 将使用它们来跟踪事件时间的进度。这将在选节[使用 Watermarks]({% link learn-flink/streaming_analytics.zh.md %}#working-with-watermarks) 中介绍，但是首先我们需要解释一下 watermarks 是什么。
 
 ### Watermarks
 
@@ -384,7 +384,7 @@ stream
 <a name="hands-on"></a>
 ## 实践练习
 
-本节附带的动手练习是[Hourly Tips
+本节附带的动手练习是 [Hourly Tips
 Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/hourly-tips).
 
 {% top %}
