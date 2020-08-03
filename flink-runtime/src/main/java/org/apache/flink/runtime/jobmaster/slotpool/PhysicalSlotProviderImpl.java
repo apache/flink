@@ -47,7 +47,6 @@ class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 
 	@Override
 	public CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(PhysicalSlotRequest physicalSlotRequest) {
-		LOG.debug("Received a slot request {}.", physicalSlotRequest.getSlotRequestId());
 		SlotRequestId slotRequestId = physicalSlotRequest.getSlotRequestId();
 		SlotProfile slotProfile = physicalSlotRequest.getSlotProfile();
 		ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();

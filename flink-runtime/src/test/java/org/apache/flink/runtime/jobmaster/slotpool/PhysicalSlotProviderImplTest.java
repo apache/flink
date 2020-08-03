@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -32,6 +31,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -43,8 +43,6 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link PhysicalSlotProviderImpl}.
  */
 public class PhysicalSlotProviderImplTest {
-	private static final Time TIMEOUT = Time.milliseconds(100L);
-
 	private static ScheduledExecutorService singleThreadScheduledExecutorService;
 
 	private static ComponentMainThreadExecutor mainThreadExecutor;
@@ -78,12 +76,11 @@ public class PhysicalSlotProviderImplTest {
 	}
 
 	@Test
-	public void testBulkSlotAllocationFulfilledWithAvailableSlots()
-			throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
+	public void testBulkSlotAllocationFulfilledWithAvailableSlots() throws InterruptedException, ExecutionException {
 		PhysicalSlotRequest request = createPhysicalSlotRequest();
 		addSlotToSlotPool();
 		CompletableFuture<PhysicalSlotRequest.Result> slotFuture = allocateSlot(request);
-		PhysicalSlotRequest.Result result = slotFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+		PhysicalSlotRequest.Result result = slotFuture.get();
 		assertThat(result.getSlotRequestId(), is(request.getSlotRequestId()));
 	}
 
