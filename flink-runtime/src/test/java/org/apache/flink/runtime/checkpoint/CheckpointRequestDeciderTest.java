@@ -66,6 +66,21 @@ public class CheckpointRequestDeciderTest {
 		assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
 	}
 
+
+	@Test
+	public void testNonForcedEnqueueOnTooManyPending() {
+		final int maxPending = 1;
+		final boolean isTriggering = false;
+		final AtomicInteger currentPending = new AtomicInteger(maxPending);
+		CheckpointRequestDecider decider = decider(Integer.MAX_VALUE, maxPending, 1, currentPending);
+
+		CheckpointTriggerRequest request = nonForcedSavepoint();
+		assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
+
+		currentPending.set(0);
+		assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
+	}
+
 	@Test
 	public void testUserSubmittedPrioritized() {
 		CheckpointTriggerRequest userSubmitted = regularSavepoint();
@@ -83,6 +98,27 @@ public class CheckpointRequestDeciderTest {
 				new CheckpointTriggerRequest[]{checkpoint, savepoint},
 				new CheckpointTriggerRequest[]{savepoint, checkpoint});
 	}
+
+
+	@Test
+	public void testNonForcedUserSubmittedPrioritized() {
+		CheckpointTriggerRequest userSubmitted = nonForcedSavepoint();
+		CheckpointTriggerRequest periodic = nonForcedPeriodicSavepoint();
+		testRequestsOrdering(
+			new CheckpointTriggerRequest[]{periodic, userSubmitted},
+			new CheckpointTriggerRequest[]{userSubmitted, periodic});
+	}
+
+	@Test
+	public void testNonForcedSavepointPrioritized() {
+		CheckpointTriggerRequest savepoint = nonForcedSavepoint();
+		CheckpointTriggerRequest checkpoint = regularCheckpoint();
+		testRequestsOrdering(
+			new CheckpointTriggerRequest[]{checkpoint, savepoint},
+			new CheckpointTriggerRequest[]{savepoint, checkpoint});
+	}
+
+
 
 	@Test
 	public void testQueueSizeLimit() {
@@ -204,6 +240,10 @@ public class CheckpointRequestDeciderTest {
 
 	private static CheckpointTriggerRequest periodicSavepoint() {
 		return savepointRequest(true, true);
+	}
+
+	private static CheckpointTriggerRequest nonForcedPeriodicSavepoint(){
+		return savepointRequest(false, true);
 	}
 
 	private static CheckpointTriggerRequest nonForcedSavepoint() {
