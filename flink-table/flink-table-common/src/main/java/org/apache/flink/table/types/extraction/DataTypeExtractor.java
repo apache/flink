@@ -548,6 +548,12 @@ public final class DataTypeExtractor {
 				final DataType fieldDataType = extractDataTypeOrRaw(fieldTemplate, fieldTypeHierarchy, fieldType);
 				fieldDataTypes.put(field.getName(), fieldDataType);
 			} catch (Throwable t) {
+				// special case for fields of data views which are skipped in case of an error
+				if (DataView.class.isAssignableFrom(field.getDeclaringClass())) {
+					fieldDataTypes.put(field.getName(), DataTypes.NULL());
+					continue;
+				}
+
 				throw extractionError(
 					t,
 					"Error in field '%s' of class '%s'.",

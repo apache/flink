@@ -1040,7 +1040,7 @@ class AggregateITCase(
   /** Test LISTAGG **/
   @Test
   def testListAgg(): Unit = {
-    tEnv.registerFunction("listagg_retract", new ListAggWithRetractAggFunction)
+    tEnv.createTemporarySystemFunction("listagg_retract", classOf[ListAggWithRetractAggFunction])
     tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
     val sqlQuery =
       s"""

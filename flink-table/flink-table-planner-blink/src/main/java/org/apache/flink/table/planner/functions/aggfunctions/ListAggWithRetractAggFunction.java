@@ -19,17 +19,22 @@
 package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+
+import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 
 /**
  * built-in listagg with retraction aggregate function.
@@ -60,6 +65,28 @@ public final class ListAggWithRetractAggFunction
 			return Objects.equals(list, that.list) &&
 				Objects.equals(retractList, that.retractList);
 		}
+	}
+
+	// updated to new type system for testing
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+		return TypeInference.newBuilder()
+			.typedArguments(DataTypes.STRING().bridgedTo(StringData.class))
+			.accumulatorTypeStrategy(
+				explicit(
+					DataTypes.STRUCTURED(
+						ListAggWithRetractAccumulator.class,
+						DataTypes.FIELD(
+							"list",
+							ListView.newListViewDataType(DataTypes.STRING().bridgedTo(StringData.class))),
+						DataTypes.FIELD(
+							"retractList",
+							ListView.newListViewDataType(DataTypes.STRING().bridgedTo(StringData.class)))
+					)
+				)
+			)
+			.outputTypeStrategy(explicit(DataTypes.STRING().bridgedTo(StringData.class)))
+			.build();
 	}
 
 	@Override

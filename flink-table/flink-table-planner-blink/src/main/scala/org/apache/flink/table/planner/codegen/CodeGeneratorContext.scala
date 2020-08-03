@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.runtime.operators.TableStreamOperator
-import org.apache.flink.table.runtime.typeutils.InternalSerializers
+import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
 import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -106,6 +106,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // map of data structure converters that will be added only once
   // DataType -> reused_term
   private val reusableConverters: mutable.Map[DataType, String] =
+    mutable.Map[DataType,  String]()
+
+  // map of external serializer that will be added only once
+  // DataType -> reused_term
+  private val reusableExternalSerializers: mutable.Map[DataType, String] =
     mutable.Map[DataType,  String]()
 
   /**
@@ -724,6 +729,25 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
         addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
         reusableTypeSerializers(t) = term
         term
+    }
+  }
+
+  /**
+    * Adds a reusable [[ExternalSerializer]] to the member area of the generated class.
+    *
+    * @param t the internal type which used to generate internal type serializer
+    * @return member variable term
+    */
+  def addReusableExternalSerializer(t: DataType): String = {
+    reusableExternalSerializers.get(t) match {
+      case Some(term) =>
+        term
+
+      case None =>
+        val serializer = ExternalSerializer.of(t)
+        val serializerTerm = addReusableObject(serializer, "externalSerializer")
+        reusableExternalSerializers(t) = serializerTerm
+        serializerTerm
     }
   }
 
