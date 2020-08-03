@@ -47,7 +47,7 @@ public class JMXServerTest {
 	}
 
 	@After
-	public void tierDown() throws Exception {
+	public void tearDown() throws Exception {
 		JMXService.stopInstance();
 	}
 
