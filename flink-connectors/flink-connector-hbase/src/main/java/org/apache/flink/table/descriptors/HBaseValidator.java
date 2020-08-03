@@ -32,6 +32,7 @@ public class HBaseValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_HBASE = "hbase";
 	public static final String CONNECTOR_VERSION_VALUE_143 = "1.4.3";
+	public static final String CONNECTOR_VERSION_VALUE_210 = "2.1.0";
 	public static final String CONNECTOR_TABLE_NAME = "connector.table-name";
 	public static final String CONNECTOR_ZK_QUORUM = "connector.zookeeper.quorum";
 	public static final String CONNECTOR_ZK_NODE_PARENT = "connector.zookeeper.znode.parent";
@@ -57,7 +58,7 @@ public class HBaseValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateVersion(DescriptorProperties properties) {
-		final List<String> versions = Arrays.asList(CONNECTOR_VERSION_VALUE_143);
+		final List<String> versions = Arrays.asList(CONNECTOR_VERSION_VALUE_143, CONNECTOR_VERSION_VALUE_210);
 		properties.validateEnumValues(CONNECTOR_VERSION, false, versions);
 	}
 }

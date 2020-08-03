@@ -48,7 +48,7 @@ import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHel
  */
 public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	private static final String IDENTIFIER = "hbase-1.4";
+	private static final String IDENTIFIER = "hbase";
 
 	private static final ConfigOption<String> TABLE_NAME = ConfigOptions
 		.key("table-name")

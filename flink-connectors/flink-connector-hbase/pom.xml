@@ -190,6 +190,25 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-mapreduce</artifactId>
+			<version>2.0.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish</groupId>
+					<artifactId>javax.el</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
 			<!-- Bump hbase netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
@@ -203,7 +222,36 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<!-- Replaces javax.el dependency [HBASE-22318] -->
+			<groupId>org.glassfish</groupId>
+			<artifactId>javax.el</artifactId>
+			<version>3.0.1-b11</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-testing-util</artifactId>
+			<version>${hbase.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish</groupId>
+					<artifactId>javax.el</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

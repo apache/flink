@@ -21,8 +21,8 @@ package org.apache.flink.connector.hbase.util;
 import org.apache.flink.table.api.EnvironmentSettings;
 
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -118,7 +118,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 		createTable(tableName, FAMILIES, SPLIT_KEYS);
 
 		// get the HTable instance
-		HTable table = openTable(tableName);
+		Table table = openTable(tableName);
 		List<Put> puts = new ArrayList<>();
 		// add some data
 		puts.add(putRow(1, 10, "Hello-1", 100L, 1.01, false, "Welt-1",

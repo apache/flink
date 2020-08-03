@@ -43,6 +43,7 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键�
 | HBase 版本          | Maven 依赖                                          | SQL 客户端 JAR        |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
 | 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 只适用于 [稳定发布版]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
+| 2.1.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 只适用于 [稳定发布版]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
 
 
 如何使用 HBase 表
@@ -61,7 +62,7 @@ CREATE TABLE hTable (
  family3 ROW<q4 DOUBLE, q5 BOOLEAN, q6 STRING>,
  PRIMARY KEY (rowkey) NOT ENFORCED
 ) WITH (
- 'connector' = 'hbase-1.4',
+ 'connector' = 'hbase',
  'table-name' = 'mytable',
  'zookeeper.quorum' = 'localhost:2181'
 );
@@ -101,7 +102,7 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>指定使用的连接器，这里写“hbase-1.4”。</td>
+      <td>指定使用的连接器，这里写“hbase”。</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>

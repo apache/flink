@@ -321,7 +321,7 @@ public class HBaseDynamicTableFactoryTest {
 
 	private Map<String, String> getAllOptions() {
 		Map<String, String> options = new HashMap<>();
-		options.put("connector", "hbase-1.4");
+		options.put("connector", "hbase");
 		options.put("table-name", "testHBastTable");
 		options.put("zookeeper.quorum", "localhost:2181");
 		options.put("zookeeper.znode.parent", "/flink");

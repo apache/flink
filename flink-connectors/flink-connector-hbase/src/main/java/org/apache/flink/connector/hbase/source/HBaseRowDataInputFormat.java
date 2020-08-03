@@ -26,11 +26,10 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
-import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,8 +86,8 @@ public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
 
 	private void connectToTable() {
 		try {
-			Connection conn = ConnectionFactory.createConnection(getHadoopConfiguration());
-			super.table = (HTable) conn.getTable(TableName.valueOf(tableName));
+			super.conn = ConnectionFactory.createConnection(getHadoopConfiguration());
+			super.table = (Table) conn.getTable(TableName.valueOf(tableName));
 		} catch (TableNotFoundException tnfe) {
 			LOG.error("The table " + tableName + " not found ", tnfe);
 			throw new RuntimeException("HBase table '" + tableName + "' not found.", tnfe);

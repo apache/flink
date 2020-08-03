@@ -271,7 +271,7 @@ tEnv.executeSql(
     "   currency STRING," +
     "   fam1 ROW<rate DOUBLE>" +
     ") WITH (" +
-    "   'connector' = 'hbase-1.4'," +
+    "   'connector' = 'hbase'," +
     "   'table-name' = 'Rates'," +
     "   'zookeeper.quorum' = 'localhost:2181'" +
     ")");
@@ -293,7 +293,7 @@ tEnv.executeSql(
        |    currency STRING,
        |    fam1 ROW<rate DOUBLE>
        |) WITH (
-       |    'connector' = 'hbase-1.4',
+       |    'connector' = 'hbase',
        |    'table-name' = 'Rates',
        |    'zookeeper.quorum' = 'localhost:2181'
        |)

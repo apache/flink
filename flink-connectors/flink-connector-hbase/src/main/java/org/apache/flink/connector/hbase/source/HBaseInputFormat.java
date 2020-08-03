@@ -23,12 +23,18 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.TableNotFoundException;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
+
+import java.io.IOException;
 
 /**
- * {@link InputFormat} subclass that wraps the access for HTables.
+ * {@link InputFormat} subclass that wraps the access for Tabless.
  */
 @Experimental
 public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInputFormat<T> {
@@ -66,7 +72,7 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 	protected abstract T mapResultToTuple(Result r);
 
 	/**
-	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
+	 * Creates a {@link Scan} object and opens the {@link Table} connection.
 	 * These are opened here because they are needed in the createInputSplits
 	 * which is called before the openInputFormat method.
 	 * So the connection is opened in {@link #configure(Configuration)} and closed in {@link #closeInputFormat()}.
@@ -76,25 +82,41 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 	 */
 	@Override
 	public void configure(Configuration parameters) {
-		table = createTable();
+		conn = createConn();
+		table = createTable(conn);
 		if (table != null) {
 			scan = getScanner();
 		}
 	}
 
 	/**
-	 * Create an {@link HTable} instance and set it into this format.
+	 * Create an {@link Table} instance and set it into this format.
 	 */
-	private HTable createTable() {
+	private Table createTable(Connection conn) {
+		try {
+			return conn.getTable(TableName.valueOf(getTableName()));
+		} catch (TableNotFoundException tnfe) {
+			LOG.error("The table " + getTableName() + " not found ", tnfe);
+			throw new RuntimeException("HBase table '" + getTableName() + "' not found.", tnfe);
+		} catch (IOException ioe) {
+			LOG.error("Exception while creating connection to HBase Table.", ioe);
+			throw new RuntimeException("Cannot create connection to HBase Table.", ioe);
+		}
+	}
+
+	/**
+	 * Create an {@link Connection} instance and set it into this format.
+	 */
+	private Connection createConn() {
 		LOG.info("Initializing HBaseConfiguration");
 		org.apache.hadoop.conf.Configuration hConf = getHadoopConfiguration();
-
 		try {
-			return new HTable(hConf, getTableName());
-		} catch (Exception e) {
-			LOG.error("Error instantiating a new HTable instance", e);
+			Connection connection = ConnectionFactory.createConnection(hConf);
+			return connection;
+		} catch (IOException ioe) {
+			LOG.error("Exception while creating connection to HBase.", ioe);
+			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
-		return null;
 	}
 
 	protected T mapResultToOutType(Result r) {

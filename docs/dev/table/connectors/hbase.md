@@ -43,7 +43,7 @@ In order to setup the HBase connector, the following table provide dependency in
 | HBase Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
 | 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/hbase.html) {% endif %}|
-
+| 2.1.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/hbase.html) {% endif %}|
 
 How to use HBase table
 ----------------
@@ -61,7 +61,7 @@ CREATE TABLE hTable (
  family3 ROW<q4 DOUBLE, q5 BOOLEAN, q6 STRING>,
  PRIMARY KEY (rowkey) NOT ENFORCED
 ) WITH (
- 'connector' = 'hbase-1.4',
+ 'connector' = 'hbase',
  'table-name' = 'mytable',
  'zookeeper.quorum' = 'localhost:2181'
 );
@@ -101,7 +101,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be <code>'hbase-1.4'</code>.</td>
+      <td>Specify what connector to use, here should be <code>'hbase'</code>.</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>

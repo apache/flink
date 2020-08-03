@@ -90,7 +90,7 @@ public class HBaseWriteExample {
 			public Tuple2<Text, Mutation> map(Tuple2<String, Integer> t) throws Exception {
 				reuse.f0 = new Text(t.f0);
 				Put put = new Put(t.f0.getBytes(ConfigConstants.DEFAULT_CHARSET));
-				put.add(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME, Bytes.toBytes(t.f1));
+				put.addColumn(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME, Bytes.toBytes(t.f1));
 				reuse.f1 = put;
 				return reuse;
 			}

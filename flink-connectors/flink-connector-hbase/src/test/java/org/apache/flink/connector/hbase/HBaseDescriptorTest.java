@@ -56,7 +56,22 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 			.writeBufferFlushMaxRows(100)
 			.writeBufferFlushMaxSize("1mb");
 
-		return Arrays.asList(hbaseDesc0, hbaseDesc1);
+		HBase hbaseDesc2 = new HBase()
+			.version("2.1.0")
+			.tableName("testNs:table0")
+			.zookeeperQuorum("localhost:2181,localhost:2182,localhost:2183")
+			.zookeeperNodeParent("/hbase/root-dir");
+
+		HBase hbaseDesc3 = new HBase()
+			.version("2.1.0")
+			.tableName("testNs:table1")
+			.zookeeperQuorum("localhost:2181")
+			.zookeeperNodeParent("/hbase/root")
+			.writeBufferFlushInterval("2s")
+			.writeBufferFlushMaxRows(100)
+			.writeBufferFlushMaxSize("1mb");
+
+		return Arrays.asList(hbaseDesc0, hbaseDesc1, hbaseDesc2, hbaseDesc3);
 	}
 
 	@Override
@@ -80,7 +95,26 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 		prop1.put("connector.write.buffer-flush.max-rows", "100");
 		prop1.put("connector.write.buffer-flush.max-size", "1 mb");
 
-		return Arrays.asList(prop0, prop1);
+		Map<String, String> prop2 = new HashMap<>();
+		prop2.put("connector.version", "2.1.0");
+		prop2.put("connector.type", "hbase");
+		prop2.put("connector.table-name", "testNs:table0");
+		prop2.put("connector.zookeeper.quorum", "localhost:2181,localhost:2182,localhost:2183");
+		prop2.put("connector.zookeeper.znode.parent", "/hbase/root-dir");
+		prop2.put("connector.property-version", "1");
+
+		Map<String, String> prop3 = new HashMap<>();
+		prop3.put("connector.version", "2.1.0");
+		prop3.put("connector.type", "hbase");
+		prop3.put("connector.table-name", "testNs:table1");
+		prop3.put("connector.zookeeper.quorum", "localhost:2181");
+		prop3.put("connector.zookeeper.znode.parent", "/hbase/root");
+		prop3.put("connector.property-version", "1");
+		prop3.put("connector.write.buffer-flush.interval", "2s");
+		prop3.put("connector.write.buffer-flush.max-rows", "100");
+		prop3.put("connector.write.buffer-flush.max-size", "1 mb");
+
+		return Arrays.asList(prop0, prop1, prop2, prop3);
 	}
 
 	@Override
@@ -102,8 +136,17 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 		HBase hbaseDesc3 = new HBase()
 			.tableName("ns:table")
 			.zookeeperQuorum("localhost:2181"); // no version
-
-		HBase[] testCases = new HBase[]{hbaseDesc0, hbaseDesc1, hbaseDesc2, hbaseDesc3};
+		HBase hbaseDesc4 = new HBase()
+			.version("2.1.0");
+		HBase hbaseDesc5 = new HBase()
+			.version("2.1.0")
+			.zookeeperQuorum("localhost:2181")
+			.zookeeperNodeParent("/hbase/root"); // no table name
+		HBase hbaseDesc6 = new HBase()
+			.version("2.1.0")
+			.tableName("ns:table")
+			.zookeeperNodeParent("/hbase/root"); // no zookeeper quorum
+		HBase[] testCases = new HBase[]{hbaseDesc0, hbaseDesc1, hbaseDesc2, hbaseDesc3, hbaseDesc4, hbaseDesc5, hbaseDesc6};
 		for (int i = 0; i < testCases.length; i++) {
 			HBase hbaseDesc = testCases[i];
 			DescriptorProperties properties = new DescriptorProperties();

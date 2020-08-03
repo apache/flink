@@ -120,7 +120,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 					" rowkey INT," +
 					" PRIMARY KEY (rowkey) NOT ENFORCED" +
 					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
+					" 'connector' = 'hbase'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
 					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
 					")");
@@ -172,7 +172,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 					" rowkey INT," +
 					" PRIMARY KEY (rowkey) NOT ENFORCED" +
 					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
+					" 'connector' = 'hbase'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
 					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
 					")");
@@ -222,7 +222,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
 					" family1 ROW<col1 INT>" +
 					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
+					" 'connector' = 'hbase'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
 					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
 					")");
@@ -261,7 +261,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 					" family2 ROW<col1 BYTES, col2 BYTES>," +
 					" rowkey INT" + // no primary key syntax
 					") WITH (" +
-					" 'connector' = 'hbase-1.4'," +
+					" 'connector' = 'hbase'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
 					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
 					")");
@@ -438,7 +438,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				" family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3), col4 DECIMAL(12, 4)>," +
 				" PRIMARY KEY (rowkey) NOT ENFORCED" +
 				") WITH (" +
-				" 'connector' = 'hbase-1.4'," +
+				" 'connector' = 'hbase'," +
 				" 'table-name' = '" + TEST_TABLE_1 + "'," +
 				" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'" +
 				")");
@@ -623,7 +623,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"   family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>" +
 				family4Statement.toString() +
 				") WITH (\n" +
-				"   'connector' = 'hbase-1.4',\n" +
+				"   'connector' = 'hbase',\n" +
 				"   'table-name' = '" + tableName + "',\n" +
 				"   'zookeeper.quorum' = '" + getZookeeperQuorum() + "',\n" +
 				"   'zookeeper.znode.parent' = '/hbase' " +
