@@ -60,7 +60,7 @@ class TypeInfoTests(unittest.TestCase):
                                                                 ['a', 'b']), False)
         self.assertEqual(RowTypeInfo([Types.STRING(),
                                       Types.STRING()],
-                                     ['a', 'b']).__str__(), "RowTypeInfo[String, String]")
+                                     ['a', 'b']).__str__(), "RowTypeInfo(a: String, b: String)")
 
         self.assertEqual(Types.ROW([Types.STRING(), Types.STRING()]),
                          RowTypeInfo([Types.STRING(), Types.STRING()]), True)
@@ -76,7 +76,7 @@ class TypeInfoTests(unittest.TestCase):
                          TupleTypeInfo([Types.STRING(), Types.INT()]), True)
 
         self.assertEqual(TupleTypeInfo([Types.STRING(), Types.INT()]).__str__(),
-                         "TupleTypeInfo[String, Integer]")
+                         "TupleTypeInfo(String, Integer)")
 
         self.assertNotEqual(TupleTypeInfo([Types.STRING(), Types.INT()]),
                             TupleTypeInfo([Types.STRING(), Types.BOOLEAN()]))
