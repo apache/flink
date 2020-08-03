@@ -233,6 +233,10 @@ public class ConfigOptionsDocGenerator {
 		ConfigGroups configGroups = optionsClass.getAnnotation(ConfigGroups.class);
 		List<OptionWithMetaInfo> allOptions = extractConfigOptions(optionsClass);
 
+		if (allOptions.isEmpty()) {
+			return Collections.emptyList();
+		}
+
 		List<Tuple2<ConfigGroup, String>> tables;
 		if (configGroups != null) {
 			tables = new ArrayList<>(configGroups.groups().length + 1);
@@ -240,12 +244,16 @@ public class ConfigOptionsDocGenerator {
 
 			for (ConfigGroup group : configGroups.groups()) {
 				List<OptionWithMetaInfo> configOptions = tree.findConfigOptions(group);
-				sortOptions(configOptions);
-				tables.add(Tuple2.of(group, toHtmlTable(configOptions)));
+				if (!configOptions.isEmpty()) {
+					sortOptions(configOptions);
+					tables.add(Tuple2.of(group, toHtmlTable(configOptions)));
+				}
 			}
 			List<OptionWithMetaInfo> configOptions = tree.getDefaultOptions();
-			sortOptions(configOptions);
-			tables.add(Tuple2.of(null, toHtmlTable(configOptions)));
+			if (!configOptions.isEmpty()) {
+				sortOptions(configOptions);
+				tables.add(Tuple2.of(null, toHtmlTable(configOptions)));
+			}
 		} else {
 			sortOptions(allOptions);
 			tables = Collections.singletonList(Tuple2.of(null, toHtmlTable(allOptions)));
