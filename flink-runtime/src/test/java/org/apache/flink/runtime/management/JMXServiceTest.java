@@ -48,9 +48,9 @@ public class JMXServiceTest {
 	 * Verifies initialize failure with occupied port.
 	 */
 	@Test
-	public void testJMXServiceInitWithInvalidPorts() throws Exception {
-		try (ServerSocket socket = new ServerSocket(34567)) {
-			assertEquals(34567, socket.getLocalPort());
+	public void testJMXServiceInitWithOccupiedPort() throws Exception {
+		try (ServerSocket socket = new ServerSocket(23456)) {
+			assertEquals(23456, socket.getLocalPort());
 			JMXService.startInstance("23456");
 			assertFalse(JMXService.getInstance().isPresent());
 		}
