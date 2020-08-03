@@ -22,7 +22,6 @@ import org.junit.Test;
 
 import java.net.ServerSocket;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -49,9 +48,8 @@ public class JMXServiceTest {
 	 */
 	@Test
 	public void testJMXServiceInitWithOccupiedPort() throws Exception {
-		try (ServerSocket socket = new ServerSocket(23456)) {
-			assertEquals(23456, socket.getLocalPort());
-			JMXService.startInstance("23456");
+		try (ServerSocket socket = new ServerSocket(0)) {
+			JMXService.startInstance(String.valueOf(socket.getLocalPort()));
 			assertFalse(JMXService.getInstance().isPresent());
 		}
 	}
