@@ -422,11 +422,10 @@ public class SlotManagerImpl implements SlotManager {
 	public boolean reportSlotStatus(InstanceID instanceId, SlotReport slotReport) {
 		checkInit();
 
-		LOG.debug("Received slot report from instance {}: {}.", instanceId, slotReport);
-
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceId);
 
 		if (null != taskManagerRegistration) {
+			LOG.debug("Received slot report from instance {}: {}.", instanceId, slotReport);
 
 			for (SlotStatus slotStatus : slotReport) {
 				updateSlot(slotStatus.getSlotID(), slotStatus.getAllocationID(), slotStatus.getJobID());
