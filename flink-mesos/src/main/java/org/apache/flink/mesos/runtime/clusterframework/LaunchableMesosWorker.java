@@ -89,7 +89,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * @param containerSpec an abstract container specification for launch time.
 	 * @param taskID the taskID for this worker.
 	 */
-	public LaunchableMesosWorker(
+	LaunchableMesosWorker(
 			MesosArtifactResolver resolver,
 			MesosTaskManagerParameters params,
 			ContainerSpecification containerSpec,
@@ -131,7 +131,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			return params.cpus();
 		}
 
-		public double getGPUs() {
+		double getGPUs() {
 			return params.gpus();
 		}
 
