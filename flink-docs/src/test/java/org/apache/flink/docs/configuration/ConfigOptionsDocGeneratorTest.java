@@ -545,6 +545,13 @@ public class ConfigOptionsDocGeneratorTest {
 		assertThat(ConfigOptionsDocGenerator.generateTablesForClass(EmptyConfigOptions.class), empty());
 	}
 
+	@Test
+	public void testSnakeCaseConversion() {
+		assertEquals("rocks_options", ConfigOptionsDocGenerator.toSnakeCase("RocksOptions"));
+		assertEquals("rocksdb_options", ConfigOptionsDocGenerator.toSnakeCase("RocksDBOptions"));
+		assertEquals("db_options", ConfigOptionsDocGenerator.toSnakeCase("DBOptions"));
+	}
+
 	static String getProjectRootDir() {
 		final String dirFromProperty = System.getProperty("rootDir");
 		if (dirFromProperty != null) {

@@ -197,15 +197,20 @@ public class ConfigOptionsDocGenerator {
 					if (!matcher.matches()) {
 						throw new RuntimeException("Pattern did not match for " + optionsClass.getSimpleName() + '.');
 					}
-					name = matcher.group(CLASS_PREFIX_GROUP).replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase();
+					name = matcher.group(CLASS_PREFIX_GROUP);
 				} else {
-					name = group.f0.name().replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase();
+					name = group.f0.name();
 				}
 
-				String outputFile = name + "_configuration.html";
+				String outputFile = toSnakeCase(name) + "_configuration.html";
 				Files.write(Paths.get(outputDirectory, outputFile), group.f1.getBytes(StandardCharsets.UTF_8));
 			}
 		});
+	}
+
+	@VisibleForTesting
+	static String toSnakeCase(String name) {
+		return name.replaceAll("(.)([A-Z][a-z])", "$1_$2").toLowerCase();
 	}
 
 	@VisibleForTesting
