@@ -206,6 +206,9 @@ public class JMXReporterTest extends TestLogger {
 		assertEquals(1, mCon2.getAttribute(objectName1, "Value"));
 		assertEquals(2, mCon2.getAttribute(objectName2, "Value"));
 
+		// JMX Server URL should be identical since we made it static.
+		assertEquals(url1, url2);
+
 		rep1.notifyOfRemovedMetric(g1, "rep1", null);
 		rep1.notifyOfRemovedMetric(g2, "rep2", null);
 

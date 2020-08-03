@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -137,6 +139,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			executor,
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
+		JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
+
 		rpcService = createRpcService(configuration, highAvailabilityServices);
 
 		this.resourceId = new ResourceID(getTaskManagerResourceID(configuration, rpcService.getAddress(), rpcService.getPort()));
@@ -215,6 +219,12 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		synchronized (lock) {
 			Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
 			Exception exception = null;
+
+			try {
+				JMXService.stopInstance();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
 
 			try {
 				blobCacheService.close();

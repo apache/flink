@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
@@ -256,6 +258,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				configuration.getString(JobManagerOptions.BIND_HOST),
 				configuration.getOptional(JobManagerOptions.RPC_BIND_PORT));
 
+			JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
+
 			// update the configuration used to create the high availability services
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
@@ -374,6 +378,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			if (commonRpcService != null) {
 				terminationFutures.add(commonRpcService.stopService());
+			}
+
+			try {
+				JMXService.stopInstance();
+			} catch (Throwable t) {
+				exception = ExceptionUtils.firstOrSuppressed(t, exception);
 			}
 
 			if (exception != null) {

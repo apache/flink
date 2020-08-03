@@ -297,6 +297,10 @@ Please refer to the [Debugging Classloading Docs]({{site.baseurl}}/monitoring/de
 
 {% include generated/expert_class_loading_section.html %}
 
+### Advanced Options for the debugging
+
+{% include generated/expert_debugging_and_tuning_section.html %}
+
 ### Advanced State Backends Options
 
 {% include generated/expert_state_backends_section.html %}
