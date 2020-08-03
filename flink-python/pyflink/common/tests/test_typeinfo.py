@@ -75,9 +75,6 @@ class TypeInfoTests(unittest.TestCase):
         self.assertEqual(TupleTypeInfo([Types.STRING(), Types.INT()]),
                          TupleTypeInfo([Types.STRING(), Types.INT()]), True)
 
-        self.assertEqual(TupleTypeInfo([Types.STRING(), Types.INT()]).__str__(),
-                         "Java Tuple2<String, Integer>")
-
         self.assertNotEqual(TupleTypeInfo([Types.STRING(), Types.INT()]),
                             TupleTypeInfo([Types.STRING(), Types.BOOLEAN()]))
 
@@ -113,6 +110,3 @@ class TypeInfoTests(unittest.TestCase):
         sql_date_type_info = Types.SQL_DATE()
         self.assertEqual(sql_date_type_info,
                          _from_java_type(sql_date_type_info.get_java_type_info()))
-
-
-
