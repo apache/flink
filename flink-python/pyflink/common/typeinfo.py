@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import List, Union
 
 from py4j.java_gateway import JavaClass, JavaObject
-from typing import List, Union
 
 from pyflink.java_gateway import get_gateway
 
@@ -46,45 +46,6 @@ class TypeInformation(ABC):
     nested types).
     """
 
-    @abstractmethod
-    def is_basic_type(self) -> bool:
-        """
-        Checks if this type information represents a basic type.
-        Basic types are defined in BasicTypeInfo and are primitives, their boxing type, Strings ...
-
-        :return:  True, if this type information describes a basic type, false otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def is_tuple_type(self) -> bool:
-        """
-        Checks if this type information represents a Tuple type.
-
-        :return: True, if this type information describes a tuple type, false otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_arity(self) -> int:
-        """
-        Gets the arity of this type - the number of fields without nesting.
-
-        :return: the number of fields in this type without nesting.
-        """
-        pass
-
-    @abstractmethod
-    def get_total_fields(self) -> int:
-        """
-        Gets the number of logical fields in this type. This includes its nested and transitively
-        nested fields, in the case of composite types.
-        The total number of fields must be at lest 1.
-
-        :return: The number of fields in this type, including its sub-fields (for composite types).
-        """
-        pass
-
 
 class WrapperTypeInfo(TypeInformation):
     """
@@ -93,18 +54,6 @@ class WrapperTypeInfo(TypeInformation):
 
     def __init__(self, j_typeinfo):
         self._j_typeinfo = j_typeinfo
-
-    def is_basic_type(self) -> bool:
-        return self._j_typeinfo.isBasicType()
-
-    def is_tuple_type(self) -> bool:
-        return self._j_typeinfo.isTupleType()
-
-    def get_arity(self) -> int:
-        return self._j_typeinfo.getArity()
-
-    def get_total_fields(self) -> int:
-        return self._j_typeinfo.getTotalFields()
 
     def get_java_type_info(self) -> JavaObject:
         return self._j_typeinfo
@@ -329,14 +278,15 @@ class TupleTypeInfo(WrapperTypeInfo):
 
     def __init__(self, types: List[TypeInformation]):
         self.types = types
-        self.j_types_array = get_gateway().new_array(
+        j_types_array = get_gateway().new_array(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation, len(types))
 
         for i in range(len(types)):
-            self.j_types_array[i] = types[i].get_java_type_info()
+            j_types_array[i] = types[i].get_java_type_info()
 
-        self._j_typeinfo = get_gateway().jvm \
-            .org.apache.flink.api.java.typeutils.TupleTypeInfo(self.j_types_array)
+        j_typeinfo = get_gateway().jvm \
+            .org.apache.flink.api.java.typeutils.TupleTypeInfo(j_types_array)
+        super(TupleTypeInfo, self).__init__(j_typeinfo=j_typeinfo)
 
     def get_field_types(self) -> List[TypeInformation]:
         return self.types

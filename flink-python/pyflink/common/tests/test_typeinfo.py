@@ -23,27 +23,6 @@ from pyflink.common.typeinfo import Types, RowTypeInfo, TupleTypeInfo, _from_jav
 
 class TypeInfoTests(unittest.TestCase):
 
-    def test_types(self):
-        self.assertEqual(True, Types.BOOLEAN().is_basic_type())
-        self.assertEqual(True, Types.BYTE().is_basic_type())
-        self.assertEqual(True, Types.SHORT().is_basic_type())
-        self.assertEqual(True, Types.INT().is_basic_type())
-        self.assertEqual(True, Types.LONG().is_basic_type())
-        self.assertEqual(True, Types.FLOAT().is_basic_type())
-        self.assertEqual(True, Types.DOUBLE().is_basic_type())
-        self.assertEqual(True, Types.CHAR().is_basic_type())
-        self.assertEqual(True, Types.BIG_INT().is_basic_type())
-        self.assertEqual(True, Types.BIG_DEC().is_basic_type())
-        self.assertEqual(False, Types.PICKLED_BYTE_ARRAY().is_basic_type())
-
-        self.assertEqual(False, Types.STRING().is_tuple_type())
-        self.assertEqual(1, Types.STRING().get_total_fields())
-        self.assertEqual(1, Types.STRING().get_arity())
-
-        self.assertEqual(False, Types.SQL_DATE().is_basic_type())
-        self.assertEqual(False, Types.SQL_TIME().is_basic_type())
-        self.assertEqual(False, Types.SQL_TIMESTAMP().is_basic_type())
-
     def test_row_type(self):
         self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()])
                          .get_field_names(), ['f0', 'f1'])
@@ -95,6 +74,50 @@ class TypeInfoTests(unittest.TestCase):
         basic_int_type_info = Types.INT()
         self.assertEqual(basic_int_type_info,
                          _from_java_type(basic_int_type_info.get_java_type_info()))
+
+        basic_short_type_info = Types.SHORT()
+        self.assertEqual(basic_short_type_info,
+                         _from_java_type(basic_short_type_info.get_java_type_info()))
+
+        basic_long_type_info = Types.LONG()
+        self.assertEqual(basic_long_type_info,
+                         _from_java_type(basic_long_type_info.get_java_type_info()))
+
+        basic_float_type_info = Types.FLOAT()
+        self.assertEqual(basic_float_type_info,
+                         _from_java_type(basic_float_type_info.get_java_type_info()))
+
+        basic_double_type_info = Types.DOUBLE()
+        self.assertEqual(basic_double_type_info,
+                         _from_java_type(basic_double_type_info.get_java_type_info()))
+
+        basic_char_type_info = Types.CHAR()
+        self.assertEqual(basic_char_type_info,
+                         _from_java_type(basic_char_type_info.get_java_type_info()))
+
+        basic_byte_type_info = Types.BYTE()
+        self.assertEqual(basic_byte_type_info,
+                         _from_java_type(basic_byte_type_info.get_java_type_info()))
+
+        basic_big_int_type_info = Types.BIG_INT()
+        self.assertEqual(basic_big_int_type_info,
+                         _from_java_type(basic_big_int_type_info.get_java_type_info()))
+
+        basic_big_dec_type_info = Types.BIG_DEC()
+        self.assertEqual(basic_big_dec_type_info,
+                         _from_java_type(basic_big_dec_type_info.get_java_type_info()))
+
+        basic_sql_date_type_info = Types.SQL_DATE()
+        self.assertEqual(basic_sql_date_type_info,
+                         _from_java_type(basic_sql_date_type_info.get_java_type_info()))
+
+        basic_sql_time_type_info = Types.SQL_TIME()
+        self.assertEqual(basic_sql_time_type_info,
+                         _from_java_type(basic_sql_time_type_info.get_java_type_info()))
+
+        basic_sql_timestamp_type_info = Types.SQL_TIMESTAMP()
+        self.assertEqual(basic_sql_timestamp_type_info,
+                         _from_java_type(basic_sql_timestamp_type_info.get_java_type_info()))
 
         row_type_info = Types.ROW([Types.INT(), Types.STRING()])
         self.assertEqual(row_type_info, _from_java_type(row_type_info.get_java_type_info()))
