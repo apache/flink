@@ -101,7 +101,7 @@ DataStream<String> stream = env
 val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
-stream = env
+val stream = env
     .addSource(new FlinkKafkaConsumer[String]("topic", new SimpleStringSchema(), properties))
 {% endhighlight %}
 </div>
