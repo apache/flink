@@ -20,9 +20,11 @@ package org.apache.flink.runtime.management;
 
 import org.junit.Test;
 
+import javax.management.JMX;
 import java.net.ServerSocket;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -38,6 +40,17 @@ public class JMXServiceTest {
 		try {
 			JMXService.startInstance("23456-23466");
 			assertTrue(JMXService.getPort().isPresent());
+		} finally {
+			JMXService.stopInstance();
+		}
+	}
+
+	@Test
+	public void testJMXServiceInitWithRandomPort() throws Exception {
+		try {
+			JMXService.startInstance("0");
+			assertTrue(JMXService.getPort().isPresent());
+			assertNotEquals(0, JMXService.getPort().get().intValue());
 		} finally {
 			JMXService.stopInstance();
 		}

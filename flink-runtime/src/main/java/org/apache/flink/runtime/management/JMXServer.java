@@ -41,9 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * JMX Server implementation that JMX clients can connect to.
  *
- * <p>Heavily based on j256 simplejmx project
+ * <p>This implementation is heavily based on j256/simplejmx project.
  *
- * <p>https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
+ * @see <a href="https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java">j256/simplejmx project</a>
  */
 class JMXServer {
 	private static final Logger LOG = LoggerFactory.getLogger(JMXServer.class);

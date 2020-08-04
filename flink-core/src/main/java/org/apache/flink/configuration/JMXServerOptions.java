@@ -41,6 +41,8 @@ public class JMXServerOptions {
 					"port config can be a single port: \"9123\", a range of ports: \"50100-50200\", " +
 					"or a list of ranges and ports: \"50100-50200,50300-50400,51234\". ")
 				.linebreak()
+				.text("A random port number will be acquired if port config is set to \"0\". ")
+				.linebreak()
 				.text("This option overrides metrics.reporter.*.port option.")
 				.build());
 

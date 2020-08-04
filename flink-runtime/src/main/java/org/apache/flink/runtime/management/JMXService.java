@@ -24,7 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -85,6 +88,9 @@ public class JMXService {
 		while (ports.hasNext() && successfullyStartedServer == null) {
 			JMXServer server = new JMXServer();
 			int port = ports.next();
+			if (port == 0) { // try poke with a random port when port is set to zero
+				port = tryPokeForNewPort();
+			}
 			try {
 				server.start(port);
 				LOG.info("Started JMX server on port " + port + ".");
@@ -99,5 +105,28 @@ public class JMXService {
 			}
 		}
 		return successfullyStartedServer;
+	}
+	/**
+	 * This method tries to poke for a new port number, then releases it.
+	 *
+	 * @return a successful poked port number.
+	 */
+	private static int tryPokeForNewPort() {
+		ServerSocket serverSocket = null;
+		try {
+			serverSocket = new ServerSocket(0);
+			return serverSocket.getLocalPort();
+		} catch (IOException e) {
+			LOG.warn("Unable to allocate new Server Socket!", e);
+			return -1;
+		} finally {
+			if (serverSocket != null) {
+				try {
+					serverSocket.close();
+				} catch (IOException e) {
+					LOG.warn("Unable to close allocated new Server Socket!", e);
+				}
+			}
+		}
 	}
 }
