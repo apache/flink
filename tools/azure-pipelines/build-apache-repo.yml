@@ -74,6 +74,11 @@ stages:
     dependsOn: [] # depending on an empty array makes the stages run in parallel
     condition: or(eq(variables['Build.Reason'], 'Schedule'), eq(variables['MODE'], 'nightly'))
     jobs:
+      - template: build-nightly-dist.yml
+        parameters:
+          stage_name: cron_snapshot_deployment
+          environment: PROFILE=""
+          container: flink-build-container
       - template: jobs-template.yml
         parameters:
           stage_name: cron_azure
