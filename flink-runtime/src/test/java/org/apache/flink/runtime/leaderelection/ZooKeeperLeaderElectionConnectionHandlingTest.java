@@ -156,7 +156,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
 		@Override
 		public void handleError(Exception exception) {
-			// nothing to do
+			throw new UnsupportedOperationException("handleError(Exception) shouldn't have been called, but it was triggered anyway.", exception);
 		}
 	}
 }
