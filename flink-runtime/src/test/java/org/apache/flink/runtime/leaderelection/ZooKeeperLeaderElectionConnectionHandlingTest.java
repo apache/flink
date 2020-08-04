@@ -79,7 +79,6 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
 	@Test
 	public void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
-		// initialize LeaderRetrievalService
 		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(1, Duration.ofSeconds(1));
 
 		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
@@ -97,13 +96,11 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
 	@Test
 	public void testConnectionSuspendedHandling() throws Exception {
-		// initialize LeaderElection-related instances
 		String leaderAddress = "localhost";
 		LeaderElectionService leaderElectionService = ZooKeeperUtils.createLeaderElectionService(zooKeeperClient, config);
 		TestingContender contender = new TestingContender(leaderAddress, leaderElectionService);
 		leaderElectionService.start(contender);
 
-		// initialize LeaderRetrievalService
 		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2, Duration.ofSeconds(1));
 
 		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
