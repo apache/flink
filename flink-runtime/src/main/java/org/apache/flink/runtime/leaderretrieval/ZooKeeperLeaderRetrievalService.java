@@ -184,9 +184,9 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 				LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
 				break;
 			case SUSPENDED:
+				LOG.warn("Connection to ZooKeeper suspended. Can no longer retrieve the leader from " +
+						"ZooKeeper.");
 				synchronized (lock) {
-					LOG.warn("Connection to ZooKeeper suspended. Can no longer retrieve the leader from " +
-							"ZooKeeper.");
 					notifyLeaderLoss();
 				}
 				break;
@@ -194,9 +194,9 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 				LOG.info("Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
 				break;
 			case LOST:
+				LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
+						"ZooKeeper.");
 				synchronized (lock) {
-					LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
-							"ZooKeeper.");
 					notifyLeaderLoss();
 				}
 				break;
