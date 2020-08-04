@@ -101,7 +101,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		TestingContender contender = new TestingContender(leaderAddress, leaderElectionService);
 		leaderElectionService.start(contender);
 
-		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2, Duration.ofSeconds(1));
+		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2);
 
 		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
 		testInstance.start(queueLeaderElectionListener);
@@ -129,6 +129,10 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		private final BlockingQueue<CompletableFuture<String>> queue;
 		private final Duration timeout;
 
+		public QueueLeaderElectionListener(int expectedCalls) {
+			this(expectedCalls, null);
+		}
+
 		public QueueLeaderElectionListener(int expectedCalls, Duration timeout) {
 			this.queue = new ArrayBlockingQueue<>(expectedCalls);
 			this.timeout = timeout;
@@ -137,7 +141,11 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		@Override
 		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
 			try {
-				this.queue.offer(CompletableFuture.completedFuture(leaderAddress), timeout.toMillis(), TimeUnit.MILLISECONDS);
+				if (timeout == null) {
+					queue.put(CompletableFuture.completedFuture(leaderAddress));
+				} else {
+					queue.offer(CompletableFuture.completedFuture(leaderAddress), timeout.toMillis(), TimeUnit.MILLISECONDS);
+				}
 			} catch (InterruptedException e) {
 				throw new IllegalStateException(e);
 			}
@@ -145,7 +153,11 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
 		public CompletableFuture<String> next() {
 			try {
-				return this.queue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				if (timeout == null) {
+					return queue.take();
+				} else {
+					return this.queue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				}
 			} catch (InterruptedException e) {
 				throw new IllegalStateException(e);
 			}
