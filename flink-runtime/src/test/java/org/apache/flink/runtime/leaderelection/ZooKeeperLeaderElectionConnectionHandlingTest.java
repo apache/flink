@@ -79,7 +79,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
 	@Test
 	public void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
-		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(1, Duration.ofSeconds(1));
+		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(1, Duration.ofMillis(50));
 
 		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
 		testInstance.start(queueLeaderElectionListener);
