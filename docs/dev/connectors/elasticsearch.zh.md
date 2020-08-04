@@ -404,13 +404,7 @@ input.addSink(new ElasticsearchSink(
 
 ## 将 Elasticsearch Connector 打包到 Uber-Jar 中
 
-<<<<<<< HEAD
-For the execution of your Flink program, it is recommended to build a
-so-called uber-jar (executable jar) containing all your dependencies
-(see [here]({{site.baseurl}}/dev/project-configuration.html) for further information).
-=======
-为了执行 Flink 程序，建议构建一个包含所有依赖项的所谓 uber-jar（可执行 jar ）有关详细信息，请参阅[此处]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html)。
->>>>>>> 76f13ed7a4b... [FLINK-12942][docs-zh] Translate Elasticsearch Connector page into Chinese
+为了执行 Flink 程序，建议构建一个包含所有依赖项的所谓 uber-jar（可执行 jar ）有关详细信息，请参阅[此处]({{site.baseurl}}/zh/dev/project-configuration.html)。
 
 或者，您可以将连接器的 jar 文件放入 Flink 的`lib /`文件夹中以使其可用于所有系统，即所有正在运行的 job 。
 
