@@ -21,14 +21,11 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -50,7 +47,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -87,13 +83,10 @@ public class SlotPoolInteractionsTest extends TestLogger {
 		)) {
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
-			Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), pool);
-			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
-			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
+			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
 				new SlotRequestId(),
-				new ScheduledUnit(getExecution()),
-				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
+				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
 			try {
@@ -114,14 +107,11 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
-			Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), pool);
-			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
+			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
 				requestId,
-				new ScheduledUnit(getExecution()),
-				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
+				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
 			try {
@@ -165,14 +155,10 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			pool.connectToResourceManager(resourceManagerGateway);
 
-			Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), pool);
-			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
-
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
+			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
 				requestId,
-				new DummyScheduledUnit(),
-				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
+				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
 			try {
@@ -200,9 +186,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
-			Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), pool);
-			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
-
 			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 
 			TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -215,10 +198,9 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
+			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
 				requestId,
-				new ScheduledUnit(getExecution()),
-				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
+				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
 			try {
