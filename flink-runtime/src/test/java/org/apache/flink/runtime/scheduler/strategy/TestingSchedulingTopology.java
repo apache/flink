@@ -152,9 +152,20 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 	}
 
 	public TestingSchedulingExecutionVertex newExecutionVertex() {
-		final TestingSchedulingExecutionVertex newVertex = new TestingSchedulingExecutionVertex(new JobVertexID(), 0);
+		return newExecutionVertex(new JobVertexID(), 0);
+	}
+
+	public TestingSchedulingExecutionVertex newExecutionVertex(final JobVertexID jobVertexId, final int subtaskIndex) {
+		final TestingSchedulingExecutionVertex newVertex = new TestingSchedulingExecutionVertex(jobVertexId, subtaskIndex);
 		addSchedulingExecutionVertex(newVertex);
 		return newVertex;
+	}
+
+	public TestingSchedulingTopology connect(
+			final TestingSchedulingExecutionVertex producer,
+			final TestingSchedulingExecutionVertex consumer) {
+
+		return connect(producer, consumer, ResultPartitionType.PIPELINED);
 	}
 
 	public TestingSchedulingTopology connect(
