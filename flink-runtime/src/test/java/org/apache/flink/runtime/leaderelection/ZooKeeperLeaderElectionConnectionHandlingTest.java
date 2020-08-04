@@ -41,7 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
@@ -113,7 +113,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		stopTestServer();
 
 		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-		assertThat("The next result must not be missing.", secondAddress, not(is(nullValue())));
+		assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
 		assertThat("The next result is expected to be null.", secondAddress.get(), is(nullValue()));
 	}
 
