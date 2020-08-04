@@ -25,6 +25,7 @@ import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.orc.OrcSplitReaderUtil;
+import org.apache.flink.orc.writer.ThreadLocalClassLoaderConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
@@ -255,12 +256,14 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 			formatTypes[i] = tableSchema.getFieldDataType(i).get().getLogicalType();
 		}
 		RowType formatType = RowType.of(formatTypes, formatNames);
-		Configuration formatConf = new Configuration(jobConf);
-		sd.getSerdeInfo().getParameters().forEach(formatConf::set);
 		if (serLib.contains("parquet")) {
+			Configuration formatConf = new Configuration(jobConf);
+			sd.getSerdeInfo().getParameters().forEach(formatConf::set);
 			return Optional.of(ParquetRowDataBuilder.createWriterFactory(
 					formatType, formatConf, hiveVersion.startsWith("3.")));
 		} else if (serLib.contains("orc")) {
+			Configuration formatConf = new ThreadLocalClassLoaderConfiguration(jobConf);
+			sd.getSerdeInfo().getParameters().forEach(formatConf::set);
 			TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(formatType);
 			return Optional.of(hiveShim.createOrcBulkWriterFactory(
 					formatConf, typeDescription.toString(), formatTypes));
