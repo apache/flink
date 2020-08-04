@@ -27,7 +27,6 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
@@ -222,12 +221,6 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		if (expected instanceof BigDecimal && result instanceof BigDecimal) {
 			// BigDecimal.equals() value and scale but we are only interested in value.
 			assertEquals(0, ((BigDecimal) expected).compareTo((BigDecimal) result));
-		} else if (expected instanceof MinWithRetractAccumulator &&
-				result instanceof MinWithRetractAccumulator) {
-			MinWithRetractAccumulator e = (MinWithRetractAccumulator) expected;
-			MinWithRetractAccumulator r = (MinWithRetractAccumulator) result;
-			assertEquals(e.min, r.min);
-			assertEquals(e.mapSize, r.mapSize);
 		} else if (expected instanceof RawValueData && result instanceof RawValueData) {
 			TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			assertThat(

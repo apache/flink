@@ -286,35 +286,14 @@ class AggFunctionFactory(
 
   private def createMinAggFunction(
       argTypes: Array[LogicalType],
-      index: Int): UserDefinedFunction = {
+      index: Int)
+    : UserDefinedFunction = {
+    val valueType = argTypes(0)
     if (needRetraction(index)) {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteMinWithRetractAggFunction
-        case SMALLINT =>
-          new ShortMinWithRetractAggFunction
-        case INTEGER =>
-          new IntMinWithRetractAggFunction
-        case BIGINT =>
-          new LongMinWithRetractAggFunction
-        case FLOAT =>
-          new FloatMinWithRetractAggFunction
-        case DOUBLE =>
-          new DoubleMinWithRetractAggFunction
-        case BOOLEAN =>
-          new BooleanMinWithRetractAggFunction
-        case VARCHAR | CHAR =>
-          new StringMinWithRetractAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalMinWithRetractAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
-        case TIME_WITHOUT_TIME_ZONE =>
-          new TimeMinWithRetractAggFunction
-        case DATE =>
-          new DateMinWithRetractAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          val d = argTypes(0).asInstanceOf[TimestampType]
-          new TimestampMinWithRetractAggFunction(d.getPrecision)
+      valueType.getTypeRoot match {
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
+          new MinWithRetractAggFunction(argTypes(0))
         case t =>
           throw new TableException(s"Min with retract aggregate function does not " +
             s"support type: ''$t''.\nPlease re-check the data type.")
