@@ -208,39 +208,23 @@ public class SlotPoolImplTest extends TestLogger {
 		try (SlotPoolImpl slotPool = createAndSetUpSlotPool()) {
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
-			final SlotRequestId requestId1 = new SlotRequestId();
-			final CompletableFuture<PhysicalSlot> future1 = requestNewAllocatedSlot(
-				slotPool,
-				requestId1
-			);
-			assertFalse(future1.isDone());
-
-			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
+			final AllocationID allocationId = new AllocationID();
 			final SlotOffer slotOffer = new SlotOffer(
-				slotRequest.getAllocationId(),
+				allocationId,
 				0,
 				DEFAULT_TESTING_PROFILE);
-
 			assertTrue(slotPool.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer));
-
-			final PhysicalSlot slot1 = future1.get(1, TimeUnit.SECONDS);
-			assertTrue(future1.isDone());
-
-			// return this slot to pool
-			slotPool.releaseSlot(requestId1, null);
 
 			assertEquals(1, slotPool.getAvailableSlots().size());
 			assertEquals(0, slotPool.getAllocatedSlots().size());
 
-			final Optional<PhysicalSlot> physicalSlot = slotPool.allocateAvailableSlot(
+			Optional<PhysicalSlot> physicalSlot = slotPool.allocateAvailableSlot(
 				new SlotRequestId(),
-				slotRequest.getAllocationId());
+				allocationId);
 
-			// second allocation fulfilled by previous slot returning
 			assertTrue(physicalSlot.isPresent());
-			final PhysicalSlot slot2 = physicalSlot.get();
-			assertEquals(slot1, slot2);
+			assertEquals(0, slotPool.getAvailableSlots().size());
+			assertEquals(1, slotPool.getAllocatedSlots().size());
 		}
 	}
 
