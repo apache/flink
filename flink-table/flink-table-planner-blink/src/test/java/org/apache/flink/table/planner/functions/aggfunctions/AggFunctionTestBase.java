@@ -27,7 +27,6 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -228,12 +227,6 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			MinWithRetractAccumulator e = (MinWithRetractAccumulator) expected;
 			MinWithRetractAccumulator r = (MinWithRetractAccumulator) result;
 			assertEquals(e.min, r.min);
-			assertEquals(e.mapSize, r.mapSize);
-		} else if (expected instanceof MaxWithRetractAccumulator &&
-				result instanceof MaxWithRetractAccumulator) {
-			MaxWithRetractAccumulator e = (MaxWithRetractAccumulator) expected;
-			MaxWithRetractAccumulator r = (MaxWithRetractAccumulator) result;
-			assertEquals(e.max, r.max);
 			assertEquals(e.mapSize, r.mapSize);
 		} else if (expected instanceof RawValueData && result instanceof RawValueData) {
 			TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());

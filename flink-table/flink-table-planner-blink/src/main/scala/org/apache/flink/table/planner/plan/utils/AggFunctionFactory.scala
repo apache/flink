@@ -390,41 +390,21 @@ class AggFunctionFactory(
   }
 
   private def createMaxAggFunction(
-      argTypes: Array[LogicalType], index: Int): UserDefinedFunction = {
+        argTypes: Array[LogicalType],
+        index: Int)
+    : UserDefinedFunction = {
+    val valueType = argTypes(0)
     if (needRetraction(index)) {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteMaxWithRetractAggFunction
-        case SMALLINT =>
-          new ShortMaxWithRetractAggFunction
-        case INTEGER =>
-          new IntMaxWithRetractAggFunction
-        case BIGINT =>
-          new LongMaxWithRetractAggFunction
-        case FLOAT =>
-          new FloatMaxWithRetractAggFunction
-        case DOUBLE =>
-          new DoubleMaxWithRetractAggFunction
-        case BOOLEAN =>
-          new BooleanMaxWithRetractAggFunction
-        case VARCHAR =>
-          new StringMaxWithRetractAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalMaxWithRetractAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
-        case TIME_WITHOUT_TIME_ZONE =>
-          new TimeMaxWithRetractAggFunction
-        case DATE =>
-          new DateMaxWithRetractAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          val d = argTypes(0).asInstanceOf[TimestampType]
-          new TimestampMaxWithRetractAggFunction(d.getPrecision)
+      valueType.getTypeRoot match {
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
+          new MaxWithRetractAggFunction(argTypes(0))
         case t =>
           throw new TableException(s"Max with retract aggregate function does not " +
             s"support type: ''$t''.\nPlease re-check the data type.")
       }
     } else {
-      argTypes(0).getTypeRoot match {
+      valueType.getTypeRoot match {
         case TINYINT =>
           new MaxAggFunction.ByteMaxAggFunction
         case SMALLINT =>
