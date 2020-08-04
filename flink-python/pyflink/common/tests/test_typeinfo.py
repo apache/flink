@@ -66,10 +66,6 @@ class TypeInfoTests(unittest.TestCase):
         self.assertEqual(Types.TUPLE([Types.STRING(), Types.INT()]).get_field_types(),
                          [Types.STRING(), Types.INT()])
 
-    def test_primitive_array_types(self):
-        primitive_int_array_type_info = Types.PRIMITIVE_ARRAY(Types.INT())
-        self.assertEqual(primitive_int_array_type_info.is_basic_type(), False)
-
     def test_from_java_type(self):
         basic_int_type_info = Types.INT()
         self.assertEqual(basic_int_type_info,
