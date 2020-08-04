@@ -50,113 +50,113 @@ import static org.junit.Assert.assertThat;
  */
 public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
-    private TestingServer testingServer;
+	private TestingServer testingServer;
 
-    private Configuration config;
+	private Configuration config;
 
-    private CuratorFramework zooKeeperClient;
+	private CuratorFramework zooKeeperClient;
 
-    @Before
-    public void before() throws Exception {
-        testingServer = new TestingServer();
+	@Before
+	public void before() throws Exception {
+		testingServer = new TestingServer();
 
-        config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+		config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
-        zooKeeperClient = ZooKeeperUtils.startCuratorFramework(config);
-    }
+		zooKeeperClient = ZooKeeperUtils.startCuratorFramework(config);
+	}
 
-    @After
-    public void after() throws Exception {
-        stopTestServer();
+	@After
+	public void after() throws Exception {
+		stopTestServer();
 
-        if (zooKeeperClient != null) {
-            zooKeeperClient.close();
-            zooKeeperClient = null;
-        }
-    }
+		if (zooKeeperClient != null) {
+			zooKeeperClient.close();
+			zooKeeperClient = null;
+		}
+	}
 
-    @Test
-    public void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
-        // initialize LeaderRetrievalService
-        QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(1, Duration.ofSeconds(1));
+	@Test
+	public void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
+		// initialize LeaderRetrievalService
+		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(1, Duration.ofSeconds(1));
 
-        ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
-        testInstance.start(queueLeaderElectionListener);
+		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
+		testInstance.start(queueLeaderElectionListener);
 
-        // do the testing
-        CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
-        assertThat("No results are expected, yet, since no leader was elected.", firstAddress, is(nullValue()));
+		// do the testing
+		CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
+		assertThat("No results are expected, yet, since no leader was elected.", firstAddress, is(nullValue()));
 
-        stopTestServer();
+		stopTestServer();
 
-        CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-        assertThat("No result is expected since there was no leader elected before stopping the server, yet.", secondAddress, is(nullValue()));
-    }
+		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
+		assertThat("No result is expected since there was no leader elected before stopping the server, yet.", secondAddress, is(nullValue()));
+	}
 
-    @Test
-    public void testConnectionSuspendedHandling() throws Exception {
-        // initialize LeaderElection-related instances
-        String leaderAddress = "localhost";
-        LeaderElectionService leaderElectionService = ZooKeeperUtils.createLeaderElectionService(zooKeeperClient, config);
-        TestingContender contender = new TestingContender(leaderAddress, leaderElectionService);
-        leaderElectionService.start(contender);
+	@Test
+	public void testConnectionSuspendedHandling() throws Exception {
+		// initialize LeaderElection-related instances
+		String leaderAddress = "localhost";
+		LeaderElectionService leaderElectionService = ZooKeeperUtils.createLeaderElectionService(zooKeeperClient, config);
+		TestingContender contender = new TestingContender(leaderAddress, leaderElectionService);
+		leaderElectionService.start(contender);
 
-        // initialize LeaderRetrievalService
-        QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2, Duration.ofSeconds(1));
+		// initialize LeaderRetrievalService
+		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2, Duration.ofSeconds(1));
 
-        ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
-        testInstance.start(queueLeaderElectionListener);
+		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
+		testInstance.start(queueLeaderElectionListener);
 
-        // do the testing
-        CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
-        assertThat("The first result is expected to be the initially set leader address.", firstAddress.get(), is(leaderAddress));
+		// do the testing
+		CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
+		assertThat("The first result is expected to be the initially set leader address.", firstAddress.get(), is(leaderAddress));
 
-        stopTestServer();
+		stopTestServer();
 
-        CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-        assertThat("The next result must not be missing.", secondAddress, not(is(nullValue())));
-        assertThat("The next result is expected to be null.", secondAddress.get(), is(nullValue()));
-    }
+		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
+		assertThat("The next result must not be missing.", secondAddress, not(is(nullValue())));
+		assertThat("The next result is expected to be null.", secondAddress.get(), is(nullValue()));
+	}
 
-    private void stopTestServer() throws IOException {
-        if (testingServer != null) {
-            testingServer.stop();
-            testingServer = null;
-        }
-    }
+	private void stopTestServer() throws IOException {
+		if (testingServer != null) {
+			testingServer.stop();
+			testingServer = null;
+		}
+	}
 
-    private static class QueueLeaderElectionListener implements LeaderRetrievalListener {
+	private static class QueueLeaderElectionListener implements LeaderRetrievalListener {
 
-        private final BlockingQueue<CompletableFuture<String>> queue;
-        private final Duration timeout;
+		private final BlockingQueue<CompletableFuture<String>> queue;
+		private final Duration timeout;
 
-        public QueueLeaderElectionListener(int expectedCalls, Duration timeout) {
-            this.queue = new ArrayBlockingQueue<>(expectedCalls);
-            this.timeout = timeout;
-        }
+		public QueueLeaderElectionListener(int expectedCalls, Duration timeout) {
+			this.queue = new ArrayBlockingQueue<>(expectedCalls);
+			this.timeout = timeout;
+		}
 
-        @Override
-        public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-            try {
-                this.queue.offer(CompletableFuture.completedFuture(leaderAddress), timeout.toMillis(), TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                throw new IllegalStateException(e);
-            }
-        }
+		@Override
+		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+			try {
+				this.queue.offer(CompletableFuture.completedFuture(leaderAddress), timeout.toMillis(), TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				throw new IllegalStateException(e);
+			}
+		}
 
-        public CompletableFuture<String> next() {
-            try {
-                return this.queue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                throw new IllegalStateException(e);
-            }
-        }
+		public CompletableFuture<String> next() {
+			try {
+				return this.queue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				throw new IllegalStateException(e);
+			}
+		}
 
-        @Override
-        public void handleError(Exception exception) {
-            // nothing to do
-        }
-    }
+		@Override
+		public void handleError(Exception exception) {
+			// nothing to do
+		}
+	}
 }
