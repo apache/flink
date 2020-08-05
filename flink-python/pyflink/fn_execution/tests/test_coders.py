@@ -23,7 +23,7 @@ import unittest
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder
+    LocalZonedTimestampCoder, BasicDecimalCoder, TupleCoder
 
 try:
     from pyflink.fn_execution import coder_impl_fast  # noqa # pylint: disable=unused-import
@@ -153,6 +153,17 @@ class CodersTest(unittest.TestCase):
         coder = RowCoder([field_coder for _ in range(field_count)])
         v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
         self.check_coder(coder, v)
+
+    def test_basic_decimal_coder(self):
+        basic_dec_coder = BasicDecimalCoder()
+        value = 1.200
+        self.check_coder(basic_dec_coder, value)
+
+    def test_tuple_coder(self):
+        field_coders = [IntCoder(), CharCoder(), CharCoder()]
+        tuple_coder = TupleCoder(field_coders=field_coders)
+        data = (1, "Hello", "Hi")
+        self.check_coder(tuple_coder, data)
 
 
 if __name__ == '__main__':

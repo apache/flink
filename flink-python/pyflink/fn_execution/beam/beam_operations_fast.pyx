@@ -27,7 +27,6 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operation_specs
 from apache_beam.utils.windowed_value cimport WindowedValue
 
-
 from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
@@ -46,8 +45,12 @@ cdef class BeamStatelessFunctionOperation(Operation):
         super(BeamStatelessFunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-        from pyflink.fn_execution.beam.beam_coder_impl_slow import ArrowCoderImpl
-        if isinstance(self._value_coder_impl, ArrowCoderImpl):
+        from pyflink.fn_execution.beam.beam_coder_impl_slow import ArrowCoderImpl, \
+            DataStreamStatelessMapCoderImpl, DataStreamStatelessFlatMapCoderImpl
+
+        if isinstance(self._value_coder_impl, (ArrowCoderImpl,
+                                               DataStreamStatelessMapCoderImpl,
+                                               DataStreamStatelessFlatMapCoderImpl)):
             self._is_python_coder = True
         else:
             self._is_python_coder = False
@@ -161,6 +164,15 @@ cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
         generate_func = eval('lambda value: %s' % table_function, variable_dict)
         return generate_func, user_defined_funcs
 
+cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
+    def __init__(self, name, spec, counter_factory, sampler, consumers):
+        super(DataStreamStatelessFunctionOperation, self).__init__(name, spec, counter_factory,
+                                                                   sampler, consumers)
+
+    def generate_func(self, udfs):
+        func = operation_utils.extract_data_stream_stateless_funcs(udfs)
+        return lambda it: map(func, it), []
+
 @bundle_processor.BeamTransformFactory.register_urn(
     operation_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
@@ -172,6 +184,12 @@ def create_scalar_function(factory, transform_id, transform_proto, parameter, co
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, BeamTableFunctionOperation)
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    operation_utils.DATA_STREAM_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedDataStreamFunctions)
+def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter, DataStreamStatelessFunctionOperation)
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
                                             operation_cls):
