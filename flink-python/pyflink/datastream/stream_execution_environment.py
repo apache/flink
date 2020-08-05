@@ -15,14 +15,22 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import os
+import tempfile
+
+from typing import List, Any
+
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies
+from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
+from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.state_backend import _from_j_state_backend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
+from pyflink.serializers import PickleSerializer
 from pyflink.util.utils import load_java_class
 
 __all__ = ['StreamExecutionEnvironment']
@@ -39,8 +47,9 @@ class StreamExecutionEnvironment(object):
     access).
     """
 
-    def __init__(self, j_stream_execution_environment):
+    def __init__(self, j_stream_execution_environment, serializer=PickleSerializer()):
         self._j_stream_execution_environment = j_stream_execution_environment
+        self.serializer = serializer
 
     def get_config(self):
         """
@@ -437,3 +446,54 @@ class StreamExecutionEnvironment(object):
         j_stream_exection_environment = gateway.jvm.org.apache.flink.streaming.api.environment\
             .StreamExecutionEnvironment.getExecutionEnvironment()
         return StreamExecutionEnvironment(j_stream_exection_environment)
+
+    def from_collection(self, collection: List[Any],
+                        type_info: TypeInformation = None) -> DataStream:
+        """
+        Creates a data stream from the given non-empty collection. The type of the data stream is
+        that of the elements in the collection.
+
+        Note that this operation will result in a non-parallel data stream source, i.e. a data
+        stream source with parallelism one.
+
+        :param collection: The collection of elements to create the data stream from.
+        :param type_info: The TypeInformation for the produced data stream
+        :return: the data stream representing the given collection.
+        """
+        return self._from_collection(collection, type_info)
+
+    def _from_collection(self, elements: List[Any],
+                         type_info: TypeInformation = None) -> DataStream:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = self.serializer
+        try:
+            with temp_file:
+                # dumps elements to a temporary file by pickle serializer.
+                serializer.dump_to_stream(elements, temp_file)
+            gateway = get_gateway()
+            # if user does not defined the element data types, read the pickled data as a byte array
+            # list.
+            if type_info is None:
+                j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
+                out_put_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+            else:
+                j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, False)
+                out_put_type_info = type_info
+            # Since flink python module depends on table module, we can make use of utils of it when
+            # implementing python DataStream API.
+            PythonTableUtils = gateway.jvm\
+                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+            execution_config = self._j_stream_execution_environment.getConfig()
+            j_input_format = PythonTableUtils.getCollectionInputFormat(
+                j_objs,
+                out_put_type_info.get_java_type_info(),
+                execution_config
+            )
+
+            j_data_stream_source = self._j_stream_execution_environment.createInput(
+                j_input_format,
+                out_put_type_info.get_java_type_info()
+            )
+            return DataStream(j_data_stream=j_data_stream_source)
+        finally:
+            os.unlink(temp_file.name)
