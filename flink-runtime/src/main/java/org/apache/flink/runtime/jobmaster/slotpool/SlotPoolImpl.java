@@ -475,11 +475,11 @@ public class SlotPoolImpl implements SlotPool {
 	@Nonnull
 	public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
 		final Map<ResourceID, Set<AllocatedSlot>> availableSlotsByTaskManager = availableSlots.getSlotsByTaskManager();
-		final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsSlotsByTaskManager = allocatedSlots.getSlotsByTaskManager();
+		final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsByTaskManager = allocatedSlots.getSlotsByTaskManager();
 
 		return availableSlotsByTaskManager.entrySet().stream()
 			.flatMap(entry -> {
-				final int numberAllocatedSlots = allocatedSlotsSlotsByTaskManager.getOrDefault(entry.getKey(), Collections.emptySet()).size();
+				final int numberAllocatedSlots = allocatedSlotsByTaskManager.getOrDefault(entry.getKey(), Collections.emptySet()).size();
 				final int numberAvailableSlots = entry.getValue().size();
 				final double taskExecutorUtilization = (double) numberAllocatedSlots / (numberAllocatedSlots + numberAvailableSlots);
 
