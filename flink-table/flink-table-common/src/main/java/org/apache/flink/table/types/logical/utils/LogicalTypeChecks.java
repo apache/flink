@@ -99,7 +99,7 @@ public final class LogicalTypeChecks {
 	public static boolean hasLegacyTypes(LogicalType logicalType) {
 		return hasNested(
 			logicalType,
-			t -> t instanceof LegacyTypeInformationType || t instanceof TypeInformationRawType
+			t -> t instanceof LegacyTypeInformationType
 		);
 	}
 
