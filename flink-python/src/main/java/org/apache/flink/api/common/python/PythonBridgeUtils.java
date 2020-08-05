@@ -145,7 +145,7 @@ public final class PythonBridgeUtils {
 		return typePickledData;
 	}
 
-	private static List<byte[]> readPickledBytes(final String fileName) throws IOException {
+	public static List<byte[]> readPickledBytes(final String fileName) throws IOException {
 		List<byte[]> objs = new LinkedList<>();
 		try (DataInputStream din = new DataInputStream(new FileInputStream(fileName))) {
 			try {
