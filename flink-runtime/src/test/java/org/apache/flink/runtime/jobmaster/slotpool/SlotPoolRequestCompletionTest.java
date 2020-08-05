@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -58,7 +55,7 @@ import static org.hamcrest.Matchers.nullValue;
  */
 public class SlotPoolRequestCompletionTest extends TestLogger {
 
-	private static final Time TIMEOUT = Time.seconds(10L);
+	private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
 
 	private TestingResourceManagerGateway resourceManagerGateway;
 
@@ -73,7 +70,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 	@Test
 	public void testRequestsAreCompletedInRequestOrder() {
 		runSlotRequestCompletionTest(
-			CheckedSupplier.unchecked(this::setUpSlotPoolAndConnectToResourceManager),
+			CheckedSupplier.unchecked(this::createAndSetUpSlotPool),
 			slotPool -> {});
 	}
 
@@ -83,7 +80,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 	@Test
 	public void testStashOrderMaintainsRequestOrder() {
 		runSlotRequestCompletionTest(
-			CheckedSupplier.unchecked(this::setUpSlotPool),
+			CheckedSupplier.unchecked(this::createAndSetUpSlotPoolWithoutResourceManager),
 			this::connectToResourceManager);
 	}
 
@@ -129,22 +126,15 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 		}
 	}
 
-	private SlotPoolImpl setUpSlotPoolAndConnectToResourceManager() throws Exception {
-		final SlotPoolImpl slotPool = setUpSlotPool();
-		connectToResourceManager(slotPool);
-
-		return slotPool;
+	private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
+		return SlotPoolUtils.createAndSetUpSlotPool(resourceManagerGateway);
 	}
 
 	private void connectToResourceManager(SlotPoolImpl slotPool) {
 		slotPool.connectToResourceManager(resourceManagerGateway);
 	}
 
-	private SlotPoolImpl setUpSlotPool() throws Exception {
-		final SlotPoolImpl slotPool = new TestingSlotPoolImpl(new JobID());
-
-		slotPool.start(JobMasterId.generate(), "foobar", ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		return slotPool;
+	private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
+		return SlotPoolUtils.createAndSetUpSlotPool(null);
 	}
 }

@@ -18,36 +18,28 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -72,17 +64,8 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 	@Test
 	public void testSlotAllocationNoResourceManager() throws Exception {
-		final JobID jid = new JobID();
 
-		try (SlotPool pool = new SlotPoolImpl(
-			jid,
-			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime()
-		)) {
-
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
+		try (SlotPool pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
 			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
 				new SlotRequestId(),
@@ -100,17 +83,14 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 	@Test
 	public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
-		final JobID jid = new JobID();
 
-		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
+		try (TestingSlotPoolImpl pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
 			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
-			SlotRequestId requestId = new SlotRequestId();
 			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				requestId,
+				new SlotRequestId(),
 				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
@@ -128,36 +108,19 @@ public class SlotPoolInteractionsTest extends TestLogger {
 		}
 	}
 
-	@Nonnull
-	private TestingSlotPoolImpl createTestingSlotPool(JobID jid) {
-		return new TestingSlotPoolImpl(
-			jid,
-			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime());
-	}
-
 	/**
 	 * Tests that a slot allocation times out wrt to the specified time out.
 	 */
 	@Test
 	public void testSlotAllocationTimeout() throws Exception {
-		final JobID jid = new JobID();
 
-		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
-
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
+		try (TestingSlotPoolImpl pool = createAndSetUpSlotPool()) {
 
 			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
 
-			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-			pool.connectToResourceManager(resourceManagerGateway);
-
-			SlotRequestId requestId = new SlotRequestId();
 			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				requestId,
+				new SlotRequestId(),
 				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
@@ -180,26 +143,21 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	 */
 	@Test
 	public void testExtraSlotsAreKept() throws Exception {
-		final JobID jid = new JobID();
+		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 
-		try (TestingSlotPoolImpl pool = createTestingSlotPool(jid)) {
+		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		resourceManagerGateway.setRequestSlotConsumer(
+			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
-
-			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-
-			TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-			resourceManagerGateway.setRequestSlotConsumer(
-				(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+		try (TestingSlotPoolImpl pool = new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+				.setResourceManagerGateway(resourceManagerGateway)
+				.build()) {
 
 			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
 
-			pool.connectToResourceManager(resourceManagerGateway);
-
-			SlotRequestId requestId = new SlotRequestId();
 			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				requestId,
+				new SlotRequestId(),
 				ResourceProfile.UNKNOWN,
 				fastTimeout));
 
@@ -219,7 +177,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			final SlotOffer slotOffer = new SlotOffer(
 				allocationId,
 				0,
-				DEFAULT_TESTING_PROFILE);
+				ResourceProfile.ANY);
 			final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 			final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
@@ -229,5 +187,15 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 			assertTrue(pool.containsAvailableSlot(allocationId));
 		}
+	}
+
+	private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
+		return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
+	}
+
+	private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
+		return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+			.setResourceManagerGateway(null)
+			.build();
 	}
 }
