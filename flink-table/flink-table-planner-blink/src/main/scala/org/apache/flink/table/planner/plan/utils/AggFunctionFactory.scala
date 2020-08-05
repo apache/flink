@@ -26,15 +26,12 @@ import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction.
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
@@ -611,10 +608,6 @@ class AggFunctionFactory(
   }
 
   private def createCollectAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val elementTypeInfo = argTypes(0) match {
-      case gt: TypeInformationRawType[_] => gt.getTypeInformation
-      case t => TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(t)
-    }
-    new CollectAggFunction(elementTypeInfo)
+    new CollectAggFunction(argTypes(0))
   }
 }
