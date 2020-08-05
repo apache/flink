@@ -40,7 +40,7 @@ import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.beam.BeamPythonStatelessFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonStatelessFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
@@ -329,7 +329,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	}
 
 	private PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-		return new BeamPythonStatelessFunctionRunner(
+		return new BeamTablePythonStatelessFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			userDefinedFunctionInputType,
