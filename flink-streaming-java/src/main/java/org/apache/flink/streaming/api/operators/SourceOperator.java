@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
@@ -201,13 +202,21 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 		// short circuit the common case (every invocation except the first)
 		if (currentMainOutput != null) {
-			return sourceReader.pollNext(currentMainOutput);
+			return pollNextRecord(output);
 		}
 
 		// this creates a batch or streaming output based on the runtime mode
 		currentMainOutput = eventTimeLogic.createMainOutput(output);
 		lastInvokedOutput = output;
-		return sourceReader.pollNext(currentMainOutput);
+		return pollNextRecord(output);
+	}
+
+	private InputStatus pollNextRecord(DataOutput<OUT> output) throws Exception {
+		InputStatus inputStatus = sourceReader.pollNext(currentMainOutput);
+		if (inputStatus == InputStatus.END_OF_INPUT) {
+			output.emitWatermark(Watermark.MAX_WATERMARK);
+		}
+		return inputStatus;
 	}
 
 	@Override
