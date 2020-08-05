@@ -22,12 +22,11 @@ import time
 
 import unittest
 
-
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
-from pyflink.datastream.tests.test_util import DataStreamTestCollectSink
+from pyflink.datastream.tests.test_util import DataStreamCollectUtil
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -217,28 +216,28 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_from_collection_without_data_types(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        test_sink = DataStreamTestCollectSink(True)
-        ds._j_data_stream.addSink(test_sink._j_data_stream_test_collect_sink)
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(ds)
         self.env.execute("test from collection")
-        result = test_sink.collect()
+        results = collect_util.results()
         # user does not specify data types for input data, the collected result should be in
         # in tuple format as inputs.
         expected = ["(1, 'Hi', 'Hello')", "(2, 'Hello', 'Hi')"]
-        result.sort()
+        results.sort()
         expected.sort()
-        self.assertEqual(expected, result)
+        self.assertEqual(expected, results)
 
     def test_from_collection_with_data_types(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.STRING(),
                                                            Types.STRING()]))
-        test_sink = DataStreamTestCollectSink(False)
-        ds._j_data_stream.addSink(test_sink._j_data_stream_test_collect_sink)
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(ds)
         self.env.execute("test from collection")
-        result = test_sink.collect()
+        results = collect_util.results()
         # if user specifies data types of input data, the collected result should be in row format.
         expected = ['1,Hi,Hello', '2,Hello,Hi']
-        result.sort()
+        results.sort()
         expected.sort()
-        self.assertEqual(expected, result)
+        self.assertEqual(expected, results)

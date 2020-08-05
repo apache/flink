@@ -27,7 +27,7 @@ import java.util.List;
  */
 public class DataStreamTestCollectSink<IN> implements SinkFunction<IN> {
 
-	public static List<Object> collectedResult = new ArrayList<>();
+	private static List<Object> collectedResult = new ArrayList<>();
 	private boolean isPythonObjects = false;
 
 	public DataStreamTestCollectSink(boolean isPythonObjects) {

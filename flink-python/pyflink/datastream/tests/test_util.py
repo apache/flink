@@ -18,21 +18,32 @@
 
 import pickle
 
+from pyflink.common.typeinfo import Types
+from pyflink.datastream.data_stream import DataStream
 from pyflink.java_gateway import get_gateway
 
 
-class DataStreamTestCollectSink(object):
+class DataStreamCollectUtil(object):
     """
     A util class to collect test DataStream transformation results.
     """
 
-    def __init__(self, is_python_objects):
-        self._is_python_objects = is_python_objects
-        gateway = get_gateway()
-        self._j_data_stream_test_collect_sink = gateway.jvm\
-            .org.apache.flink.python.util.DataStreamTestCollectSink(self._is_python_objects)
+    def __init__(self):
+        self._is_python_objects = False
+        self._j_data_stream_test_collect_sink = None
 
-    def collect(self):
+    def collect(self, data_stream: DataStream):
+        gateway = get_gateway()
+        self._is_python_objects = data_stream.get_type() == Types.PICKLED_BYTE_ARRAY()
+        self._j_data_stream_test_collect_sink = gateway.jvm \
+            .org.apache.flink.python.util.DataStreamTestCollectSink(self._is_python_objects)
+        data_stream._j_data_stream.addSink(self._j_data_stream_test_collect_sink)
+
+    def results(self):
+
+        if self._j_data_stream_test_collect_sink is None:
+            raise Exception("Must collect a Stream before getting results.")
+
         j_results = self._j_data_stream_test_collect_sink.collectAndClear()
         results = list(j_results)
         if not self._is_python_objects:
@@ -40,6 +51,6 @@ class DataStreamTestCollectSink(object):
         else:
             str_results = []
             for result in results:
-                unpickled_result = pickle.loads(result)
-                str_results.append(str(unpickled_result))
+                pickled_result = pickle.loads(result)
+                str_results.append(str(pickled_result))
             return str_results
