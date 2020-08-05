@@ -30,6 +30,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MULTISET;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
@@ -111,6 +112,10 @@ public class TypeCheckUtils {
 		return type.getTypeRoot() == MAP;
 	}
 
+	public static boolean isMultiset(LogicalType type) {
+		return type.getTypeRoot() == MULTISET;
+	}
+
 	public static boolean isRaw(LogicalType type) {
 		return type.getTypeRoot() == RAW;
 	}
@@ -120,7 +125,7 @@ public class TypeCheckUtils {
 	}
 
 	public static boolean isComparable(LogicalType type) {
-		return !isRaw(type) && !isMap(type) && !isRow(type) && !isArray(type);
+		return !isRaw(type) && !isMap(type) && !isMultiset(type) && !isRow(type) && !isArray(type);
 	}
 
 	public static boolean isMutable(LogicalType type) {
