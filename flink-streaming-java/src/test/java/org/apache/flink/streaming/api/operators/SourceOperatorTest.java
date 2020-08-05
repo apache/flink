@@ -38,10 +38,13 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -134,6 +137,17 @@ public class SourceOperatorTest {
 		finally {
 			operator.close();
 		}
+	}
+
+	@Test
+	public void testCloseWillSendMaxWatermark() throws Exception {
+		operator.initializeState(getStateContext());
+		PushingAsyncDataInput.DataOutput<Integer> dataOutput =
+			Mockito.mock(PushingAsyncDataInput.DataOutput.class);
+		operator.open();
+		operator.emitNext(dataOutput);
+		operator.close();
+		Mockito.verify(dataOutput, Mockito.times(1)).emitWatermark(Watermark.MAX_WATERMARK);
 	}
 
 	@Test

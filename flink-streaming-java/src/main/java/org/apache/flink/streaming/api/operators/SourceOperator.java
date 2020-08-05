@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -190,6 +191,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	public void close() throws Exception {
 		sourceReader.close();
 		eventTimeLogic.stopPeriodicWatermarkEmits();
+		currentMainOutput.emitWatermark(Watermark.MAX_WATERMARK);
 		super.close();
 	}
 
