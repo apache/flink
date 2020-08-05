@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.completeFromCallable;
+
 /**
  * Factory for {@link NettyPartitionRequestClient} instances.
  *
@@ -73,7 +75,7 @@ class PartitionRequestClientFactory {
 				return new CompletableFuture<>();
 			});
 			if (isTheFirstOne.get()) {
-				clientFuture.complete(connectWithRetries(connectionId));
+				completeFromCallable(clientFuture, () -> connectWithRetries(connectionId));
 			}
 
 			final NettyPartitionRequestClient client;

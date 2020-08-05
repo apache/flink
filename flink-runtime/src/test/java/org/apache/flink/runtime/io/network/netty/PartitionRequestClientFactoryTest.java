@@ -42,7 +42,6 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,7 +73,19 @@ public class PartitionRequestClientFactoryTest {
 		serverAndClient.server().shutdown();
 	}
 
-	@Test(expected = CompletionException.class)
+	 // see https://issues.apache.org/jira/browse/FLINK-18821
+	@Test(expected = IOException.class)
+	public void testFailureReportedToSubsequentRequests() throws Exception {
+		PartitionRequestClientFactory factory = new PartitionRequestClientFactory(new FailingNettyClient(), 2);
+		try {
+			factory.createPartitionRequestClient(new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+		} catch (Exception e) {
+			// expected
+		}
+		factory.createPartitionRequestClient(new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+	}
+
+	@Test(expected = IOException.class)
 	public void testNettyClientConnectRetryFailure() throws Exception {
 		NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
 		UnstableNettyClient unstableNettyClient = new UnstableNettyClient(serverAndClient.client(), 3);
@@ -177,6 +188,18 @@ public class PartitionRequestClientFactoryTest {
 			}
 
 			return nettyClient.connect(serverSocketAddress);
+		}
+	}
+
+	private static class FailingNettyClient extends NettyClient {
+
+		public FailingNettyClient() {
+			super(null);
+		}
+
+		@Override
+		ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
+			throw new ChannelException("Simulate connect failure");
 		}
 	}
 
