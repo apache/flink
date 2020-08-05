@@ -21,8 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -157,9 +156,13 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnAggregateWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-    util.addFunction("MyLast", new LongLastValueAggFunction)
+    // FirstValueAggFunction and LastValueAggFunction are not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.INT().getLogicalType))
+    util.addTemporarySystemFunction(
+      "MyLast",
+      new FirstValueAggFunction(DataTypes.BIGINT().getLogicalType))
 
     val sqlQuery =
       """
@@ -248,9 +251,10 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction is deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-
+    // FirstValueAggFunction is not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.STRING().getLogicalType))
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
