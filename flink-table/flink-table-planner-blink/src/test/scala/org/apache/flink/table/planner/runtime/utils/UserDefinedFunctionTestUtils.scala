@@ -25,9 +25,10 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
-import org.apache.flink.table.planner.JLong
+import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.types.Row
 
 import com.google.common.base.Charsets
@@ -198,6 +199,11 @@ object UserDefinedFunctionTestUtils {
   }
 
   @SerialVersionUID(1L)
+  object AnyToStringFunction extends ScalarFunction {
+    def eval(@DataTypeHint(inputGroup = InputGroup.ANY) any: AnyRef): String = any.toString
+  }
+
+  @SerialVersionUID(1L)
   object MyStringFunc extends ScalarFunction {
     def eval(s: String): String = s + "haha"
   }
@@ -298,11 +304,11 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object ToCompositeObj extends ScalarFunction {
-    def eval(id: Int, name: String, age: Int): CompositeObj = {
+    def eval(id: JInt, name: String, age: JInt): CompositeObj = {
       CompositeObj(id, name, age, "0.0")
     }
 
-    def eval(id: Int, name: String, age: Int, point: String): CompositeObj = {
+    def eval(id: JInt, name: String, age: JInt, point: String): CompositeObj = {
       CompositeObj(id, name, age, point)
     }
   }
