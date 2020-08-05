@@ -39,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T, ?>> {
+	private AsyncDataOutputToOutput<T> output;
 
 	public SourceOperatorStreamTask(Environment env) throws Exception {
 		super(env);
@@ -47,7 +48,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	@Override
 	public void init() {
 		StreamTaskInput<T> input = new StreamTaskSourceInput<>(headOperator);
-		DataOutput<T> output = new AsyncDataOutputToOutput<>(
+		output = new AsyncDataOutputToOutput<>(
 			operatorChain.getChainEntryPoint(),
 			getStreamStatusMaintainer());
 
@@ -55,6 +56,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 			input,
 			output,
 			operatorChain);
+	}
+
+	@Override
+	protected void advanceToEndOfEventTime() {
+		output.emitWatermark(Watermark.MAX_WATERMARK);
 	}
 
 	/**
