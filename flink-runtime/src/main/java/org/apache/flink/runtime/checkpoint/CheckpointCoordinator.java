@@ -574,11 +574,14 @@ public class CheckpointCoordinator {
 										request.advanceToEndOfTime);
 
 									coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
-
+									// It is possible that the tasks has finished checkpointing at this point.
+									// So we need to complete this pending checkpoint.
+									if (!maybeCompleteCheckpoint(checkpoint)) {
+										return null;
+									}
 									onTriggerSuccess();
 								}
 							}
-
 							return null;
 						},
 						timer)
@@ -845,6 +848,26 @@ public class CheckpointCoordinator {
 		}
 	}
 
+	// Returns true if the checkpoint is successfully completed, false otherwise.
+	private boolean maybeCompleteCheckpoint(PendingCheckpoint checkpoint) {
+		synchronized (lock) {
+			if (checkpoint.isFullyAcknowledged()) {
+				try {
+					// we need to check inside the lock for being shutdown as well,
+					// otherwise we get races and invalid error log messages.
+					if (shutdown) {
+						return false;
+					}
+					completePendingCheckpoint(checkpoint);
+				} catch (CheckpointException ce) {
+					onTriggerFailure(checkpoint, ce);
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Handling checkpoints and messages
 	// --------------------------------------------------------------------------------------------
@@ -955,7 +978,7 @@ public class CheckpointCoordinator {
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {} at {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 
-						if (checkpoint.areTasksFullyAcknowledged()) {
+						if (checkpoint.isFullyAcknowledged()) {
 							completePendingCheckpoint(checkpoint);
 						}
 						break;
