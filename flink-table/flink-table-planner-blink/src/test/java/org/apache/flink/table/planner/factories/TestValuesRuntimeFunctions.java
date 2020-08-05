@@ -65,40 +65,42 @@ final class TestValuesRuntimeFunctions {
 
 	static List<String> getRawResults(String tableName) {
 		List<String> result = new ArrayList<>();
-		if (globalRawResult.containsKey(tableName)) {
-			globalRawResult.get(tableName)
-				.values()
-				.forEach(result::addAll);
-		} else {
-			throw new IllegalArgumentException("Can't find result for the table '" + tableName + "'.");
+		synchronized (TestValuesTableFactory.class) {
+			if (globalRawResult.containsKey(tableName)) {
+				globalRawResult.get(tableName)
+					.values()
+					.forEach(result::addAll);
+			}
 		}
 		return result;
 	}
 
 	static List<String> getResults(String tableName) {
 		List<String> result = new ArrayList<>();
-		if (globalUpsertResult.containsKey(tableName)) {
-			globalUpsertResult.get(tableName)
-				.values()
-				.forEach(map -> result.addAll(map.values()));
-		} else if (globalRetractResult.containsKey(tableName)) {
-			globalRetractResult.get(tableName)
-				.values()
-				.forEach(result::addAll);
-		} else if (globalRawResult.containsKey(tableName)) {
-			getRawResults(tableName).stream()
-				.map(s -> s.substring(3, s.length() - 1)) // removes the +I(...) wrapper
-				.forEach(result::add);
-		} else {
-			throw new IllegalArgumentException("Can't find result for the table '" + tableName + "'.");
+		synchronized (TestValuesTableFactory.class) {
+			if (globalUpsertResult.containsKey(tableName)) {
+				globalUpsertResult.get(tableName)
+					.values()
+					.forEach(map -> result.addAll(map.values()));
+			} else if (globalRetractResult.containsKey(tableName)) {
+				globalRetractResult.get(tableName)
+					.values()
+					.forEach(result::addAll);
+			} else if (globalRawResult.containsKey(tableName)) {
+				getRawResults(tableName).stream()
+					.map(s -> s.substring(3, s.length() - 1)) // removes the +I(...) wrapper
+					.forEach(result::add);
+			}
 		}
 		return result;
 	}
 
 	static void clearResults() {
-		globalRawResult.clear();
-		globalUpsertResult.clear();
-		globalRetractResult.clear();
+		synchronized (TestValuesTableFactory.class) {
+			globalRawResult.clear();
+			globalUpsertResult.clear();
+			globalRetractResult.clear();
+		}
 	}
 
 	// ------------------------------------------------------------------------------------------
