@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.TestLogger;
