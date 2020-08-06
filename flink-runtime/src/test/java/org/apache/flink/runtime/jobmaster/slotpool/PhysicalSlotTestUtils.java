@@ -33,11 +33,15 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 public class PhysicalSlotTestUtils {
 
 	public static PhysicalSlot createPhysicalSlot() {
+		return createPhysicalSlot(ResourceProfile.ANY);
+	}
+
+	public static PhysicalSlot createPhysicalSlot(ResourceProfile resourceProfile) {
 		return new AllocatedSlot(
 			new AllocationID(),
 			new LocalTaskManagerLocation(),
 			0,
-			ResourceProfile.ANY,
+			resourceProfile,
 			new SimpleAckingTaskManagerGateway());
 	}
 
