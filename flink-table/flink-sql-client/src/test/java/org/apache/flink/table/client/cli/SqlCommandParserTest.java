@@ -33,6 +33,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -303,10 +304,9 @@ public class SqlCommandParserTest {
 	public void testHiveCommands() throws Exception {
 		SqlParserHelper helper = new SqlParserHelper(SqlDialect.HIVE);
 		parser = helper.getSqlParser();
-		List<TestItem> testItems = Arrays.asList(
+		List<TestItem> testItems = Collections.singletonList(
 			// show partitions
-			TestItem.invalidSql("SHOW PARTITIONS ", SqlExecutionException.class, "Encountered \"<EOF>\""),
-			TestItem.validSql("SHOW PARTITIONS t1", SqlDialect.HIVE, SqlCommand.SHOW_PARTITIONS, "SHOW PARTITIONS t1")
+			TestItem.validSql(SqlDialect.HIVE, "SHOW PARTITIONS t1", SqlCommand.SHOW_PARTITIONS, "SHOW PARTITIONS t1")
 		);
 		for (TestItem item : testItems) {
 			tableEnv.getConfig().setSqlDialect(item.sqlDialect);
@@ -385,11 +385,6 @@ public class SqlCommandParserTest {
 			this.sql = sql;
 		}
 
-		private TestItem(String sql, SqlDialect sqlDialect) {
-			this.sql = sql;
-			this.sqlDialect = sqlDialect;
-		}
-
 		public static TestItem invalidSql(
 				String sql,
 				Class<? extends Throwable> expectedException,
@@ -403,15 +398,6 @@ public class SqlCommandParserTest {
 		public static TestItem validSql(
 				String sql, SqlCommand expectedCmd, String... expectedOperands) {
 			TestItem testItem = new TestItem(sql);
-			testItem.expectedCmd = expectedCmd;
-			testItem.expectedOperands = expectedOperands;
-			testItem.cannotParseComment = false; // default is false
-			return testItem;
-		}
-
-		public static TestItem validSql(
-			String sql, SqlDialect sqlDialect, SqlCommand expectedCmd, String... expectedOperands) {
-			TestItem testItem = new TestItem(sql, sqlDialect);
 			testItem.expectedCmd = expectedCmd;
 			testItem.expectedOperands = expectedOperands;
 			testItem.cannotParseComment = false; // default is false

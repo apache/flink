@@ -1023,7 +1023,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		} else if (operation instanceof ShowViewsOperation) {
 			return buildShowResult("view name", listViews());
 		} else if (operation instanceof ShowPartitionsOperation) {
-			String exMsg = getDQLOpExecuteErrorMsg(operation.asSummaryString());
+			String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
 			try {
 				ShowPartitionsOperation showPartitionsOperation = (ShowPartitionsOperation) operation;
 				Catalog catalog = getCatalogOrThrowException(showPartitionsOperation.getTableIdentifier().getCatalogName());
@@ -1178,10 +1178,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	private String getDDLOpExecuteErrorMsg(String action) {
-		return String.format("Could not execute %s", action);
-	}
-
-	private String getDQLOpExecuteErrorMsg(String action) {
 		return String.format("Could not execute %s", action);
 	}
 
