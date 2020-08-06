@@ -129,7 +129,7 @@ public class ClientTest extends TestLogger {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 
 		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).setConfiguration(new Configuration()).build();
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
 			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
@@ -141,7 +141,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).setConfiguration(new Configuration()).build();
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
 			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
@@ -153,7 +153,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).setConfiguration(new Configuration()).build();
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
 			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
@@ -165,7 +165,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).setConfiguration(new Configuration()).build();
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
 			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
@@ -200,7 +200,6 @@ public class ClientTest extends TestLogger {
 
 			final PackagedProgram program = PackagedProgram.newBuilder()
 					.setEntryPointClassName(TestMultiExecute.class.getName())
-					.setConfiguration(new Configuration())
 					.build();
 
 			final Configuration configuration = fromPackagedProgram(program, 1, false);
@@ -267,7 +266,6 @@ public class ClientTest extends TestLogger {
 		PackagedProgram prg = PackagedProgram.newBuilder()
 			.setEntryPointClassName(TestOptimizerPlan.class.getName())
 			.setArguments("/dev/random", "/tmp")
-			.setConfiguration(new Configuration())
 			.build();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);

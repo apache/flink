@@ -143,7 +143,6 @@ public class ClassLoaderITCase extends TestLogger {
 
 		PackagedProgram inputSplitTestProg = PackagedProgram.newBuilder()
 			.setJarFile(new File(INPUT_SPLITS_PROG_JAR_FILE))
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestEnvironment.setAsContext(
@@ -159,7 +158,6 @@ public class ClassLoaderITCase extends TestLogger {
 	public void testStreamingCustomSplitJobWithCustomClassLoader() throws ProgramInvocationException {
 		PackagedProgram streamingInputSplitTestProg = PackagedProgram.newBuilder()
 			.setJarFile(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE))
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestStreamEnvironment.setAsContext(
@@ -176,7 +174,6 @@ public class ClassLoaderITCase extends TestLogger {
 		URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
 		PackagedProgram inputSplitTestProg2 = PackagedProgram.newBuilder()
 			.setJarFile(new File(INPUT_SPLITS_PROG_JAR_FILE))
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestEnvironment.setAsContext(
@@ -191,7 +188,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testStreamingClassloaderJobWithCustomClassLoader() throws ProgramInvocationException {
 		// regular streaming job
-		PackagedProgram streamingProg = PackagedProgram.newBuilder().setJarFile(new File(STREAMING_PROG_JAR_FILE)).setConfiguration(new Configuration()).build();
+		PackagedProgram streamingProg = PackagedProgram.newBuilder().setJarFile(new File(STREAMING_PROG_JAR_FILE)).build();
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -208,7 +205,6 @@ public class ClassLoaderITCase extends TestLogger {
 		// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
 		PackagedProgram streamingCheckpointedProg = PackagedProgram.newBuilder()
 			.setJarFile(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE))
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestStreamEnvironment.setAsContext(
@@ -249,7 +245,6 @@ public class ClassLoaderITCase extends TestLogger {
 				KMeansData.DATAPOINTS,
 				KMeansData.INITIAL_CENTERS,
 				"25"})
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestEnvironment.setAsContext(
@@ -265,7 +260,6 @@ public class ClassLoaderITCase extends TestLogger {
 	public void testUserCodeTypeJobWithCustomClassLoader() throws ProgramInvocationException {
 		PackagedProgram userCodeTypeProg = PackagedProgram.newBuilder()
 			.setJarFile(new File(USERCODETYPE_JAR_PATH))
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestEnvironment.setAsContext(
@@ -285,7 +279,6 @@ public class ClassLoaderITCase extends TestLogger {
 		final PackagedProgram program = PackagedProgram.newBuilder()
 			.setJarFile(new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH))
 			.setArguments(new String[] { checkpointDir.toURI().toString(), outputDir.toURI().toString()})
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestStreamEnvironment.setAsContext(
@@ -323,7 +316,6 @@ public class ClassLoaderITCase extends TestLogger {
 				outputDir.toURI().toString(),
 				"false" // Disable unaligned checkpoints as this test is triggering concurrent savepoints/checkpoints
 			})
-			.setConfiguration(new Configuration())
 			.build();
 
 		TestStreamEnvironment.setAsContext(

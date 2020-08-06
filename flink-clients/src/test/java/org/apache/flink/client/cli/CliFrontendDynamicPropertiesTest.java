@@ -98,16 +98,14 @@ public class CliFrontendDynamicPropertiesTest {
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 
-		PackagedProgram program = frontend.buildProgram(programOptions, false);
-
-		final List<URL> jobJars = program.getJobJarAndDependencies();
+		final List<URL> jobJars = frontend.getJobJarAndDependencies(programOptions);
 		CustomCommandLine activeCommandLine = frontend
 			.validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
 		final Configuration effectiveConfiguration = frontend.getEffectiveConfiguration(
 			activeCommandLine, commandLine, programOptions, jobJars);
 
-		program.initClassLoadOnEffectiveConfiguration(effectiveConfiguration);
+		PackagedProgram program = frontend.buildProgram(programOptions, effectiveConfiguration);
 
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
 		Assert.assertEquals(ParentFirstClassLoader.class.getName(),
@@ -129,7 +127,7 @@ public class CliFrontendDynamicPropertiesTest {
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 
-		PackagedProgram program = frontend.buildProgram(programOptions, true);
+		PackagedProgram program = frontend.buildProgram(programOptions);
 
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
 		Assert.assertEquals(ChildFirstClassLoader.class.getName(),
@@ -152,20 +150,17 @@ public class CliFrontendDynamicPropertiesTest {
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 
-		PackagedProgram program = frontend.buildProgram(programOptions, false);
-
-		final List<URL> jobJars = program.getJobJarAndDependencies();
+		final List<URL> jobJars = frontend.getJobJarAndDependencies(programOptions);
 		CustomCommandLine activeCommandLine = frontend
 			.validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
 		final Configuration effectiveConfiguration = frontend.getEffectiveConfiguration(
 			activeCommandLine, commandLine, programOptions, jobJars);
 
-		program.initClassLoadOnEffectiveConfiguration(effectiveConfiguration);
+		PackagedProgram program = frontend.buildProgram(programOptions, effectiveConfiguration);
 
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
 		Assert.assertEquals(ChildFirstClassLoader.class.getName(),
 			program.getUserCodeClassLoader().getClass().getName());
 	}
-
 }

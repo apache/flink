@@ -76,17 +76,15 @@ public class PackagedProgram {
 
 	private final String[] args;
 
-	private Class<?> mainClass;
+	private final Class<?> mainClass;
 
 	private final List<File> extractedTempLibraries;
 
 	private final List<URL> classpaths;
 
-	private ClassLoader userCodeClassLoader;
+	private final ClassLoader userCodeClassLoader;
 
 	private final SavepointRestoreSettings savepointSettings;
-
-	private final String entryPointClassName;
 
 	/**
 	 * Flag indicating whether the job is a Python job.
@@ -115,45 +113,6 @@ public class PackagedProgram {
 			Configuration configuration,
 			SavepointRestoreSettings savepointRestoreSettings,
 			String... args) throws ProgramInvocationException {
-		this(jarFile, classpaths, entryPointClassName, savepointRestoreSettings, args);
-		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
-			getJobJarAndDependencies(),
-			classpaths,
-			getClass().getClassLoader(),
-			configuration);
-
-		// load the entry point class
-		this.mainClass = loadMainClass(
-			// if no entryPointClassName name was given, we try and look one up through the manifest
-			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(this.jarFile),
-			userCodeClassLoader);
-
-		if (!hasMainMethod(mainClass)) {
-			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
-		}
-	}
-
-
-	/**
-	 * Creates an instance that wraps the plan defined in the jar file using the given
-	 * arguments.
-	 *
-	 * @param jarFile             The jar file which contains the plan.
-	 * @param classpaths          Additional classpath URLs needed by the Program.
-	 * @param entryPointClassName Name of the class which generates the plan. Overrides the class defined
-	 *                            in the jar file manifest.
-	 * @param args                Optional. The arguments used to create the pact plan, depend on
-	 *                            implementation of the pact plan. See getDescription().
-	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
-	 *                                    may be a missing / wrong class or manifest files.
-	 */
-	private PackagedProgram(
-		@Nullable File jarFile,
-		List<URL> classpaths,
-		@Nullable String entryPointClassName,
-		SavepointRestoreSettings savepointRestoreSettings,
-		String... args) throws ProgramInvocationException {
-		this.entryPointClassName = entryPointClassName;
 		this.classpaths = checkNotNull(classpaths);
 		this.savepointSettings = checkNotNull(savepointRestoreSettings);
 		this.args = checkNotNull(args);
@@ -170,21 +129,11 @@ public class PackagedProgram {
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = this.jarFile == null ? Collections.emptyList() : extractContainedLibraries(this.jarFile);
-	}
-
-	/**
-	 * For generating the plan the class defined in the className parameter is used from the effectiveConfiguration.
-	 *
-	 * @param effectiveConfiguration Flink configuration which affects the classloading policy of the Program execution.
-	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
-	 *                                    may be a missing / wrong class or manifest files.
-	 */
-	public void initClassLoadOnEffectiveConfiguration(Configuration effectiveConfiguration) throws ProgramInvocationException {
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 			getJobJarAndDependencies(),
 			classpaths,
 			getClass().getClassLoader(),
-			effectiveConfiguration);
+			configuration);
 
 		// load the entry point class
 		this.mainClass = loadMainClass(
@@ -205,12 +154,7 @@ public class PackagedProgram {
 		return this.args;
 	}
 
-	public String getMainClassName() throws ProgramInvocationException {
-		if (!hasMainMethod(mainClass)) {
-			throw new ProgramInvocationException(
-				"The userCodeClassLoader and mainClass have not been initialized for Configuration does not init.");
-		}
-
+	public String getMainClassName() {
 		return this.mainClass.getName();
 	}
 
@@ -224,11 +168,6 @@ public class PackagedProgram {
 	 */
 	@Nullable
 	public String getDescription() throws ProgramInvocationException {
-		if (!hasMainMethod(mainClass)) {
-			throw new ProgramInvocationException(
-				"The userCodeClassLoader and mainClass have not been initialized for Configuration does not init.");
-		}
-
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
 
 			ProgramDescription descr;
@@ -254,15 +193,8 @@ public class PackagedProgram {
 	/**
 	 * This method assumes that the context environment is prepared, or the execution
 	 * will be a local execution by default.
-	 *
-	 * @throws ProgramInvocationException This invocation is thrown if The userCodeClassLoader and mainClass have not been initialized.
 	 */
 	public void invokeInteractiveModeForExecution() throws ProgramInvocationException {
-		if (!hasMainMethod(mainClass)) {
-			throw new ProgramInvocationException(
-				"The userCodeClassLoader and mainClass have not been initialized for Configuration does not init.");
-		}
-
 		callMainMethod(mainClass, args);
 	}
 
@@ -279,14 +211,8 @@ public class PackagedProgram {
 	 * Gets the {@link java.lang.ClassLoader} that must be used to load user code classes.
 	 *
 	 * @return The user code ClassLoader.
-	 * @throws ProgramInvocationException This invocation is thrown if The userCodeClassLoader and mainClass have not been initialized.
 	 */
-	public ClassLoader getUserCodeClassLoader() throws ProgramInvocationException {
-		if (!hasMainMethod(mainClass)) {
-			throw new ProgramInvocationException(
-				"The userCodeClassLoader and mainClass have not been initialized for Configuration does not init.");
-		}
-
+	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
 
@@ -294,12 +220,47 @@ public class PackagedProgram {
 	 * Returns all provided libraries needed to run the program.
 	 */
 	public List<URL> getJobJarAndDependencies() {
-		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+		return getJobJarAndDependencies(jarFile, extractedTempLibraries, isPython);
+	}
 
-		if (jarFile != null) {
-			libs.add(jarFile);
+	/**
+	 * Returns all provided libraries needed to run the program.
+	 */
+	public static List<URL> getJobJarAndDependencies(File jarFile, @Nullable String entryPointClassName) throws ProgramInvocationException {
+		URL jarFileUrl = loadJarFile(jarFile);
+
+		List<File> extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
+
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+
+		if (jarFileUrl != null) {
+			libs.add(jarFileUrl);
 		}
-		for (File tmpLib : this.extractedTempLibraries) {
+		for (File tmpLib : extractedTempLibraries) {
+			try {
+				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
+			} catch (MalformedURLException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+
+		if (isPython(entryPointClassName)) {
+			libs.add(PackagedProgramUtils.getPythonJar());
+		}
+
+		return libs;
+	}
+
+	/**
+	 * Returns all provided libraries needed to run the program.
+	 */
+	public static List<URL> getJobJarAndDependencies(URL jarFileUrl, List<File> extractedTempLibraries, boolean isPython) {
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+
+		if (jarFileUrl != null) {
+			libs.add(jarFileUrl);
+		}
+		for (File tmpLib : extractedTempLibraries) {
 			try {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
 			} catch (MalformedURLException e) {
@@ -590,7 +551,7 @@ public class PackagedProgram {
 
 		private List<URL> userClassPaths = Collections.emptyList();
 
-		private Configuration configuration = null;
+		private Configuration configuration = new Configuration();
 
 		private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
@@ -628,22 +589,13 @@ public class PackagedProgram {
 			if (jarFile == null && entryPointClassName == null) {
 				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
 			}
-			if (configuration == null) {
-				return new PackagedProgram(
-					jarFile,
-					userClassPaths,
-					entryPointClassName,
-					savepointRestoreSettings,
-					args);
-			} else {
-				return new PackagedProgram(
-					jarFile,
-					userClassPaths,
-					entryPointClassName,
-					configuration,
-					savepointRestoreSettings,
-					args);
-			}
+			return new PackagedProgram(
+				jarFile,
+				userClassPaths,
+				entryPointClassName,
+				configuration,
+				savepointRestoreSettings,
+				args);
 		}
 
 		private Builder() {

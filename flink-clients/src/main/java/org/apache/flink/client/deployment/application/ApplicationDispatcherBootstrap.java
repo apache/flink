@@ -27,7 +27,6 @@ import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
@@ -294,15 +293,10 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			}
 
 			if (serializedThrowable.isPresent()) {
-				Throwable throwable;
-				try {
-					throwable = serializedThrowable
-							.get()
-							.deserializeError(application.getUserCodeClassLoader());
-				} catch (ProgramInvocationException e) {
-					LOG.info("Application getUserCodeClassLoader failed.", e);
-					throw new RuntimeException(e.getMessage());
-				}
+				Throwable throwable =
+						serializedThrowable
+								.get()
+								.deserializeError(application.getUserCodeClassLoader());
 				throw new CompletionException(throwable);
 			}
 			throw new RuntimeException("Job execution failed for unknown reason.");
