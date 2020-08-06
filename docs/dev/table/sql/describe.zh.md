@@ -30,9 +30,32 @@ DESCRIBE 语句用来描述一张表或者视图的 Schema。
 
 ## 执行 DESCRIBE 语句
 
-DESCRIBE 语句可以通过 `TableEnvironment` 的 `executeSql()` 执行，也可以在 [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html) 中执行 DROP 语句。 若 DESCRIBE 操作执行成功，executeSql() 方法返回该表的 Schema，否则会抛出异常。
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-以下的例子展示了如何在 TableEnvironment 和 SQL CLI 中执行一个 DESCRIBE 语句。
+<div data-lang="java/scala" markdown="1">
+
+DESCRIBE 语句可以通过 `TableEnvironment` 的 `executeSql()` 执行。 若 DESCRIBE 操作执行成功，`executeSql()` 方法返回该表的 Schema，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 DESCRIBE 语句。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+DESCRIBE 语句可以通过 `TableEnvironment` 的 `execute_sql()` 执行。 若 DESCRIBE 操作执行成功，`execute_sql()` 方法返回该表的 Schema，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 DESCRIBE 语句。
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+可以在 [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html) 中执行 DESCRIBE 语句。
+
+以下的例子展示了如何在 SQL CLI 中执行一个 DESCRIBE 语句。
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
