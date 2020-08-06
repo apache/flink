@@ -377,19 +377,7 @@ tableEnv.useCatalog("mypg")
 </div>
 <div data-lang="Python" markdown="1">
 {% highlight python %}
-from pyflink.table.catalog import Catalog
-
-class JdbcCatalog(Catalog):
-    """
-    A catalog implementation for Jdbc.
-    """
-    def __init__(self, catalog_name, default_database, username, pwd, base_url):
-        from pyflink.java_gateway import get_gateway
-        gateway = get_gateway()
-
-        j_jdbc_catalog = gateway.jvm.org.apache.flink.connector.jdbc.catalog.JdbcCatalog(
-            catalog_name, default_database, username, pwd, base_url)
-        super(JdbcCatalog, self).__init__(j_jdbc_catalog)
+from pyflink.table.catalog import JdbcCatalog
 
 environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 t_env = StreamTableEnvironment.create(environment_settings=environment_settings)
