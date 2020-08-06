@@ -113,7 +113,7 @@ t_env = BatchTableEnvironment.create(
 # register Orders table and Result table sink in table environment
 source_data_path = "/path/to/source/directory/"
 result_data_path = "/path/to/result/directory/"
-source_ddl = """
+source_ddl = f"""
         create table Orders(
             a VARCHAR,
             b BIGINT,
@@ -123,21 +123,21 @@ source_ddl = """
         ) with (
             'connector' = 'filesystem',
             'format' = 'csv',
-            'path' = '{}'
+            'path' = '{source_data_path}'
         )
-        """.format(source_data_path)
+        """
 t_env.execute_sql(source_ddl)
 
-sink_ddl = """
+sink_ddl = f"""
     create table `Result`(
         a VARCHAR,
         cnt BIGINT
     ) with (
         'connector' = 'filesystem',
         'format' = 'csv',
-        'path' = '{}'
+        'path' = '{result_data_path}'
     )
-    """.format(result_data_path)
+    """
 t_env.execute_sql(sink_ddl)
 
 # specify table program
@@ -481,7 +481,7 @@ val result = orders.where($"b" === "red")
   		<td>
         <p>Similar to the FROM clause in a SQL query. Performs a scan of a registered table.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 {% endhighlight %}
       </td>
   	</tr>
@@ -493,7 +493,7 @@ orders = table_env.from_path("Orders")
       <td>
           <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
 {% highlight python %}
-table = tEnv.from_elements([(1, 'ABC'), (2, 'ABCDE')])
+table = t_env.from_elements([(1, 'ABC'), (2, 'ABCDE')])
 {% endhighlight %}
           <p>will produce a Table with a schema as follows:</p>
 {% highlight text %}
@@ -536,7 +536,7 @@ root
       <td>
         <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.select("a, c as d")
 {% endhighlight %}
         <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
@@ -553,7 +553,7 @@ result = orders.select("*")
       <td>
         <p>Renames fields.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.alias("x, y, z, t")
 {% endhighlight %}
       </td>
@@ -567,12 +567,12 @@ result = orders.alias("x, y, z, t")
       <td>
         <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.where("a === 'red'")
 {% endhighlight %}
 or
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.filter("b % 2 === 0")
 {% endhighlight %}
       </td>
@@ -737,7 +737,7 @@ val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
           <td>
           <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.add_columns("concat(c, 'sunny')")
 {% endhighlight %}
 </td>
@@ -751,7 +751,7 @@ result = orders.add_columns("concat(c, 'sunny')")
                   <td>
                   <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.add_or_replace_columns("concat(c, 'sunny') as desc")
 {% endhighlight %}
                   </td>
@@ -764,7 +764,7 @@ result = orders.add_or_replace_columns("concat(c, 'sunny') as desc")
                   <td>
                   <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.drop_columns("b, c")
 {% endhighlight %}
                   </td>
@@ -777,7 +777,7 @@ result = orders.drop_columns("b, c")
                   <td>
                   <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.rename_columns("b as b2, c as c2")
 {% endhighlight %}
                   </td>
@@ -1080,7 +1080,7 @@ val result = orders.distinct()
       <td>
         <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.group_by("a").select("a, b.sum as d")
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
@@ -1096,7 +1096,7 @@ result = orders.group_by("a").select("a, b.sum as d")
 {% highlight python %}
 from pyflink.table.window import Tumble
 
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \ 
                .group_by("a, w") \
                .select("a, w.start, w.end, b.sum as d")
@@ -1113,7 +1113,7 @@ result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \
 {% highlight python %}
 from pyflink.table.window import Over
 
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.over_window(Over.partition_by("a").order_by("rowtime")
                             .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE")
                             .alias("w")) \
@@ -1131,7 +1131,7 @@ result = orders.over_window(Over.partition_by("a").order_by("rowtime")
       <td>
         <p>Similar to a SQL DISTINCT aggregation clause such as COUNT(DISTINCT a). Distinct aggregation declares that an aggregation function (built-in or user-defined) is only applied on distinct input values. Distinct can be applied to <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 # Distinct aggregation on group by
 group_by_distinct_result = orders.group_by("a") \
                                  .select("a, b.sum.distinct as d")
@@ -1160,7 +1160,7 @@ result = orders.over_window(Over
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.distinct()
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
@@ -1494,8 +1494,8 @@ val result = orders
       <td>
         <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("d, e, f")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("d, e, f")
 result = left.join(right).where("a = d").select("a, b, e")
 {% endhighlight %}
 <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
@@ -1512,8 +1512,8 @@ result = left.join(right).where("a = d").select("a, b, e")
       <td>
         <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("d, e, f")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("d, e, f")
 
 left_outer_result = left.left_outer_join(right, "a = d").select("a, b, e")
 right_outer_result = left.right_outer_join(right, "a = d").select("a, b, e")
@@ -1540,8 +1540,8 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
               </ul>
       
       {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c, rowtime1")
-right = table_env.from_path("Source2").select("d, e, f, rowtime2")
+left = t_env.from_path("Source1").select("a, b, c, rowtime1")
+right = t_env.from_path("Source2").select("d, e, f, rowtime2")
   
 result = left.join(right).where("a = d && rowtime1 >= rowtime2 - 1.second 
                        && rowtime1 <= rowtime2 + 2.second").select("a, b, e, rowtime1")
@@ -1559,14 +1559,13 @@ result = left.join(right).where("a = d && rowtime1 >= rowtime2 - 1.second
         </p>
 {% highlight python %}
 # register User-Defined Table Function
-@udtf(input_types=[DataTypes.BIGINT()],
-      result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
+@udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 def split(x):
     return [Row(1, 2, 3)]
-table_env.register_function("split", split)
+t_env.register_function("split", split)
 
 # join
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
 {% endhighlight %}
       </td>
@@ -1581,14 +1580,13 @@ result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
 {% highlight python %}
 # register User-Defined Table Function
-@udtf(input_types=[DataTypes.BIGINT()],
-      result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
+@udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 def split(x):
     return [Row(1, 2, 3)]
-table_env.register_function("split", split)
+t_env.register_function("split", split)
 
 # join
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.left_outer_join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
 {% endhighlight %}
       </td>
@@ -1873,8 +1871,8 @@ val result = left.select($"a", $"b", $"c").where($"a".in(right))
       <td>
         <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical field types.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a, b, c")
 result = left.union(right)
 {% endhighlight %}
       </td>
@@ -1888,8 +1886,8 @@ result = left.union(right)
       <td>
         <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical field types.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a, b, c")
 result = left.union_all(right)
 {% endhighlight %}
       </td>
@@ -1903,8 +1901,8 @@ result = left.union_all(right)
       <td>
         <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a, b, c")
 result = left.intersect(right)
 {% endhighlight %}
       </td>
@@ -1918,8 +1916,8 @@ result = left.intersect(right)
       <td>
         <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a, b, c")
 result = left.intersect_all(right)
 {% endhighlight %}
       </td>
@@ -1933,8 +1931,8 @@ result = left.intersect_all(right)
       <td>
         <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a, b, c")
 result = left.minus(right);
 {% endhighlight %}
       </td>
@@ -1948,8 +1946,8 @@ result = left.minus(right);
       <td>
         <p>Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a, b, c")
 result = left.minus_all(right)
 {% endhighlight %}
       </td>
@@ -1963,14 +1961,14 @@ result = left.minus_all(right)
       <td>
         <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a")
+left = t_env.from_path("Source1").select("a, b, c")
+right = t_env.from_path("Source2").select("a")
 
 # using implicit registration
 result = left.select("a, b, c").where("a.in(%s)" % right)
 
 # using explicit registration
-table_env.create_temporary_view("RightTable", right)
+t_env.create_temporary_view("RightTable", right)
 result = left.select("a, b, c").where("a.in(RightTable)")
 {% endhighlight %}
 
@@ -2103,7 +2101,7 @@ val result3: Table = in.orderBy($"a".asc).offset(10).fetch(5)
       <td>
         <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight python %}
-in = table_env.from_path("Source1").select("a, b, c")
+in = t_env.from_path("Source1").select("a, b, c")
 result = in.order_by("a.asc")
 {% endhighlight %}
       </td>
@@ -2117,16 +2115,16 @@ result = in.order_by("a.asc")
       <td>
         <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight python %}
-in = table_env.from_path("Source1").select("a, b, c")
+table = t_env.from_path("Source1").select("a, b, c")
 
 # returns the first 5 records from the sorted result
-result1 = in.order_by("a.asc").fetch(5)
+result1 = table.order_by("a.asc").fetch(5)
 
 # skips the first 3 records and returns all following records from the sorted result
-result2 = in.order_by("a.asc").offset(3)
+result2 = table.order_by("a.asc").offset(3)
 
 # skips the first 10 records and returns the next 5 records from the sorted result
-result3 = in.order_by("a.asc").offset(10).fetch(5)
+result3 = table.order_by("a.asc").offset(10).fetch(5)
 {% endhighlight %}
       </td>
     </tr>
@@ -2220,7 +2218,7 @@ orders.executeInsert("OutOrders")
         <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 orders.execute_insert("OutOrders")
 {% endhighlight %}
       </td>
