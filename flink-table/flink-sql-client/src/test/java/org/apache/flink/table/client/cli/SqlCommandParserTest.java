@@ -299,6 +299,21 @@ public class SqlCommandParserTest {
 		}
 	}
 
+	@Test
+	public void testHiveCommands() throws Exception {
+		SqlParserHelper helper = new SqlParserHelper(SqlDialect.HIVE);
+		parser = helper.getSqlParser();
+		List<TestItem> testItems = Arrays.asList(
+			// show partitions
+			TestItem.invalidSql("SHOW PARTITIONS ", SqlExecutionException.class, "Encountered \"<EOF>\""),
+			TestItem.validSql("SHOW PARTITIONS t1", SqlDialect.HIVE, SqlCommand.SHOW_PARTITIONS, "SHOW PARTITIONS t1")
+		);
+		for (TestItem item : testItems) {
+			tableEnv.getConfig().setSqlDialect(item.sqlDialect);
+			runTestItem(item);
+		}
+	}
+
 	private void runTestItem(TestItem item) {
 		Tuple2<Boolean, SqlCommandCall> checkFlagAndActualCall = parseSqlAndCheckException(item);
 		if (!checkFlagAndActualCall.f0) {
@@ -370,6 +385,11 @@ public class SqlCommandParserTest {
 			this.sql = sql;
 		}
 
+		private TestItem(String sql, SqlDialect sqlDialect) {
+			this.sql = sql;
+			this.sqlDialect = sqlDialect;
+		}
+
 		public static TestItem invalidSql(
 				String sql,
 				Class<? extends Throwable> expectedException,
@@ -383,6 +403,15 @@ public class SqlCommandParserTest {
 		public static TestItem validSql(
 				String sql, SqlCommand expectedCmd, String... expectedOperands) {
 			TestItem testItem = new TestItem(sql);
+			testItem.expectedCmd = expectedCmd;
+			testItem.expectedOperands = expectedOperands;
+			testItem.cannotParseComment = false; // default is false
+			return testItem;
+		}
+
+		public static TestItem validSql(
+			String sql, SqlDialect sqlDialect, SqlCommand expectedCmd, String... expectedOperands) {
+			TestItem testItem = new TestItem(sql, sqlDialect);
 			testItem.expectedCmd = expectedCmd;
 			testItem.expectedOperands = expectedOperands;
 			testItem.cannotParseComment = false; // default is false

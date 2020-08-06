@@ -304,6 +304,9 @@ public class CliClient {
 			case SHOW_MODULES:
 				callShowModules();
 				break;
+			case SHOW_PARTITIONS:
+				callShowPartitions();
+				break;
 			case USE_CATALOG:
 				callUseCatalog(cmdCall);
 				break;
@@ -545,6 +548,22 @@ public class CliClient {
 		} else {
 			// modules are already in the loaded order
 			modules.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowPartitions() {
+		final List<String> partitions;
+		try {
+			partitions = getShowResult("PARTITIONS");
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (partitions.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			partitions.forEach((v) -> terminal.writer().println(v));
 		}
 		terminal.flush();
 	}

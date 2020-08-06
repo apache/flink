@@ -475,6 +475,25 @@ public class HiveDialectITCase {
 
 		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-05-01',country='belgium')");
 		assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
+
+		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30 01:02:03',country='china') partition (dt='2020-04-30 04:05:06',country='us')");
+
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		assertEquals(3, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+		assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 04:05:06')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03',country='china')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+
+		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30 01:02:03',country='china'),partition (dt='2020-04-30 04:05:06',country='us')");
+		assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {
