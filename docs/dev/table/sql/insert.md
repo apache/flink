@@ -29,10 +29,34 @@ INSERT statements are used to add rows to a table.
 
 ## Run an INSERT statement
 
-Single INSERT statement can be executed through the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method for INSERT statement will submit a Flink job immediately, and return a `TableResult` instance which associates the submitted job. 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+
+<div data-lang="java/scala" markdown="1">
+
+Single INSERT statement can be executed through the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method for INSERT statement will submit a Flink job immediately, and return a `TableResult` instance which associates the submitted job. 
 Multiple INSERT statements can be executed through the `addInsertSql()` method of the `StatementSet` which can be created by the `TableEnvironment.createStatementSet()` method. The `addInsertSql()` method is a lazy execution, they will be executed only when `StatementSet.execute()` is invoked.
 
-The following examples show how to run a single INSERT statement in `TableEnvironment` and in SQL CLI, run multiple INSERT statements in `StatementSet`.
+The following examples show how to run a single INSERT statement in `TableEnvironment`, run multiple INSERT statements in `StatementSet`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+Single INSERT statement can be executed through the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method for INSERT statement will submit a Flink job immediately, and return a `TableResult` instance which associates the submitted job. 
+Multiple INSERT statements can be executed through the `add_insert_sql()` method of the `StatementSet` which can be created by the `TableEnvironment.create_statement_set()` method. The `add_insert_sql()` method is a lazy execution, they will be executed only when `StatementSet.execute()` is invoked.
+
+The following examples show how to run a single INSERT statement in `TableEnvironment`, run multiple INSERT statements in `StatementSet`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+Single INSERT statement can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+
+The following examples show how to run a single INSERT statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
