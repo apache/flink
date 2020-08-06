@@ -24,6 +24,8 @@ under the License.
 
 * This will be replaced by the TOC
 {:toc}
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
 
 SELECT 语句和 VALUES 语句需要使用 `TableEnvironment` 的 `sqlQuery()` 方法加以指定。这个方法会以 `Table` 的形式返回 SELECT （或 VALUE）的查询结果。`Table` 可以被用于 [随后的SQL 与 Table API 查询]({{ site.baseurl }}/zh/dev/table/common.html#mixing-table-api-and-sql) 、 [转换为 DataSet 或 DataStream ]({{ site.baseurl }}/zh/dev/table/common.html#integration-with-datastream-and-dataset-api)或 [输出到 TableSink ]({{ site.baseurl }}/zh/dev/table/common.html#emit-a-table)。SQL 与 Table API 的查询可以进行无缝融合、整体优化并翻译为单一的程序。
 
@@ -32,6 +34,21 @@ SELECT 语句和 VALUES 语句需要使用 `TableEnvironment` 的 `sqlQuery()` �
 为方便起见 `Table.toString()` 将会在其 `TableEnvironment` 中自动使用一个唯一的名字注册表并返回表名。 因此， `Table` 对象可以如下文所示样例，直接内联到 SQL 语句中。
 
 **注意：** 查询若包括了不支持的 SQL 特性，将会抛出 `TableException`。批处理和流处理所支持的 SQL 特性将会在下述章节中列出。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+SELECT 语句和 VALUES 语句需要使用 `TableEnvironment` 的 `sqlQuery()` 方法加以指定。这个方法会以 `Table` 的形式返回 SELECT （或 VALUE）的查询结果。`Table` 可以被用于 [随后的SQL 与 Table API 查询]({{ site.baseurl }}/zh/dev/table/common.html#mixing-table-api-and-sql) 或 [输出到 TableSink ]({{ site.baseurl }}/zh/dev/table/common.html#emit-a-table)。SQL 与 Table API 的查询可以进行无缝融合、整体优化并翻译为单一的程序。
+
+为了可以在 SQL 查询中访问到表，你需要先 [在 TableEnvironment 中注册表 ]({{ site.baseurl }}/zh/dev/table/common.html#register-tables-in-the-catalog)。表可以通过 [TableSource]({{ site.baseurl }}/zh/dev/table/common.html#register-a-tablesource)、 [Table]({{ site.baseurl }}/zh/dev/table/common.html#register-a-table)、[CREATE TABLE 语句](create.html) 注册。 用户也可以通过 [向 TableEnvironment 中注册 catalog ]({{ site.baseurl }}/zh/dev/table/catalogs.html) 的方式指定数据源的位置。
+
+为方便起见 `str(Table)` 将会在其 `TableEnvironment` 中自动使用一个唯一的名字注册表并返回表名。 因此， `Table` 对象可以如下文所示样例，直接内联到 SQL 语句中。
+
+**注意：** 查询若包括了不支持的 SQL 特性，将会抛出 `TableException`。批处理和流处理所支持的 SQL 特性将会在下述章节中列出。
+
+</div>
+</div>
 
 ## 指定查询
 
@@ -140,6 +157,10 @@ table_env \
 {% top %}
 
 ## 执行查询
+
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
+
 SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` 方法来执行，将选择的结果收集到本地。该方法返回 `TableResult` 对象用于包装查询的结果。和 SELECT 语句很像，一个 `Table` 对象可以通过 `Table.execute()` 方法执行从而将 `Table` 的内容收集到本地客户端。
 `TableResult.collect()` 方法返回一个可以关闭的行迭代器。除非所有的数据都被收集到本地，否则一个查询作业永远不会结束。所以我们应该通过 `CloseableIterator#close()` 方法主动地关闭作业以防止资源泄露。
 我们还可以通过 `TableResult.print()` 方法将查询结果打印到本地控制台。`TableResult` 中的结果数据只能被访问一次，因此一个 `TableResult` 实例中，`collect()` 方法和 `print()` 方法不能被同时使用。
@@ -148,6 +169,22 @@ SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.executeSql()` �
 * 对于批作业或没有配置任何 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 既不保证精确一次的数据交付、也不保证至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但作业失败并重启时将会报错。
 * 对于配置了精准一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端精确一次的数据交付。一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
 * 对于配置了至少一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但同一条结果可能被多次传递给客户端。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+SELECT 语句或者 VALUES 语句可以通过 `TableEnvironment.execute_sql()` 方法来执行，将选择的结果收集到本地。该方法返回 `TableResult` 对象用于包装查询的结果。和 SELECT 语句很像，一个 `Table` 对象可以通过 `Table.execute()` 方法执行从而将 `Table` 的内容收集到本地客户端。
+`TableResult.collect()` 方法返回一个可以关闭的行迭代器。除非所有的数据都被收集到本地，否则一个查询作业永远不会结束。所以我们应该通过 `CloseableIterator#close()` 方法主动地关闭作业以防止资源泄露。
+我们还可以通过 `TableResult.print()` 方法将查询结果打印到本地控制台。`TableResult` 中的结果数据只能被访问一次，因此一个 `TableResult` 实例中，`collect()` 方法和 `print()` 方法不能被同时使用。
+
+`TableResult.collect()` 与 `TableResult.print()` 的行为在不同的 checkpointing 模式下略有不同（流作业开启 checkpointing 的方法可参考 <a href="{{ site.baseurl }}/zh/ops/config.html#checkpointing">checkpointing 配置</a>）。
+* 对于批作业或没有配置任何 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 既不保证精确一次的数据交付、也不保证至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但作业失败并重启时将会报错。
+* 对于配置了精准一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端精确一次的数据交付。一条结果数据只有在其对应的 checkpointing 完成后才能在客户端被访问。
+* 对于配置了至少一次 checkpointing 的流作业，`TableResult.collect()` 与 `TableResult.print()` 保证端到端至少一次的数据交付。查询结果在产生后可被客户端即刻访问，但同一条结果可能被多次传递给客户端。
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

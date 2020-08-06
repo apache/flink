@@ -36,9 +36,32 @@ Flink SQL 目前支持以下 DROP 语句：
 
 ## 执行 DROP 语句
 
-可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 DROP 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 DROP 语句。 若 DROP 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 DROP 语句。
+<div data-lang="java/scala" markdown="1">
+
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 DROP 语句。 若 DROP 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 DROP 语句。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行 DROP 语句。 若 DROP 操作执行成功，`execute_sql()` 方法返回 'OK'，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 DROP 语句。
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 DROP 语句。
+
+以下的例子展示了如何在 SQL CLI 中执行一个 DROP 语句。
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
