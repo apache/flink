@@ -141,10 +141,7 @@ function wait_rest_endpoint_up_k8s {
   # wait at most 30 seconds until the endpoint is up
   local TIMEOUT=30
   for i in $(seq 1 ${TIMEOUT}); do
-    QUERY_RESULT=$(kubectl logs $jm_pod_name 2> /dev/null)
-
-    # ensure the response adapts with the successful regex
-    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+    if check_logs_output $jm_pod_name $successful_response_regex; then
       echo "REST endpoint is up."
       return
     fi
@@ -154,6 +151,18 @@ function wait_rest_endpoint_up_k8s {
   done
   echo "REST endpoint has not started within a timeout of ${TIMEOUT} sec"
   exit 1
+}
+
+function check_logs_output {
+  local pod_name=$1
+  local successful_response_regex=$2
+  LOG_CONTENT=$(kubectl logs $pod_name 2> /dev/null)
+
+  # ensure the log content adapts with the successful regex
+  if [[ ${LOG_CONTENT} =~ ${successful_response_regex} ]]; then
+    return 0
+  fi
+  return 1
 }
 
 function cleanup {

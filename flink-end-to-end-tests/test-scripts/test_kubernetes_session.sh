@@ -55,6 +55,17 @@ wait_rest_endpoint_up_k8s $jm_pod_name
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
     ${FLINK_DIR}/examples/batch/WordCount.jar ${ARGS}
 
+if ! check_logs_output $jm_pod_name 'Starting KubernetesSessionClusterEntrypoint'; then
+  echo "JobManager logs are not accessible via kubectl logs."
+  exit 1
+fi
+
+tm_pod_name=$(kubectl get pods | awk '/taskmanager/ {print $1}')
+if ! check_logs_output $tm_pod_name 'Starting Kubernetes TaskExecutor runner'; then
+  echo "TaskManager logs are not accessible via kubectl logs."
+  exit 1
+fi
+
 kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
 
 check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
