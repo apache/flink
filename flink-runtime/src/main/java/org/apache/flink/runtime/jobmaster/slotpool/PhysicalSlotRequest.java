@@ -50,7 +50,7 @@ public class PhysicalSlotRequest {
 		return slotProfile;
 	}
 
-	boolean willSlotBeOccupiedIndefinitely() {
+	public boolean willSlotBeOccupiedIndefinitely() {
 		return slotWillBeOccupiedIndefinitely;
 	}
 
