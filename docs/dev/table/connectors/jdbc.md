@@ -375,6 +375,38 @@ tableEnv.registerCatalog("mypg", catalog)
 tableEnv.useCatalog("mypg")
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table.catalog import Catalog
+
+class JdbcCatalog(Catalog):
+    """
+    A catalog implementation for Jdbc.
+    """
+    def __init__(self, catalog_name, default_database, username, pwd, base_url):
+        from pyflink.java_gateway import get_gateway
+        gateway = get_gateway()
+
+        j_jdbc_catalog = gateway.jvm.org.apache.flink.connector.jdbc.catalog.JdbcCatalog(
+            catalog_name, default_database, username, pwd, base_url)
+        super(JdbcCatalog, self).__init__(j_jdbc_catalog)
+
+environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+t_env = StreamTableEnvironment.create(environment_settings=environment_settings)
+
+name = "mypg"
+default_database = "mydb"
+username = "..."
+password = "..."
+base_url = "..."
+
+catalog = JdbcCatalog(name, default_database, username, password, base_url)
+t_env.register_catalog("mypg", catalog)
+
+# set the JdbcCatalog as the current catalog of the session
+t_env.use_catalog("mypg")
+{% endhighlight %}
+</div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 

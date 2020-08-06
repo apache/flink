@@ -297,10 +297,10 @@ the hive configuration file to their local environment first.
 Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
 Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
 
-Take Hive version 2.3.4 for example:
-
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
+Take Hive version 2.3.4 for example:
+
 {% highlight java %}
 
 EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
@@ -319,6 +319,8 @@ tableEnv.useCatalog("myhive");
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
+Take Hive version 2.3.4 for example:
+
 {% highlight scala %}
 
 val settings = EnvironmentSettings.newInstance().inBatchMode().build()
@@ -334,6 +336,25 @@ tableEnv.registerCatalog("myhive", hive)
 
 // set the HiveCatalog as the current catalog of the session
 tableEnv.useCatalog("myhive")
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table import *
+from pyflink.table.catalog import HiveCatalog
+
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = BatchTableEnvironment.create(environment_settings=settings)
+
+catalog_name = "myhive"
+default_database = "mydatabase"
+hive_conf_dir = "/opt/hive-conf"  # a local path
+
+hive_catalog = HiveCatalog(catalog_name, default_database, hive_conf_dir)
+t_env.register_catalog("myhive", hive_catalog)
+
+# set the HiveCatalog as the current catalog of the session
+tableEnv.use_catalog("myhive")
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">

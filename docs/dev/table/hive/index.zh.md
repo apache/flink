@@ -292,10 +292,10 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 
 请注意，虽然 HiveCatalog 不需要特定的 planner，但读写Hive表仅适用于 Blink planner。因此，强烈建议您在连接到 Hive 仓库时使用 Blink planner。
 
-以Hive 2.3.4版本为例：
-
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
+以Hive 2.3.4版本为例：
+
 {% highlight java %}
 
 EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
@@ -314,6 +314,8 @@ tableEnv.useCatalog("myhive");
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
+以Hive 2.3.4版本为例：
+
 {% highlight scala %}
 
 val settings = EnvironmentSettings.newInstance().inBatchMode().build()
@@ -329,6 +331,26 @@ tableEnv.registerCatalog("myhive", hive)
 
 // set the HiveCatalog as the current catalog of the session
 tableEnv.useCatalog("myhive")
+{% endhighlight %}
+</div>
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table import *
+from pyflink.table.catalog import HiveCatalog
+
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = BatchTableEnvironment.create(environment_settings=settings)
+
+catalog_name = "myhive"
+default_database = "mydatabase"
+hive_conf_dir = "/opt/hive-conf"  # a local path
+
+hive_catalog = HiveCatalog(catalog_name, default_database, hive_conf_dir)
+t_env.register_catalog("myhive", hive_catalog)
+
+# set the HiveCatalog as the current catalog of the session
+tableEnv.use_catalog("myhive")
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">

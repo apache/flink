@@ -109,6 +109,27 @@ tableEnv.listTables() // should return the tables in current catalog and databas
 
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table.catalog import HiveCatalog
+
+# Create a HiveCatalog
+catalog = HiveCatalog("myhive", None, "<path_of_hive_conf>")
+
+# Register the catalog
+t_env.register_catalog("myhive", catalog)
+
+# Create a catalog database
+t_env.execute_sql("CREATE DATABASE mydb WITH (...)")
+
+# Create a catalog table
+t_env.execute_sql("CREATE TABLE mytable (name STRING, age INT) WITH (...)")
+
+# should return the tables in current catalog and database.
+t_env.list_tables()
+
+{% endhighlight %}
+</div>
 <div data-lang="SQL Client" markdown="1">
 {% highlight sql %}
 // the catalog should have been registered via yaml file
@@ -125,9 +146,9 @@ mytable
 
 For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
-### Using Java/Scala
+### Using Java, Scala or Python
 
-Users can use Java or Scala to create catalog tables programmatically.
+Users can use Java, Scala or Python to create catalog tables programmatically.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -213,6 +234,59 @@ catalog.createTable(
 val tables = catalog.listTables("mydb") // tables should contain "mytable"
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table import *
+from pyflink.table.catalog import HiveCatalog, CatalogDatabase, ObjectPath, CatalogBaseTable
+from pyflink.table.descriptors import Kafka
+
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = BatchTableEnvironment.create(environment_settings=settings)
+
+# Create a HiveCatalog
+catalog = HiveCatalog("myhive", None, "<path_of_hive_conf>")
+
+# Register the catalog
+t_env.register_catalog("myhive", catalog)
+
+from pyflink.java_gateway import get_gateway
+gateway = get_gateway()
+database_properties = {"k1": "v1"}
+database_comment = None
+j_database = gateway.jvm.org.apache.flink.table.catalog.CatalogDatabaseImpl(
+    database_properties, database_comment)
+database = CatalogDatabase(j_database)
+
+# Create a catalog database
+catalog.create_database("mydb", database)
+
+# Create a catalog table
+table_schema = TableSchema.builder() \
+    .field("name", DataTypes.STRING()) \
+    .field("age", DataTypes.INT()) \
+    .build()
+
+table_properties = Kafka() \
+    .version("0.11") \
+    .start_from_earlist() \
+    .to_properties()
+
+j_catalog_table = gateway.jvm.org.apache.flink.table.catalog.CatalogTableImpl(
+    table_schema._j_table_schema,
+    table_properties,
+    "my comment")
+catalog_table = CatalogBaseTable(j_catalog_table)
+
+catalog.create_table(
+    ObjectPath("mydb", "mytable"),
+    catalog_table,
+    False)
+
+# tables should contain "mytable"
+tables = catalog.list_tables("mydb")
+{% endhighlight %}
+
+</div>
 </div>
 
 ## Catalog API
@@ -235,14 +309,44 @@ catalog.dropDatabase("mydb", false);
 // alter database
 catalog.alterDatabase("mydb", new CatalogDatabaseImpl(...), false);
 
-// get databse
+// get database
 catalog.getDatabase("mydb");
 
 // check if a database exist
 catalog.databaseExists("mydb");
 
 // list databases in a catalog
-catalog.listDatabases("mycatalog");
+catalog.listDatabases();
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table.catalog import CatalogDatabase
+from pyflink.java_gateway import get_gateway
+gateway = get_gateway()
+
+# create database
+database_properties = {"k1": "v1"}
+database_comment = None
+j_catalog_database = gateway.jvm.org.apache.flink.table.catalog.CatalogDatabaseImpl(
+    database_properties, database_comment)
+catalog_database = CatalogDatabase(j_catalog_database)
+catalog.create_database("mydb", catalog_database, False)
+
+# drop database
+catalog.drop_database("mydb", False)
+
+# alter database
+catalog.alter_database("mydb", catalog_database, False)
+
+# get database
+catalog.get_database("mydb")
+
+# check if a database exist
+catalog.database_exists("mydb")
+
+# list databases in a catalog
+catalog.list_databases()
 {% endhighlight %}
 </div>
 </div>
@@ -274,6 +378,52 @@ catalog.tableExists("mytable");
 catalog.listTables("mydb");
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table import *
+from pyflink.java_gateway import get_gateway
+from pyflink.table.catalog import CatalogBaseTable, ObjectPath
+from pyflink.table.descriptors import Kafka
+
+table_schema = TableSchema.builder() \
+    .field("name", DataTypes.STRING()) \
+    .field("age", DataTypes.INT()) \
+    .build()
+
+table_properties = Kafka() \
+    .version("0.11") \
+    .start_from_earlist() \
+    .to_properties()
+
+gateway = get_gateway()
+j_catalog_table = gateway.jvm.org.apache.flink.table.catalog.CatalogTableImpl(
+    table_schema._j_table_schema,
+    table_properties,
+    "my comment")
+catalog_table = CatalogBaseTable(j_catalog_table)
+
+# create table
+catalog.create_table(ObjectPath("mydb", "mytable"), catalog_table, False)
+
+# drop table
+catalog.drop_table(ObjectPath("mydb", "mytable"), False)
+
+# alter table
+catalog.alter_table(ObjectPath("mydb", "mytable"), catalog_table, False)
+
+# rename table
+catalog.rename_table(ObjectPath("mydb", "mytable"), "my_new_table")
+
+# get table
+catalog.get_table("mytable")
+
+# check if a table exist or not
+catalog.table_exists("mytable")
+
+# list tables in a database
+catalog.list_tables("mydb")
+{% endhighlight %}
+</div>
 </div>
 
 ### View operations
@@ -291,7 +441,7 @@ catalog.dropTable(new ObjectPath("mydb", "myview"), false);
 catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogViewImpl(...), false);
 
 // rename view
-catalog.renameTable(new ObjectPath("mydb", "myview"), "my_new_view");
+catalog.renameTable(new ObjectPath("mydb", "myview"), "my_new_view", false);
 
 // get view
 catalog.getTable("myview");
@@ -301,6 +451,47 @@ catalog.tableExists("mytable");
 
 // list views in a database
 catalog.listViews("mydb");
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table import *
+from pyflink.table.catalog import CatalogBaseTable, ObjectPath
+from pyflink.java_gateway import get_gateway
+
+table_schema = TableSchema.builder() \
+    .field("name", DataTypes.STRING()) \
+    .field("age", DataTypes.INT()) \
+    .build()
+
+gateway = get_gateway()
+j_view = gateway.jvm.org.apache.flink.table.catalog.CatalogViewImpl(
+            "select * from t1",
+            "select * from test-catalog.db1.t1",
+            table_schema._j_table_schema,
+            {},
+            "This is a view")
+catalog_table = CatalogBaseTable(j_view)
+
+catalog.create_table(ObjectPath("mydb", "myview"), catalog_table, False)
+
+# drop view
+catalog.drop_table(ObjectPath("mydb", "myview"), False)
+
+# alter view
+catalog.alter_table(ObjectPath("mydb", "mytable"), catalog_table, False)
+
+# rename view
+catalog.rename_table(ObjectPath("mydb", "myview"), "my_new_view", False)
+
+# get view
+catalog.get_table("myview")
+
+# check if a view exist or not
+catalog.table_exists("mytable")
+
+# list views in a database
+catalog.list_views("mydb")
 {% endhighlight %}
 </div>
 </div>
@@ -341,7 +532,49 @@ catalog.listPartitions(new ObjectPath("mydb", "mytable"));
 catalog.listPartitions(new ObjectPath("mydb", "mytable"), new CatalogPartitionSpec(...));
 
 // list partitions of a table by expression filter
-catalog.listPartitions(new ObjectPath("mydb", "mytable"), Arrays.asList(epr1, ...));
+catalog.listPartitionsByFilter(new ObjectPath("mydb", "mytable"), Arrays.asList(epr1, ...));
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table.catalog import ObjectPath, CatalogPartitionSpec, CatalogPartition
+from pyflink.java_gateway import get_gateway
+
+gateway = get_gateway()
+partition_properties = {}
+partition_comments = "my partition"
+j_partition = gateway.jvm.org.apache.flink.table.catalog.CatalogPartitionImpl(
+    partition_properties, partition_comments)
+catalog_partition = CatalogPartition(j_partition)
+
+catalog_partition_spec = CatalogPartitionSpec({"third": "2010", "second": "bob"})
+catalog.create_partition(
+    ObjectPath("mydb", "mytable"),
+    catalog_partition_spec,
+    catalog_partition,
+    False)
+
+# drop partition
+catalog.drop_partition(ObjectPath("mydb", "mytable"), catalog_partition_spec, False)
+
+# alter partition
+catalog.alter_partition(
+    ObjectPath("mydb", "mytable"),
+    CatalogPartitionSpec(...),
+    catalog_partition,
+    False)
+
+# get partition
+catalog.get_partition(ObjectPath("mydb", "mytable"), catalog_partition_spec)
+
+# check if a partition exist or not
+catalog.partition_exists(ObjectPath("mydb", "mytable"), catalog_partition_spec)
+
+# list partitions of a table
+catalog.list_partitions(ObjectPath("mydb", "mytable"))
+
+# list partitions of a table under a give partition spec
+catalog.list_partitions(ObjectPath("mydb", "mytable"), catalog_partition_spec)
 {% endhighlight %}
 </div>
 </div>
@@ -371,6 +604,36 @@ catalog.functionExists("myfunc");
 catalog.listFunctions("mydb");
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table.catalog import ObjectPath, CatalogFunction
+from pyflink.java_gateway import get_gateway
+
+gateway = get_gateway()
+j_function = gateway.jvm.org.apache.flink.table.catalog.CatalogFunctionImpl(
+    "my.python.udf",
+    gateway.jvm.org.apache.flink.table.catalog.FunctionLanguage.PYTHON)
+catalog_function = CatalogFunction(j_function)
+
+# create function
+catalog.create_function(ObjectPath("mydb", "myfunc"), catalog_function, False)
+
+# drop function
+catalog.drop_function(ObjectPath("mydb", "myfunc"), False)
+
+# alter function
+catalog.alter_function(ObjectPath("mydb", "myfunc"), catalog_function, False)
+
+# get function
+catalog.get_function("myfunc")
+
+# check if a function exist or not
+catalog.function_exists("myfunc")
+
+# list functions in a database
+catalog.list_functions("mydb")
+{% endhighlight %}
+</div>
 </div>
 
 
@@ -385,6 +648,11 @@ Users can also register additional catalogs into an existing Flink session.
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 tableEnv.registerCatalog(new CustomCatalog("myCatalog"));
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+t_env.register_catalog(catalog)
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">
@@ -431,6 +699,12 @@ tableEnv.useCatalog("myCatalog");
 tableEnv.useDatabase("myDb");
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+t_env.use_catalog("myCatalog")
+t_env.use_database("myDb")
+{% endhighlight %}
+</div>
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 Flink SQL> USE CATALOG myCatalog;
@@ -447,6 +721,11 @@ Metadata from catalogs that are not the current catalog are accessible by provid
 tableEnv.from("not_the_current_catalog.not_the_current_db.my_table");
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+t_env.from_path("not_the_current_catalog.not_the_current_db.my_table")
+{% endhighlight %}
+</div>
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 Flink SQL> SELECT * FROM not_the_current_catalog.not_the_current_db.my_table;
@@ -460,6 +739,11 @@ Flink SQL> SELECT * FROM not_the_current_catalog.not_the_current_db.my_table;
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 tableEnv.listCatalogs();
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+t_env.list_catalogs()
 {% endhighlight %}
 </div>
 <div data-lang="SQL" markdown="1">
@@ -478,6 +762,11 @@ Flink SQL> show catalogs;
 tableEnv.listDatabases();
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+t_env.list_databases()
+{% endhighlight %}
+</div>
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 Flink SQL> show databases;
@@ -491,6 +780,11 @@ Flink SQL> show databases;
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 tableEnv.listTables();
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+t_env.list_tables()
 {% endhighlight %}
 </div>
 <div data-lang="SQL" markdown="1">
