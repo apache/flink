@@ -144,7 +144,7 @@ class TableEnvironment(object):
         """
         catalog = self._j_tenv.getCatalog(catalog_name)
         if catalog.isPresent():
-            return Catalog._get(catalog.get())
+            return Catalog(catalog.get())
         else:
             return None
 
