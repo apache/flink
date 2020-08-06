@@ -154,8 +154,8 @@ $ kubectl delete deployment/<ClusterID>
 
 ## Log Files
 
-By default, the JobManager and TaskManager will output the logs to console and `/opt/flink/log` in each pod simultaneously.
-The STDOUT and STDERR will only be redirected to console. You could check for them via `kubectl logs <PodName>`.
+By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
+The STDOUT and STDERR will only be redirected to the console. You can access them via `kubectl logs <PodName>`.
 
 If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
 
