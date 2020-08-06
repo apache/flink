@@ -253,7 +253,7 @@ The metrics here are scoped to the operators and then further broken down by col
   <strong>Note:</strong> Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
 </div>
 
-{% include generated/rocks_db_native_metric_configuration.html %}
+{% include generated/rocksdb_native_metric_configuration.html %}
 
 ----
 ----
@@ -316,7 +316,7 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 These options give fine-grained control over the behavior and resoures of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setOptions(PptionsFactory)`.
 
-{% include generated/rocks_db_configurable_configuration.html %}
+{% include generated/rocksdb_configurable_configuration.html %}
 
 ### Advanced Fault Tolerance Options
 
