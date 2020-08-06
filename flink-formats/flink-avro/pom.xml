@@ -188,7 +188,9 @@ under the License.
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<descriptorRefs>jar-with-dependencies</descriptorRefs>
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
 						</configuration>
 					</execution>
 					<execution>
