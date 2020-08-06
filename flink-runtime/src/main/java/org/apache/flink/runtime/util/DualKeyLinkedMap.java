@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -43,63 +43,48 @@ import java.util.Set;
  * @param <B> Type of key B. Key B is the secondary key.
  * @param <V> Type of the value
  */
-class DualKeyLinkedMap<A, B, V> {
+public class DualKeyLinkedMap<A, B, V> {
 
 	private final LinkedHashMap<A, Tuple2<B, V>> aMap;
 
 	private final Map<B, A> bMap;
 
-	private transient Collection<V> values;
+	private Collection<V> values;
 
-	DualKeyLinkedMap(int initialCapacity) {
+	public DualKeyLinkedMap(int initialCapacity) {
 		this.aMap = new LinkedHashMap<>(initialCapacity);
 		this.bMap = new HashMap<>(initialCapacity);
 	}
 
-	int size() {
+	public int size() {
 		return aMap.size();
 	}
 
 	@Nullable
-	V getValueByKeyA(A aKey) {
+	public V getValueByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
-
-		if (value != null) {
-			return value.f1;
-		} else {
-			return null;
-		}
+		return value != null ? value.f1 : null;
 	}
 
 	@Nullable
-	V getValueByKeyB(B bKey) {
+	public V getValueByKeyB(B bKey) {
 		final A aKey = bMap.get(bKey);
-
-		if (aKey != null) {
-			return aMap.get(aKey).f1;
-		} else {
-			return null;
-		}
+		return aKey != null ? aMap.get(aKey).f1 : null;
 	}
 
 	@Nullable
-	A getKeyAByKeyB(B bKey) {
+	public A getKeyAByKeyB(B bKey) {
 		return bMap.get(bKey);
 	}
 
 	@Nullable
-	B getKeyBByKeyA(A aKey) {
+	public B getKeyBByKeyA(A aKey) {
 		final Tuple2<B, V> value = aMap.get(aKey);
-
-		if (value != null) {
-			return value.f0;
-		} else {
-			return null;
-		}
+		return value != null ? value.f0 : null;
 	}
 
 	@Nullable
-	V put(A aKey, B bKey, V value) {
+	public V put(A aKey, B bKey, V value) {
 		final V oldValue = getValueByKeyA(aKey);
 
 		// cleanup orphaned keys if the given primary key and secondary key were not matched previously
@@ -117,23 +102,19 @@ class DualKeyLinkedMap<A, B, V> {
 		aMap.put(aKey, Tuple2.of(bKey, value));
 		bMap.put(bKey, aKey);
 
-		if (oldValue != null) {
-			return oldValue;
-		} else {
-			return null;
-		}
+		return oldValue;
 	}
 
-	boolean containsKeyA(A aKey) {
+	public boolean containsKeyA(A aKey) {
 		return aMap.containsKey(aKey);
 	}
 
-	boolean containsKeyB(B bKey) {
+	public boolean containsKeyB(B bKey) {
 		return bMap.containsKey(bKey);
 	}
 
 	@Nullable
-	V removeKeyA(A aKey) {
+	public V removeKeyA(A aKey) {
 		Tuple2<B, V> aValue = aMap.remove(aKey);
 
 		if (aValue != null) {
@@ -145,22 +126,18 @@ class DualKeyLinkedMap<A, B, V> {
 	}
 
 	@Nullable
-	V removeKeyB(B bKey) {
+	public V removeKeyB(B bKey) {
 		A aKey = bMap.remove(bKey);
 
 		if (aKey != null) {
 			Tuple2<B, V> aValue = aMap.remove(aKey);
-			if (aValue != null) {
-				return aValue.f1;
-			} else {
-				return null;
-			}
+			return aValue != null ? aValue.f1 : null;
 		} else {
 			return null;
 		}
 	}
 
-	Collection<V> values() {
+	public Collection<V> values() {
 		Collection<V> vs = values;
 
 		if (vs == null) {
@@ -171,15 +148,15 @@ class DualKeyLinkedMap<A, B, V> {
 		return vs;
 	}
 
-	Set<A> keySetA() {
+	public Set<A> keySetA() {
 		return aMap.keySet();
 	}
 
-	Set<B> keySetB() {
+	public Set<B> keySetB() {
 		return bMap.keySet();
 	}
 
-	void clear() {
+	public void clear() {
 		aMap.clear();
 		bMap.clear();
 	}
