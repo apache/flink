@@ -19,7 +19,6 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.runtime.minicluster.MiniCluster;

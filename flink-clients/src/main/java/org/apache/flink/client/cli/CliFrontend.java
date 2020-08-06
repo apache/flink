@@ -238,8 +238,7 @@ public class CliFrontend {
 	/**
 	 * Get all provided libraries needed to run the program from the ProgramOptions.
 	 */
-	public List<URL> getJobJarAndDependencies(ProgramOptions programOptions)
-		throws FileNotFoundException, ProgramInvocationException {
+	public List<URL> getJobJarAndDependencies(ProgramOptions programOptions) throws FileNotFoundException, ProgramInvocationException {
 		String entryPointClass = programOptions.getEntryPointClassName();
 		String jarFilePath = programOptions.getJarFilePath();
 
@@ -257,8 +256,7 @@ public class CliFrontend {
 			LOG.info("Building program from JAR file");
 			program = buildProgram(programOptions, effectiveConfiguration);
 		} catch (FileNotFoundException e) {
-			throw new CliArgsException(
-				"Could not build the program from JAR file: " + e.getMessage(), e);
+			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
 		}
 		return program;
 	}
@@ -727,7 +725,7 @@ public class CliFrontend {
 	 * @return A PackagedProgram (upon success)
 	 */
 	PackagedProgram buildProgram(final ProgramOptions runOptions)
-		throws FileNotFoundException, ProgramInvocationException, CliArgsException {
+			throws FileNotFoundException, ProgramInvocationException, CliArgsException {
 		return buildProgram(runOptions, configuration);
 	}
 
