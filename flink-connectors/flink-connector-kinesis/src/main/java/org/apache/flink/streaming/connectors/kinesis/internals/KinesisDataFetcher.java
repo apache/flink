@@ -1107,8 +1107,9 @@ public class KinesisDataFetcher<T> {
 
 	@VisibleForTesting
 	protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
-		final AtomicLong threadCount = new AtomicLong(0);
 		return Executors.newCachedThreadPool(new ThreadFactory() {
+			private final AtomicLong threadCount = new AtomicLong(0);
+
 			@Override
 			public Thread newThread(Runnable runnable) {
 				Thread thread = new Thread(runnable);
