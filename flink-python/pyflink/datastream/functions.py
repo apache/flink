@@ -83,7 +83,7 @@ class FlatMapFunction(Function):
         pass
 
 
-class FunctionWrappper(object):
+class FunctionWrapper(object):
     """
     A basic wrapper class for user defined function.
     """
@@ -91,7 +91,7 @@ class FunctionWrappper(object):
         self._func = func
 
 
-class MapFunctionWrapper(FunctionWrappper):
+class MapFunctionWrapper(FunctionWrapper):
     """
     A wrapper class for MapFunction. It's used for wrapping up user defined function in a
     MapFunction when user does not implement a MapFunction but directly pass a function object or
@@ -116,7 +116,7 @@ class MapFunctionWrapper(FunctionWrappper):
         return self._func(value)
 
 
-class FlatMapFunctionWrapper(FunctionWrappper):
+class FlatMapFunctionWrapper(FunctionWrapper):
     """
     A wrapper class for FlatMapFunction. It's used for wrapping up user defined function in a
     FlatMapFunction when user does not implement a FlatMapFunction but directly pass a function

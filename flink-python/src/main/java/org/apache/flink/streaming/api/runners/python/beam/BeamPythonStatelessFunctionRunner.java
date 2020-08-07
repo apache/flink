@@ -152,7 +152,7 @@ public abstract class BeamPythonStatelessFunctionRunner  extends BeamPythonFunct
 			.build();
 	}
 
-	protected  abstract byte[] getUserDefinedFunctionsProtoBytes();
+	protected abstract byte[] getUserDefinedFunctionsProtoBytes();
 
 	protected abstract RunnerApi.Coder getInputCoderProto();
 

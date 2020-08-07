@@ -68,7 +68,7 @@ message UserDefinedDataStreamFunctions {
   bool metric_enabled = 2;
 }
 
-// A representation of the DataStream.
+// A representation of the data schema.
 message Schema {
   enum TypeName {
     ROW = 0;
@@ -164,7 +164,7 @@ message Schema {
   repeated Field fields = 1;
 }
 
-// A representation of the data type information of a DataStream.
+// A representation of the data type information in DataStream.
 message TypeInfo {
   enum TypeName {
     ROW = 0;
@@ -182,10 +182,9 @@ message TypeInfo {
     SQL_DATE = 12;
     SQL_TIME = 13;
     SQL_TIMESTAMP = 14;
-    INSTANT = 15;
-    ARRAY = 16;
-    PICKLED_BYTES = 17;
-    TUPLE = 18;
+    ARRAY = 15;
+    PICKLED_BYTES = 16;
+    TUPLE = 17;
   }
 
 

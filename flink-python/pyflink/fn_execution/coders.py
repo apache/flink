@@ -20,7 +20,7 @@ import os
 from abc import ABC
 
 import pytz
-from typing import Tuple
+from apache_beam.typehints import typehints
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 
@@ -424,7 +424,7 @@ class TupleCoder(FieldCoder):
         return coder_impl.TupleCoderImpl([c.get_impl() for c in self._field_coders])
 
     def to_type_hint(self):
-        return Tuple
+        return typehints.Tuple
 
     def __repr__(self):
         return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -502,7 +502,7 @@ _type_info_name_mappings = {
 def from_type_info_proto(field_type):
     field_type_name = field_type.type_name
     try:
-        return _type_info_name_mappings.get(field_type_name)
+        return _type_info_name_mappings[field_type_name]
     except KeyError:
         if field_type_name == type_info_name.ROW:
             return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field])
@@ -513,5 +513,4 @@ def from_type_info_proto(field_type):
         if field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(f.type)
                                for f in field_type.tuple_type_info.field])
-
         raise ValueError("field_type %s is not supported." % field_type)

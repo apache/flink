@@ -234,7 +234,7 @@ class BeamDataStreamStatelessMapCoder(FastCoder):
             coders.DataStreamStatelessMapCoder.from_type_info_proto(type_info_proto))
 
     def to_type_hint(self):
-        pass
+        return typehints.Any
 
     def __repr__(self):
         return 'BeamDataStreamStatelessMapCoder[%s]' % repr(self._field_coder)
@@ -261,7 +261,7 @@ class BeamDataStreamStatelessFlatMapCoder(FastCoder):
             coders.DataStreamStatelessFlatMapCoder.from_type_info_proto(type_info_proto))
 
     def to_type_hint(self):
-        pass
+        return typehints.Generator
 
     def __repr__(self):
         return 'BeamDataStreamStatelessFlatMapCoder[%s]' % repr(self._field_coder)

@@ -194,8 +194,7 @@ class PickledBytesCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
         coded_data = pickle.dumps(value)
-        real_coded_data = self.field_coder.encode(coded_data)
-        out_stream.write(real_coded_data)
+        self.field_coder.encode_to_stream(coded_data, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
         return self._decode_one_value_from_stream(in_stream, nested)
@@ -392,9 +391,8 @@ class TupleCoderImpl(StreamCoderImpl):
             field_coders[i].encode_to_stream(value[i], out_stream, nested)
 
     def decode_from_stream(self, stream, nested):
-        decoded_list = []
-        for idx in range(self._field_count):
-            decoded_list.append(self._field_coders[idx].decode_from_stream(stream, nested))
+        decoded_list = [field_coder.decode_from_stream(stream, nested)
+                        for field_coder in self._field_coders]
         return (*decoded_list,)
 
     def __repr__(self) -> str:
