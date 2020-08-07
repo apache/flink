@@ -77,7 +77,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 	void assignExclusiveSegments() throws IOException {
 		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
 
-		bufferManager.requestExclusiveBuffers();
+		bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
 		exclusiveBuffersAssigned = true;
 	}
 }

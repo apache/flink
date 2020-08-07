@@ -104,7 +104,7 @@ public class RecoveredInputChannelTest {
 	private void testReadEmptyStateOrThrowException(boolean isRemote, ChannelStateReader reader) throws Exception {
 		// setup
 		final int totalBuffers = 10;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32);
 		final SingleInputGate inputGate = createInputGate(globalPool);
 		final RecoveredInputChannel inputChannel = createRecoveredChannel(isRemote, inputGate);
 
@@ -137,7 +137,7 @@ public class RecoveredInputChannelTest {
 	private void testConcurrentReadStateAndProcess(boolean isRemote) throws Exception {
 		// setup
 		final int totalBuffers = 10;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32);
 		final SingleInputGate inputGate = createInputGate(globalPool);
 		final RecoveredInputChannel inputChannel = createRecoveredChannel(isRemote, inputGate);
 
@@ -167,7 +167,7 @@ public class RecoveredInputChannelTest {
 	private void testConcurrentReadStateAndRelease(boolean isRemote) throws Exception {
 		// setup
 		final int totalBuffers = 10;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32);
 		final SingleInputGate inputGate = createInputGate(globalPool);
 		final RecoveredInputChannel inputChannel = createRecoveredChannel(isRemote, inputGate);
 
@@ -196,7 +196,7 @@ public class RecoveredInputChannelTest {
 	private void testConcurrentReadStateAndProcessAndRelease(boolean isRemote) throws Exception {
 		// setup
 		final int totalBuffers = 10;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 32);
 		final SingleInputGate inputGate = createInputGate(globalPool);
 		final RecoveredInputChannel inputChannel = createRecoveredChannel(isRemote, inputGate);
 
