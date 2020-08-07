@@ -346,10 +346,7 @@ object AggregateUtil extends Enumeration {
         hasStateBackedDataViews,
         needsRetraction)
 
-    case _: AggSqlFunction |
-          // TODO remove once all agg functions are internal functions
-          _: SqlAggFunction if !udf.isInstanceOf[InternalAggregateFunction[_, _]] &&
-            udf.isInstanceOf[ImperativeAggregateFunction[_, _]] =>
+    case _: AggSqlFunction =>
       createAggregateInfoFromLegacyFunction(
         inputRowRelDataType,
         call,
