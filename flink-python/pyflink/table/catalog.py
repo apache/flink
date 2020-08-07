@@ -37,13 +37,6 @@ class Catalog(object):
     def __init__(self, j_catalog):
         self._j_catalog = j_catalog
 
-    @staticmethod
-    def _get(j_catalog):
-        if j_catalog.getClass().getName() == "org.apache.flink.table.catalog.hive.HiveCatalog":
-            return HiveCatalog(j_hive_catalog=j_catalog)
-        else:
-            return Catalog(j_catalog)
-
     def get_default_database(self):
         """
         Get the name of the default database for this catalog. The default database will be the
@@ -1106,13 +1099,13 @@ class HiveCatalog(Catalog):
     A catalog implementation for Hive.
     """
 
-    def __init__(self, catalog_name=None, default_database="default", hive_conf_dir=None,
-                 j_hive_catalog=None):
+    def __init__(self, catalog_name: str, default_database: str = None, hive_conf_dir: str = None):
+        assert catalog_name is not None
+
         gateway = get_gateway()
 
-        if j_hive_catalog is None:
-            j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
-                catalog_name, default_database, hive_conf_dir)
+        j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
+            catalog_name, default_database, hive_conf_dir)
         super(HiveCatalog, self).__init__(j_hive_catalog)
 
 
@@ -1120,7 +1113,14 @@ class JdbcCatalog(Catalog):
     """
     A catalog implementation for Jdbc.
     """
-    def __init__(self, catalog_name, default_database, username, pwd, base_url):
+    def __init__(self, catalog_name: str, default_database: str, username: str, pwd: str,
+                 base_url: str):
+        assert catalog_name is not None
+        assert default_database is not None
+        assert username is not None
+        assert pwd is not None
+        assert base_url is not None
+
         from pyflink.java_gateway import get_gateway
         gateway = get_gateway()
 

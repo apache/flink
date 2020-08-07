@@ -262,7 +262,7 @@ table_properties = Kafka() \
     .to_properties()
 
 catalog_table = CatalogBaseTable.create_table(
-    schema=table_schema, properties=table_properties, "my comment")
+    schema=table_schema, properties=table_properties, comment="my comment")
 
 catalog.create_table(
     ObjectPath("mydb", "mytable"),
