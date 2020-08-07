@@ -77,7 +77,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 
 	@Before
 	public void setup() throws IOException, InterruptedException {
-		networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE, 8);
+		networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
 		inputGate = createSingleInputGate(1, networkBufferPool);
 		RemoteInputChannel inputChannel = createRemoteInputChannel(
 			inputGate,

@@ -61,7 +61,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
 	@Before
 	public void setup() {
-		globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize, numberOfSegmentsToRequest);
+		globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize);
 	}
 
 	@After

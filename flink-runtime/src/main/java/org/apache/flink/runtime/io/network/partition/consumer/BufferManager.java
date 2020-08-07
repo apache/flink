@@ -127,8 +127,8 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	/**
 	 * Requests exclusive buffers from the provider.
 	 */
-	void requestExclusiveBuffers() throws IOException {
-		Collection<MemorySegment> segments = globalPool.requestMemorySegments();
+	void requestExclusiveBuffers(int numExclusiveBuffers) throws IOException {
+		Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
 		checkArgument(!segments.isEmpty(), "The number of exclusive buffers per channel should be larger than 0.");
 
 		synchronized (bufferQueue) {

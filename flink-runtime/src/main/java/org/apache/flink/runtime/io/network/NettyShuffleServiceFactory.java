@@ -112,7 +112,6 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			config.numNetworkBuffers(),
 			config.networkBufferSize(),
-			config.networkBuffersPerChannel(),
 			config.getRequestSegmentsTimeout());
 
 		registerShuffleMetrics(metricGroup, networkBufferPool);
