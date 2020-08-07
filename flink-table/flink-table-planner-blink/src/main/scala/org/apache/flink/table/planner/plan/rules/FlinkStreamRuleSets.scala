@@ -166,6 +166,7 @@ object FlinkStreamRuleSets {
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
+    FlinkFilterSnapshotTransposeRule.INSTNACE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the table scan
@@ -233,6 +234,7 @@ object FlinkStreamRuleSets {
     */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
+    FlinkFilterSnapshotTransposeRule.INSTNACE,
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,

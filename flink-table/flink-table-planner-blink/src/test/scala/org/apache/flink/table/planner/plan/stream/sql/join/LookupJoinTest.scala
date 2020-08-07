@@ -70,9 +70,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           |CREATE TABLE LookupTable (
           |  `id` INT,
           |  `name` STRING,
-          |  `age` INT
+          |  `age` INT,
+          |  `info` STRING
           |) WITH (
-          |  'connector' = 'values'
+          |  'connector' = 'values',
+          |  'filterable-fields' =  'info'
           |)
           |""".stripMargin)
     }
@@ -429,6 +431,33 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyPlan(sql)
   }
 
+  @Test
+  def testTemporalTableFilterPartialPushDown(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable as T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |WHERE D.info = 'flink' AND D.age > 10
+        |""".stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testTemporalTableFilterPushDownWithUdf(): Unit ={
+    val sql =
+      """
+        |SELECT * FROM MyTable as T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |WHERE UPPER(D.info) = 'flink'
+        |""".stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+
   // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {
@@ -531,6 +560,7 @@ object TestTemporalTable {
     .field("id", DataTypes.INT())
     .field("name", DataTypes.STRING())
     .field("age", DataTypes.INT())
+    .field("info", DataTypes.STRING())
     .build()
 
   def createTemporaryTable(

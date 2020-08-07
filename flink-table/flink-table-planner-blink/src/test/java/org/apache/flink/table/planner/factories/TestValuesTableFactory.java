@@ -541,7 +541,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				rows = new ArrayList<>();
 				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
 			}
-			rows.forEach(record -> {
+			rows.stream().filter(value ->
+				FilterUtils.isRetainedAfterApplyingFilterPredicates(
+						filterPredicates,
+						getValueGetter(value))
+			).forEach(record -> {
 				Row key = Row.of(Arrays.stream(lookupIndices)
 					.mapToObj(record::getField)
 					.toArray());

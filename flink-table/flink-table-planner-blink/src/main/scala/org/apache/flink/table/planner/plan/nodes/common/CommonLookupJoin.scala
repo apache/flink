@@ -191,6 +191,11 @@ abstract class CommonLookupJoin(
     case t: LegacyTableSourceTable[_] => t.tableIdentifier
   }
 
+  lazy val tableDigest: Array[String] = temporalTable match {
+    case t: TableSourceTable => t.extraDigests
+    case _: LegacyTableSourceTable[_] => Array.empty
+  }
+
   if (containsPythonCall(joinInfo.getRemaining(cluster.getRexBuilder))) {
     throw new TableException("Only inner join condition with equality predicates supports the " +
       "Python UDF taking the inputs from the left table and the right table at the same time, " +
@@ -240,7 +245,7 @@ abstract class CommonLookupJoin(
     }
 
     super.explainTerms(pw)
-      .item("table", tableIdentifier.asSummaryString())
+      .item("table", (tableIdentifier.asSummaryString() +: tableDigest).mkString(", "))
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("async", isAsyncEnabled)
       .item("lookup", lookupKeys)
