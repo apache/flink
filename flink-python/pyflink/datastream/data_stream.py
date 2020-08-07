@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import uuid
 
 from typing import Callable, Union
 
@@ -24,7 +23,6 @@ from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper
-from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.java_gateway import get_gateway
 
 
@@ -191,6 +189,7 @@ class DataStream(object):
             else:
                 raise TypeError("The input must be a MapFunction or a callable function")
         func_name = "Map"
+        from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, output_type_info = \
             self._get_java_python_function_operator(func,
                                                     type_info,
@@ -220,7 +219,8 @@ class DataStream(object):
                 func = FlatMapFunctionWrapper(func)
             else:
                 raise TypeError("The input must be a FlatMapFunction or a callable function")
-        func_name = "m_flat_map" + str(uuid.uuid1())
+        func_name = "FLAT_MAP"
+        from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, output_type_info = \
             self._get_java_python_function_operator(func,
                                                     type_info,
