@@ -71,9 +71,7 @@ public final class ChildFirstClassLoader extends FlinkUserCodeClassLoader {
 				// let URLClassLoader do it, which will eventually call the parent
 				c = super.loadClassWithoutExceptionHandling(name, resolve);
 			}
-		}
-
-		if (resolve) {
+		} else if (resolve) {
 			resolveClass(c);
 		}
 
