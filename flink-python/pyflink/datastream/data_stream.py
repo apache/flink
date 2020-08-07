@@ -170,7 +170,8 @@ class DataStream(object):
         self._j_data_stream.setBufferTimeout(timeout_millis)
         return self
 
-    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None):
+    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
+            -> 'DataStream':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element. The user
@@ -202,7 +203,8 @@ class DataStream(object):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None):
+    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None) \
+            -> 'DataStream':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
         for each element of the DataStream. Each FlatMapFunction call can return any number of
