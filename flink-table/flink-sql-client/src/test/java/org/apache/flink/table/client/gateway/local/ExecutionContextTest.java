@@ -383,14 +383,16 @@ public class ExecutionContextTest {
 			.parentFirst(
 				new URL[0],
 				TestClassLoaderCatalog.class.getClassLoader(),
-				NOOP_EXCEPTION_HANDLER)
+				NOOP_EXCEPTION_HANDLER,
+				true)
 			.getClass();
 		private static final Class childFirstCL = FlinkUserCodeClassLoaders
 			.childFirst(
 				new URL[0],
 				TestClassLoaderCatalog.class.getClassLoader(),
 				new String[0],
-				NOOP_EXCEPTION_HANDLER)
+				NOOP_EXCEPTION_HANDLER,
+				true)
 			.getClass();
 
 		TestClassLoaderCatalog(String name) {

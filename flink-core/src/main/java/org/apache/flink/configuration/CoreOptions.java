@@ -124,6 +124,17 @@ public class CoreOptions {
 		return parseParentFirstLoaderPatterns(base, append);
 	}
 
+	@Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
+	public static final ConfigOption<Boolean> CHECK_LEAKED_CLASSLOADER = ConfigOptions
+		.key("classloader.check-leaked-classloader")
+		.booleanType()
+		.defaultValue(true)
+		.withDescription("Fails attempts at loading classes if the user classloader of a job is used after it has " +
+			"terminated.\n" +
+			"This is usually caused by the classloader being leaked by lingering threads or misbehaving libraries, " +
+			"which may also result in the classloader being used by other jobs.\n" +
+			"This check should only be disabled if such a leak prevents further jobs from running.");
+
 	/**
 	 * Plugin-specific option of {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}. Plugins use this parent first list
 	 * instead of the global version.

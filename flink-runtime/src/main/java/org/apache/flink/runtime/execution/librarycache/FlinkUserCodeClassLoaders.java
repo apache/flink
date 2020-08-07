@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 
@@ -43,20 +44,24 @@ public class FlinkUserCodeClassLoaders {
 	public static URLClassLoader parentFirst(
 			URL[] urls,
 			ClassLoader parent,
-			Consumer<Throwable> classLoadingExceptionHandler) {
-		return new SafetyNetWrapperClassLoader(
-			new ParentFirstClassLoader(urls, parent, classLoadingExceptionHandler),
-			parent);
+			Consumer<Throwable> classLoadingExceptionHandler,
+			boolean checkClassLoaderLeak) {
+		FlinkUserCodeClassLoader classLoader = new ParentFirstClassLoader(urls,	parent,	classLoadingExceptionHandler);
+		return wrapWithSafetyNet(classLoader, checkClassLoaderLeak);
 	}
 
 	public static URLClassLoader childFirst(
 			URL[] urls,
 			ClassLoader parent,
 			String[] alwaysParentFirstPatterns,
-			Consumer<Throwable> classLoadingExceptionHandler) {
-		return new SafetyNetWrapperClassLoader(
-			new ChildFirstClassLoader(urls, parent, alwaysParentFirstPatterns, classLoadingExceptionHandler),
-			parent);
+			Consumer<Throwable> classLoadingExceptionHandler,
+			boolean checkClassLoaderLeak) {
+		FlinkUserCodeClassLoader classLoader = new ChildFirstClassLoader(
+			urls,
+			parent,
+			alwaysParentFirstPatterns,
+			classLoadingExceptionHandler);
+		return wrapWithSafetyNet(classLoader, checkClassLoaderLeak);
 	}
 
 	public static URLClassLoader create(
@@ -64,16 +69,26 @@ public class FlinkUserCodeClassLoaders {
 			URL[] urls,
 			ClassLoader parent,
 			String[] alwaysParentFirstPatterns,
-			Consumer<Throwable> classLoadingExceptionHandler) {
+			Consumer<Throwable> classLoadingExceptionHandler,
+			boolean checkClassLoaderLeak) {
 
 		switch (resolveOrder) {
 			case CHILD_FIRST:
-				return childFirst(urls, parent, alwaysParentFirstPatterns, classLoadingExceptionHandler);
+				return childFirst(
+					urls,
+					parent,
+					alwaysParentFirstPatterns,
+					classLoadingExceptionHandler,
+					checkClassLoaderLeak);
 			case PARENT_FIRST:
-				return parentFirst(urls, parent, classLoadingExceptionHandler);
+				return parentFirst(urls, parent, classLoadingExceptionHandler, checkClassLoaderLeak);
 			default:
 				throw new IllegalArgumentException("Unknown class resolution order: " + resolveOrder);
 		}
+	}
+
+	private static URLClassLoader wrapWithSafetyNet(FlinkUserCodeClassLoader classLoader, boolean check) {
+		return check ? new SafetyNetWrapperClassLoader(classLoader, classLoader.getParent()) : classLoader;
 	}
 
 	/**
@@ -140,7 +155,10 @@ public class FlinkUserCodeClassLoaders {
 
 		private FlinkUserCodeClassLoader ensureInner() {
 			if (inner == null) {
-				throw new IllegalStateException("Trying to access closed classloader");
+				throw new IllegalStateException("Trying to access closed classloader. Please check if you store " +
+					"classloaders directly or indirectly in static fields. If the stacktrace suggests that the leak " +
+					"occurs in a third party library and cannot be fixed immediately, you can disable this check " +
+					"with the configuration '" + CoreOptions.CHECK_LEAKED_CLASSLOADER.key() + "'.");
 			}
 			return inner;
 		}

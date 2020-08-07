@@ -179,7 +179,8 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 			new URL[] { childCodePath },
 			parentClassLoader,
 			new String[] { parentFirstPattern },
-			NOOP_EXCEPTION_HANDLER);
+			NOOP_EXCEPTION_HANDLER,
+			true);
 
 		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
 		final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
@@ -197,7 +198,8 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 		return FlinkUserCodeClassLoaders.parentFirst(
 			new URL[] { childCodePath },
 			parentClassLoader,
-			NOOP_EXCEPTION_HANDLER);
+			NOOP_EXCEPTION_HANDLER,
+			true);
 	}
 
 	private static URLClassLoader createChildFirstClassLoader(URL childCodePath, ClassLoader parentClassLoader) {
@@ -205,7 +207,8 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 			new URL[] { childCodePath },
 			parentClassLoader,
 			new String[0],
-			NOOP_EXCEPTION_HANDLER);
+			NOOP_EXCEPTION_HANDLER,
+			true);
 	}
 
 	@Test
