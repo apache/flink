@@ -188,7 +188,7 @@ class DataStream(object):
                 func = MapFunctionWrapper(func)
             else:
                 raise TypeError("The input must be a MapFunction or a callable function")
-        func_name = "Map"
+        func_name = str(func)
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, output_type_info = \
             self._get_java_python_function_operator(func,
@@ -197,7 +197,7 @@ class DataStream(object):
                                                     flink_fn_execution_pb2
                                                     .UserDefinedDataStreamFunction.MAP)
         return DataStream(self._j_data_stream.transform(
-            func_name,
+            "Map",
             output_type_info.get_java_type_info(),
             j_python_data_stream_scalar_function_operator
         ))
@@ -219,7 +219,7 @@ class DataStream(object):
                 func = FlatMapFunctionWrapper(func)
             else:
                 raise TypeError("The input must be a FlatMapFunction or a callable function")
-        func_name = "FLAT_MAP"
+        func_name = str(func)
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, output_type_info = \
             self._get_java_python_function_operator(func,
@@ -228,7 +228,7 @@ class DataStream(object):
                                                     flink_fn_execution_pb2
                                                     .UserDefinedDataStreamFunction.FLAT_MAP)
         return DataStream(self._j_data_stream.transform(
-            func_name,
+            "FLAT_MAP",
             output_type_info.get_java_type_info(),
             j_python_data_stream_scalar_function_operator
         ))

@@ -17,7 +17,6 @@
 ################################################################################
 
 import os
-
 import pyarrow as pa
 import pytz
 from apache_beam.coders import Coder

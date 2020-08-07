@@ -35,7 +35,7 @@ class MapFunction(Function):
     applications are parsing elements, converting data types, or projecting out fields. Operations
     that produce multiple result elements from a single input element can be implemented using the
     FlatMapFunction.
-    The basic syntax for using a MapFUnction is as follows:
+    The basic syntax for using a MapFunction is as follows:
     ::
         >>> ds = ...
         >>> new_ds = ds.map(MyMapFunction())
