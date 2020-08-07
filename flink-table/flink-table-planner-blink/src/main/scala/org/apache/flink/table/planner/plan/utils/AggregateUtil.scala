@@ -17,12 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampData}
-import org.apache.flink.table.dataview.MapViewTypeInfo
+import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionKind, ImperativeAggregateFunction, UserDefinedFunction}
@@ -40,19 +37,18 @@ import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelMo
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.typeutils.DataViewUtils
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.types.utils.DataTypeUtils
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.Aggregate.AggCallBinding
@@ -605,7 +601,7 @@ object AggregateUtil extends Enumeration {
     * @param needDistinctInfo whether to extract distinct information
     * @param aggCalls   the original aggregate calls
     * @param inputType  the input rel data type
-    * @param isStateBackedDataViews whether the dataview in accumulator use state or heap
+    * @param hasStateBackedDataViews whether the dataview in accumulator use state or heap
     * @param consumeRetraction  whether the distinct aggregate consumes retraction messages
     * @return (distinctInfoArray, newAggCalls)
     */
@@ -613,7 +609,7 @@ object AggregateUtil extends Enumeration {
       needDistinctInfo: Boolean,
       aggCalls: Seq[AggregateCall],
       inputType: RelDataType,
-      isStateBackedDataViews: Boolean,
+      hasStateBackedDataViews: Boolean,
       consumeRetraction: Boolean): (Array[DistinctInfo], Seq[AggregateCall]) = {
 
     if (!needDistinctInfo) {
@@ -633,11 +629,12 @@ object AggregateUtil extends Enumeration {
           .toArray
 
         val keyType = createDistinctKeyType(argTypes)
+        val keyDataType = DataTypeUtils.toInternalDataType(keyType)
         val distinctInfo = distinctMap.getOrElseUpdate(
           argIndexes.mkString(","),
           DistinctInfo(
             argIndexes,
-            keyType,
+            keyDataType,
             null, // later fill in
             excludeAcc = false,
             null, // later fill in
@@ -661,52 +658,37 @@ object AggregateUtil extends Enumeration {
       }
     }
 
-    // fill in the acc type and dataview spec
+    // fill in the acc type and data view spec
+    val filterArgsLimit = if (consumeRetraction) {
+      1
+    } else {
+      64
+    }
     val distinctInfos = distinctMap.values.zipWithIndex.map { case (d, index) =>
-      val valueType = if (consumeRetraction) {
-        if (d.filterArgs.length <= 1) {
-          Types.LONG
-        } else {
-          Types.PRIMITIVE_ARRAY(Types.LONG)
-        }
-      } else {
-        if (d.filterArgs.length <= 64) {
-          Types.LONG
-        } else {
-          Types.PRIMITIVE_ARRAY(Types.LONG)
-        }
-      }
+      val distinctViewDataType = DataViewUtils.createDistinctViewDataType(
+        d.keyType,
+        d.filterArgs.length,
+        filterArgsLimit)
 
-      val accTypeInfo = new MapViewTypeInfo(
-        // distinct is internal code gen, use internal type serializer.
-        fromDataTypeToTypeInfo(d.keyType),
-        valueType,
-        isStateBackedDataViews,
-        // the mapview serializer should handle null keys
-        true)
-
-      val accDataType = fromLegacyInfoToDataType(accTypeInfo)
-
-      val distinctMapViewSpec = if (isStateBackedDataViews) {
-        val mapViewSpec = new MapViewSpec(
-          s"distinctAcc_$index",
-          -1, // the field index will not be used
-          accDataType,
-          true,
-          accTypeInfo.getKeyType.createSerializer(new ExecutionConfig),
-          accTypeInfo.getValueType.createSerializer(new ExecutionConfig)
-        )
-        Some(mapViewSpec)
+      // create data views and adapt the data views in the accumulator type
+      // if a view is backed by a state backend
+      val distinctViewSpec = if (hasStateBackedDataViews) {
+        Some(DataViewUtils.createDistinctViewSpec(index, distinctViewDataType))
       } else {
         None
+      }
+      val adjustedAccumulatorDataType = if (hasStateBackedDataViews) {
+        DataViewUtils.replaceDataViewsWithNull(distinctViewDataType)
+      } else {
+        distinctViewDataType
       }
 
       DistinctInfo(
         d.argIndexes,
         d.keyType,
-        accDataType,
+        adjustedAccumulatorDataType,
         excludeAcc = false,
-        distinctMapViewSpec,
+        distinctViewSpec,
         consumeRetraction,
         d.filterArgs,
         d.aggIndexes)
@@ -715,44 +697,20 @@ object AggregateUtil extends Enumeration {
     (distinctInfos.toArray, newAggCalls)
   }
 
-  def createDistinctKeyType(argTypes: Array[LogicalType]): DataType = {
+  def createDistinctKeyType(argTypes: Array[LogicalType]): LogicalType = {
     if (argTypes.length == 1) {
       argTypes(0).getTypeRoot match {
-      case INTEGER => DataTypes.INT
-      case BIGINT => DataTypes.BIGINT
-      case SMALLINT => DataTypes.SMALLINT
-      case TINYINT => DataTypes.TINYINT
-      case FLOAT => DataTypes.FLOAT
-      case DOUBLE => DataTypes.DOUBLE
-      case BOOLEAN => DataTypes.BOOLEAN
-
-      case DATE => DataTypes.INT
-      case TIME_WITHOUT_TIME_ZONE => DataTypes.INT
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val dt = argTypes(0).asInstanceOf[TimestampType]
-        DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[TimestampData])
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val dt = argTypes(0).asInstanceOf[LocalZonedTimestampType]
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[TimestampData])
-
-      case INTERVAL_YEAR_MONTH => DataTypes.INT
-      case INTERVAL_DAY_TIME => DataTypes.BIGINT
-
-      case VARCHAR =>
-        val dt = argTypes(0).asInstanceOf[VarCharType]
-        DataTypes.VARCHAR(dt.getLength).bridgedTo(classOf[StringData])
-      case CHAR =>
-        val dt = argTypes(0).asInstanceOf[CharType]
-        DataTypes.CHAR(dt.getLength).bridgedTo(classOf[StringData])
-      case DECIMAL =>
-        val dt = argTypes(0).asInstanceOf[DecimalType]
-        DataTypes.DECIMAL(dt.getPrecision, dt.getScale).bridgedTo(classOf[DecimalData])
+        // ordered by type root definition
+        case CHAR | VARCHAR | BOOLEAN | DECIMAL | TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT |
+             DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
+             TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
+          argTypes(0)
       case t =>
         throw new TableException(s"Distinct aggregate function does not support type: $t.\n" +
           s"Please re-check the data type.")
       }
     } else {
-      fromLogicalTypeToDataType(RowType.of(argTypes: _*)).bridgedTo(classOf[RowData])
+      RowType.of(argTypes: _*)
     }
   }
 
