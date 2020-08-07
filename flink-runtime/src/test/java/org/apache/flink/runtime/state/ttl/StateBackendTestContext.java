@@ -25,8 +25,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -56,6 +55,8 @@ public abstract class StateBackendTestContext {
 	private final TtlTimeProvider timeProvider;
 	private final SharedStateRegistry sharedStateRegistry;
 	private final List<KeyedStateHandle> snapshots;
+
+	private MockEnvironment env;
 
 	private AbstractKeyedStateBackend<String> keyedStateBackend;
 
@@ -92,7 +93,7 @@ public abstract class StateBackendTestContext {
 			stateHandles = new ArrayList<>(1);
 			stateHandles.add(snapshot);
 		}
-		Environment env = new DummyEnvironment();
+		env = MockEnvironment.builder().build();
 		try {
 			disposeKeyedStateBackend();
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
@@ -119,6 +120,9 @@ public abstract class StateBackendTestContext {
 		}
 		snapshots.clear();
 		sharedStateRegistry.close();
+		if (env != null) {
+			env.close();
+		}
 	}
 
 	private void disposeKeyedStateBackend() {

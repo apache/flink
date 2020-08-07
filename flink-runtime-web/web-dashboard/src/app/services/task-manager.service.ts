@@ -16,12 +16,17 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { BASE_URL } from 'config';
-import { TaskManagerListInterface, TaskManagerDetailInterface } from 'interfaces';
+import {
+  TaskManagerListInterface,
+  TaskManagerDetailInterface,
+  TaskManagerLogInterface,
+  TaskManagerThreadDumpInterface
+} from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -50,11 +55,56 @@ export class TaskManagerService {
   }
 
   /**
+   * Load TM log list
+   * @param taskManagerId
+   */
+  loadLogList(taskManagerId: string) {
+    return this.httpClient
+      .get<TaskManagerLogInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
+      .pipe(map(data => data.logs));
+  }
+
+  /**
+   * Load TM log
+   * @param taskManagerId
+   * @param logName
+   */
+  loadLog(taskManagerId: string, logName: string) {
+    const url = `${BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
+    return this.httpClient
+      .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
+      .pipe(
+        map(data => {
+          return {
+            data,
+            url
+          };
+        })
+      );
+  }
+
+  /**
+   * Load TM thread dump
+   */
+  loadThreadDump(taskManagerId: string) {
+    return this.httpClient
+      .get<TaskManagerThreadDumpInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
+      .pipe(
+        map(taskManagerThreadDump => {
+          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+        })
+      );
+  }
+
+  /**
    * Load TM logs
    * @param taskManagerId
    */
   loadLogs(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, { responseType: 'text' });
+    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
   }
 
   /**
@@ -62,7 +112,10 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadStdout(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, { responseType: 'text' });
+    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
   }
 
   constructor(private httpClient: HttpClient) {}

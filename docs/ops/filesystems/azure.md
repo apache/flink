@@ -53,7 +53,7 @@ env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-acc
 
 ### Shaded Hadoop Azure Blob Storage file system
 
-To use `flink-azure-fs-hadoop,` copy the respective JAR file from the `opt` directory to the `plugins` directory of your Flink distribution before starting Flink, e.g.
+To use `flink-azure-fs-hadoop`, copy the respective JAR file from the `opt` directory to the `plugins` directory of your Flink distribution before starting Flink, e.g.
 
 {% highlight bash %}
 mkdir ./plugins/azure-fs-hadoop
@@ -74,7 +74,7 @@ in `flink-conf.yaml` via:
 fs.azure.account.key.<account_name>.blob.core.windows.net: <azure_storage_key>
 {% endhighlight %}
 
-Alternatively, the the filesystem can be configured to read the Azure Blob Storage key from an 
+Alternatively, the filesystem can be configured to read the Azure Blob Storage key from an 
 environment variable `AZURE_STORAGE_KEY` by setting the following configuration keys in 
 `flink-conf.yaml`.  
 

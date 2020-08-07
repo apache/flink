@@ -23,13 +23,13 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM
 import org.apache.flink.streaming.api.transformations.PartitionTransformation
 import org.apache.flink.streaming.runtime.partitioner.{GlobalPartitioner, KeyGroupStreamPartitioner, StreamPartitioner}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
@@ -48,15 +48,7 @@ class StreamExecExchange(
     relDistribution: RelDistribution)
   extends CommonPhysicalExchange(cluster, traitSet, relNode, relDistribution)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -80,31 +72,31 @@ class StreamExecExchange(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outputTypeInfo = BaseRowTypeInfo.of(
+      .asInstanceOf[Transformation[RowData]]
+    val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val outputTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
     relDistribution.getType match {
       case RelDistribution.Type.SINGLETON =>
-        val partitioner = new GlobalPartitioner[BaseRow]
+        val partitioner = new GlobalPartitioner[RowData]
         val transformation = new PartitionTransformation(
           inputTransform,
-          partitioner.asInstanceOf[StreamPartitioner[BaseRow]])
+          partitioner.asInstanceOf[StreamPartitioner[RowData]])
         transformation.setOutputType(outputTypeInfo)
         transformation.setParallelism(1)
         transformation
       case RelDistribution.Type.HASH_DISTRIBUTED =>
         // TODO Eliminate duplicate keys
 
-        val selector = KeySelectorUtil.getBaseRowSelector(
+        val selector = KeySelectorUtil.getRowDataSelector(
           relDistribution.getKeys.map(_.toInt).toArray, inputTypeInfo)
         val partitioner = new KeyGroupStreamPartitioner(selector,
           DEFAULT_LOWER_BOUND_MAX_PARALLELISM)
         val transformation = new PartitionTransformation(
           inputTransform,
-          partitioner.asInstanceOf[StreamPartitioner[BaseRow]])
+          partitioner.asInstanceOf[StreamPartitioner[RowData]])
         transformation.setOutputType(outputTypeInfo)
         transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
         transformation

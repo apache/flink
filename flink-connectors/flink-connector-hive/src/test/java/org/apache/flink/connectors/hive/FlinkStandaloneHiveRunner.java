@@ -376,45 +376,52 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 
 		ProcessBuilder builder = new ProcessBuilder(args);
 		Process process = builder.start();
-		Thread inLogger = new Thread(new LogRedirect(process.getInputStream(), LOGGER));
-		Thread errLogger = new Thread(new LogRedirect(process.getErrorStream(), LOGGER));
-		inLogger.setDaemon(true);
-		inLogger.setName("HMS-IN-Logger");
-		errLogger.setDaemon(true);
-		errLogger.setName("HMS-ERR-Logger");
-		inLogger.start();
-		errLogger.start();
 
-		FutureTask<Void> res = new FutureTask<>(() -> {
-			try {
-				int r = process.waitFor();
-				inLogger.join();
-				errLogger.join();
-				if (r != 0) {
-					throw new RuntimeException("HMS process exited with " + r);
-				}
-			} catch (InterruptedException e) {
-				LOGGER.info("Shutting down HMS");
-			} finally {
-				if (process.isAlive()) {
-					// give it a chance to terminate gracefully
-					process.destroy();
-					try {
-						process.waitFor(5, TimeUnit.SECONDS);
-					} catch (InterruptedException e) {
-						LOGGER.info("Interrupted waiting for HMS to shut down, killing it forcibly");
+		try {
+			Thread inLogger = new Thread(new LogRedirect(process.getInputStream(), LOGGER));
+			Thread errLogger = new Thread(new LogRedirect(process.getErrorStream(), LOGGER));
+			inLogger.setDaemon(true);
+			inLogger.setName("HMS-IN-Logger");
+			errLogger.setDaemon(true);
+			errLogger.setName("HMS-ERR-Logger");
+			inLogger.start();
+			errLogger.start();
+
+			FutureTask<Void> res = new FutureTask<>(() -> {
+				try {
+					int r = process.waitFor();
+					inLogger.join();
+					errLogger.join();
+					if (r != 0) {
+						throw new RuntimeException("HMS process exited with " + r);
 					}
-					process.destroyForcibly();
+				} catch (InterruptedException e) {
+					LOGGER.info("Shutting down HMS");
+				} finally {
+					if (process.isAlive()) {
+						// give it a chance to terminate gracefully
+						process.destroy();
+						try {
+							process.waitFor(5, TimeUnit.SECONDS);
+						} catch (InterruptedException e) {
+							LOGGER.info("Interrupted waiting for HMS to shut down, killing it forcibly");
+						}
+						process.destroyForcibly();
+					}
 				}
-			}
-		}, null);
-		Thread thread = new Thread(res);
-		thread.setName("HMS-Watcher");
-		// we need the watcher thread to kill HMS, don't make it daemon
-		thread.setDaemon(false);
-		thread.start();
-		waitForHMSStart(port);
-		return res;
+			}, null);
+			Thread thread = new Thread(res);
+			thread.setName("HMS-Watcher");
+			// we need the watcher thread to kill HMS, don't make it daemon
+			thread.setDaemon(false);
+			thread.start();
+			waitForHMSStart(port);
+			return res;
+		} catch (Throwable e) {
+			// make sure to kill the process in case anything goes wrong
+			process.destroyForcibly();
+			throw e;
+		}
 	}
 
 	private static void waitForHMSStart(int port) throws Exception {

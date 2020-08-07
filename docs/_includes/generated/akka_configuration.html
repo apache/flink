@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>akka.ask.callstack</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>If true, call stack for asynchronous asks are captured. That way, when an ask fails (for example times out), you get a proper exception, describing to the original method call and call site. Note that in case of having millions of concurrent RPC calls, this may add to the memory footprint.</td>
+        </tr>
+        <tr>
             <td><h5>akka.ask.timeout</h5></td>
             <td style="word-wrap: break-word;">"10 s"</td>
             <td>String</td>
@@ -31,12 +37,6 @@
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
             <td>Min number of threads to cap factor-based number to.</td>
-        </tr>
-        <tr>
-            <td><h5>akka.client.timeout</h5></td>
-            <td style="word-wrap: break-word;">"60 s"</td>
-            <td>String</td>
-            <td>Timeout for all blocking calls on the client side.</td>
         </tr>
         <tr>
             <td><h5>akka.fork-join-executor.parallelism-factor</h5></td>

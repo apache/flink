@@ -23,20 +23,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The logging in Flink is implemented using the slf4j logging interface. As underlying logging framework, log4j is used. We also provide logback configuration files and pass them to the JVM's as properties. Users willing to use logback instead of log4j can just exclude log4j (or delete it from the lib/ folder).
+The logging in Flink is implemented using the slf4j logging interface. As underlying logging framework, log4j2 is used. We also provide logback configuration files and pass them to the JVM's as properties. Users willing to use logback instead of log4j2 can just exclude log4j2 (or delete it from the lib/ folder).
 
 * This will be replaced by the TOC
 {:toc}
 
-## Configuring Log4j
+## Configuring Log4j2
 
-Log4j is controlled using property files. In Flink's case, the file is usually called `log4j.properties`. We pass the filename and location of this file using the `-Dlog4j.configuration=` parameter to the JVM.
+Log4j2 is controlled using property files. In Flink's case, the file is usually called `log4j.properties`. We pass the filename and location of this file using the `-Dlog4j.configurationFile=` parameter to the JVM.
 
 Flink ships with the following default properties files:
 
 - `log4j-cli.properties`: Used by the Flink command line client (e.g. `flink run`) (not code executed on the cluster)
-- `log4j-yarn-session.properties`: Used by the Flink command line client when starting a YARN session (`yarn-session.sh`)
+- `log4j-session.properties`: Used by the Flink command line client when starting a YARN or Kubernetes session (`yarn-session.sh`, `kubernetes-session.sh`)
 - `log4j.properties`: JobManager/Taskmanager logs (both standalone and YARN)
+
+### Compatibility with Log4j1
+
+Flink ships with the [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html), allowing existing applications that work against Log4j1 classes to continue working.
+
+If you have custom Log4j1 properties files or code that relies on Log4j1, please check out the official Log4j [compatibility](https://logging.apache.org/log4j/2.x/manual/compatibility.html) and [migration](https://logging.apache.org/log4j/2.x/manual/migration.html) guides.
+
+## Configuring Log4j1
+
+To use Flink with Log4j1 you must ensure that:
+- `org.apache.logging.log4j:log4j-core`, `org.apache.logging.log4j:log4j-slf4j-impl` and `org.apache.logging.log4j:log4j-1.2-api` are not on the classpath,
+- `log4j:log4j`, `org.slf4j:slf4j-log4j12`, `org.apache.logging.log4j:log4j-to-slf4j` and `org.apache.logging.log4j:log4j-api` are on the classpath.
+
+In the IDE this means you have to replace such dependencies defined in your pom, and possibly add exclusions on dependencies that transitively depend on them.
+
+For Flink distributions this means you have to
+- remove the `log4j-core`, `log4j-slf4j-impl` and `log4j-1.2-api` jars from the `lib` directory,
+- add the `log4j`, `slf4j-log4j12` and `log4j-to-slf4j` jars to the `lib` directory,
+- replace all log4j properties files in the `conf` directory with Log4j1-compliant versions.
 
 ## Configuring logback
 

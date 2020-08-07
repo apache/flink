@@ -18,17 +18,16 @@
 
 package org.apache.flink.table.planner.expressions
 
+import org.apache.calcite.rex._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
-import org.apache.flink.table.planner.expressions.PlannerTimeIntervalUnit.PlannerTimeIntervalUnit
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.isTimeInterval
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-
-import org.apache.calcite.rex._
 
 case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpression)
   extends PlannerExpression {
@@ -53,6 +52,7 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
+          || temporal.resultType.isInstanceOf[LegacyLocalDateTimeTypeInfo]
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         ValidationSuccess
@@ -64,6 +64,7 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_TIME
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
+          || temporal.resultType.isInstanceOf[LegacyLocalDateTimeTypeInfo]
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
         ValidationSuccess
 
@@ -74,68 +75,6 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
   }
 
   override def toString: String = s"($temporal).extract($timeIntervalUnit)"
-}
-
-abstract class TemporalCeilFloor(
-    timeIntervalUnit: PlannerExpression,
-    temporal: PlannerExpression)
-  extends PlannerExpression {
-
-  override private[flink] def children: Seq[PlannerExpression] = timeIntervalUnit :: temporal :: Nil
-
-  override private[flink] def resultType: TypeInformation[_] = temporal.resultType
-
-  override private[flink] def validateInput(): ValidationResult = {
-    if (!TypeInfoCheckUtils.isTimePoint(temporal.resultType)) {
-      return ValidationFailure(s"Temporal ceil/floor operator requires Time Point input, " +
-        s"but $temporal is of type ${temporal.resultType}")
-    }
-    val unit = timeIntervalUnit match {
-      case SymbolPlannerExpression(u: PlannerTimeIntervalUnit) => Some(u)
-      case _ => None
-    }
-    if (unit.isEmpty) {
-      return ValidationFailure(s"Temporal ceil/floor operator requires Time Interval Unit " +
-        s"input, but $timeIntervalUnit is of type ${timeIntervalUnit.resultType}")
-    }
-
-    (unit.get, temporal.resultType) match {
-      case (PlannerTimeIntervalUnit.YEAR | PlannerTimeIntervalUnit.MONTH,
-          SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP |
-          LocalTimeTypeInfo.LOCAL_DATE | LocalTimeTypeInfo.LOCAL_DATE_TIME) =>
-        ValidationSuccess
-      case (PlannerTimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP |
-            LocalTimeTypeInfo.LOCAL_DATE_TIME) =>
-        ValidationSuccess
-      case (PlannerTimeIntervalUnit.HOUR | PlannerTimeIntervalUnit.MINUTE |
-          PlannerTimeIntervalUnit.SECOND, SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP |
-          LocalTimeTypeInfo.LOCAL_TIME | LocalTimeTypeInfo.LOCAL_DATE_TIME) =>
-        ValidationSuccess
-      case _ =>
-        ValidationFailure(s"Temporal ceil/floor operator does not support " +
-          s"unit '$timeIntervalUnit' for input of type '${temporal.resultType}'.")
-    }
-  }
-}
-
-case class TemporalFloor(
-    timeIntervalUnit: PlannerExpression,
-    temporal: PlannerExpression)
-  extends TemporalCeilFloor(
-    timeIntervalUnit,
-    temporal) {
-
-  override def toString: String = s"($temporal).floor($timeIntervalUnit)"
-}
-
-case class TemporalCeil(
-    timeIntervalUnit: PlannerExpression,
-    temporal: PlannerExpression)
-  extends TemporalCeilFloor(
-    timeIntervalUnit,
-    temporal) {
-
-  override def toString: String = s"($temporal).ceil($timeIntervalUnit)"
 }
 
 abstract class CurrentTimePoint(

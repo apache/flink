@@ -18,8 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers.containsString
@@ -39,7 +38,7 @@ class TemporalJoinTest extends TableTestBase {
 
   util.addFunction(
     "Rates",
-    ratesHistory.createTemporalTableFunction("rowtime", "currency"))
+    ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
 
   private val proctimeOrders = util.addDataStream[(Long, String)](
     "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
@@ -49,7 +48,7 @@ class TemporalJoinTest extends TableTestBase {
 
   util.addFunction(
     "ProctimeRates",
-    proctimeRatesHistory.createTemporalTableFunction("proctime", "currency"))
+    proctimeRatesHistory.createTemporalTableFunction($"proctime", $"currency"))
 
   @Test
   def testSimpleJoin(): Unit = {
@@ -73,6 +72,20 @@ class TemporalJoinTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testJoinOnQueryLeft(): Unit = {
+    val orders = util.tableEnv.sqlQuery("SELECT * FROM Orders WHERE o_amount > 1000")
+    util.tableEnv.createTemporaryView("Orders2", orders)
+
+    val sqlQuery = "SELECT " +
+      "o_amount * rate as rate " +
+      "FROM Orders2 AS o, " +
+      "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
+      "WHERE currency = o_currency"
+
+    util.verifyPlan(sqlQuery)
+  }
+
   /**
     * Test versioned joins with more complicated query.
     * Important thing here is that we have complex OR join condition
@@ -89,8 +102,8 @@ class TemporalJoinTest extends TableTestBase {
       "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
     val rates = util.tableEnv
       .sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110")
-      .createTemporalTableFunction("rowtime", "currency")
-    util.addFunction("Rates", rates)
+      .createTemporalTableFunction($"rowtime", $"currency")
+    util.addTemporarySystemFunction("Rates", rates)
 
     val sqlQuery =
       "SELECT * FROM " +

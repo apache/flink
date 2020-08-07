@@ -141,9 +141,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(hook2);
 
 		// initialize the hooks
-		cc.restoreLatestCheckpointedState(
+		cc.restoreLatestCheckpointedStateToAll(
 			Collections.emptySet(),
-			false,
 			false);
 		verify(hook1, times(1)).reset();
 		verify(hook2, times(1)).reset();
@@ -198,8 +197,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statefulHook2);
 
 		// trigger a checkpoint
-		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-			cc.triggerCheckpoint(System.currentTimeMillis(), false);
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture = cc.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(checkpointFuture.isCompletedExceptionally());
 		assertEquals(1, cc.getNumberOfPendingCheckpoints());
@@ -281,9 +279,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statefulHook2);
 
 		cc.getCheckpointStore().addCheckpoint(checkpoint);
-		cc.restoreLatestCheckpointedState(
+		cc.restoreLatestCheckpointedStateToAll(
 				Collections.emptySet(),
-				true,
 				false);
 
 		verify(statefulHook1, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
@@ -336,18 +333,16 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		// since we have unmatched state, this should fail
 		try {
-			cc.restoreLatestCheckpointedState(
+			cc.restoreLatestCheckpointedStateToAll(
 					Collections.emptySet(),
-					true,
 					false);
 			fail("exception expected");
 		}
 		catch (IllegalStateException ignored) {}
 
 		// permitting unmatched state should succeed
-		cc.restoreLatestCheckpointedState(
+		cc.restoreLatestCheckpointedStateToAll(
 				Collections.emptySet(),
-				true,
 				true);
 
 		verify(statefulHook, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
@@ -394,8 +389,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(hook);
 
 		// trigger a checkpoint
-		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-			cc.triggerCheckpoint(System.currentTimeMillis(), false);
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture = cc.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(checkpointFuture.isCompletedExceptionally());
 	}
@@ -453,6 +447,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
 			false,
+			false,
 			0);
 		return new CheckpointCoordinator(
 				jid,
@@ -460,6 +455,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new ExecutionVertex[0],
 				ackVertices,
 				new ExecutionVertex[0],
+				Collections.emptyList(),
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),

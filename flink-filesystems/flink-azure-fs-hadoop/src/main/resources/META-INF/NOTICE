@@ -1,5 +1,5 @@
 flink-azure-fs-hadoop
-Copyright 2014-2019 The Apache Software Foundation
+Copyright 2014-2020 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -17,5 +17,5 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.hadoop:hadoop-azure:3.1.0
 - org.apache.httpcomponents:httpclient:4.5.3
 - org.apache.httpcomponents:httpcore:4.4.6
-- org.eclipse.jetty:jetty-util:9.3.19.v20170502
-- org.eclipse.jetty:jetty-util-ajax:9.3.19.v20170502
+- org.eclipse.jetty:jetty-util:9.3.24.v20180605
+- org.eclipse.jetty:jetty-util-ajax:9.3.24.v20180605

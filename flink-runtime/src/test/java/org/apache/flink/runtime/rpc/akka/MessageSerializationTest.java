@@ -59,8 +59,8 @@ public class MessageSerializationTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
 
-		akkaRpcService1 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
-		akkaRpcService2 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
+		akkaRpcService1 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
+		akkaRpcService2 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
 	}
 
 	@AfterClass

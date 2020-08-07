@@ -32,23 +32,23 @@ import java.util.stream.Collectors;
  */
 class SchedulingStrategyUtils {
 
-	static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology<?, ?> topology) {
+	static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology topology) {
 		return IterableUtils.toStream(topology.getVertices())
 			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 	}
 
-	static Set<SchedulingExecutionVertex<?, ?>> getVerticesFromIds(
-			final SchedulingTopology<?, ?> topology,
+	static Set<SchedulingExecutionVertex> getVerticesFromIds(
+			final SchedulingTopology topology,
 			final Set<ExecutionVertexID> vertexIds) {
 
 		return vertexIds.stream()
-			.map(topology::getVertexOrThrow)
+			.map(topology::getVertex)
 			.collect(Collectors.toSet());
 	}
 
 	static List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptionsInTopologicalOrder(
-			final SchedulingTopology<?, ?> topology,
+			final SchedulingTopology topology,
 			final Set<ExecutionVertexID> verticesToDeploy,
 			final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
 
@@ -58,6 +58,18 @@ class SchedulingStrategyUtils {
 			.map(executionVertexID -> new ExecutionVertexDeploymentOption(
 				executionVertexID,
 				deploymentOptionRetriever.apply(executionVertexID)))
+			.collect(Collectors.toList());
+	}
+
+	static List<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(
+			final SchedulingTopology topology,
+			final Set<SchedulingPipelinedRegion> regions) {
+
+		return IterableUtils.toStream(topology.getVertices())
+			.map(SchedulingExecutionVertex::getId)
+			.map(topology::getPipelinedRegionOfVertex)
+			.filter(regions::contains)
+			.distinct()
 			.collect(Collectors.toList());
 	}
 }

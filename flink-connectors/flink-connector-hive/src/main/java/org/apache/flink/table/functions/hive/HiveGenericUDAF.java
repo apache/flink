@@ -28,8 +28,8 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -205,7 +205,7 @@ public class HiveGenericUDAF
 
 	@Override
 	public TypeInformation getResultType() {
-		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+		return TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
 			getHiveResultType(this.constantArguments, this.argTypes));
 	}
 

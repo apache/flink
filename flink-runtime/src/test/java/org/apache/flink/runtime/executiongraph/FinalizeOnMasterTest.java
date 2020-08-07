@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -42,8 +41,6 @@ public class FinalizeOnMasterTest extends TestLogger {
 
 	@Test
 	public void testFinalizeIsCalledUponSuccess() throws Exception {
-		final JobID jid = new JobID();
-
 		final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
 		vertex1.setInvokableClass(NoOpInvokable.class);
 		vertex1.setParallelism(3);
@@ -52,7 +49,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 		vertex2.setInvokableClass(NoOpInvokable.class);
 		vertex2.setParallelism(2);
 
-		final ExecutionGraph eg = createSimpleTestGraph(jid, vertex1, vertex2);
+		final ExecutionGraph eg = createSimpleTestGraph(vertex1, vertex2);
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());
@@ -71,13 +68,11 @@ public class FinalizeOnMasterTest extends TestLogger {
 
 	@Test
 	public void testFinalizeIsNotCalledUponFailure() throws Exception {
-		final JobID jid = new JobID();
-
 		final JobVertex vertex = spy(new JobVertex("test vertex 1"));
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(1);
 
-		final ExecutionGraph eg = createSimpleTestGraph(jid, vertex);
+		final ExecutionGraph eg = createSimpleTestGraph(vertex);
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());

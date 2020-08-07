@@ -250,6 +250,10 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
 				GeneratingSourceFunction.numPostFailureNotifications.incrementAndGet();
 			}
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	/**
@@ -281,6 +285,10 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
 				GeneratingSourceFunction.numPostFailureNotifications.incrementAndGet();
 			}
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	/**
@@ -311,6 +319,10 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
 				notificationAlready = true;
 				GeneratingSourceFunction.numPostFailureNotifications.incrementAndGet();
 			}
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 	}
 
@@ -348,6 +360,10 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
 				notificationAlready = true;
 				GeneratingSourceFunction.numPostFailureNotifications.incrementAndGet();
 			}
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 	}
 
@@ -413,6 +429,10 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
 				notificationAlready = true;
 				GeneratingSourceFunction.numPostFailureNotifications.incrementAndGet();
 			}
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 	}
 }

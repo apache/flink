@@ -42,7 +42,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Helper class to build StreamConfig for chain of operators.
  */
-public class StreamConfigChainer {
+public class StreamConfigChainer<OWNER> {
+	private final OWNER owner;
 	private final StreamConfig headConfig;
 	private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
 	private final long bufferTimeout;
@@ -50,7 +51,8 @@ public class StreamConfigChainer {
 	private StreamConfig tailConfig;
 	private int chainIndex = 0;
 
-	StreamConfigChainer(OperatorID headOperatorID, StreamConfig headConfig) {
+	StreamConfigChainer(OperatorID headOperatorID, StreamConfig headConfig, OWNER owner) {
+		this.owner = checkNotNull(owner);
 		this.headConfig = checkNotNull(headConfig);
 		this.tailConfig = checkNotNull(headConfig);
 		this.bufferTimeout = headConfig.getBufferTimeout();
@@ -65,7 +67,7 @@ public class StreamConfigChainer {
 		headConfig.setBufferTimeout(bufferTimeout);
 	}
 
-	public <T> StreamConfigChainer chain(
+	public <T> StreamConfigChainer<OWNER> chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<T, T> operator,
 			TypeSerializer<T> typeSerializer,
@@ -73,21 +75,33 @@ public class StreamConfigChainer {
 		return chain(operatorID, operator, typeSerializer, typeSerializer, createKeyedStateBackend);
 	}
 
-	public <T> StreamConfigChainer chain(
+	public <T> StreamConfigChainer<OWNER> chain(
+			OneInputStreamOperator<T, T> operator,
+			TypeSerializer<T> typeSerializer) {
+		return chain(new OperatorID(), operator, typeSerializer);
+	}
+
+	public <T> StreamConfigChainer<OWNER> chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<T, T> operator,
 			TypeSerializer<T> typeSerializer) {
 		return chain(operatorID, operator, typeSerializer, typeSerializer, false);
 	}
 
-	public <T> StreamConfigChainer chain(
+	public <T> StreamConfigChainer<OWNER> chain(
+			OneInputStreamOperatorFactory<T, T> operatorFactory,
+			TypeSerializer<T> typeSerializer) {
+		return chain(new OperatorID(), operatorFactory, typeSerializer);
+	}
+
+	public <T> StreamConfigChainer<OWNER> chain(
 			OperatorID operatorID,
 			OneInputStreamOperatorFactory<T, T> operatorFactory,
 			TypeSerializer<T> typeSerializer) {
 		return chain(operatorID, operatorFactory, typeSerializer, typeSerializer, false);
 	}
 
-	private <IN, OUT> StreamConfigChainer chain(
+	private <IN, OUT> StreamConfigChainer<OWNER> chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<IN, OUT> operator,
 			TypeSerializer<IN> inputSerializer,
@@ -101,7 +115,7 @@ public class StreamConfigChainer {
 			createKeyedStateBackend);
 	}
 
-	public <IN, OUT> StreamConfigChainer chain(
+	public <IN, OUT> StreamConfigChainer<OWNER> chain(
 			OperatorID operatorID,
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeSerializer<IN> inputSerializer,
@@ -121,7 +135,7 @@ public class StreamConfigChainer {
 		tailConfig = new StreamConfig(new Configuration());
 		tailConfig.setStreamOperatorFactory(checkNotNull(operatorFactory));
 		tailConfig.setOperatorID(checkNotNull(operatorID));
-		tailConfig.setTypeSerializerIn1(inputSerializer);
+		tailConfig.setTypeSerializersIn(inputSerializer);
 		tailConfig.setTypeSerializerOut(outputSerializer);
 		if (createKeyedStateBackend) {
 			// used to test multiple stateful operators chained in a single task.
@@ -135,7 +149,7 @@ public class StreamConfigChainer {
 		return this;
 	}
 
-	public void finish() {
+	public OWNER finish() {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		outEdgesInOrder.add(
 			new StreamEdge(
@@ -153,5 +167,7 @@ public class StreamConfigChainer {
 		tailConfig.setNonChainedOutputs(outEdgesInOrder);
 		headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
 		headConfig.setOutEdgesInOrder(outEdgesInOrder);
+
+		return owner;
 	}
 }

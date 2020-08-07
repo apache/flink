@@ -27,10 +27,12 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Interface for the implementation of shuffle service local environment.
@@ -89,7 +91,7 @@ import java.util.Collection;
  * @param <P> type of provided result partition writers
  * @param <G> type of provided input gates
  */
-public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends InputGate> extends AutoCloseable {
+public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends IndexedInputGate> extends AutoCloseable {
 
 	/**
 	 * Start the internal related services before using the shuffle service environment.
@@ -121,11 +123,11 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	 *
 	 * @param ownerContext the owner context relevant for partition creation
 	 * @param resultPartitionDeploymentDescriptors descriptors of the partition, produced by the owner
-	 * @return collection of the {@link ResultPartitionWriter ResultPartitionWriters}
+	 * @return list of the {@link ResultPartitionWriter ResultPartitionWriters}
 	 */
-	Collection<P> createResultPartitionWriters(
+	List<P> createResultPartitionWriters(
 		ShuffleIOOwnerContext ownerContext,
-		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors);
+		List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors);
 
 	/**
 	 * Release local resources occupied by the given partitions.
@@ -154,12 +156,12 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	 * @param ownerContext the owner context relevant for gate creation
 	 * @param partitionProducerStateProvider producer state provider to query whether the producer is ready for consumption
 	 * @param inputGateDeploymentDescriptors descriptors of the input gates to consume
-	 * @return collection of the {@link InputGate InputGates}
+	 * @return list of the {@link InputGate InputGates}
 	 */
-	Collection<G> createInputGates(
+	List<G> createInputGates(
 		ShuffleIOOwnerContext ownerContext,
 		PartitionProducerStateProvider partitionProducerStateProvider,
-		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors);
+		List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors);
 
 	/**
 	 * Update a gate with the newly available partition information, previously unknown.

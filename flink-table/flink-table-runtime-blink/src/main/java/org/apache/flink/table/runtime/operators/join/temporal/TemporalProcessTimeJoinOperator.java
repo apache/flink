@@ -27,12 +27,12 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * The operator to temporal join a stream on processing time.
@@ -42,17 +42,17 @@ public class TemporalProcessTimeJoinOperator
 
 	private static final long serialVersionUID = -5182289624027523612L;
 
-	private final BaseRowTypeInfo rightType;
+	private final InternalTypeInfo<RowData> rightType;
 	private final GeneratedJoinCondition generatedJoinCondition;
 
-	private transient ValueState<BaseRow> rightState;
+	private transient ValueState<RowData> rightState;
 	private transient JoinCondition joinCondition;
 
-	private transient JoinedRow outRow;
-	private transient TimestampedCollector<BaseRow> collector;
+	private transient JoinedRowData outRow;
+	private transient TimestampedCollector<RowData> collector;
 
 	public TemporalProcessTimeJoinOperator(
-			BaseRowTypeInfo rightType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			long minRetentionTime,
 			long maxRetentionTime) {
@@ -67,24 +67,24 @@ public class TemporalProcessTimeJoinOperator
 		FunctionUtils.setFunctionRuntimeContext(joinCondition, getRuntimeContext());
 		FunctionUtils.openFunction(joinCondition, new Configuration());
 
-		ValueStateDescriptor<BaseRow> rightStateDesc = new ValueStateDescriptor<>("right", rightType);
+		ValueStateDescriptor<RowData> rightStateDesc = new ValueStateDescriptor<>("right", rightType);
 		this.rightState = getRuntimeContext().getState(rightStateDesc);
 		this.collector = new TimestampedCollector<>(output);
-		this.outRow = new JoinedRow();
+		this.outRow = new JoinedRowData();
 		// consider watermark from left stream only.
 		super.processWatermark2(Watermark.MAX_WATERMARK);
 	}
 
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow rightSideRow = rightState.value();
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
+		RowData rightSideRow = rightState.value();
 		if (rightSideRow == null) {
 			return;
 		}
 
-		BaseRow leftSideRow = element.getValue();
+		RowData leftSideRow = element.getValue();
 		if (joinCondition.apply(leftSideRow, rightSideRow)) {
-			outRow.setHeader(leftSideRow.getHeader());
+			outRow.setRowKind(leftSideRow.getRowKind());
 			outRow.replace(leftSideRow, rightSideRow);
 			collector.collect(outRow);
 		}
@@ -92,8 +92,8 @@ public class TemporalProcessTimeJoinOperator
 	}
 
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
-		if (BaseRowUtil.isAccumulateMsg(element.getValue())) {
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
+		if (RowDataUtil.isAccumulateMsg(element.getValue())) {
 			rightState.update(element.getValue());
 			registerProcessingCleanupTimer();
 		} else {

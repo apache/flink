@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRul
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
 import org.apache.flink.table.runtime.operators.sort.RankOperator
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
@@ -75,7 +75,7 @@ class BatchExecRank(
     rankNumberType,
     outputRankNumber)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   require(rankType == RankType.RANK, "Only RANK is supported now")
   val (rankStart, rankEnd) = rankRange match {
@@ -249,9 +249,9 @@ class BatchExecRank(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val partitionBySortingKeys = partitionKey.toArray
     // The collation for the partition-by fields is inessential here, we only use the
@@ -290,7 +290,7 @@ class BatchExecRank(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       input.getParallelism)
   }
 }

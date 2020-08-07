@@ -356,6 +356,11 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	@VisibleForTesting
 	public abstract int numKeyValueStateEntries();
 
+	@VisibleForTesting
+	public int numKeyValueStatesByName() {
+		return keyValueStatesByName.size();
+	}
+
 	// TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
 	public boolean requiresLegacySynchronousTimerSnapshots() {
 		return false;

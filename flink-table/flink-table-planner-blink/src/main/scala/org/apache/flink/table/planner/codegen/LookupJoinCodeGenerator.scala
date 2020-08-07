@@ -23,8 +23,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow, JoinedRow}
+import org.apache.flink.table.data.util.DataFormatConverters
+import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
+import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -62,7 +63,7 @@ object LookupJoinCodeGenerator {
       allLookupFields: Map[Int, LookupKey],
       lookupFunction: TableFunction[_],
       enableObjectReuse: Boolean)
-    : GeneratedFunction[FlatMapFunction[BaseRow, BaseRow]] = {
+    : GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
 
     val ctx = CodeGeneratorContext(config)
     val (prepareCode, parameters, nullInParameters) = prepareParameters(
@@ -77,7 +78,7 @@ object LookupJoinCodeGenerator {
     val lookupFunctionTerm = ctx.addReusableFunction(lookupFunction)
     val setCollectorCode = tableReturnTypeInfo match {
       case rt: RowTypeInfo =>
-        val converterCollector = new RowToBaseRowCollector(rt)
+        val converterCollector = new RowToRowDataCollector(rt)
         val term = ctx.addReusableObject(converterCollector, "collector")
         s"""
            |$term.setCollector($DEFAULT_COLLECTOR_TERM);
@@ -103,7 +104,7 @@ object LookupJoinCodeGenerator {
     FunctionCodeGenerator.generateFunction(
       ctx,
       "LookupFunction",
-      classOf[FlatMapFunction[BaseRow, BaseRow]],
+      classOf[FlatMapFunction[RowData, RowData]],
       body,
       returnType,
       inputType)
@@ -121,7 +122,7 @@ object LookupJoinCodeGenerator {
       lookupKeyInOrder: Array[Int],
       allLookupFields: Map[Int, LookupKey],
       asyncLookupFunction: AsyncTableFunction[_])
-    : GeneratedFunction[AsyncFunction[BaseRow, AnyRef]] = {
+    : GeneratedFunction[AsyncFunction[RowData, AnyRef]] = {
 
     val ctx = CodeGeneratorContext(config)
     val (prepareCode, parameters, nullInParameters) = prepareParameters(
@@ -153,7 +154,7 @@ object LookupJoinCodeGenerator {
     FunctionCodeGenerator.generateFunction(
       ctx,
       "LookupFunction",
-      classOf[AsyncFunction[BaseRow, AnyRef]],
+      classOf[AsyncFunction[RowData, AnyRef]],
       body,
       returnType,
       inputType)
@@ -191,12 +192,12 @@ object LookupJoinCodeGenerator {
       .map { e =>
         val dataType = fromLogicalTypeToDataType(e.resultType)
         val bType = if (isExternalArgs) {
-          boxedTypeTermForExternalType(dataType)
+          typeTerm(dataType.getConversionClass)
         } else {
           boxedTypeTermForType(e.resultType)
         }
         val assign = if (isExternalArgs) {
-          CodeGenUtils.genToExternal(ctx, dataType, e.resultTerm)
+          CodeGenUtils.genToExternalConverter(ctx, dataType, e.resultTerm)
         } else {
           e.resultTerm
         }
@@ -229,7 +230,7 @@ object LookupJoinCodeGenerator {
       resultType: RowType,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]],
-      retainHeader: Boolean = true): GeneratedCollector[TableFunctionCollector[BaseRow]] = {
+      retainHeader: Boolean = true): GeneratedCollector[TableFunctionCollector[RowData]] = {
 
     val inputTerm = DEFAULT_INPUT1_TERM
     val udtfInputTerm = DEFAULT_INPUT2_TERM
@@ -238,13 +239,13 @@ object LookupJoinCodeGenerator {
       .bindInput(udtfTypeInfo, inputTerm = udtfInputTerm, inputFieldMapping = pojoFieldMapping)
 
     val udtfResultExpr = exprGenerator.generateConverterResultExpression(
-      udtfTypeInfo, classOf[GenericRow])
+      udtfTypeInfo, classOf[GenericRowData])
 
     val joinedRowTerm = CodeGenUtils.newName("joinedRow")
-    ctx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
+    ctx.addReusableOutputRecord(resultType, classOf[JoinedRowData], joinedRowTerm)
 
     val header = if (retainHeader) {
-      s"$joinedRowTerm.setHeader($inputTerm.getHeader());"
+      s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
     } else {
       ""
     }
@@ -296,7 +297,7 @@ object LookupJoinCodeGenerator {
       collectedType: RowType,
       inputTerm: String = DEFAULT_INPUT1_TERM,
       collectedTerm: String = DEFAULT_INPUT2_TERM)
-    : GeneratedCollector[TableFunctionCollector[BaseRow]] = {
+    : GeneratedCollector[TableFunctionCollector[RowData]] = {
 
     val funcName = newName(name)
     val input1TypeClass = boxedTypeTermForType(inputType)
@@ -353,7 +354,7 @@ object LookupJoinCodeGenerator {
       leftInputType: RowType,
       collectedType: RowType,
       condition: Option[RexNode])
-    : GeneratedResultFuture[TableFunctionResultFuture[BaseRow]] = {
+    : GeneratedResultFuture[TableFunctionResultFuture[RowData]] = {
 
     val funcName = newName(name)
     val input1TypeClass = boxedTypeTermForType(leftInputType)
@@ -434,7 +435,7 @@ object LookupJoinCodeGenerator {
       config: TableConfig,
       calcProgram: Option[RexProgram],
       tableSourceRowType: RowType)
-    : GeneratedFunction[FlatMapFunction[BaseRow, BaseRow]] = {
+    : GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
 
     val program = calcProgram.get
     val condition = if (program.getCondition != null) {
@@ -446,7 +447,7 @@ object LookupJoinCodeGenerator {
       tableSourceRowType,
       "TableCalcMapFunction",
       FlinkTypeFactory.toLogicalRowType(program.getOutputRowType),
-      classOf[GenericRow],
+      classOf[GenericRowData],
       program,
       condition,
       config)
@@ -457,12 +458,12 @@ object LookupJoinCodeGenerator {
   //                                Utility Classes
   // ----------------------------------------------------------------------------------------
 
-  class RowToBaseRowCollector(rowTypeInfo: RowTypeInfo)
+  class RowToRowDataCollector(rowTypeInfo: RowTypeInfo)
     extends TableFunctionCollector[Row] with Serializable {
 
     private val converter = DataFormatConverters.getConverterForDataType(
       TypeConversions.fromLegacyInfoToDataType(rowTypeInfo))
-        .asInstanceOf[DataFormatConverter[BaseRow, Row]]
+        .asInstanceOf[DataFormatConverter[RowData, Row]]
 
     override def collect(record: Row): Unit = {
       val result = converter.toInternal(record)

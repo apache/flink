@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.checkpoint.savepoint.CheckpointTestUtils;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 
 import org.junit.Test;
 
@@ -264,7 +264,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
 			1L,
 			placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
 			placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
-			spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd)));
+			spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)));
 	}
 
 	private static Map<StateHandleID, StreamStateHandle> placeSpies(

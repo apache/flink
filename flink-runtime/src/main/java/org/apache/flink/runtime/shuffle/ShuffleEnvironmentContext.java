@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 
 import java.net.InetAddress;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,27 +35,31 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ShuffleEnvironmentContext {
 	private final Configuration configuration;
 	private final ResourceID taskExecutorResourceId;
-	private final MemorySize shuffleMemorySize;
+	private final MemorySize networkMemorySize;
 	private final boolean localCommunicationOnly;
 	private final InetAddress hostAddress;
 	private final TaskEventPublisher eventPublisher;
 	private final MetricGroup parentMetricGroup;
 
+	private final Executor ioExecutor;
+
 	public ShuffleEnvironmentContext(
 			Configuration configuration,
 			ResourceID taskExecutorResourceId,
-			MemorySize shuffleMemorySize,
+			MemorySize networkMemorySize,
 			boolean localCommunicationOnly,
 			InetAddress hostAddress,
 			TaskEventPublisher eventPublisher,
-			MetricGroup parentMetricGroup) {
+			MetricGroup parentMetricGroup,
+			Executor ioExecutor) {
 		this.configuration = checkNotNull(configuration);
 		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
-		this.shuffleMemorySize = shuffleMemorySize;
+		this.networkMemorySize = networkMemorySize;
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.hostAddress = checkNotNull(hostAddress);
 		this.eventPublisher = checkNotNull(eventPublisher);
 		this.parentMetricGroup = checkNotNull(parentMetricGroup);
+		this.ioExecutor = ioExecutor;
 	}
 
 	public Configuration getConfiguration() {
@@ -65,8 +70,8 @@ public class ShuffleEnvironmentContext {
 		return taskExecutorResourceId;
 	}
 
-	public MemorySize getShuffleMemorySize() {
-		return shuffleMemorySize;
+	public MemorySize getNetworkMemorySize() {
+		return networkMemorySize;
 	}
 
 	public boolean isLocalCommunicationOnly() {
@@ -83,5 +88,9 @@ public class ShuffleEnvironmentContext {
 
 	public MetricGroup getParentMetricGroup() {
 		return parentMetricGroup;
+	}
+
+	public Executor getIoExecutor() {
+		return ioExecutor;
 	}
 }

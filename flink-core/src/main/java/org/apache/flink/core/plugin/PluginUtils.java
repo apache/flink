@@ -43,13 +43,13 @@ public final class PluginUtils {
 			try {
 				Collection<PluginDescriptor> pluginDescriptors =
 					new DirectoryBasedPluginFinder(pluginConfig.getPluginsPath().get()).findPlugins();
-				return new PluginManager(pluginDescriptors, pluginConfig.getAlwaysParentFirstPatterns());
+				return new DefaultPluginManager(pluginDescriptors, pluginConfig.getAlwaysParentFirstPatterns());
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Exception when trying to initialize plugin system.", e);
 			}
 		}
 		else {
-			return new PluginManager(Collections.emptyList(), pluginConfig.getAlwaysParentFirstPatterns());
+			return new DefaultPluginManager(Collections.emptyList(), pluginConfig.getAlwaysParentFirstPatterns());
 		}
 	}
 }

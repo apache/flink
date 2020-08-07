@@ -22,9 +22,9 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.Executor;
-import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
 
 import org.junit.Test;
 
@@ -35,7 +35,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 /**
- * Tests the {@link ExecutorFactory} discovery in the {@link ExecutionEnvironment} and the calls of the {@link JobClient}.
+ * Tests the {@link PipelineExecutorFactory} discovery in the {@link ExecutionEnvironment} and the calls of the {@link JobClient}.
  */
 public class ExecutorDiscoveryAndJobClientTest {
 
@@ -69,10 +69,15 @@ public class ExecutorDiscoveryAndJobClientTest {
 	}
 
 	/**
-	 * An {@link ExecutorFactory} that returns an {@link Executor} that instead of executing, it simply
+	 * An {@link PipelineExecutorFactory} that returns an {@link PipelineExecutor} that instead of executing, it simply
 	 * returns its name in the {@link JobExecutionResult}.
 	 */
-	public static class IDReportingExecutorFactory implements ExecutorFactory {
+	public static class IDReportingExecutorFactory implements PipelineExecutorFactory {
+
+		@Override
+		public String getName() {
+			return EXEC_NAME;
+		}
 
 		@Override
 		public boolean isCompatibleWith(Configuration configuration) {
@@ -80,7 +85,7 @@ public class ExecutorDiscoveryAndJobClientTest {
 		}
 
 		@Override
-		public Executor getExecutor(Configuration configuration) {
+		public PipelineExecutor getExecutor(Configuration configuration) {
 			return (pipeline, executionConfig) -> CompletableFuture.completedFuture(new TestingJobClient());
 		}
 	}

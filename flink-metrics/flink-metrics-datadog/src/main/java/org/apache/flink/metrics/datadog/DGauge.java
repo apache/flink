@@ -28,8 +28,8 @@ import java.util.List;
 public class DGauge extends DMetric {
 	private final Gauge<Number> gauge;
 
-	public DGauge(Gauge<Number> g, String metricName, String host, List<String> tags) {
-		super(MetricType.gauge, metricName, host, tags);
+	public DGauge(Gauge<Number> g, String metricName, String host, List<String> tags, Clock clock) {
+		super(MetricType.gauge, metricName, host, tags, clock);
 		gauge = g;
 	}
 

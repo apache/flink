@@ -20,8 +20,9 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -59,12 +60,12 @@ public class SortUtilTest {
 		}
 
 		{
-			Decimal[] arr = new Decimal[len];
+			DecimalData[] arr = new DecimalData[len];
 			for (int i = 0; i < len; i++) {
-				arr[i] = Decimal.fromBigDecimal(new BigDecimal(random.nextInt()), 18, 0);
+				arr[i] = DecimalData.fromBigDecimal(new BigDecimal(random.nextInt()), 18, 0);
 				SortUtil.putDecimalNormalizedKey(arr[i], segments[i], 0, 8);
 			}
-			Arrays.sort(arr, Decimal::compareTo);
+			Arrays.sort(arr, DecimalData::compareTo);
 			for (int i = 0; i < len; i++) {
 				SortUtil.putDecimalNormalizedKey(arr[i], compareSegs[i], 0, 8);
 			}
@@ -112,13 +113,13 @@ public class SortUtilTest {
 		}
 
 		{
-			BinaryString[] arr = new BinaryString[len];
+			BinaryStringData[] arr = new BinaryStringData[len];
 			for (int i = 0; i < len; i++) {
-				arr[i] = BinaryString.fromString(String.valueOf(random.nextLong()));
+				arr[i] = BinaryStringData.fromString(String.valueOf(random.nextLong()));
 				SortUtil.putStringNormalizedKey(arr[i], segments[i], 0, 8);
 			}
 
-			Arrays.sort(arr, BinaryString::compareTo);
+			Arrays.sort(arr, StringData::compareTo);
 			for (int i = 0; i < len; i++) {
 				SortUtil.putStringNormalizedKey(arr[i], compareSegs[i], 0, 8);
 			}

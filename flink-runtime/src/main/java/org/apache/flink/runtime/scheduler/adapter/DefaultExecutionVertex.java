@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverVertex;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 
@@ -31,10 +30,9 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Default implementation of {@link SchedulingExecutionVertex} and {@link FailoverVertex}.
+ * Default implementation of {@link SchedulingExecutionVertex}.
  */
-class DefaultExecutionVertex implements SchedulingExecutionVertex<DefaultExecutionVertex, DefaultResultPartition>,
-		FailoverVertex<DefaultExecutionVertex, DefaultResultPartition> {
+class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
 	private final ExecutionVertexID executionVertexId;
 

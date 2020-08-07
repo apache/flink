@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
@@ -72,7 +72,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* sum = */ literal(0L, getSumType()),
+				/* sum = */ literal(0L, getSumType().notNull()),
 				/* count = */ literal(0L)};
 	}
 
@@ -244,7 +244,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 			return new Expression[] {
 				literal(
 					BigDecimal.ZERO,
-					getSumType()),
+					getSumType().notNull()),
 				literal(0L)
 			};
 		}

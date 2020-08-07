@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.CRow
@@ -30,12 +29,9 @@ trait DataStreamRel extends FlinkRelNode {
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv    The [[StreamPlanner]] of the translated Table.
-    * @param queryConfig The configuration for the query to generate.
     * @return DataStream of type [[CRow]]
     */
-  def translateToPlan(
-    tableEnv: StreamPlanner,
-    queryConfig: StreamQueryConfig): DataStream[CRow]
+  def translateToPlan(tableEnv: StreamPlanner): DataStream[CRow]
 
   /**
     * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction

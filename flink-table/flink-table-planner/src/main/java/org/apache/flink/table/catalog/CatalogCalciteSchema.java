@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableConfig;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -44,11 +45,17 @@ public class CatalogCalciteSchema implements Schema {
 	private final boolean isStreamingMode;
 	private final String catalogName;
 	private final CatalogManager catalogManager;
+	private final TableConfig tableConfig;
 
-	public CatalogCalciteSchema(boolean isStreamingMode, String catalogName, CatalogManager catalogManager) {
+	public CatalogCalciteSchema(
+			boolean isStreamingMode,
+			String catalogName,
+			CatalogManager catalogManager,
+			TableConfig tableConfig) {
 		this.isStreamingMode = isStreamingMode;
 		this.catalogName = catalogName;
 		this.catalogManager = catalogManager;
+		this.tableConfig = tableConfig;
 	}
 
 	/**
@@ -60,7 +67,7 @@ public class CatalogCalciteSchema implements Schema {
 	@Override
 	public Schema getSubSchema(String schemaName) {
 		if (catalogManager.schemaExists(catalogName, schemaName)) {
-			return new DatabaseCalciteSchema(isStreamingMode, schemaName, catalogName, catalogManager);
+			return new DatabaseCalciteSchema(isStreamingMode, schemaName, catalogName, catalogManager, tableConfig);
 		} else {
 			return null;
 		}

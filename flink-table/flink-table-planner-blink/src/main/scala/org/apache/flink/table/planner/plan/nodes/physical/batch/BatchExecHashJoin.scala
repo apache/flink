@@ -22,7 +22,7 @@ import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator.generateProjection
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, LongHashJoinGenerator}
@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
-import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
+import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, BinaryRowDataSerializer}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
@@ -122,7 +122,7 @@ class BatchExecHashJoin(
     // We aim for a 200% utilization of the bucket table when all the partition buffers are full.
     // TODO use BinaryHashBucketArea.RECORD_BYTES instead of 8
     val bucketSize = buildRowCount * 8 / FlinkCost.HASH_COLLISION_WEIGHT
-    val recordSize = buildRowCount * (buildRowSize + BinaryRowSerializer.LENGTH_SIZE_IN_BYTES)
+    val recordSize = buildRowCount * (buildRowSize + BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES)
     val memCost = (bucketSize + recordSize) * shuffleBuildCount(mq)
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memCost)
@@ -187,17 +187,17 @@ class BatchExecHashJoin(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
 
     val lInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val rInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
 
     // get type
-    val lType = lInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
-    val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val lType = lInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
 
     val keyType = RowType.of(leftKeys.map(lType.getTypeAt): _*)
 
@@ -259,7 +259,7 @@ class BatchExecHashJoin(
       probe,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
+      InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       probe.getParallelism,
       managedMemory)
   }

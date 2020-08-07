@@ -42,6 +42,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /**
  * Test for {@link FileSystemOutputFormat}.
@@ -128,6 +129,7 @@ public class FileSystemOutputFormatTest {
 		assertEquals(
 				"a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n",
 				content.values().iterator().next());
+		assertFalse(new File(tmpFile.toURI()).exists());
 	}
 
 	@Test
@@ -154,6 +156,7 @@ public class FileSystemOutputFormatTest {
 		assertEquals(
 				"a1,1\n" + "a2,2\n" + "a2,2\n" + "a3,3\n",
 				content.values().iterator().next());
+		assertFalse(new File(tmpFile.toURI()).exists());
 	}
 
 	@Test
@@ -173,6 +176,7 @@ public class FileSystemOutputFormatTest {
 		assertEquals(2, sortedContent.size());
 		assertEquals("a1,1\n" + "a2,2\n" + "a3,3\n", sortedContent.get("c=p1"));
 		assertEquals("a2,2\n", sortedContent.get("c=p2"));
+		assertFalse(new File(tmpFile.toURI()).exists());
 	}
 
 	@Test
@@ -198,6 +202,7 @@ public class FileSystemOutputFormatTest {
 		assertEquals(2, sortedContent.size());
 		assertEquals("a1,1\n" + "a2,2\n" + "a3,3\n", sortedContent.get("c=p1"));
 		assertEquals("a2,2\n", sortedContent.get("c=p2"));
+		assertFalse(new File(tmpFile.toURI()).exists());
 	}
 
 	private OneInputStreamOperatorTestHarness<Row, Object> createSink(

@@ -55,6 +55,11 @@ public class ListMemorySegmentPool implements MemorySegmentPool {
 		segments.addAll(memory);
 	}
 
+	@Override
+	public int freePages() {
+		return segments.size();
+	}
+
 	public void clear() {
 		segments.clear();
 	}

@@ -35,6 +35,18 @@ import java.io.Serializable;
 public interface KinesisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
+	 * Initialization method for the schema. It is called before the actual working methods
+	 * {@link #deserialize} and thus suitable for one time setup work.
+	 *
+	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
+	 * registering user metrics.
+	 *
+	 * @param context Contextual information that can be used during initialization.
+	 */
+	default void open(DeserializationSchema.InitializationContext context) throws Exception {
+	}
+
+	/**
 	 * Deserializes a Kinesis record's bytes. If the record cannot be deserialized, {@code null}
 	 * may be returned. This informs the Flink Kinesis Consumer to process the Kinesis record
 	 * without producing any output for it, i.e. effectively "skipping" the record.

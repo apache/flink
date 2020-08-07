@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -41,7 +41,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
 		try {
-			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
+			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
@@ -73,7 +73,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 	@Test
 	public void testSlotReleasedWhenScheduledQueued() {
 		try {
-			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
+			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
@@ -109,7 +109,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 	@Test
 	public void testScheduleToDeploying() {
 		try {
-			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
+			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 

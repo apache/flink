@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
@@ -30,6 +31,7 @@ import org.apache.flink.metrics.MetricGroup;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
@@ -100,6 +102,11 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 				throw new IllegalArgumentException("The broadcast variable with name '" + name + "' has not been set.");
 			}
 		}
+	}
+
+	@Override
+	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+		throw new UnsupportedOperationException("Do not support external resource in current environment");
 	}
 
 	// --------------------------------------------------------------------------------------------

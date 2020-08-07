@@ -23,13 +23,14 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.runtime.operators.sort.QuickSort
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, newName}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.genGroupKeyChangedCheckCode
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenHelper.{genHashAggOutputExpr, genRetryAppendToMap, prepareHashAggKVTypes, prepareHashAggMap}
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, ProjectionCodeGenerator}
+import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.generated.GeneratedOperator
@@ -38,7 +39,7 @@ import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHa
 import org.apache.flink.table.runtime.operators.sort.BinaryKVInMemorySortBuffer
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.MutableObjectIterator
 
@@ -102,7 +103,7 @@ class HashWindowCodeGenerator(
       buffLimitSize: Int,
       windowStart: Long,
       windowSize: Long,
-      slideSize: Long): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      slideSize: Long): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val className = if (isFinal) "HashWinAgg" else "LocalHashWinAgg"
     val suffix = if (grouping.isEmpty) "WithoutKeys" else "WithKeys"
 
@@ -347,7 +348,7 @@ class HashWindowCodeGenerator(
       grouping.map(
         idx => GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, idx)) :+ expr,
       currentKeyType.asInstanceOf[RowType],
-      classOf[BinaryRow],
+      classOf[BinaryRowData],
       outRow = currentKeyTerm,
       outRowWriter = Some(currentKeyWriterTerm))
   }
@@ -368,11 +369,11 @@ class HashWindowCodeGenerator(
     // build mapping for DeclarativeAggregationFunction binding references
     val offset = if (isMerge) grouping.length + 1 else grouping.length
     val argsMapping = AggCodeGenHelper.buildAggregateArgsMapping(
-      isMerge, offset, inputType,  auxGrouping, aggArgs, aggBufferTypes)
+      isMerge, offset, inputType, auxGrouping, aggInfos, aggBufferTypes)
     val aggBuffMapping = HashAggCodeGenHelper.buildAggregateAggBuffMapping(aggBufferTypes)
     // gen code to create empty agg buffer
     val initedAggBuffer = HashAggCodeGenHelper.genReusableEmptyAggBuffer(
-      ctx, builder, inputTerm, inputType, auxGrouping, aggregates, aggBufferRowType)
+      ctx, builder, inputTerm, inputType, auxGrouping, aggInfos, aggBufferRowType)
     if (auxGrouping.isEmpty) {
       // init aggBuffer in open function when there is no auxGrouping
       ctx.addReusableOpenStatement(initedAggBuffer.code)
@@ -385,8 +386,7 @@ class HashWindowCodeGenerator(
       inputType,
       inputTerm,
       auxGrouping,
-      aggregates,
-      aggCallToAggFunction,
+      aggInfos,
       argsMapping,
       aggBuffMapping,
       currentAggBufferTerm,
@@ -439,7 +439,7 @@ class HashWindowCodeGenerator(
       ctx, keyComputerTerm, recordComparatorTerm, aggMapKeyType)
 
     val memPoolTypeTerm = classOf[BytesHashMapSpillMemorySegmentPool].getName
-    val binaryRowSerializerTypeTerm = classOf[BinaryRowSerializer].getName
+    val binaryRowSerializerTypeTerm = classOf[BinaryRowDataSerializer].getName
 
     val sorterBufferType = classOf[BinaryKVInMemorySortBuffer].getName
     val sorterBufferTerm = newName("buffer")
@@ -461,7 +461,7 @@ class HashWindowCodeGenerator(
     val reuseAggMapKeyTerm = newName("reusedKey")
     val reuseAggBufferTerm = newName("reusedValue")
     val reuseKVTerm = newName("reusedKV")
-    val binaryRow = classOf[BinaryRow].getName
+    val binaryRow = classOf[BinaryRowData].getName
     val kvType = classOf[JTuple2[_,_]].getName
     ctx.addReusableMember(
       s"transient $binaryRow $reuseAggMapKeyTerm = new $binaryRow(${aggMapKeyType.getFieldCount});")
@@ -498,7 +498,7 @@ class HashWindowCodeGenerator(
     val buildWindowsGroupingElementExpr = exprCodegen.generateResultExpression(
       accessExprs,
       windowElementType,
-      classOf[BinaryRow],
+      classOf[BinaryRowData],
       outRow = bufferWindowElementTerm,
       outRowWriter = Some(bufferWindowElementWriterTerm))
 
@@ -649,7 +649,7 @@ class HashWindowCodeGenerator(
         ctx,
         builder,
         auxGrouping,
-        aggregates,
+        aggInfos,
         argsMapping,
         aggBuffMapping,
         outputTerm,
@@ -696,7 +696,7 @@ class HashWindowCodeGenerator(
         ctx,
         builder,
         auxGrouping,
-        aggregates,
+        aggInfos,
         argsMapping,
         aggBuffMapping,
         outputTerm,
@@ -741,7 +741,7 @@ class HashWindowCodeGenerator(
 
     // gen code to do aggregate by window using aggregate map
     val currentAggBufferTerm =
-      ctx.addReusableLocalVariable(classOf[BinaryRow].getName, "currentAggBuffer")
+      ctx.addReusableLocalVariable(classOf[BinaryRowData].getName, "currentAggBuffer")
     val (initedAggBufferExpr, doAggregateExpr, outputResultFromMap) = genGroupWindowHashAggCodes(
       isMerge,
       isFinal,

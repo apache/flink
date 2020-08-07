@@ -233,4 +233,17 @@ public class MemorySizeTest {
 		final MemorySize memory = new MemorySize(100L);
 		memory.divide(-23L);
 	}
+
+	@Test
+	public void testToHumanReadableString() {
+		assertThat(new MemorySize(0L).toHumanReadableString(), is("0 bytes"));
+		assertThat(new MemorySize(1L).toHumanReadableString(), is("1 bytes"));
+		assertThat(new MemorySize(1024L).toHumanReadableString(), is("1024 bytes"));
+		assertThat(new MemorySize(1025L).toHumanReadableString(), is("1.001kb (1025 bytes)"));
+		assertThat(new MemorySize(1536L).toHumanReadableString(), is("1.500kb (1536 bytes)"));
+		assertThat(new MemorySize(1_000_000L).toHumanReadableString(), is("976.563kb (1000000 bytes)"));
+		assertThat(new MemorySize(1_000_000_000L).toHumanReadableString(), is("953.674mb (1000000000 bytes)"));
+		assertThat(new MemorySize(1_000_000_000_000L).toHumanReadableString(), is("931.323gb (1000000000000 bytes)"));
+		assertThat(new MemorySize(1_000_000_000_000_000L).toHumanReadableString(), is("909.495tb (1000000000000000 bytes)"));
+	}
 }

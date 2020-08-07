@@ -73,6 +73,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 		DescriptorProperties descriptor = new DescriptorProperties();
 
 		descriptor.putTableSchema(Schema.SCHEMA, getSchema());
+		descriptor.putPartitionKeys(getPartitionKeys());
 
 		Map<String, String> properties = new HashMap<>(getProperties());
 		properties.remove(CatalogConfig.IS_GENERIC);
@@ -80,5 +81,41 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 		descriptor.putProperties(properties);
 
 		return descriptor.asMap();
+	}
+
+	@Override
+	public CatalogTable copy(Map<String, String> options) {
+		return new CatalogTableImpl(getSchema(), getPartitionKeys(), options, getComment());
+	}
+
+	/**
+	 * Construct a {@link CatalogTableImpl} from complete properties that contains table schema.
+	 */
+	public static CatalogTableImpl fromProperties(Map<String, String> properties) {
+		DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putProperties(properties);
+		TableSchema tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA);
+		List<String> partitionKeys = descriptorProperties.getPartitionKeys();
+		return new CatalogTableImpl(
+				tableSchema,
+				partitionKeys,
+				removeRedundant(properties, tableSchema, partitionKeys),
+				""
+		);
+	}
+
+	/**
+	 * Construct catalog table properties from {@link #toProperties()}.
+	 */
+	public static Map<String, String> removeRedundant(
+			Map<String, String> properties,
+			TableSchema schema,
+			List<String> partitionKeys) {
+		Map<String, String> ret = new HashMap<>(properties);
+		DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putTableSchema(Schema.SCHEMA, schema);
+		descriptorProperties.putPartitionKeys(partitionKeys);
+		descriptorProperties.asMap().keySet().forEach(ret::remove);
+		return ret;
 	}
 }

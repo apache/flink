@@ -74,7 +74,7 @@ import java.util.List;
  *   .forOrcSchema("struct<col1:boolean,col2:tinyint,col3:smallint,col4:int>")
  *   .build();
  *
- * tEnv.registerTableSource("orcTable", orcSrc);
+ * tEnv.registerTableSourceInternal("orcTable", orcSrc);
  * Table res = tableEnv.sqlQuery("SELECT * FROM orcTable");
  * }
  * </pre>
@@ -218,7 +218,9 @@ public class OrcTableSource
 	}
 
 	private String predicateString() {
-		if (predicates == null || predicates.length == 0) {
+		if (predicates == null) {
+			return "NULL";
+		} else if (predicates.length == 0) {
 			return "TRUE";
 		} else {
 			return "AND(" + Arrays.toString(predicates) + ")";

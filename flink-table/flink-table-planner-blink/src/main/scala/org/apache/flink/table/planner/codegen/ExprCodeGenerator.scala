@@ -20,14 +20,16 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
-import org.apache.flink.table.dataformat._
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
+import org.apache.flink.table.planner.codegen.calls._
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -36,7 +38,9 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
@@ -114,10 +118,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ => Array[Int]()
     }
   }
-  
-  private def fieldIndices(t: LogicalType): Array[Int] = t match {
-    case rt: RowType => (0 until rt.getFieldCount).toArray
-    case _ => Array(0)
+
+  private def fieldIndices(t: LogicalType): Array[Int] = {
+    if (isCompositeType(t)) {
+      (0 until getFieldCount(t)).toArray
+    } else {
+      Array(0)
+    }
   }
  
   /**
@@ -146,7 +153,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     */
   def generateConverterResultExpression(
       returnType: RowType,
-      returnTypeClazz: Class[_ <: BaseRow],
+      returnTypeClazz: Class[_ <: RowData],
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM,
       reusedOutRow: Boolean = true,
@@ -211,7 +218,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     * @param fieldExprs field expressions to be converted
     * @param returnType conversion target type. Type must have the same arity than fieldExprs.
     * @param outRow the result term
-    * @param outRowWriter the result writer term for BinaryRow.
+    * @param outRowWriter the result writer term for BinaryRowData.
     * @param reusedOutRow If objects or variables can be reused, they will be added to reusable
     *                     code sections internally.
     * @param outRowAlreadyExists Don't need addReusableRecord if out row already exists.
@@ -220,14 +227,17 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   def generateResultExpression(
       fieldExprs: Seq[GeneratedExpression],
       returnType: RowType,
-      returnTypeClazz: Class[_ <: BaseRow],
+      returnTypeClazz: Class[_ <: RowData],
       outRow: String = DEFAULT_OUT_RECORD_TERM,
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
-      outRowAlreadyExists: Boolean = false): GeneratedExpression = {
+      outRowAlreadyExists: Boolean = false,
+      allowSplit: Boolean = false,
+      methodName: String = null): GeneratedExpression = {
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     generateResultExpression(fieldExprs, fieldExprIdxToOutputRowPosMap, returnType,
-      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists)
+      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists,
+      allowSplit, methodName)
   }
 
   /**
@@ -239,7 +249,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     *                                      to position of output row.
     * @param returnType conversion target type. Type must have the same arity than fieldExprs.
     * @param outRow the result term
-    * @param outRowWriter the result writer term for BinaryRow.
+    * @param outRowWriter the result writer term for BinaryRowData.
     * @param reusedOutRow If objects or variables can be reused, they will be added to reusable
     *                     code sections internally.
     * @param outRowAlreadyExists Don't need addReusableRecord if out row already exists.
@@ -249,11 +259,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     fieldExprs: Seq[GeneratedExpression],
     fieldExprIdxToOutputRowPosMap: Map[Int, Int],
     returnType: RowType,
-    returnTypeClazz: Class[_ <: BaseRow],
+    returnTypeClazz: Class[_ <: RowData],
     outRow: String,
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
-    outRowAlreadyExists: Boolean)
+    outRowAlreadyExists: Boolean,
+    allowSplit: Boolean,
+    methodName: String)
   : GeneratedExpression = {
     // initial type check
     if (returnType.getFieldCount != fieldExprs.length) {
@@ -285,16 +297,38 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ => // ok
     }
 
-    val setFieldsCode = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
+    val setFieldsCodes = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
       val pos = fieldExprIdxToOutputRowPosMap.getOrElse(index,
         throw new CodeGenException(s"Illegal field expr index: $index"))
-      baseRowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
-    }.mkString("\n")
+      rowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
+    }
+    val totalLen = setFieldsCodes.map(_.length).sum
+    val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
+    val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
+      // do the split.
+      if (methodName != null) {
+        ctx.setCodeSplit(methodName)
+      } else {
+        ctx.setCodeSplit()
+      }
+      setFieldsCodes.map(project => {
+        val methodName = newName("split")
+        val method =
+          s"""
+            |private void $methodName() throws Exception {
+            |  $project
+            |}
+            |""".stripMargin
+        ctx.addReusableMember(method)
+        s"$methodName();"
+      }).mkString("\n")
+    } else {
+      setFieldsCodes.mkString("\n")
+    }
 
     val outRowInitCode = if (!outRowAlreadyExists) {
-      val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter)
+      val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter, ctx)
       if (reusedOutRow) {
-        ctx.addReusableMember(initCode)
         NO_CODE
       } else {
         initCode
@@ -303,7 +337,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       NO_CODE
     }
 
-    val code = if (returnTypeClazz == classOf[BinaryRow] && outRowWriter.isDefined) {
+    val code = if (returnTypeClazz == classOf[BinaryRowData] && outRowWriter.isDefined) {
       val writer = outRowWriter.get
       val resetWriter = if (ctx.nullCheck) s"$writer.reset();" else s"$writer.resetCursor();"
       val completeWriter: String = s"$writer.complete();"
@@ -461,7 +495,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (o@_, _) => o.accept(this)
     }
 
-    generateCallExpression(ctx, call.getOperator, operands, resultType)
+    generateCallExpression(ctx, call, operands, resultType)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =
@@ -477,10 +511,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   private def generateCallExpression(
       ctx: CodeGeneratorContext,
-      operator: SqlOperator,
+      call: RexCall,
       operands: Seq[GeneratedExpression],
       resultType: LogicalType): GeneratedExpression = {
-    operator match {
+    call.getOperator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
         val left = operands.head
@@ -690,16 +724,19 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         generateMap(ctx, resultType, operands)
 
       case ITEM =>
-        operands.head.resultType match {
-          case t: LogicalType if TypeCheckUtils.isArray(t) =>
+        operands.head.resultType.getTypeRoot match {
+          case LogicalTypeRoot.ARRAY =>
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
             generateArrayElementAt(ctx, array, index)
 
-          case t: LogicalType if TypeCheckUtils.isMap(t) =>
+          case LogicalTypeRoot.MAP =>
             val key = operands(1)
             generateMapGet(ctx, operands.head, key)
+
+          case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
+            generateDot(ctx, operands)
 
           case _ => throw new CodeGenException("Expect an array or a map.")
         }
@@ -756,24 +793,29 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case tsf: TableSqlFunction =>
         new TableFunctionCallGen(
+          call,
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
 
+      case _: BridgingSqlFunction =>
+        new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
-        StringCallGen.generateCallExpression(ctx, operator, operands, resultType).getOrElse {
-          FunctionGenerator
-            .getCallGenerator(
-              sqlOperator,
-              operands.map(expr => expr.resultType),
-              resultType)
-            .getOrElse(
-              throw new CodeGenException(s"Unsupported call: " +
-              s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
-              s"If you think this function should be supported, " +
-              s"you can create an issue and start a discussion for it."))
-            .generate(ctx, operands, resultType)
-        }
+        StringCallGen.generateCallExpression(ctx, call.getOperator, operands, resultType)
+          .getOrElse {
+            FunctionGenerator
+              .getCallGenerator(
+                sqlOperator,
+                operands.map(expr => expr.resultType),
+                resultType)
+              .getOrElse(
+                throw new CodeGenException(s"Unsupported call: " +
+                s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
+                s"If you think this function should be supported, " +
+                s"you can create an issue and start a discussion for it."))
+              .generate(ctx, operands, resultType)
+          }
 
       // unknown or invalid
       case call@_ =>

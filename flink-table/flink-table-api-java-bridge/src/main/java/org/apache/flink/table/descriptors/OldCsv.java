@@ -43,8 +43,10 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DE
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_IGNORE_FIRST_LINE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_IGNORE_PARSE_ERRORS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_LINE_DELIMITER;
+import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_NUM_FILES;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_QUOTE_CHARACTER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
+import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_WRITE_MODE;
 
 /**
  * Format descriptor for comma-separated values (CSV).
@@ -69,6 +71,8 @@ public class OldCsv extends FormatDescriptor {
 	private Optional<Boolean> isIgnoreFirstLine = Optional.empty();
 	private Optional<Boolean> lenient = Optional.empty();
 	private Optional<Boolean> deriveSchema = Optional.empty();
+	private Optional<String> writeMode = Optional.empty();
+	private Optional<Integer> numFiles = Optional.empty();
 
 	public OldCsv() {
 		super(FORMAT_TYPE_VALUE, 1);
@@ -101,7 +105,11 @@ public class OldCsv extends FormatDescriptor {
 	 * <p>This method overwrites existing fields added with [[field()]].
 	 *
 	 * @param schema the table schema
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 * 	           it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv schema(TableSchema schema) {
 		this.schema.clear();
 		for (int i = 0; i < schema.getFieldCount(); ++i) {
@@ -117,7 +125,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, TypeInformation<?> fieldType) {
 		field(fieldName, TypeConversions.fromLegacyInfoToDataType(fieldType));
 		return this;
@@ -130,7 +142,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, DataType fieldType) {
 		addField(fieldName, fieldType.getLogicalType().asSerializableString());
 		return this;
@@ -147,7 +163,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type string of the field
+	 * @deprecated {@link OldCsv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public OldCsv field(String fieldName, String fieldType) {
 		if (isLegacyTypeString(fieldType)) {
 			// fallback to legacy parser
@@ -213,6 +233,25 @@ public class OldCsv extends FormatDescriptor {
 	}
 
 	/**
+	 * Set a writeMode. null by default.
+	 * @param writeMode The write mode decides what happens if a file should be created,
+	 *                  but already exists.
+	 */
+	public OldCsv writeMode(String writeMode) {
+		this.writeMode = Optional.of(writeMode);
+		return this;
+	}
+
+	/**
+	 * Set the numFiles. -1 by default.
+	 * @param numFiles The number of files to write to.
+	 */
+	public OldCsv numFiles(int numFiles) {
+		this.numFiles = Optional.of(numFiles);
+		return this;
+	}
+
+	/**
 	 * Derives the format schema from the table's schema. Required if no format schema is defined.
 	 *
 	 * <p>This allows for defining schema information only once.
@@ -240,8 +279,8 @@ public class OldCsv extends FormatDescriptor {
 			properties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
 		} else {
 			List<String> subKeys = Arrays.asList(
-				DescriptorProperties.TABLE_SCHEMA_NAME,
-				DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
+				DescriptorProperties.NAME,
+				DescriptorProperties.DATA_TYPE);
 
 			List<List<String>> subValues = schema.entrySet().stream()
 				.map(e -> Arrays.asList(e.getKey(), e.getValue()))
@@ -254,6 +293,8 @@ public class OldCsv extends FormatDescriptor {
 		commentPrefix.ifPresent(s -> properties.putString(FORMAT_COMMENT_PREFIX, s));
 		isIgnoreFirstLine.ifPresent(aBoolean -> properties.putBoolean(FORMAT_IGNORE_FIRST_LINE, aBoolean));
 		lenient.ifPresent(aBoolean -> properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, aBoolean));
+		writeMode.ifPresent(s -> properties.putString(FORMAT_WRITE_MODE, s));
+		numFiles.ifPresent(i -> properties.putInt(FORMAT_NUM_FILES, i));
 
 		return properties.asMap();
 	}

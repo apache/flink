@@ -19,7 +19,8 @@ package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 
 /**
   * Simple example for demonstrating the use of Table API on a Stream Table.

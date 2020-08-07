@@ -33,17 +33,14 @@ public class DropCatalogFunctionOperation implements DropOperation {
 	private final ObjectIdentifier functionIdentifier;
 	private final boolean ifExists;
 	private final boolean isTemporary;
-	private final boolean isSystemFunction;
 
 	public DropCatalogFunctionOperation(
 			ObjectIdentifier functionIdentifier,
-			boolean isTemporary,
-			boolean isSystemFunction,
-			boolean ifExists) {
+			boolean ifExists,
+			boolean isTemporary) {
 		this.functionIdentifier = functionIdentifier;
 		this.ifExists = ifExists;
 		this.isTemporary = isTemporary;
-		this.isSystemFunction = isSystemFunction;
 	}
 
 	public ObjectIdentifier getFunctionIdentifier() {
@@ -59,7 +56,6 @@ public class DropCatalogFunctionOperation implements DropOperation {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("identifier", functionIdentifier);
 		params.put("ifExists", ifExists);
-		params.put("isSystemFunction", isSystemFunction);
 		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
@@ -71,10 +67,6 @@ public class DropCatalogFunctionOperation implements DropOperation {
 
 	public boolean isTemporary() {
 		return isTemporary;
-	}
-
-	public boolean isSystemFunction() {
-		return isSystemFunction;
 	}
 
 	public String getFunctionName() {

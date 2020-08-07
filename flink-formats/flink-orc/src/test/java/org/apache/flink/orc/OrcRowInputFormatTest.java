@@ -929,6 +929,33 @@ public class OrcRowInputFormatTest {
 	}
 
 	@Test
+	public void testReadFileInManySplits() throws IOException {
+
+		rowOrcInputFormat = new OrcRowInputFormat(getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
+		rowOrcInputFormat.selectFields(0, 1);
+
+		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(4);
+		assertEquals(4, splits.length);
+		rowOrcInputFormat.openInputFormat();
+
+		long cnt = 0;
+		// read all splits
+		for (FileInputSplit split : splits) {
+
+			// open split
+			rowOrcInputFormat.open(split);
+			// read and count all rows
+			while (!rowOrcInputFormat.reachedEnd()) {
+				assertNotNull(rowOrcInputFormat.nextRecord(null));
+				cnt++;
+			}
+			rowOrcInputFormat.close();
+		}
+		// check that all rows have been read
+		assertEquals(1920800, cnt);
+	}
+
+	@Test
 	public void testReadFileWithFilter() throws IOException {
 
 		rowOrcInputFormat = new OrcRowInputFormat(getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());

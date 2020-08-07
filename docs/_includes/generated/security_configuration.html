@@ -9,10 +9,52 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>security.context.factory.classes</h5></td>
+            <td style="word-wrap: break-word;">"org.apache.flink.runtime.security.contexts.HadoopSecurityContextFactory";<wbr>"org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory"</td>
+            <td>List&lt;String&gt;</td>
+            <td>List of factories that should be used to instantiate a security context. If multiple are configured, Flink will use the first compatible factory. You should have a NoOpSecurityContextFactory in this list as a fallback.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.login.contexts</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A comma-separated list of login contexts to provide the Kerberos credentials to (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for Kafka authentication)</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.login.keytab</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Absolute path to a Kerberos keytab file that contains the user credentials.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.login.principal</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Kerberos principal name associated with the keytab.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.login.use-ticket-cache</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Indicates whether to read from your Kerberos ticket cache.</td>
+        </tr>
+        <tr>
+            <td><h5>security.module.factory.classes</h5></td>
+            <td style="word-wrap: break-word;">"org.apache.flink.runtime.security.modules.HadoopModuleFactory";<wbr>"org.apache.flink.runtime.security.modules.JaasModuleFactory";<wbr>"org.apache.flink.runtime.security.modules.ZookeeperModuleFactory"</td>
+            <td>List&lt;String&gt;</td>
+            <td>List of factories that should be used to instantiate security modules. All listed modules will be installed. Keep in mind that the configured security context might rely on some modules being present.</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.algorithms</h5></td>
             <td style="word-wrap: break-word;">"TLS_RSA_WITH_AES_128_CBC_SHA"</td>
             <td>String</td>
             <td>The comma separated list of standard SSL algorithms to be supported. Read more <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites">here</a></td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.cert.fingerprint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The sha1 fingerprint of the internal certificate. This further protects the internal communication to present the exact certificate used by Flink.This is necessary where one cannot use private CA(self signed) or there is internal firm wide CA is required</td>
         </tr>
         <tr>
             <td><h5>security.ssl.internal.close-notify-flush-timeout</h5></td>
@@ -75,24 +117,6 @@
             <td>The password to decrypt the truststore for Flink's internal endpoints (rpc, data transport, blob server).</td>
         </tr>
         <tr>
-            <td><h5>security.ssl.key-password</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The secret to decrypt the server key in the keystore.</td>
-        </tr>
-        <tr>
-            <td><h5>security.ssl.keystore</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The Java keystore file to be used by the flink endpoint for its SSL Key and Certificate.</td>
-        </tr>
-        <tr>
-            <td><h5>security.ssl.keystore-password</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The secret to decrypt the keystore file.</td>
-        </tr>
-        <tr>
             <td><h5>security.ssl.protocol</h5></td>
             <td style="word-wrap: break-word;">"TLSv1.2"</td>
             <td>String</td>
@@ -109,6 +133,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Turns on mutual SSL authentication for external communication via the REST endpoints.</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.rest.cert.fingerprint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The sha1 fingerprint of the rest certificate. This further protects the rest REST endpoints to present certificate which is only used by proxy serverThis is necessary where once uses public CA or internal firm wide CA</td>
         </tr>
         <tr>
             <td><h5>security.ssl.rest.enabled</h5></td>
@@ -147,22 +177,28 @@
             <td>The password to decrypt the truststore for Flink's external REST endpoints.</td>
         </tr>
         <tr>
-            <td><h5>security.ssl.truststore</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The truststore file containing the public CA certificates to be used by flink endpoints to verify the peer’s certificate.</td>
-        </tr>
-        <tr>
-            <td><h5>security.ssl.truststore-password</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The secret to decrypt the truststore.</td>
-        </tr>
-        <tr>
             <td><h5>security.ssl.verify-hostname</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Flag to enable peer’s hostname verification during ssl handshake.</td>
+        </tr>
+        <tr>
+            <td><h5>zookeeper.sasl.disable</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>zookeeper.sasl.login-context-name</h5></td>
+            <td style="word-wrap: break-word;">"Client"</td>
+            <td>String</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>zookeeper.sasl.service-name</h5></td>
+            <td style="word-wrap: break-word;">"zookeeper"</td>
+            <td>String</td>
+            <td></td>
         </tr>
     </tbody>
 </table>

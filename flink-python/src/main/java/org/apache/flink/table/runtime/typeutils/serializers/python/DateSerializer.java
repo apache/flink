@@ -24,10 +24,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 
 import java.io.IOException;
 import java.sql.Date;
-import java.util.TimeZone;
 
 /**
  * Takes int instead of long as the serialized value. It not only reduces the length of
@@ -38,13 +38,6 @@ import java.util.TimeZone;
 public class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * The local time zone.
-	 */
-	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
-
-	private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
 	public static final DateSerializer INSTANCE = new DateSerializer();
 
@@ -85,22 +78,12 @@ public class DateSerializer extends TypeSerializerSingleton<Date> {
 		if (record == null) {
 			throw new IllegalArgumentException("The Date record must not be null.");
 		}
-		target.writeInt(dateToInternal(record));
+		target.writeInt(PythonTypeUtils.dateToInternal(record));
 	}
 
 	@Override
 	public Date deserialize(DataInputView source) throws IOException {
-		return internalToDate(source.readInt());
-	}
-
-	private int dateToInternal(Date date) {
-		long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
-		return (int) (ts / MILLIS_PER_DAY);
-	}
-
-	private Date internalToDate(int v) {
-		final long t = v * MILLIS_PER_DAY;
-		return new Date(t - LOCAL_TZ.getOffset(t));
+		return PythonTypeUtils.internalToDate(source.readInt());
 	}
 
 	@Override

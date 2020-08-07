@@ -81,12 +81,12 @@ import java.util.List;
  *
  * <pre>
  * {@code
- * ParquetTableSource orcSrc = ParquetTableSource.builder()
+ * ParquetTableSource parquetSrc = ParquetTableSource.builder()
  *   .path("file:///my/data/file.parquet")
  *   .schema(messageType)
  *   .build();
  *
- * tEnv.registerTableSource("parquetTable", orcSrc);
+ * tEnv.registerTableSourceInternal("parquetTable", parquetSrc);
  * Table res = tableEnv.sqlQuery("SELECT * FROM parquetTable");
  * }
  * </pre>

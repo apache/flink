@@ -73,4 +73,6 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 * Returns the number of used buffers of this buffer pool.
 	 */
 	int bestEffortGetNumOfUsedBuffers();
+
+	BufferRecycler[] getSubpartitionBufferRecyclers();
 }

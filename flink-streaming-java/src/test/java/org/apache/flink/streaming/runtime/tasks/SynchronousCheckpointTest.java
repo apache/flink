@@ -62,8 +62,8 @@ public class SynchronousCheckpointTest {
 
 		taskInvocation = CompletableFuture.runAsync(
 			() -> {
-				streamTaskUnderTest = createTask(eventQueue);
 				try {
+					streamTaskUnderTest = createTask(eventQueue);
 					streamTaskUnderTest.invoke();
 				} catch (RuntimeException e) {
 					throw e;
@@ -133,7 +133,7 @@ public class SynchronousCheckpointTest {
 		}
 	}
 
-	private static StreamTaskUnderTest createTask(Queue<Event> eventQueue) {
+	private static StreamTaskUnderTest createTask(Queue<Event> eventQueue) throws Exception {
 		final DummyEnvironment environment = new DummyEnvironment("test", 1, 0);
 		return new StreamTaskUnderTest(environment, eventQueue);
 	}
@@ -145,7 +145,7 @@ public class SynchronousCheckpointTest {
 
 		StreamTaskUnderTest(
 				final Environment env,
-				Queue<Event> eventQueue) {
+				Queue<Event> eventQueue) throws Exception {
 			super(env);
 			this.eventQueue = checkNotNull(eventQueue);
 		}

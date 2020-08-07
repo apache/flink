@@ -27,11 +27,6 @@ public class MesosConfigKeys {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The Mesos task ID, used by the TM for informational purposes.
-	 */
-	public static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
-
-	/**
 	 * Reserved for future enhancement.
 	 */
 	public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";

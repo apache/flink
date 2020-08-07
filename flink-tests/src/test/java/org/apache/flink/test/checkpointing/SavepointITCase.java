@@ -34,6 +34,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -55,7 +56,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -67,7 +67,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +101,6 @@ import static org.junit.Assert.fail;
  * Integration test for triggering and resuming from savepoints.
  */
 @SuppressWarnings("serial")
-@Category(AlsoRunWithLegacyScheduler.class)
 public class SavepointITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
@@ -155,6 +153,26 @@ public class SavepointITCase extends TestLogger {
 		verifySavepoint(parallelism, savepointPath);
 
 		restoreJobAndVerifyState(savepointPath, clusterFactory, parallelism);
+	}
+
+	@Test
+	public void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath() throws Exception {
+		final int numTaskManagers = 2;
+		final int numSlotsPerTaskManager = 2;
+		final int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+		final MiniClusterResourceFactory clusterFactory = new MiniClusterResourceFactory(
+			numTaskManagers,
+			numSlotsPerTaskManager,
+			getFileBasedCheckpointsConfig());
+
+		final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
+		final org.apache.flink.core.fs.Path oldPath = new org.apache.flink.core.fs.Path(savepointPath);
+		final org.apache.flink.core.fs.Path newPath = new org.apache.flink.core.fs.Path(folder.newFolder().toURI().toString());
+		(new org.apache.flink.core.fs.Path(savepointPath).getFileSystem()).rename(oldPath, newPath);
+		verifySavepoint(parallelism, newPath.toUri().toString());
+
+		restoreJobAndVerifyState(newPath.toUri().toString(), clusterFactory, parallelism);
 	}
 
 	@Test
@@ -221,9 +239,12 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
-	private void restoreJobAndVerifyState(String savepointPath, MiniClusterResourceFactory clusterFactory, int parallelism) throws Exception {
+	private void restoreJobAndVerifyState(
+		String savepointPath,
+		MiniClusterResourceFactory clusterFactory,
+		int parallelism) throws Exception {
 		final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
-		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
+		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 		final JobID jobId = jobGraph.getJobID();
 		StatefulCounter.resetForTest(parallelism);
 
@@ -435,7 +456,7 @@ public class SavepointITCase extends TestLogger {
 			JobID jobID = submissionResult.getJobID();
 
 			// wait for the Tasks to be ready
-			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			savepointPath = client.triggerSavepoint(jobID, null).get();
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
@@ -483,10 +504,10 @@ public class SavepointITCase extends TestLogger {
 			// Submit the job
 			ClientUtils.submitJob(client, modifiedJobGraph);
 			// Await state is restored
-			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			// Await some progress after restore
-			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 		} finally {
 			cluster.after();
 		}
@@ -555,7 +576,7 @@ public class SavepointITCase extends TestLogger {
 			if (data == null) {
 				// We need this to be large, because we want to test with files
 				Random rand = new Random(getRuntimeContext().getIndexOfThisSubtask());
-				data = new byte[CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue() + 1];
+				data = new byte[(int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes() + 1];
 				rand.nextBytes(data);
 			}
 		}
@@ -662,7 +683,7 @@ public class SavepointITCase extends TestLogger {
 
 		Configuration config = getFileBasedCheckpointsConfig();
 		config.addAll(jobGraph.getJobConfiguration());
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.ZERO);
 
 		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
@@ -812,7 +833,7 @@ public class SavepointITCase extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
+		config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		return config;
 	}

@@ -17,11 +17,11 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -33,13 +33,13 @@ import java.io.IOException;
 public class SortMergeOneSideOuterJoinIterator extends SortMergeJoinIterator {
 
 	public SortMergeOneSideOuterJoinIterator(
-			BinaryRowSerializer probeSerializer,
-			BinaryRowSerializer bufferedSerializer,
-			Projection<BaseRow, BinaryRow> probeProjection,
-			Projection<BaseRow, BinaryRow> bufferedProjection,
+			BinaryRowDataSerializer probeSerializer,
+			BinaryRowDataSerializer bufferedSerializer,
+			Projection<RowData, BinaryRowData> probeProjection,
+			Projection<RowData, BinaryRowData> bufferedProjection,
 			RecordComparator keyComparator,
-			MutableObjectIterator<BaseRow> probeIterator,
-			MutableObjectIterator<BinaryRow> bufferedIterator,
+			MutableObjectIterator<RowData> probeIterator,
+			MutableObjectIterator<BinaryRowData> bufferedIterator,
 			ResettableExternalBuffer buffer,
 			boolean[] filterNullKeys) throws IOException {
 		super(probeSerializer, bufferedSerializer, probeProjection, bufferedProjection,

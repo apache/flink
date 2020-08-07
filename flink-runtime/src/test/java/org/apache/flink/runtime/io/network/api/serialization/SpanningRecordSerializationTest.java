@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -35,7 +38,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -179,6 +187,128 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		Assert.assertFalse(deserializer.hasUnfinishedData());
 	}
 
+	@Test
+	public void testSmallRecordUnconsumedBuffer() throws Exception {
+		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
+		RecordDeserializer<SerializationTestType> deserializer =
+			new SpillingAdaptiveSpanningRecordDeserializer<>(
+				new String[]{tempFolder.getRoot().getAbsolutePath()});
+
+		testUnconsumedBuffer(serializer, deserializer, Util.randomRecord(SerializationTestTypeFactory.INT), 1024);
+	}
+
+	/**
+	 * Test both for spanning records and for handling the length buffer, that's why it's going byte by byte.
+	 */
+	@Test
+	public void testSpanningRecordUnconsumedBuffer() throws Exception {
+		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
+		RecordDeserializer<SerializationTestType> deserializer =
+			new SpillingAdaptiveSpanningRecordDeserializer<>(
+				new String[]{tempFolder.getRoot().getAbsolutePath()});
+
+		testUnconsumedBuffer(serializer, deserializer, Util.randomRecord(SerializationTestTypeFactory.INT), 1);
+	}
+
+	@Test
+	public void testLargeSpanningRecordUnconsumedBuffer() throws Exception {
+		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
+		RecordDeserializer<SerializationTestType> deserializer =
+			new SpillingAdaptiveSpanningRecordDeserializer<>(
+				new String[]{tempFolder.getRoot().getAbsolutePath()});
+
+		testUnconsumedBuffer(serializer, deserializer, Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY), 1);
+	}
+
+	@Test
+	public void testLargeSpanningRecordUnconsumedBufferWithLeftOverBytes() throws Exception {
+		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
+		RecordDeserializer<SerializationTestType> deserializer =
+			new SpillingAdaptiveSpanningRecordDeserializer<>(
+				new String[]{tempFolder.getRoot().getAbsolutePath()});
+
+		testUnconsumedBuffer(
+			serializer,
+			deserializer,
+			Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
+			1,
+			new byte[] {42, 43, 44});
+
+		deserializer.clear();
+
+		testUnconsumedBuffer(
+			serializer,
+			deserializer,
+			Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
+			1,
+			new byte[] {42, 43, 44});
+	}
+
+	public void testUnconsumedBuffer(
+			RecordSerializer<SerializationTestType> serializer,
+			RecordDeserializer<SerializationTestType> deserializer,
+			SerializationTestType record,
+			int segmentSize,
+			byte... leftOverBytes) throws Exception {
+		try (ByteArrayOutputStream unconsumedBytes = new ByteArrayOutputStream()) {
+			serializer.serializeRecord(record);
+
+			BufferAndSerializerResult serializationResult = setNextBufferForSerializer(serializer, segmentSize);
+
+			if (serializer.copyToBufferBuilder(serializationResult.getBufferBuilder()).isFullBuffer()) {
+				// buffer is full => start deserializing
+				Buffer buffer = serializationResult.buildBuffer();
+				writeBuffer(buffer.readOnlySlice().getNioBufferReadable(), unconsumedBytes);
+				deserializer.setNextBuffer(buffer);
+				assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
+
+				deserializer.getNextRecord(record.getClass().newInstance());
+
+				// move buffers as long as necessary (for long records)
+				while ((serializationResult = setNextBufferForSerializer(serializer, segmentSize)).isFullBuffer()) {
+					buffer = serializationResult.buildBuffer();
+
+					if (serializationResult.isFullRecord()) {
+						buffer = appendLeftOverBytes(buffer, leftOverBytes);
+					}
+
+					writeBuffer(buffer.readOnlySlice().getNioBufferReadable(), unconsumedBytes);
+					deserializer.setNextBuffer(buffer);
+					assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
+
+					deserializer.getNextRecord(record.getClass().newInstance());
+				}
+			}
+		}
+	}
+
+	private static Buffer appendLeftOverBytes(Buffer buffer, byte[] leftOverBytes) {
+		BufferBuilder bufferBuilder = new BufferBuilder(
+			MemorySegmentFactory.allocateUnpooledSegment(buffer.readableBytes() + leftOverBytes.length),
+			FreeingBufferRecycler.INSTANCE);
+		try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
+			bufferBuilder.append(buffer.getNioBufferReadable());
+			bufferBuilder.appendAndCommit(ByteBuffer.wrap(leftOverBytes));
+			return bufferConsumer.build();
+		}
+	}
+
+	private static void assertUnconsumedBuffer(ByteArrayOutputStream expected, CloseableIterator<Buffer> actual) throws Exception {
+		if (!actual.hasNext()) {
+			Assert.assertEquals(expected.size(), 0);
+		}
+
+		ByteBuffer expectedByteBuffer = ByteBuffer.wrap(expected.toByteArray());
+		ByteBuffer actualByteBuffer = actual.next().getNioBufferReadable();
+		Assert.assertEquals(expectedByteBuffer, actualByteBuffer);
+		actual.close();
+	}
+
+	private static void writeBuffer(ByteBuffer buffer, OutputStream stream) throws IOException {
+		WritableByteChannel channel = Channels.newChannel(stream);
+		channel.write(buffer);
+	}
+
 	private static BufferAndSerializerResult setNextBufferForSerializer(
 			RecordSerializer<SerializationTestType> serializer,
 			int segmentSize) throws IOException {
@@ -219,6 +349,10 @@ public class SpanningRecordSerializationTest extends TestLogger {
 
 		public boolean isFullBuffer() {
 			return serializationResult.isFullBuffer();
+		}
+
+		public boolean isFullRecord() {
+			return serializationResult.isFullRecord();
 		}
 	}
 }

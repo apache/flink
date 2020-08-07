@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -35,21 +35,23 @@ import org.apache.flink.util.Collector
   * @param rightType       the input type of right stream
   * @param genJoinFuncName the function code without any non-equi condition
   * @param genJoinFuncCode the function name without any non-equi condition
-  * @param queryConfig     the configuration for the query to generate
+  * @param config          configuration that determines runtime behavior
   */
 class NonWindowFullJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    queryConfig: StreamQueryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends NonWindowOuterJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
     false,
-    queryConfig) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)

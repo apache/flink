@@ -104,11 +104,6 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
-		consumeDataStream(dataStream);
-	}
-
-	@Override
 	public TypeInformation<Row> getOutputType() {
 		return schema.toRowType();
 	}

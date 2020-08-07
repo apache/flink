@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -47,21 +48,23 @@ import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
@@ -169,7 +172,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 			// use wrong ports for the consumers
 			properties.setProperty("bootstrap.servers", "localhost:80");
-			properties.setProperty("zookeeper.connect", "localhost:80");
 			properties.setProperty("group.id", "test");
 			properties.setProperty("request.timeout.ms", "3000"); // let the test fail fast
 			properties.setProperty("socket.timeout.ms", "3000");
@@ -416,9 +418,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
-		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
-			new KeyedSerializationSchemaWrapper<>(
-				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+		final SerializationSchema<Tuple2<Integer, Integer>> serSchema =
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig());
 
 		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 			new KafkaDeserializationSchemaWrapper<>(
@@ -745,7 +746,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
 		producerProperties.putAll(secureProps);
-		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
+		kafkaServer.produceIntoKafka(stream, topic, sinkSchema, producerProperties, null);
 
 		// ----------- add consumer dataflow ----------
 
@@ -1300,7 +1301,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			}
 		});
 
-		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(serSchema), producerProps, null);
+		kafkaServer.produceIntoKafka(stream, topic, serSchema, producerProps, null);
 
 		tryExecute(env, "big topology test");
 		deleteTestTopic(topic);
@@ -1538,6 +1539,70 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 	}
 
 	/**
+	 * Test that ensures that DeserializationSchema can emit multiple records via a Collector.
+	 *
+	 * @throws Exception
+	 */
+	public void runCollectingSchemaTest() throws Exception {
+
+		final int elementCount = 20;
+		final String topic = writeSequence("testCollectingSchema", elementCount, 1, 1);
+
+		// read using custom schema
+		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
+		env1.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env1.setParallelism(1);
+		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env1.getConfig().disableSysoutLogging();
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		DataStream<Tuple2<Integer, String>> fromKafka = env1.addSource(
+			kafkaServer.getConsumer(
+				topic,
+				new CollectingDeserializationSchema(elementCount),
+				props)
+				.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple2<Integer, String>>() {
+					@Override
+					public long extractAscendingTimestamp(Tuple2<Integer, String> element) {
+						String string = element.f1;
+						return Long.parseLong(string.substring(0, string.length() - 1));
+					}
+				})
+		);
+		fromKafka
+			.keyBy(t -> t.f0)
+			.process(new KeyedProcessFunction<Integer, Tuple2<Integer, String>, Void>() {
+				private boolean registered = false;
+
+				@Override
+				public void processElement(
+						Tuple2<Integer, String> value,
+						Context ctx,
+						Collector<Void> out) throws Exception {
+					if (!registered) {
+						ctx.timerService().registerEventTimeTimer(elementCount - 2);
+						registered = true;
+					}
+				}
+
+				@Override
+				public void onTimer(
+						long timestamp,
+						OnTimerContext ctx,
+						Collector<Void> out) throws Exception {
+					throw new SuccessException();
+				}
+			});
+
+		tryExecute(env1, "Consume " + elementCount + " elements from Kafka");
+
+		deleteTestTopic(topic);
+	}
+
+	/**
 	 * Test metrics reporting for consumer.
 	 *
 	 * @throws Exception
@@ -1585,7 +1650,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			}
 		});
 
-		kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
+		kafkaServer.produceIntoKafka(fromGen, topic, schema, standardProps, null);
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env1.getStreamGraph());
 		final JobID jobId = jobGraph.getJobID();
@@ -1652,6 +1717,45 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		deleteTestTopic(topic);
+	}
+
+	private static class CollectingDeserializationSchema implements KafkaDeserializationSchema<Tuple2<Integer, String>> {
+
+		final int finalCount;
+
+		TypeInformation<Tuple2<Integer, String>> ti = TypeInformation.of(new TypeHint<Tuple2<Integer, String>>() {});
+		TypeSerializer<Tuple2<Integer, Integer>> ser =
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {})
+				.createSerializer(new ExecutionConfig());
+
+		public CollectingDeserializationSchema(int finalCount) {
+			this.finalCount = finalCount;
+		}
+
+		@Override
+		public boolean isEndOfStream(Tuple2<Integer, String> nextElement) {
+			return false;
+		}
+
+		@Override
+		public Tuple2<Integer, String> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+			throw new UnsupportedOperationException("Should not be called");
+		}
+
+		@Override
+		public void deserialize(
+				ConsumerRecord<byte[], byte[]> message,
+				Collector<Tuple2<Integer, String>> out) throws Exception {
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message.value()));
+			Tuple2<Integer, Integer> tuple = ser.deserialize(in);
+			out.collect(Tuple2.of(tuple.f0, tuple.f1 + "a"));
+			out.collect(Tuple2.of(tuple.f0, tuple.f1 + "b"));
+		}
+
+		@Override
+		public TypeInformation<Tuple2<Integer, String>> getProducedType() {
+			return ti;
+		}
 	}
 
 	private static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {
@@ -1834,9 +1938,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
-		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
-				new KeyedSerializationSchemaWrapper<>(
-						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+		final SerializationSchema<Tuple2<Integer, Integer>> serSchema =
+					new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig());
 
 		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 				new KafkaDeserializationSchemaWrapper<>(
@@ -1930,9 +2033,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
-		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
-			new KeyedSerializationSchemaWrapper<>(
-				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+		final SerializationSchema<Tuple2<Integer, Integer>> serSchema =
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig());
 
 		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 			new KafkaDeserializationSchemaWrapper<>(
@@ -2142,6 +2244,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			hasBeenCheckpointed = true;
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 
 		@Override

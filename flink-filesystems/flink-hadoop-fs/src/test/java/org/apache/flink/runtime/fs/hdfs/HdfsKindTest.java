@@ -45,48 +45,6 @@ public class HdfsKindTest extends TestLogger {
 	}
 
 	@Test
-	public void testS3Kind() throws IOException {
-		try {
-			Class.forName("org.apache.hadoop.fs.s3.S3FileSystem");
-		} catch (ClassNotFoundException ignored) {
-			// not in the classpath, cannot run this test
-			log.info("Skipping test 'testS3Kind()' because the S3 file system is not in the class path");
-			return;
-		}
-
-		final FileSystem s3 = new Path("s3://myId:mySecret@bucket/some/bucket/some/object").getFileSystem();
-		assertEquals(FileSystemKind.OBJECT_STORE, s3.getKind());
-	}
-
-	@Test
-	public void testS3nKind() throws IOException {
-		try {
-			Class.forName("org.apache.hadoop.fs.s3native.NativeS3FileSystem");
-		} catch (ClassNotFoundException ignored) {
-			// not in the classpath, cannot run this test
-			log.info("Skipping test 'testS3nKind()' because the Native S3 file system is not in the class path");
-			return;
-		}
-
-		final FileSystem s3n = new Path("s3n://myId:mySecret@bucket/some/bucket/some/object").getFileSystem();
-		assertEquals(FileSystemKind.OBJECT_STORE, s3n.getKind());
-	}
-
-	@Test
-	public void testS3aKind() throws IOException {
-		try {
-			Class.forName("org.apache.hadoop.fs.s3a.S3AFileSystem");
-		} catch (ClassNotFoundException ignored) {
-			// not in the classpath, cannot run this test
-			log.info("Skipping test 'testS3aKind()' because the S3AFileSystem is not in the class path");
-			return;
-		}
-
-		final FileSystem s3a = new Path("s3a://myId:mySecret@bucket/some/bucket/some/object").getFileSystem();
-		assertEquals(FileSystemKind.OBJECT_STORE, s3a.getKind());
-	}
-
-	@Test
 	public void testS3fileSystemSchemes() {
 		assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3"));
 		assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3n"));

@@ -31,14 +31,14 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
-import org.apache.flink.table.api.{TableConfig, Types, ValidationException}
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin.TEMPORAL_JOIN_CONDITION
 import org.apache.flink.table.plan.nodes.datastream.DataStreamTemporalJoinToCoProcessTranslator
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TestStreamQueryConfig}
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TestTableConfig}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -55,10 +55,8 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   private val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
 
-  private val tableConfig = new TableConfig
-
-  private val queryConfig =
-    new TestStreamQueryConfig(Time.milliseconds(2), Time.milliseconds(4))
+  private val config = new TestTableConfig
+  config.setIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(4))
 
   private val ORDERS_KEY = "o_currency"
 
@@ -746,7 +744,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
     val joinTranslator = DataStreamTemporalJoinToCoProcessTranslator.create(
       "TemporalJoin",
-      tableConfig,
+      config,
       joinType,
       new RowSchema(typeFactory.createTypeFromTypeInfo(leftType, false)),
       new RowSchema(typeFactory.createTypeFromTypeInfo(rightType, false)),
@@ -756,8 +754,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     val joinOperator = joinTranslator.getJoinOperator(
       joinRelType,
       joinType.getFieldNames,
-      "TemporalJoin",
-      queryConfig)
+      "TemporalJoin")
 
     (joinTranslator.getLeftKeySelector(),
       joinTranslator.getRightKeySelector(),

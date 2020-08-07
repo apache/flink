@@ -29,23 +29,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 public interface StreamTableSink<T> extends TableSink<T> {
 
 	/**
-	 * Emits the DataStream.
-	 *
-	 * @deprecated This method will be removed in future versions as it returns nothing.
-	 *  It is recommended to use {@link #consumeDataStream(DataStream)} instead which
-	 *  returns the {@link DataStreamSink}. The returned {@link DataStreamSink} will be
-	 *  used to set resources for the sink operator. If the {@link #consumeDataStream(DataStream)}
-	 *  is implemented, this method can be empty implementation.
-	 */
-	@Deprecated
-	void emitDataStream(DataStream<T> dataStream);
-
-	/**
 	 * Consumes the DataStream and return the sink transformation {@link DataStreamSink}.
 	 * The returned {@link DataStreamSink} will be used to set resources for the sink operator.
 	 */
-	default DataStreamSink<?> consumeDataStream(DataStream<T> dataStream) {
-		emitDataStream(dataStream);
-		return null;
-	}
+	DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }

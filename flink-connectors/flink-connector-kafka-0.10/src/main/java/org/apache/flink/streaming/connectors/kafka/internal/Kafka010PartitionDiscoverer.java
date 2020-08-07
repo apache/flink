@@ -18,16 +18,30 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.PartitionInfo;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A partition discoverer that can be used to discover topics and partitions metadata
  * from Kafka brokers via the Kafka 0.10 high-level consumer API.
  */
 @Internal
-public class Kafka010PartitionDiscoverer extends Kafka09PartitionDiscoverer {
+public class Kafka010PartitionDiscoverer extends AbstractPartitionDiscoverer {
+
+	private final Properties kafkaProperties;
+
+	private KafkaConsumer<?, ?> kafkaConsumer;
 
 	public Kafka010PartitionDiscoverer(
 		KafkaTopicsDescriptor topicsDescriptor,
@@ -35,6 +49,63 @@ public class Kafka010PartitionDiscoverer extends Kafka09PartitionDiscoverer {
 		int numParallelSubtasks,
 		Properties kafkaProperties) {
 
-		super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, kafkaProperties);
+		super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
+		this.kafkaProperties = checkNotNull(kafkaProperties);
+	}
+
+	@Override
+	protected void initializeConnections() {
+		this.kafkaConsumer = new KafkaConsumer<>(kafkaProperties);
+	}
+
+	@Override
+	protected List<String> getAllTopics() throws WakeupException {
+		try {
+			return new ArrayList<>(kafkaConsumer.listTopics().keySet());
+		} catch (org.apache.kafka.common.errors.WakeupException e) {
+			// rethrow our own wakeup exception
+			throw new WakeupException();
+		}
+	}
+
+	@Override
+	protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) throws WakeupException, RuntimeException {
+		List<KafkaTopicPartition> partitions = new LinkedList<>();
+
+		try {
+			for (String topic : topics) {
+				final List<PartitionInfo> kafkaPartitions = kafkaConsumer.partitionsFor(topic);
+
+				if (kafkaPartitions == null) {
+					throw new RuntimeException(String.format("Could not fetch partitions for %s. Make sure that the topic exists.", topic));
+				}
+
+				for (PartitionInfo partitionInfo : kafkaPartitions) {
+					partitions.add(new KafkaTopicPartition(partitionInfo.topic(), partitionInfo.partition()));
+				}
+			}
+		} catch (org.apache.kafka.common.errors.WakeupException e) {
+			// rethrow our own wakeup exception
+			throw new WakeupException();
+		}
+
+		return partitions;
+	}
+
+	@Override
+	protected void wakeupConnections() {
+		if (this.kafkaConsumer != null) {
+			this.kafkaConsumer.wakeup();
+		}
+	}
+
+	@Override
+	protected void closeConnections() throws Exception {
+		if (this.kafkaConsumer != null) {
+			this.kafkaConsumer.close();
+
+			// de-reference the consumer to avoid closing multiple times
+			this.kafkaConsumer = null;
+		}
 	}
 }

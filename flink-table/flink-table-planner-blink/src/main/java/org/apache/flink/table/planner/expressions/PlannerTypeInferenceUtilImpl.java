@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.validate.ValidationResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -54,6 +55,10 @@ public final class PlannerTypeInferenceUtilImpl implements PlannerTypeInferenceU
 	public TypeInferenceUtil.Result runTypeInference(
 			UnresolvedCallExpression unresolvedCall,
 			List<ResolvedExpression> resolvedArgs) {
+		// We should not try to resolve the children again with the old type stack
+		// The arguments might have been resolved with the new stack already. In that case the
+		// resolution will fail.
+		unresolvedCall = unresolvedCall.replaceArgs(new ArrayList<>(resolvedArgs));
 		final PlannerExpression plannerCall = unresolvedCall.accept(CONVERTER);
 
 		if (plannerCall instanceof InputTypeSpec) {

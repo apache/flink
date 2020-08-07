@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>classloader.fail-on-metaspace-oom-error</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Fail Flink JVM processes if 'OutOfMemoryError: Metaspace' is thrown while trying to load a user code class.</td>
+        </tr>
+        <tr>
             <td><h5>classloader.parent-first-patterns.additional</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -25,6 +31,30 @@
             <td style="word-wrap: break-word;">"child-first"</td>
             <td>String</td>
             <td>Defines the class resolution strategy when loading classes from user code, meaning whether to first check the user code jar ("child-first") or the application classpath ("parent-first"). The default settings indicate to load classes first from the user code jar, which means that user code jars can include and load different dependencies than Flink uses (transitively).</td>
+        </tr>
+        <tr>
+            <td><h5>fs.allowed-fallback-filesystems</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A (semicolon-separated) list of file schemes, for which Hadoop can be used instead of an appropriate Flink plugin. (example: s3;wasb)</td>
+        </tr>
+        <tr>
+            <td><h5>fs.default-scheme</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The default filesystem scheme, used for paths that do not declare a scheme explicitly. May contain an authority, e.g. host:port in case of an HDFS NameNode.</td>
+        </tr>
+        <tr>
+            <td><h5>fs.output.always-create-directory</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>File writers running with a parallelism larger than one create a directory for the output file path and put the different result files (one per parallel writer task) into that directory. If this option is set to "true", writers with a parallelism of 1 will also create a directory and place a single result file into it. If the option is set to "false", the writer will directly create the file directly at the output path, without creating a containing directory.</td>
+        </tr>
+        <tr>
+            <td><h5>fs.overwrite-files</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Specifies whether file output writers should overwrite existing files by default. Set to "true" to overwrite by default,"false" otherwise.</td>
         </tr>
         <tr>
             <td><h5>io.tmp.dirs</h5></td>

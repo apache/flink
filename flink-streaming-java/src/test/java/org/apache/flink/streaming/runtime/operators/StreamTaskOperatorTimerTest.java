@@ -21,20 +21,19 @@ package org.apache.flink.streaming.runtime.operators;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -78,7 +77,9 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 		assertThat(events, is(Arrays.asList(trigger, RESULT_PREFIX + "1:0", RESULT_PREFIX + "0:0")));
 	}
 
-	private static class TestOperatorFactory implements OneInputStreamOperatorFactory<String, String>, YieldingOperatorFactory<String> {
+	private static class TestOperatorFactory extends AbstractStreamOperatorFactory<String>
+		implements OneInputStreamOperatorFactory<String, String>, YieldingOperatorFactory<String> {
+
 		private MailboxExecutor mailboxExecutor;
 
 		@Override
@@ -88,21 +89,15 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 
 		@Override
 		public <Operator extends StreamOperator<String>> Operator createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<String>> output) {
-			TestOperator operator = new TestOperator(config.getChainIndex(), mailboxExecutor);
-			operator.setup(containingTask, config, output);
+			StreamOperatorParameters<String> parameters) {
+			TestOperator operator = new TestOperator(parameters.getStreamConfig().getChainIndex(), mailboxExecutor);
+			operator.setProcessingTimeService(processingTimeService);
+			operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 			return (Operator) operator;
 		}
 
 		@Override
 		public void setChainingStrategy(ChainingStrategy strategy) {
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return ChainingStrategy.ALWAYS;
 		}
 
 		@Override

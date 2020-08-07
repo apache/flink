@@ -19,13 +19,14 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractClusterClientFactory;
+import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -40,19 +41,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link ClusterClientFactory} for a YARN cluster.
  */
 @Internal
-public class YarnClusterClientFactory extends AbstractClusterClientFactory<ApplicationId> {
+public class YarnClusterClientFactory extends AbstractContainerizedClusterClientFactory<ApplicationId> {
 
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
 		final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
-		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget) ||
-				YarnSessionClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget);
+		return YarnDeploymentTarget.isValidYarnTarget(deploymentTarget);
 	}
 
 	@Override
 	public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
 		checkNotNull(configuration);
+
+		final String configurationDirectory =
+				configuration.get(DeploymentOptionsInternal.CONF_DIR);
+		YarnLogConfigUtil.setLogConfigFileInConfig(configuration, configurationDirectory);
+
 		return getClusterDescriptor(configuration);
 	}
 
@@ -75,6 +80,7 @@ public class YarnClusterClientFactory extends AbstractClusterClientFactory<Appli
 				configuration,
 				yarnConfiguration,
 				yarnClient,
+				YarnClientYarnClusterInformationRetriever.create(yarnClient),
 				false);
 	}
 }

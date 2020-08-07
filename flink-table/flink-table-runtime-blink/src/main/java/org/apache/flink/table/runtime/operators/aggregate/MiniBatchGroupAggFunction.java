@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
@@ -30,10 +30,11 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
-import org.apache.flink.table.runtime.types.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -42,16 +43,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.ACCUMULATE_MSG;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.RETRACT_MSG;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
+import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 
 /**
  * Aggregate Function used for the groupby (without window) aggregate in miniBatch mode.
  *
  * <p>This function buffers input row in heap HashMap, and aggregates them when minibatch invoked.
  */
-public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<BaseRow>, BaseRow, BaseRow> {
+public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<RowData>, RowData, RowData> {
 
 	private static final long serialVersionUID = 7455939331036508477L;
 
@@ -61,7 +60,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 	private final GeneratedAggsHandleFunction genAggsHandler;
 
 	/**
-	 * The code generated equaliser used to equal BaseRow.
+	 * The code generated equaliser used to equal RowData.
 	 */
 	private final GeneratedRecordEqualiser genRecordEqualiser;
 
@@ -81,38 +80,38 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	/**
 	 * Reused output row.
 	 */
-	private transient JoinedRow resultRow = new JoinedRow();
+	private transient JoinedRowData resultRow = new JoinedRowData();
 
 	// serializer used to deep copy input row
-	private transient TypeSerializer<BaseRow> inputRowSerializer;
+	private transient TypeSerializer<RowData> inputRowSerializer;
 
 	// function used to handle all aggregates
 	private transient AggsHandleFunction function = null;
 
-	// function used to equal BaseRow
+	// function used to equal RowData
 	private transient RecordEqualiser equaliser = null;
 
 	// stores the accumulators
-	private transient ValueState<BaseRow> accState = null;
+	private transient ValueState<RowData> accState = null;
 
 	/**
 	 * Creates a {@link MiniBatchGroupAggFunction}.
 	 *
 	 * @param genAggsHandler The code generated function used to handle aggregates.
-	 * @param genRecordEqualiser The code generated equaliser used to equal BaseRow.
+	 * @param genRecordEqualiser The code generated equaliser used to equal RowData.
 	 * @param accTypes The accumulator types.
 	 * @param inputType The input row type.
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
 	 */
 	public MiniBatchGroupAggFunction(
 			GeneratedAggsHandleFunction genAggsHandler,
@@ -120,13 +119,13 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 			LogicalType[] accTypes,
 			RowType inputType,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		this.genAggsHandler = genAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
 		this.accTypes = accTypes;
 		this.inputType = inputType;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -138,20 +137,18 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 		// instantiate equaliser
 		equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = ctx.getRuntimeContext().getState(accDesc);
 
-		//noinspection unchecked
-		inputRowSerializer = (TypeSerializer) InternalSerializers.create(
-				inputType, ctx.getRuntimeContext().getExecutionConfig());
+		inputRowSerializer = InternalSerializers.create(inputType);
 
-		resultRow = new JoinedRow();
+		resultRow = new JoinedRowData();
 	}
 
 	@Override
-	public List<BaseRow> addInput(@Nullable List<BaseRow> value, BaseRow input) throws Exception {
-		List<BaseRow> bufferedRows = value;
+	public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
+		List<RowData> bufferedRows = value;
 		if (value == null) {
 			bufferedRows = new ArrayList<>();
 		}
@@ -161,10 +158,10 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 	}
 
 	@Override
-	public void finishBundle(Map<BaseRow, List<BaseRow>> buffer, Collector<BaseRow> out) throws Exception {
-		for (Map.Entry<BaseRow, List<BaseRow>> entry : buffer.entrySet()) {
-			BaseRow currentKey = entry.getKey();
-			List<BaseRow> inputRows = entry.getValue();
+	public void finishBundle(Map<RowData, List<RowData>> buffer, Collector<RowData> out) throws Exception {
+		for (Map.Entry<RowData, List<RowData>> entry : buffer.entrySet()) {
+			RowData currentKey = entry.getKey();
+			List<RowData> inputRows = entry.getValue();
 
 			boolean firstRow = false;
 
@@ -172,7 +169,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 
 			// set current key to access state under the key
 			ctx.setCurrentKey(currentKey);
-			BaseRow acc = accState.value();
+			RowData acc = accState.value();
 			if (acc == null) {
 				acc = function.createAccumulators();
 				firstRow = true;
@@ -182,9 +179,9 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 			function.setAccumulators(acc);
 
 			// get previous aggregate result
-			BaseRow prevAggValue = function.getValue();
+			RowData prevAggValue = function.getValue();
 
-			for (BaseRow input : inputRows) {
+			for (RowData input : inputRows) {
 				if (isAccumulateMsg(input)) {
 					function.accumulate(input);
 				} else {
@@ -193,7 +190,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 			}
 
 			// get current aggregate result
-			BaseRow newAggValue = function.getValue();
+			RowData newAggValue = function.getValue();
 
 			// get updated accumulator
 			acc = function.getAccumulators();
@@ -206,32 +203,31 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 
 				// if this was not the first row and we have to emit retractions
 				if (!firstRow) {
-					if (!equaliser.equalsWithoutHeader(prevAggValue, newAggValue)) {
+					if (!equaliser.equals(prevAggValue, newAggValue)) {
 						// new row is not same with prev row
-						if (generateRetraction) {
-							// prepare retraction message for previous row
-							resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+						if (generateUpdateBefore) {
+							// prepare UPDATE_BEFORE message for previous row
+							resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.UPDATE_BEFORE);
 							out.collect(resultRow);
 						}
-						// prepare accumulation message for new row
-						resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+						// prepare UPDATE_AFTER message for new row
+						resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.UPDATE_AFTER);
 						out.collect(resultRow);
 					}
 					// new row is same with prev row, no need to output
 				} else {
 					// this is the first, output new result
-
-					// prepare accumulation message for new row
-					resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+					// prepare INSERT message for new row
+					resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.INSERT);
 					out.collect(resultRow);
 				}
 
 			} else {
 				// we retracted the last record for this key
-				// if this is not first row sent out a delete message
+				// if this is not first row sent out a DELETE message
 				if (!firstRow) {
-					// prepare delete message for previous row
-					resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+					// prepare DELETE message for previous row
+					resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.DELETE);
 					out.collect(resultRow);
 				}
 				// and clear all state

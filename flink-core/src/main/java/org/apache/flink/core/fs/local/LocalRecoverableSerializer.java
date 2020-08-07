@@ -52,8 +52,8 @@ class LocalRecoverableSerializer implements SimpleVersionedSerializer<LocalRecov
 
 	@Override
 	public byte[] serialize(LocalRecoverable obj) throws IOException {
-		final byte[] targetFileBytes = obj.targetFile().getAbsolutePath().getBytes(CHARSET);
-		final byte[] tempFileBytes = obj.tempFile().getAbsolutePath().getBytes(CHARSET);
+		final byte[] targetFileBytes = obj.targetFile().toString().getBytes(CHARSET);
+		final byte[] tempFileBytes = obj.tempFile().toString().getBytes(CHARSET);
 		final byte[] targetBytes = new byte[20 + targetFileBytes.length + tempFileBytes.length];
 
 		ByteBuffer bb = ByteBuffer.wrap(targetBytes).order(ByteOrder.LITTLE_ENDIAN);

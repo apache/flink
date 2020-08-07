@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference.utils;
 
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -31,7 +31,7 @@ import java.util.Optional;
  */
 public class CallContextMock implements CallContext {
 
-	public DataTypeLookup lookup;
+	public DataTypeFactory typeFactory;
 
 	public List<DataType> argumentDataTypes;
 
@@ -48,8 +48,8 @@ public class CallContextMock implements CallContext {
 	public Optional<DataType> outputDataType;
 
 	@Override
-	public DataTypeLookup getDataTypeLookup() {
-		return lookup;
+	public DataTypeFactory getDataTypeFactory() {
+		return typeFactory;
 	}
 
 	@Override
@@ -70,7 +70,7 @@ public class CallContextMock implements CallContext {
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		return (Optional<T>) argumentValues.get(pos);
+		return (Optional<T>) argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
 	}
 
 	@Override

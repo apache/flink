@@ -27,7 +27,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -53,8 +52,12 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 	private final T reuse;
 
-	public IteratorWrappingTestSingleInputGate(int bufferSize, Class<T> recordType, MutableObjectIterator<T> iterator) throws IOException, InterruptedException {
-		super(1, false);
+	public IteratorWrappingTestSingleInputGate(
+			int bufferSize,
+			int gateIndex,
+			MutableObjectIterator<T> iterator,
+			Class<T> recordType) throws IOException, InterruptedException {
+		super(1, gateIndex, false);
 
 		this.bufferSize = bufferSize;
 		this.reuse = InstantiationUtil.instantiate(recordType);
@@ -96,7 +99,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 		inputChannel.addBufferAndAvailability(answer);
 
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		inputGate.setInputChannels(inputChannel);
 
 		return this;
 	}

@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table module.
@@ -30,6 +34,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
+@PublicEvolving
 public class ExecutionConfigOptions {
 
 	// ------------------------------------------------------------------------
@@ -43,6 +48,22 @@ public class ExecutionConfigOptions {
 				"it will be marked as temporarily idle. This allows downstream " +
 				"tasks to advance their watermarks without the need to wait for " +
 				"watermarks from this source while it is idle.");
+
+	// ------------------------------------------------------------------------
+	//  Sink Options
+	// ------------------------------------------------------------------------
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<NotNullEnforcer> TABLE_EXEC_SINK_NOT_NULL_ENFORCER =
+		key("table.exec.sink.not-null-enforcer")
+			.enumType(NotNullEnforcer.class)
+			.defaultValue(NotNullEnforcer.ERROR)
+			.withDescription("The NOT NULL column constraint on a table enforces that " +
+				"null values can't be inserted into the table. Flink supports " +
+				"'error' (default) and 'drop' enforcement behavior. By default, " +
+				"Flink will check values and throw runtime exception when null values writing " +
+				"into NOT NULL columns. Users can change the behavior to 'drop' to " +
+				"silently drop such records without throwing exception.");
 
 	// ------------------------------------------------------------------------
 	//  Sort Options
@@ -100,7 +121,8 @@ public class ExecutionConfigOptions {
 					"default parallelism is set, then it will fallback to use the parallelism " +
 					"of StreamExecutionEnvironment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
 		key("table.exec.resource.external-buffer-memory")
 			.defaultValue("10 mb")
@@ -109,7 +131,8 @@ public class ExecutionConfigOptions {
 					" it will affect the weight of memory that can be applied by a single operator" +
 					" in the task, the actual memory used depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
 		key("table.exec.resource.hash-agg.memory")
 			.defaultValue("128 mb")
@@ -118,7 +141,8 @@ public class ExecutionConfigOptions {
 					" that can be applied by a single operator in the task, the actual memory used" +
 					" depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
 		key("table.exec.resource.hash-join.memory")
 			.defaultValue("128 mb")
@@ -127,7 +151,8 @@ public class ExecutionConfigOptions {
 					" memory that can be applied by a single operator in the task, the actual" +
 					" memory used depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_SORT_MEMORY =
 		key("table.exec.resource.sort.memory")
 			.defaultValue("128 mb")
@@ -212,9 +237,52 @@ public class ExecutionConfigOptions {
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
 		key("table.exec.shuffle-mode")
-			.defaultValue("batch")
-			.withDescription("Sets exec shuffle mode. Only batch or pipeline can be set.\n" +
-				"batch: the job will run stage by stage. \n" +
-				"pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
-				"the sender holds resource to wait to send data to the receiver.");
+			.stringType()
+			.defaultValue("ALL_EDGES_BLOCKING")
+			.withDescription(
+				Description.builder()
+					.text("Sets exec shuffle mode.")
+					.linebreak()
+					.text("Accepted values are:")
+					.list(
+						text("%s: All edges will use blocking shuffle.",
+							code("ALL_EDGES_BLOCKING")),
+						text(
+							"%s: Forward edges will use pipelined shuffle, others blocking.",
+							code("FORWARD_EDGES_PIPELINED")),
+						text(
+							"%s: Pointwise edges will use pipelined shuffle, others blocking. " +
+								"Pointwise edges include forward and rescale edges.",
+							code("POINTWISE_EDGES_PIPELINED")),
+						text(
+							"%s: All edges will use pipelined shuffle.",
+							code("ALL_EDGES_PIPELINED")),
+						text(
+							"%s: the same as %s. Deprecated.",
+							code("batch"), code("ALL_EDGES_BLOCKING")),
+						text(
+							"%s: the same as %s. Deprecated.",
+							code("pipelined"), code("ALL_EDGES_PIPELINED"))
+					)
+					.text("Note: Blocking shuffle means data will be fully produced before sent to consumer tasks. " +
+						"Pipelined shuffle means data will be sent to consumer tasks once produced.")
+					.build());
+
+	// ------------------------------------------------------------------------------------------
+	// Enum option types
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * The enforcer to guarantee NOT NULL column constraint when writing data into sink.
+	 */
+	public enum NotNullEnforcer {
+		/**
+		 * Throws runtime exception when writing null values into NOT NULL column.
+		 */
+		ERROR,
+		/**
+		 * Drop records when writing null values into NOT NULL column.
+		 */
+		DROP
+	}
 }

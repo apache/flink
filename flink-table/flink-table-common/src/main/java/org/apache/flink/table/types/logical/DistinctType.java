@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.util.Preconditions;
 
@@ -104,15 +103,10 @@ public final class DistinctType extends UserDefinedType {
 		return sourceType;
 	}
 
-	public ObjectIdentifier getObjectIdentifier() {
-		return getOptionalObjectIdentifier()
-			.orElseThrow(() -> new TableException("Object identifier expected."));
-	}
-
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new DistinctType(
-			getObjectIdentifier(),
+			getObjectIdentifier().orElseThrow(IllegalStateException::new),
 			sourceType.copy(isNullable),
 			getDescription().orElse(null));
 	}

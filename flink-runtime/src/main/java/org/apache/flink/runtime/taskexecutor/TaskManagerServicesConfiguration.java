@@ -22,12 +22,17 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.util.NetUtils;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +52,11 @@ public class TaskManagerServicesConfiguration {
 
 	private final ResourceID resourceID;
 
-	private final InetAddress taskManagerAddress;
+	private final String externalAddress;
+
+	private final InetAddress bindAddress;
+
+	private final int externalDataPort;
 
 	private final boolean localCommunicationOnly;
 
@@ -72,10 +81,18 @@ public class TaskManagerServicesConfiguration {
 
 	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
-	public TaskManagerServicesConfiguration(
+	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
+
+	private final String[] alwaysParentFirstLoaderPatterns;
+
+	private final int numIoThreads;
+
+	private TaskManagerServicesConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
-			InetAddress taskManagerAddress,
+			String externalAddress,
+			InetAddress bindAddress,
+			int externalDataPort,
 			boolean localCommunicationOnly,
 			String[] tmpDirPaths,
 			String[] localRecoveryStateRootDirectories,
@@ -86,11 +103,16 @@ public class TaskManagerServicesConfiguration {
 			TaskExecutorResourceSpec taskExecutorResourceSpec,
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-			Optional<Time> systemResourceMetricsProbingInterval) {
+			Optional<Time> systemResourceMetricsProbingInterval,
+			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+			String[] alwaysParentFirstLoaderPatterns,
+			int numIoThreads) {
 		this.configuration = checkNotNull(configuration);
 		this.resourceID = checkNotNull(resourceID);
 
-		this.taskManagerAddress = checkNotNull(taskManagerAddress);
+		this.externalAddress = checkNotNull(externalAddress);
+		this.bindAddress = checkNotNull(bindAddress);
+		this.externalDataPort = externalDataPort;
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
@@ -101,6 +123,9 @@ public class TaskManagerServicesConfiguration {
 		this.pageSize = pageSize;
 
 		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
+		this.classLoaderResolveOrder = classLoaderResolveOrder;
+		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
+		this.numIoThreads = numIoThreads;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -122,8 +147,16 @@ public class TaskManagerServicesConfiguration {
 		return resourceID;
 	}
 
-	InetAddress getTaskManagerAddress() {
-		return taskManagerAddress;
+	String getExternalAddress() {
+		return externalAddress;
+	}
+
+	InetAddress getBindAddress() {
+		return bindAddress;
+	}
+
+	int getExternalDataPort() {
+		return externalDataPort;
 	}
 
 	boolean isLocalCommunicationOnly() {
@@ -159,8 +192,8 @@ public class TaskManagerServicesConfiguration {
 		return taskExecutorResourceSpec;
 	}
 
-	public MemorySize getShuffleMemorySize() {
-		return taskExecutorResourceSpec.getShuffleMemSize();
+	public MemorySize getNetworkMemorySize() {
+		return taskExecutorResourceSpec.getNetworkMemSize();
 	}
 
 	public MemorySize getManagedMemorySize() {
@@ -179,6 +212,18 @@ public class TaskManagerServicesConfiguration {
 		return retryingRegistrationConfiguration;
 	}
 
+	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
+		return classLoaderResolveOrder;
+	}
+
+	public String[] getAlwaysParentFirstLoaderPatterns() {
+		return alwaysParentFirstLoaderPatterns;
+	}
+
+	public int getNumIoThreads() {
+		return numIoThreads;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Parsing of Flink configuration
 	// --------------------------------------------------------------------------------------------
@@ -189,7 +234,7 @@ public class TaskManagerServicesConfiguration {
 	 *
 	 * @param configuration The configuration.
 	 * @param resourceID resource ID of the task manager
-	 * @param remoteAddress identifying the IP address under which the TaskManager will be accessible
+	 * @param externalAddress identifying the IP address under which the TaskManager will be accessible
 	 * @param localCommunicationOnly True if only local communication is possible.
 	 *                               Use only in cases where only one task manager runs.
 	 *
@@ -198,9 +243,9 @@ public class TaskManagerServicesConfiguration {
 	public static TaskManagerServicesConfiguration fromConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
-			InetAddress remoteAddress,
+			String externalAddress,
 			boolean localCommunicationOnly,
-			TaskExecutorResourceSpec taskExecutorResourceSpec) {
+			TaskExecutorResourceSpec taskExecutorResourceSpec) throws Exception {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -216,10 +261,24 @@ public class TaskManagerServicesConfiguration {
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
+		final int externalDataPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+
+		String bindAddr = configuration.getString(TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
+		InetAddress bindAddress = InetAddress.getByName(bindAddr);
+
+		final String classLoaderResolveOrder =
+			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
+
+		final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
+
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,
-			remoteAddress,
+			externalAddress,
+			bindAddress,
+			externalDataPort,
 			localCommunicationOnly,
 			tmpDirs,
 			localStateRootDir,
@@ -230,6 +289,9 @@ public class TaskManagerServicesConfiguration {
 			taskExecutorResourceSpec,
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
-			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
+			alwaysParentFirstLoaderPatterns,
+			numIoThreads);
 	}
 }

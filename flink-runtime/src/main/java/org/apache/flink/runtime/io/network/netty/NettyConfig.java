@@ -21,8 +21,8 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.net.SSLUtils;
-
 import org.apache.flink.util.NetUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,14 +86,6 @@ public class NettyConfig {
 		return serverPort;
 	}
 
-	int getMemorySegmentSize() {
-		return memorySegmentSize;
-	}
-
-	public int getNumberOfSlots() {
-		return numberOfSlots;
-	}
-
 	// ------------------------------------------------------------------------
 	// Getters
 	// ------------------------------------------------------------------------
@@ -122,6 +114,10 @@ public class NettyConfig {
 
 	public int getClientConnectTimeoutSeconds() {
 		return config.getInteger(NettyShuffleEnvironmentOptions.CLIENT_CONNECT_TIMEOUT_SECONDS);
+	}
+
+	public int getNetworkRetries() {
+		return config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_RETRIES);
 	}
 
 	public int getSendAndReceiveBufferSize() {

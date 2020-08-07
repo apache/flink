@@ -81,7 +81,7 @@ public class IterateExample {
 
 		// create an iterative data stream from the input with 5 second timeout
 		IterativeStream<Tuple5<Integer, Integer, Integer, Integer, Integer>> it = inputStream.map(new InputMap())
-				.iterate(5000);
+				.iterate(5000L);
 
 		// apply the step function to get the next Fibonacci number
 		// increment the counter and split the output with the output selector

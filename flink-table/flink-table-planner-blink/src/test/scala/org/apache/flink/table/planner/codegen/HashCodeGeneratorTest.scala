@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType, VarBinaryType}
 
 import org.junit.{Assert, Test}
@@ -47,7 +47,7 @@ class HashCodeGeneratorTest {
       Array(1, 2, 0)
     ).newInstance(classLoader)
 
-    val row = GenericRow.of(ji(5), jl(8), Array[Byte](1, 5, 6))
+    val row = GenericRowData.of(ji(5), jl(8), Array[Byte](1, 5, 6))
     Assert.assertEquals(637, hashFunc1.hashCode(row))
     Assert.assertEquals(136516167, hashFunc2.hashCode(row))
   }

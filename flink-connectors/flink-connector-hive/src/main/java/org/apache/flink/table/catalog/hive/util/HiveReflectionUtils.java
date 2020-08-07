@@ -69,7 +69,7 @@ public class HiveReflectionUtils {
 			return (ObjectInspector) method.newInstance(value);
 		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
 				| InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantDateObjectInspector", e);
+			throw new FlinkHiveUDFException("Failed to instantiate java constant object inspector", e);
 		}
 	}
 

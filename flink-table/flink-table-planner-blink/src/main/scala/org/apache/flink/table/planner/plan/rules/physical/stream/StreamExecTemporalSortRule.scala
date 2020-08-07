@@ -21,8 +21,9 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalSort
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
@@ -46,12 +47,18 @@ class StreamExecTemporalSortRule
   override def convert(rel: RelNode): RelNode = {
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val input = sort.getInput()
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val convInput: RelNode = RelOptRule.convert(input, FlinkConventions.STREAM_PHYSICAL)
+    val requiredTraitSet = input.getTraitSet
+      .replace(FlinkRelDistribution.SINGLETON)
+      .replace(FlinkConventions.STREAM_PHYSICAL)
+    val providedTraitSet = sort.getTraitSet
+      .replace(FlinkRelDistribution.SINGLETON)
+      .replace(FlinkConventions.STREAM_PHYSICAL)
+
+    val convInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
     new StreamExecTemporalSort(
       rel.getCluster,
-      traitSet,
+      providedTraitSet,
       convInput,
       sort.collation)
   }

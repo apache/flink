@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -104,10 +103,12 @@ public class DataGenerators {
 		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
+		// Ensure the producer enables idempotence.
+		props.putAll(testServer.getIdempotentProducerConfig());
 
 		stream = stream.rebalance();
 		testServer.produceIntoKafka(stream, topic,
-				new KeyedSerializationSchemaWrapper<>(new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig())),
+				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig()),
 				props,
 				new FlinkKafkaPartitioner<Integer>() {
 					@Override
@@ -152,9 +153,9 @@ public class DataGenerators {
 
 				StreamSink<String> sink = server.getProducerSink(
 						topic,
-						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
+						new SimpleStringSchema(),
 						producerProperties,
-						new FlinkFixedPartitioner<String>());
+						new FlinkFixedPartitioner<>());
 
 				OneInputStreamOperatorTestHarness<String, Object> testHarness =
 						new OneInputStreamOperatorTestHarness<>(sink);

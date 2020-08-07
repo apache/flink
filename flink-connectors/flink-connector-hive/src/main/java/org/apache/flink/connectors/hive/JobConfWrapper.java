@@ -37,7 +37,7 @@ public class JobConfWrapper implements Serializable {
 
 	private JobConf jobConf;
 
-	JobConfWrapper(JobConf jobConf) {
+	public JobConfWrapper(JobConf jobConf) {
 		this.jobConf = jobConf;
 	}
 

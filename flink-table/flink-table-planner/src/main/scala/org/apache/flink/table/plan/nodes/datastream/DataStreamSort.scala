@@ -27,7 +27,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonSort
 import org.apache.flink.table.plan.schema.RowSchema
@@ -87,11 +87,9 @@ class DataStreamSort(
       sortFetch)
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
     
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(planner)
     
     // need to identify time between others order fields. Time needs to be first sort element
     val timeType = SortUtil.getFirstSortField(sortCollation, schema.relDataType).getType

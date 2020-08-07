@@ -53,6 +53,11 @@
             </td>
           </tr>
         </ng-container>
+        <tr *ngIf="truncated">
+          <td colspan="6">
+            <button nz-button nzBlock nzType="primary" nzGhost (click)="loadMore()" [nzLoading]="isLoading">Load More</button>
+          </td>
+        </tr>
       </tbody>
     </nz-table>
   </nz-tab>

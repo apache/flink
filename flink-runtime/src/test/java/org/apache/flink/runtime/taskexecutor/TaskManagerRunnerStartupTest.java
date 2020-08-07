@@ -21,15 +21,19 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -37,6 +41,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -47,8 +52,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that check how the {@link TaskManagerRunner} behaves when encountering startup problems.
@@ -57,12 +60,13 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 	private static final String LOCAL_HOST = "localhost";
 
-	private static final int TOTAL_FLINK_MEMORY_MB = 1024;
+	@ClassRule
+	public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE = new TestingRpcServiceResource();
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private final RpcService rpcService = createRpcService();
+	private final RpcService rpcService = RPC_SERVICE_RESOURCE.getTestingRpcService();
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
 
@@ -117,23 +121,17 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	/**
 	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
 	 */
-	@Test
+	@Test(expected = IllegalConfigurationException.class)
 	public void testMemoryConfigWrong() throws Exception {
 		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
-		cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
-		try {
-
-			startTaskManager(
-				cfg,
-				rpcService,
-				highAvailabilityServices);
-
-			fail("Should fail synchronously with an exception");
-		} catch (IllegalConfigurationException e) {
-			// splendid!
-		}
+		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
+		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
+		startTaskManager(
+			cfg,
+			rpcService,
+			highAvailabilityServices);
 	}
 
 	/**
@@ -146,6 +144,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		try {
 			final Configuration cfg = createFlinkConfiguration();
 			cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
+			cfg.setString(TaskManagerOptions.BIND_HOST, LOCAL_HOST);
 
 			startTaskManager(
 				cfg,
@@ -163,16 +162,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	//-----------------------------------------------------------------------------------------------
 
 	private static Configuration createFlinkConfiguration() {
-		final Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEMORY_MB + "m");
-
-		return config;
-	}
-
-	private static RpcService createRpcService() {
-		final RpcService rpcService = mock(RpcService.class);
-		when(rpcService.getAddress()).thenReturn(LOCAL_HOST);
-		return rpcService;
+		return TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
 	}
 
 	private static void startTaskManager(
@@ -186,10 +176,14 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			ResourceID.generate(),
 			rpcService,
 			highAvailabilityServices,
-			mock(HeartbeatServices.class),
+			new TestingHeartbeatServices(),
 			NoOpMetricRegistry.INSTANCE,
-			mock(BlobCacheService.class),
+			new BlobCacheService(
+				configuration,
+				new VoidBlobStore(),
+				null),
 			false,
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			error -> {});
 	}
 }

@@ -321,7 +321,6 @@ public class CompletedCheckpointTest {
 			taskStats,
 			1337,
 			123129837912L,
-			123819239812L,
 			new SubtaskStateStats(123, 213123, 123123, 0, 0, 0, 0),
 			null);
 

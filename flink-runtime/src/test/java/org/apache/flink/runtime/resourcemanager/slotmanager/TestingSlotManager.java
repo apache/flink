@@ -19,15 +19,19 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Implementation of {@link SlotManager} for testing purpose.
@@ -35,9 +39,13 @@ import java.util.function.Consumer;
 public class TestingSlotManager implements SlotManager {
 
 	private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
+	private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
 
-	TestingSlotManager(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
+	TestingSlotManager(
+			Consumer<Boolean> setFailUnfulfillableRequestConsumer,
+			Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
 		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
+		this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
 	}
 
 	@Override
@@ -61,8 +69,28 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public int getNumberPendingTaskManagerSlots() {
-		return 0;
+	public Map<WorkerResourceSpec, Integer> getRequiredResources() {
+		return getRequiredResourcesSupplier.get();
+	}
+
+	@Override
+	public ResourceProfile getRegisteredResource() {
+		return ResourceProfile.ZERO;
+	}
+
+	@Override
+	public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
+		return ResourceProfile.ZERO;
+	}
+
+	@Override
+	public ResourceProfile getFreeResource() {
+		return ResourceProfile.ZERO;
+	}
+
+	@Override
+	public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
+		return ResourceProfile.ZERO;
 	}
 
 	@Override
@@ -91,8 +119,8 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public void registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
-
+	public boolean registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+		return true;
 	}
 
 	@Override

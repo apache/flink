@@ -23,8 +23,11 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
@@ -162,4 +165,14 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @return path future where the savepoint is located
 	 */
 	CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory);
+
+	/**
+	 * Sends out a request to a specified coordinator and return the response.
+	 *
+	 * @param jobId specifies the job which the coordinator belongs to
+	 * @param operatorId specifies which coordinator to receive the request
+	 * @param request the request to send
+	 * @return the response from the coordinator
+	 */
+	CompletableFuture<CoordinationResponse> sendCoordinationRequest(JobID jobId, OperatorID operatorId, CoordinationRequest request);
 }

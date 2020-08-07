@@ -19,6 +19,7 @@ package org.apache.flink.runtime.taskexecutor.partition;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -63,6 +64,12 @@ public class ClusterPartitionReport implements Serializable {
 		private final int numTotalPartitions;
 
 		public ClusterPartitionReportEntry(IntermediateDataSetID dataSetId, Set<ResultPartitionID> hostedPartitions, int numTotalPartitions) {
+			Preconditions.checkNotNull(dataSetId);
+			Preconditions.checkNotNull(hostedPartitions);
+			Preconditions.checkArgument(!hostedPartitions.isEmpty());
+			Preconditions.checkArgument(numTotalPartitions > 0);
+			Preconditions.checkState(hostedPartitions.size() <= numTotalPartitions);
+
 			this.dataSetId = dataSetId;
 			this.hostedPartitions = hostedPartitions;
 			this.numTotalPartitions = numTotalPartitions;

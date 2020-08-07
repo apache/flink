@@ -19,14 +19,14 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.StringUtils;
-
-import java.util.List;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
@@ -43,23 +43,19 @@ public abstract class ExecutorBase implements Executor {
 		this.executionEnvironment = executionEnvironment;
 	}
 
-	public void setTableConfig(TableConfig tableConfig) {
-		this.tableConfig = tableConfig;
-	}
-
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return executionEnvironment;
 	}
 
 	@Override
-	public void apply(List<Transformation<?>> transformations) {
-		transformations.forEach(getExecutionEnvironment()::addOperator);
+	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
+		return executionEnvironment.execute((StreamGraph) pipeline);
 	}
 
-	/**
-	 * Translates the transformations applied into this executor to a stream graph.
-	 */
-	public abstract StreamGraph getStreamGraph(String jobName);
+	@Override
+	public JobClient executeAsync(Pipeline pipeline) throws Exception {
+		return executionEnvironment.executeAsync((StreamGraph) pipeline);
+	}
 
 	protected String getNonEmptyJobName(String jobName) {
 		if (StringUtils.isNullOrWhitespaceOnly(jobName)) {

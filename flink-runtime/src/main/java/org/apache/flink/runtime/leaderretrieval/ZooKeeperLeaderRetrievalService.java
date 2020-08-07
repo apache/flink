@@ -21,15 +21,18 @@ package org.apache.flink.runtime.leaderretrieval;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.UnhandledErrorListener;
-import org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.curator.framework.recipes.cache.NodeCacheListener;
-import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.UnhandledErrorListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -164,17 +167,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 						}
 					}
 
-					if (!(Objects.equals(leaderAddress, lastLeaderAddress) &&
-						Objects.equals(leaderSessionID, lastLeaderSessionID))) {
-						LOG.debug(
-							"New leader information: Leader={}, session ID={}.",
-							leaderAddress,
-							leaderSessionID);
-
-						lastLeaderAddress = leaderAddress;
-						lastLeaderSessionID = leaderSessionID;
-						leaderListener.notifyLeaderAddress(leaderAddress, leaderSessionID);
-					}
+					notifyIfNewLeaderAddress(leaderAddress, leaderSessionID);
 				} catch (Exception e) {
 					leaderListener.handleError(new Exception("Could not handle node changed event.", e));
 					throw e;
@@ -192,14 +185,20 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 				break;
 			case SUSPENDED:
 				LOG.warn("Connection to ZooKeeper suspended. Can no longer retrieve the leader from " +
-					"ZooKeeper.");
+						"ZooKeeper.");
+				synchronized (lock) {
+					notifyLeaderLoss();
+				}
 				break;
 			case RECONNECTED:
 				LOG.info("Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
 				break;
 			case LOST:
 				LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
-					"ZooKeeper.");
+						"ZooKeeper.");
+				synchronized (lock) {
+					notifyLeaderLoss();
+				}
 				break;
 		}
 	}
@@ -207,5 +206,29 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	@Override
 	public void unhandledError(String s, Throwable throwable) {
 		leaderListener.handleError(new FlinkException("Unhandled error in ZooKeeperLeaderRetrievalService:" + s, throwable));
+	}
+
+	@GuardedBy("lock")
+	private void notifyIfNewLeaderAddress(String newLeaderAddress, UUID newLeaderSessionID) {
+		if (!(Objects.equals(newLeaderAddress, lastLeaderAddress) &&
+				Objects.equals(newLeaderSessionID, lastLeaderSessionID))) {
+			if (newLeaderAddress == null && newLeaderSessionID == null) {
+				LOG.debug("Leader information was lost: The listener will be notified accordingly.");
+			} else {
+				LOG.debug(
+						"New leader information: Leader={}, session ID={}.",
+						newLeaderAddress,
+						newLeaderSessionID);
+			}
+
+			lastLeaderAddress = newLeaderAddress;
+			lastLeaderSessionID = newLeaderSessionID;
+			leaderListener.notifyLeaderAddress(newLeaderAddress, newLeaderSessionID);
+		}
+	}
+
+	@GuardedBy("lock")
+	private void notifyLeaderLoss() {
+		notifyIfNewLeaderAddress(null, null);
 	}
 }

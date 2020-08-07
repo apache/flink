@@ -77,8 +77,8 @@ class DataStreamMatch(
   with CommonMatchRecognize
   with DataStreamRel {
 
-  if (logicalMatch.measures.values().exists(containsPythonCall) ||
-    logicalMatch.patternDefinitions.values().exists(containsPythonCall)) {
+  if (logicalMatch.measures.values().exists(containsPythonCall(_)) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall(_))) {
     throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
   }
 
@@ -132,8 +132,7 @@ class DataStreamMatch(
   }
 
   override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig)
+      planner: StreamPlanner)
     : DataStream[CRow] = {
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(getInput)
@@ -143,7 +142,7 @@ class DataStreamMatch(
 
     val crowInput: DataStream[CRow] = getInput
       .asInstanceOf[DataStreamRel]
-      .translateToPlan(planner, queryConfig)
+      .translateToPlan(planner)
 
     if (inputIsAccRetract) {
       throw new TableException(

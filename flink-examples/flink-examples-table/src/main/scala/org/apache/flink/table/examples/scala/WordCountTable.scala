@@ -19,7 +19,8 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 
 /**
   * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
@@ -44,9 +45,9 @@ object WordCountTable {
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
     val expr = input.toTable(tEnv)
     val result = expr
-      .groupBy('word)
-      .select('word, 'frequency.sum as 'frequency)
-      .filter('frequency === 2)
+      .groupBy($"word")
+      .select($"word", $"frequency".sum as "frequency")
+      .filter($"frequency" === 2)
       .toDataSet[WC]
 
     result.print()

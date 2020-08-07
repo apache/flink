@@ -47,7 +47,7 @@ public class SqlShowCatalogs extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 	}
 
 	@Override

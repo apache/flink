@@ -24,15 +24,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.NullAwareJoinHelper;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -45,8 +45,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Abstract implementation for streaming unbounded Join operator which defines some member fields
  * can be shared between different implementations.
  */
-public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperator<BaseRow>
-	implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow> {
+public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperator<RowData>
+	implements TwoInputStreamOperator<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -376944622236540545L;
 
@@ -54,8 +54,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	protected static final String RIGHT_RECORDS_STATE_NAME = "right-records";
 
 	private final GeneratedJoinCondition generatedJoinCondition;
-	protected final BaseRowTypeInfo leftType;
-	protected final BaseRowTypeInfo rightType;
+	protected final InternalTypeInfo<RowData> leftType;
+	protected final InternalTypeInfo<RowData> rightType;
 
 	protected final JoinInputSideSpec leftInputSideSpec;
 	protected final JoinInputSideSpec rightInputSideSpec;
@@ -76,14 +76,13 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	private final boolean filterAllNulls;
 
 	protected final long minRetentionTime;
-	protected final boolean stateCleaningEnabled;
 
 	protected transient JoinConditionWithNullFilters joinCondition;
-	protected transient TimestampedCollector<BaseRow> collector;
+	protected transient TimestampedCollector<RowData> collector;
 
 	public AbstractStreamingJoinOperator(
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			JoinInputSideSpec leftInputSideSpec,
 			JoinInputSideSpec rightInputSideSpec,
@@ -95,7 +94,6 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		this.leftInputSideSpec = leftInputSideSpec;
 		this.rightInputSideSpec = rightInputSideSpec;
 		this.minRetentionTime = minRetentionTime;
-		this.stateCleaningEnabled = minRetentionTime > 1;
 		this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNullKeys);
 		this.nullSafe = nullFilterKeys.length == 0;
 		this.filterAllNulls = nullFilterKeys.length == filterNullKeys.length;
@@ -135,10 +133,10 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		}
 
 		@Override
-		public boolean apply(BaseRow left, BaseRow right) {
+		public boolean apply(RowData left, RowData right) {
 			if (!nullSafe) { // is not null safe, return false if any null exists
-				// key is always BinaryRow
-				BinaryRow joinKey = (BinaryRow) getCurrentKey();
+				// key is always BinaryRowData
+				BinaryRowData joinKey = (BinaryRowData) getCurrentKey();
 				if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
 					// find null present, return false directly
 					return false;
@@ -174,7 +172,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		 * Gets the iterable of records. This is usually be called when the
 		 * {@link AssociatedRecords} is from inner side.
 		 */
-		public Iterable<BaseRow> getRecords() {
+		public Iterable<RowData> getRecords() {
 			return new RecordsIterable(records);
 		}
 
@@ -191,23 +189,23 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		 * input row.
 		 */
 		public static AssociatedRecords of(
-			BaseRow input,
+			RowData input,
 			boolean inputIsLeft,
 			JoinRecordStateView otherSideStateView,
 			JoinCondition condition) throws Exception {
 			List<OuterRecord> associations = new ArrayList<>();
 			if (otherSideStateView instanceof OuterJoinRecordStateView) {
 				OuterJoinRecordStateView outerStateView = (OuterJoinRecordStateView) otherSideStateView;
-				Iterable<Tuple2<BaseRow, Integer>> records = outerStateView.getRecordsAndNumOfAssociations();
-				for (Tuple2<BaseRow, Integer> record : records) {
+				Iterable<Tuple2<RowData, Integer>> records = outerStateView.getRecordsAndNumOfAssociations();
+				for (Tuple2<RowData, Integer> record : records) {
 					boolean matched = inputIsLeft ? condition.apply(input, record.f0) : condition.apply(record.f0, input);
 					if (matched) {
 						associations.add(new OuterRecord(record.f0, record.f1));
 					}
 				}
 			} else {
-				Iterable<BaseRow> records = otherSideStateView.getRecords();
-				for (BaseRow record : records) {
+				Iterable<RowData> records = otherSideStateView.getRecords();
+				for (RowData record : records) {
 					boolean matched = inputIsLeft ? condition.apply(input, record) : condition.apply(record, input);
 					if (matched) {
 						// use -1 as the default number of associations
@@ -221,9 +219,9 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	}
 
 	/**
-	 * A lazy Iterable which transform {@code List<OuterReocord>} to {@code Iterable<BaseRow>}.
+	 * A lazy Iterable which transform {@code List<OuterReocord>} to {@code Iterable<RowData>}.
 	 */
-	private static final class RecordsIterable implements IterableIterator<BaseRow> {
+	private static final class RecordsIterable implements IterableIterator<RowData> {
 		private final List<OuterRecord> records;
 		private int index = 0;
 
@@ -232,7 +230,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		}
 
 		@Override
-		public Iterator<BaseRow> iterator() {
+		public Iterator<RowData> iterator() {
 			index = 0;
 			return this;
 		}
@@ -243,8 +241,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 		}
 
 		@Override
-		public BaseRow next() {
-			BaseRow row = records.get(index).record;
+		public RowData next() {
+			RowData row = records.get(index).record;
 			index++;
 			return row;
 		}
@@ -261,10 +259,10 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	 * {@code numOfAssociations} will always be {@code -1}.
 	 */
 	protected static final class OuterRecord {
-		public final BaseRow record;
+		public final RowData record;
 		public final int numOfAssociations;
 
-		private OuterRecord(BaseRow record, int numOfAssociations) {
+		private OuterRecord(RowData record, int numOfAssociations) {
 			this.record = record;
 			this.numOfAssociations = numOfAssociations;
 		}

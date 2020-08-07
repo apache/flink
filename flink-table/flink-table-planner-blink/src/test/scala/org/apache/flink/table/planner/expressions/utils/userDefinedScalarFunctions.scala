@@ -21,17 +21,18 @@ package org.apache.flink.table.planner.expressions.utils
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
+
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert
+
 import java.lang.{Long => JLong}
 import java.sql.{Date, Time, Timestamp}
 import java.time.{Instant, LocalDateTime}
 import java.util.Random
-
-import org.apache.flink.table.dataformat.SqlTimestamp
 
 import scala.annotation.varargs
 import scala.collection.mutable
@@ -118,7 +119,7 @@ object Func8 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func9 extends ScalarFunction {
-  def eval(a: Int, b: Int, c: SqlTimestamp): String = {
+  def eval(a: Int, b: Int, c: TimestampData): String = {
     val ts = if (c == null) null else c.getMillisecond
     s"$a and $b and $ts"
   }
@@ -126,7 +127,7 @@ object Func9 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func10 extends ScalarFunction {
-  def eval(c: SqlTimestamp): Timestamp = {
+  def eval(c: TimestampData): Timestamp = {
     if (c == null) {
       null
     } else {
@@ -406,7 +407,7 @@ object Func24 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func26 extends ScalarFunction {
-  def eval(c: SqlTimestamp): LocalDateTime = {
+  def eval(c: TimestampData): LocalDateTime = {
     if (c == null) {
       null
     } else {
@@ -420,7 +421,7 @@ object Func26 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func27 extends ScalarFunction {
-  def eval(c: SqlTimestamp): Instant = {
+  def eval(c: TimestampData): Instant = {
     if (c == null) {
       null
     } else {

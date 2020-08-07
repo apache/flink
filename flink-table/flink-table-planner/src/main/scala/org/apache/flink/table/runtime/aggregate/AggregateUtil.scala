@@ -17,16 +17,6 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
-import java.util.{ArrayList => JArrayList, List => JList}
-
-import org.apache.calcite.rel.`type`._
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.RexLiteral
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.fun._
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -34,7 +24,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.dataview.DataViewSpec
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{AggregationCodeGenerator, GeneratedTableAggregationsFunction}
@@ -43,12 +33,23 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{AggregateFunction, ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
+
+import org.apache.calcite.rel.`type`._
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.fun._
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
+
+import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -86,8 +87,6 @@ object AggregateUtil {
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
-      queryConfig: StreamQueryConfig,
-      tableConfig: TableConfig,
       rowTimeIdx: Option[Int],
       isPartitioned: Boolean,
       isRowsClause: Boolean)
@@ -98,9 +97,8 @@ object AggregateUtil {
         aggregateInputType,
         inputFieldTypeInfo.length,
         needRetraction = false,
-        tableConfig,
+        config,
         isStateBackedDataViews = true)
-
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
     val aggMapping = aggregateMetadata.getAdjustedMapping(inputType.getFieldCount)
@@ -141,7 +139,8 @@ object AggregateUtil {
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
           rowTimeIdx.get,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       } else {
         // RANGE unbounded over process function
         new RowTimeUnboundedRangeOver[K](
@@ -149,13 +148,15 @@ object AggregateUtil {
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
           rowTimeIdx.get,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       }
     } else {
       new ProcTimeUnboundedOver[K](
         genFunction,
         aggregationStateType,
-        queryConfig)
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime)
     }
   }
 
@@ -173,7 +174,6 @@ object AggregateUtil {
     * @param inputFieldTypes    Types of the physical input fields
     * @param outputType         Output type of the (table)aggregate node
     * @param groupings          the position (in the input Row) of the grouping keys
-    * @param queryConfig        The configuration of the query to generate.
     * @param generateRetraction It is a tag that indicates whether generate retract record.
     * @param consumeRetraction  It is a tag that indicates whether consume the retract record.
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
@@ -188,7 +188,6 @@ object AggregateUtil {
       inputFieldTypes: Seq[TypeInformation[_]],
       outputType: RelDataType,
       groupings: Array[Int],
-      queryConfig: StreamQueryConfig,
       generateRetraction: Boolean,
       consumeRetraction: Boolean): KeyedProcessFunction[K, CRow, CRow] = {
 
@@ -236,7 +235,8 @@ object AggregateUtil {
         aggregationStateType,
         generateRetraction,
         groupings.length,
-        queryConfig)
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime)
     } else {
       val genAggregations = generator
         .genAggregationsOrTableAggregations(outputType, groupings.length, namedAggregates, false)
@@ -244,7 +244,8 @@ object AggregateUtil {
         genAggregations,
         aggregationStateType,
         generateRetraction,
-        queryConfig)
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime)
     }
   }
 
@@ -278,7 +279,6 @@ object AggregateUtil {
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       precedingOffset: Long,
-      queryConfig: StreamQueryConfig,
       isRowsClause: Boolean,
       rowTimeIdx: Option[Int])
     : KeyedProcessFunction[K, CRow, CRow] = {
@@ -332,7 +332,8 @@ object AggregateUtil {
           inputRowType,
           precedingOffset,
           rowTimeIdx.get,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       } else {
         new RowTimeBoundedRangeOver[K](
           genFunction,
@@ -340,7 +341,8 @@ object AggregateUtil {
           inputRowType,
           precedingOffset,
           rowTimeIdx.get,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       }
     } else {
       if (isRowsClause) {
@@ -349,14 +351,16 @@ object AggregateUtil {
           precedingOffset,
           aggregationStateType,
           inputRowType,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       } else {
         new ProcTimeBoundedRangeOver[K](
           genFunction,
           precedingOffset,
           aggregationStateType,
           inputRowType,
-          queryConfig)
+          config.getMinIdleStateRetentionTime,
+          config.getMaxIdleStateRetentionTime)
       }
     }
   }
@@ -1243,7 +1247,7 @@ object AggregateUtil {
     * Return true if all aggregates can be partially merged. False otherwise.
     */
   private[flink] def doAllSupportPartialMerge(
-      aggregateList: Array[UserDefinedAggregateFunction[_ <: Any, _ <: Any]]): Boolean = {
+      aggregateList: Array[ImperativeAggregateFunction[_ <: Any, _ <: Any]]): Boolean = {
     aggregateList.forall(ifMethodExistInFunction("merge", _))
   }
 
@@ -1321,7 +1325,7 @@ object AggregateUtil {
     private val aggregates: Seq[(AggregateCallMetadata, Array[Int])],
     private val distinctAccTypesWithSpecs: Seq[(TypeInformation[_], Seq[DataViewSpec[_]])]) {
 
-    def getAggregateFunctions: Array[UserDefinedAggregateFunction[_, _]] = {
+    def getAggregateFunctions: Array[ImperativeAggregateFunction[_, _]] = {
       aggregates.map(_._1.aggregateFunction).toArray
     }
 
@@ -1367,7 +1371,7 @@ object AggregateUtil {
     * function.
     */
   private[flink] case class AggregateCallMetadata(
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
+    aggregateFunction: ImperativeAggregateFunction[_, _],
     accumulatorType: TypeInformation[_],
     accumulatorSpecs: Seq[DataViewSpec[_]],
     distinctAccIndex: Int
@@ -1411,7 +1415,7 @@ object AggregateUtil {
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     // create aggregate function instances by function type and aggregate field data type.
 
-    val aggregate: UserDefinedAggregateFunction[_, _] = createFlinkAggFunction(
+    val aggregate: ImperativeAggregateFunction[_, _] = createFlinkAggFunction(
       aggregateFunction,
       needRetraction,
       aggregateInputTypes,
@@ -1539,7 +1543,7 @@ object AggregateUtil {
       needRetraction: Boolean,
       inputDataType: Seq[RelDataType],
       tableConfig: TableConfig)
-    : UserDefinedAggregateFunction[_ <: Any, _ <: Any] = {
+    : ImperativeAggregateFunction[_ <: Any, _ <: Any] = {
 
     lazy val outputType = inputDataType.get(0)
     lazy val outputTypeName = if (inputDataType.isEmpty) {
@@ -1793,10 +1797,11 @@ object AggregateUtil {
 
   private def createRowTypeForKeysAndAggregates(
       groupings: Array[Int],
-      aggregates: Array[UserDefinedAggregateFunction[_, _]],
+      aggregates: Array[ImperativeAggregateFunction[_, _]],
       aggTypes: Array[TypeInformation[_]],
       inputType: RelDataType,
-      windowKeyTypes: Option[Array[TypeInformation[_]]] = None): RowTypeInfo = {
+      windowKeyTypes: Option[Array[TypeInformation[_]]] = None)
+    : RowTypeInfo = {
 
     // get the field data types of group keys.
     val groupingTypes: Seq[TypeInformation[_]] =
@@ -1861,7 +1866,7 @@ object AggregateUtil {
   }
 
   private[flink] def containsTableAggregateFunction(
-      aggregates: Seq[UserDefinedAggregateFunction[_, _]])
+      aggregates: Seq[ImperativeAggregateFunction[_, _]])
     : Boolean = {
     aggregates.exists(_.isInstanceOf[TableAggregateFunction[_, _]])
   }

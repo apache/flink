@@ -16,11 +16,19 @@
 # limitations under the License.
 ################################################################################
 
+import warnings
+
 from py4j.java_gateway import get_method
+
 from pyflink.java_gateway import get_gateway
+from pyflink.table.serializers import ArrowSerializer
+from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.types import create_arrow_schema
+from pyflink.table.utils import tz_convert_from_internal
 
 from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
@@ -55,8 +63,9 @@ class Table(object):
     the expression syntax.
     """
 
-    def __init__(self, j_table):
+    def __init__(self, j_table, t_env):
         self._j_table = j_table
+        self._t_env = t_env
 
     def select(self, fields):
         """
@@ -73,9 +82,9 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields))
+        return Table(self._j_table.select(fields), self._t_env)
 
-    def alias(self, fields):
+    def alias(self, field, *fields):
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
         joining to operations.
@@ -83,14 +92,18 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.alias("a, b")
+            >>> tab.alias("a", "b")
 
-        :param fields: Field list expression string.
+        :param field: Field alias.
+        :type field: str
+        :param fields: Additional field aliases.
         :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(get_method(self._j_table, "as")(fields))
+        gateway = get_gateway()
+        extra_fields = to_jarray(gateway.jvm.String, fields)
+        return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
 
     def filter(self, predicate):
         """
@@ -107,7 +120,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.filter(predicate))
+        return Table(self._j_table.filter(predicate), self._t_env)
 
     def where(self, predicate):
         """
@@ -124,7 +137,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.where(predicate))
+        return Table(self._j_table.where(predicate), self._t_env)
 
     def group_by(self, fields):
         """
@@ -141,7 +154,7 @@ class Table(object):
         :return: The grouped table.
         :rtype: pyflink.table.GroupedTable
         """
-        return GroupedTable(self._j_table.groupBy(fields))
+        return GroupedTable(self._j_table.groupBy(fields), self._t_env)
 
     def distinct(self):
         """
@@ -155,7 +168,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.distinct())
+        return Table(self._j_table.distinct(), self._t_env)
 
     def join(self, right, join_predicate=None):
         """
@@ -182,9 +195,9 @@ class Table(object):
         :rtype: pyflink.table.Table
         """
         if join_predicate is not None:
-            return Table(self._j_table.join(right._j_table, join_predicate))
+            return Table(self._j_table.join(right._j_table, join_predicate), self._t_env)
         else:
-            return Table(self._j_table.join(right._j_table))
+            return Table(self._j_table.join(right._j_table), self._t_env)
 
     def left_outer_join(self, right, join_predicate=None):
         """
@@ -211,9 +224,9 @@ class Table(object):
         :rtype: pyflink.table.Table
         """
         if join_predicate is None:
-            return Table(self._j_table.leftOuterJoin(right._j_table))
+            return Table(self._j_table.leftOuterJoin(right._j_table), self._t_env)
         else:
-            return Table(self._j_table.leftOuterJoin(right._j_table, join_predicate))
+            return Table(self._j_table.leftOuterJoin(right._j_table, join_predicate), self._t_env)
 
     def right_outer_join(self, right, join_predicate):
         """
@@ -238,7 +251,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.rightOuterJoin(right._j_table, join_predicate))
+        return Table(self._j_table.rightOuterJoin(right._j_table, join_predicate), self._t_env)
 
     def full_outer_join(self, right, join_predicate):
         """
@@ -263,7 +276,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate))
+        return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate), self._t_env)
 
     def join_lateral(self, table_function_call, join_predicate=None):
         """
@@ -286,9 +299,10 @@ class Table(object):
         :rtype: pyflink.table.Table
         """
         if join_predicate is None:
-            return Table(self._j_table.joinLateral(table_function_call))
+            return Table(self._j_table.joinLateral(table_function_call), self._t_env)
         else:
-            return Table(self._j_table.joinLateral(table_function_call, join_predicate))
+            return Table(self._j_table.joinLateral(table_function_call, join_predicate),
+                         self._t_env)
 
     def left_outer_join_lateral(self, table_function_call, join_predicate=None):
         """
@@ -312,9 +326,10 @@ class Table(object):
         :rtype: pyflink.table.Table
         """
         if join_predicate is None:
-            return Table(self._j_table.leftOuterJoinLateral(table_function_call))
+            return Table(self._j_table.leftOuterJoinLateral(table_function_call), self._t_env)
         else:
-            return Table(self._j_table.leftOuterJoinLateral(table_function_call, join_predicate))
+            return Table(self._j_table.leftOuterJoinLateral(table_function_call, join_predicate),
+                         self._t_env)
 
     def minus(self, right):
         """
@@ -337,7 +352,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.minus(right._j_table))
+        return Table(self._j_table.minus(right._j_table), self._t_env)
 
     def minus_all(self, right):
         """
@@ -361,7 +376,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.minusAll(right._j_table))
+        return Table(self._j_table.minusAll(right._j_table), self._t_env)
 
     def union(self, right):
         """
@@ -382,7 +397,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.union(right._j_table))
+        return Table(self._j_table.union(right._j_table), self._t_env)
 
     def union_all(self, right):
         """
@@ -403,7 +418,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.unionAll(right._j_table))
+        return Table(self._j_table.unionAll(right._j_table), self._t_env)
 
     def intersect(self, right):
         """
@@ -427,7 +442,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.intersect(right._j_table))
+        return Table(self._j_table.intersect(right._j_table), self._t_env)
 
     def intersect_all(self, right):
         """
@@ -451,7 +466,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.intersectAll(right._j_table))
+        return Table(self._j_table.intersectAll(right._j_table), self._t_env)
 
     def order_by(self, fields):
         """
@@ -463,20 +478,23 @@ class Table(object):
 
             >>> tab.order_by("name.desc")
 
+        For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
+        fetch operation.
+
         :param fields: Order fields expression string.
         :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.orderBy(fields))
+        return Table(self._j_table.orderBy(fields), self._t_env)
 
     def offset(self, offset):
         """
-        Limits a sorted result from an offset position.
-        Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-        thus must be preceded by it.
-        :func:`~pyflink.table.Table.offset` can be combined with a subsequent
-        :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
+        Limits a (possibly sorted) result from an offset position.
+
+        This method can be combined with a preceding :func:`~pyflink.table.Table.order_by` call for
+        a deterministic order and a subsequent :func:`~pyflink.table.Table.fetch` call to return n
+        rows after skipping the first o rows.
 
         Example:
         ::
@@ -486,20 +504,22 @@ class Table(object):
             # skips the first 10 rows and returns the next 5 rows.
             >>> tab.order_by("name.desc").offset(10).fetch(5)
 
+        For unbounded tables, this operation requires a subsequent fetch operation.
+
         :param offset: Number of records to skip.
         :type offset: int
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.offset(offset))
+        return Table(self._j_table.offset(offset), self._t_env)
 
     def fetch(self, fetch):
         """
-        Limits a sorted result to the first n rows.
-        Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-        thus must be preceded by it.
-        :func:`~pyflink.table.Table.offset` can be combined with a preceding
-        :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
+        Limits a (possibly sorted) result to the first n rows.
+
+        This method can be combined with a preceding :func:`~pyflink.table.Table.order_by` call for
+        a deterministic order and :func:`~pyflink.table.Table.offset` call to return n rows after
+        skipping the first o rows.
 
         Example:
 
@@ -518,7 +538,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.fetch(fetch))
+        return Table(self._j_table.fetch(fetch), self._t_env)
 
     def window(self, window):
         """
@@ -555,7 +575,7 @@ class Table(object):
         :return: A group windowed table.
         :rtype: GroupWindowedTable
         """
-        return GroupWindowedTable(self._j_table.window(window._java_window))
+        return GroupWindowedTable(self._j_table.window(window._java_window), self._t_env)
 
     def over_window(self, *over_windows):
         """
@@ -589,7 +609,7 @@ class Table(object):
         gateway = get_gateway()
         window_array = to_jarray(gateway.jvm.OverWindow,
                                  [item._java_over_window for item in over_windows])
-        return OverWindowedTable(self._j_table.window(window_array))
+        return OverWindowedTable(self._j_table.window(window_array), self._t_env)
 
     def add_columns(self, fields):
         """
@@ -607,7 +627,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.addColumns(fields))
+        return Table(self._j_table.addColumns(fields), self._t_env)
 
     def add_or_replace_columns(self, fields):
         """
@@ -626,7 +646,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.addOrReplaceColumns(fields))
+        return Table(self._j_table.addOrReplaceColumns(fields), self._t_env)
 
     def rename_columns(self, fields):
         """
@@ -643,7 +663,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.renameColumns(fields))
+        return Table(self._j_table.renameColumns(fields), self._t_env)
 
     def drop_columns(self, fields):
         """
@@ -659,7 +679,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.dropColumns(fields))
+        return Table(self._j_table.dropColumns(fields), self._t_env)
 
     def insert_into(self, table_path):
         """
@@ -675,8 +695,58 @@ class Table(object):
         :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                the :class:`~pyflink.table.Table` is written.
         :type table_path: str
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
+                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
+                  for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink, "
+                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
+                      DeprecationWarning)
         self._j_table.insertInto(table_path)
+
+    def to_pandas(self):
+        """
+        Converts the table to a pandas DataFrame.
+
+        Example:
+        ::
+
+            >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
+            >>> table = table_env.from_pandas(pdf, ["a", "b"])
+            >>> table.filter("a > 0.5").to_pandas()
+
+        :return: the result pandas DataFrame.
+
+        .. versionadded:: 1.11.0
+        """
+        self._t_env._before_execute()
+        gateway = get_gateway()
+        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
+            .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
+        batches = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
+            .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
+        if batches.hasNext():
+            import pytz
+            timezone = pytz.timezone(
+                self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
+            serializer = ArrowSerializer(
+                create_arrow_schema(self.get_schema().get_field_names(),
+                                    self.get_schema().get_field_data_types()),
+                self.get_schema().to_row_data_type(),
+                timezone)
+            import pyarrow as pa
+            table = pa.Table.from_batches(serializer.load_from_iterator(batches))
+            pdf = table.to_pandas()
+
+            schema = self.get_schema()
+            for field_name in schema.get_field_names():
+                pdf[field_name] = tz_convert_from_internal(
+                    pdf[field_name], schema.get_field_data_type(field_name), timezone)
+            return pdf
+        else:
+            import pandas as pd
+            return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
     def get_schema(self):
         """
@@ -693,6 +763,61 @@ class Table(object):
         """
         self._j_table.printSchema()
 
+    def execute_insert(self, table_path, overwrite=False):
+        """
+        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
+        registered under the specified name, and then execute the insert operation.
+        For the path resolution algorithm see :func:`~TableEnvironment.use_database`.
+
+        Example:
+        ::
+
+            >>> tab.execute_insert("sink")
+
+        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
+               the :class:`~pyflink.table.Table` is written.
+        :type table_path: str
+        :param overwrite: The flag that indicates whether the insert should overwrite
+               existing data or not.
+        :type overwrite: bool
+        :return: The table result.
+
+        .. versionadded:: 1.11.0
+        """
+        self._t_env._before_execute()
+        return TableResult(self._j_table.executeInsert(table_path, overwrite))
+
+    def execute(self):
+        """
+        Collects the contents of the current table local client.
+
+        Example:
+        ::
+
+            >>> tab.execute()
+
+        :return: The content of the table.
+
+        .. versionadded:: 1.11.0
+        """
+        self._t_env._before_execute()
+        return TableResult(self._j_table.execute())
+
+    def explain(self, *extra_details):
+        """
+        Returns the AST of this table and the execution plan.
+
+        :param extra_details: The extra explain details which the explain result should include,
+                              e.g. estimated cost, changelog mode for streaming
+        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
+        :return: The statement for which the AST and execution plan will be returned.
+        :rtype: str
+
+        .. versionadded:: 1.11.0
+        """
+        j_extra_details = to_j_explain_detail_arr(extra_details)
+        return self._j_table.explain(j_extra_details)
+
     def __str__(self):
         return self._j_table.toString()
 
@@ -702,8 +827,9 @@ class GroupedTable(object):
     A table that has been grouped on a set of grouping keys.
     """
 
-    def __init__(self, java_table):
+    def __init__(self, java_table, t_env):
         self._j_table = java_table
+        self._t_env = t_env
 
     def select(self, fields):
         """
@@ -721,7 +847,7 @@ class GroupedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields))
+        return Table(self._j_table.select(fields), self._t_env)
 
 
 class GroupWindowedTable(object):
@@ -729,8 +855,9 @@ class GroupWindowedTable(object):
     A table that has been windowed for :class:`~pyflink.table.GroupWindow`.
     """
 
-    def __init__(self, java_group_windowed_table):
+    def __init__(self, java_group_windowed_table, t_env):
         self._j_table = java_group_windowed_table
+        self._t_env = t_env
 
     def group_by(self, fields):
         """
@@ -754,7 +881,7 @@ class GroupWindowedTable(object):
         :return: A window grouped table.
         :rtype: pyflink.table.WindowGroupedTable
         """
-        return WindowGroupedTable(self._j_table.groupBy(fields))
+        return WindowGroupedTable(self._j_table.groupBy(fields), self._t_env)
 
 
 class WindowGroupedTable(object):
@@ -762,8 +889,9 @@ class WindowGroupedTable(object):
     A table that has been windowed and grouped for :class:`~pyflink.table.window.GroupWindow`.
     """
 
-    def __init__(self, java_window_grouped_table):
+    def __init__(self, java_window_grouped_table, t_env):
         self._j_table = java_window_grouped_table
+        self._t_env = t_env
 
     def select(self, fields):
         """
@@ -781,7 +909,7 @@ class WindowGroupedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields))
+        return Table(self._j_table.select(fields), self._t_env)
 
 
 class OverWindowedTable(object):
@@ -793,8 +921,9 @@ class OverWindowedTable(object):
     its neighboring rows.
     """
 
-    def __init__(self, java_over_windowed_table):
+    def __init__(self, java_over_windowed_table, t_env):
         self._j_table = java_over_windowed_table
+        self._t_env = t_env
 
     def select(self, fields):
         """
@@ -812,4 +941,4 @@ class OverWindowedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields))
+        return Table(self._j_table.select(fields), self._t_env)

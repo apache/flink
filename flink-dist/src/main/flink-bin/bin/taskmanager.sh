@@ -38,8 +38,7 @@ ENTRYPOINT=taskexecutor
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
-    # if memory allocation mode is lazy and no other JVM options are set,
-    # set the 'Concurrent Mark Sweep GC'
+    # if no other JVM options are set, set the GC to G1
     if [ -z "${FLINK_ENV_JAVA_OPTS}" ] && [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
         export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
     fi
@@ -49,12 +48,32 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # Startup parameters
 
-    jvm_params=$(getTmResourceJvmParams)
+    java_utils_output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "$FLINK_BIN_DIR/bash-java-utils.jar:$(findFlinkDistJar)" "${ARGS[@]}")
+
+    logging_output=$(extractLoggingOutputs "${java_utils_output}")
+    params_output=$(extractExecutionResults "${java_utils_output}" 2)
+
+    if [[ $? -ne 0 ]]; then
+        echo "[ERROR] Could not get JVM parameters and dynamic configurations properly."
+        echo "[ERROR] Raw output from BashJavaUtils:"
+        echo "$java_utils_output"
+        exit 1
+    fi
+
+    jvm_params=$(echo "${params_output}" | head -n 1)
     export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
 
-    IFS=$" "
-    dynamic_configs=($(getTmResourceDynamicConfigs))
+    IFS=$" " dynamic_configs=$(echo "${params_output}" | tail -n 1)
     ARGS+=("--configDir" "${FLINK_CONF_DIR}" ${dynamic_configs[@]})
+
+    export FLINK_INHERITED_LOGS="
+$FLINK_INHERITED_LOGS
+
+TM_RESOURCE_PARAMS extraction logs:
+jvm_params: $jvm_params
+dynamic_configs: $dynamic_configs
+logs: $logging_output
+"
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then

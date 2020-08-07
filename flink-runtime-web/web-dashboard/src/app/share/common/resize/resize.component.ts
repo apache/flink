@@ -78,7 +78,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
       return innerOffsetTop;
     };
     const offsetTop = getOffsetTop(this.baseElement.nativeElement);
-    const maxResize = 560;
+    const maxResize = 900;
     let newTop = e.pageY - offsetTop;
     if (newTop > maxResize) {
       newTop = maxResize;

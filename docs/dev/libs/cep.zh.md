@@ -1,5 +1,5 @@
 ---
-title: "FlinkCEP - Flink 的复杂事件处理"
+title: "FlinkCEP - Flink的复杂事件处理"
 nav-title: 事件处理 (CEP)
 nav-parent_id: libs
 nav-pos: 1
@@ -23,23 +23,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-FlinkCEP is the Complex Event Processing (CEP) library implemented on top of Flink.
-It allows you to detect event patterns in an endless stream of events, giving you the opportunity to get hold of what's important in your
-data.
+FlinkCEP是在Flink上层实现的复杂事件处理库。
+它可以让你在无限事件流中检测出特定的事件模型，有机会掌握数据中重要的那部分。
 
-This page describes the API calls available in Flink CEP. We start by presenting the [Pattern API](#the-pattern-api),
-which allows you to specify the patterns that you want to detect in your stream, before presenting how you can
-[detect and act upon matching event sequences](#detecting-patterns). We then present the assumptions the CEP
-library makes when [dealing with lateness](#handling-lateness-in-event-time) in event time and how you can
-[migrate your job](#migrating-from-an-older-flink-versionpre-13) from an older Flink version to Flink-1.3.
+本页讲述了Flink CEP中可用的API，我们首先讲述[模式API](#模式api)，它可以让你指定想在数据流中检测的模式，然后讲述如何[检测匹配的事件序列并进行处理](#检测模式)。
+再然后我们讲述Flink在按照事件时间[处理迟到事件](#按照事件时间处理迟到事件)时的假设，
+以及如何从旧版本的Flink向1.3之后的版本[迁移作业](#从旧版本迁移13之前)。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Getting Started
+## 开始
 
-If you want to jump right in, [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html) and
-add the FlinkCEP dependency to the `pom.xml` of your project.
+如果你想现在开始尝试，[创建一个Flink程序]({{ site.baseurl }}/zh/dev/project-configuration.html)，
+添加FlinkCEP的依赖到项目的`pom.xml`文件中。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -63,13 +60,12 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 </div>
 </div>
 
-{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
+{% info 提示 %} FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{site.baseurl}}/zh/dev/project-configuration.html)。
 
-Now you can start writing your first CEP program using the Pattern API.
+现在可以开始使用Pattern API写你的第一个CEP程序了。
 
-{% warn Attention %} The events in the `DataStream` to which
-you want to apply pattern matching must implement proper `equals()` and `hashCode()` methods
-because FlinkCEP uses them for comparing and matching events.
+{% warn 注意 %} `DataStream`中的事件，如果你想在上面进行模式匹配的话，必须实现合适的 `equals()`和`hashCode()`方法，
+因为FlinkCEP使用它们来比较和匹配事件。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -136,140 +132,143 @@ val result: DataStream[Alert] = patternStream.process(
 </div>
 </div>
 
-## The Pattern API
+## 模式API
 
-The pattern API allows you to define complex pattern sequences that you want to extract from your input stream.
+模式API可以让你定义想从输入流中抽取的复杂模式序列。
 
-Each complex pattern sequence consists of multiple simple patterns, i.e. patterns looking for individual events with the same properties. From now on, we will call these simple patterns **patterns**, and the final complex pattern sequence we are searching for in the stream, the **pattern sequence**. You can see a pattern sequence as a graph of such patterns, where transitions from one pattern to the next occur based on user-specified
-*conditions*, e.g. `event.getName().equals("end")`. A **match** is a sequence of input events which visits all
-patterns of the complex pattern graph, through a sequence of valid pattern transitions.
+每个复杂的模式序列包括多个简单的模式，比如，寻找拥有相同属性事件序列的模式。从现在开始，我们把这些简单的模式称作**模式**，
+把我们在数据流中最终寻找的复杂模式序列称作**模式序列**，你可以把模式序列看作是这样的模式构成的图，
+这些模式基于用户指定的**条件**从一个转换到另外一个，比如 `event.getName().equals("end")`。
+一个**匹配**是输入事件的一个序列，这些事件通过一系列有效的模式转换，能够访问到复杂模式图中的所有模式。
 
-{% warn Attention %} Each pattern must have a unique name, which you use later to identify the matched events.
+{% warn 注意 %} 每个模式必须有一个独一无二的名字，你可以在后面使用它来识别匹配到的事件。
 
-{% warn Attention %} Pattern names **CANNOT** contain the character `":"`.
+{% warn 注意 %} 模式的名字不能包含字符`":"`.
 
-In the rest of this section we will first describe how to define [Individual Patterns](#individual-patterns), and then how you can combine individual patterns into [Complex Patterns](#combining-patterns).
+这一节的剩余部分我们会先讲述如何定义[单个模式](#单个模式)，然后讲如何将单个模式组合成[复杂模式](#组合模式)。
 
-### Individual Patterns
+### 单个模式
 
-A **Pattern** can be either a *singleton* or a *looping* pattern. Singleton patterns accept a single
-event, while looping patterns can accept more than one. In pattern matching symbols, the pattern `"a b+ c? d"` (or `"a"`, followed by *one or more* `"b"`'s, optionally followed by a `"c"`, followed by a `"d"`), `a`, `c?`, and `d` are
-singleton patterns, while `b+` is a looping one. By default, a pattern is a singleton pattern and you can transform
-it to a looping one by using [Quantifiers](#quantifiers). Each pattern can have one or more
-[Conditions](#conditions) based on which it accepts events.
+一个**模式**可以是一个**单例**或者**循环**模式。单例模式只接受一个事件，循环模式可以接受多个事件。
+在模式匹配表达式中，模式`"a b+ c? d"`（或者`"a"`，后面跟着一个或者多个`"b"`，再往后可选择的跟着一个`"c"`，最后跟着一个`"d"`），
+`a`，`c?`，和 `d`都是单例模式，`b+`是一个循环模式。默认情况下，模式都是单例的，你可以通过使用[量词](#量词)把它们转换成循环模式。
+每个模式可以有一个或者多个[条件](#条件)来决定它接受哪些事件。
 
-#### Quantifiers
+#### 量词
 
-In FlinkCEP, you can specify looping patterns using these methods: `pattern.oneOrMore()`, for patterns that expect one or more occurrences of a given event (e.g. the `b+` mentioned before); and `pattern.times(#ofTimes)`, for patterns that
-expect a specific number of occurrences of a given type of event, e.g. 4 `a`'s; and `pattern.times(#fromTimes, #toTimes)`, for patterns that expect a specific minimum number of occurrences and a maximum number of occurrences of a given type of event, e.g. 2-4 `a`s.
+在FlinkCEP中，你可以通过这些方法指定循环模式：`pattern.oneOrMore()`，指定期望一个给定事件出现一次或者多次的模式（例如前面提到的`b+`模式）；
+`pattern.times(#ofTimes)`，指定期望一个给定事件出现特定次数的模式，例如出现4次`a`；
+`pattern.times(#fromTimes, #toTimes)`，指定期望一个给定事件出现次数在一个最小值和最大值中间的模式，比如出现2-4次`a`。
 
-You can make looping patterns greedy using the `pattern.greedy()` method, but you cannot yet make group patterns greedy. You can make all patterns, looping or not, optional using the `pattern.optional()` method.
+你可以使用`pattern.greedy()`方法让循环模式变成贪心的，但现在还不能让模式组贪心。
+你可以使用`pattern.optional()`方法让所有的模式变成可选的，不管是否是循环模式。
 
-For a pattern named `start`, the following are valid quantifiers:
+对一个命名为`start`的模式，以下量词是有效的：
 
- <div class="codetabs" markdown="1">
- <div data-lang="java" markdown="1">
- {% highlight java %}
- // expecting 4 occurrences
- start.times(4);
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// 期望出现4次
+start.times(4);
 
- // expecting 0 or 4 occurrences
- start.times(4).optional();
+// 期望出现0或者4次
+start.times(4).optional();
 
- // expecting 2, 3 or 4 occurrences
- start.times(2, 4);
+// 期望出现2、3或者4次
+start.times(2, 4);
 
- // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy();
+// 期望出现2、3或者4次，并且尽可能的重复次数多
+start.times(2, 4).greedy();
 
- // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional();
+// 期望出现0、2、3或者4次
+start.times(2, 4).optional();
 
- // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy();
+// 期望出现0、2、3或者4次，并且尽可能的重复次数多
+start.times(2, 4).optional().greedy();
 
- // expecting 1 or more occurrences
- start.oneOrMore();
+// 期望出现1到多次
+start.oneOrMore();
 
- // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy();
+// 期望出现1到多次，并且尽可能的重复次数多
+start.oneOrMore().greedy();
 
- // expecting 0 or more occurrences
- start.oneOrMore().optional();
+// 期望出现0到多次
+start.oneOrMore().optional();
 
- // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy();
+// 期望出现0到多次，并且尽可能的重复次数多
+start.oneOrMore().optional().greedy();
 
- // expecting 2 or more occurrences
- start.timesOrMore(2);
+// 期望出现2到多次
+start.timesOrMore(2);
 
- // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy();
+// 期望出现2到多次，并且尽可能的重复次数多
+start.timesOrMore(2).greedy();
 
- // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy();
- {% endhighlight %}
- </div>
+// 期望出现0、2或多次
+start.timesOrMore(2).optional();
 
- <div data-lang="scala" markdown="1">
- {% highlight scala %}
- // expecting 4 occurrences
- start.times(4)
+// 期望出现0、2或多次，并且尽可能的重复次数多
+start.timesOrMore(2).optional().greedy();
+{% endhighlight %}
+</div>
 
- // expecting 0 or 4 occurrences
- start.times(4).optional()
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// 期望出现4次
+start.times(4)
 
- // expecting 2, 3 or 4 occurrences
- start.times(2, 4)
+// 期望出现0或者4次
+start.times(4).optional()
 
- // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy()
+// 期望出现2、3或者4次
+start.times(2, 4)
 
- // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional()
+// 期望出现2、3或者4次，并且尽可能的重复次数多
+start.times(2, 4).greedy()
 
- // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy()
+// 期望出现0、2、3或者4次
+start.times(2, 4).optional()
 
- // expecting 1 or more occurrences
- start.oneOrMore()
+// 期望出现0、2、3或者4次，并且尽可能的重复次数多
+start.times(2, 4).optional().greedy()
 
- // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy()
+// 期望出现1到多次
+start.oneOrMore()
 
- // expecting 0 or more occurrences
- start.oneOrMore().optional()
+// 期望出现1到多次，并且尽可能的重复次数多
+start.oneOrMore().greedy()
 
- // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy()
+// 期望出现0到多次
+start.oneOrMore().optional()
 
- // expecting 2 or more occurrences
- start.timesOrMore(2)
+// 期望出现0到多次，并且尽可能的重复次数多
+start.oneOrMore().optional().greedy()
 
- // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy()
+// 期望出现2到多次
+start.timesOrMore(2)
 
- // expecting 0, 2 or more occurrences
- start.timesOrMore(2).optional()
+// 期望出现2到多次，并且尽可能的重复次数多
+start.timesOrMore(2).greedy()
 
- // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy()
- {% endhighlight %}
- </div>
- </div>
+// 期望出现0、2或多次
+start.timesOrMore(2).optional()
 
-#### Conditions
+// 期望出现0、2或多次，并且尽可能的重复次数多
+start.timesOrMore(2).optional().greedy()
+{% endhighlight %}
+</div>
+</div>
 
-For every pattern you can specify a condition that an incoming event has to meet in order to be "accepted" into the pattern e.g. its value should be larger than 5,
-or larger than the average value of the previously accepted events.
-You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or `pattern.until()` methods.
-These can be either `IterativeCondition`s or `SimpleCondition`s.
+#### 条件
 
-**Iterative Conditions:** This is the most general type of condition. This is how you can specify a condition that
-accepts subsequent events based on properties of the previously accepted events or a statistic over a subset of them.
+对每个模式你可以指定一个条件来决定一个进来的事件是否被接受进入这个模式，例如，它的value字段应该大于5，或者大于前面接受的事件的平均值。
+指定判断事件属性的条件可以通过`pattern.where()`、`pattern.or()`或者`pattern.until()`方法。
+这些可以是`IterativeCondition`或者`SimpleCondition`。
 
-Below is the code for an iterative condition that accepts the next event for a pattern named "middle" if its name starts
-with "foo", and if the sum of the prices of the previously accepted events for that pattern plus the price of the current event do not exceed the value of 5.0. Iterative conditions can be powerful, especially in combination with looping patterns, e.g. `oneOrMore()`.
+**迭代条件:** 这是最普遍的条件类型。使用它可以指定一个基于前面已经被接受的事件的属性或者它们的一个子集的统计数据来决定是否接受时间序列的条件。
+
+下面是一个迭代条件的代码，它接受"middle"模式下一个事件的名称开头是"foo"， 并且前面已经匹配到的事件加上这个事件的价格小于5.0。
+迭代条件非常强大，尤其是跟循环模式结合使用时。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -307,14 +306,12 @@ middle.oneOrMore()
 </div>
 </div>
 
-{% warn Attention %} The call to `ctx.getEventsForPattern(...)` finds all the
-previously accepted events for a given potential match. The cost of this operation can vary, so when implementing
-your condition, try to minimize its use.
+{% warn 注意 %} 调用`ctx.getEventsForPattern(...)`可以获得所有前面已经接受作为可能匹配的事件。
+调用这个操作的代价可能很小也可能很大，所以在实现你的条件时，尽量少使用它。
 
-Described context gives one access to event time characteristics as well. For more info see [Time context](#time-context).
+描述的上下文提供了获取事件时间属性的方法。更多细节可以看[时间上下文](#时间上下文)。
 
-**Simple Conditions:** This type of condition extends the aforementioned `IterativeCondition` class and decides
-whether to accept an event or not, based *only* on properties of the event itself.
+**简单条件：** 这种类型的条件扩展了前面提到的`IterativeCondition`类，它决定是否接受一个事件只取决于事件自身的属性。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -335,8 +332,7 @@ start.where(event => event.getName.startsWith("foo"))
 </div>
 </div>
 
-Finally, you can also restrict the type of the accepted event to a subtype of the initial event type (here `Event`)
-via the `pattern.subtype(subClass)` method.
+最后，你可以通过`pattern.subtype(subClass)`方法限制接受的事件类型是初始事件的子类型。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -344,7 +340,7 @@ via the `pattern.subtype(subClass)` method.
 start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
     @Override
     public boolean filter(SubEvent value) {
-        return ... // some condition
+        return ... // 一些判断条件
     }
 });
 {% endhighlight %}
@@ -352,12 +348,13 @@ start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
+start.subtype(classOf[SubEvent]).where(subEvent => ... /* 一些判断条件 */)
 {% endhighlight %}
 </div>
 </div>
 
-**Combining Conditions:** As shown above, you can combine the `subtype` condition with additional conditions. This holds for every condition. You can arbitrarily combine conditions by sequentially calling `where()`. The final result will be the logical **AND** of the results of the individual conditions. To combine conditions using **OR**, you can use the `or()` method, as shown below.
+**组合条件：** 如上所示，你可以把`subtype`条件和其他的条件结合起来使用。这适用于任何条件，你可以通过依次调用`where()`来组合条件。
+最终的结果是每个单一条件的结果的逻辑**AND**。如果想使用**OR**来组合条件，你可以像下面这样使用`or()`方法。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -365,12 +362,12 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
 pattern.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // some condition
+        return ... // 一些判断条件
     }
 }).or(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // or condition
+        return ... // 一些判断条件
     }
 });
 {% endhighlight %}
@@ -378,45 +375,44 @@ pattern.where(new SimpleCondition<Event>() {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-pattern.where(event => ... /* some condition */).or(event => ... /* or condition */)
+pattern.where(event => ... /* 一些判断条件 */).or(event => ... /* 一些判断条件 */)
 {% endhighlight %}
 </div>
 </div>
 
 
-**Stop condition:** In case of looping patterns (`oneOrMore()` and `oneOrMore().optional()`) you can
-also specify a stop condition, e.g. accept events with value larger than 5 until the sum of values is smaller than 50.
+**停止条件：** 如果使用循环模式（`oneOrMore()`和`oneOrMore().optional()`），你可以指定一个停止条件，例如，接受事件的值大于5直到值的和小于50。
 
-To better understand it, have a look at the following example. Given
+为了更好的理解它，看下面的例子。给定
 
-* pattern like `"(a+ until b)"` (one or more `"a"` until `"b"`)
+* 模式如`"(a+ until b)"` (一个或者更多的`"a"`直到`"b"`)
 
-* a sequence of incoming events `"a1" "c" "a2" "b" "a3"`
+* 到来的事件序列`"a1" "c" "a2" "b" "a3"`
 
-* the library will output results: `{a1 a2} {a1} {a2} {a3}`.
+* 输出结果会是： `{a1 a2} {a1} {a2} {a3}`.
 
-As you can see `{a1 a2 a3}` or `{a2 a3}` are not returned due to the stop condition.
+你可以看到`{a1 a2 a3}`和`{a2 a3}`由于停止条件没有被输出。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">Pattern Operation</th>
-            <th class="text-center">Description</th>
+            <th class="text-left" style="width: 25%">模式操作</th>
+            <th class="text-center">描述</th>
         </tr>
     </thead>
     <tbody>
        <tr>
             <td><strong>where(condition)</strong></td>
             <td>
-                <p>Defines a condition for the current pattern. To match the pattern, an event must satisfy the condition.
-                 Multiple consecutive where() clauses lead to their conditions being ANDed:</p>
+                <p>为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。
+                 多个连续的where()语句取与组成判断条件：</p>
 {% highlight java %}
 pattern.where(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // some condition
+        return ... // 一些判断条件
     }
 });
 {% endhighlight %}
@@ -425,18 +421,17 @@ pattern.where(new IterativeCondition<Event>() {
         <tr>
             <td><strong>or(condition)</strong></td>
             <td>
-                <p>Adds a new condition which is ORed with an existing one. An event can match the pattern only if it
-                passes at least one of the conditions:</p>
+                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
 {% highlight java %}
 pattern.where(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // some condition
+        return ... // 一些判断条件
     }
 }).or(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // alternative condition
+        return ... // 替代条件
     }
 });
 {% endhighlight %}
@@ -445,15 +440,14 @@ pattern.where(new IterativeCondition<Event>() {
               <tr>
                  <td><strong>until(condition)</strong></td>
                  <td>
-                     <p>Specifies a stop condition for a looping pattern. Meaning if event matching the given condition occurs, no more
-                     events will be accepted into the pattern.</p>
-                     <p>Applicable only in conjunction with <code>oneOrMore()</code></p>
-                     <p><b>NOTE:</b> It allows for cleaning state for corresponding pattern on event-based condition.</p>
+                     <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
+                     <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
+                     <p><b>NOTE:</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
 {% highlight java %}
 pattern.oneOrMore().until(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // alternative condition
+        return ... // 替代条件
     }
 });
 {% endhighlight %}
@@ -462,8 +456,7 @@ pattern.oneOrMore().until(new IterativeCondition<Event>() {
        <tr>
            <td><strong>subtype(subClass)</strong></td>
            <td>
-               <p>Defines a subtype condition for the current pattern. An event can only match the pattern if it is
-                of this subtype:</p>
+               <p>为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式：</p>
 {% highlight java %}
 pattern.subtype(SubEvent.class);
 {% endhighlight %}
@@ -472,10 +465,10 @@ pattern.subtype(SubEvent.class);
        <tr>
           <td><strong>oneOrMore()</strong></td>
           <td>
-              <p>Specifies that this pattern expects at least one occurrence of a matching event.</p>
-              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-              internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
-              <p><b>NOTE:</b> It is advised to use either <code>until()</code> or <code>within()</code> to enable state clearing</p>
+              <p>指定模式期望匹配到的事件至少出现一次。.</p>
+              <p>默认（在子事件间）使用松散的内部连续性。
+              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
+              <p><b>NOTE:</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
 {% highlight java %}
 pattern.oneOrMore();
 {% endhighlight %}
@@ -484,10 +477,9 @@ pattern.oneOrMore();
            <tr>
               <td><strong>timesOrMore(#times)</strong></td>
               <td>
-                  <p>Specifies that this pattern expects at least <strong>#times</strong> occurrences
-                  of a matching event.</p>
-                  <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-                  internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+                  <p>指定模式期望匹配到的事件至少出现<strong>#times</strong>次。.</p>
+                  <p>默认（在子事件间）使用松散的内部连续性。
+                  关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
 {% highlight java %}
 pattern.timesOrMore(2);
 {% endhighlight %}
@@ -496,9 +488,9 @@ pattern.timesOrMore(2);
        <tr>
           <td><strong>times(#ofTimes)</strong></td>
           <td>
-              <p>Specifies that this pattern expects an exact number of occurrences of a matching event.</p>
-              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-              internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+              <p>指定模式期望匹配到的事件正好出现的次数。</p>
+              <p>默认（在子事件间）使用松散的内部连续性。
+              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
 {% highlight java %}
 pattern.times(2);
 {% endhighlight %}
@@ -507,10 +499,9 @@ pattern.times(2);
        <tr>
           <td><strong>times(#fromTimes, #toTimes)</strong></td>
           <td>
-              <p>Specifies that this pattern expects occurrences between <strong>#fromTimes</strong>
-              and <strong>#toTimes</strong> of a matching event.</p>
-              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-              internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+              <p>指定模式期望匹配到的事件出现次数在<strong>#fromTimes</strong>和<strong>#toTimes</strong>之间。</p>
+              <p>默认（在子事件间）使用松散的内部连续性。
+              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
 {% highlight java %}
 pattern.times(2, 4);
 {% endhighlight %}
@@ -519,8 +510,7 @@ pattern.times(2, 4);
        <tr>
           <td><strong>optional()</strong></td>
           <td>
-              <p>Specifies that this pattern is optional, i.e. it may not occur at all. This is applicable to all
-              aforementioned quantifiers.</p>
+              <p>指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。</p>
 {% highlight java %}
 pattern.oneOrMore().optional();
 {% endhighlight %}
@@ -529,8 +519,7 @@ pattern.oneOrMore().optional();
        <tr>
           <td><strong>greedy()</strong></td>
           <td>
-              <p>Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
-              to quantifiers and it does not support group pattern currently.</p>
+              <p>指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。</p>
 {% highlight java %}
 pattern.oneOrMore().greedy();
 {% endhighlight %}
@@ -544,8 +533,8 @@ pattern.oneOrMore().greedy();
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">Pattern Operation</th>
-            <th class="text-center">Description</th>
+            <th class="text-left" style="width: 25%">模式操作</th>
+            <th class="text-center">描述</th>
         </tr>
 	    </thead>
     <tbody>
@@ -553,41 +542,38 @@ pattern.oneOrMore().greedy();
         <tr>
             <td><strong>where(condition)</strong></td>
             <td>
-              <p>Defines a condition for the current pattern. To match the pattern, an event must satisfy the condition.
-                                  Multiple consecutive where() clauses lead to their conditions being ANDed:</p>
+              <p>为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。
+              多个连续的where()语句取与组成判断条件：</p>
 {% highlight scala %}
-pattern.where(event => ... /* some condition */)
+pattern.where(event => ... /* 一些判断条件 */)
 {% endhighlight %}
             </td>
         </tr>
         <tr>
             <td><strong>or(condition)</strong></td>
             <td>
-                <p>Adds a new condition which is ORed with an existing one. An event can match the pattern only if it
-                passes at least one of the conditions:</p>
+                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
 {% highlight scala %}
-pattern.where(event => ... /* some condition */)
-    .or(event => ... /* alternative condition */)
+pattern.where(event => ... /* 一些判断条件 */)
+    .or(event => ... /* 替代条件 */)
 {% endhighlight %}
                     </td>
                 </tr>
 <tr>
           <td><strong>until(condition)</strong></td>
           <td>
-              <p>Specifies a stop condition for looping pattern. Meaning if event matching the given condition occurs, no more
-              events will be accepted into the pattern.</p>
-              <p>Applicable only in conjunction with <code>oneOrMore()</code></p>
-              <p><b>NOTE:</b> It allows for cleaning state for corresponding pattern on event-based condition.</p>
+              <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
+              <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
+              <p><b>提示：</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
 {% highlight scala %}
-pattern.oneOrMore().until(event => ... /* some condition */)
+pattern.oneOrMore().until(event => ... /* 替代条件 */)
 {% endhighlight %}
           </td>
        </tr>
        <tr>
            <td><strong>subtype(subClass)</strong></td>
            <td>
-               <p>Defines a subtype condition for the current pattern. An event can only match the pattern if it is
-               of this subtype:</p>
+               <p>为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式：</p>
 {% highlight scala %}
 pattern.subtype(classOf[SubEvent])
 {% endhighlight %}
@@ -596,10 +582,10 @@ pattern.subtype(classOf[SubEvent])
        <tr>
           <td><strong>oneOrMore()</strong></td>
           <td>
-               <p>Specifies that this pattern expects at least one occurrence of a matching event.</p>
-                            <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-                            internal contiguity see <a href="#consecutive_scala">consecutive</a>.</p>
-                            <p><b>NOTE:</b> It is advised to use either <code>until()</code> or <code>within()</code> to enable state clearing</p>
+               <p>指定模式期望匹配到的事件至少出现一次。.</p>
+               <p>默认（在子事件间）使用松散的内部连续性。
+               关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
+               <p><b>提示：</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
 {% highlight scala %}
 pattern.oneOrMore()
 {% endhighlight %}
@@ -608,21 +594,20 @@ pattern.oneOrMore()
        <tr>
           <td><strong>timesOrMore(#times)</strong></td>
           <td>
-              <p>Specifies that this pattern expects at least <strong>#times</strong> occurrences
-              of a matching event.</p>
-              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-              internal contiguity see <a href="#consecutive_scala">consecutive</a>.</p>
+              <p>指定模式期望匹配到的事件至少出现<strong>#times</strong>次。.</p>
+              <p>默认（在子事件间）使用松散的内部连续性。
+              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
 {% highlight scala %}
 pattern.timesOrMore(2)
 {% endhighlight %}
            </td>
        </tr>
        <tr>
-                 <td><strong>times(#ofTimes)</strong></td>
-                 <td>
-                     <p>Specifies that this pattern expects an exact number of occurrences of a matching event.</p>
-                                   <p>By default a relaxed internal contiguity (between subsequent events) is used.
-                                   For more info on internal contiguity see <a href="#consecutive_scala">consecutive</a>.</p>
+          <td><strong>times(#ofTimes)</strong></td>
+          <td>
+              <p>指定模式期望匹配到的事件正好出现的次数。</p>
+              <p>默认（在子事件间）使用松散的内部连续性。
+              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
 {% highlight scala %}
 pattern.times(2)
 {% endhighlight %}
@@ -631,10 +616,9 @@ pattern.times(2)
        <tr>
          <td><strong>times(#fromTimes, #toTimes)</strong></td>
          <td>
-             <p>Specifies that this pattern expects occurrences between <strong>#fromTimes</strong>
-             and <strong>#toTimes</strong> of a matching event.</p>
-             <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
-             internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+             <p>指定模式期望匹配到的事件出现次数在<strong>#fromTimes</strong>和<strong>#toTimes</strong>之间。</p>
+             <p>默认（在子事件间）使用松散的内部连续性。
+             关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
 {% highlight scala %}
 pattern.times(2, 4)
 {% endhighlight %}
@@ -643,8 +627,7 @@ pattern.times(2, 4)
        <tr>
           <td><strong>optional()</strong></td>
           <td>
-             <p>Specifies that this pattern is optional, i.e. it may not occur at all. This is applicable to all
-                           aforementioned quantifiers.</p>
+             <p>指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。</p>
 {% highlight scala %}
 pattern.oneOrMore().optional()
 {% endhighlight %}
@@ -653,8 +636,7 @@ pattern.oneOrMore().optional()
        <tr>
           <td><strong>greedy()</strong></td>
           <td>
-             <p>Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
-             to quantifiers and it does not support group pattern currently.</p>
+             <p>指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。</p>
 {% highlight scala %}
 pattern.oneOrMore().greedy()
 {% endhighlight %}
@@ -665,12 +647,11 @@ pattern.oneOrMore().greedy()
 </div>
 </div>
 
-### Combining Patterns
+### 组合模式
 
-Now that you've seen what an individual pattern can look like, it is time to see how to combine them
-into a full pattern sequence.
+现在你已经看到单个的模式是什么样的了，该去看看如何把它们连接起来组成一个完整的模式序列。
 
-A pattern sequence has to start with an initial pattern, as shown below:
+模式序列由一个初始模式作为开头，如下所示：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -686,48 +667,46 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 </div>
 </div>
 
-Next, you can append more patterns to your pattern sequence by specifying the desired *contiguity conditions* between
-them. FlinkCEP supports the following forms of contiguity between events:
+接下来，你可以增加更多的模式到模式序列中并指定它们之间所需的*连续条件*。FlinkCEP支持事件之间如下形式的连续策略：
 
- 1. **Strict Contiguity**: Expects all matching events to appear strictly one after the other, without any non-matching events in-between.
+ 1. **严格连续**: 期望所有匹配的事件严格的一个接一个出现，中间没有任何不匹配的事件。
 
- 2. **Relaxed Contiguity**: Ignores non-matching events appearing in-between the matching ones.
+ 2. **松散连续**: 忽略匹配的事件之间的不匹配的事件。
 
- 3. **Non-Deterministic Relaxed Contiguity**: Further relaxes contiguity, allowing additional matches
- that ignore some matching events.
+ 3. **不确定的松散连续**: 更进一步的松散连续，允许忽略掉一些匹配事件的附加匹配。
 
-To apply them between consecutive patterns, you can use:
+可以使用下面的方法来指定模式之间的连续策略：
 
-1. `next()`, for *strict*,
-2. `followedBy()`, for *relaxed*, and
-3. `followedByAny()`, for *non-deterministic relaxed* contiguity.
+1. `next()`，指定*严格连续*，
+2. `followedBy()`，指定*松散连续*，
+3. `followedByAny()`，指定*不确定的松散*连续。
 
-or
+或者
 
-1. `notNext()`, if you do not want an event type to directly follow another
-2. `notFollowedBy()`, if you do not want an event type to be anywhere between two other event types.
+1. `notNext()`，如果不想后面直接连着一个特定事件
+2. `notFollowedBy()`，如果不想一个特定事件发生在两个事件之间的任何地方。
 
-{% warn Attention %} A pattern sequence cannot end in `notFollowedBy()`.
+{% warn 注意 %} 模式序列不能以`notFollowedBy()`结尾。
 
-{% warn Attention %} A `NOT` pattern cannot be preceded by an optional one.
+{% warn 注意 %} 一个`NOT`模式前面不能是可选的模式。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-// strict contiguity
+// 严格连续
 Pattern<Event, ?> strict = start.next("middle").where(...);
 
-// relaxed contiguity
+// 松散连续
 Pattern<Event, ?> relaxed = start.followedBy("middle").where(...);
 
-// non-deterministic relaxed contiguity
+// 不确定的松散连续
 Pattern<Event, ?> nonDetermin = start.followedByAny("middle").where(...);
 
-// NOT pattern with strict contiguity
+// 严格连续的NOT模式
 Pattern<Event, ?> strictNot = start.notNext("not").where(...);
 
-// NOT pattern with relaxed contiguity
+// 松散连续的NOT模式
 Pattern<Event, ?> relaxedNot = start.notFollowedBy("not").where(...);
 
 {% endhighlight %}
@@ -736,41 +715,39 @@ Pattern<Event, ?> relaxedNot = start.notFollowedBy("not").where(...);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-// strict contiguity
+// 严格连续
 val strict: Pattern[Event, _] = start.next("middle").where(...)
 
-// relaxed contiguity
+// 松散连续
 val relaxed: Pattern[Event, _] = start.followedBy("middle").where(...)
 
-// non-deterministic relaxed contiguity
+// 不确定的松散连续
 val nonDetermin: Pattern[Event, _] = start.followedByAny("middle").where(...)
 
-// NOT pattern with strict contiguity
+// 严格连续的NOT模式
 val strictNot: Pattern[Event, _] = start.notNext("not").where(...)
 
-// NOT pattern with relaxed contiguity
+// 松散连续的NOT模式
 val relaxedNot: Pattern[Event, _] = start.notFollowedBy("not").where(...)
 
 {% endhighlight %}
 </div>
 </div>
 
-Relaxed contiguity means that only the first succeeding matching event will be matched, while
-with non-deterministic relaxed contiguity, multiple matches will be emitted for the same beginning. As an example,
-a pattern `"a b"`, given the event sequence `"a", "c", "b1", "b2"`, will give the following results:
+松散连续意味着跟着的事件中，只有第一个可匹配的事件会被匹配上，而不确定的松散连接情况下，有着同样起始的多个匹配会被输出。
+举例来说，模式`"a b"`，给定事件序列`"a"，"c"，"b1"，"b2"`，会产生如下的结果：
 
-1. Strict Contiguity between `"a"` and `"b"`: `{}` (no match), the `"c"` after `"a"` causes `"a"` to be discarded.
+1. `"a"`和`"b"`之间严格连续： `{}` （没有匹配），`"a"`之后的`"c"`导致`"a"`被丢弃。
 
-2. Relaxed Contiguity between `"a"` and `"b"`: `{a b1}`, as relaxed continuity is viewed as "skip non-matching events
-till the next matching one".
+2. `"a"`和`"b"`之间松散连续： `{a b1}`，松散连续会"跳过不匹配的事件直到匹配上的事件"。
 
-3. Non-Deterministic Relaxed Contiguity between `"a"` and `"b"`: `{a b1}`, `{a b2}`, as this is the most general form.
+3. `"a"`和`"b"`之间不确定的松散连续： `{a b1}`, `{a b2}`，这是最常见的情况。
 
-It's also possible to define a temporal constraint for the pattern to be valid.
-For example, you can define that a pattern should occur within 10 seconds via the `pattern.within()` method.
-Temporal patterns are supported for both [processing and event time]({{site.baseurl}}/dev/event_time.html).
+也可以为模式定义一个有效时间约束。
+例如，你可以通过`pattern.within()`方法指定一个模式应该在10秒内发生。
+这种时间模式支持[处理时间和事件时间]({{site.baseurl}}/zh/dev/event_time.html).
 
-{% warn Attention %} A pattern sequence can only have one temporal constraint. If multiple such constraints are defined on different individual patterns, then the smallest is applied.
+{% warn 注意 %} 一个模式序列只能有一个时间限制。如果限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -786,42 +763,41 @@ next.within(Time.seconds(10))
 </div>
 </div>
 
-#### Contiguity within looping patterns
+#### 循环模式中的连续性
 
-You can apply the same contiguity condition as discussed in the previous [section](#combining-patterns) within a looping pattern.
-The contiguity will be applied between elements accepted into such a pattern.
-To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) sequence of one or more `"b"`'s followed by a `"c"`) with
-input `"a", "b1", "d1", "b2", "d2", "b3" "c"` will have the following results:
+你可以在循环模式中使用和前面[章节](#组合模式)讲过的同样的连续性。
+连续性会被运用在被接受进入模式的事件之间。
+用这个例子来说明上面所说的连续性，一个模式序列`"a b+ c"`（`"a"`后面跟着一个或者多个（不确定连续的）`"b"`，然后跟着一个`"c"`）
+输入为`"a"，"b1"，"d1"，"b2"，"d2"，"b3"，"c"`，输出结果如下：
 
- 1. **Strict Contiguity**: `{a b3 c}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
+ 1. **严格连续**: `{a b3 c}` -- `"b1"`之后的`"d1"`导致`"b1"`被丢弃，同样`"b2"`因为`"d2"`被丢弃。
 
- 2. **Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` - `"d"`'s are ignored.
+ 2. **松散连续**: `{a b1 c}`，`{a b1 b2 c}`，`{a b1 b2 b3 c}`，`{a b2 c}`，`{a b2 b3 c}`，`{a b3 c}` - `"d"`都被忽略了。
 
- 3. **Non-Deterministic Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b3 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` -
-    notice the `{a b1 b3 c}`, which is the result of relaxing contiguity between `"b"`'s.
+ 3. **不确定松散连续**: `{a b1 c}`，`{a b1 b2 c}`，`{a b1 b3 c}`，`{a b1 b2 b3 c}`，`{a b2 c}`，`{a b2 b3 c}`，`{a b3 c}` -
+    注意`{a b1 b3 c}`，这是因为`"b"`之间是不确定松散连续产生的。
 
-For looping patterns (e.g. `oneOrMore()` and `times()`) the default is *relaxed contiguity*. If you want
-strict contiguity, you have to explicitly specify it by using the `consecutive()` call, and if you want
-*non-deterministic relaxed contiguity* you can use the `allowCombinations()` call.
+对于循环模式（例如`oneOrMore()`和`times()`)），默认是*松散连续*。如果想使用*严格连续*，你需要使用`consecutive()`方法明确指定，
+如果想使用*不确定松散连续*，你可以使用`allowCombinations()`方法。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">Pattern Operation</th>
-            <th class="text-center">Description</th>
+            <th class="text-left" style="width: 25%">模式操作</th>
+            <th class="text-center">描述</th>
         </tr>
     </thead>
     <tbody>
        <tr>
           <td><strong>consecutive()</strong><a name="consecutive_java"></a></td>
           <td>
-              <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
-              events, i.e. any non-matching element breaks the match (as in <code>next()</code>).</p>
-              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+              <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用， 在匹配的事件之间施加严格的连续性，
+              也就是说，任何不匹配的事件都会终止匹配（和<code>next()</code>一样）。</p>
+              <p>如果不使用它，那么就是松散连续（和<code>followedBy()</code>一样）。</p>
 
-              <p>E.g. a pattern like:</p>
+              <p>例如，一个如下的模式：</p>
 {% highlight java %}
 Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
   @Override
@@ -842,20 +818,20 @@ Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
   }
 });
 {% endhighlight %}
-              <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+              <p>输入：C D A1 A2 A3 D A4 B，会产生下面的输出：</p>
 
-              <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
-              <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+              <p>如果施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}</p>
+              <p>不施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
           </td>
        </tr>
        <tr>
        <td><strong>allowCombinations()</strong><a name="allow_comb_java"></a></td>
        <td>
-              <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes non-deterministic relaxed contiguity
-              between the matching events (as in <code>followedByAny()</code>).</p>
-              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+              <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用，
+              在匹配的事件中间施加不确定松散连续性（和<code>followedByAny()</code>一样）。</p>
+              <p>如果不使用，就是松散连续（和<code>followedBy()</code>一样）。</p>
 
-              <p>E.g. a pattern like:</p>
+              <p>例如，一个如下的模式：</p>
 {% highlight java %}
 Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
   @Override
@@ -876,10 +852,10 @@ Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
   }
 });
 {% endhighlight %}
-               <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+               <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
 
-               <p>with combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A3 B}, {C A1 A4 B}, {C A1 A2 A3 B}, {C A1 A2 A4 B}, {C A1 A3 A4 B}, {C A1 A2 A3 A4 B}</p>
-               <p>without combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+               <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}</p>
+               <p>如果不使用：{C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
        </td>
        </tr>
   </tbody>
@@ -890,19 +866,19 @@ Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">Pattern Operation</th>
-            <th class="text-center">Description</th>
+            <th class="text-left" style="width: 25%">模式操作</th>
+            <th class="text-center">描述</th>
         </tr>
     </thead>
     <tbody>
            <tr>
               <td><strong>consecutive()</strong><a name="consecutive_scala"></a></td>
               <td>
-                <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
-                              events, i.e. any non-matching element breaks the match (as in <code>next()</code>).</p>
-                              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+                <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用， 在匹配的事件之间施加严格的连续性，
+                也就是说，任何不匹配的事件都会终止匹配（和<code>next()</code>一样）。</p>
+                <p>如果不使用它，那么就是松散连续（和<code>followedBy()</code>一样）。</p>
 
-          <p>E.g. a pattern like:</p>
+          <p>例如，一个如下的模式：</p>
 {% highlight scala %}
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
@@ -910,20 +886,20 @@ Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("end1").where(_.getName().equals("b"))
 {% endhighlight %}
 
-                <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+                <p>输入：C D A1 A2 A3 D A4 B，会产生下面的输出：</p>
 
-                              <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
-                              <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+                <p>如果施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}</p>
+                <p>不施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
               </td>
            </tr>
            <tr>
                   <td><strong>allowCombinations()</strong><a name="allow_comb_java"></a></td>
                   <td>
-                    <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes non-deterministic relaxed contiguity
-                         between the matching events (as in <code>followedByAny()</code>).</p>
-                         <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+                    <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用，
+                    在匹配的事件中间施加不确定松散连续性（和<code>followedByAny()</code>一样）。</p>
+                    <p>如果不使用，就是松散连续（和<code>followedBy()</code>一样）。</p>
 
-          <p>E.g. a pattern like:</p>
+           <p>例如，一个如下的模式：</p>
 {% highlight scala %}
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
@@ -931,10 +907,10 @@ Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("end1").where(_.getName().equals("b"))
 {% endhighlight %}
 
-                          <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+                          <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
 
-                          <p>with combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A3 B}, {C A1 A4 B}, {C A1 A2 A3 B}, {C A1 A2 A4 B}, {C A1 A3 A4 B}, {C A1 A2 A3 A4 B}</p>
-                          <p>without combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+                          <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}</p>
+                          <p>如果不使用：{C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
                   </td>
                   </tr>
   </tbody>
@@ -942,12 +918,11 @@ Pattern.begin("start").where(_.getName().equals("c"))
 </div>
 </div>
 
-### Groups of patterns
+### 模式组
 
-It's also possible to define a pattern sequence as the condition for `begin`, `followedBy`, `followedByAny` and
-`next`. The pattern sequence will be considered as the matching condition logically and a `GroupPattern` will be
-returned and it is possible to apply `oneOrMore()`, `times(#ofTimes)`, `times(#fromTimes, #toTimes)`, `optional()`,
-`consecutive()`, `allowCombinations()` to the `GroupPattern`.
+也可以定义一个模式序列作为`begin`，`followedBy`，`followedByAny`和`next`的条件。这个模式序列在逻辑上会被当作匹配的条件，
+并且返回一个`GroupPattern`，可以在`GroupPattern`上使用`oneOrMore()`，`times(#ofTimes)`，
+`times(#fromTimes, #toTimes)`，`optional()`，`consecutive()`，`allowCombinations()`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -957,17 +932,17 @@ Pattern<Event, ?> start = Pattern.begin(
     Pattern.<Event>begin("start").where(...).followedBy("start_middle").where(...)
 );
 
-// strict contiguity
+// 严格连续
 Pattern<Event, ?> strict = start.next(
     Pattern.<Event>begin("next_start").where(...).followedBy("next_middle").where(...)
 ).times(3);
 
-// relaxed contiguity
+// 松散连续
 Pattern<Event, ?> relaxed = start.followedBy(
     Pattern.<Event>begin("followedby_start").where(...).followedBy("followedby_middle").where(...)
 ).oneOrMore();
 
-// non-deterministic relaxed contiguity
+// 不确定松散连续
 Pattern<Event, ?> nonDetermin = start.followedByAny(
     Pattern.<Event>begin("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
 ).optional();
@@ -982,17 +957,17 @@ val start: Pattern[Event, _] = Pattern.begin(
     Pattern.begin[Event]("start").where(...).followedBy("start_middle").where(...)
 )
 
-// strict contiguity
+// 严格连续
 val strict: Pattern[Event, _] = start.next(
     Pattern.begin[Event]("next_start").where(...).followedBy("next_middle").where(...)
 ).times(3)
 
-// relaxed contiguity
+// 松散连续
 val relaxed: Pattern[Event, _] = start.followedBy(
     Pattern.begin[Event]("followedby_start").where(...).followedBy("followedby_middle").where(...)
 ).oneOrMore()
 
-// non-deterministic relaxed contiguity
+// 不确定松散连续
 val nonDetermin: Pattern[Event, _] = start.followedByAny(
     Pattern.begin[Event]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
 ).optional()
@@ -1008,15 +983,15 @@ val nonDetermin: Pattern[Event, _] = start.followedByAny(
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">Pattern Operation</th>
-            <th class="text-center">Description</th>
+            <th class="text-left" style="width: 25%">模式操作</th>
+            <th class="text-center">描述</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td><strong>begin(#name)</strong></td>
             <td>
-            <p>Defines a starting pattern:</p>
+            <p>定义一个开始的模式：</p>
 {% highlight java %}
 Pattern<Event, ?> start = Pattern.<Event>begin("start");
 {% endhighlight %}
@@ -1025,7 +1000,7 @@ Pattern<Event, ?> start = Pattern.<Event>begin("start");
         <tr>
             <td><strong>begin(#pattern_sequence)</strong></td>
             <td>
-            <p>Defines a starting pattern:</p>
+            <p>定义一个开始的模式：</p>
 {% highlight java %}
 Pattern<Event, ?> start = Pattern.<Event>begin(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
@@ -1036,8 +1011,7 @@ Pattern<Event, ?> start = Pattern.<Event>begin(
         <tr>
             <td><strong>next(#name)</strong></td>
             <td>
-                <p>Appends a new pattern. A matching event has to directly succeed the previous matching event
-                (strict contiguity):</p>
+                <p>增加一个新的模式。匹配的事件必须是直接跟在前面匹配到的事件后面（严格连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> next = start.next("middle");
 {% endhighlight %}
@@ -1046,8 +1020,7 @@ Pattern<Event, ?> next = start.next("middle");
         <tr>
             <td><strong>next(#pattern_sequence)</strong></td>
             <td>
-                <p>Appends a new pattern. A sequence of matching events have to directly succeed the previous matching event
-                (strict contiguity):</p>
+                <p>增加一个新的模式。匹配的事件序列必须是直接跟在前面匹配到的事件后面（严格连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> next = start.next(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
@@ -1058,8 +1031,7 @@ Pattern<Event, ?> next = start.next(
         <tr>
             <td><strong>followedBy(#name)</strong></td>
             <td>
-                <p>Appends a new pattern. Other events can occur between a matching event and the previous
-                matching event (relaxed contiguity):</p>
+                <p>增加一个新的模式。可以有其他事件出现在匹配的事件和之前匹配到的事件中间（松散连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> followedBy = start.followedBy("middle");
 {% endhighlight %}
@@ -1068,8 +1040,7 @@ Pattern<Event, ?> followedBy = start.followedBy("middle");
         <tr>
             <td><strong>followedBy(#pattern_sequence)</strong></td>
             <td>
-                 <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
-                 matching event (relaxed contiguity):</p>
+                 <p>增加一个新的模式。可以有其他事件出现在匹配的事件序列和之前匹配到的事件中间（松散连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> followedBy = start.followedBy(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
@@ -1080,9 +1051,8 @@ Pattern<Event, ?> followedBy = start.followedBy(
         <tr>
             <td><strong>followedByAny(#name)</strong></td>
             <td>
-                <p>Appends a new pattern. Other events can occur between a matching event and the previous
-                matching event, and alternative matches will be presented for every alternative matching event
-                (non-deterministic relaxed contiguity):</p>
+                <p>增加一个新的模式。可以有其他事件出现在匹配的事件和之前匹配到的事件中间，
+                每个可选的匹配事件都会作为可选的匹配结果输出（不确定的松散连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> followedByAny = start.followedByAny("middle");
 {% endhighlight %}
@@ -1091,9 +1061,8 @@ Pattern<Event, ?> followedByAny = start.followedByAny("middle");
         <tr>
              <td><strong>followedByAny(#pattern_sequence)</strong></td>
              <td>
-                 <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
-                 matching event, and alternative matches will be presented for every alternative sequence of matching events
-                 (non-deterministic relaxed contiguity):</p>
+                 <p>增加一个新的模式。可以有其他事件出现在匹配的事件序列和之前匹配到的事件中间，
+                 每个可选的匹配事件序列都会作为可选的匹配结果输出（不确定的松散连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> followedByAny = start.followedByAny(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
@@ -1104,8 +1073,7 @@ Pattern<Event, ?> followedByAny = start.followedByAny(
         <tr>
                     <td><strong>notNext()</strong></td>
                     <td>
-                        <p>Appends a new negative pattern. A matching (negative) event has to directly succeed the
-                        previous matching event (strict contiguity) for the partial match to be discarded:</p>
+                        <p>增加一个新的否定模式。匹配的（否定）事件必须直接跟在前面匹配到的事件之后（严格连续）来丢弃这些部分匹配：</p>
 {% highlight java %}
 Pattern<Event, ?> notNext = start.notNext("not");
 {% endhighlight %}
@@ -1114,9 +1082,8 @@ Pattern<Event, ?> notNext = start.notNext("not");
                 <tr>
                     <td><strong>notFollowedBy()</strong></td>
                     <td>
-                        <p>Appends a new negative pattern. A partial matching event sequence will be discarded even
-                        if other events occur between the matching (negative) event and the previous matching event
-                        (relaxed contiguity):</p>
+                        <p>增加一个新的否定模式。即使有其他事件在匹配的（否定）事件和之前匹配的事件之间发生，
+                        部分匹配的事件序列也会被丢弃（松散连续）：</p>
 {% highlight java %}
 Pattern<Event, ?> notFollowedBy = start.notFollowedBy("not");
 {% endhighlight %}
@@ -1125,8 +1092,7 @@ Pattern<Event, ?> notFollowedBy = start.notFollowedBy("not");
        <tr>
           <td><strong>within(time)</strong></td>
           <td>
-              <p>Defines the maximum time interval for an event sequence to match the pattern. If a non-completed event
-              sequence exceeds this time, it is discarded:</p>
+              <p>定义匹配模式的事件序列出现的最大时间间隔。如果未完成的事件序列超过了这个事件，就会被丢弃：</p>
 {% highlight java %}
 pattern.within(Time.seconds(10));
 {% endhighlight %}
@@ -1140,15 +1106,15 @@ pattern.within(Time.seconds(10));
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">Pattern Operation</th>
-            <th class="text-center">Description</th>
+            <th class="text-left" style="width: 25%">模式操作</th>
+            <th class="text-center">描述</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td><strong>begin(#name)</strong></td>
             <td>
-            <p>Defines a starting pattern:</p>
+            <p>定一个开始模式：</p>
 {% highlight scala %}
 val start = Pattern.begin[Event]("start")
 {% endhighlight %}
@@ -1157,7 +1123,7 @@ val start = Pattern.begin[Event]("start")
        <tr>
             <td><strong>begin(#pattern_sequence)</strong></td>
             <td>
-            <p>Defines a starting pattern:</p>
+            <p>定一个开始模式：</p>
 {% highlight scala %}
 val start = Pattern.begin(
     Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
@@ -1168,8 +1134,7 @@ val start = Pattern.begin(
         <tr>
             <td><strong>next(#name)</strong></td>
             <td>
-                <p>Appends a new pattern. A matching event has to directly succeed the previous matching event
-                (strict contiguity):</p>
+                <p>增加一个新的模式，匹配的事件必须是直接跟在前面匹配到的事件后面（严格连续）：</p>
 {% highlight scala %}
 val next = start.next("middle")
 {% endhighlight %}
@@ -1178,8 +1143,7 @@ val next = start.next("middle")
         <tr>
             <td><strong>next(#pattern_sequence)</strong></td>
             <td>
-                <p>Appends a new pattern. A sequence of matching events have to directly succeed the previous matching event
-                (strict contiguity):</p>
+                <p>增加一个新的模式。匹配的事件序列必须是直接跟在前面匹配到的事件后面（严格连续）：</p>
 {% highlight scala %}
 val next = start.next(
     Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
@@ -1190,8 +1154,7 @@ val next = start.next(
         <tr>
             <td><strong>followedBy(#name)</strong></td>
             <td>
-                <p>Appends a new pattern. Other events can occur between a matching event and the previous
-                matching event (relaxed contiguity) :</p>
+                <p>增加一个新的模式。可以有其他事件出现在匹配的事件和之前匹配到的事件中间（松散连续）：</p>
 {% highlight scala %}
 val followedBy = start.followedBy("middle")
 {% endhighlight %}
@@ -1200,8 +1163,7 @@ val followedBy = start.followedBy("middle")
         <tr>
             <td><strong>followedBy(#pattern_sequence)</strong></td>
             <td>
-                <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
-                matching event (relaxed contiguity) :</p>
+                <p>增加一个新的模式。可以有其他事件出现在匹配的事件和之前匹配到的事件中间（松散连续）：</p>
 {% highlight scala %}
 val followedBy = start.followedBy(
     Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
@@ -1212,9 +1174,8 @@ val followedBy = start.followedBy(
         <tr>
             <td><strong>followedByAny(#name)</strong></td>
             <td>
-                <p>Appends a new pattern. Other events can occur between a matching event and the previous
-                matching event, and alternative matches will be presented for every alternative matching event
-                (non-deterministic relaxed contiguity):</p>
+                <p>增加一个新的模式。可以有其他事件出现在匹配的事件和之前匹配到的事件中间，
+                每个可选的匹配事件都会作为可选的匹配结果输出（不确定的松散连续）：</p>
 {% highlight scala %}
 val followedByAny = start.followedByAny("middle")
 {% endhighlight %}
@@ -1223,9 +1184,8 @@ val followedByAny = start.followedByAny("middle")
          <tr>
              <td><strong>followedByAny(#pattern_sequence)</strong></td>
              <td>
-                 <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
-                 matching event, and alternative matches will be presented for every alternative sequence of matching events
-                 (non-deterministic relaxed contiguity):</p>
+                 <p>增加一个新的模式。可以有其他事件出现在匹配的事件序列和之前匹配到的事件中间，
+                 每个可选的匹配事件序列都会作为可选的匹配结果输出（不确定的松散连续）：</p>
 {% highlight scala %}
 val followedByAny = start.followedByAny(
     Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
@@ -1237,8 +1197,8 @@ val followedByAny = start.followedByAny(
                 <tr>
                                     <td><strong>notNext()</strong></td>
                                     <td>
-                                        <p>Appends a new negative pattern. A matching (negative) event has to directly succeed the
-                                        previous matching event (strict contiguity) for the partial match to be discarded:</p>
+                                        <p>增加一个新的否定模式。匹配的（否定）事件必须直接跟在前面匹配到的事件之后
+                                        （严格连续）来丢弃这些部分匹配：</p>
 {% highlight scala %}
 val notNext = start.notNext("not")
 {% endhighlight %}
@@ -1247,9 +1207,8 @@ val notNext = start.notNext("not")
                                 <tr>
                                     <td><strong>notFollowedBy()</strong></td>
                                     <td>
-                                        <p>Appends a new negative pattern. A partial matching event sequence will be discarded even
-                                        if other events occur between the matching (negative) event and the previous matching event
-                                        (relaxed contiguity):</p>
+                                        <p>增加一个新的否定模式。即使有其他事件在匹配的（否定）事件和之前匹配的事件之间发生，
+                                        部分匹配的事件序列也会被丢弃（松散连续）：</p>
 {% highlight scala %}
 val notFollowedBy = start.notFollowedBy("not")
 {% endhighlight %}
@@ -1259,8 +1218,7 @@ val notFollowedBy = start.notFollowedBy("not")
        <tr>
           <td><strong>within(time)</strong></td>
           <td>
-              <p>Defines the maximum time interval for an event sequence to match the pattern. If a non-completed event
-              sequence exceeds this time, it is discarded:</p>
+              <p>定义匹配模式的事件序列出现的最大时间间隔。如果未完成的事件序列超过了这个事件，就会被丢弃：</p>
 {% highlight scala %}
 pattern.within(Time.seconds(10))
 {% endhighlight %}
@@ -1272,25 +1230,26 @@ pattern.within(Time.seconds(10))
 
 </div>
 
-### After Match Skip Strategy
+### 匹配后跳过策略
 
-For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are five types of skip strategies, listed as follows:
+对于一个给定的模式，同一个事件可能会分配到多个成功的匹配上。为了控制一个事件会分配到多少个匹配上，你需要指定跳过策略`AfterMatchSkipStrategy`。
+有五种跳过策略，如下：
 
-* <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
-* <strong>*SKIP_TO_NEXT*</strong>: Discards every partial match that started with the same event, emitted match was started.
-* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that started after the match started but before it ended.
-* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that started after the match started but before the first event of *PatternName* occurred.
-* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that started after the match started but before the last event of *PatternName* occurred.
+* <strong>*NO_SKIP*</strong>: 每个成功的匹配都会被输出。
+* <strong>*SKIP_TO_NEXT*</strong>: 丢弃以相同事件开始的所有部分匹配。
+* <strong>*SKIP_PAST_LAST_EVENT*</strong>: 丢弃起始在这个匹配的开始和结束之间的所有部分匹配。
+* <strong>*SKIP_TO_FIRST*</strong>: 丢弃起始在这个匹配的开始和第一个出现的名称为*PatternName*事件之间的所有部分匹配。
+* <strong>*SKIP_TO_LAST*</strong>: 丢弃起始在这个匹配的开始和最后一个出现的名称为*PatternName*事件之间的所有部分匹配。
 
-Notice that when using *SKIP_TO_FIRST* and *SKIP_TO_LAST* skip strategy, a valid *PatternName* should also be specified.
+注意当使用*SKIP_TO_FIRST*和*SKIP_TO_LAST*策略时，需要指定一个合法的*PatternName*.
 
-For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the differences between these four skip strategies are as follows:
+例如，给定一个模式`b+ c`和一个数据流`b1 b2 b3 c`，不同跳过策略之间的不同如下：
 
 <table class="table table-bordered">
     <tr>
-        <th class="text-left" style="width: 25%">Skip Strategy</th>
-        <th class="text-center" style="width: 25%">Result</th>
-        <th class="text-center"> Description</th>
+        <th class="text-left" style="width: 25%">跳过策略</th>
+        <th class="text-center" style="width: 25%">结果</th>
+        <th class="text-center"> 描述</th>
     </tr>
     <tr>
         <td><strong>NO_SKIP</strong></td>
@@ -1299,7 +1258,7 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
             <code>b2 b3 c</code><br>
             <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result.</td>
+        <td>找到匹配<code>b1 b2 b3 c</code>之后，不会丢弃任何结果。</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_NEXT</strong></td>
@@ -1308,14 +1267,14 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
             <code>b2 b3 c</code><br>
             <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result, because no other match could start at b1.</td>
+        <td>找到匹配<code>b1 b2 b3 c</code>之后，不会丢弃任何结果，因为没有以<code>b1</code>开始的其他匹配。</td>
     </tr>
     <tr>
         <td><strong>SKIP_PAST_LAST_EVENT</strong></td>
         <td>
             <code>b1 b2 b3 c</code><br>
         </td>
-        <td>After found matching <code>b1 b2 b3 c</code>, the match process will discard all started partial matches.</td>
+        <td>找到匹配<code>b1 b2 b3 c</code>之后，会丢弃其他所有的部分匹配。</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_FIRST</strong>[<code>b</code>]</td>
@@ -1324,7 +1283,7 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
             <code>b2 b3 c</code><br>
             <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b1</code>, but there are no such matches. Therefore nothing will be discarded.</td>
+        <td>找到匹配<code>b1 b2 b3 c</code>之后，会尝试丢弃所有在<code>b1</code>之前开始的部分匹配，但没有这样的匹配，所以没有任何匹配被丢弃。</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_LAST</strong>[<code>b</code>]</td>
@@ -1332,19 +1291,19 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
             <code>b1 b2 b3 c</code><br>
             <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b3</code>. There is one such match <code>b2 b3 c</code></td>
+        <td>找到匹配<code>b1 b2 b3 c</code>之后，会尝试丢弃所有在<code>b3</code>之前开始的部分匹配，有一个这样的<code>b2 b3 c</code>被丢弃。</td>
     </tr>
 </table>
 
-Have a look also at another example to better see the difference between NO_SKIP and SKIP_TO_FIRST:
-Pattern: `(a | b | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
+在看另外一个例子来说明NO_SKIP和SKIP_TO_FIRST之间的差别：
+模式： `(a | b | c) (b | c) c+.greedy d`，输入：`a b c1 c2 c3 d`，结果将会是：
 
 
 <table class="table table-bordered">
     <tr>
-        <th class="text-left" style="width: 25%">Skip Strategy</th>
-        <th class="text-center" style="width: 25%">Result</th>
-        <th class="text-center"> Description</th>
+        <th class="text-left" style="width: 25%">跳过策略</th>
+        <th class="text-center" style="width: 25%">结果</th>
+        <th class="text-center"> 描述</th>
     </tr>
     <tr>
         <td><strong>NO_SKIP</strong></td>
@@ -1353,7 +1312,7 @@ Pattern: `(a | b | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then t
             <code>b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
         </td>
-        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will not discard any result.</td>
+        <td>找到匹配<code>a b c1 c2 c3 d</code>之后，不会丢弃任何结果。</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_FIRST</strong>[<code>c*</code>]</td>
@@ -1361,19 +1320,19 @@ Pattern: `(a | b | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then t
             <code>a b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
         </td>
-        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will discard all partial matches started before <code>c1</code>. There is one such match <code>b c1 c2 c3 d</code>.</td>
+        <td>找到匹配<code>a b c1 c2 c3 d</code>之后，会丢弃所有在<code>c1</code>之前开始的部分匹配，有一个这样的<code>b c1 c2 c3 d</code>被丢弃。</td>
     </tr>
 </table>
 
-To better understand the difference between NO_SKIP and SKIP_TO_NEXT take a look at following example:
-Pattern: `a b+` and sequence: `a b1 b2 b3` Then the results will be:
+为了更好的理解NO_SKIP和SKIP_TO_NEXT之间的差别，看下面的例子：
+模式：`a b+`，输入：`a b1 b2 b3`，结果将会是：
 
 
 <table class="table table-bordered">
     <tr>
-        <th class="text-left" style="width: 25%">Skip Strategy</th>
-        <th class="text-center" style="width: 25%">Result</th>
-        <th class="text-center"> Description</th>
+        <th class="text-left" style="width: 25%">跳过策略</th>
+        <th class="text-center" style="width: 25%">结果</th>
+        <th class="text-center"> 描述</th>
     </tr>
     <tr>
         <td><strong>NO_SKIP</strong></td>
@@ -1382,46 +1341,46 @@ Pattern: `a b+` and sequence: `a b1 b2 b3` Then the results will be:
             <code>a b1 b2</code><br>
             <code>a b1 b2 b3</code><br>
         </td>
-        <td>After found matching <code>a b1</code>, the match process will not discard any result.</td>
+        <td>找到匹配<code>a b1</code>之后，不会丢弃任何结果。</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_NEXT</strong></td>
         <td>
             <code>a b1</code><br>
         </td>
-        <td>After found matching <code>a b1</code>, the match process will discard all partial matches started at <code>a</code>. This means neither <code>a b1 b2</code> nor <code>a b1 b2 b3</code> could be generated.</td>
+        <td>找到匹配<code>a b1</code>之后，会丢弃所有以<code>a</code>开始的部分匹配。这意味着不会产生<code>a b1 b2</code>和<code>a b1 b2 b3</code>了。</td>
     </tr>
 </table>
 
-To specify which skip strategy to use, just create an `AfterMatchSkipStrategy` by calling:
+想指定要使用的跳过策略，只需要调用下面的方法创建`AfterMatchSkipStrategy`：
 <table class="table table-bordered">
     <tr>
-        <th class="text-left" width="25%">Function</th>
-        <th class="text-center">Description</th>
+        <th class="text-left" width="25%">方法</th>
+        <th class="text-center">描述</th>
     </tr>
     <tr>
         <td><code>AfterMatchSkipStrategy.noSkip()</code></td>
-        <td>Create a <strong>NO_SKIP</strong> skip strategy </td>
+        <td>创建<strong>NO_SKIP</strong>策略</td>
     </tr>
     <tr>
         <td><code>AfterMatchSkipStrategy.skipToNext()</code></td>
-        <td>Create a <strong>SKIP_TO_NEXT</strong> skip strategy </td>
+        <td>创建<strong>SKIP_TO_NEXT</strong>策略</td>
     </tr>
     <tr>
         <td><code>AfterMatchSkipStrategy.skipPastLastEvent()</code></td>
-        <td>Create a <strong>SKIP_PAST_LAST_EVENT</strong> skip strategy </td>
+        <td>创建<strong>SKIP_PAST_LAST_EVENT</strong>策略</td>
     </tr>
     <tr>
         <td><code>AfterMatchSkipStrategy.skipToFirst(patternName)</code></td>
-        <td>Create a <strong>SKIP_TO_FIRST</strong> skip strategy with the referenced pattern name <i>patternName</i></td>
+        <td>创建引用模式名称为<i>patternName</i>的<strong>SKIP_TO_FIRST</strong>策略</td>
     </tr>
     <tr>
         <td><code>AfterMatchSkipStrategy.skipToLast(patternName)</code></td>
-        <td>Create a <strong>SKIP_TO_LAST</strong> skip strategy with the referenced pattern name <i>patternName</i></td>
+        <td>创建引用模式名称为<i>patternName</i>的<strong>SKIP_TO_LAST</strong>策略</td>
     </tr>
 </table>
 
-Then apply the skip strategy to a pattern by calling:
+可以通过调用下面方法将跳过策略应用到模式上：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1438,9 +1397,9 @@ Pattern.begin("patternName", skipStrategy)
 </div>
 </div>
 
-{% warn Attention %} For SKIP_TO_FIRST/LAST there are two options how to handle cases when there are no elements mapped to
-the specified variable. By default a NO_SKIP strategy will be used in this case. The other option is to throw exception in such situation.
-One can enable this option by:
+{% warn 注意 %} 使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应的变量名上的情况。
+默认情况下会使用NO_SKIP策略，另外一个选项是抛出异常。
+可以使用如下的选项：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1455,18 +1414,18 @@ AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
 </div>
 </div>
 
-## Detecting Patterns
+## 检测模式
 
-After specifying the pattern sequence you are looking for, it is time to apply it to your input stream to detect
-potential matches. To run a stream of events against your pattern sequence, you have to create a `PatternStream`.
-Given an input stream `input`, a pattern `pattern` and an optional comparator `comparator` used to sort events with the same timestamp in case of EventTime or that arrived at the same moment, you create the `PatternStream` by calling:
+在指定了要寻找的模式后，该把它们应用到输入流上来发现可能的匹配了。为了在事件流上运行你的模式，需要创建一个`PatternStream`。
+给定一个输入流`input`，一个模式`pattern`和一个可选的用来对使用事件时间时有同样时间戳或者同时到达的事件进行排序的比较器`comparator`，
+你可以通过调用如下方法来创建`PatternStream`：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<Event> input = ...
 Pattern<Event, ?> pattern = ...
-EventComparator<Event> comparator = ... // optional
+EventComparator<Event> comparator = ... // 可选的
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 {% endhighlight %}
@@ -1476,27 +1435,25 @@ PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 {% highlight scala %}
 val input : DataStream[Event] = ...
 val pattern : Pattern[Event, _] = ...
-var comparator : EventComparator[Event] = ... // optional
+var comparator : EventComparator[Event] = ... // 可选的
 
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern, comparator)
 {% endhighlight %}
 </div>
 </div>
 
-The input stream can be *keyed* or *non-keyed* depending on your use-case.
+输入流根据你的使用场景可以是*keyed*或者*non-keyed*。
 
-{% warn Attention %} Applying your pattern on a non-keyed stream will result in a job with parallelism equal to 1.
+{% warn 注意 %} 在*non-keyed*流上使用模式将会使你的作业并发度被设为1。
 
-### Selecting from Patterns
+### 从模式中选取
 
-Once you have obtained a `PatternStream` you can apply transformation to detected event sequences. The suggested way of doing that
-is by `PatternProcessFunction`.
+在获得到一个`PatternStream`之后，你可以应用各种转换来发现事件序列。推荐使用`PatternProcessFunction`。
 
-A `PatternProcessFunction` has a `processMatch` method which is called for each matching event sequence.
-It receives a match in the form of `Map<String, List<IN>>` where the key is the name of each pattern in your pattern
-sequence and the value is a list of all accepted events for that pattern (`IN` is the type of your input elements).
-The events for a given pattern are ordered by timestamp. The reason for returning a list of accepted events for each
-pattern is that when using looping patterns (e.g. `oneToMany()` and `times()`), more than one event may be accepted for a given pattern.
+`PatternProcessFunction`有一个`processMatch`的方法在每找到一个匹配的事件序列时都会被调用。
+它按照`Map<String, List<IN>>`的格式接收一个匹配，映射的键是你的模式序列中的每个模式的名称，值是被接受的事件列表（`IN`是输入事件的类型）。
+模式的输入事件按照时间戳进行排序。为每个模式返回一个接受的事件列表的原因是当使用循环模式（比如`oneToMany()`和`times()`）时，
+对一个模式会有不止一个事件被接受。
 
 {% highlight java %}
 class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> {
@@ -1509,18 +1466,17 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 }
 {% endhighlight %}
 
-The `PatternProcessFunction` gives access to a `Context` object. Thanks to it, one can access time related
-characteristics such as `currentProcessingTime` or `timestamp` of current match (which is the timestamp of the last element assigned to the match).
-For more info see [Time context](#time-context).
-Through this context one can also emit results to a [side-output]({{ site.baseurl }}/dev/stream/side_output.html).
+`PatternProcessFunction`可以访问`Context`对象。有了它之后，你可以访问时间属性，比如`currentProcessingTime`或者当前匹配的`timestamp`
+（最新分配到匹配上的事件的时间戳）。
+更多信息可以看[时间上下文](#时间上下文)。
+通过这个上下文也可以将结果输出到[侧输出]({{ site.baseurl }}/zh/dev/stream/side_output.html).
 
 
-#### Handling Timed Out Partial Patterns
+#### 处理超时的部分匹配
 
-Whenever a pattern has a window length attached via the `within` keyword, it is possible that partial event sequences
-are discarded because they exceed the window length. To act upon a timed out partial match one can use `TimedOutPartialMatchHandler` interface.
-The interface is supposed to be used in a mixin style. This mean you can additionally implement this interface with your `PatternProcessFunction`.
-The `TimedOutPartialMatchHandler` provides the additional `processTimedOutMatch` method which will be called for every timed out partial match.
+当一个模式上通过`within`加上窗口长度后，部分匹配的事件序列就可能因为超过窗口长度而被丢弃。可以使用`TimedOutPartialMatchHandler`接口
+来处理超时的部分匹配。这个接口可以和其它的混合使用。也就是说你可以在自己的`PatternProcessFunction`里另外实现这个接口。
+`TimedOutPartialMatchHandler`提供了另外的`processTimedOutMatch`方法，这个方法对每个超时的部分匹配都会调用。
 
 {% highlight java %}
 class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> implements TimedOutPartialMatchHandler<IN> {
@@ -1537,14 +1493,14 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 }
 {% endhighlight %}
 
-<span class="label label-info">Note</span> The `processTimedOutMatch` does not give one access to the main output. You can still emit results
-through [side-outputs]({{ site.baseurl }}/dev/stream/side_output.html) though, through the `Context` object.
+<span class="label label-info">Note</span> `processTimedOutMatch`不能访问主输出。
+但你可以通过`Context`对象把结果输出到[侧输出]({{ site.baseurl }}/zh/dev/stream/side_output.html)。
 
 
-#### Convenience API
+#### 便捷的API
 
-The aforementioned `PatternProcessFunction` was introduced in Flink 1.8 and since then it is the recommended way to interact with matches.
-One can still use the old style API like `select`/`flatSelect`, which internally will be translated into a `PatternProcessFunction`.
+前面提到的`PatternProcessFunction`是在Flink 1.8之后引入的，从那之后推荐使用这个接口来处理匹配到的结果。
+用户仍然可以使用像`select`/`flatSelect`这样旧格式的API，它们会在内部被转换为`PatternProcessFunction`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1598,17 +1554,17 @@ val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 </div>
 </div>
 
-## Time in CEP library
+## CEP库中的时间
 
-### Handling Lateness in Event Time
+### 按照事件时间处理迟到事件
 
-In `CEP` the order in which elements are processed matters. To guarantee that elements are processed in the correct order when working in event time, an incoming element is initially put in a buffer where elements are *sorted in ascending order based on their timestamp*, and when a watermark arrives, all the elements in this buffer with timestamps smaller than that of the watermark are processed. This implies that elements between watermarks are processed in event-time order.
+在`CEP`中，事件的处理顺序很重要。在使用事件时间时，为了保证事件按照正确的顺序被处理，一个事件到来后会先被放到一个缓冲区中，
+在缓冲区里事件都按照时间戳从小到大排序，当水位线到达后，缓冲区中所有小于水位线的事件被处理。这意味着水位线之间的数据都按照时间戳被顺序处理。
 
-{% warn Attention %} The library assumes correctness of the watermark when working in event time.
+{% warn 注意 %} 这个库假定按照事件时间时水位线一定是正确的。
 
-To guarantee that elements across watermarks are processed in event-time order, Flink's CEP library assumes
-*correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last
-seen watermark. Late elements are not further processed. Also, you can specify a sideOutput tag to collect the late elements come after the last seen watermark, you can use it like this.
+为了保证跨水位线的事件按照事件时间处理，Flink CEP库假定*水位线一定是正确的*，并且把时间戳小于最新水位线的事件看作是*晚到*的。
+晚到的事件不会被处理。你也可以指定一个侧输出标志来收集比最新水位线晚到的事件，你可以这样做：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1651,44 +1607,42 @@ val lateData: DataStream[String] = result.getSideOutput(lateDataOutputTag)
 </div>
 </div>
 
-### Time context
+### 时间上下文
 
-In [PatternProcessFunction](#selecting-from-patterns) as well as in [IterativeCondition](#conditions) user has access to a context
-that implements `TimeContext` as follows:
+在[PatternProcessFunction](#从模式中选取)中，用户可以和[IterativeCondition](#条件)中
+一样按照下面的方法使用实现了`TimeContext`的上下文：
 
 {% highlight java %}
 /**
- * Enables access to time related characteristics such as current processing time or timestamp of
- * currently processed element. Used in {@link PatternProcessFunction} and
- * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
+ * 支持获取事件属性比如当前处理事件或当前正处理的事件的时间。
+ * 用在{@link PatternProcessFunction}和{@link org.apache.flink.cep.pattern.conditions.IterativeCondition}中
  */
 @PublicEvolving
 public interface TimeContext {
 
 	/**
-	 * Timestamp of the element currently being processed.
+	 * 当前正处理的事件的时间戳。
 	 *
-	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this
-	 * will be set to the time when event entered the cep operator.
+	 * <p>如果是{@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime}，这个值会被设置为事件进入CEP算子的时间。
 	 */
 	long timestamp();
 
-	/** Returns the current processing time. */
+	/** 返回当前的处理时间。 */
 	long currentProcessingTime();
 }
 {% endhighlight %}
 
-This context gives user access to time characteristics of processed events (incoming records in case of `IterativeCondition` and matches in case of `PatternProcessFunction`).
-Call to `TimeContext#currentProcessingTime` always gives you the value of current processing time and this call should be preferred to e.g. calling `System.currentTimeMillis()`.
+这个上下文让用户可以获取处理的事件（在`IterativeCondition`时候是进来的记录，在`PatternProcessFunction`是匹配的结果）的时间属性。
+调用`TimeContext#currentProcessingTime`总是返回当前的处理时间，而且尽量去调用这个函数而不是调用其它的比如说`System.currentTimeMillis()`。
 
-In case of `TimeContext#timestamp()` the returned value is equal to assigned timestamp in case of `EventTime`. In `ProcessingTime` this will equal to the point of time when said event entered
-cep operator (or when the match was generated in case of `PatternProcessFunction`). This means that the value will be consistent across multiple calls to that method.
+使用`EventTime`时，`TimeContext#timestamp()`返回的值等于分配的时间戳。
+使用`ProcessingTime`时，这个值等于事件进入CEP算子的时间点（在`PatternProcessFunction`中是匹配产生的时间）。
+这意味着多次调用这个方法得到的值是一致的。
 
-## Examples
+## 例子
 
-The following example detects the pattern `start, middle(name = "error") -> end(name = "critical")` on a keyed data
-stream of `Events`. The events are keyed by their `id`s and a valid pattern has to occur within 10 seconds.
-The whole processing is done with event time.
+下面的例子在一个分片的`Events`流上检测模式`start, middle(name = "error") -> end(name = "critical")`。
+事件按照`id`分片，一个有效的模式需要发生在10秒内。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1750,31 +1704,25 @@ val alerts = patternStream.select(createAlert(_))
 </div>
 </div>
 
-## Migrating from an older Flink version(pre 1.3)
+## 从旧版本迁移（1.3之前）
 
-### Migrating to 1.4+
+### 迁移到1.4+
 
-In Flink-1.4 the backward compatibility of CEP library with <= Flink 1.2 was dropped. Unfortunately 
-it is not possible to restore a CEP job that was once run with 1.2.x
+在Flink-1.4放弃了和<= Flink 1.2版本的兼容性。很不幸，不能再恢复用1.2.x运行过的CEP作业。
 
-### Migrating to 1.3.x
+### 迁移到1.3.x
 
-The CEP library in Flink-1.3 ships with a number of new features which have led to some changes in the API. Here we
-describe the changes that you need to make to your old CEP jobs, in order to be able to run them with Flink-1.3. After
-making these changes and recompiling your job, you will be able to resume its execution from a savepoint taken with the
-old version of your job, *i.e.* without having to re-process your past data.
+CEP库在Flink-1.3发布的一系列的新特性引入了一些API上的修改。这里我们描述你需要对旧的CEP作业所做的修改，以能够用Flink-1.3来运行它们。
+在做完这些修改并重新编译你的作业之后，可以从旧版本作业的保存点之后继续运行，*也就是说*不需要再重新处理旧的数据。
 
-The changes required are:
+需要的修改是：
 
-1. Change your conditions (the ones in the `where(...)` clause) to extend the `SimpleCondition` class instead of
-implementing the `FilterFunction` interface.
+1. 修改你的条件（在`where(...)`语句中的）来继承`SimpleCondition`类而不是实现`FilterFunction`接口。
 
-2. Change your functions provided as arguments to the `select(...)` and `flatSelect(...)` methods to expect a list of
-events associated with each pattern (`List` in `Java`, `Iterable` in `Scala`). This is because with the addition of
-the looping patterns, multiple input events can match a single (looping) pattern.
+2. 修改你作为`select(...)`和`flatSelect(...)`方法的参数的函数为期望每个模式关联一个事件列表（`Java`中`List`，`Scala`中`Iterable`）。
+这是因为增加了循环模式后，多个事件可能匹配一个单一的（循环）模式。
 
-3. The `followedBy()` in Flink 1.1 and 1.2 implied `non-deterministic relaxed contiguity` (see
-[here](#conditions-on-contiguity)). In Flink 1.3 this has changed and `followedBy()` implies `relaxed contiguity`,
-while `followedByAny()` should be used if `non-deterministic relaxed contiguity` is required.
+3. 在Flink 1.1和1.2中，`followedBy()`隐含了`不确定的松散连续` (参见[这里](#组合模式))。
+在Flink 1.3中，这里发生了变化， `followedBy()`隐含了`松散连续`，如果需要`不确定的松散连续`，应该使用`followedByAny()`。
 
 {% top %}

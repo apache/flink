@@ -83,7 +83,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -217,31 +216,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class EmitterBlockingFunction extends MyAsyncFunction {
-		private static Object lock;
-		private static OneShotLatch outputLatch;
-		private static OneShotLatch closingLatch;
-
-		public EmitterBlockingFunction() {
-			this.outputLatch = new OneShotLatch();
-			this.closingLatch = new OneShotLatch();
-		}
-
-		public static void setLock(Object lock) {
-			EmitterBlockingFunction.lock = lock;
-		}
-
-		@Override
-		public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
-			assertTrue(Thread.currentThread().holdsLock(lock));
-
-			outputLatch.trigger();
-			while (!closingLatch.isTriggered()) {
-				lock.wait(1);
-			}
-		}
-	}
-
 	/**
 	 * A {@link Comparator} to compare {@link StreamRecord} while sorting them.
 	 */
@@ -302,6 +276,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -373,6 +348,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(16, initialTime + 8));
 
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -386,32 +362,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 					testHarness.getOutput(),
 					new StreamRecordComparator());
 		}
-	}
-
-	/**
-	 * Test for the temporary fix to FLINK-13063.
-	 */
-	@Test
-	public void testAsyncOperatorIsNeverChained() {
-		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> input = chainEnv.fromElements(1);
-		input = AsyncDataStream.orderedWait(
-			input,
-			new LazyAsyncFunction(),
-			TIMEOUT,
-			TimeUnit.MILLISECONDS,
-			6).map((x) -> x);
-		AsyncDataStream.unorderedWait(
-			input,
-			new MyAsyncFunction(),
-			TIMEOUT,
-			TimeUnit.MILLISECONDS,
-			3).map((x) -> x).addSink(new DiscardingSink<>());
-
-		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
-
-		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 	}
 
 	/**
@@ -691,6 +641,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -704,47 +655,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				mockEnvironment.getActualExternalFailureCause().get(),
 				expectedException.get()).isPresent());
 		}
-	}
-
-	/**
-	 * Test case for FLINK-5638: Tests that the async wait operator can be closed even if the
-	 * emitter is currently waiting on the checkpoint lock (e.g. in the case of two chained async
-	 * wait operators where the latter operator's queue is currently full).
-	 *
-	 * <p>Note that this test does not enforce the exact strict ordering because with the fix it is no
-	 * longer possible. However, it provokes the described situation without the fix.
-	 */
-	@Test
-	public void testClosingWithBlockedEmitter() throws Exception {
-
-		JobVertex chainedVertex = createChainedVertex(new MyAsyncFunction(), new EmitterBlockingFunction());
-
-		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
-				1, 1,
-				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-		testHarness.setupOutputForSingletonOperatorChain();
-
-		testHarness.taskConfig = chainedVertex.getConfiguration();
-
-		final StreamConfig streamConfig = testHarness.getStreamConfig();
-		final StreamConfig operatorChainStreamConfig = new StreamConfig(chainedVertex.getConfiguration());
-		streamConfig.setStreamOperatorFactory(
-				operatorChainStreamConfig.getStreamOperatorFactory(AsyncWaitOperatorTest.class.getClassLoader()));
-
-		testHarness.invoke();
-		testHarness.waitForTaskRunning();
-		Object checkpointLock = testHarness.getTask().getCheckpointLock();
-		EmitterBlockingFunction.setLock(checkpointLock);
-
-		testHarness.processElement(new StreamRecord<>(42, 1L));
-
-		EmitterBlockingFunction.outputLatch.await();
-		testHarness.endInput();
-		EmitterBlockingFunction.closingLatch.trigger();
-		testHarness.waitForTaskCompletion();
-
-		assertEquals(emptyList(), new ArrayList<>(testHarness.getOutput()));
 	}
 
 	/**
@@ -765,6 +675,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		synchronized (harness.getCheckpointLock()) {
+			harness.endInput();
 			harness.close();
 		}
 
@@ -928,6 +839,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		synchronized (recoverHarness.getCheckpointLock()) {
+			recoverHarness.endInput();
 			recoverHarness.close();
 		}
 

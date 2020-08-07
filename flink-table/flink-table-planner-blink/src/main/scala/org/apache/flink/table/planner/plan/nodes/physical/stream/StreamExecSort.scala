@@ -24,14 +24,14 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.StreamSortOperator
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -63,19 +63,7 @@ class StreamExecSort(
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  /**
-    * this node will not produce or consume retraction message
-    * due to it starts sending data to output after all input data has come.
-    */
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -112,7 +100,7 @@ class StreamExecSort(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     if (!config.getConfiguration.getBoolean(StreamExecSort.TABLE_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
       throw new TableException("Sort on a non-time-attribute field is not supported.")
@@ -124,10 +112,10 @@ class StreamExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val rowComparator = ComparatorCodeGenerator.gen(config, "StreamExecSortComparator",
       keys, keyTypes, orders, nullsIsLast)
-    val sortOperator = new StreamSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
+    val sortOperator = new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator)
     val input = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+      .asInstanceOf[Transformation[RowData]]
+    val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(

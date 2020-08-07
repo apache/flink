@@ -29,6 +29,7 @@ import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the
@@ -73,8 +75,8 @@ public class StreamConfig implements Serializable {
 	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
-	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
+	private static final String TYPE_SERIALIZERS_IN_COUNT = "typeSerializer_in_count";
+	private static final String TYPE_SERIALIZERS_IN_PATTERN = "typeSerializer_in_%d";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
 	private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
 	private static final String ITERATON_WAIT = "iterationWait";
@@ -158,12 +160,11 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
-	}
-
-	public void setTypeSerializerIn2(TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_IN_2, serializer);
+	public void setTypeSerializersIn(TypeSerializer<?> ...serializers) {
+		config.setInteger(TYPE_SERIALIZERS_IN_COUNT, serializers.length);
+		for (int i = 0; i < serializers.length; i++) {
+			setTypeSerializer(String.format(TYPE_SERIALIZERS_IN_PATTERN, i), serializers[i]);
+		}
 	}
 
 	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
@@ -174,19 +175,40 @@ public class StreamConfig implements Serializable {
 		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
 	}
 
+	@Deprecated
 	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_1, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
-		}
+		return getTypeSerializerIn(0, cl);
 	}
 
+	@Deprecated
 	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+		return getTypeSerializerIn(1, cl);
+	}
+
+	public TypeSerializer<?>[] getTypeSerializersIn(ClassLoader cl) {
+		int typeSerializersCount = config.getInteger(TYPE_SERIALIZERS_IN_COUNT, -1);
+		checkState(
+			typeSerializersCount >= 0,
+			"Missing value for %s in the config? [%d]",
+			TYPE_SERIALIZERS_IN_COUNT,
+			typeSerializersCount);
+		TypeSerializer<?>[] typeSerializers = new TypeSerializer<?>[typeSerializersCount];
+		for (int i = 0; i < typeSerializers.length; i++) {
+			typeSerializers[i] = getTypeSerializerIn(i, cl);
+		}
+		return typeSerializers;
+	}
+
+	public <T> TypeSerializer<T> getTypeSerializerIn(int index, ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_2, cl);
+			return InstantiationUtil.readObjectFromConfig(
+				this.config,
+				String.format(TYPE_SERIALIZERS_IN_PATTERN, index),
+				cl);
 		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
+			throw new StreamTaskException(
+				String.format("Could not instantiate serializer for [%d] input.", index),
+				e);
 		}
 	}
 
@@ -410,6 +432,18 @@ public class StreamConfig implements Serializable {
 		} else {
 			return DEFAULT_CHECKPOINTING_MODE;
 		}
+	}
+
+	public void setUnalignedCheckpointsEnabled(boolean enabled) {
+		config.setBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
+	}
+
+	public boolean isUnalignedCheckpointsEnabled() {
+		return config.getBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
+	}
+
+	public boolean isExactlyOnceCheckpointMode() {
+		return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
 	}
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {

@@ -28,12 +28,14 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -125,6 +127,11 @@ public interface Environment {
 	InputSplitProvider getInputSplitProvider();
 
 	/**
+	 * Gets the gateway through which operators can send events to the operator coordinators.
+	 */
+	TaskOperatorEventGateway getOperatorCoordinatorEventGateway();
+
+	/**
 	 * Returns the current {@link IOManager}.
 	 *
 	 * @return the current {@link IOManager}.
@@ -150,6 +157,13 @@ public interface Environment {
 	TaskStateManager getTaskStateManager();
 
 	GlobalAggregateManager getGlobalAggregateManager();
+
+	/**
+	 * Get the {@link ExternalResourceInfoProvider} which contains infos of available external resources.
+	 *
+	 * @return {@link ExternalResourceInfoProvider} which contains infos of available external resources
+	 */
+	ExternalResourceInfoProvider getExternalResourceInfoProvider();
 
 	/**
 	 * Return the registry for accumulators which are periodically sent to the job manager.
@@ -213,9 +227,9 @@ public interface Environment {
 
 	ResultPartitionWriter[] getAllWriters();
 
-	InputGate getInputGate(int index);
+	IndexedInputGate getInputGate(int index);
 
-	InputGate[] getAllInputGates();
+	IndexedInputGate[] getAllInputGates();
 
 	TaskEventDispatcher getTaskEventDispatcher();
 }

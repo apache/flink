@@ -21,13 +21,12 @@ package org.apache.flink.table.client.gateway.local.result;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.CollectBatchTableSink;
-import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
@@ -45,7 +44,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements MaterializedResult<C> {
 
-	private final TypeInformation<Row> outputType;
 	private final String accumulatorName;
 	private final CollectBatchTableSink tableSink;
 	private final Object resultLock;
@@ -60,13 +58,12 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	public MaterializedCollectBatchResult(
 			TableSchema tableSchema,
-			RowTypeInfo outputType,
 			ExecutionConfig config,
 			ClassLoader classLoader) {
-		this.outputType = outputType;
 
 		accumulatorName = new AbstractID().toString();
-		tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config), tableSchema);
+		TypeSerializer<Row> serializer = tableSchema.toRowType().createSerializer(config);
+		tableSink = new CollectBatchTableSink(accumulatorName, serializer, tableSchema);
 		resultLock = new Object();
 		this.classLoader = checkNotNull(classLoader);
 
@@ -79,21 +76,14 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return outputType;
-	}
-
-	@Override
-	public void startRetrieval(ProgramDeployer deployer) {
-		deployer
-				.deploy()
-				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
+	public void startRetrieval(JobClient jobClient) {
+		jobClient.getJobExecutionResult(classLoader)
 				.thenAccept(new ResultRetrievalHandler())
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
 						executionException.compareAndSet(null,
 								new SqlExecutionException(
-										"Error while submitting job.",
+										"Error while retrieving result.",
 										throwable));
 					}
 				});

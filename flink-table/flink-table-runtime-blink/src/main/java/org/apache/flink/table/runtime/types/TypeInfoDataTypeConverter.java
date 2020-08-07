@@ -26,28 +26,30 @@ import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.dataview.MapViewTypeInfo;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
-import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -71,13 +73,16 @@ import static org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive;
  *
  * <p>The different with {@link TypeConversions#fromDataTypeToLegacyInfo}:
  * 1.Deal with VARCHAR and VARBINARY with precision.
- * 2.Deal with BaseRow.
- * 3.Deal with Decimal.
+ * 2.Deal with RowData.
+ * 3.Deal with DecimalData.
  *
  * <p>This class is for:
  * 1.See {@link TableFunctionDefinition#getResultType()}.
  * 2.See {@link AggregateFunctionDefinition#getAccumulatorTypeInfo()}.
  * 3.See {@link MapViewTypeInfo#getKeyType()}.
+ *
+ * @deprecated Use {@link InternalTypeInfo#of(LogicalType)} instead if {@link TypeInformation} is really
+ *             required. In many cases, {@link InternalSerializers#create(LogicalType)} should be sufficient.
  */
 @Deprecated
 public class TypeInfoDataTypeConverter {
@@ -112,8 +117,8 @@ public class TypeInfoDataTypeConverter {
 				TimestampType timestampType = (TimestampType) logicalType;
 				int precision = timestampType.getPrecision();
 				if (timestampType.getKind() == TimestampKind.REGULAR) {
-					return clazz == SqlTimestamp.class ?
-						new SqlTimestampTypeInfo(precision) :
+					return clazz == TimestampData.class ?
+						new TimestampDataTypeInfo(precision) :
 						(clazz == LocalDateTime.class ?
 							((3 == precision) ?
 								Types.LOCAL_DATE_TIME : new LegacyLocalDateTimeTypeInfo(precision)) :
@@ -125,21 +130,21 @@ public class TypeInfoDataTypeConverter {
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) logicalType;
 				int precisionLzTs = lzTs.getPrecision();
-				return clazz == SqlTimestamp.class ?
-					new SqlTimestampTypeInfo(precisionLzTs) :
+				return clazz == TimestampData.class ?
+					new TimestampDataTypeInfo(precisionLzTs) :
 					(clazz == Instant.class ?
 						((3 == precisionLzTs) ? Types.INSTANT : new LegacyInstantTypeInfo(precisionLzTs)) :
 						TypeConversions.fromDataTypeToLegacyInfo(dataType));
 
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) logicalType;
-				return clazz == Decimal.class ?
-						new DecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale()) :
+				return clazz == DecimalData.class ?
+						new DecimalDataTypeInfo(decimalType.getPrecision(), decimalType.getScale()) :
 						new BigDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
 			case CHAR:
 			case VARCHAR: // ignore precision
-				return clazz == BinaryString.class ?
-						BinaryStringTypeInfo.INSTANCE :
+				return clazz == StringData.class ?
+						StringDataTypeInfo.INSTANCE :
 						BasicTypeInfo.STRING_TYPE_INFO;
 			case BINARY:
 			case VARBINARY: // ignore precision
@@ -165,20 +170,24 @@ public class TypeInfoDataTypeConverter {
 				return MultisetTypeInfo.getInfoFor(
 						fromDataTypeToTypeInfo(((CollectionDataType) dataType).getElementDataType()));
 			case ROW:
-				if (BaseRow.class.isAssignableFrom(dataType.getConversionClass())) {
-					return BaseRowTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
+				if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
+					return InternalTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
 				} else if (Row.class == dataType.getConversionClass()) {
-					FieldsDataType rowType = (FieldsDataType) dataType;
 					RowType logicalRowType = (RowType) logicalType;
 					return new RowTypeInfo(
-							logicalRowType.getFieldNames().stream()
-									.map(name -> rowType.getFieldDataTypes().get(name))
-									.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
-									.toArray(TypeInformation[]::new),
-							logicalRowType.getFieldNames().toArray(new String[0]));
+						dataType.getChildren()
+							.stream()
+							.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
+							.toArray(TypeInformation[]::new),
+						logicalRowType.getFieldNames().toArray(new String[0]));
 				} else {
 					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 				}
+			case RAW:
+				if (logicalType instanceof RawType) {
+					return ExternalTypeInfo.of(dataType);
+				}
+				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 			default:
 				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 		}

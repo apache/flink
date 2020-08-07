@@ -24,8 +24,9 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
 import org.junit.Test;
@@ -51,17 +52,15 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 	@Test
 	public void testWatermarkAssignerWithIdleSource() throws Exception {
 		// with timeout 1000 ms
-		final WatermarkAssignerOperator operator = new WatermarkAssignerOperator(0, WATERMARK_GENERATOR, 1000);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(0, WATERMARK_GENERATOR, 1000);
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
 		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(3L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
 		// trigger watermark emit
 		testHarness.setProcessingTime(51);
@@ -75,11 +74,11 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		testHarness.setProcessingTime(1001);
 		assertEquals(StreamStatus.IDLE, testHarness.getStreamStatus());
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(5L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(6L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(7L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(8L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L)));
 
 		assertEquals(StreamStatus.ACTIVE, testHarness.getStreamStatus());
 		testHarness.setProcessingTime(1060);
@@ -91,10 +90,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
 	@Test
 	public void testWatermarkAssignerOperator() throws Exception {
-		final WatermarkAssignerOperator operator = new WatermarkAssignerOperator(0, WATERMARK_GENERATOR, -1);
-
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(0, WATERMARK_GENERATOR, -1);
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 
@@ -102,11 +98,11 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
 		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(3L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
 		// validate first part of the sequence. we poll elements until our
 		// watermark updates to "3", which must be the result of the "4" element.
@@ -134,11 +130,11 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 			output.clear();
 		}
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(5L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(6L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(7L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(8L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L)));
 
 		// validate the next part of the sequence. we poll elements until our
 		// watermark updates to "7", which must be the result of the "8" element.
@@ -175,10 +171,8 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		MyWatermarkGenerator.openCalled = false;
 		MyWatermarkGenerator.closeCalled = false;
 		WatermarkGenerator generator = new MyWatermarkGenerator(1);
-		WatermarkAssignerOperator operator = new WatermarkAssignerOperator(0, generator, -1);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(0, generator, -1);
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(5);
 
@@ -187,29 +181,29 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L, 0L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L, 1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L, 0L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L, 1L)));
 		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(3L, 1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L, 1L)));
 		currentTime = currentTime + 5;
 		testHarness.setProcessingTime(currentTime);
 		expected.add(new Watermark(1L));
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L, 2L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L, 1L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L, 0L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(6L, null)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L, 2L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L, 1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L, 0L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L, null)));
 		currentTime = currentTime + 5;
 		testHarness.setProcessingTime(currentTime);
 		expected.add(new Watermark(2L));
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(9L, 8L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(9L, 8L)));
 		expected.add(new Watermark(8L));
 
 		// no watermark output
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(8L, 7L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(10L, null)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(11L, 10L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L, 7L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(10L, null)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(11L, 10L)));
 		currentTime = currentTime + 5;
 		testHarness.setProcessingTime(currentTime);
 		expected.add(new Watermark(10L));
@@ -223,6 +217,27 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		assertEquals(expected, results);
 		assertTrue(MyWatermarkGenerator.openCalled);
 		assertTrue(MyWatermarkGenerator.closeCalled);
+	}
+
+	private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+		int rowtimeFieldIndex,
+		WatermarkGenerator watermarkGenerator,
+		long idleTimeout) throws Exception {
+
+		return new OneInputStreamOperatorTestHarness<>(
+			new WatermarkAssignerOperatorFactory(
+				rowtimeFieldIndex,
+				idleTimeout,
+				new GeneratedWatermarkGenerator(watermarkGenerator.getClass().getName(), "", new Object[]{}) {
+					@Override
+					public WatermarkGenerator newInstance(ClassLoader classLoader) {
+						return watermarkGenerator;
+					}
+
+					public WatermarkGenerator newInstance(ClassLoader classLoader, Object... args) {
+						return watermarkGenerator;
+					}
+				}));
 	}
 
 	/**
@@ -252,7 +267,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
 		@Nullable
 		@Override
-		public Long currentWatermark(BaseRow row) throws Exception {
+		public Long currentWatermark(RowData row) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called before run.");
 			}

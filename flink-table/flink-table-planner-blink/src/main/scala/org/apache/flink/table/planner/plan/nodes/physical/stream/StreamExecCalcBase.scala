@@ -25,7 +25,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -43,15 +43,7 @@ abstract class StreamExecCalcBase(
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 

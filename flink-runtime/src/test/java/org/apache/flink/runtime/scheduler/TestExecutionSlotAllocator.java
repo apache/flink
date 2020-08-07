@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -41,9 +42,17 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 
 	private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingRequests = new HashMap<>();
 
+	private final TestingLogicalSlotBuilder logicalSlotBuilder = new TestingLogicalSlotBuilder();
+
 	private boolean autoCompletePendingRequests = true;
 
 	private final List<LogicalSlot> returnedSlots = new ArrayList<>();
+
+	public TestExecutionSlotAllocator() {}
+
+	public TestExecutionSlotAllocator(TaskManagerGateway taskManagerGateway) {
+		logicalSlotBuilder.setTaskManagerGateway(taskManagerGateway);
+	}
 
 	@Override
 	public List<SlotExecutionVertexAssignment> allocateSlotsFor(final List<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
@@ -87,7 +96,7 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 		checkState(slotVertexAssignment != null);
 		slotVertexAssignment
 			.getLogicalSlotFuture()
-			.complete(new TestingLogicalSlotBuilder()
+			.complete(logicalSlotBuilder
 				.setSlotOwner(this)
 				.createTestingLogicalSlot());
 	}
@@ -128,16 +137,15 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 	}
 
 	@Override
-	public CompletableFuture<Void> stop() {
-		return CompletableFuture.completedFuture(null);
-	}
-
-	@Override
 	public void returnLogicalSlot(final LogicalSlot logicalSlot) {
 		returnedSlots.add(logicalSlot);
 	}
 
 	public List<LogicalSlot> getReturnedSlots() {
 		return new ArrayList<>(returnedSlots);
+	}
+
+	public TestingLogicalSlotBuilder getLogicalSlotBuilder() {
+		return logicalSlotBuilder;
 	}
 }

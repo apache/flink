@@ -39,12 +39,10 @@ public class CompletedCheckpointStatsSummaryTest {
 		long triggerTimestamp = 123123L;
 		long ackTimestamp = 123123 + 1212312399L;
 		long stateSize = Integer.MAX_VALUE + 17787L;
-		long alignmentBuffered = Integer.MAX_VALUE + 123123L;
 
 		CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
 		assertEquals(0, summary.getStateSizeStats().getCount());
 		assertEquals(0, summary.getEndToEndDurationStats().getCount());
-		assertEquals(0, summary.getAlignmentBufferedStats().getCount());
 
 		int numCheckpoints = 10;
 
@@ -53,14 +51,12 @@ public class CompletedCheckpointStatsSummaryTest {
 				i,
 				triggerTimestamp,
 				ackTimestamp + i,
-				stateSize + i,
-				alignmentBuffered + i);
+				stateSize + i);
 
 			summary.updateSummary(completed);
 
 			assertEquals(i + 1, summary.getStateSizeStats().getCount());
 			assertEquals(i + 1, summary.getEndToEndDurationStats().getCount());
-			assertEquals(i + 1, summary.getAlignmentBufferedStats().getCount());
 		}
 
 		MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
@@ -70,18 +66,13 @@ public class CompletedCheckpointStatsSummaryTest {
 		MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
 		assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
 		assertEquals(ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
-
-		MinMaxAvgStats alignmentBufferedStats = summary.getAlignmentBufferedStats();
-		assertEquals(alignmentBuffered, alignmentBufferedStats.getMinimum());
-		assertEquals(alignmentBuffered + numCheckpoints - 1, alignmentBufferedStats.getMaximum());
 	}
 
 	private CompletedCheckpointStats createCompletedCheckpoint(
 		long checkpointId,
 		long triggerTimestamp,
 		long ackTimestamp,
-		long stateSize,
-		long alignmentBuffered) {
+		long stateSize) {
 
 		SubtaskStateStats latest = mock(SubtaskStateStats.class);
 		when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
@@ -98,7 +89,6 @@ public class CompletedCheckpointStatsSummaryTest {
 			taskStats,
 			1,
 			stateSize,
-			alignmentBuffered,
 			latest,
 			null);
 	}

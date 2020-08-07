@@ -70,10 +70,6 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
-			Tuple2.of(MigrationVersion.v1_2, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_2, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}

@@ -52,7 +52,7 @@ import java.util.Properties;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -70,6 +70,7 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIF
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
@@ -120,6 +121,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET);
+		properties.add(CONNECTOR_STARTUP_TIMESTAMP_MILLIS);
 		properties.add(CONNECTOR_SINK_PARTITIONER);
 		properties.add(CONNECTOR_SINK_PARTITIONER_CLASS);
 
@@ -129,7 +131,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 		properties.add(SCHEMA + ".#." + SCHEMA_FROM);
 		// computed column
-		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		properties.add(SCHEMA + ".#." + EXPR);
 
 		// time attributes
 		properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
@@ -146,6 +148,10 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
+		// table constraint
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
 		// format wildcard
 		properties.add(FORMAT + ".*");
@@ -172,7 +178,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 			getKafkaProperties(descriptorProperties),
 			deserializationSchema,
 			startupOptions.startupMode,
-			startupOptions.specificOffsets);
+			startupOptions.specificOffsets,
+			startupOptions.startupTimestampMillis);
 	}
 
 	@Override
@@ -240,7 +247,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets);
+		Map<KafkaTopicPartition, Long> specificStartupOffsets,
+		long startupTimestampMillis);
 
 	/**
 	 * Constructs the version-specific Kafka table sink.
@@ -334,6 +342,10 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
 						buildSpecificOffsets(descriptorProperties, topic, specificOffsets);
 						return StartupMode.SPECIFIC_OFFSETS;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_TIMESTAMP:
+						return StartupMode.TIMESTAMP;
+
 					default:
 						throw new TableException("Unsupported startup mode. Validator should have checked that.");
 				}
@@ -341,6 +353,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final StartupOptions options = new StartupOptions();
 		options.startupMode = startupMode;
 		options.specificOffsets = specificOffsets;
+		if (startupMode == StartupMode.TIMESTAMP) {
+			options.startupTimestampMillis = descriptorProperties.getLong(CONNECTOR_STARTUP_TIMESTAMP_MILLIS);
+		}
 		return options;
 	}
 
@@ -395,5 +410,6 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	private static class StartupOptions {
 		private StartupMode startupMode;
 		private Map<KafkaTopicPartition, Long> specificOffsets;
+		private long startupTimestampMillis;
 	}
 }

@@ -37,9 +37,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
+
 /**
  * Strategy for inferring and validating the input using a disjunction of multiple {@link InputTypeStrategy}s
  * into one like {@code f(NUMERIC) || f(STRING)}.
+ *
+ * <p>This strategy aims to infer a list of types that are equal to the input types (to prevent unnecessary
+ * casting) or (if this is not possible) the first more specific, casted types.
  */
 @Internal
 public final class OrInputTypeStrategy implements InputTypeStrategy {
@@ -121,8 +126,8 @@ public final class OrInputTypeStrategy implements InputTypeStrategy {
 			final List<LogicalType> inferredTypes = inferredDataTypes.get().stream()
 				.map(DataType::getLogicalType)
 				.collect(Collectors.toList());
-			// types match exactly
-			if (actualTypes.equals(inferredTypes)) {
+			// types match
+			if (supportsAvoidingCast(actualTypes, inferredTypes)) {
 				return inferredDataTypes;
 			}
 			// type matches with some casting
@@ -163,7 +168,7 @@ public final class OrInputTypeStrategy implements InputTypeStrategy {
 	/**
 	 * Returns the common minimum argument count or null if undefined.
 	 */
-	private @Nullable Integer commonMin(List<ArgumentCount> counts) {
+	private static @Nullable Integer commonMin(List<ArgumentCount> counts) {
 		// min=5, min=3, min=0           -> min=0
 		// min=5, min=3, min=0, min=null -> min=null
 		int commonMin = Integer.MAX_VALUE;
@@ -183,7 +188,7 @@ public final class OrInputTypeStrategy implements InputTypeStrategy {
 	/**
 	 * Returns the common maximum argument count or null if undefined.
 	 */
-	private @Nullable Integer commonMax(List<ArgumentCount> counts) {
+	private static @Nullable Integer commonMax(List<ArgumentCount> counts) {
 		// max=5, max=3, max=0           -> max=5
 		// max=5, max=3, max=0, max=null -> max=null
 		int commonMax = Integer.MIN_VALUE;

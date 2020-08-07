@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
 import java.util.Collection;
@@ -40,6 +41,7 @@ public class TestingTaskExecutorPartitionTracker implements TaskExecutorPartitio
 	private Function<Collection<ResultPartitionID>, Collection<PartitionTrackerEntry<JobID, TaskExecutorPartitionInfo>>> stopTrackingPartitionsFunction = ignored -> Collections.emptySet();
 	private Runnable stopTrackingAllClusterPartitionsRunnable = () -> {};
 	private Consumer<Collection<ResultPartitionID>> promotePartitionsConsumer = ignored -> {};
+	private Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer = ignored -> {};
 
 	public void setStartTrackingPartitionsConsumer(BiConsumer<JobID, TaskExecutorPartitionInfo> startTrackingPartitionsConsumer) {
 		this.startTrackingPartitionsConsumer = startTrackingPartitionsConsumer;
@@ -73,6 +75,10 @@ public class TestingTaskExecutorPartitionTracker implements TaskExecutorPartitio
 		this.stopTrackingPartitionsFunction = stopTrackingPartitionsFunction;
 	}
 
+	public void setReleaseClusterPartitionsConsumer(Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer) {
+		this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
+	}
+
 	@Override
 	public void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
 		startTrackingPartitionsConsumer.accept(producingJobId, partitionInfo);
@@ -91,6 +97,11 @@ public class TestingTaskExecutorPartitionTracker implements TaskExecutorPartitio
 	@Override
 	public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
 		promotePartitionsConsumer.accept(partitionsToPromote);
+	}
+
+	@Override
+	public void stopTrackingAndReleaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease) {
+		releaseClusterPartitionsConsumer.accept(dataSetsToRelease);
 	}
 
 	@Override

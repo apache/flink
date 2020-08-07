@@ -26,6 +26,8 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class IdentityConversion implements HiveObjectConversion {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final IdentityConversion INSTANCE = new IdentityConversion();
 
 	private IdentityConversion() {}

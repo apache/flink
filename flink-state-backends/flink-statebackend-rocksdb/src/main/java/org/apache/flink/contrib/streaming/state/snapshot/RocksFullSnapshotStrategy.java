@@ -79,7 +79,7 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
  */
 public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K> {
 
-	private static final String DESCRIPTION = "Asynchronous incremental RocksDB snapshot";
+	private static final String DESCRIPTION = "Asynchronous full RocksDB snapshot";
 
 	/** This decorator is used to apply compression per key-group for the written snapshot data. */
 	@Nonnull
@@ -147,6 +147,11 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
+		// nothing to do.
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
 		// nothing to do.
 	}
 

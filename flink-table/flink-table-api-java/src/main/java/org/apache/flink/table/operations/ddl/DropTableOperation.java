@@ -32,10 +32,15 @@ import java.util.Map;
 public class DropTableOperation implements DropOperation {
 	private final ObjectIdentifier tableIdentifier;
 	private final boolean ifExists;
+	private final boolean isTemporary;
 
-	public DropTableOperation(ObjectIdentifier tableIdentifier, boolean ifExists) {
+	public DropTableOperation(
+			ObjectIdentifier tableIdentifier,
+			boolean ifExists,
+			boolean isTemporary) {
 		this.tableIdentifier = tableIdentifier;
 		this.ifExists = ifExists;
+		this.isTemporary = isTemporary;
 	}
 
 	public ObjectIdentifier getTableIdentifier() {
@@ -46,11 +51,16 @@ public class DropTableOperation implements DropOperation {
 		return this.ifExists;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("identifier", tableIdentifier);
 		params.put("IfExists", ifExists);
+		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
 			"DROP TABLE",

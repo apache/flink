@@ -35,6 +35,7 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.Acknowledger;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;
@@ -96,6 +97,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		//convert per-subtask-limit to global rate limit, as FlinkConnectorRateLimiter::setRate expects a global rate limit.
 		rateLimiter.setRate(messagePerSecondRateLimit * getRuntimeContext().getNumberOfParallelSubtasks());
 		rateLimiter.open(getRuntimeContext());
+		deserializationSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 
 		createAndSetPubSubSubscriber();
 		this.isRunning = true;
@@ -107,18 +109,25 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 	@Override
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
+		PubSubCollector collector = new PubSubCollector(sourceContext);
 		while (isRunning) {
 			try {
-
-				processMessage(sourceContext, subscriber.pull());
+				processMessage(sourceContext, subscriber.pull(), collector);
 			} catch (InterruptedException | CancellationException e) {
 				isRunning = false;
 			}
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
 		subscriber.close();
 	}
 
-	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws Exception {
+	private void processMessage(
+			SourceContext<OUT> sourceContext,
+			List<ReceivedMessage> messages,
+			PubSubCollector collector) throws Exception {
 		rateLimiter.acquire(messages.size());
 
 		synchronized (sourceContext.getCheckpointLock()) {
@@ -127,14 +136,40 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 				PubsubMessage pubsubMessage = message.getMessage();
 
-				OUT deserializedMessage = deserializationSchema.deserialize(pubsubMessage);
-				if (deserializationSchema.isEndOfStream(deserializedMessage)) {
+				deserializationSchema.deserialize(pubsubMessage, collector);
+				if (collector.isEndOfStreamSignalled()) {
 					cancel();
 					return;
 				}
-
-				sourceContext.collect(deserializedMessage);
 			}
+
+		}
+	}
+
+	private class PubSubCollector implements Collector<OUT> {
+		private final SourceContext<OUT> ctx;
+		private boolean endOfStreamSignalled = false;
+
+		private PubSubCollector(SourceContext<OUT> ctx) {
+			this.ctx = ctx;
+		}
+
+		@Override
+		public void collect(OUT record) {
+			if (endOfStreamSignalled || deserializationSchema.isEndOfStream(record)) {
+				this.endOfStreamSignalled = true;
+				return;
+			}
+
+			ctx.collect(record);
+		}
+
+		public boolean isEndOfStreamSignalled() {
+			return endOfStreamSignalled;
+		}
+
+		@Override
+		public void close() {
 
 		}
 	}
@@ -163,6 +198,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public List<AcknowledgeIdsForCheckpoint<String>> snapshotState(long checkpointId, long timestamp) throws Exception {
 		return acknowledgeOnCheckpoint.snapshotState(checkpointId, timestamp);
 	}
@@ -188,13 +227,12 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	 * @param <OUT> The type of objects which will be read
 	 */
 	public static class PubSubSourceBuilder<OUT> implements ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
-		private PubSubDeserializationSchema<OUT> deserializationSchema;
+		private final PubSubDeserializationSchema<OUT> deserializationSchema;
 		private String projectName;
 		private String subscriptionName;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private Credentials credentials;
-		private int maxMessageToAcknowledge = 10000;
 		private int messagePerSecondRateLimit = 100000;
 
 		private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {

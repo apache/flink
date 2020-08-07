@@ -26,12 +26,12 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -42,8 +42,6 @@ import java.util.stream.Collectors;
  */
 public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 
-	private final Executor executorDelegate;
-
 	private final ArrayDeque<Runnable> queuedRunnables = new ArrayDeque<>();
 
 	private final ConcurrentLinkedQueue<ScheduledTask<?>> nonPeriodicScheduledTasks =
@@ -51,10 +49,6 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 
 	private final ConcurrentLinkedQueue<ScheduledTask<?>> periodicScheduledTasks =
 		new ConcurrentLinkedQueue<>();
-
-	public ManuallyTriggeredScheduledExecutor() {
-		this.executorDelegate = Runnable::run;
-	}
 
 	@Override
 	public void execute(@Nonnull Runnable command) {
@@ -81,7 +75,7 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 			next = queuedRunnables.removeFirst();
 		}
 
-		CompletableFuture.runAsync(next, executorDelegate).join();
+		next.run();
 	}
 
 	/**
@@ -141,6 +135,18 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 	public void triggerScheduledTasks() {
 		triggerPeriodicScheduledTasks();
 		triggerNonPeriodicScheduledTasks();
+	}
+
+	/**
+	 * Triggers a single non-periodically scheduled task.
+	 *
+	 * @throws NoSuchElementException If there is no such task.
+	 */
+	public void triggerNonPeriodicScheduledTask() {
+		final ScheduledTask<?> poll = nonPeriodicScheduledTasks.remove();
+		if (poll != null) {
+			poll.execute();
+		}
 	}
 
 	public void triggerNonPeriodicScheduledTasks() {

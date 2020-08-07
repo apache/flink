@@ -86,7 +86,8 @@ class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String
 		for (TtlStateVerifier<?, ?> verifier : TtlStateVerifier.VERIFIERS) {
 			TtlVerificationContext<?, ?> verificationContext = generateUpdateAndVerificationContext(updates, verifier);
 			if (!verifier.verify(verificationContext)) {
-				out.collect(verificationContext.toString());
+				// Please do **NOT** change the prefix, it's used in test_stream_state_ttl.sh for test verifying
+				out.collect("TTL verification failed: " + verificationContext.toString());
 			}
 		}
 	}

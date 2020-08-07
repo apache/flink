@@ -34,14 +34,17 @@ public class CreateCatalogFunctionOperation implements CreateOperation {
 	private final ObjectIdentifier functionIdentifier;
 	private CatalogFunction catalogFunction;
 	private boolean ignoreIfExists;
+	private boolean isTemporary;
 
 	public CreateCatalogFunctionOperation(
 		ObjectIdentifier functionIdentifier,
 		CatalogFunction catalogFunction,
-		boolean ignoreIfExists) {
+		boolean ignoreIfExists,
+		boolean isTemporary) {
 		this.functionIdentifier = functionIdentifier;
 		this.catalogFunction = catalogFunction;
 		this.ignoreIfExists = ignoreIfExists;
+		this.isTemporary = isTemporary;
 	}
 
 	public CatalogFunction getCatalogFunction() {
@@ -56,12 +59,17 @@ public class CreateCatalogFunctionOperation implements CreateOperation {
 		return this.ignoreIfExists;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("catalogFunction", catalogFunction.getDetailedDescription());
 		params.put("identifier", functionIdentifier);
 		params.put("ignoreIfExists", ignoreIfExists);
+		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
 			"CREATE CATALOG FUNCTION",

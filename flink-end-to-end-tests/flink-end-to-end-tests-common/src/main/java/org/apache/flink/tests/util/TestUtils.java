@@ -18,11 +18,12 @@
 
 package org.apache.flink.tests.util;
 
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.tests.util.parameters.ParameterProperty;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +31,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,40 +43,46 @@ import java.util.stream.Stream;
 public enum TestUtils {
 	;
 
-	/**
-	 * Searches for a jar matching the given regex in the given directory. This method is primarily intended to be used
-	 * for the initialization of static {@link Path} fields for jars that reside in the modules {@code target} directory.
-	 *
-	 * @param jarNameRegex      regex pattern to match against
-	 * @return Path pointing to the matching jar
-	 * @throws RuntimeException if none or multiple jars could be found
-	 */
-	public static Path getResourceJar(final String jarNameRegex) {
-		String moduleDirProp = System.getProperty("moduleDir");
-		Preconditions.checkNotNull(moduleDirProp, "The moduleDir property was not set, You can set it when running maven via -DmoduleDir=<path>");
+	private static final ParameterProperty<Path> MODULE_DIRECTORY = new ParameterProperty<>("moduleDir", Paths::get);
 
-		try (Stream<Path> dependencyJars = Files.walk(Paths.get(moduleDirProp))) {
-			final List<Path> matchingJars = dependencyJars
-				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.toAbsolutePath().toString()).find())
+	/**
+	 * Searches for a resource file matching the given regex in the given directory. This method is primarily intended
+	 * to be used for the initialization of static {@link Path} fields for resource file(i.e. jar, config file) that reside
+	 * in the modules {@code target} directory.
+	 *
+	 * @param resourceNameRegex      regex pattern to match against
+	 * @return Path pointing to the matching jar
+	 * @throws RuntimeException if none or multiple resource files could be found
+	 */
+	public static Path getResource(final String resourceNameRegex) {
+		// if the property is not set then we are most likely running in the IDE, where the working directory is the
+		// module of the test that is currently running, which is exactly what we want
+		Path moduleDirectory = MODULE_DIRECTORY.get(Paths.get("").toAbsolutePath());
+
+		try (Stream<Path> dependencyResources = Files.walk(moduleDirectory)) {
+			final List<Path> matchingResources = dependencyResources
+				.filter(jar -> Pattern.compile(resourceNameRegex).matcher(jar.toAbsolutePath().toString()).find())
 				.collect(Collectors.toList());
-			switch (matchingJars.size()) {
+			switch (matchingResources.size()) {
 				case 0:
 					throw new RuntimeException(
 						new FileNotFoundException(
-							String.format("No jar could be found that matches the pattern %s.", jarNameRegex)
+							String.format("No resource file could be found that matches the pattern %s. " +
+								"This could mean that the test module must be rebuilt via maven.", resourceNameRegex)
 						)
 					);
 				case 1:
-					return matchingJars.get(0);
+					return matchingResources.get(0);
 				default:
 					throw new RuntimeException(
 						new IOException(
-							String.format("Multiple jars were found matching the pattern %s. Matches=%s", jarNameRegex, matchingJars)
+							String.format("Multiple resource files were found matching the pattern %s. Matches=%s",
+								resourceNameRegex, matchingResources)
 						)
 					);
 			}
 		} catch (final IOException ioe) {
-			throw new RuntimeException("Could not search for resource jars.", ioe);
+			throw new RuntimeException("Could not search for resource resource files.", ioe);
 		}
 	}
 
@@ -87,15 +95,15 @@ public enum TestUtils {
 	 * @throws IOException if any IO error happen.
 	 */
 	public static Path copyDirectory(final Path source, final Path destination) throws IOException {
-		Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
+		Files.walkFileTree(source, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
 				throws IOException {
-				final Path targetRir = destination.resolve(source.relativize(dir));
+				final Path targetDir = destination.resolve(source.relativize(dir));
 				try {
-					Files.copy(dir, targetRir, StandardCopyOption.COPY_ATTRIBUTES);
+					Files.copy(dir, targetDir, StandardCopyOption.COPY_ATTRIBUTES);
 				} catch (FileAlreadyExistsException e) {
-					if (!Files.isDirectory(targetRir)) {
+					if (!Files.isDirectory(targetDir)) {
 						throw e;
 					}
 				}

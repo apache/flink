@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -39,12 +40,15 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -94,11 +98,7 @@ public class StreamGraph implements Pipeline {
 
 	private TimeCharacteristic timeCharacteristic;
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	private boolean blockingConnectionsBetweenChains;
+	private GlobalDataExchangeMode globalDataExchangeMode;
 
 	/** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
 	private boolean allVerticesInSameSlotSharingGroupByDefault = true;
@@ -199,20 +199,12 @@ public class StreamGraph implements Pipeline {
 		this.timeCharacteristic = timeCharacteristic;
 	}
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	public boolean isBlockingConnectionsBetweenChains() {
-		return blockingConnectionsBetweenChains;
+	public GlobalDataExchangeMode getGlobalDataExchangeMode() {
+		return globalDataExchangeMode;
 	}
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	public void setBlockingConnectionsBetweenChains(boolean blockingConnectionsBetweenChains) {
-		this.blockingConnectionsBetweenChains = blockingConnectionsBetweenChains;
+	public void setGlobalDataExchangeMode(GlobalDataExchangeMode globalDataExchangeMode) {
+		this.globalDataExchangeMode = globalDataExchangeMode;
 	}
 
 	/**
@@ -244,24 +236,46 @@ public class StreamGraph implements Pipeline {
 		return !vertexIDtoLoopTimeout.isEmpty();
 	}
 
-	public <IN, OUT> void addSource(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSource(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			SourceOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
+		addOperator(
+				vertexID,
+				slotSharingGroup,
+				coLocationGroup,
+				operatorFactory,
+				inTypeInfo,
+				outTypeInfo,
+				operatorName,
+				SourceOperatorStreamTask.class);
+		sources.add(vertexID);
+	}
+
+	public <IN, OUT> void addLegacySource(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
-	public <IN, OUT> void addSink(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSink(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sinks.add(vertexID);
 	}
@@ -274,18 +288,24 @@ public class StreamGraph implements Pipeline {
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
+		Class<? extends AbstractInvokable> invokableClass =
+				operatorFactory.isStreamSource() ? SourceStreamTask.class : OneInputStreamTask.class;
+		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo,
+				outTypeInfo, operatorName, invokableClass);
+	}
 
-		if (operatorFactory.isStreamSource()) {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorFactory, operatorName);
-		} else {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
-		}
+	private <IN, OUT> void addOperator(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName,
+			Class<? extends AbstractInvokable> invokableClass) {
 
-		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
-
-		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
-
-		setSerializers(vertexID, inSerializer, null, outSerializer);
+		addNode(vertexID, slotSharingGroup, coLocationGroup, invokableClass, operatorFactory, operatorName);
+		setSerializers(vertexID, createSerializer(inTypeInfo), null, createSerializer(outTypeInfo));
 
 		if (operatorFactory.isOutputTypeConfigurable() && outTypeInfo != null) {
 			// sets the output type which must be know at StreamGraph creation time
@@ -315,8 +335,7 @@ public class StreamGraph implements Pipeline {
 
 		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, taskOperatorFactory, operatorName);
 
-		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
-				outTypeInfo.createSerializer(executionConfig) : null;
+		TypeSerializer<OUT> outSerializer = createSerializer(outTypeInfo);
 
 		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
 
@@ -330,25 +349,51 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
-	protected StreamNode addNode(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		Class<? extends AbstractInvokable> vertexClass,
-		StreamOperatorFactory<?> operatorFactory,
-		String operatorName) {
+	public <OUT> void addMultipleInputOperator(
+			Integer vertexID,
+			String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			List<TypeInformation<?>> inTypeInfos,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
+
+		Class<? extends AbstractInvokable> vertexClass = MultipleInputStreamTask.class;
+
+		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, operatorFactory, operatorName);
+
+		setSerializers(vertexID, inTypeInfos, createSerializer(outTypeInfo));
+
+		if (operatorFactory.isOutputTypeConfigurable()) {
+			// sets the output type which must be know at StreamGraph creation time
+			operatorFactory.setOutputType(outTypeInfo, executionConfig);
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("CO-TASK: {}", vertexID);
+		}
+	}
+
+	protected StreamNode addNode(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			Class<? extends AbstractInvokable> vertexClass,
+			StreamOperatorFactory<?> operatorFactory,
+			String operatorName) {
 
 		if (streamNodes.containsKey(vertexID)) {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
 		StreamNode vertex = new StreamNode(
-			vertexID,
-			slotSharingGroup,
-			coLocationGroup,
-			operatorFactory,
-			operatorName,
-			new ArrayList<OutputSelector<?>>(),
-			vertexClass);
+				vertexID,
+				slotSharingGroup,
+				coLocationGroup,
+				operatorFactory,
+				operatorName,
+				new ArrayList<OutputSelector<?>>(),
+				vertexClass);
 
 		streamNodes.put(vertexID, vertex);
 
@@ -570,14 +615,19 @@ public class StreamGraph implements Pipeline {
 
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector);
+		node.setStatePartitioners(keySelector);
 		node.setStateKeySerializer(keySerializer);
 	}
 
 	public void setTwoInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector1, KeySelector<?, ?> keySelector2, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector1);
-		node.setStatePartitioner2(keySelector2);
+		node.setStatePartitioners(keySelector1, keySelector2);
+		node.setStateKeySerializer(keySerializer);
+	}
+
+	public void setMultipleInputStateKey(Integer vertexID, List<KeySelector<?, ?>> keySelectors, TypeSerializer<?> keySerializer) {
+		StreamNode node = getStreamNode(vertexID);
+		node.setStatePartitioners(keySelectors.stream().toArray(KeySelector[]::new));
 		node.setStateKeySerializer(keySerializer);
 	}
 
@@ -589,8 +639,21 @@ public class StreamGraph implements Pipeline {
 
 	public void setSerializers(Integer vertexID, TypeSerializer<?> in1, TypeSerializer<?> in2, TypeSerializer<?> out) {
 		StreamNode vertex = getStreamNode(vertexID);
-		vertex.setSerializerIn1(in1);
-		vertex.setSerializerIn2(in2);
+		vertex.setSerializersIn(in1, in2);
+		vertex.setSerializerOut(out);
+	}
+
+	private <OUT> void setSerializers(
+			Integer vertexID,
+			List<TypeInformation<?>> inTypeInfos,
+			TypeSerializer<OUT> out) {
+
+		StreamNode vertex = getStreamNode(vertexID);
+
+		vertex.setSerializersIn(
+			inTypeInfos.stream()
+				.map(typeInfo -> typeInfo.createSerializer(executionConfig))
+				.toArray(TypeSerializer[]::new));
 		vertex.setSerializerOut(out);
 	}
 
@@ -598,8 +661,8 @@ public class StreamGraph implements Pipeline {
 		StreamNode fromVertex = getStreamNode(from);
 		StreamNode toVertex = getStreamNode(to);
 
-		toVertex.setSerializerIn1(fromVertex.getTypeSerializerOut());
-		toVertex.setSerializerOut(fromVertex.getTypeSerializerIn1());
+		toVertex.setSerializersIn(fromVertex.getTypeSerializerOut());
+		toVertex.setSerializerOut(fromVertex.getTypeSerializerIn(0));
 	}
 
 	public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
@@ -637,19 +700,29 @@ public class StreamGraph implements Pipeline {
 		return streamNodes.keySet();
 	}
 
-	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
+	@VisibleForTesting
+	public List<StreamEdge> getStreamEdges(int sourceId) {
+		return getStreamNode(sourceId).getOutEdges();
+	}
 
+	@VisibleForTesting
+	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
 		List<StreamEdge> result = new ArrayList<>();
 		for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
 			if (edge.getTargetId() == targetId) {
 				result.add(edge);
 			}
 		}
+		return result;
+	}
 
+	@VisibleForTesting
+	@Deprecated
+	public List<StreamEdge> getStreamEdgesOrThrow(int sourceId, int targetId) {
+		List<StreamEdge> result = getStreamEdges(sourceId, targetId);
 		if (result.isEmpty()) {
 			throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
 		}
-
 		return result;
 	}
 
@@ -784,5 +857,10 @@ public class StreamGraph implements Pipeline {
 		catch (Exception e) {
 			throw new RuntimeException("JSON plan creation failed", e);
 		}
+	}
+
+	private <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInfo) {
+		return typeInfo != null && !(typeInfo instanceof MissingTypeInfo) ?
+			typeInfo.createSerializer(executionConfig) : null;
 	}
 }

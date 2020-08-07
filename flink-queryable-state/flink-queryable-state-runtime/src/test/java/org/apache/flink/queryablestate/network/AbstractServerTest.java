@@ -160,7 +160,7 @@ public class AbstractServerTest extends TestLogger {
 		private final KvStateRequestStats requestStats;
 
 		TestServer(String name, KvStateRequestStats stats, Iterator<Integer> bindPort) throws UnknownHostException {
-			super(name, InetAddress.getLocalHost(), bindPort, 1, 1);
+			super(name, InetAddress.getLocalHost().getHostName(), bindPort, 1, 1);
 			this.requestStats = stats;
 		}
 

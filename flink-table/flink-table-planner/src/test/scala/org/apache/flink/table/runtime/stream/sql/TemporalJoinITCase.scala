@@ -18,22 +18,29 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
+
+import java.sql.Timestamp
 
 import scala.collection.mutable
 
 class TemporalJoinITCase extends StreamingWithStateTestBase {
+
+  @Before
+  def clear(): Unit = {
+    StreamITCase.clear
+  }
 
   /**
     * Because of nature of the processing time, we can not (or at least it is not that easy)
@@ -43,9 +50,9 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
-    StreamITCase.clear
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
@@ -94,9 +101,9 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
   @Test
   def testEventTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
-    StreamITCase.clear
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
@@ -130,11 +137,11 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
 
     val orders = env
       .fromCollection(ordersData)
-      .assignTimestampsAndWatermarks(new TimestampExtractor[Long, String]())
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Timestamp)]())
       .toTable(tEnv, 'amount, 'currency, 'rowtime.rowtime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
-      .assignTimestampsAndWatermarks(new TimestampExtractor[String, Long]())
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
     tEnv.registerTable("Orders", orders)
@@ -153,11 +160,93 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
 
     assertEquals(expectedOutput, StreamITCase.testResults.toSet)
   }
+
+  @Test
+  def testNestedTemporalJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    val tEnv = StreamTableEnvironment.create(env, settings)
+    env.setStateBackend(getStateBackend)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    val sqlQuery =
+      """
+        |SELECT
+        |  o.orderId,
+        |  (o.amount * p.price * r.rate) as total_price
+        |FROM
+        |  Orders AS o,
+        |  LATERAL TABLE (Prices(o.rowtime)) AS p,
+        |  LATERAL TABLE (Rates(o.rowtime)) AS r
+        |WHERE
+        |  o.productId = p.productId AND
+        |  r.currency = p.currency
+        |""".stripMargin
+
+    val ordersData = new mutable.MutableList[(Long, String, Long, Timestamp)]
+    ordersData.+=((1L, "A1", 2L, new Timestamp(2L)))
+    ordersData.+=((2L, "A2", 1L, new Timestamp(3L)))
+    ordersData.+=((3L, "A4", 50L, new Timestamp(4L)))
+    ordersData.+=((4L, "A1", 3L, new Timestamp(5L)))
+    val orders = env
+      .fromCollection(ordersData)
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Long, Timestamp)]())
+      .toTable(tEnv, 'orderId, 'productId, 'amount, 'rowtime.rowtime)
+
+    val ratesHistoryData = new mutable.MutableList[(String, Long, Timestamp)]
+    ratesHistoryData.+=(("US Dollar", 102L, new Timestamp(1L)))
+    ratesHistoryData.+=(("Euro", 114L, new Timestamp(1L)))
+    ratesHistoryData.+=(("Yen", 1L, new Timestamp(1L)))
+    ratesHistoryData.+=(("Euro", 116L, new Timestamp(5L)))
+    ratesHistoryData.+=(("Euro", 119L, new Timestamp(7L)))
+    val ratesHistory = env
+      .fromCollection(ratesHistoryData)
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
+      .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
+
+    val pricesHistoryData = new mutable.MutableList[(String, String, Double, Timestamp)]
+    pricesHistoryData.+=(("A2", "US Dollar", 10.2D, new Timestamp(1L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.4D, new Timestamp(1L)))
+    pricesHistoryData.+=(("A4", "Yen", 1D, new Timestamp(1L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.6D, new Timestamp(5L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.9D, new Timestamp(7L)))
+    val pricesHistory = env
+      .fromCollection(pricesHistoryData)
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(String, String, Double, Timestamp)]())
+      .toTable(tEnv, 'productId, 'currency, 'price, 'rowtime.rowtime)
+
+    tEnv.createTemporaryView("Orders", orders)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
+    tEnv.registerFunction(
+      "Rates",
+      ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
+    tEnv.registerFunction(
+      "Prices",
+      pricesHistory.createTemporalTableFunction($"rowtime", $"productId"))
+
+    tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
+
+    // Scan from registered table to test for interplay between
+    // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
+    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      s"1,${2 * 114 * 11.4}",
+      s"2,${1 * 102 * 10.2}",
+      s"3,${50 * 1 * 1.0}",
+      s"4,${3 * 116 * 11.6}")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
-class TimestampExtractor[T1, T2]
-  extends BoundedOutOfOrdernessTimestampExtractor[(T1, T2, Timestamp)](Time.seconds(10))  {
-  override def extractTimestamp(element: (T1, T2, Timestamp)): Long = {
-    element._3.getTime
+class TimestampExtractor[T <: Product]
+  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10))  {
+  override def extractTimestamp(element: T): Long = element match {
+    case (_, _, ts: Timestamp) => ts.getTime
+    case (_, _, _, ts: Timestamp) => ts.getTime
+    case _ => throw new IllegalArgumentException(
+      "Expected the last element in a tuple to be of a Timestamp type.")
   }
 }

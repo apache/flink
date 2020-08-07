@@ -31,7 +31,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * {@link RestEndpointFactory} which creates a {@link MiniDispatcherRestEndpoint}.
@@ -45,7 +45,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			TransientBlobService transientBlobService,
-			ExecutorService executor,
+			ScheduledExecutorService executor,
 			MetricFetcher metricFetcher,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -61,6 +61,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			executor,
 			metricFetcher,
 			leaderElectionService,
+			RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
 			fatalErrorHandler);
 	}
 }

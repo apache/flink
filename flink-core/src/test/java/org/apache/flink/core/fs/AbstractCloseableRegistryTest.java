@@ -240,7 +240,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		 * Causes the current thread to wait until {@link #close()} is called.
 		 */
 		public void awaitClose(final long timeout, final TimeUnit timeUnit) throws InterruptedException {
-			closeCalledLatch.await(timeout, timeUnit);
+			assertTrue(closeCalledLatch.await(timeout, timeUnit));
 		}
 	}
 

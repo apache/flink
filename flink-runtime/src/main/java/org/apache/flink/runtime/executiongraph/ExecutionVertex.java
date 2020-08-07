@@ -92,10 +92,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
 	private final String taskNameWithSubtask;
 
-	private volatile CoLocationConstraint locationConstraint;
+	private CoLocationConstraint locationConstraint;
 
 	/** The current or latest execution attempt of this vertex's task. */
-	private volatile Execution currentExecution;	// this field must never be null
+	private Execution currentExecution;	// this field must never be null
 
 	private final ArrayList<InputSplit> inputSplits;
 
@@ -874,15 +874,39 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	//   Miscellaneous
 	// --------------------------------------------------------------------------------------------
 
+	void notifyPendingDeployment(Execution execution) {
+		// only forward this notification if the execution is still the current execution
+		// otherwise we have an outdated execution
+		if (isCurrentExecution(execution)) {
+			getExecutionGraph().getExecutionDeploymentListener().onStartedDeployment(
+				execution.getAttemptId(),
+				execution.getAssignedResourceLocation().getResourceID());
+		}
+	}
+
+	void notifyCompletedDeployment(Execution execution) {
+		// only forward this notification if the execution is still the current execution
+		// otherwise we have an outdated execution
+		if (isCurrentExecution(execution)) {
+			getExecutionGraph().getExecutionDeploymentListener().onCompletedDeployment(
+				execution.getAttemptId()
+			);
+		}
+	}
+
 	/**
 	 * Simply forward this notification.
 	 */
 	void notifyStateTransition(Execution execution, ExecutionState newState, Throwable error) {
 		// only forward this notification if the execution is still the current execution
 		// otherwise we have an outdated execution
-		if (currentExecution == execution) {
+		if (isCurrentExecution(execution)) {
 			getExecutionGraph().notifyExecutionChange(execution, newState, error);
 		}
+	}
+
+	private boolean isCurrentExecution(Execution execution) {
+		return currentExecution == execution;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -49,6 +49,7 @@ message UserDefinedFunction {
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
+  bool metric_enabled = 2;
 }
 
 // A representation of the data schema.
@@ -64,7 +65,7 @@ message Schema {
     DOUBLE = 7;
     DATE = 8;
     TIME = 9;
-    DATETIME = 10;
+    TIMESTAMP = 10;
     BOOLEAN = 11;
     BINARY = 12;
     VARBINARY = 13;
@@ -73,20 +74,50 @@ message Schema {
     ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
+    LOCAL_ZONED_TIMESTAMP = 19;
+    ZONED_TIMESTAMP = 20;
   }
 
-  message MapType {
+  message MapInfo {
     FieldType key_type = 1;
     FieldType value_type = 2;
   }
 
-  message DateTimeType {
+  message TimeInfo {
     int32 precision = 1;
   }
 
-  message DecimalType {
+  message TimestampInfo {
+    int32 precision = 1;
+  }
+
+  message LocalZonedTimestampInfo {
+    int32 precision = 1;
+  }
+
+  message ZonedTimestampInfo {
+    int32 precision = 1;
+  }
+
+  message DecimalInfo {
     int32 precision = 1;
     int32 scale = 2;
+  }
+
+  message BinaryInfo {
+    int32 length = 1;
+  }
+
+  message VarBinaryInfo {
+    int32 length = 1;
+  }
+
+  message CharInfo {
+    int32 length = 1;
+  }
+
+  message VarCharInfo {
+    int32 length = 1;
   }
 
   message FieldType {
@@ -94,10 +125,17 @@ message Schema {
     bool nullable = 2;
     oneof type_info {
       FieldType collection_element_type = 3;
-      MapType map_type = 4;
+      MapInfo map_info = 4;
       Schema row_schema = 5;
-      DateTimeType date_time_type = 6;
-      DecimalType decimal_type = 7;
+      DecimalInfo decimal_info = 6;
+      TimeInfo time_info = 7;
+      TimestampInfo timestamp_info = 8;
+      LocalZonedTimestampInfo local_zoned_timestamp_info = 9;
+      ZonedTimestampInfo zoned_timestamp_info = 10;
+      BinaryInfo binary_info = 11;
+      VarBinaryInfo var_binary_info = 12;
+      CharInfo char_info = 13;
+      VarCharInfo var_char_info = 14;
     }
   }
 

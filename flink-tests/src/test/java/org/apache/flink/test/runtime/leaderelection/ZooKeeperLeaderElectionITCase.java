@@ -18,7 +18,9 @@
 
 package org.apache.flink.test.runtime.leaderelection;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
@@ -33,7 +35,6 @@ import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -41,11 +42,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
@@ -55,7 +56,6 @@ import static org.junit.Assert.assertThat;
 /**
  * Test the election of a new JobManager leader.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 	private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5L);
@@ -141,13 +141,23 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		return miniCluster.getDispatcherGatewayFuture().get();
 	}
 
-	private JobGraph createJobGraph(int parallelism) {
+	private JobGraph createJobGraph(int parallelism) throws IOException {
 		BlockingOperator.isBlocking = true;
 		final JobVertex vertex = new JobVertex("blocking operator");
 		vertex.setParallelism(parallelism);
 		vertex.setInvokableClass(BlockingOperator.class);
 
-		return new JobGraph("Blocking test job", vertex);
+		JobGraph jobGraph = new JobGraph("Blocking test job", vertex);
+
+		// explicitly allow restarts; this is necessary since the shutdown may result in the job failing and hence being
+		// removed from ZooKeeper. What happens to running jobs if the Dispatcher shuts down in an orderly fashion
+		// is undefined behavior. By allowing restarts we prevent the job from reaching a globally terminal state,
+		// causing it to be recovered by the next Dispatcher.
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Duration.ofSeconds(10).toMillis()));
+		jobGraph.setExecutionConfig(executionConfig);
+
+		return jobGraph;
 	}
 
 	/**

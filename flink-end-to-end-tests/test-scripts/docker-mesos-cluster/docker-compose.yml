@@ -34,10 +34,9 @@ services:
       - "8081:8081"
       - "5050:5050"
     volumes:
-      - ${INPUT_VOLUME}/log/mesos:/var/log/mesos
-      - ${INPUT_VOLUME}/tmp/mesos:/var/tmp/mesos
       - ${END_TO_END_DIR}:${END_TO_END_DIR}
       - ${FLINK_DIR}:${FLINK_DIR}
+      - ${MVN_REPO}:${MVN_REPO}
     environment:
       MESOS_PORT: 5050
       MESOS_QUORUM: 1
@@ -55,11 +54,9 @@ services:
     networks:
       - docker-mesos-cluster-network
     volumes:
-      - ${INPUT_VOLUME}/log/mesos-sl:/var/log/mesos
-      - ${INPUT_VOLUME}/tmp/mesos-sl:/var/tmp/mesos
-      - /var/run/docker.sock:/var/run/docker.sock
       - ${END_TO_END_DIR}:${END_TO_END_DIR}
     environment:
+      MESOS_RESOURCES: "cpus:${MESOS_AGENT_CPU}"
       MESOS_PORT: 5051
       MESOS_MASTER: mesos-master:5050
       MESOS_SWITCH_USER: 0

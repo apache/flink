@@ -166,6 +166,10 @@ public class CheckpointingCustomKvStateProgram {
 			atLeastOneSnapshotComplete = true;
 		}
 
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
 		private static class ReduceSum implements ReduceFunction<Integer> {
 			private static final long serialVersionUID = 1L;
 

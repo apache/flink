@@ -170,7 +170,7 @@ public class KvStateService {
 			int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyQueryThreads();
 			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
-				taskManagerServicesConfiguration.getTaskManagerAddress(),
+				taskManagerServicesConfiguration.getExternalAddress(),
 				qsConfig.getProxyPortRange(),
 				numProxyServerNetworkThreads,
 				numProxyServerQueryThreads,
@@ -181,7 +181,7 @@ public class KvStateService {
 			int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateQueryThreads();
 			kvStateServer = QueryableStateUtils.createKvStateServer(
-				taskManagerServicesConfiguration.getTaskManagerAddress(),
+				taskManagerServicesConfiguration.getExternalAddress(),
 				qsConfig.getStateServerPortRange(),
 				numStateServerNetworkThreads,
 				numStateServerQueryThreads,

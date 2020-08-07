@@ -19,15 +19,16 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.types.RowKind;
 
 /**
  * Streaming unbounded Join operator which supports SEMI/ANTI JOIN.
@@ -46,8 +47,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 
 	public StreamingSemiAntiJoinOperator(
 			boolean isAntiJoin,
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			JoinInputSideSpec leftInputSideSpec,
 			JoinInputSideSpec rightInputSideSpec,
@@ -66,16 +67,14 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 			LEFT_RECORDS_STATE_NAME,
 			leftInputSideSpec,
 			leftType,
-			minRetentionTime,
-			stateCleaningEnabled);
+			minRetentionTime);
 
 		this.rightRecordStateView = JoinRecordStateViews.create(
 			getRuntimeContext(),
 			RIGHT_RECORDS_STATE_NAME,
 			rightInputSideSpec,
 			rightType,
-			minRetentionTime,
-			stateCleaningEnabled);
+			minRetentionTime);
 	}
 
 	/**
@@ -94,8 +93,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 	 * </pre>
 	 */
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
 		AssociatedRecords associatedRecords = AssociatedRecords.of(input, true, rightRecordStateView, joinCondition);
 		if (associatedRecords.isEmpty()) {
 			if (isAntiJoin) {
@@ -106,10 +105,13 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 				collector.collect(input);
 			}
 		}
-		if (BaseRowUtil.isAccumulateMsg(input)) {
+		if (RowDataUtil.isAccumulateMsg(input)) {
+			// erase RowKind for state updating
+			input.setRowKind(RowKind.INSERT);
 			leftRecordStateView.addRecord(input, associatedRecords.size());
 		} else { // input is retract
-			input.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+			// erase RowKind for state updating
+			input.setRowKind(RowKind.INSERT);
 			leftRecordStateView.retractRecord(input);
 		}
 	}
@@ -120,14 +122,17 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 	 *
 	 * <p>Following is the pseudo code to describe the core logic of this method.
 	 *
+	 * <p>Note: "+I" represents "INSERT", "-D" represents "DELETE", "+U" represents "UPDATE_AFTER",
+	 * "-U" represents "UPDATE_BEFORE".
+	 *
 	 * <pre>
 	 * if input record is accumulate
 	 * | state.add(record)
 	 * | if there is no matched rows on the other side, skip
 	 * | if there are matched rows on the other side
 	 * | | if the matched num in the matched rows == 0
-	 * | |   if anti join, send -[other]s
-	 * | |   if semi join, send +[other]s
+	 * | |   if anti join, send -D[other]s
+	 * | |   if semi join, send +I/+U[other]s (using input RowKind)
 	 * | | if the matched num in the matched rows > 0, skip
 	 * | | otherState.update(other, old+1)
 	 * | endif
@@ -138,8 +143,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 	 * | if there are matched rows on the other side
 	 * | | if the matched num in the matched rows == 0, this should never happen!
 	 * | | if the matched num in the matched rows == 1
-	 * | |   if semi join, send -[other]
-	 * | |   if anti join, send +[other]
+	 * | |   if semi join, send -D/-U[other] (using input RowKind)
+	 * | |   if anti join, send +I[other]
 	 * | | if the matched num in the matched rows > 1, skip
 	 * | | otherState.update(other, old-1)
 	 * | endif
@@ -147,49 +152,51 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 	 * </pre>
 	 */
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
+		boolean isAccumulateMsg = RowDataUtil.isAccumulateMsg(input);
+		RowKind inputRowKind = input.getRowKind();
+		input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
+
 		AssociatedRecords associatedRecords = AssociatedRecords.of(input, false, leftRecordStateView, joinCondition);
-		if (BaseRowUtil.isAccumulateMsg(input)) {
+		if (isAccumulateMsg) { // record is accumulate
 			rightRecordStateView.addRecord(input);
 			if (!associatedRecords.isEmpty()) {
 				// there are matched rows on the other side
 				for (OuterRecord outerRecord : associatedRecords.getOuterRecords()) {
-					BaseRow other = outerRecord.record;
+					RowData other = outerRecord.record;
 					if (outerRecord.numOfAssociations == 0) {
 						if (isAntiJoin) {
-							// send -[other]
-							other.setHeader(BaseRowUtil.RETRACT_MSG);
-							collector.collect(other);
-							// set header back to ACCUMULATE_MSG, because we will update the other row to state
-							other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+							// send -D[other]
+							other.setRowKind(RowKind.DELETE);
 						} else {
-							// send +[other]
-							// the header of other is ACCUMULATE_MSG
-							collector.collect(other);
+							// send +I/+U[other] (using input RowKind)
+							other.setRowKind(inputRowKind);
 						}
+						collector.collect(other);
+						// set header back to INSERT, because we will update the other row to state
+						other.setRowKind(RowKind.INSERT);
 					} // ignore when number > 0
 					leftRecordStateView.updateNumOfAssociations(other, outerRecord.numOfAssociations + 1);
 				}
 			} // ignore when associated number == 0
 		} else { // retract input
-			input.setHeader(BaseRowUtil.ACCUMULATE_MSG);
 			rightRecordStateView.retractRecord(input);
 			if (!associatedRecords.isEmpty()) {
 				// there are matched rows on the other side
 				for (OuterRecord outerRecord : associatedRecords.getOuterRecords()) {
-					BaseRow other = outerRecord.record;
+					RowData other = outerRecord.record;
 					if (outerRecord.numOfAssociations == 1) {
 						if (!isAntiJoin) {
-							// send -[other]
-							other.setHeader(BaseRowUtil.RETRACT_MSG);
-							collector.collect(other);
-							// set header back to ACCUMULATE_MSG, because we will update the other row to state
-							other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+							// send -D/-U[other] (using input RowKind)
+							other.setRowKind(inputRowKind);
 						} else {
-							// send +[other]
-							collector.collect(other);
+							// send +I[other]
+							other.setRowKind(RowKind.INSERT);
 						}
+						collector.collect(other);
+						// set RowKind back, because we will update the other row to state
+						other.setRowKind(RowKind.INSERT);
 					} // ignore when number > 0
 					leftRecordStateView.updateNumOfAssociations(other, outerRecord.numOfAssociations - 1);
 				}

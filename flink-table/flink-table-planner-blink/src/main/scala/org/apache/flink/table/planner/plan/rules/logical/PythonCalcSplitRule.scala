@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
+import java.util.function.Function
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexFieldAccess, RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.python.PythonFunctionKind
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.planner.plan.utils.PythonUtil.{containsPythonCall, containsNonPythonCall, isPythonCall, isNonPythonCall}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.{containsNonPythonCall, containsPythonCall, isNonPythonCall, isPythonCall}
 import org.apache.flink.table.planner.plan.utils.{InputRefVisitor, RexDefaultVisitor}
 
 import scala.collection.JavaConverters._
@@ -46,23 +49,25 @@ abstract class PythonCalcSplitRuleBase(description: String)
     val input = calc.getInput
     val rexBuilder = call.builder().getRexBuilder
     val program = calc.getProgram
-    val extractedRexCalls = new mutable.ArrayBuffer[RexCall]()
+    val extractedRexNodes = new mutable.ArrayBuffer[RexNode]()
 
     val extractedFunctionOffset = input.getRowType.getFieldCount
     val splitter = new ScalarFunctionSplitter(
       extractedFunctionOffset,
-      extractedRexCalls,
-      isConvertPythonFunction(program))
+      extractedRexNodes,
+      new Function[RexNode, Boolean] {
+        override def apply(node: RexNode): Boolean = needConvert(program, node)
+      })
 
     val (bottomCalcCondition, topCalcCondition, topCalcProjects) = split(program, splitter)
     val accessedFields = extractRefInputFields(
       topCalcProjects, topCalcCondition, extractedFunctionOffset)
 
     val bottomCalcProjects =
-      accessedFields.map(RexInputRef.of(_, input.getRowType)) ++ extractedRexCalls
+      accessedFields.map(RexInputRef.of(_, input.getRowType)) ++ extractedRexNodes
     val bottomCalcFieldNames = SqlValidatorUtil.uniquify(
       accessedFields.map(i => input.getRowType.getFieldNames.get(i)).toSeq ++
-        extractedRexCalls.indices.map("f" + _),
+        extractedRexNodes.indices.map("f" + _),
       rexBuilder.getTypeFactory.getTypeSystem.isSchemaCaseSensitive)
 
     val bottomCalc = new FlinkLogicalCalc(
@@ -76,7 +81,8 @@ abstract class PythonCalcSplitRuleBase(description: String)
         bottomCalcFieldNames,
         rexBuilder))
 
-    val inputRewriter = new ExtractedFunctionInputRewriter(extractedFunctionOffset, accessedFields)
+    val inputRewriter = new ExtractedFunctionInputRewriter(
+      calc.getCluster.getRexBuilder, extractedFunctionOffset, accessedFields)
     val topCalc = new FlinkLogicalCalc(
       calc.getCluster,
       calc.getTraitSet,
@@ -112,9 +118,9 @@ abstract class PythonCalcSplitRuleBase(description: String)
   }
 
   /**
-    * Returns true if converting Python functions.
+    * Returns true if need to convert the specified node.
     */
-  def isConvertPythonFunction(program: RexProgram): Boolean
+  def needConvert(program: RexProgram, node: RexNode): Boolean
 
   /**
     * Splits the specified [[RexProgram]] using the specified [[ScalarFunctionSplitter]].
@@ -138,10 +144,10 @@ object PythonCalcSplitConditionRule extends PythonCalcSplitRuleBase(
 
     // matches if it contains Python functions in condition
     Option(calc.getProgram.getCondition)
-      .map(calc.getProgram.expandLocalRef).exists(containsPythonCall)
+      .map(calc.getProgram.expandLocalRef).exists(containsPythonCall(_))
   }
 
-  override def isConvertPythonFunction(program: RexProgram): Boolean = true
+  override def needConvert(program: RexProgram, node: RexNode): Boolean = isPythonCall(node)
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
@@ -150,12 +156,22 @@ object PythonCalcSplitConditionRule extends PythonCalcSplitRuleBase(
   }
 }
 
+abstract class PythonCalcSplitProjectionRuleBase(description: String)
+    extends PythonCalcSplitRuleBase(description) {
+
+  override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
+      : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
+    (Option(program.getCondition).map(program.expandLocalRef), None,
+      program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+  }
+}
+
 /**
   * Rule that splits [[FlinkLogicalCalc]]s which contain both Java functions and Python functions
   * in the projection into multiple [[FlinkLogicalCalc]]s. After this rule is applied, it will
   * only contain Python functions or Java functions in the projection of each [[FlinkLogicalCalc]].
   */
-object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
+object PythonCalcSplitProjectionRule extends PythonCalcSplitProjectionRuleBase(
   "PythonCalcSplitProjectionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -163,17 +179,67 @@ object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
     val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
     // matches if it contains both Python functions and Java functions in the projection
-    projects.exists(containsPythonCall) && projects.exists(containsNonPythonCall)
+    projects.exists(containsPythonCall(_)) && projects.exists(containsNonPythonCall)
   }
 
-  override def isConvertPythonFunction(program: RexProgram): Boolean = {
-    program.getProjectList.map(program.expandLocalRef).exists(isNonPythonCall)
+  override def needConvert(program: RexProgram, node: RexNode): Boolean = {
+    program.getProjectList.map(program.expandLocalRef).exists(isNonPythonCall) == isPythonCall(node)
   }
+}
+
+/**
+  * Rule that splits [[FlinkLogicalCalc]]s which contain both general Python functions and
+  * pandas Python functions in the projection into multiple [[FlinkLogicalCalc]]s. After
+  * this rule is applied, it will only contain general Python functions or pandas Python
+  * functions in the projection of each [[FlinkLogicalCalc]].
+  */
+object PythonCalcSplitPandasInProjectionRule extends PythonCalcSplitProjectionRuleBase(
+  "PythonCalcSplitPandasInProjectionRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+
+    // matches if it contains both general Python functions and
+    // pandas Python functions in the projection
+    projects.exists(containsPythonCall(_, PythonFunctionKind.GENERAL)) &&
+      projects.exists(containsPythonCall(_, PythonFunctionKind.PANDAS))
+  }
+
+  override def needConvert(program: RexProgram, node: RexNode): Boolean = {
+     program.getProjectList.map(program.expandLocalRef).exists(
+       isPythonCall(_, PythonFunctionKind.GENERAL)) == isPythonCall(node, PythonFunctionKind.PANDAS)
+  }
+}
+
+/**
+  * Rule that expands the RexFieldAccess inputs of Python functions contained in
+  * the projection of [[FlinkLogicalCalc]]s.
+  */
+object PythonCalcExpandProjectRule extends PythonCalcSplitRuleBase(
+  "PythonCalcExpandProjectRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+
+    projects.exists(containsPythonCall(_)) && projects.exists(containsFieldAccessInputs)
+  }
+
+  override def needConvert(program: RexProgram, node: RexNode): Boolean =
+    node.isInstanceOf[RexFieldAccess]
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
-    (Option(program.getCondition).map(program.expandLocalRef), None,
-      program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+    (None, None, program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+  }
+
+  private def containsFieldAccessInputs(node: RexNode): Boolean = {
+    node match {
+      case call: RexCall => call.getOperands.exists(containsFieldAccessInputs)
+      case _: RexFieldAccess => true
+      case _ => false
+    }
   }
 }
 
@@ -191,10 +257,10 @@ object PythonCalcPushConditionRule extends PythonCalcSplitRuleBase(
     // matches if all the following conditions hold true:
     // 1) the condition is not null
     // 2) it contains Python functions in the projection
-    calc.getProgram.getCondition != null && projects.exists(containsPythonCall)
+    calc.getProgram.getCondition != null && projects.exists(containsPythonCall(_))
   }
 
-  override def isConvertPythonFunction(program: RexProgram): Boolean = false
+  override def needConvert(program: RexProgram, node: RexNode): Boolean = isNonPythonCall(node)
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
@@ -221,13 +287,13 @@ object PythonCalcRewriteProjectionRule extends PythonCalcSplitRuleBase(
     // 1) it contains Python functions in the projection
     // 2) it contains RexNodes besides RexInputRef and RexCall or
     //    not all the RexCalls lying at the end of the project list
-    projects.exists(containsPythonCall) &&
+    projects.exists(containsPythonCall(_)) &&
       (projects.exists(expr => !expr.isInstanceOf[RexCall] && !expr.isInstanceOf[RexInputRef]) ||
         projects.indexWhere(_.isInstanceOf[RexCall]) <
           projects.lastIndexWhere(_.isInstanceOf[RexInputRef]))
   }
 
-  override def isConvertPythonFunction(program: RexProgram): Boolean = true
+  override def needConvert(program: RexProgram, node: RexNode): Boolean = isPythonCall(node)
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
@@ -237,25 +303,33 @@ object PythonCalcRewriteProjectionRule extends PythonCalcSplitRuleBase(
 
 private class ScalarFunctionSplitter(
     extractedFunctionOffset: Int,
-    extractedRexCalls: mutable.ArrayBuffer[RexCall],
-    convertPythonFunction: Boolean)
+    extractedRexNodes: mutable.ArrayBuffer[RexNode],
+    needConvert: Function[RexNode, Boolean])
   extends RexDefaultVisitor[RexNode] {
 
   override def visitCall(call: RexCall): RexNode = {
-    visit(if (isPythonCall(call)) convertPythonFunction else !convertPythonFunction, call)
+    if (needConvert(call)) {
+      getExtractedRexNode(call)
+    } else {
+      call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)))
+    }
+  }
+
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): RexNode = {
+    if (needConvert(fieldAccess)) {
+      getExtractedRexNode(fieldAccess)
+    } else {
+      fieldAccess
+    }
   }
 
   override def visitNode(rexNode: RexNode): RexNode = rexNode
 
-  private def visit(needConvert: Boolean, call: RexCall): RexNode = {
-    if (needConvert) {
-      val newNode = new RexInputRef(
-        extractedFunctionOffset + extractedRexCalls.length, call.getType)
-      extractedRexCalls.append(call)
-      newNode
-    } else {
-      call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)))
-    }
+  private def getExtractedRexNode(node: RexNode): RexNode = {
+    val newNode = new RexInputRef(
+      extractedFunctionOffset + extractedRexNodes.length, node.getType)
+    extractedRexNodes.append(node)
+    newNode
   }
 }
 
@@ -265,10 +339,12 @@ private class ScalarFunctionSplitter(
   *    extracted function.
   * 2) Fields of index less than extractedFunctionOffset refer to the original input field.
   *
+  * @param rexBuilder the RexBuilder
   * @param extractedFunctionOffset the original start offset of the extracted functions
   * @param accessedFields the accessed fields which will be forwarded
   */
 private class ExtractedFunctionInputRewriter(
+    rexBuilder: RexBuilder,
     extractedFunctionOffset: Int,
     accessedFields: Array[Int])
   extends RexDefaultVisitor[RexNode] {
@@ -293,16 +369,25 @@ private class ExtractedFunctionInputRewriter(
     call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)))
   }
 
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): RexNode = {
+    rexBuilder.makeFieldAccess(
+      fieldAccess.getReferenceExpr.accept(this),
+      fieldAccess.getField.getIndex)
+  }
+
   override def visitNode(rexNode: RexNode): RexNode = rexNode
 }
 
 object PythonCalcSplitRule {
   /**
     * These rules should be applied sequentially in the order of
-    * SPLIT_CONDITION, SPLIT_PROJECT, PUSH_CONDITION and REWRITE_PROJECT.
+    * SPLIT_CONDITION, SPLIT_PROJECT, SPLIT_PANDAS_IN_PROJECT, EXPAND_PROJECT, PUSH_CONDITION
+    * and REWRITE_PROJECT.
     */
   val SPLIT_CONDITION: RelOptRule = PythonCalcSplitConditionRule
   val SPLIT_PROJECT: RelOptRule = PythonCalcSplitProjectionRule
+  val SPLIT_PANDAS_IN_PROJECT: RelOptRule = PythonCalcSplitPandasInProjectionRule
+  val EXPAND_PROJECT: RelOptRule = PythonCalcExpandProjectRule
   val PUSH_CONDITION: RelOptRule = PythonCalcPushConditionRule
   val REWRITE_PROJECT: RelOptRule = PythonCalcRewriteProjectionRule
 }

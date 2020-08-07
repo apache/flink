@@ -32,6 +32,7 @@ public class CsvValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_TYPE_VALUE = "csv";
 	public static final String FORMAT_FIELD_DELIMITER = "format.field-delimiter";
 	public static final String FORMAT_LINE_DELIMITER = "format.line-delimiter";
+	public static final String FORMAT_DISABLE_QUOTE_CHARACTER = "format.disable-quote-character";
 	public static final String FORMAT_QUOTE_CHARACTER = "format.quote-character";
 	public static final String FORMAT_ALLOW_COMMENTS = "format.allow-comments";
 	public static final String FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors";
@@ -45,6 +46,7 @@ public class CsvValidator extends FormatDescriptorValidator {
 		super.validate(properties);
 		properties.validateString(FORMAT_FIELD_DELIMITER, true, 1, 1);
 		properties.validateEnumValues(FORMAT_LINE_DELIMITER, true, Arrays.asList("\r", "\n", "\r\n", ""));
+		properties.validateBoolean(FORMAT_DISABLE_QUOTE_CHARACTER, true);
 		properties.validateString(FORMAT_QUOTE_CHARACTER, true, 1, 1);
 		properties.validateBoolean(FORMAT_ALLOW_COMMENTS, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
@@ -62,6 +64,15 @@ public class CsvValidator extends FormatDescriptorValidator {
 		} else if (!isDerived) {
 			throw new ValidationException(
 				"A definition of a schema is required if derivation from the table's schema is disabled.");
+		}
+
+		final boolean hasQuoteCharacter = properties.containsKey(FORMAT_QUOTE_CHARACTER);
+		final boolean isDisabledQuoteCharacter = properties
+			.getOptionalBoolean(FORMAT_DISABLE_QUOTE_CHARACTER)
+			.orElse(false);
+		if (isDisabledQuoteCharacter && hasQuoteCharacter){
+			throw new ValidationException(
+				"Format cannot define a quote character and disabled quote character at the same time.");
 		}
 	}
 }

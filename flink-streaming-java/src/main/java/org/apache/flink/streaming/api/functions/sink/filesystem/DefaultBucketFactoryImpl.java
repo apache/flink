@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
 
 import java.io.IOException;
 
@@ -34,41 +33,37 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 
 	@Override
 	public Bucket<IN, BucketID> getNewBucket(
-			final RecoverableWriter fsWriter,
 			final int subtaskIndex,
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
-			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
 
 		return Bucket.getNew(
-				fsWriter,
 				subtaskIndex,
 				bucketId,
 				bucketPath,
 				initialPartCounter,
-				partFileWriterFactory,
+				bucketWriter,
 				rollingPolicy,
 				outputFileConfig);
 	}
 
 	@Override
 	public Bucket<IN, BucketID> restoreBucket(
-			final RecoverableWriter fsWriter,
 			final int subtaskIndex,
 			final long initialPartCounter,
-			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
 			final OutputFileConfig outputFileConfig) throws IOException {
 
 		return Bucket.restore(
-				fsWriter,
 				subtaskIndex,
 				initialPartCounter,
-				partFileWriterFactory,
+				bucketWriter,
 				rollingPolicy,
 				bucketState,
 				outputFileConfig);

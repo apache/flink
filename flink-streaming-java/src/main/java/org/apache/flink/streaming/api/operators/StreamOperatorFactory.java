@@ -17,12 +17,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
@@ -32,14 +30,13 @@ import java.io.Serializable;
  *
  * @param <OUT> The output type of the operator
  */
-@Internal
+@Experimental
 public interface StreamOperatorFactory<OUT> extends Serializable {
 
 	/**
 	 * Create the operator. Sets access to the context and the output.
 	 */
-	<T extends StreamOperator<OUT>> T createStreamOperator(
-			StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
+	<T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters);
 
 	/**
 	 * Set the chaining strategy for operator factory.

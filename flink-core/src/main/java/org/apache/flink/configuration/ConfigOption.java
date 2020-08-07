@@ -67,13 +67,13 @@ public class ConfigOption<T> {
 	 *     <li>typeClass == atomic class and isList == true for {@code ConfigOption<List<Integer>>}</li>
 	 * </ul>
 	 */
-	private final Class clazz;
+	private final Class<?> clazz;
 
 	private final boolean isList;
 
 	// ------------------------------------------------------------------------
 
-	Class getClazz() {
+	Class<?> getClazz() {
 		return clazz;
 	}
 
@@ -93,7 +93,7 @@ public class ConfigOption<T> {
 	 */
 	ConfigOption(
 			String key,
-			Class clazz,
+			Class<?> clazz,
 			Description description,
 			T defaultValue,
 			boolean isList,
@@ -215,7 +215,7 @@ public class ConfigOption<T> {
 	 */
 	@Deprecated
 	public Iterable<String> deprecatedKeys() {
-		return fallbackKeys == EMPTY ? Collections.<String>emptyList() :
+		return fallbackKeys == EMPTY ? Collections.emptyList() :
 			Arrays.stream(fallbackKeys)
 				.filter(FallbackKey::isDeprecated)
 				.map(FallbackKey::getKey)

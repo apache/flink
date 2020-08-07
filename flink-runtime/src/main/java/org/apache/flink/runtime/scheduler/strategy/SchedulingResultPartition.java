@@ -26,8 +26,8 @@ import org.apache.flink.runtime.topology.Result;
 /**
  * Representation of {@link IntermediateResultPartition}.
  */
-public interface SchedulingResultPartition<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
-	extends Result<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
+public interface SchedulingResultPartition
+	extends Result<ExecutionVertexID, IntermediateResultPartitionID, SchedulingExecutionVertex, SchedulingResultPartition> {
 
 	/**
 	 * Gets id of the intermediate result.

@@ -26,13 +26,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -57,7 +57,7 @@ import java.util.List;
  * ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
  * FROM T.
  */
-public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RowTimeRowsBoundedPrecedingFunction.class);
@@ -68,7 +68,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 	private final long precedingOffset;
 	private final int rowTimeIdx;
 
-	private transient JoinedRow output;
+	private transient JoinedRowData output;
 
 	// the state which keeps the last triggering timestamp
 	private transient ValueState<Long> lastTriggeringTsState;
@@ -77,13 +77,13 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 	private transient ValueState<Long> counterState;
 
 	// the state which used to materialize the accumulator for incremental calculation
-	private transient ValueState<BaseRow> accState;
+	private transient ValueState<RowData> accState;
 
 	// the state which keeps all the data that are not expired.
 	// The first element (as the mapState key) of the tuple is the time stamp. Per each time stamp,
 	// the second element of tuple is a list that contains the entire data of all the rows belonging
 	// to this time stamp.
-	private transient MapState<Long, List<BaseRow>> inputState;
+	private transient MapState<Long, List<RowData>> inputState;
 
 	private transient AggsHandleFunction function;
 
@@ -109,7 +109,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		output = new JoinedRow();
+		output = new JoinedRowData();
 
 		ValueStateDescriptor<Long> lastTriggeringTsDescriptor = new ValueStateDescriptor<Long>(
 			"lastTriggeringTsState",
@@ -121,14 +121,14 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 			Types.LONG);
 		counterState = getRuntimeContext().getState(dataCountStateDescriptor);
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> accStateDesc = new ValueStateDescriptor<BaseRow>("accState", accTypeInfo);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+		ValueStateDescriptor<RowData> accStateDesc = new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accStateDesc);
 
 		// input element are all binary row as they are came from network
-		BaseRowTypeInfo inputType = new BaseRowTypeInfo(inputFieldTypes);
-		ListTypeInfo<BaseRow> rowListTypeInfo = new ListTypeInfo<BaseRow>(inputType);
-		MapStateDescriptor<Long, List<BaseRow>> inputStateDesc = new MapStateDescriptor<Long, List<BaseRow>>(
+		InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
+		ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
+		MapStateDescriptor<Long, List<RowData>> inputStateDesc = new MapStateDescriptor<Long, List<RowData>>(
 			"inputState",
 			Types.LONG,
 			rowListTypeInfo);
@@ -139,9 +139,9 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 
 	@Override
 	public void processElement(
-			BaseRow input,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.Context ctx,
-			Collector<BaseRow> out) throws Exception {
+			RowData input,
+			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+			Collector<RowData> out) throws Exception {
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
@@ -155,12 +155,12 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 
 		// check if the data is expired, if not, save the data and register event time timer
 		if (triggeringTs > lastTriggeringTs) {
-			List<BaseRow> data = inputState.get(triggeringTs);
+			List<RowData> data = inputState.get(triggeringTs);
 			if (null != data) {
 				data.add(input);
 				inputState.put(triggeringTs, data);
 			} else {
-				data = new ArrayList<BaseRow>();
+				data = new ArrayList<RowData>();
 				data.add(input);
 				inputState.put(triggeringTs, data);
 				// register event time timer
@@ -172,8 +172,8 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 	@Override
 	public void onTimer(
 			long timestamp,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
-			Collector<BaseRow> out) throws Exception {
+			KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+			Collector<RowData> out) throws Exception {
 		if (isProcessingTimeTimer(ctx)) {
 			if (stateCleaningEnabled) {
 
@@ -206,7 +206,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 		}
 
 		// gets all window data from state for the calculation
-		List<BaseRow> inputs = inputState.get(timestamp);
+		List<RowData> inputs = inputState.get(timestamp);
 
 		if (null != inputs) {
 
@@ -215,21 +215,21 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 				dataCount = 0L;
 			}
 
-			BaseRow accumulators = accState.value();
+			RowData accumulators = accState.value();
 			if (accumulators == null) {
 				accumulators = function.createAccumulators();
 			}
 			// set accumulators in context first
 			function.setAccumulators(accumulators);
 
-			List<BaseRow> retractList = null;
+			List<RowData> retractList = null;
 			long retractTs = Long.MAX_VALUE;
 			int retractCnt = 0;
 			int i = 0;
 
 			while (i < inputs.size()) {
-				BaseRow input = inputs.get(i);
-				BaseRow retractRow = null;
+				RowData input = inputs.get(i);
+				RowData retractRow = null;
 				if (dataCount >= precedingOffset) {
 					if (null == retractList) {
 						// find the smallest timestamp

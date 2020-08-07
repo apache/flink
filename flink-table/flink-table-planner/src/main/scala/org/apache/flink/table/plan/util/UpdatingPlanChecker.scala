@@ -37,8 +37,9 @@ object UpdatingPlanChecker {
   }
 
   /** Extracts the unique keys of the table produced by the plan. */
-  def getUniqueKeyFields(plan: RelNode): Option[Array[String]] = {
-    getUniqueKeyGroups(plan).map(_.map(_._1).toArray)
+  def getUniqueKeyFields(plan: RelNode, sinkFieldNames: Array[String]): Option[Array[String]] = {
+    val relFieldNames = plan.getRowType.getFieldNames
+    getUniqueKeyGroups(plan).map(_.map(r => sinkFieldNames(relFieldNames.indexOf(r._1))).toArray)
   }
 
   /** Extracts the unique keys and groups of the table produced by the plan. */

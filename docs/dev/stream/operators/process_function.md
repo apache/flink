@@ -1,5 +1,5 @@
 ---
-title: "Process Function (Low-level Operations)"
+title: "Process Function"
 nav-title: "Process Function"
 nav-parent_id: streaming_operators
 nav-pos: 35

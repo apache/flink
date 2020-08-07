@@ -18,21 +18,20 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -68,7 +67,7 @@ public class NonBufferOverWindowOperatorTest {
 		}
 	};
 	static RowType inputType = RowType.of(new IntType(), new BigIntType(), new BigIntType());
-	static BaseRowSerializer inputSer = new BaseRowSerializer(new ExecutionConfig(), inputType);
+	static RowDataSerializer inputSer = new RowDataSerializer(inputType);
 
 	private static GeneratedAggsHandleFunction[] functions;
 
@@ -83,7 +82,7 @@ public class NonBufferOverWindowOperatorTest {
 	}
 
 	private NonBufferOverWindowOperator operator;
-	private List<GenericRow> collect;
+	private List<GenericRowData> collect;
 
 	@Before
 	public void before() throws Exception {
@@ -92,33 +91,33 @@ public class NonBufferOverWindowOperatorTest {
 
 	@Test
 	public void testNormal() throws Exception {
-		test(new boolean[] {false, false}, new GenericRow[] {
-				GenericRow.of(0, 1L, 4L, 1L, 4L),
-				GenericRow.of(0, 1L, 1L, 2L, 5L),
-				GenericRow.of(1, 5L, 2L, 5L, 2L),
-				GenericRow.of(2, 5L, 4L, 5L, 4L),
-				GenericRow.of(2, 6L, 2L, 11L, 6L)
+		test(new boolean[] {false, false}, new GenericRowData[] {
+				GenericRowData.of(0, 1L, 4L, 1L, 4L),
+				GenericRowData.of(0, 1L, 1L, 2L, 5L),
+				GenericRowData.of(1, 5L, 2L, 5L, 2L),
+				GenericRowData.of(2, 5L, 4L, 5L, 4L),
+				GenericRowData.of(2, 6L, 2L, 11L, 6L)
 		});
 	}
 
 	@Test
 	public void testResetAccumulators() throws Exception {
-		test(new boolean[] {true, false}, new GenericRow[] {
-				GenericRow.of(0, 1L, 4L, 1L, 4L),
-				GenericRow.of(0, 1L, 1L, 1L, 5L),
-				GenericRow.of(1, 5L, 2L, 5L, 2L),
-				GenericRow.of(2, 5L, 4L, 5L, 4L),
-				GenericRow.of(2, 6L, 2L, 6L, 6L)
+		test(new boolean[] {true, false}, new GenericRowData[] {
+				GenericRowData.of(0, 1L, 4L, 1L, 4L),
+				GenericRowData.of(0, 1L, 1L, 1L, 5L),
+				GenericRowData.of(1, 5L, 2L, 5L, 2L),
+				GenericRowData.of(2, 5L, 4L, 5L, 4L),
+				GenericRowData.of(2, 6L, 2L, 6L, 6L)
 		});
 	}
 
-	private void test(boolean[] resetAccumulators, GenericRow[] expect) throws Exception {
+	private void test(boolean[] resetAccumulators, GenericRowData[] expect) throws Exception {
 		operator = new NonBufferOverWindowOperator(functions, comparator, resetAccumulators) {
 			{
-				output = new ConsumerOutput(new Consumer<BaseRow>() {
+				output = new ConsumerOutput(new Consumer<RowData>() {
 					@Override
-					public void accept(BaseRow r) {
-						collect.add(GenericRow.of(r.getInt(0), r.getLong(1),
+					public void accept(RowData r) {
+						collect.add(GenericRowData.of(r.getInt(0), r.getLong(1),
 								r.getLong(2), r.getLong(3), r.getLong(4)));
 					}
 				});
@@ -132,7 +131,7 @@ public class NonBufferOverWindowOperatorTest {
 			@Override
 			public StreamConfig getOperatorConfig() {
 				StreamConfig conf = mock(StreamConfig.class);
-				when(conf.<BaseRow>getTypeSerializerIn1(getUserCodeClassloader()))
+				when(conf.<RowData>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
 				return conf;
 			}
@@ -148,22 +147,22 @@ public class NonBufferOverWindowOperatorTest {
 		addRow(1, 5L, 2L);
 		addRow(2, 5L, 4L);
 		addRow(2, 6L, 2L);
-		GenericRow[] outputs = this.collect.toArray(new GenericRow[0]);
+		GenericRowData[] outputs = this.collect.toArray(new GenericRowData[0]);
 		Assert.assertArrayEquals(expect, outputs);
 	}
 
 	private void addRow(Object... fields) throws Exception {
-		operator.processElement(new StreamRecord<>(GenericRow.of(fields)));
+		operator.processElement(new StreamRecord<>(GenericRowData.of(fields)));
 	}
 
 	/**
 	 * Output of Consumer.
 	 */
-	static class ConsumerOutput implements Output<StreamRecord<BaseRow>> {
+	static class ConsumerOutput implements Output<StreamRecord<RowData>> {
 
-		private final Consumer<BaseRow> consumer;
+		private final Consumer<RowData> consumer;
 
-		public ConsumerOutput(Consumer<BaseRow> consumer) {
+		public ConsumerOutput(Consumer<RowData> consumer) {
 			this.consumer = consumer;
 		}
 
@@ -183,7 +182,7 @@ public class NonBufferOverWindowOperatorTest {
 		}
 
 		@Override
-		public void collect(StreamRecord<BaseRow> record) {
+		public void collect(StreamRecord<RowData> record) {
 			consumer.accept(record.getValue());
 		}
 

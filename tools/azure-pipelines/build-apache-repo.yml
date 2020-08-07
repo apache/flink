@@ -1,0 +1,145 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+#
+# This file defines the Flink build for the "apache/flink" repository, including
+# the following:
+#  - PR builds (triggered through ci-bot)
+#  - custom triggered e2e tests
+#  - nightly builds
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Nightly build
+  branches:
+    include:
+    - master
+  always: true # run even if there were no changes to the mentioned branches
+
+trigger:
+  branches:
+    include:
+    - '*'  # must quote since "*" is a YAML reserved character; we want a string
+
+resources:
+  containers:
+  # Container with Maven 3.2.5, SSL to have the same environment everywhere.
+  - container: flink-build-container
+    image: rmetzger/flink-ci:ubuntu-amd64-bcef226
+
+variables:
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
+  CACHE_FALLBACK_KEY: maven | $(Agent.OS)
+  FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
+  SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
+  SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
+  SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
+
+stages:
+  # CI / PR triggered stage:
+  - stage: ci
+    displayName: "CI build (custom builders)"
+    condition: not(eq(variables['Build.Reason'], in('Schedule', 'Manual')))
+    jobs:
+      - template: jobs-template.yml
+        parameters:
+          stage_name: ci
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          run_end_to_end: false
+          container: flink-build-container
+          jdk: jdk8
+  # Special stage for nightly builds:
+  - stage: cron_build
+    displayName: "Cron build"
+    dependsOn: [] # depending on an empty array makes the stages run in parallel
+    condition: or(eq(variables['Build.Reason'], 'Schedule'), eq(variables['MODE'], 'nightly'))
+    jobs:
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_azure
+          test_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_hadoop241
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_hadoop313
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dinclude_hadoop_aws -Dhadoop.version=3.1.3 -Phadoop3-tests"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_scala212
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_jdk11
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk11
+      - job: docs_404_check # run on a MSFT provided machine
+        pool: 
+          vmImage: 'ubuntu-16.04'
+        steps:
+        - task: UseRubyVersion@0
+          inputs:
+            versionSpec: '= 2.4'
+            addToPath: true
+        - script: ./tools/ci/docs.sh
+      - template: build-python-wheels.yml
+        parameters:
+          stage_name: cron_python_wheels
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          container: flink-build-container

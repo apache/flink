@@ -33,6 +33,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
+
 /**
  * Strategy for inferring and validating an argument using a conjunction of multiple {@link ArgumentTypeStrategy}s
  * into one like {@code f(NUMERIC && LITERAL)}
@@ -72,7 +74,7 @@ public final class AndArgumentTypeStrategy implements ArgumentTypeStrategy {
 			}
 			final LogicalType inferredType = inferredDataType.get().getLogicalType();
 			// a more specific, casted argument type is available
-			if (!actualType.equals(inferredType) && !closestDataType.isPresent()) {
+			if (!supportsAvoidingCast(actualType, inferredType) && !closestDataType.isPresent()) {
 				closestDataType = inferredDataType;
 			}
 		}

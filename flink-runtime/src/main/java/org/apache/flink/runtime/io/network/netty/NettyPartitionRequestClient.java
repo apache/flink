@@ -176,6 +176,11 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
 	}
 
 	@Override
+	public void resumeConsumption(RemoteInputChannel inputChannel) {
+		clientHandler.resumeConsumption(inputChannel);
+	}
+
+	@Override
 	public void close(RemoteInputChannel inputChannel) throws IOException {
 
 		clientHandler.removeInputChannel(inputChannel);

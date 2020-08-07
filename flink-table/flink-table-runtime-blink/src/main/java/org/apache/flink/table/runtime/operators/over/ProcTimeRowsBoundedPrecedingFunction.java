@@ -27,13 +27,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -56,7 +56,7 @@ import java.util.List;
  * (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
  * FROM T.
  */
-public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeRowsBoundedPrecedingFunction.class);
@@ -68,12 +68,12 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	private transient AggsHandleFunction function;
 
-	private transient ValueState<BaseRow> accState;
-	private transient MapState<Long, List<BaseRow>> inputState;
+	private transient ValueState<RowData> accState;
+	private transient MapState<Long, List<RowData>> inputState;
 	private transient ValueState<Long> counterState;
 	private transient ValueState<Long> smallestTsState;
 
-	private transient JoinedRow output;
+	private transient JoinedRowData output;
 
 	public ProcTimeRowsBoundedPrecedingFunction(
 			long minRetentionTime,
@@ -95,22 +95,22 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		output = new JoinedRow();
+		output = new JoinedRowData();
 
 		// input element are all binary row as they are came from network
-		BaseRowTypeInfo inputType = new BaseRowTypeInfo(inputFieldTypes);
+		InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
 		// We keep the elements received in a Map state keyed
 		// by the ingestion time in the operator.
 		// we also keep counter of processed elements
 		// and timestamp of oldest element
-		ListTypeInfo<BaseRow> rowListTypeInfo = new ListTypeInfo<BaseRow>(inputType);
-		MapStateDescriptor<Long, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<Long, List<BaseRow>>(
+		ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
+		MapStateDescriptor<Long, List<RowData>> mapStateDescriptor = new MapStateDescriptor<Long, List<RowData>>(
 			"inputState", BasicTypeInfo.LONG_TYPE_INFO, rowListTypeInfo);
 		inputState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> stateDescriptor =
-			new ValueStateDescriptor<BaseRow>("accState", accTypeInfo);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+		ValueStateDescriptor<RowData> stateDescriptor =
+			new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(stateDescriptor);
 
 		ValueStateDescriptor<Long> processedCountDescriptor = new ValueStateDescriptor<Long>(
@@ -128,15 +128,15 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	@Override
 	public void processElement(
-			BaseRow input,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.Context ctx,
-			Collector<BaseRow> out) throws Exception {
+			RowData input,
+			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+			Collector<RowData> out) throws Exception {
 		long currentTime = ctx.timerService().currentProcessingTime();
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, currentTime);
 
 		// initialize state for the processed element
-		BaseRow accumulators = accState.value();
+		RowData accumulators = accState.value();
 		if (accumulators == null) {
 			accumulators = function.createAccumulators();
 		}
@@ -156,11 +156,11 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 		}
 
 		if (counter == precedingOffset) {
-			List<BaseRow> retractList = inputState.get(smallestTs);
+			List<RowData> retractList = inputState.get(smallestTs);
 			if (retractList != null) {
 				// get oldest element beyond buffer size
 				// and if oldest element exist, retract value
-				BaseRow retractRow = retractList.get(0);
+				RowData retractRow = retractList.get(0);
 				function.retract(retractRow);
 				retractList.remove(0);
 			} else {
@@ -193,12 +193,12 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 		}
 
 		// update map state, counter and timestamp
-		List<BaseRow> currentTimeState = inputState.get(currentTime);
+		List<RowData> currentTimeState = inputState.get(currentTime);
 		if (currentTimeState != null) {
 			currentTimeState.add(input);
 			inputState.put(currentTime, currentTimeState);
 		} else { // add new input
-			List<BaseRow> newList = new ArrayList<BaseRow>();
+			List<RowData> newList = new ArrayList<RowData>();
 			newList.add(input);
 			inputState.put(currentTime, newList);
 		}
@@ -210,7 +210,7 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 		accState.update(accumulators);
 
 		// prepare output row
-		BaseRow aggValue = function.getValue();
+		RowData aggValue = function.getValue();
 		output.replace(input, aggValue);
 		out.collect(output);
 	}
@@ -218,8 +218,8 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 	@Override
 	public void onTimer(
 			long timestamp,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
-			Collector<BaseRow> out) throws Exception {
+			KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+			Collector<RowData> out) throws Exception {
 		if (stateCleaningEnabled) {
 			cleanupState(inputState, accState, counterState, smallestTsState);
 			function.cleanup();

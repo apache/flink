@@ -18,18 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import java.time.Duration
-import java.util
-
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
@@ -37,14 +29,22 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCo
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, toDuration, toLong, transformToStreamAggregateInfoList}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
+import org.apache.flink.table.planner.plan.utils.AggregateUtil._
+import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.generated.{GeneratedClass, GeneratedNamespaceAggsHandleFunction, GeneratedNamespaceTableAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.operators.window.{CountWindow, TimeWindow, WindowOperator, WindowOperatorBuilder}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.tools.RelBuilder
+
+import java.time.Duration
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -62,19 +62,11 @@ abstract class StreamExecGroupWindowAggregateBase(
     val window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty],
     inputTimeFieldIndex: Int,
-    emitStrategy: WindowEmitStrategy,
+    val emitStrategy: WindowEmitStrategy,
     aggType: String)
   extends SingleRel(cluster, traitSet, inputRel)
-    with StreamPhysicalRel
-    with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = emitStrategy.produceUpdates
-
-  override def consumesRetractions = true
-
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
-  override def producesRetractions: Boolean = false
+  with StreamPhysicalRel
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = window match {
     case TumblingGroupWindow(_, timeField, size)
@@ -119,24 +111,14 @@ abstract class StreamExecGroupWindowAggregateBase(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
-    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(outputRowType))
-
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
-
-    if (inputIsAccRetract) {
-      throw new TableException(
-        s"Group Window $aggType: Retraction on windowed GroupBy $aggType is not supported yet. \n" +
-          "please re-check sql grammar. \n" +
-          s"Note: Windowed GroupBy $aggType should not follow a" +
-          "non-windowed GroupBy aggregation.")
-    }
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val outRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(outputRowType))
 
     val isCountWindow = window match {
       case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) => true
@@ -164,7 +146,7 @@ abstract class StreamExecGroupWindowAggregateBase(
       -1
     }
 
-    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
+    val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     val aggInfoList = transformToStreamAggregateInfoList(
       aggCalls,
       inputRowType,
@@ -176,7 +158,7 @@ abstract class StreamExecGroupWindowAggregateBase(
       aggInfoList,
       config,
       planner.getRelBuilder,
-      inputRowTypeInfo.getLogicalTypes,
+      inputRowTypeInfo.toRowFieldTypes,
       needRetraction)
 
     val aggResultTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
@@ -193,7 +175,7 @@ abstract class StreamExecGroupWindowAggregateBase(
       accTypes,
       windowPropertyTypes,
       aggValueTypes,
-      inputRowTypeInfo.getLogicalTypes,
+      inputRowTypeInfo.toRowFieldTypes,
       timeIdx)
 
     val transformation = new OneInputTransformation(
@@ -208,7 +190,7 @@ abstract class StreamExecGroupWindowAggregateBase(
       transformation.setMaxParallelism(1)
     }
 
-    val selector = KeySelectorUtil.getBaseRowSelector(grouping, inputRowTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(grouping, inputRowTypeInfo)
 
     // set KeyType and Selector for state
     transformation.setStateKeySelector(selector)
@@ -334,7 +316,7 @@ abstract class StreamExecGroupWindowAggregateBase(
     if (emitStrategy.produceUpdates) {
       // mark this operator will send retraction and set new trigger
       newBuilder
-        .withSendRetraction()
+        .produceUpdates()
         .triggering(emitStrategy.getTrigger)
         .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness))
     }

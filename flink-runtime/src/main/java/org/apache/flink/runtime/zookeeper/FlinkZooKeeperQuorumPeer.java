@@ -22,12 +22,12 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
-import org.apache.zookeeper.server.ServerConfig;
-import org.apache.zookeeper.server.ZooKeeperServer;
-import org.apache.zookeeper.server.ZooKeeperServerMain;
-import org.apache.zookeeper.server.quorum.QuorumPeer;
-import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
-import org.apache.zookeeper.server.quorum.QuorumPeerMain;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.ServerConfig;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.ZooKeeperServerMain;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.quorum.QuorumPeer;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.quorum.QuorumPeerMain;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

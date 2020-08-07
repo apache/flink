@@ -19,12 +19,13 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}
 
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class GroupWindowTest extends TableTestBase {
 
@@ -94,7 +95,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('long, 'int))
+      .select('string, call(weightedAvg, 'long, 'int))
     util.verifyPlan(windowedTable)
   }
 
@@ -161,7 +162,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Slide over 8.millis every 10.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('long, 'int))
+      .select('string, call(weightedAvg, 'long, 'int))
     util.verifyPlan(windowedTable)
   }
 
@@ -189,7 +190,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Session withGap 7.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('long, 'int))
+      .select('string, call(weightedAvg, 'long, 'int))
     util.verifyPlan(windowedTable)
   }
 
@@ -345,7 +346,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
       .groupBy('w, 'int2, 'int3, 'string)
-      .select(weightAvgFun('long, 'int))
+      .select(call(weightAvgFun, 'long, 'int))
 
     util.verifyPlan(windowedTable)
   }
@@ -405,5 +406,31 @@ class GroupWindowTest extends TableTestBase {
       .select('c.varPop, 'c.varSamp, 'c.stddevPop, 'c.stddevSamp, 'w.start, 'w.end)
 
     util.verifyPlan(windowedTable)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows(): Unit = {
+    // This test ensures that the LogicalWindowTableAggregate node's digest contains the window
+    // specs. This allows the planner to make the distinction between similar aggregations using
+    // different windows (see FLINK-15577).
+    val util = streamTestUtil()
+    val table = util.addTableSource[(Timestamp, Long, Int)]('ts.rowtime, 'a, 'b)
+    val emptyFunc = new EmptyTableAggFunc
+
+    val tableWindow1hr = table
+      .window(Slide over 1.hour every 1.hour on 'ts as 'w1)
+      .groupBy('w1)
+      .flatAggregate(emptyFunc('a, 'b))
+      .select(1)
+
+    val tableWindow2hr = table
+      .window(Slide over 2.hour every 1.hour on 'ts as 'w1)
+      .groupBy('w1)
+      .flatAggregate(emptyFunc('a, 'b))
+      .select(1)
+
+    val unionTable = tableWindow1hr.unionAll(tableWindow2hr)
+
+    util.verifyPlan(unionTable)
   }
 }

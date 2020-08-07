@@ -1,7 +1,7 @@
 ---
-title: "SSL 配置"
+title: "SSL 设置"
 nav-parent_id: ops
-nav-pos: 10
+nav-pos: 11
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,6 +26,7 @@ under the License.
 {:toc}
 
 This page provides instructions on how to enable TLS/SSL authentication and encryption for network communication with and between Flink processes.
+**NOTE: TLS/SSL authentication is not enabled by default.**
 
 ## Internal and External Connectivity
 
@@ -50,12 +51,25 @@ Internal connectivity includes:
 
 All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication**, meaning both server
 and client side of each connection need to present the certificate to each other. The certificate acts effectively as a shared
-secret.
+secret when a dedicated CA is used to exclusively sign an internal cert.
+The certificate for internal communication is not needed by any other party to interact with Flink, and can be simply
+added to the container images, or attached to the YARN deployment.
 
-A common setup is to generate a dedicated certificate (may be self-signed) for a Flink deployment. The certificate for internal communication
-is not needed by any other party to interact with Flink, and can be simply added to the container images, or attached to the YARN deployment.
+  - The easiest way to realize this setup is by generating a dedicated public/private key pair and self-signed certificate
+    for the Flink deployment. The key- and truststore are identical and contains only that key pair / certificate.
+    An example is [shown below](#example-ssl-setup-standalone-and-kubernetes).
 
-*Note: Because internal connections are mutually authenticated with shared certificates, Flink can skip hostname verification. This makes container-based setups easier.*
+  - In an environment where operators are constrained to use firm-wide Internal CA (cannot generate self-signed certificates),
+    the recommendation is to still have a dedicated key pair / certificate for the Flink deployment, signed by that CA.
+    However, the TrustStore must then also contain the CA's public certificate tho accept the deployment's certificate
+    during the SSL handshake (requirement in JDK TrustStore implementation).
+    
+    **NOTE:** Because of that, it is critical that you specify the fingerprint of the deployment certificate
+    (`security.ssl.internal.cert.fingerprint`), when it is not self-signed, to pin that certificate as the only trusted
+    certificate and prevent the TrustStore from trusting all certificates signed by that CA.
+
+*Note: Because internal connections are mutually authenticated with shared certificates, Flink can skip hostname verification.
+This makes container-based setups easier.*
 
 ### External / REST Connectivity
 
@@ -103,9 +117,9 @@ need to be set up such that the truststore trusts the keystore's certificate.
 
 #### Internal Connectivity
 
-Because internal communication is mutually authenticated, keystore and truststore typically contain the same dedicated certificate.
-The certificate can use wild card hostnames or addresses, because the certificate is expected to be a shared secret and host
-names are not verified. It is even possible to use the same file (the keystore) also as the truststore.
+Because internal communication is mutually authenticated between server and client side, keystore and truststore typically refer to a dedicated
+certificate that acts as a shared secret. In such a setup, the certificate can use wild card hostnames or addresses.
+WHen using self-signed certificates, it is even possible to use the same file as keystore and truststore.
 
 {% highlight yaml %}
 security.ssl.internal.keystore: /path/to/file.keystore
@@ -113,6 +127,13 @@ security.ssl.internal.keystore-password: keystore_password
 security.ssl.internal.key-password: key_password
 security.ssl.internal.truststore: /path/to/file.truststore
 security.ssl.internal.truststore-password: truststore_password
+{% endhighlight %}
+
+When using a certificate that is not self-signed, but signed by a CA, you need to use certificate pinning to allow only a 
+a specific certificate to be trusted when establishing the connectivity.
+
+{% highlight yaml %}
+security.ssl.internal.cert.fingerprint: 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
 {% endhighlight %}
 
 #### REST Endpoints (external connectivity)
@@ -195,7 +216,7 @@ However, as mentioned above, the REST endpoint does not authenticate clients and
 **REST Endpoint (simple self signed certificate)**
 
 This example shows how to create a simple keystore / truststore pair. The truststore does not contain the primary key and can
-be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the Flink master.
+be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the JobManager.
 
 {% highlight bash %}
 keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
@@ -227,7 +248,7 @@ keytool -importcert -keystore ca.truststore -alias ca -storepass ca_truststore_p
 {% endhighlight %}
 
 Now create a keystore for the REST endpoint with a certificate signed by the above CA.
-Let *flink.company.org / ip:10.0.2.15* be the hostname of the Flink master (JobManager).
+Let *flink.company.org / ip:10.0.2.15* be the hostname of the JobManager.
 
 {% highlight bash %}
 keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
@@ -279,7 +300,7 @@ For YARN and Mesos, you can use the tools of Yarn and Mesos to help:
   - Configuring security for internal communication is exactly the same as in the example above.
 
   - To secure the REST endpoint, you need to issue the REST endpoint's certificate such that it is valid for all hosts
-    that the Flink master may get deployed to. This can be done with a wild card DNS name, or by adding multiple DNS names.
+    that the JobManager may get deployed to. This can be done with a wild card DNS name, or by adding multiple DNS names.
 
   - The easiest way to deploy keystores and truststore is by YARN client's *ship files* option (`-yt`).
     Copy the keystore and truststore files into a local directory (say `deploy-keys/`) and start the YARN session as

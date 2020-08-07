@@ -33,11 +33,13 @@ public class FunctionDescriptorValidator implements DescriptorValidator {
 
 	public static final String FROM = "from";
 	public static final String FROM_VALUE_CLASS = "class";
+	public static final String FROM_VALUE_PYTHON = "python";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
 		Map<String, Consumer<String>> enumValidation = new HashMap<>();
 		enumValidation.put(FROM_VALUE_CLASS, s -> new ClassInstanceValidator().validate(properties));
+		enumValidation.put(FROM_VALUE_PYTHON, s -> new PythonFunctionValidator().validate(properties));
 
 		// check for 'from'
 		if (properties.containsKey(FROM)) {

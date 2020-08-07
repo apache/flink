@@ -150,7 +150,9 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema.Builder(JSON_SCHEMA).build();
+		final SerializationSchema<?> expected1 = JsonRowSerializationSchema.builder()
+			.withTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA))
+			.build();
 		assertEquals(expected1, actual1);
 	}
 

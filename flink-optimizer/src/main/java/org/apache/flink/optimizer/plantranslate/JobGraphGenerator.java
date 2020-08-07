@@ -35,8 +35,6 @@ import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -68,6 +66,7 @@ import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -86,8 +85,6 @@ import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
 
@@ -97,7 +94,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -264,7 +260,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			program.getOriginalPlan().getCachedFiles().stream()
 			.map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
 			.collect(Collectors.toList());
-		addUserArtifactEntries(userArtifacts, graph);
+		JobGraphUtils.addUserArtifactEntries(userArtifacts, graph);
 		
 		// release all references again
 		this.vertices = null;
@@ -276,35 +272,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		// return job graph
 		return graph;
-	}
-
-	public static void addUserArtifactEntries(Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts, JobGraph jobGraph) {
-		if (userArtifacts != null && !userArtifacts.isEmpty()) {
-			try {
-				java.nio.file.Path tmpDir = Files.createTempDirectory("flink-distributed-cache-" + jobGraph.getJobID());
-				for (Tuple2<String, DistributedCache.DistributedCacheEntry> originalEntry : userArtifacts) {
-					Path filePath = new Path(originalEntry.f1.filePath);
-					boolean isLocalDir = false;
-					try {
-						FileSystem sourceFs = filePath.getFileSystem();
-						isLocalDir = !sourceFs.isDistributedFS() && sourceFs.getFileStatus(filePath).isDir();
-					} catch (IOException ioe) {
-						LOG.warn("Could not determine whether {} denotes a local path.", filePath, ioe);
-					}
-					// zip local directories because we only support file uploads
-					DistributedCache.DistributedCacheEntry entry;
-					if (isLocalDir) {
-						Path zip = FileUtils.compressDirectory(filePath, new Path(tmpDir.toString(), filePath.getName() + ".zip"));
-						entry = new DistributedCache.DistributedCacheEntry(zip.toString(), originalEntry.f1.isExecutable, true);
-					} else {
-						entry = new DistributedCache.DistributedCacheEntry(filePath.toString(), originalEntry.f1.isExecutable, false);
-					}
-					jobGraph.addUserArtifact(originalEntry.f0, entry);
-				}
-			} catch (IOException ioe) {
-				throw new FlinkRuntimeException("Could not compress distributed-cache artifacts.", ioe);
-			}
-		}
 	}
 
 	/**

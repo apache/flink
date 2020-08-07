@@ -21,15 +21,15 @@ package org.apache.flink.table.planner.runtime.utils;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BoxedWrapperRow;
+import org.apache.flink.table.data.BoxedWrapperRowData;
+import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
 
 /**
  * An input format that returns objects from a range.
  */
-public class RangeInputFormat extends GenericInputFormat<BaseRow> implements NonParallelInput {
+public class RangeInputFormat extends GenericInputFormat<RowData> implements NonParallelInput {
 
 	private static final long serialVersionUID = 1L;
 
@@ -37,7 +37,7 @@ public class RangeInputFormat extends GenericInputFormat<BaseRow> implements Non
 	private long end;
 
 	private transient long current;
-	private transient BoxedWrapperRow reuse;
+	private transient BoxedWrapperRowData reuse;
 
 	public RangeInputFormat(long start, long end) {
 		this.start = start;
@@ -56,9 +56,9 @@ public class RangeInputFormat extends GenericInputFormat<BaseRow> implements Non
 	}
 
 	@Override
-	public BaseRow nextRecord(BaseRow ignore) throws IOException {
+	public RowData nextRecord(RowData ignore) throws IOException {
 		if (reuse == null) {
-			reuse = new BoxedWrapperRow(1);
+			reuse = new BoxedWrapperRowData(1);
 		}
 		reuse.setLong(0, current);
 		current++;

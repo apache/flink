@@ -18,10 +18,15 @@
 import os
 import tempfile
 import json
+import time
+
+import unittest
 
 from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
+from pyflink.datastream.tests.test_util import DataStreamCollectUtil
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -172,6 +177,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(time_characteristic, TimeCharacteristic.EventTime)
 
+    @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()
         source_path = os.path.join(tmp_dir + '/streaming.csv')
@@ -190,3 +196,48 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         plan = self.env.get_execution_plan()
 
         json.loads(plan)
+
+    def test_execute(self):
+        tmp_dir = tempfile.gettempdir()
+        field_names = ['a', 'b', 'c']
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env = StreamTableEnvironment.create(self.env)
+        t_env.register_table_sink(
+            'Results',
+            CsvTableSink(field_names, field_types,
+                         os.path.join('{}/{}.csv'.format(tmp_dir, round(time.time())))))
+        t_env.insert_into('Results', t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']))
+        execution_result = t_env.execute('test_stream_execute')
+        self.assertIsNotNone(execution_result.get_job_id())
+        self.assertIsNotNone(execution_result.get_net_runtime())
+        self.assertEqual(len(execution_result.get_all_accumulator_results()), 0)
+        self.assertIsNone(execution_result.get_accumulator_result('accumulator'))
+        self.assertIsNotNone(str(execution_result))
+
+    def test_from_collection_without_data_types(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(ds)
+        self.env.execute("test from collection")
+        results = collect_util.results()
+        # user does not specify data types for input data, the collected result should be in
+        # in tuple format as inputs.
+        expected = ["(1, 'Hi', 'Hello')", "(2, 'Hello', 'Hi')"]
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_from_collection_with_data_types(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.STRING(),
+                                                           Types.STRING()]))
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(ds)
+        self.env.execute("test from collection")
+        results = collect_util.results()
+        # if user specifies data types of input data, the collected result should be in row format.
+        expected = ['1,Hi,Hello', '2,Hello,Hi']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)

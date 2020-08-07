@@ -92,11 +92,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
 	public NetworkBufferPool(
-		int numberOfSegmentsToAllocate,
-		int segmentSize,
-		int numberOfSegmentsToRequest,
-		Duration requestSegmentsTimeout) {
-
+			int numberOfSegmentsToAllocate,
+			int segmentSize,
+			int numberOfSegmentsToRequest,
+			Duration requestSegmentsTimeout) {
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 
@@ -315,18 +314,35 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	@Override
 	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException {
-		return internalCreateBufferPool(numRequiredBuffers, maxUsedBuffers, null);
+		return internalCreateBufferPool(
+			numRequiredBuffers,
+			maxUsedBuffers,
+			null,
+			0,
+			Integer.MAX_VALUE);
 	}
 
 	@Override
-	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, BufferPoolOwner bufferPoolOwner) throws IOException {
-		return internalCreateBufferPool(numRequiredBuffers, maxUsedBuffers, bufferPoolOwner);
+	public BufferPool createBufferPool(
+			int numRequiredBuffers,
+			int maxUsedBuffers,
+			BufferPoolOwner bufferPoolOwner,
+			int numSubpartitions,
+			int maxBuffersPerChannel) throws IOException {
+		return internalCreateBufferPool(
+			numRequiredBuffers,
+			maxUsedBuffers,
+			bufferPoolOwner,
+			numSubpartitions,
+			maxBuffersPerChannel);
 	}
 
 	private BufferPool internalCreateBufferPool(
 			int numRequiredBuffers,
 			int maxUsedBuffers,
-			@Nullable BufferPoolOwner bufferPoolOwner) throws IOException {
+			@Nullable BufferPoolOwner bufferPoolOwner,
+			int numSubpartitions,
+			int maxBuffersPerChannel) throws IOException {
 
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
@@ -350,7 +366,13 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 			// We are good to go, create a new buffer pool and redistribute
 			// non-fixed size buffers.
 			LocalBufferPool localBufferPool =
-				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers, bufferPoolOwner);
+				new LocalBufferPool(
+					this,
+					numRequiredBuffers,
+					maxUsedBuffers,
+					bufferPoolOwner,
+					numSubpartitions,
+					maxBuffersPerChannel);
 
 			allBufferPools.add(localBufferPool);
 
@@ -506,8 +528,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 						"You can increase this number by setting the configuration keys '%s', '%s', and '%s'",
 				totalNumberOfMemorySegments,
 				memorySegmentSize,
-				TaskManagerOptions.SHUFFLE_MEMORY_FRACTION.key(),
-				TaskManagerOptions.SHUFFLE_MEMORY_MIN.key(),
-				TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
+				TaskManagerOptions.NETWORK_MEMORY_FRACTION.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MIN.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MAX.key());
 	}
 }

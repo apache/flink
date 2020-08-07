@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
+import org.apache.flink.table.data.{RowData, GenericRowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContex
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
@@ -71,7 +71,7 @@ object ScanUtil {
       config: TableConfig,
       rowtimeExpr: Option[RexNode] = None,
       beforeConvert: String = "",
-      afterConvert: String = ""): Transformation[BaseRow] = {
+      afterConvert: String = ""): Transformation[RowData] = {
 
     val outputRowType = FlinkTypeFactory.toLogicalRowType(outRowType)
 
@@ -81,7 +81,7 @@ object ScanUtil {
     val inputTerm = DEFAULT_INPUT1_TERM
     val internalInType = fromDataTypeToLogicalType(inputType)
     val (inputTermConverter, inputRowType) = {
-      val convertFunc = CodeGenUtils.genToInternal(ctx, inputType)
+      val convertFunc = CodeGenUtils.genToInternalConverter(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
         case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
@@ -100,7 +100,7 @@ object ScanUtil {
         val conversion = new ExprCodeGenerator(ctx, false)
             .bindInput(inputRowType, inputTerm = inputTerm, inputFieldMapping = Some(fieldIndexes))
             .generateConverterResultExpression(
-              outputRowType, classOf[GenericRow], rowtimeExpression = rowtimeExpr)
+              outputRowType, classOf[GenericRowData], rowtimeExpression = rowtimeExpr)
 
         s"""
            |$beforeConvert
@@ -110,20 +110,20 @@ object ScanUtil {
            |""".stripMargin
       }
 
-    val generatedOperator = OperatorCodeGenerator.generateOneInputStreamOperator[Any, BaseRow](
+    val generatedOperator = OperatorCodeGenerator.generateOneInputStreamOperator[Any, RowData](
       ctx,
       convertName,
       processCode,
       outputRowType,
       converter = inputTermConverter)
 
-    val substituteStreamOperator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
+    val substituteStreamOperator = new CodeGenOperatorFactory[RowData](generatedOperator)
 
     ExecNode.createOneInputTransformation(
-      input.asInstanceOf[Transformation[BaseRow]],
+      input.asInstanceOf[Transformation[RowData]],
       getOperatorName(qualifiedName, outRowType),
       substituteStreamOperator,
-      BaseRowTypeInfo.of(outputRowType),
+      InternalTypeInfo.of(outputRowType),
       input.getParallelism)
   }
 

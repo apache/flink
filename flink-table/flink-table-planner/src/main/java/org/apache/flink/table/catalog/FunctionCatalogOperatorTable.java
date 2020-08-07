@@ -19,11 +19,16 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 
 import org.apache.calcite.sql.SqlFunction;
@@ -33,6 +38,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +49,8 @@ import java.util.Optional;
  */
 @Internal
 public class FunctionCatalogOperatorTable implements SqlOperatorTable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FunctionCatalogOperatorTable.class);
 
 	private final FunctionCatalog functionCatalog;
 	private final FlinkTypeFactory typeFactory;
@@ -95,9 +104,34 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 				category != null &&
 				category.isTableFunction()) {
 			return convertTableFunction(name, (TableFunctionDefinition) functionDefinition);
+		} else if (functionDefinition instanceof BuiltInFunctionDefinition) {
+			return Optional.empty();
 		}
-
-		return Optional.empty();
+		LOG.warn(
+			"The new type inference for functions is only supported in the Blink planner. " +
+				"Falling back to legacy type inference for function '{}'.",
+			functionDefinition.getClass().toString());
+		if (functionDefinition instanceof ScalarFunction) {
+			return convertToSqlFunction(
+				category,
+				name,
+				new ScalarFunctionDefinition(
+					name,
+					(ScalarFunction) functionDefinition)
+			);
+		} else if (functionDefinition instanceof TableFunction) {
+			final TableFunction<?> t = (TableFunction<?>) functionDefinition;
+			return convertToSqlFunction(
+				category,
+				name,
+				new TableFunctionDefinition(
+					name,
+					t,
+					UserDefinedFunctionHelper.getReturnTypeOfTableFunction(t))
+			);
+		}
+		throw new TableException(
+			"The new type inference for functions is only supported in the Blink planner.");
 	}
 
 	private Optional<SqlFunction> convertAggregateFunction(

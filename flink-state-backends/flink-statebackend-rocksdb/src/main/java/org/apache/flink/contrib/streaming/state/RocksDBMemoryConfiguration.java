@@ -18,8 +18,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -43,7 +43,7 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 	@Nullable
 	private MemorySize fixedMemoryPerSlot;
 
-	/** The maximum fraction of the shared cache consumed by the write buffers. Null if not set.*/
+	/** The maximum fraction of the total shared memory consumed by the write buffers. Null if not set.*/
 	@Nullable
 	private Double writeBufferRatio;
 
@@ -161,9 +161,15 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 	 * Validates if the configured options are valid with respect to one another.
 	 */
 	public void validate() {
-		if (writeBufferRatio != null && highPriorityPoolRatio != null && writeBufferRatio + highPriorityPoolRatio > 1.0) {
+		// As FLINK-15512 introduce a new mechanism to calculate the cache capacity,
+		// the relationship of write_buffer_manager_capacity and cache_capacity has changed to:
+		// write_buffer_manager_capacity / cache_capacity = 2 * writeBufferRatio / (3 - writeBufferRatio)
+		// we should ensure the sum of write buffer manager capacity and high priority pool less than cache capacity.
+		// TODO change the formula once FLINK-15532 resolved.
+		if (writeBufferRatio != null && highPriorityPoolRatio != null
+			&& 2 * writeBufferRatio / (3 - writeBufferRatio) + highPriorityPoolRatio >= 1.0) {
 			throw new IllegalArgumentException(String.format(
-				"Invalid configuration: Sum of writeBufferRatio %s and highPriPoolRatio %s should be less than 1.0",
+				"Invalid configuration: writeBufferRatio %s with highPriPoolRatio %s",
 				writeBufferRatio, highPriorityPoolRatio));
 		}
 	}
@@ -177,13 +183,13 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 	 */
 	public static RocksDBMemoryConfiguration fromOtherAndConfiguration(
 			RocksDBMemoryConfiguration other,
-			Configuration config) {
+			ReadableConfig config) {
 
 		final RocksDBMemoryConfiguration newConfig = new RocksDBMemoryConfiguration();
 
 		newConfig.useManagedMemory = other.useManagedMemory != null
 				? other.useManagedMemory
-				: config.getBoolean(RocksDBOptions.USE_MANAGED_MEMORY);
+				: config.get(RocksDBOptions.USE_MANAGED_MEMORY);
 
 		newConfig.fixedMemoryPerSlot = other.fixedMemoryPerSlot != null
 				? other.fixedMemoryPerSlot
@@ -191,11 +197,11 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 
 		newConfig.writeBufferRatio = other.writeBufferRatio != null
 				? other.writeBufferRatio
-				: config.getDouble(RocksDBOptions.WRITE_BUFFER_RATIO);
+				: config.get(RocksDBOptions.WRITE_BUFFER_RATIO);
 
 		newConfig.highPriorityPoolRatio = other.highPriorityPoolRatio != null
 			? other.highPriorityPoolRatio
-			: config.getDouble(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO);
+			: config.get(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO);
 
 		return newConfig;
 	}

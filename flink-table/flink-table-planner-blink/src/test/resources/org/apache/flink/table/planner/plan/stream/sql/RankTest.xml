@@ -55,16 +55,15 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[UpdateFastStrategy[0,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, $3, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
-      +- Calc(select=[a, b, count_c, $3], updateAsRetraction=[false], accMode=[Acc])
-         +- Rank(strategy=[UpdateFastStrategy[0,1,2]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, cn, count_c, $3], updateAsRetraction=[false], accMode=[Acc])
-            +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-               +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-                  +- Exchange(distribution=[hash[a, b, cn]], updateAsRetraction=[true], accMode=[Acc])
-                     +- Calc(select=[a, b, _UTF-16LE'cn' AS cn], updateAsRetraction=[true], accMode=[Acc])
-                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Calc(select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[single], changelogMode=[I,UA,D])
+      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
+         +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
+            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+               +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+                  +- Calc(select=[a, b], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -318,10 +317,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-   +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I])
+   +- Calc(select=[a, b, c], changelogMode=[I])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -346,10 +345,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-   +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I])
+   +- Calc(select=[a, b, c], changelogMode=[I])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -380,12 +379,12 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -416,74 +415,12 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTopNWithoutRowNumber2">
-    <Resource name="sql">
-      <![CDATA[
-SELECT
-    CONCAT(seller_id, venture, stat_date, sku_id) as rowkey,
-    seller_id,
-    sku_id,
-    venture,
-    stat_date,
-    amt_dtr,
-    byr_cnt_dtr,
-    pv_dtr,
-    uv_dtr
-FROM (
-  SELECT
-        seller_id,
-        sku_id,
-        venture,
-        stat_date,
-        amt_dtr,
-        byr_cnt_dtr,
-        pv_dtr,
-        uv_dtr,
-        ROW_NUMBER() OVER (PARTITION BY seller_id, venture, stat_date
-           ORDER BY amt_dtr DESC) AS rownum
-  FROM (
-SELECT
-    seller_id
-    ,sku_id
-    ,venture
-    ,stat_date
-    ,incr_sum(trd_amt) AS amt_dtr
-    ,COUNT(DISTINCT trd_buyer_id) AS byr_cnt_dtr
-    ,SUM(log_pv) AS pv_dtr
-    ,COUNT(DISTINCT log_visitor_id) AS uv_dtr
-FROM stream_source
-GROUP BY seller_id,sku_id,venture,stat_date
-      )
-)
-WHERE rownum <= 10
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(rowkey=[CONCAT($0, $2, $3, $1)], seller_id=[$0], sku_id=[$1], venture=[$2], stat_date=[$3], amt_dtr=[$4], byr_cnt_dtr=[$5], pv_dtr=[$6], uv_dtr=[$7])
-+- LogicalFilter(condition=[<=($8, 10)])
-   +- LogicalProject(seller_id=[$0], sku_id=[$1], venture=[$2], stat_date=[$3], amt_dtr=[$4], byr_cnt_dtr=[$5], pv_dtr=[$6], uv_dtr=[$7], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $2, $3 ORDER BY $4 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], amt_dtr=[INCR_SUM($4)], byr_cnt_dtr=[COUNT(DISTINCT $5)], pv_dtr=[SUM($6)], uv_dtr=[COUNT(DISTINCT $7)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, stream_source, source: [TestTableSource(seller_id, sku_id, venture, stat_date, trd_amt, trd_buyer_id, log_pv, log_visitor_id)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[CONCAT(seller_id, venture, stat_date, sku_id) AS rowkey, seller_id, sku_id, venture, stat_date, amt_dtr, byr_cnt_dtr, pv_dtr, uv_dtr], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[UpdateFastStrategy[0,1,2,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[seller_id, venture, stat_date], orderBy=[amt_dtr DESC], select=[seller_id, sku_id, venture, stat_date, amt_dtr, byr_cnt_dtr, pv_dtr, uv_dtr], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[seller_id, venture, stat_date]], updateAsRetraction=[false], accMode=[Acc])
-      +- GroupAggregate(groupBy=[seller_id, sku_id, venture, stat_date], select=[seller_id, sku_id, venture, stat_date, INCR_SUM(trd_amt) AS amt_dtr, COUNT(DISTINCT trd_buyer_id) AS byr_cnt_dtr, SUM(log_pv) AS pv_dtr, COUNT(DISTINCT log_visitor_id) AS uv_dtr], updateAsRetraction=[false], accMode=[Acc])
-         +- Exchange(distribution=[hash[seller_id, sku_id, venture, stat_date]], updateAsRetraction=[true], accMode=[Acc])
-            +- TableSourceScan(table=[[default_catalog, default_database, stream_source, source: [TestTableSource(seller_id, sku_id, venture, stat_date, trd_amt, trd_buyer_id, log_pv, log_visitor_id)]]], fields=[seller_id, sku_id, venture, stat_date, trd_amt, trd_buyer_id, log_pv, log_visitor_id], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b, c], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -517,15 +454,15 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC], select=[a, b, count_c], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-               +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-                  +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I,UB,UA,D])
+   +- Calc(select=[a], changelogMode=[I,UB,UA,D])
+      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC], select=[a, b, count_c], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
+            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+               +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+                  +- Calc(select=[a, b], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -594,12 +531,12 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
-      +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], where=[>=(c, 0)], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b, c], where=[>=(c, 0)], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -732,11 +669,78 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, 10:BIGINT AS row_num], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-      +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Calc(select=[a, b, c, 10:BIGINT AS $3], changelogMode=[I,UA,D])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a, b, c], changelogMode=[I])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTopNWithKeyChanged">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT a, b, sum_c,
+      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as row_num
+  FROM (
+SELECT a, last_value(b) as b, SUM(c) as sum_c
+FROM MyTable
+GROUP BY a
+      ))
+WHERE row_num <= 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
++- LogicalFilter(condition=[<=($3, 10)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalAggregate(group=[{0}], b=[LAST_VALUE($1)], sum_c=[SUM($2)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(b) AS b, SUM(c) AS sum_c], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[a]], changelogMode=[I])
+         +- Calc(select=[a, b, c], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTopNWithFilter">
+    <Resource name="sql">
+      <![CDATA[
+SELECT row_num, a, c
+FROM (
+  SELECT a, b, c,
+      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
+  FROM MyTable
+  WHERE c > 1000)
+WHERE row_num <= 10 AND b IS NOT NULL
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(row_num=[$3], a=[$0], c=[$2])
++- LogicalFilter(condition=[AND(<=($3, 10), IS NOT NULL($1))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalFilter(condition=[>($2, 1000)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[row_num, a, c], where=[IS NOT NULL(b)], changelogMode=[I,UB,UA,D])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a, b, c], where=[>(c, 1000)], changelogMode=[I])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -770,80 +774,12 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[UpdateFastStrategy[0,1,2]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, cn, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-      +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
-         +- Exchange(distribution=[hash[a, b, cn]], updateAsRetraction=[true], accMode=[Acc])
-            +- Calc(select=[a, b, _UTF-16LE'cn' AS cn], updateAsRetraction=[true], accMode=[Acc])
-               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTopNWithKeyChanged">
-    <Resource name="sql">
-      <![CDATA[
-SELECT *
-FROM (
-  SELECT a, b, sum_c,
-      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as row_num
-  FROM (
-SELECT a, last_value(b) as b, SUM(c) as sum_c
-FROM MyTable
-GROUP BY a
-      ))
-WHERE row_num <= 10
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
-+- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      +- LogicalAggregate(group=[{0}], b=[LAST_VALUE($1)], sum_c=[SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(b) AS b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
-         +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTopNWithFilter">
-    <Resource name="sql">
-      <![CDATA[
-SELECT row_num, a, c
-FROM (
-  SELECT a, b, c,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
-  FROM MyTable
-  WHERE c > 1000)
-WHERE row_num <= 10 AND b IS NOT NULL
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(row_num=[$3], a=[$0], c=[$2])
-+- LogicalFilter(condition=[AND(<=($3, 10), IS NOT NULL($1))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      +- LogicalFilter(condition=[>($2, 1000)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[row_num, a, c], where=[IS NOT NULL(b)], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
-      +- Calc(select=[a, b, c], where=[>(c, 1000)], updateAsRetraction=[false], accMode=[Acc])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
+         +- Calc(select=[a, b], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -873,11 +809,37 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[category]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Exchange(distribution=[hash[category, shopId]], updateAsRetraction=[true], accMode=[Acc])
-         +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], updateAsRetraction=[true], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[category]], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[category, shopId]], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCreateViewWithRowNumber">
+    <Resource name="sql">
+      <![CDATA[insert into sink select name, eat, cnt
+from view2 where row_num <= 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
+   +- LogicalFilter(condition=[<=($3, 3)])
+      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], select=[name, eat, cnt])
+   +- Exchange(distribution=[hash[name]])
+      +- GroupAggregate(groupBy=[name, eat], select=[name, eat, SUM(age) AS cnt])
+         +- Exchange(distribution=[hash[name, eat]])
+            +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
 ]]>
     </Resource>
   </TestCase>

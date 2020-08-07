@@ -40,7 +40,7 @@ import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
  *
  * <p>Example usage:
  * 	--input-topic test-input --output-topic test-output --bootstrap.servers localhost:9092
- * 	--zookeeper.connect localhost:2181 --group.id myconsumer
+ * 	--group.id myconsumer
  */
 public class KafkaExample extends KafkaExampleUtil {
 

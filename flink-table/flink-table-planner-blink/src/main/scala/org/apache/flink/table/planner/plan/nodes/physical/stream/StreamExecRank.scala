@@ -24,17 +24,16 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.operators.rank._
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -59,7 +58,8 @@ class StreamExecRank(
     rankType: RankType,
     rankRange: RankRange,
     rankNumberType: RelDataTypeField,
-    outputRankNumber: Boolean)
+    outputRankNumber: Boolean,
+    rankStrategy: RankProcessStrategy)
   extends Rank(
     cluster,
     traitSet,
@@ -71,28 +71,7 @@ class StreamExecRank(
     rankNumberType,
     outputRankNumber)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  /** please uses [[getStrategy]] instead of this field */
-  private var strategy: RankProcessStrategy = _
-
-  def getStrategy(forceRecompute: Boolean = false): RankProcessStrategy = {
-    if (strategy == null || forceRecompute) {
-      strategy = RankProcessStrategy.analyzeRankProcessStrategy(
-        inputRel, partitionKey, orderKey, cluster.getMetadataQuery)
-    }
-    strategy
-  }
-
-  override def producesUpdates = true
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
-    getStrategy(forceRecompute = true) == RetractStrategy
-  }
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -106,13 +85,28 @@ class StreamExecRank(
       rankType,
       rankRange,
       rankNumberType,
-      outputRankNumber)
+      outputRankNumber,
+      rankStrategy)
+  }
+
+  def copy(newStrategy: RankProcessStrategy): StreamExecRank = {
+    new StreamExecRank(
+      cluster,
+      traitSet,
+      inputRel,
+      partitionKey,
+      orderKey,
+      rankType,
+      rankRange,
+      rankNumberType,
+      outputRankNumber,
+      newStrategy)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = inputRel.getRowType
     pw.input("input", getInput)
-      .item("strategy", getStrategy())
+      .item("strategy", rankStrategy)
       .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
@@ -133,7 +127,7 @@ class StreamExecRank(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
     rankType match {
       case RankType.ROW_NUMBER => // ignore
@@ -145,20 +139,20 @@ class StreamExecRank(
         throw new TableException(s"Streaming tables do not support $k rank function.")
     }
 
-    val inputRowTypeInfo = BaseRowTypeInfo.of(
+    val inputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val fieldCollations = orderKey.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
-    val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
+    val sortKeySelector = KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo)
     val sortKeyType = sortKeySelector.getProducedType
     val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
-      sortFields.indices.toArray, sortKeyType.getLogicalTypes, sortDirections, nullsIsLast)
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+      sortFields.indices.toArray, sortKeyType.toRowFieldTypes, sortDirections, nullsIsLast)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
 
-    val processFunction = getStrategy(true) match {
+    val processFunction = rankStrategy match {
       case AppendFastStrategy =>
         new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
@@ -168,12 +162,12 @@ class StreamExecRank(
           sortKeySelector,
           rankType,
           rankRange,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber,
           cacheSize)
 
       case UpdateFastStrategy(primaryKeys) =>
-        val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
+        val rowKeySelector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo)
         new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
@@ -183,13 +177,13 @@ class StreamExecRank(
           sortKeySelector,
           rankType,
           rankRange,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber,
           cacheSize)
 
       // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
       case RetractStrategy =>
-        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
+        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
 
         new RetractableTopNFunction(
@@ -201,14 +195,14 @@ class StreamExecRank(
           rankType,
           rankRange,
           generatedEqualiser,
-          generateRetraction,
+          generateUpdateBefore,
           outputRankNumber)
     }
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val outputRowTypeInfo = BaseRowTypeInfo.of(
+      .asInstanceOf[Transformation[RowData]]
+    val outputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
     val ret = new OneInputTransformation(
       inputTransform,
@@ -223,7 +217,7 @@ class StreamExecRank(
     }
 
     // set KeyType and Selector for state
-    val selector = KeySelectorUtil.getBaseRowSelector(partitionKey.toArray, inputRowTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(partitionKey.toArray, inputRowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret

@@ -19,94 +19,46 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.util.IterableUtils;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Releases blocking intermediate result partitions that are incident to a {@link PipelinedRegion},
+ * Releases blocking intermediate result partitions that are incident to a {@link SchedulingPipelinedRegion},
  * as soon as the region's execution vertices are finished.
  */
 public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy {
 
-	private final SchedulingTopology<?, ?> schedulingTopology;
-
-	private final Map<PipelinedRegion, PipelinedRegionConsumedBlockingPartitions> consumedBlockingPartitionsByRegion = new IdentityHashMap<>();
+	private final SchedulingTopology schedulingTopology;
 
 	private final Map<ExecutionVertexID, PipelinedRegionExecutionView> regionExecutionViewByVertex = new HashMap<>();
 
-	public RegionPartitionReleaseStrategy(
-			final SchedulingTopology<?, ?> schedulingTopology,
-			final Set<PipelinedRegion> pipelinedRegions) {
-
+	public RegionPartitionReleaseStrategy(final SchedulingTopology schedulingTopology) {
 		this.schedulingTopology = checkNotNull(schedulingTopology);
 
-		checkNotNull(pipelinedRegions);
-		initConsumedBlockingPartitionsByRegion(pipelinedRegions);
-		initRegionExecutionViewByVertex(pipelinedRegions);
+		initRegionExecutionViewByVertex();
 	}
 
-	private void initConsumedBlockingPartitionsByRegion(final Set<PipelinedRegion> pipelinedRegions) {
-		for (PipelinedRegion pipelinedRegion : pipelinedRegions) {
-			final PipelinedRegionConsumedBlockingPartitions consumedPartitions = computeConsumedPartitionsOfVertexRegion(pipelinedRegion);
-			consumedBlockingPartitionsByRegion.put(pipelinedRegion, consumedPartitions);
-		}
-	}
-
-	private void initRegionExecutionViewByVertex(final Set<PipelinedRegion> pipelinedRegions) {
-		for (PipelinedRegion pipelinedRegion : pipelinedRegions) {
+	private void initRegionExecutionViewByVertex() {
+		for (SchedulingPipelinedRegion pipelinedRegion : schedulingTopology.getAllPipelinedRegions()) {
 			final PipelinedRegionExecutionView regionExecutionView = new PipelinedRegionExecutionView(pipelinedRegion);
-			for (ExecutionVertexID executionVertexId : pipelinedRegion) {
-				regionExecutionViewByVertex.put(executionVertexId, regionExecutionView);
+			for (SchedulingExecutionVertex executionVertexId : pipelinedRegion.getVertices()) {
+				regionExecutionViewByVertex.put(executionVertexId.getId(), regionExecutionView);
 			}
 		}
-	}
-
-	private PipelinedRegionConsumedBlockingPartitions computeConsumedPartitionsOfVertexRegion(final PipelinedRegion pipelinedRegion) {
-		final Set<IntermediateResultPartitionID> resultPartitionsOutsideOfRegion = findResultPartitionsOutsideOfRegion(pipelinedRegion);
-		return new PipelinedRegionConsumedBlockingPartitions(pipelinedRegion, resultPartitionsOutsideOfRegion);
-	}
-
-	private Set<IntermediateResultPartitionID> findResultPartitionsOutsideOfRegion(final PipelinedRegion pipelinedRegion) {
-		final Set<SchedulingResultPartition<?, ?>> allConsumedPartitionsInRegion = pipelinedRegion
-			.getExecutionVertexIds()
-			.stream()
-			.map(schedulingTopology::getVertexOrThrow)
-			.flatMap(vertex -> IterableUtils.toStream(vertex.getConsumedResults()))
-			.collect(Collectors.toSet());
-
-		return filterResultPartitionsOutsideOfRegion(allConsumedPartitionsInRegion, pipelinedRegion);
-	}
-
-	private static Set<IntermediateResultPartitionID> filterResultPartitionsOutsideOfRegion(
-			final Collection<SchedulingResultPartition<?, ?>> resultPartitions,
-			final PipelinedRegion pipelinedRegion) {
-
-		final Set<IntermediateResultPartitionID> result = new HashSet<>();
-		for (final SchedulingResultPartition<?, ?> maybeOutsidePartition : resultPartitions) {
-			final SchedulingExecutionVertex<?, ?> producer = maybeOutsidePartition.getProducer();
-			if (!pipelinedRegion.contains(producer.getId())) {
-				result.add(maybeOutsidePartition.getId());
-			}
-		}
-		return result;
 	}
 
 	@Override
@@ -115,9 +67,8 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 		regionExecutionView.vertexFinished(finishedVertex);
 
 		if (regionExecutionView.isFinished()) {
-			final PipelinedRegion pipelinedRegion = getPipelinedRegionForVertex(finishedVertex);
-			final PipelinedRegionConsumedBlockingPartitions consumedPartitionsOfVertexRegion = getConsumedBlockingPartitionsForRegion(pipelinedRegion);
-			return filterReleasablePartitions(consumedPartitionsOfVertexRegion);
+			final SchedulingPipelinedRegion pipelinedRegion = schedulingTopology.getPipelinedRegionOfVertex(finishedVertex);
+			return filterReleasablePartitions(pipelinedRegion.getConsumedResults());
 		}
 		return Collections.emptyList();
 	}
@@ -135,29 +86,15 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 		return pipelinedRegionExecutionView;
 	}
 
-	private PipelinedRegion getPipelinedRegionForVertex(final ExecutionVertexID executionVertexId) {
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = getPipelinedRegionExecutionViewForVertex(executionVertexId);
-		return pipelinedRegionExecutionView.getPipelinedRegion();
-	}
-
-	private PipelinedRegionConsumedBlockingPartitions getConsumedBlockingPartitionsForRegion(final PipelinedRegion pipelinedRegion) {
-		final PipelinedRegionConsumedBlockingPartitions pipelinedRegionConsumedBlockingPartitions = consumedBlockingPartitionsByRegion.get(pipelinedRegion);
-		checkState(pipelinedRegionConsumedBlockingPartitions != null,
-			"Consumed partitions not found for pipelined region %s", pipelinedRegion);
-		checkState(pipelinedRegionConsumedBlockingPartitions.getPipelinedRegion() == pipelinedRegion);
-		return pipelinedRegionConsumedBlockingPartitions;
-	}
-
-	private List<IntermediateResultPartitionID> filterReleasablePartitions(final PipelinedRegionConsumedBlockingPartitions consumedPartitionsOfVertexRegion) {
-		return consumedPartitionsOfVertexRegion
-			.getConsumedBlockingPartitions()
-			.stream()
+	private List<IntermediateResultPartitionID> filterReleasablePartitions(final Iterable<? extends SchedulingResultPartition> schedulingResultPartitions) {
+		return IterableUtils.toStream(schedulingResultPartitions)
+			.map(SchedulingResultPartition::getId)
 			.filter(this::areConsumerRegionsFinished)
 			.collect(Collectors.toList());
 	}
 
 	private boolean areConsumerRegionsFinished(final IntermediateResultPartitionID resultPartitionId) {
-		final SchedulingResultPartition<?, ?> resultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
+		final SchedulingResultPartition resultPartition = schedulingTopology.getResultPartition(resultPartitionId);
 		return IterableUtils.toStream(resultPartition.getConsumers())
 			.map(SchedulingExecutionVertex::getId)
 			.allMatch(this::isRegionOfVertexFinished);
@@ -174,14 +111,8 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	public static class Factory implements PartitionReleaseStrategy.Factory {
 
 		@Override
-		public PartitionReleaseStrategy createInstance(final SchedulingTopology<?, ?> schedulingStrategy) {
-
-			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions =
-				PipelinedRegionComputeUtil.computePipelinedRegions(schedulingStrategy);
-
-			return new RegionPartitionReleaseStrategy(
-				schedulingStrategy,
-				PipelinedRegionComputeUtil.toPipelinedRegionsSet(distinctRegions));
+		public PartitionReleaseStrategy createInstance(final SchedulingTopology schedulingStrategy) {
+			return new RegionPartitionReleaseStrategy(schedulingStrategy);
 		}
 	}
 }

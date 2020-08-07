@@ -19,10 +19,12 @@
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -86,14 +88,15 @@ public class BucketingSinkMigrationTest {
 	@Parameterized.Parameters(name = "Migration Savepoint / Bucket Files Prefix: {0}")
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
-			Tuple2.of(MigrationVersion.v1_2, "/var/folders/v_/ry2wp5fx0y7c1rvr41xy9_700000gn/T/junit9160378385359106772/junit479663758539998903/1970-01-01--01/part-0-"),
 			Tuple2.of(MigrationVersion.v1_3, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit4273542175898623023/junit3801102997056424640/1970-01-01--01/part-0-"),
 			Tuple2.of(MigrationVersion.v1_4, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit3198043255809479705/junit8947526563966405708/1970-01-01--01/part-0-"),
 			Tuple2.of(MigrationVersion.v1_5, "/tmp/junit4927100426019463155/junit2465610012100182280/1970-01-01--00/part-0-"),
 			Tuple2.of(MigrationVersion.v1_6, "/tmp/junit3459711376354834545/junit5114611885650086135/1970-01-01--00/part-0-"),
 			Tuple2.of(MigrationVersion.v1_7, "/var/folders/r2/tdhx810x7yxb7q9_brnp49x40000gp/T/junit4288325607215628863/junit8132783417241536320/1970-01-01--08/part-0-"),
 			Tuple2.of(MigrationVersion.v1_8, "/var/folders/rc/84k970r94nz456tb9cdlt30s1j0k94/T/junit7271027454784776053/junit5108755539355247469/1970-01-01--08/part-0-"),
-			Tuple2.of(MigrationVersion.v1_9, "/var/folders/rc/84k970r94nz456tb9cdlt30s1j0k94/T/junit587754116249874744/junit764636113243634374/1970-01-01--08/part-0-"));
+			Tuple2.of(MigrationVersion.v1_9, "/var/folders/rc/84k970r94nz456tb9cdlt30s1j0k94/T/junit587754116249874744/junit764636113243634374/1970-01-01--08/part-0-"),
+			Tuple2.of(MigrationVersion.v1_10, "/var/folders/v3/vg2lqnvx2ng24b5rr5qg2nv80000gp/T/junit9081786177439346/junit9063714383293729937/1970-01-01--08/part-0-"),
+			Tuple2.of(MigrationVersion.v1_11, "/var/folders/v3/vg2lqnvx2ng24b5rr5qg2nv80000gp/T/junit9111597157791840754/junit2799810910414739323/1970-01-01--08/part-0-"));
 	}
 
 	private final MigrationVersion testMigrateVersion;
@@ -205,7 +208,11 @@ public class BucketingSinkMigrationTest {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			OperatorStateStore stateStore = context.getOperatorStateStore();
 
-			ListState<State<T>> restoredBucketStates = stateStore.getSerializableListState("bucket-states");
+			// We are using JavaSerializer from the flink-runtime module here. This is very naughty and
+			// we shouldn't be doing it because ideally nothing in the API modules/connector depends
+			// directly on flink-runtime. We are doing it here because we need to maintain backwards
+			// compatibility with old state and because we will have to rework/remove this code soon.
+			ListState<State<T>> restoredBucketStates = stateStore.getListState(new ListStateDescriptor<>("bucket-states", new JavaSerializer<>()));
 
 			if (context.isRestored()) {
 

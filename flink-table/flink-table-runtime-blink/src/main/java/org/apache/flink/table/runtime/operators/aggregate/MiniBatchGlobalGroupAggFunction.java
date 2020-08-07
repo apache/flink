@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.aggregate;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
@@ -29,21 +29,19 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
 
 import java.util.Map;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.ACCUMULATE_MSG;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.RETRACT_MSG;
-
 /**
  * Aggregate Function used for the global groupby (without window) aggregate in miniBatch mode.
  */
-public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
+public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<RowData, RowData, RowData, RowData> {
 
 
 	private static final long serialVersionUID = 8349579876002001744L;
@@ -59,7 +57,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	private final GeneratedAggsHandleFunction genGlobalAggsHandler;
 
 	/**
-	 * The code generated equaliser used to equal BaseRow.
+	 * The code generated equaliser used to equal RowData.
 	 */
 	private final GeneratedRecordEqualiser genRecordEqualiser;
 
@@ -74,14 +72,14 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	/**
 	 * Reused output row.
 	 */
-	private transient JoinedRow resultRow = new JoinedRow();
+	private transient JoinedRowData resultRow = new JoinedRowData();
 
 	// local aggregate function to handle local combined accumulator rows
 	private transient AggsHandleFunction localAgg = null;
@@ -89,24 +87,23 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	// global aggregate function to handle global accumulator rows
 	private transient AggsHandleFunction globalAgg = null;
 
-	// function used to equal BaseRow
+	// function used to equal RowData
 	private transient RecordEqualiser equaliser = null;
 
 	// stores the accumulators
-	private transient ValueState<BaseRow> accState = null;
-
+	private transient ValueState<RowData> accState = null;
 
 	/**
 	 * Creates a {@link MiniBatchGlobalGroupAggFunction}.
 	 *
 	 * @param genLocalAggsHandler The generated local aggregate handler
 	 * @param genGlobalAggsHandler The generated global aggregate handler
-	 * @param genRecordEqualiser The code generated equaliser used to equal BaseRow.
+	 * @param genRecordEqualiser The code generated equaliser used to equal RowData.
 	 * @param accTypes The accumulator types.
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
-	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
-	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain UPDATE_BEFORE or DELETE messages.
+	 *                          We make sure there is a COUNT(*) if input stream contains UPDATE_BEFORE or DELETE messages.
+	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
 	 */
 	public MiniBatchGlobalGroupAggFunction(
 			GeneratedAggsHandleFunction genLocalAggsHandler,
@@ -114,13 +111,13 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 			GeneratedRecordEqualiser genRecordEqualiser,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		this.genLocalAggsHandler = genLocalAggsHandler;
 		this.genGlobalAggsHandler = genGlobalAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -134,11 +131,11 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 
 		equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = ctx.getRuntimeContext().getState(accDesc);
 
-		resultRow = new JoinedRow();
+		resultRow = new JoinedRowData();
 	}
 
 	/**
@@ -147,8 +144,8 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	 * in merge method.
 	 */
 	@Override
-	public BaseRow addInput(@Nullable BaseRow previousAcc, BaseRow input) throws Exception {
-		BaseRow currentAcc;
+	public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+		RowData currentAcc;
 		if (previousAcc == null) {
 			currentAcc = localAgg.createAccumulators();
 		} else {
@@ -161,16 +158,16 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	}
 
 	@Override
-	public void finishBundle(Map<BaseRow, BaseRow> buffer, Collector<BaseRow> out) throws Exception {
-		for (Map.Entry<BaseRow, BaseRow> entry : buffer.entrySet()) {
-			BaseRow currentKey = entry.getKey();
-			BaseRow bufferAcc = entry.getValue();
+	public void finishBundle(Map<RowData, RowData> buffer, Collector<RowData> out) throws Exception {
+		for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
+			RowData currentKey = entry.getKey();
+			RowData bufferAcc = entry.getValue();
 
 			boolean firstRow = false;
 
 			// set current key to access states under the current key
 			ctx.setCurrentKey(currentKey);
-			BaseRow stateAcc = accState.value();
+			RowData stateAcc = accState.value();
 			if (stateAcc == null) {
 				stateAcc = globalAgg.createAccumulators();
 				firstRow = true;
@@ -178,12 +175,12 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 			// set accumulator first
 			globalAgg.setAccumulators(stateAcc);
 			// get previous aggregate result
-			BaseRow prevAggValue = globalAgg.getValue();
+			RowData prevAggValue = globalAgg.getValue();
 
 			// merge bufferAcc to stateAcc
 			globalAgg.merge(bufferAcc);
 			// get current aggregate result
-			BaseRow newAggValue = globalAgg.getValue();
+			RowData newAggValue = globalAgg.getValue();
 			// get new accumulator
 			stateAcc = globalAgg.getAccumulators();
 
@@ -195,22 +192,22 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 
 				// if this was not the first row and we have to emit retractions
 				if (!firstRow) {
-					if (!equaliser.equalsWithoutHeader(prevAggValue, newAggValue)) {
+					if (!equaliser.equals(prevAggValue, newAggValue)) {
 						// new row is not same with prev row
-						if (generateRetraction) {
-							// prepare retraction message for previous row
-							resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+						if (generateUpdateBefore) {
+							// prepare UPDATE_BEFORE message for previous row
+							resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.UPDATE_BEFORE);
 							out.collect(resultRow);
 						}
-						// prepare accumulation message for new row
-						resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+						// prepare UPDATE_AFTER message for new row
+						resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.UPDATE_AFTER);
 						out.collect(resultRow);
 					}
 					// new row is same with prev row, no need to output
 				} else {
 					// this is the first, output new result
-					// prepare accumulation message for new row
-					resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+					// prepare INSERT message for new row
+					resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.INSERT);
 					out.collect(resultRow);
 				}
 
@@ -218,8 +215,8 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 				// we retracted the last record for this key
 				// sent out a delete message
 				if (!firstRow) {
-					// prepare delete message for previous row
-					resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+					// prepare DELETE message for previous row
+					resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.DELETE);
 					out.collect(resultRow);
 				}
 				// and clear all state

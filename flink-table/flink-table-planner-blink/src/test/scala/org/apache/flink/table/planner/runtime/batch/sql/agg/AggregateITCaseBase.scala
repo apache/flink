@@ -22,13 +22,12 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, Types}
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
-
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -118,6 +117,28 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
         row(1),
         row(2),
         row(3)
+      )
+    )
+  }
+
+  @Test
+  def testSimpleAndDistinctAggWithCommonFilter(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   h,
+        |   COUNT(1) FILTER(WHERE d > 1),
+        |   COUNT(1) FILTER(WHERE d < 2),
+        |   COUNT(DISTINCT e) FILTER(WHERE d > 1)
+        |FROM Table5
+        |GROUP BY h
+        |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row(1,4,1,4),
+        row(2,7,0,7),
+        row(3,3,0,3)
       )
     )
   }
@@ -303,7 +324,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   // with default scale for BigDecimal.class
   def bigX(i: Int): java.math.BigDecimal = big(i).setScale(
-    Decimal.DECIMAL_SYSTEM_DEFAULT.getScale)
+    DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT.getScale)
 
   val (b1x, b2x, b3x) = (bigX(1), bigX(2), bigX(3))
 
@@ -362,10 +383,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testGroupByRegexp(): Unit = {
-    val expr = "regexp_extract(f0, '([a-z]+)\\\\[', 1)"
+    val expr = "regexp_extract(f0, '([a-z]+)\\[', 1)"
     checkQuery(
       Seq(("some[thing]", "random-string")),
       s"select $expr, count(*) from TableName group by $expr",
@@ -447,7 +467,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testGroupingInsideWindowFunction(): Unit = {
     checkQuery(
@@ -792,7 +811,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   // NOTE: select from values -- supported by Spark, but not Blink
   //       "select sum(a) over () from values 1.0, 2.0, 3.0 T(a)"
 
-  @Ignore
   @Test
   def testDecimalSumAvgOverWindow(): Unit = {
     checkQuery(
@@ -855,7 +873,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 //        "7499,ALLEN,SALESMAN,7698,1981-02-20,1600.00,300.00,30$" +
 //        "7521,WARD,SALESMAN,7698,1981-02-22,1250.00,500.00,30",
 //      "csv-test", "tmp")
-//    tEnv.registerTableSource("emp",
+//    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("emp",
 //      CsvTableSource.builder()
 //        .path(csvPath)
 //        .fields(Array("empno", "ename", "job", "mgr", "hiredate", "sal", "comm", "deptno"),

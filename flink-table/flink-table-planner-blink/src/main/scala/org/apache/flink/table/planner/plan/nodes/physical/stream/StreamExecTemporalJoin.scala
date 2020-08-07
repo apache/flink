@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
@@ -33,9 +33,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.TEMPORAL_JOIN_CONDITION
 import org.apache.flink.table.planner.plan.utils.{InputRefVisitor, KeySelectorUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
-import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector
 import org.apache.flink.table.runtime.operators.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.util.Preconditions.checkState
 
@@ -57,15 +57,7 @@ class StreamExecTemporalJoin(
     joinType: JoinRelType)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = {
     val nonEquiJoinRex = getJoinInfo.getRemaining(cluster.getRexBuilder)
@@ -113,7 +105,7 @@ class StreamExecTemporalJoin(
   }
 
   override protected def translateToPlanInternal(
-    planner: StreamPlanner): Transformation[BaseRow] = {
+    planner: StreamPlanner): Transformation[RowData] = {
 
     validateKeyTypes()
 
@@ -133,16 +125,16 @@ class StreamExecTemporalJoin(
     val rightKeySelector = joinTranslator.getRightKeySelector
 
     val leftTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val rightTransform = getInputNodes.get(1).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val ret = new TwoInputTransformation[RowData, RowData, RowData](
       leftTransform,
       rightTransform,
       getRelDetailedDescription,
       joinOperator,
-      BaseRowTypeInfo.of(returnType),
+      InternalTypeInfo.of(returnType),
       leftTransform.getParallelism)
 
     if (inputsContainSingleton()) {
@@ -196,23 +188,23 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
 
   val nonEquiJoinPredicates: Option[RexNode] = Some(remainingNonEquiJoinPredicates)
 
-  def getLeftKeySelector: BaseRowKeySelector = {
-    KeySelectorUtil.getBaseRowSelector(
+  def getLeftKeySelector: RowDataKeySelector = {
+    KeySelectorUtil.getRowDataSelector(
       joinInfo.leftKeys.toIntArray,
-      BaseRowTypeInfo.of(leftInputType)
+      InternalTypeInfo.of(leftInputType)
     )
   }
 
-  def getRightKeySelector: BaseRowKeySelector = {
-    KeySelectorUtil.getBaseRowSelector(
+  def getRightKeySelector: RowDataKeySelector = {
+    KeySelectorUtil.getRowDataSelector(
       joinInfo.rightKeys.toIntArray,
-      BaseRowTypeInfo.of(rightInputType)
+      InternalTypeInfo.of(rightInputType)
     )
   }
 
   def getJoinOperator(
     joinType: JoinRelType,
-    returnFieldNames: Seq[String]): TwoInputStreamOperator[BaseRow, BaseRow, BaseRow] = {
+    returnFieldNames: Seq[String]): TwoInputStreamOperator[RowData, RowData, RowData] = {
 
     // input must not be nullable, because the runtime join function will make sure
     // the code-generated function won't process null inputs
@@ -244,7 +236,7 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
     tableConfig: TableConfig,
     joinType: JoinRelType,
     generatedJoinCondition: GeneratedJoinCondition)
-  : TwoInputStreamOperator[BaseRow, BaseRow, BaseRow] = {
+  : TwoInputStreamOperator[RowData, RowData, RowData] = {
 
     val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
@@ -252,8 +244,8 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
       case JoinRelType.INNER =>
         if (rightTimeAttributeInputReference.isDefined) {
           new TemporalRowTimeJoinOperator(
-            BaseRowTypeInfo.of(leftInputType),
-            BaseRowTypeInfo.of(rightInputType),
+            InternalTypeInfo.of(leftInputType),
+            InternalTypeInfo.of(rightInputType),
             generatedJoinCondition,
             leftTimeAttributeInputReference,
             rightTimeAttributeInputReference.get,
@@ -261,7 +253,7 @@ class StreamExecTemporalJoinToCoProcessTranslator private (
             maxRetentionTime)
         } else {
           new TemporalProcessTimeJoinOperator(
-            BaseRowTypeInfo.of(rightInputType),
+            InternalTypeInfo.of(rightInputType),
             generatedJoinCondition,
             minRetentionTime,
             maxRetentionTime)

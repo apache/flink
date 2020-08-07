@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -210,6 +211,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *     the {@link Object#hashCode()} implementation.</li>
 	 *     <li>it is an array of any type (see {@link PrimitiveArrayTypeInfo}, {@link BasicArrayTypeInfo},
 	 *     {@link ObjectArrayTypeInfo}).</li>
+	 *     <li>it is enum type</li>
 	 * </ol>,
 	 * {@code true} otherwise.
 	 */
@@ -217,11 +219,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		try {
 			return (type instanceof PojoTypeInfo)
 					? !type.getTypeClass().getMethod("hashCode").getDeclaringClass().equals(Object.class)
-					: !(type instanceof PrimitiveArrayTypeInfo || type instanceof BasicArrayTypeInfo || type instanceof ObjectArrayTypeInfo);
+					: !(isArrayType(type) || isEnumType(type));
 		} catch (NoSuchMethodException ignored) {
 			// this should never happen as we are just searching for the hashCode() method.
 		}
 		return false;
+	}
+
+	private static boolean isArrayType(TypeInformation<?> type) {
+		return type instanceof PrimitiveArrayTypeInfo || type instanceof BasicArrayTypeInfo || type instanceof ObjectArrayTypeInfo;
+	}
+
+	private static boolean isEnumType(TypeInformation<?> type) {
+		return type instanceof EnumTypeInfo;
 	}
 
 	// ------------------------------------------------------------------------

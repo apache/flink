@@ -19,7 +19,10 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.transforms.DataTypeConversionClassTransformation;
+import org.apache.flink.table.types.inference.transforms.LegacyDecimalTypeTransformation;
+import org.apache.flink.table.types.inference.transforms.LegacyRawTypeTransformation;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.sql.Date;
@@ -28,13 +31,21 @@ import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
+
 /**
  * Transformations for transforming one data type to another.
  *
  * @see TypeTransformation
  */
 @Internal
-public class TypeTransformations {
+public final class TypeTransformations {
+
+	/**
+	 * Transformation that uses internal data structures for all conversion classes.
+	 */
+	public static final TypeTransformation TO_INTERNAL_CLASS =
+		(dataType) -> dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
 
 	/**
 	 * Returns a type transformation that transforms data type to a new data type whose conversion
@@ -47,5 +58,33 @@ public class TypeTransformations {
 		conversions.put(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE, Time.class);
 		conversions.put(LogicalTypeRoot.DATE, Date.class);
 		return new DataTypeConversionClassTransformation(conversions);
+	}
+
+	/**
+	 * Returns a type transformation that transforms legacy decimal data type to DECIMAL(38, 18).
+	 */
+	public static TypeTransformation legacyDecimalToDefaultDecimal() {
+		return LegacyDecimalTypeTransformation.INSTANCE;
+	}
+
+	/**
+	 * Returns a type transformation that transforms LEGACY('RAW', ...) type to the RAW(..., ?) type.
+	 */
+	public static TypeTransformation legacyRawToTypeInfoRaw() {
+		return LegacyRawTypeTransformation.INSTANCE;
+	}
+
+	/**
+	 * Returns a type transformation that transforms data type to nullable data type but keeps
+	 * other information unchanged.
+	 */
+	public static TypeTransformation toNullable() {
+		return DataType::nullable;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private TypeTransformations() {
+		// no instantiation
 	}
 }

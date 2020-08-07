@@ -26,7 +26,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 public class DummyScheduledUnit extends ScheduledUnit {
 	public DummyScheduledUnit() {
 		super(
-			null,
 			new JobVertexID(),
 			null,
 			null);

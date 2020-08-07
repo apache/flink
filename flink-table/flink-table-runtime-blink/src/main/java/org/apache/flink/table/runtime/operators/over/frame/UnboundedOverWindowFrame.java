@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -39,9 +39,9 @@ public class UnboundedOverWindowFrame implements OverWindowFrame {
 	private final RowType valueType;
 
 	private AggsHandleFunction processor;
-	private BaseRow accValue;
+	private RowData accValue;
 
-	private BaseRowSerializer valueSer;
+	private RowDataSerializer valueSer;
 
 	public UnboundedOverWindowFrame(
 			GeneratedAggsHandleFunction aggsHandleFunction,
@@ -56,9 +56,7 @@ public class UnboundedOverWindowFrame implements OverWindowFrame {
 		processor = aggsHandleFunction.newInstance(cl);
 		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 		this.aggsHandleFunction = null;
-		this.valueSer = new BaseRowSerializer(
-				ctx.getRuntimeContext().getExecutionConfig(),
-				valueType.getChildren().toArray(new LogicalType[0]));
+		this.valueSer = new RowDataSerializer(valueType.getChildren().toArray(new LogicalType[0]));
 	}
 
 	@Override
@@ -74,7 +72,7 @@ public class UnboundedOverWindowFrame implements OverWindowFrame {
 	}
 
 	@Override
-	public BaseRow process(int index, BaseRow current) throws Exception {
+	public RowData process(int index, RowData current) throws Exception {
 		return accValue;
 	}
 }

@@ -21,14 +21,19 @@ package org.apache.flink.client.deployment.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.Executor;
-import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
 
 /**
- * An {@link ExecutorFactory} for {@link RemoteExecutor remote executors}.
+ * An {@link PipelineExecutorFactory} for {@link RemoteExecutor remote executors}.
  */
 @Internal
-public class RemoteExecutorFactory implements ExecutorFactory {
+public class RemoteExecutorFactory implements PipelineExecutorFactory {
+
+	@Override
+	public String getName() {
+		return RemoteExecutor.NAME;
+	}
 
 	@Override
 	public boolean isCompatibleWith(final Configuration configuration) {
@@ -36,7 +41,7 @@ public class RemoteExecutorFactory implements ExecutorFactory {
 	}
 
 	@Override
-	public Executor getExecutor(final Configuration configuration) {
+	public PipelineExecutor getExecutor(final Configuration configuration) {
 		return new RemoteExecutor();
 	}
 }

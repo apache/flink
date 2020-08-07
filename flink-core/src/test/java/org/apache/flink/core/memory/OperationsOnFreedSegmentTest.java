@@ -128,7 +128,7 @@ public class OperationsOnFreedSegmentTest {
 		MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
 		MemorySegment hybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
 		MemorySegment hybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-		MemorySegment hybridOffHeapUnsafe = MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE, null);
+		MemorySegment hybridOffHeapUnsafe = MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
 
 		MemorySegment[] segments = { heap, hybridHeap, hybridOffHeap, hybridOffHeapUnsafe };
 

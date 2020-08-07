@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -34,18 +35,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A service provider for {@link ClusterClientFactory cluster client factories}.
  */
+@Internal
 public class DefaultClusterClientServiceLoader implements ClusterClientServiceLoader {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultClusterClientServiceLoader.class);
-
-	private static final ServiceLoader<ClusterClientFactory> defaultLoader = ServiceLoader.load(ClusterClientFactory.class);
 
 	@Override
 	public <ClusterID> ClusterClientFactory<ClusterID> getClusterClientFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
+		final ServiceLoader<ClusterClientFactory> loader =
+				ServiceLoader.load(ClusterClientFactory.class);
+
 		final List<ClusterClientFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<ClusterClientFactory> factories = defaultLoader.iterator();
+		final Iterator<ClusterClientFactory> factories = loader.iterator();
 		while (factories.hasNext()) {
 			try {
 				final ClusterClientFactory factory = factories.next();
@@ -70,6 +73,14 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 			throw new IllegalStateException("Multiple compatible client factories found for:\n" + String.join("\n", configStr) + ".");
 		}
 
-		return compatibleFactories.isEmpty() ? null : (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
+		if (compatibleFactories.isEmpty()) {
+			throw new IllegalStateException(
+					"No ClusterClientFactory found. If you were targeting a Yarn cluster, " +
+					"please make sure to export the HADOOP_CLASSPATH environment variable or have hadoop in your " +
+					"classpath. For more information refer to the \"Deployment & Operations\" section of the official " +
+					"Apache Flink documentation.");
+		}
+
+		return (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
 	}
 }

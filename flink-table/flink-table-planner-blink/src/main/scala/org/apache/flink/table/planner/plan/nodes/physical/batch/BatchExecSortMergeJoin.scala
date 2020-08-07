@@ -22,7 +22,7 @@ import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator.generateProjection
@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
@@ -199,15 +199,15 @@ class BatchExecSortMergeJoin(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val leftInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val rightInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
 
-    val leftType = leftInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
-    val rightType = rightInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val leftType = leftInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rightType = rightInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
 
     val keyType = RowType.of(leftAllKey.map(leftType.getChildren.get(_)): _*)
 
@@ -260,7 +260,7 @@ class BatchExecSortMergeJoin(
       rightInput,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
+      InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       rightInput.getParallelism,
       managedMemory)
   }

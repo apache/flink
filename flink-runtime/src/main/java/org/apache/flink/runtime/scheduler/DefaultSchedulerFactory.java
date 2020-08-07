@@ -31,11 +31,13 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
+import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
@@ -65,7 +67,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
 			final Time slotRequestTimeout,
 			final ShuffleMaster<?> shuffleMaster,
-			final JobMasterPartitionTracker partitionTracker) throws Exception {
+			final JobMasterPartitionTracker partitionTracker,
+			final ExecutionDeploymentTracker executionDeploymentTracker) throws Exception {
 
 		final SchedulingStrategyFactory schedulingStrategyFactory = createSchedulingStrategyFactory(jobGraph.getScheduleMode());
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
@@ -79,10 +82,12 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			.create();
 		log.info("Using restart back off time strategy {} for {} ({}).", restartBackoffTimeStrategy, jobGraph.getName(), jobGraph.getJobID());
 
-		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
-			jobGraph.getScheduleMode(),
-			slotProvider,
-			slotRequestTimeout);
+		final ExecutionSlotAllocatorFactory slotAllocatorFactory =
+			createExecutionSlotAllocatorFactory(
+				jobGraph.getScheduleMode(),
+				slotProvider,
+				slotRequestTimeout,
+				schedulingStrategyFactory);
 
 		return new DefaultScheduler(
 			log,
@@ -90,7 +95,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			backPressureStatsTracker,
 			ioExecutor,
 			jobMasterConfiguration,
-			slotProvider,
 			futureExecutor,
 			new ScheduledExecutorServiceAdapter(futureExecutor),
 			userCodeLoader,
@@ -98,7 +102,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			rpcTimeout,
 			blobWriter,
 			jobManagerJobMetricGroup,
-			slotRequestTimeout,
 			shuffleMaster,
 			partitionTracker,
 			schedulingStrategyFactory,
@@ -106,10 +109,11 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			restartBackoffTimeStrategy,
 			new DefaultExecutionVertexOperations(),
 			new ExecutionVertexVersioner(),
-			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
+			slotAllocatorFactory,
+			executionDeploymentTracker);
 	}
 
-	private SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
+	static SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
 		switch (scheduleMode) {
 			case EAGER:
 				return new EagerSchedulingStrategy.Factory();
@@ -118,6 +122,27 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 				return new LazyFromSourcesSchedulingStrategy.Factory();
 			default:
 				throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
+		}
+	}
+
+	private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
+			final ScheduleMode scheduleMode,
+			final SlotProvider slotProvider,
+			final Time slotRequestTimeout,
+			final SchedulingStrategyFactory schedulingStrategyFactory) {
+
+		if (schedulingStrategyFactory instanceof PipelinedRegionSchedulingStrategy.Factory) {
+			return new OneSlotPerExecutionSlotAllocatorFactory(
+				slotProvider,
+				scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+				slotRequestTimeout);
+		} else {
+			final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
+				scheduleMode,
+				slotProvider,
+				slotRequestTimeout);
+
+			return new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy);
 		}
 	}
 }

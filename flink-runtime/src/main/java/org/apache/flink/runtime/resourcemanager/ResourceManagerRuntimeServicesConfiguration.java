@@ -50,7 +50,9 @@ public class ResourceManagerRuntimeServicesConfiguration {
 
 	// ---------------------------- Static methods ----------------------------------
 
-	public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
+	public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(
+			Configuration configuration,
+			WorkerResourceSpecFactory defaultWorkerResourceSpecFactory) throws ConfigurationException {
 
 		final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
 		final Time jobTimeout;
@@ -62,7 +64,9 @@ public class ResourceManagerRuntimeServicesConfiguration {
 				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
 		}
 
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration);
+		final WorkerResourceSpec defaultWorkerResourceSpec = defaultWorkerResourceSpecFactory.createDefaultWorkerResourceSpec(configuration);
+		final SlotManagerConfiguration slotManagerConfiguration =
+			SlotManagerConfiguration.fromConfiguration(configuration, defaultWorkerResourceSpec);
 
 		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout, slotManagerConfiguration);
 	}

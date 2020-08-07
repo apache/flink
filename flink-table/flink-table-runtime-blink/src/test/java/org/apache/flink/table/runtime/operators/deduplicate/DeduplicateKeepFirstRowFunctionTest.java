@@ -21,43 +21,66 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /**
  * Tests for {@link DeduplicateKeepFirstRowFunction}.
  */
 public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTestBase {
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
 			DeduplicateKeepFirstRowFunction func)
 			throws Exception {
-		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(func);
+		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(func);
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, rowKeySelector, rowKeySelector.getProducedType());
 	}
 
 	@Test
 	public void test() throws Exception {
-		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds(),
-				maxTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("book", 1L, 13));
 		testHarness.close();
 
 		// Keep FirstRow in deduplicate will not send retraction
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 1L, 12));
-		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(insertRecord("book", 1L, 12));
+		expectedOutput.add(insertRecord("book", 2L, 11));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
+	@Test
+	public void testWithStateTtl() throws Exception {
+		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("book", 1L, 13));
+
+		testHarness.setStateTtlProcessingTime(30);
+		testHarness.processElement(insertRecord("book", 1L, 17));
+		testHarness.processElement(insertRecord("book", 2L, 18));
+		testHarness.processElement(insertRecord("book", 1L, 19));
+
+		// Keep FirstRow in deduplicate will not send retraction
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(insertRecord("book", 1L, 12));
+		expectedOutput.add(insertRecord("book", 2L, 11));
+		//(1L,12),(2L,11) has retired, so output (1L,17) and (2L,18)
+		expectedOutput.add(insertRecord("book", 1L, 17));
+		expectedOutput.add(insertRecord("book", 2L, 18));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+		testHarness.close();
+	}
 }

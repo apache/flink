@@ -18,19 +18,23 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,46 +71,52 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class UnionInputGate extends InputGate {
 
 	/** The input gates to union. */
-	private final InputGate[] inputGates;
+	private final Map<Integer, InputGate> inputGatesByGateIndex;
 
-	private final Set<InputGate> inputGatesWithRemainingData;
+	private final Set<IndexedInputGate> inputGatesWithRemainingData;
 
 	/**
 	 * Gates, which notified this input gate about available data. We are using it as a FIFO
 	 * queue of {@link InputGate}s to avoid starvation and provide some basic fairness.
 	 */
-	private final LinkedHashSet<InputGate> inputGatesWithData = new LinkedHashSet<>();
+	private final LinkedHashSet<IndexedInputGate> inputGatesWithData = new LinkedHashSet<>();
 
-	/** The total number of input channels across all unioned input gates. */
-	private final int totalNumberOfInputChannels;
+	private final int[] inputChannelToInputGateIndex;
 
 	/**
-	 * A mapping from input gate to (logical) channel index offset. Valid channel indexes go from 0
+	 * A mapping from input gate index to (logical) channel index offset. Valid channel indexes go from 0
 	 * (inclusive) to the total number of input channels (exclusive).
 	 */
-	private final Map<InputGate, Integer> inputGateToIndexOffsetMap;
+	private final int[] inputGateChannelIndexOffsets;
 
-	public UnionInputGate(InputGate... inputGates) {
-		this.inputGates = checkNotNull(inputGates);
+	public UnionInputGate(IndexedInputGate... inputGates) {
+		inputGatesByGateIndex = Arrays.stream(inputGates).collect(Collectors.toMap(IndexedInputGate::getGateIndex, ig -> ig));
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
 
-		this.inputGateToIndexOffsetMap = Maps.newHashMapWithExpectedSize(inputGates.length);
+		if (Arrays.stream(inputGates).map(IndexedInputGate::getGateIndex).distinct().count() != inputGates.length) {
+			throw new IllegalArgumentException("Union of two input gates with the same gate index. Given indices: " +
+				Arrays.stream(inputGates).map(IndexedInputGate::getGateIndex).collect(Collectors.toList()));
+		}
+
 		this.inputGatesWithRemainingData = Sets.newHashSetWithExpectedSize(inputGates.length);
 
+		final int maxGateIndex = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getGateIndex).max().orElse(0);
+		int totalNumberOfInputChannels = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getNumberOfInputChannels).sum();
+
+		inputGateChannelIndexOffsets = new int[maxGateIndex + 1];
+		inputChannelToInputGateIndex = new int[totalNumberOfInputChannels];
+
 		int currentNumberOfInputChannels = 0;
+		for (final IndexedInputGate inputGate : inputGates) {
+			inputGateChannelIndexOffsets[inputGate.getGateIndex()] = currentNumberOfInputChannels;
+			int previousNumberOfInputChannels = currentNumberOfInputChannels;
+			currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
+			Arrays.fill(inputChannelToInputGateIndex, previousNumberOfInputChannels, currentNumberOfInputChannels, inputGate.getGateIndex());
+		}
 
 		synchronized (inputGatesWithData) {
-			for (InputGate inputGate : inputGates) {
-				if (inputGate instanceof UnionInputGate) {
-					// if we want to add support for this, we need to implement pollNext()
-					throw new UnsupportedOperationException("Cannot union a union of input gates.");
-				}
-
-				// The offset to use for buffer or event instances received from this input gate.
-				inputGateToIndexOffsetMap.put(checkNotNull(inputGate), currentNumberOfInputChannels);
+			for (IndexedInputGate inputGate : inputGates) {
 				inputGatesWithRemainingData.add(inputGate);
-
-				currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
 
 				CompletableFuture<?> available = inputGate.getAvailableFuture();
 
@@ -121,8 +131,6 @@ public class UnionInputGate extends InputGate {
 				availabilityHelper.resetAvailable();
 			}
 		}
-
-		this.totalNumberOfInputChannels = currentNumberOfInputChannels;
 	}
 
 	/**
@@ -130,7 +138,14 @@ public class UnionInputGate extends InputGate {
 	 */
 	@Override
 	public int getNumberOfInputChannels() {
-		return totalNumberOfInputChannels;
+		return inputChannelToInputGateIndex.length;
+	}
+
+	@Override
+	public InputChannel getChannel(int channelIndex) {
+		int gateIndex = inputChannelToInputGateIndex[channelIndex];
+		return inputGatesByGateIndex.get(gateIndex)
+			.getChannel(channelIndex - inputGateChannelIndexOffsets[gateIndex]);
 	}
 
 	@Override
@@ -153,24 +168,25 @@ public class UnionInputGate extends InputGate {
 			return Optional.empty();
 		}
 
-		Optional<InputWithData<InputGate, BufferOrEvent>> next = waitAndGetNextData(blocking);
+		Optional<InputWithData<IndexedInputGate, BufferOrEvent>> next = waitAndGetNextData(blocking);
 		if (!next.isPresent()) {
 			return Optional.empty();
 		}
 
-		InputWithData<InputGate, BufferOrEvent> inputWithData = next.get();
+		InputWithData<IndexedInputGate, BufferOrEvent> inputWithData = next.get();
 
 		handleEndOfPartitionEvent(inputWithData.data, inputWithData.input);
-		return Optional.of(adjustForUnionInputGate(
-			inputWithData.data,
-			inputWithData.input,
-			inputWithData.moreAvailable));
+		if (!inputWithData.data.moreAvailable()) {
+			inputWithData.data.setMoreAvailable(inputWithData.moreAvailable);
+		}
+
+		return Optional.of(inputWithData.data);
 	}
 
-	private Optional<InputWithData<InputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
+	private Optional<InputWithData<IndexedInputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
-			Optional<InputGate> inputGate = getInputGate(blocking);
+			Optional<IndexedInputGate> inputGate = getInputGate(blocking);
 			if (!inputGate.isPresent()) {
 				return Optional.empty();
 			}
@@ -202,19 +218,6 @@ public class UnionInputGate extends InputGate {
 		}
 	}
 
-	private BufferOrEvent adjustForUnionInputGate(
-			BufferOrEvent bufferOrEvent,
-			InputGate inputGate,
-			boolean moreInputGatesAvailable) {
-		// Set the channel index to identify the input channel (across all unioned input gates)
-		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
-
-		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
-		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || moreInputGatesAvailable);
-
-		return bufferOrEvent;
-	}
-
 	private void handleEndOfPartitionEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {
 		if (bufferOrEvent.isEvent()
 			&& bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class
@@ -241,9 +244,17 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public void sendTaskEvent(TaskEvent event) throws IOException {
-		for (InputGate inputGate : inputGates) {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
 			inputGate.sendTaskEvent(event);
 		}
+	}
+
+	@Override
+	public void resumeConsumption(int channelIndex) throws IOException {
+		// BEWARE: consumption resumption only happens for streaming jobs in which all
+		// slots are allocated together so there should be no UnknownInputChannel. We
+		// will refactor the code to not rely on this assumption in the future.
+		getChannel(channelIndex).resumeConsumption();
 	}
 
 	@Override
@@ -251,10 +262,22 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		throw new UnsupportedOperationException("This method should never be called.");
+	}
+
+	@Override
+	public void requestPartitions() throws IOException {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
+			inputGate.requestPartitions();
+		}
+	}
+
+	@Override
 	public void close() throws IOException {
 	}
 
-	private void queueInputGate(InputGate inputGate) {
+	private void queueInputGate(IndexedInputGate inputGate) {
 		checkNotNull(inputGate);
 
 		CompletableFuture<?> toNotify = null;
@@ -279,7 +302,7 @@ public class UnionInputGate extends InputGate {
 		}
 	}
 
-	private Optional<InputGate> getInputGate(boolean blocking) throws InterruptedException {
+	private Optional<IndexedInputGate> getInputGate(boolean blocking) throws InterruptedException {
 		synchronized (inputGatesWithData) {
 			while (inputGatesWithData.size() == 0) {
 				if (blocking) {
@@ -290,11 +313,18 @@ public class UnionInputGate extends InputGate {
 				}
 			}
 
-			Iterator<InputGate> inputGateIterator = inputGatesWithData.iterator();
-			InputGate inputGate = inputGateIterator.next();
+			Iterator<IndexedInputGate> inputGateIterator = inputGatesWithData.iterator();
+			IndexedInputGate inputGate = inputGateIterator.next();
 			inputGateIterator.remove();
 
 			return Optional.of(inputGate);
+		}
+	}
+
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener listener) {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
+			inputGate.registerBufferReceivedListener(listener);
 		}
 	}
 }

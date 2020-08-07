@@ -21,21 +21,18 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.PartialFinalType
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, KeySelectorUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils, KeySelectorUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.aggregate.{GroupAggFunction, MiniBatchGroupAggFunction}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
@@ -61,29 +58,12 @@ class StreamExecGroupAggregate(
     val aggCalls: Seq[AggregateCall],
     var partialFinalType: PartialFinalType = PartialFinalType.NONE)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
-  val aggInfoList: AggregateInfoList = {
-    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
-    val monotonicity = fmq.getRelModifiedMonotonicity(this)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
-      grouping.length, needRetraction, monotonicity, aggCalls)
-    AggregateUtil.transformToStreamAggregateInfoList(
-      aggCalls,
-      getInput.getRowType,
-      needRetractionArray,
-      needInputCount = needRetraction,
-      isStateBackendDataViews = true)
-  }
-
-  override def producesUpdates = true
-
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
+  val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
+    this,
+    aggCalls,
+    grouping)
 
   override def requireWatermark: Boolean = false
 
@@ -126,7 +106,7 @@ class StreamExecGroupAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
 
     val tableConfig = planner.getTableConfig
 
@@ -137,13 +117,13 @@ class StreamExecGroupAggregate(
     }
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
     val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
-    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
+    val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(tableConfig),
@@ -177,7 +157,7 @@ class StreamExecGroupAggregate(
         accTypes,
         inputRowType,
         inputCountIndex,
-        generateRetraction)
+        generateUpdateBefore)
 
       new KeyedMapBundleOperator(
         aggFunction,
@@ -190,22 +170,22 @@ class StreamExecGroupAggregate(
         recordEqualiser,
         accTypes,
         inputCountIndex,
-        generateRetraction)
+        generateUpdateBefore)
 
-      val operator = new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](aggFunction)
+      val operator = new KeyedProcessOperator[RowData, RowData, RowData](aggFunction)
       operator
     }
 
-    val selector = KeySelectorUtil.getBaseRowSelector(
+    val selector = KeySelectorUtil.getRowDataSelector(
       grouping,
-      BaseRowTypeInfo.of(inputRowType))
+      InternalTypeInfo.of(inputRowType))
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

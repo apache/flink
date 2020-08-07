@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn.cli;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
@@ -30,8 +29,8 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -46,7 +45,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
@@ -78,7 +77,6 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -98,9 +96,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	//------------------------------------ Constants   -------------------------
 
-	public static final String CONFIG_FILE_LOGBACK_NAME = "logback.xml";
-	public static final String CONFIG_FILE_LOG4J_NAME = "log4j.properties";
-
 	private static final long CLIENT_POLLING_INTERVAL_MS = 3000L;
 
 	/** The id for the CommandLine interface. */
@@ -109,7 +104,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	// YARN-session related constants
 	private static final String YARN_PROPERTIES_FILE = ".yarn-properties-";
 	private static final String YARN_APPLICATION_ID_KEY = "applicationID";
-	private static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	private static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
 
 	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
@@ -140,7 +134,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.shuffle.min=536346624</tt>.
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>.
 	 */
 	private final Option dynamicproperties;
 
@@ -155,6 +149,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	private final String yarnPropertiesFileLocation;
 
 	private final ClusterClientServiceLoader clusterClientServiceLoader;
+
+	@Nullable
+	private String dynamicPropertiesEncoded = null;
 
 	public FlinkYarnSessionCli(
 			Configuration configuration,
@@ -301,8 +298,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		final boolean yarnJobManager = ID.equals(jobManagerOption);
 		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())
 				|| configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
-		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET))
-				|| YarnJobClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET));
+		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET))
+				|| YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 		return hasYarnExecutor || yarnJobManager || hasYarnAppId || (isYarnPropertiesFileMode(commandLine) && yarnApplicationIdFromYarnProperties != null);
 	}
 
@@ -354,7 +351,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			if (!MemorySize.MemoryUnit.hasUnit(jmMemoryVal)) {
 				jmMemoryVal += "m";
 			}
-			effectiveConfiguration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jmMemoryVal);
+			effectiveConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(jmMemoryVal));
 		}
 
 		if (commandLine.hasOption(tmMemory.getOpt())) {
@@ -362,11 +359,19 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			if (!MemorySize.MemoryUnit.hasUnit(tmMemoryVal)) {
 				tmMemoryVal += "m";
 			}
-			effectiveConfiguration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, tmMemoryVal);
+			effectiveConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(tmMemoryVal));
 		}
 
 		if (commandLine.hasOption(slots.getOpt())) {
 			effectiveConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
+		}
+
+		dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
+		if (!dynamicPropertiesEncoded.isEmpty()) {
+			Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
+			for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+				effectiveConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+			}
 		}
 
 		if (isYarnPropertiesFileMode(commandLine)) {
@@ -403,11 +408,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, queueName);
 		}
 
-		final String dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
-		if (dynamicPropertiesEncoded != null && !dynamicPropertiesEncoded.isEmpty()) {
-			configuration.setString(YarnConfigOptionsInternal.DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
-		}
-
 		final boolean detached = commandLine.hasOption(YARN_DETACHED_OPTION.getOpt()) || commandLine.hasOption(DETACHED_OPTION.getOpt());
 		configuration.setBoolean(DeploymentOptions.ATTACHED, !detached);
 
@@ -434,38 +434,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
 		}
 
-		setLogConfigFileInConfig(configuration, configurationDirectory);
-	}
-
-	@VisibleForTesting
-	public static Configuration setLogConfigFileInConfig(final Configuration configuration, final String configurationDirectory) {
-		if (configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
-			return configuration;
-		}
-
-		FlinkYarnSessionCli.discoverLogConfigFile(configurationDirectory).ifPresent(file ->
-				configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath()));
-		return configuration;
-	}
-
-	private static Optional<File> discoverLogConfigFile(final String configurationDirectory) {
-		Optional<File> logConfigFile = Optional.empty();
-
-		final File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
-		if (log4jFile.exists()) {
-			logConfigFile = Optional.of(log4jFile);
-		}
-
-		final File logbackFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME);
-		if (logbackFile.exists()) {
-			if (logConfigFile.isPresent()) {
-				LOG.warn("The configuration directory ('" + configurationDirectory + "') already contains a LOG4J config file." +
-						"If you want to use logback, then please delete or rename the log configuration file.");
-			} else {
-				logConfigFile = Optional.of(logbackFile);
-			}
-		}
-		return logConfigFile;
+		configuration.set(DeploymentOptionsInternal.CONF_DIR, configurationDirectory);
 	}
 
 	private boolean isYarnPropertiesFileMode(CommandLine commandLine) {
@@ -492,21 +461,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private Configuration applyYarnProperties(Configuration configuration) throws FlinkException {
 		final Configuration effectiveConfiguration = new Configuration(configuration);
-
-		// configure the default parallelism from YARN
-		String propParallelism = yarnPropertiesFile.getProperty(YARN_PROPERTIES_PARALLELISM);
-		if (propParallelism != null) { // maybe the property is not set
-			try {
-				int parallelism = Integer.parseInt(propParallelism);
-				effectiveConfiguration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
-
-				logAndSysout("YARN properties set default parallelism to " + parallelism);
-			}
-			catch (NumberFormatException e) {
-				throw new FlinkException("Error while parsing the YARN properties: " +
-					"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.", e);
-			}
-		}
 
 		String applicationId = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
 		if (applicationId != null) {
@@ -536,6 +490,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 		final Configuration configuration = applyCommandLineOptionsToConfiguration(cmd);
 		final ClusterClientFactory<ApplicationId> yarnClusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(configuration);
+		configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.SESSION.getName());
 
 		final YarnClusterDescriptor yarnClusterDescriptor = (YarnClusterDescriptor) yarnClusterClientFactory.createClusterDescriptor(configuration);
 
@@ -567,8 +522,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 						writeYarnPropertiesFile(
 							yarnApplicationId,
-							clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
-							yarnClusterDescriptor.getDynamicPropertiesEncoded());
+							dynamicPropertiesEncoded);
 					} catch (Exception e) {
 						try {
 							clusterClient.close();
@@ -587,9 +541,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 				}
 
 				if (!configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-					LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
-						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + yarnApplicationId);
+					YarnClusterDescriptor.logDetachedClusterInformation(yarnApplicationId, LOG);
 				} else {
 					ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -712,16 +664,12 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private void writeYarnPropertiesFile(
 			ApplicationId yarnApplicationId,
-			int parallelism,
 			@Nullable String dynamicProperties) {
 		// file that we write into the conf/ dir containing the jobManager address and the dop.
 		final File yarnPropertiesFile = getYarnPropertiesLocation(yarnPropertiesFileLocation);
 
 		Properties yarnProps = new Properties();
 		yarnProps.setProperty(YARN_APPLICATION_ID_KEY, yarnApplicationId.toString());
-		if (parallelism > 0) {
-			yarnProps.setProperty(YARN_PROPERTIES_PARALLELISM, Integer.toString(parallelism));
-		}
 
 		// add dynamic properties
 		if (dynamicProperties != null) {
@@ -729,11 +677,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		}
 
 		writeYarnProperties(yarnProps, yarnPropertiesFile);
-	}
-
-	private void logAndSysout(String message) {
-		LOG.info(message);
-		System.out.println(message);
 	}
 
 	private String encodeDynamicProperties(final CommandLine cmd) {

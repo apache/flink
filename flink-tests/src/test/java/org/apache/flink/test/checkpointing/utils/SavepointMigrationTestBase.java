@@ -29,22 +29,18 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +60,6 @@ import static org.junit.Assert.fail;
 /**
  * Test savepoint migration.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 	@ClassRule
@@ -76,16 +71,6 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
 
 	protected static final int DEFAULT_PARALLELISM = 4;
-
-	@BeforeClass
-	public static void before() {
-		SavepointSerializers.setFailWhenLegacyStateDetected(false);
-	}
-
-	@AfterClass
-	public static void after() {
-		SavepointSerializers.setFailWhenLegacyStateDetected(true);
-	}
 
 	protected static String getResourceFilename(String filename) {
 		ClassLoader cl = SavepointMigrationTestBase.class.getClassLoader();
@@ -125,7 +110,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 		config.setString(CheckpointingOptions.STATE_BACKEND, "memory");
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
+		config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 		config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 300L);
 

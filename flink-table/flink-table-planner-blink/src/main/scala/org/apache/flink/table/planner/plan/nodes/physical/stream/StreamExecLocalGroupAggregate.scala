@@ -20,18 +20,17 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchLocalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.MapBundleOperator
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -43,7 +42,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for unbounded global group aggregate.
+  * Stream physical RelNode for unbounded local group aggregate.
   *
   * @see [[StreamExecGroupAggregateBase]] for more info.
   */
@@ -57,15 +56,7 @@ class StreamExecLocalGroupAggregate(
     val aggInfoList: AggregateInfoList,
     val partialFinalType: PartialFinalType)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -110,13 +101,13 @@ class StreamExecLocalGroupAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val inRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
-    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
+    val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(planner.getTableConfig),
@@ -136,19 +127,19 @@ class StreamExecLocalGroupAggregate(
     val aggsHandler = generator.generateAggsHandler("GroupAggsHandler", aggInfoList)
     val aggFunction = new MiniBatchLocalGroupAggFunction(aggsHandler)
 
-    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val selector = KeySelectorUtil.getBaseRowSelector(grouping, inputTypeInfo)
+    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val selector = KeySelectorUtil.getRowDataSelector(grouping, inputTypeInfo)
 
     val operator = new MapBundleOperator(
       aggFunction,
       AggregateUtil.createMiniBatchTrigger(planner.getTableConfig),
-      selector.asInstanceOf[KeySelector[BaseRow, BaseRow]])
+      selector.asInstanceOf[KeySelector[RowData, RowData]])
 
     val transformation = new OneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

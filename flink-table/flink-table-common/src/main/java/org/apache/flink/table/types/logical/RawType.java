@@ -21,8 +21,11 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -43,11 +46,11 @@ import java.util.Set;
 @PublicEvolving
 public final class RawType<T> extends LogicalType {
 
-	private static final String FORMAT = "RAW('%s', '%s')";
+	public static final String FORMAT = "RAW('%s', '%s')";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
-		"org.apache.flink.table.dataformat.BinaryGeneric");
+		RawValueData.class.getName());
 
 	private final Class<T> clazz;
 
@@ -85,7 +88,7 @@ public final class RawType<T> extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
-		return withNullability(FORMAT, clazz.getName(), getOrCreateSerializerString());
+		return withNullability(FORMAT, clazz.getName(), getSerializerString());
 	}
 
 	@Override
@@ -137,7 +140,36 @@ public final class RawType<T> extends LogicalType {
 
 	// --------------------------------------------------------------------------------------------
 
-	private String getOrCreateSerializerString() {
+	/**
+	 * Restores a raw type from the components of a serialized string representation.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public static RawType<?> restore(
+			ClassLoader classLoader,
+			String className,
+			String serializerString) {
+		try {
+			final Class<?> clazz = Class.forName(className, true, classLoader);
+			final byte[] bytes = EncodingUtils.decodeBase64ToBytes(serializerString);
+			final DataInputDeserializer inputDeserializer = new DataInputDeserializer(bytes);
+			final TypeSerializerSnapshot<?> snapshot = TypeSerializerSnapshot.readVersionedSnapshot(
+				inputDeserializer,
+				classLoader);
+			return (RawType<?>) new RawType(clazz, snapshot.restoreSerializer());
+		} catch (Throwable t) {
+			throw new ValidationException(
+				String.format(
+					"Unable to restore the RAW type of class '%s' with serializer snapshot '%s'.",
+					className,
+					serializerString),
+				t);
+		}
+	}
+
+	/**
+	 * Returns the serialized {@link TypeSerializerSnapshot} in Base64 encoding of this raw type.
+	 */
+	public String getSerializerString() {
 		if (serializerString == null) {
 			final DataOutputSerializer outputSerializer = new DataOutputSerializer(128);
 			try {

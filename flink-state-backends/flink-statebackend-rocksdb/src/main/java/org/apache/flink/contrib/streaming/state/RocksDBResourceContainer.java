@@ -20,9 +20,15 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 
+import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ReadOptions;
+import org.rocksdb.TableFormatConfig;
+import org.rocksdb.WriteOptions;
 
 import javax.annotation.Nullable;
 
@@ -89,6 +95,11 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 		// add necessary default options
 		opt = opt.setCreateIfMissing(true);
 
+		// if sharedResources is non-null, use the write buffer manager from it.
+		if (sharedResources != null) {
+			opt.setWriteBufferManager(sharedResources.getResourceHandle().getWriteBufferManager());
+		}
+
 		return opt;
 	}
 
@@ -103,6 +114,59 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 		// add user-defined options, if specified
 		if (optionsFactory != null) {
 			opt = optionsFactory.createColumnOptions(opt, handlesToClose);
+		}
+
+		// if sharedResources is non-null, use the block cache from it and
+		// set necessary options for performance consideration with memory control
+		if (sharedResources != null) {
+			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
+			final Cache blockCache = rocksResources.getCache();
+			TableFormatConfig tableFormatConfig = opt.tableFormatConfig();
+			BlockBasedTableConfig blockBasedTableConfig;
+			if (tableFormatConfig == null) {
+				blockBasedTableConfig = new BlockBasedTableConfig();
+			} else {
+				Preconditions.checkArgument(tableFormatConfig instanceof BlockBasedTableConfig,
+					"We currently only support BlockBasedTableConfig When bounding total memory.");
+				blockBasedTableConfig = (BlockBasedTableConfig) tableFormatConfig;
+			}
+			blockBasedTableConfig.setBlockCache(blockCache);
+			blockBasedTableConfig.setCacheIndexAndFilterBlocks(true);
+			blockBasedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
+			blockBasedTableConfig.setPinL0FilterAndIndexBlocksInCache(true);
+			opt.setTableFormatConfig(blockBasedTableConfig);
+		}
+
+		return opt;
+	}
+
+	/**
+	 * Gets the RocksDB {@link WriteOptions} to be used for write operations.
+	 */
+	public WriteOptions getWriteOptions() {
+		// Disable WAL by default
+		WriteOptions opt = new WriteOptions().setDisableWAL(true);
+		handlesToClose.add(opt);
+
+		// add user-defined options factory, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createWriteOptions(opt, handlesToClose);
+		}
+
+		return opt;
+	}
+
+	/**
+	 * Gets the RocksDB {@link ReadOptions} to be used for read operations.
+	 */
+	public ReadOptions getReadOptions() {
+		// We ensure total order seek by default to prevent user misuse, see FLINK-17800 for more details
+		ReadOptions opt = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+		handlesToClose.add(opt);
+
+		// add user-defined options factory, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createReadOptions(opt, handlesToClose);
 		}
 
 		return opt;

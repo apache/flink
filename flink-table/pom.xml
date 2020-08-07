@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table</artifactId>
-	<name>flink-table</name>
+	<name>Flink : Table : </name>
 
 	<packaging>pom</packaging>
 
@@ -45,11 +45,36 @@ under the License.
 		<module>flink-table-uber-blink</module>
 		<module>flink-sql-client</module>
 		<module>flink-sql-parser</module>
+		<module>flink-sql-parser-hive</module>
 	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Common dependency of calcite-core and flink-test-utils -->
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>${guava.version}</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and janino -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>commons-compiler</artifactId>
+				<version>${janino.version}</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-table-planner-* -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>janino</artifactId>
+				<version>${janino.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<properties>
 		<!-- When updating Janino, make sure that Calcite supports it as well. -->
 		<janino.version>3.0.9</janino.version>
-		<calcite.version>1.21.0</calcite.version>
+		<calcite.version>1.22.0</calcite.version>
+		<guava.version>19.0</guava.version>
 	</properties>
 </project>

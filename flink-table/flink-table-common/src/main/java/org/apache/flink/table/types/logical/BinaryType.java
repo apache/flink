@@ -25,7 +25,6 @@ import org.apache.flink.table.api.ValidationException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Logical type of a fixed-length binary string (=a sequence of bytes).
@@ -50,9 +49,7 @@ public final class BinaryType extends LogicalType {
 
 	private static final String FORMAT = "BINARY(%d)";
 
-	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
-		byte[].class.getName(),
-		"org.apache.flink.table.dataformat.BinaryArray");
+	private static final Class<?> INPUT_OUTPUT_CONVERSION = byte[].class;
 
 	private static final Class<?> DEFAULT_CONVERSION = byte[].class;
 
@@ -124,12 +121,12 @@ public final class BinaryType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
-		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+		return INPUT_OUTPUT_CONVERSION == clazz;
 	}
 
 	@Override
 	public boolean supportsOutputConversion(Class<?> clazz) {
-		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+		return INPUT_OUTPUT_CONVERSION == clazz;
 	}
 
 	@Override

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.state;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 /**
  * A {@link JoinRecordStateView} is a view to the join state. It encapsulates the join state and
@@ -33,15 +33,15 @@ public interface JoinRecordStateView {
 	/**
 	 * Add a new record to the state view.
 	 */
-	void addRecord(BaseRow record) throws Exception;
+	void addRecord(RowData record) throws Exception;
 
 	/**
 	 * Retract the record from the state view.
 	 */
-	void retractRecord(BaseRow record) throws Exception;
+	void retractRecord(RowData record) throws Exception;
 
 	/**
 	 * Gets all the records under the current context (i.e. join key).
 	 */
-	Iterable<BaseRow> getRecords() throws Exception;
+	Iterable<RowData> getRecords() throws Exception;
 }

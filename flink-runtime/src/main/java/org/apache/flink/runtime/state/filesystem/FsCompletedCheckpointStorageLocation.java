@@ -57,6 +57,10 @@ public class FsCompletedCheckpointStorageLocation implements CompletedCheckpoint
 		return externalPointer;
 	}
 
+	public Path getExclusiveCheckpointDir() {
+		return exclusiveCheckpointDir;
+	}
+
 	@Override
 	public FileStateHandle getMetadataHandle() {
 		return metadataFileHandle;

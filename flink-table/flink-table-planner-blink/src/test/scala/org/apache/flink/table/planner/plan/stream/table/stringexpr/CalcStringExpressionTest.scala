@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func23
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -176,7 +176,7 @@ class CalcStringExpressionTest extends TableTestBase {
     util.tableEnv.registerFunction("func", Func23)
 
     val t1 = t.map("func(a, b, c)")
-    val t2 = t.map(Func23('a, 'b, 'c))
+    val t2 = t.map(call("func", 'a, 'b, 'c))
 
     verifyTableEquals(t1, t2)
   }

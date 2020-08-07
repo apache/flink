@@ -18,25 +18,15 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.planner.sinks.CollectRowTableSink;
-import org.apache.flink.table.planner.sinks.CollectTableSink;
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
-import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.StringUtils;
 
 import com.klarna.hiverunner.HiveShell;
@@ -51,10 +41,8 @@ import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
@@ -82,11 +70,11 @@ public class HiveTestUtils {
 
 	public static HiveCatalog createHiveCatalog(String name, String hiveVersion) {
 		return new HiveCatalog(name, null, createHiveConf(),
-				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
+				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion, true);
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
-		return new HiveCatalog(CatalogTest.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion());
+		return new HiveCatalog(CatalogTest.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion(), true);
 	}
 
 	public static HiveConf createHiveConf() {
@@ -126,30 +114,40 @@ public class HiveTestUtils {
 	}
 
 	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
+		return createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
+	}
+
+	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode(SqlDialect dialect) {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
-		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		tableEnv.getConfig().setSqlDialect(dialect);
 		return tableEnv;
 	}
 
-	public static List<Row> collectTable(TableEnvironment tableEnv, Table table) throws Exception {
-		CollectTableSink sink = new CollectRowTableSink();
-		TableSchema tableSchema = table.getSchema();
-		TypeInformation[] fieldTIs = Arrays.stream(tableSchema.getFieldDataTypes())
-				.map(dt -> TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(dt.getLogicalType()))
-				.toArray(TypeInformation[]::new);
-		sink = (CollectTableSink) sink.configure(tableSchema.getFieldNames(), fieldTIs);
-		final String id = new AbstractID().toString();
-		TypeSerializer serializer = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType())
-				.createSerializer(new ExecutionConfig());
-		sink.init(serializer, id);
-		String sinkName = UUID.randomUUID().toString();
-		tableEnv.registerTableSink(sinkName, sink);
-		tableEnv.insertInto(table, sinkName);
-		JobExecutionResult result = tableEnv.execute("collect-table");
-		ArrayList<byte[]> data = result.getAccumulatorResult(id);
-		return SerializedListAccumulator.deserializeList(data, serializer);
+	public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+			StreamExecutionEnvironment env) {
+		return createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.DEFAULT);
+	}
+
+	public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+			StreamExecutionEnvironment env, SqlDialect dialect) {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+		tableEnv.getConfig().setSqlDialect(dialect);
+		return tableEnv;
+	}
+
+	public static TableEnvironment createTableEnvWithHiveCatalog(HiveCatalog catalog) {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tableEnv.registerCatalog(catalog.getName(), catalog);
+		tableEnv.useCatalog(catalog.getName());
+		return tableEnv;
+	}
+
+	public static void waitForJobFinish(TableResult tableResult) throws Exception {
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 
 	// Insert into a single partition of a text table.
@@ -193,6 +191,8 @@ public class HiveTestUtils {
 						}
 						writer.write(toText(rows.get(i)));
 					}
+					// new line at the end of file
+					writer.newLine();
 				}
 				String load = String.format("load data local inpath '%s' into table %s.%s", file.getAbsolutePath(), dbName, tableName);
 				if (partitionSpec != null) {
@@ -212,7 +212,7 @@ public class HiveTestUtils {
 				}
 				String colStr = toText(col);
 				if (colStr != null) {
-					builder.append(toText(col));
+					builder.append(colStr);
 				}
 			}
 			return builder.toString();

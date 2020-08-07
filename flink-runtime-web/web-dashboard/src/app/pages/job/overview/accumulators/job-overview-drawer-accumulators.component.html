@@ -37,7 +37,7 @@
         <tr *ngFor="let accumulator of listOfAccumulator; trackBy:trackAccumulatorBy;">
           <td>{{ accumulator.name }}</td>
           <td>{{ accumulator.type }}</td>
-          <td>{{ accumulator.value }}</td>
+          <td>{{ (accumulator.value | number:'1.0-3' ) || accumulator.value }}</td>
         </tr>
       </tbody>
     </nz-table>

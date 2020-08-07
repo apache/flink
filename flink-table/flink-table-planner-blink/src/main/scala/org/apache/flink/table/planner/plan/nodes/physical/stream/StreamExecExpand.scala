@@ -19,13 +19,13 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -48,15 +48,7 @@ class StreamExecExpand(
     expandIdIndex: Int)
   extends Expand(cluster, traitSet, inputRel, outputRowType, projects, expandIdIndex)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -77,11 +69,11 @@ class StreamExecExpand(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+      .asInstanceOf[Transformation[RowData]]
+    val inputType = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val ctx = CodeGeneratorContext(config)
@@ -98,7 +90,7 @@ class StreamExecExpand(
       inputTransform,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       inputTransform.getParallelism)
     if (inputsContainSingleton()) {
       transform.setParallelism(1)

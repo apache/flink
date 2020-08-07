@@ -20,9 +20,7 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.functions.utils.TableSqlFunction
-import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
@@ -31,11 +29,11 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
-  * Flink RelNode which matches along with join a user defined table function.
+  * Flink RelNode which matches along with join a Java/Scala user defined table function.
   */
 class DataStreamCorrelate(
     cluster: RelOptCluster,
@@ -48,11 +46,15 @@ class DataStreamCorrelate(
     joinSchema: RowSchema,
     joinType: JoinRelType,
     ruleDescription: String)
-  extends SingleRel(cluster, traitSet, input)
-  with CommonCorrelate
-  with DataStreamRel {
-
-  override def deriveRowType() = schema.relDataType
+  extends DataStreamCorrelateBase(
+    cluster,
+    traitSet,
+    inputSchema,
+    input,
+    scan,
+    condition,
+    schema,
+    joinType) {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(
@@ -68,35 +70,12 @@ class DataStreamCorrelate(
       ruleDescription)
   }
 
-  override def toString: String = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(inputSchema.relDataType, rexCall, sqlFunction, getExpressionString)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    super.explainTerms(pw)
-      .item("invocation", scan.getCall)
-      .item("correlate", correlateToString(
-        inputSchema.relDataType,
-        rexCall, sqlFunction,
-        getExpressionString))
-      .item("select", selectToString(schema.relDataType))
-      .item("rowType", schema.relDataType)
-      .item("joinType", joinType)
-      .itemIf("condition", condition.orNull, condition.isDefined)
-  }
-
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     val config = planner.getConfig
 
     // we do not need to specify input type
-    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(planner)
 
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]

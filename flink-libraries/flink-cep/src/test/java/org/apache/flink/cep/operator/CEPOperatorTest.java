@@ -790,6 +790,31 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	@Test
+	public void testCEPOperatorLateRecordsMetric() throws Exception {
+		Event startEvent = new Event(41, "c", 1.0);
+		Event middle1Event1 = new Event(41, "a", 2.0);
+		Event middle1Event2 = new Event(41, "a", 3.0);
+		Event middle1Event3 = new Event(41, "a", 4.0);
+
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(false);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+		try {
+			harness.open();
+			harness.processWatermark(0);
+			harness.processElement(startEvent, 1L);
+			harness.processWatermark(2L);
+			harness.processElement(middle1Event1, 1L);
+			harness.processElement(middle1Event2, 3L);
+			harness.processWatermark(4L);
+			harness.processElement(middle1Event3, 3L);
+
+			assertEquals(2L, operator.getLateRecordsNumber());
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
 	public void testCEPOperatorCleanupProcessingTime() throws Exception {
 
 		Event startEvent1 = new Event(42, "start", 1.0);

@@ -20,13 +20,11 @@ package org.apache.flink.table.module.hive;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.ModuleDescriptor;
-import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_HIVE_VERSION;
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_TYPE_HIVE;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Module descriptor for {@link HiveModule}.
@@ -34,10 +32,12 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class HiveModuleDescriptor extends ModuleDescriptor {
 	private String hiveVersion;
 
+	public HiveModuleDescriptor() {
+		this(null);
+	}
+
 	public HiveModuleDescriptor(String hiveVersion) {
 		super(MODULE_TYPE_HIVE);
-
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion));
 		this.hiveVersion = hiveVersion;
 	}
 

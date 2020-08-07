@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 
 /**
   * Stream physical RelNode for Python ScalarFunctions.
@@ -50,18 +51,22 @@ class StreamExecPythonCalc(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
       "StreamExecPythonCalc",
-      planner.getTableConfig.getConfiguration)
+      getConfig(planner.getExecEnv, planner.getTableConfig))
 
     if (inputsContainSingleton()) {
       ret.setParallelism(1)
       ret.setMaxParallelism(1)
+    }
+    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+      ExecNode.setManagedMemoryWeight(
+        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
     }
     ret
   }

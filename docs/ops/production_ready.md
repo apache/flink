@@ -1,7 +1,7 @@
 ---
 title: "Production Readiness Checklist"
 nav-parent_id: ops
-nav-pos: 5
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

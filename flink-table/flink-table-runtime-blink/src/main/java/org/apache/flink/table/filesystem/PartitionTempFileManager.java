@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,7 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.searchPartSpecAndPaths;
+import static org.apache.flink.table.utils.PartitionPathUtils.searchPartSpecAndPaths;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -54,6 +55,7 @@ public class PartitionTempFileManager {
 	private final int taskNumber;
 	private final long checkpointId;
 	private final Path taskTmpDir;
+	private final OutputFileConfig outputFileConfig;
 
 	private transient int nameCounter = 0;
 
@@ -62,9 +64,19 @@ public class PartitionTempFileManager {
 			Path tmpPath,
 			int taskNumber,
 			long checkpointId) throws IOException {
+		this(factory, tmpPath, taskNumber, checkpointId, new OutputFileConfig("", ""));
+	}
+
+	PartitionTempFileManager(
+			FileSystemFactory factory,
+			Path tmpPath,
+			int taskNumber,
+			long checkpointId,
+			OutputFileConfig outputFileConfig) throws IOException {
 		checkArgument(checkpointId != -1, "checkpoint id start with 0.");
 		this.taskNumber = taskNumber;
 		this.checkpointId = checkpointId;
+		this.outputFileConfig = outputFileConfig;
 
 		// generate and clean task temp dir.
 		this.taskTmpDir = new Path(
@@ -85,9 +97,9 @@ public class PartitionTempFileManager {
 	}
 
 	private String newFileName() {
-		return String.format(
-				checkpointName(checkpointId) + "-" + taskName(taskNumber) + "-file-%d",
-				nameCounter++);
+		return String.format("%s-%s-%s-file-%d%s",
+				outputFileConfig.getPartPrefix(), checkpointName(checkpointId),
+				taskName(taskNumber), nameCounter++, outputFileConfig.getPartSuffix());
 	}
 
 	private static boolean isTaskDir(String fileName) {

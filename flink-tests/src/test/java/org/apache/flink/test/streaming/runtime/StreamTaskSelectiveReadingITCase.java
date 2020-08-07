@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
@@ -60,7 +59,7 @@ public class StreamTaskSelectiveReadingITCase {
 			.setParallelism(2);
 		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
-		TwoInputStreamOperator<String, Integer, String> twoInputStreamOperator = new TestSequentialReadingStreamOperator("Operator0");
+		TestSequentialReadingStreamOperator twoInputStreamOperator = new TestSequentialReadingStreamOperator("Operator0");
 		twoInputStreamOperator.setChainingStrategy(ChainingStrategy.NEVER);
 
 		source0.connect(source1)

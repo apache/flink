@@ -25,11 +25,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -42,16 +42,16 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 
 	private static final long serialVersionUID = 8758670006385551407L;
 
-	private final GeneratedFunction<FlatMapFunction<BaseRow, BaseRow>> generatedCalc;
-	private final BaseRowTypeInfo rightRowTypeInfo;
-	private transient TypeSerializer<BaseRow> rightSerializer;
+	private final GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc;
+	private final InternalTypeInfo<RowData> rightRowTypeInfo;
+	private transient TypeSerializer<RowData> rightSerializer;
 
 	public AsyncLookupJoinWithCalcRunner(
-			GeneratedFunction<AsyncFunction<BaseRow, Object>> generatedFetcher,
-			GeneratedFunction<FlatMapFunction<BaseRow, BaseRow>> generatedCalc,
-			GeneratedResultFuture<TableFunctionResultFuture<BaseRow>> generatedResultFuture,
+			GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher,
+			GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
+			GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
 			TypeInformation<?> fetcherReturnType,
-			BaseRowTypeInfo rightRowTypeInfo,
+			InternalTypeInfo<RowData> rightRowTypeInfo,
 			boolean isLeftOuterJoin,
 			int asyncBufferCapacity) {
 		super(generatedFetcher, generatedResultFuture, fetcherReturnType,
@@ -69,9 +69,9 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 	}
 
 	@Override
-	public TableFunctionResultFuture<BaseRow> createFetcherResultFuture(Configuration parameters) throws Exception {
-		TableFunctionResultFuture<BaseRow> joinConditionCollector = super.createFetcherResultFuture(parameters);
-		FlatMapFunction<BaseRow, BaseRow> calc = generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
+	public TableFunctionResultFuture<RowData> createFetcherResultFuture(Configuration parameters) throws Exception {
+		TableFunctionResultFuture<RowData> joinConditionCollector = super.createFetcherResultFuture(parameters);
+		FlatMapFunction<RowData, RowData> calc = generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
 		FunctionUtils.openFunction(calc, parameters);
 		return new TemporalTableCalcResultFuture(calc, joinConditionCollector);
@@ -82,17 +82,17 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 		super.close();
 	}
 
-	private class TemporalTableCalcResultFuture extends TableFunctionResultFuture<BaseRow> {
+	private class TemporalTableCalcResultFuture extends TableFunctionResultFuture<RowData> {
 
 		private static final long serialVersionUID = -6360673852888872924L;
 
-		private final FlatMapFunction<BaseRow, BaseRow> calc;
-		private final TableFunctionResultFuture<BaseRow> joinConditionResultFuture;
+		private final FlatMapFunction<RowData, RowData> calc;
+		private final TableFunctionResultFuture<RowData> joinConditionResultFuture;
 		private final CalcCollectionCollector calcCollector = new CalcCollectionCollector();
 
 		private TemporalTableCalcResultFuture(
-			FlatMapFunction<BaseRow, BaseRow> calc,
-			TableFunctionResultFuture<BaseRow> joinConditionResultFuture) {
+			FlatMapFunction<RowData, RowData> calc,
+			TableFunctionResultFuture<RowData> joinConditionResultFuture) {
 			this.calc = calc;
 			this.joinConditionResultFuture = joinConditionResultFuture;
 		}
@@ -109,11 +109,11 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 		}
 
 		@Override
-		public void complete(Collection<BaseRow> result) {
+		public void complete(Collection<RowData> result) {
 			if (result == null || result.size() == 0) {
 				joinConditionResultFuture.complete(result);
 			} else {
-				for (BaseRow row : result) {
+				for (RowData row : result) {
 					try {
 						calc.flatMap(row, calcCollector);
 					} catch (Exception e) {
@@ -132,16 +132,16 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 		}
 	}
 
-	private class CalcCollectionCollector implements Collector<BaseRow> {
+	private class CalcCollectionCollector implements Collector<RowData> {
 
-		Collection<BaseRow> collection;
+		Collection<RowData> collection;
 
 		public void reset() {
 			this.collection = new ArrayList<>();
 		}
 
 		@Override
-		public void collect(BaseRow record) {
+		public void collect(RowData record) {
 			this.collection.add(rightSerializer.copy(record));
 		}
 

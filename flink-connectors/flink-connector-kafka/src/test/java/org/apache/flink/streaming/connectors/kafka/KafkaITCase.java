@@ -180,6 +180,11 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		runAutoOffsetRetrievalAndCommitToKafka();
 	}
 
+	@Test(timeout = 60000)
+	public void testCollectingSchema() throws Exception {
+		runCollectingSchemaTest();
+	}
+
 	/**
 	 * Kafka 20 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */

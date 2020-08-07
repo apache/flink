@@ -26,6 +26,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -83,24 +84,34 @@ final class SharedResources {
 	/**
 	 * Releases a lease (identified by the lease holder object) for the given type.
 	 * If no further leases exist, the resource is disposed.
-	 *
-	 * @return True, if this was the last lease holder and the resource was disposed.
 	 */
-	boolean release(String type, Object leaseHolder) throws Exception {
+	void release(String type, Object leaseHolder) throws Exception {
+		release(type, leaseHolder, (value) -> {});
+	}
+
+	/**
+	 * Releases a lease (identified by the lease holder object) for the given type.
+	 * If no further leases exist, the resource is disposed.
+	 *
+	 * <p>This method takes an additional hook that is called when the resource is disposed.
+	 */
+	void release(String type, Object leaseHolder, Consumer<Long> releaser) throws Exception {
 		lock.lock();
 		try {
-			final LeasedResource resource = reservedResources.get(type);
+			final LeasedResource<?> resource = reservedResources.get(type);
 			if (resource == null) {
-				return false;
+				return;
 			}
 
 			if (resource.removeLeaseHolder(leaseHolder)) {
-				reservedResources.remove(type);
-				resource.dispose();
-				return true;
+				try {
+					reservedResources.remove(type);
+					resource.dispose();
+				}
+				finally {
+					releaser.accept(resource.size());
+				}
 			}
-
-			return false;
 		}
 		finally {
 			lock.unlock();
@@ -169,9 +180,10 @@ final class SharedResources {
 		}
 
 		void dispose() throws Exception {
-			checkState(!disposed);
-			disposed = true;
-			resourceHandle.close();
+			if (!disposed) {
+				disposed = true;
+				resourceHandle.close();
+			}
 		}
 	}
 }

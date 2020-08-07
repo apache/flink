@@ -99,6 +99,11 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	}
 
 	@Override
+	public void resumeConsumption() {
+		subpartitionView.resumeConsumption();
+	}
+
+	@Override
 	public void setRegisteredAsAvailable(boolean isRegisteredAvailable) {
 		this.isRegisteredAsAvailable = isRegisteredAvailable;
 	}
@@ -115,12 +120,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	@Override
 	public boolean isAvailable() {
 		// BEWARE: this must be in sync with #isAvailable(BufferAndBacklog)!
-		if (numCreditsAvailable > 0) {
-			return subpartitionView.isAvailable();
-		}
-		else {
-			return subpartitionView.nextBufferIsEvent();
-		}
+		return subpartitionView.isAvailable(numCreditsAvailable);
 	}
 
 	/**
@@ -136,10 +136,10 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
 		// BEWARE: this must be in sync with #isAvailable()!
 		if (numCreditsAvailable > 0) {
-			return bufferAndBacklog.isMoreAvailable();
+			return bufferAndBacklog.isDataAvailable();
 		}
 		else {
-			return bufferAndBacklog.nextBufferIsEvent();
+			return bufferAndBacklog.isEventAvailable();
 		}
 	}
 
@@ -160,11 +160,11 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 
 	@VisibleForTesting
 	boolean hasBuffersAvailable() {
-		return subpartitionView.isAvailable();
+		return subpartitionView.isAvailable(Integer.MAX_VALUE);
 	}
 
 	@Override
-	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndAvailability getNextBuffer() throws IOException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
 			sequenceNumber++;

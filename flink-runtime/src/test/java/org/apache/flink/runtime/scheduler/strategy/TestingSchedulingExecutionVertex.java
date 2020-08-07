@@ -30,8 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A simple scheduling execution vertex for testing purposes.
  */
-public class TestingSchedulingExecutionVertex
-	implements SchedulingExecutionVertex<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
+public class TestingSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
 	private final ExecutionVertexID executionVertexId;
 

@@ -34,8 +34,8 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Builder for {@link TaskDeploymentDescriptor}.
@@ -48,8 +48,8 @@ public class TaskDeploymentDescriptorBuilder {
 	private AllocationID allocationId;
 	private int subtaskIndex;
 	private int attemptNumber;
-	private Collection<ResultPartitionDeploymentDescriptor> producedPartitions;
-	private Collection<InputGateDeploymentDescriptor> inputGates;
+	private List<ResultPartitionDeploymentDescriptor> producedPartitions;
+	private List<InputGateDeploymentDescriptor> inputGates;
 	private int targetSlotNumber;
 
 	@Nullable
@@ -116,12 +116,12 @@ public class TaskDeploymentDescriptorBuilder {
 	}
 
 	public TaskDeploymentDescriptorBuilder setProducedPartitions(
-			Collection<ResultPartitionDeploymentDescriptor> producedPartitions) {
+			List<ResultPartitionDeploymentDescriptor> producedPartitions) {
 		this.producedPartitions = producedPartitions;
 		return this;
 	}
 
-	public TaskDeploymentDescriptorBuilder setInputGates(Collection<InputGateDeploymentDescriptor> inputGates) {
+	public TaskDeploymentDescriptorBuilder setInputGates(List<InputGateDeploymentDescriptor> inputGates) {
 		this.inputGates = inputGates;
 		return this;
 	}

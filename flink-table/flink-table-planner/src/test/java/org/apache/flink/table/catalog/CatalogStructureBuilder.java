@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 
 import java.util.Collections;
@@ -60,9 +61,9 @@ import java.util.Optional;
 public class CatalogStructureBuilder {
 
 	public static final String BUILTIN_CATALOG_NAME = "builtin";
-	private CatalogManager catalogManager = new CatalogManager(
-		BUILTIN_CATALOG_NAME,
-		new GenericInMemoryCatalog(BUILTIN_CATALOG_NAME));
+	private CatalogManager catalogManager = CatalogManagerMocks.preparedCatalogManager()
+		.defaultCatalog(BUILTIN_CATALOG_NAME, new GenericInMemoryCatalog(BUILTIN_CATALOG_NAME))
+		.build();
 
 	public static CatalogStructureBuilder root() {
 		return new CatalogStructureBuilder();
@@ -82,7 +83,9 @@ public class CatalogStructureBuilder {
 
 	public CatalogStructureBuilder builtin(DatabaseBuilder defaultDb, DatabaseBuilder... databases) throws Exception {
 		GenericInMemoryCatalog catalog = buildCatalog(BUILTIN_CATALOG_NAME, defaultDb, databases);
-		this.catalogManager = new CatalogManager(BUILTIN_CATALOG_NAME, catalog);
+		this.catalogManager = CatalogManagerMocks.preparedCatalogManager()
+			.defaultCatalog(BUILTIN_CATALOG_NAME, catalog)
+			.build();
 
 		return this;
 	}

@@ -29,10 +29,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class FailoverStrategyFactoryLoader {
 
-	/** Config name for the {@link RestartAllStrategy}. */
+	/** Config name for the {@link RestartAllFailoverStrategy}. */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartPipelinedRegionStrategy}. */
+	/** Config name for the {@link RestartPipelinedRegionFailoverStrategy}. */
 	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
 
 	private FailoverStrategyFactoryLoader() {
@@ -47,20 +47,14 @@ public final class FailoverStrategyFactoryLoader {
 	public static FailoverStrategy.Factory loadFailoverStrategyFactory(final Configuration config) {
 		checkNotNull(config);
 
-		// the default NG failover strategy is the region failover strategy.
-		// TODO: Remove the overridden default value when removing legacy scheduler
-		//  and change the default value of JobManagerOptions.EXECUTION_FAILOVER_STRATEGY
-		//  to be "region"
-		final String strategyParam = config.getString(
-			JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
-			PIPELINED_REGION_RESTART_STRATEGY_NAME);
+		final String strategyParam = config.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
 
 		switch (strategyParam.toLowerCase()) {
 			case FULL_RESTART_STRATEGY_NAME:
-				return new RestartAllStrategy.Factory();
+				return new RestartAllFailoverStrategy.Factory();
 
 			case PIPELINED_REGION_RESTART_STRATEGY_NAME:
-				return new RestartPipelinedRegionStrategy.Factory();
+				return new RestartPipelinedRegionFailoverStrategy.Factory();
 
 			default:
 				throw new IllegalConfigurationException("Unknown failover strategy: " + strategyParam);

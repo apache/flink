@@ -22,19 +22,18 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.over._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
@@ -62,15 +61,7 @@ class StreamExecOverAggregate(
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = {
     if (logicWindow.groups.size() != 1
@@ -146,7 +137,7 @@ class StreamExecOverAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
 
     if (logicWindow.groups.size > 1) {
@@ -170,15 +161,7 @@ class StreamExecOverAggregate(
     }
 
     val inputDS = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
-
-    if (inputIsAccRetract) {
-      throw new TableException(
-          "Retraction on Over window aggregation is not supported yet. " +
-            "Note: Over window aggregation should not follow a non-windowed GroupBy aggregation.")
-    }
+      .asInstanceOf[Transformation[RowData]]
 
     if (!logicWindow.groups.get(0).keys.isEmpty && tableConfig.getMinIdleStateRetentionTime < 0) {
       LOG.warn(
@@ -270,12 +253,12 @@ class StreamExecOverAggregate(
     }
 
     val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val inputTypeInfo = BaseRowTypeInfo.of(inRowType)
+    val inputTypeInfo = InternalTypeInfo.of(inRowType)
 
-    val selector = KeySelectorUtil.getBaseRowSelector(partitionKeys, inputTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(partitionKeys, inputTypeInfo)
 
-    val returnTypeInfo = BaseRowTypeInfo.of(outRowType)
-      .asInstanceOf[BaseRowTypeInfo]
+    val returnTypeInfo = InternalTypeInfo.of(outRowType)
+      .asInstanceOf[InternalTypeInfo[RowData]]
     // partitioned aggregation
 
     val operator = new KeyedProcessOperator(overProcessFunction)
@@ -317,7 +300,7 @@ class StreamExecOverAggregate(
       isRowsClause: Boolean,
       tableConfig: TableConfig,
       relBuilder: RelBuilder,
-      nullCheck: Boolean): KeyedProcessFunction[BaseRow, BaseRow, BaseRow] = {
+      nullCheck: Boolean): KeyedProcessFunction[RowData, RowData, RowData] = {
 
     val needRetraction = false
     val aggInfoList = transformToStreamAggregateInfoList(
@@ -396,7 +379,7 @@ class StreamExecOverAggregate(
       precedingOffset: Long,
       tableConfig: TableConfig,
       relBuilder: RelBuilder,
-      nullCheck: Boolean): KeyedProcessFunction[BaseRow, BaseRow, BaseRow] = {
+      nullCheck: Boolean): KeyedProcessFunction[RowData, RowData, RowData] = {
 
     val needRetraction = true
     val aggInfoList = transformToStreamAggregateInfoList(
@@ -439,8 +422,6 @@ class StreamExecOverAggregate(
           rowTimeIdx.get)
       } else {
         new RowTimeRangeBoundedPrecedingFunction(
-          tableConfig.getMinIdleStateRetentionTime,
-          tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
           flattenAccTypes,
           fieldTypes,
@@ -458,8 +439,6 @@ class StreamExecOverAggregate(
           precedingOffset)
       } else {
         new ProcTimeRangeBoundedPrecedingFunction(
-          tableConfig.getMinIdleStateRetentionTime,
-          tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
           flattenAccTypes,
           fieldTypes,

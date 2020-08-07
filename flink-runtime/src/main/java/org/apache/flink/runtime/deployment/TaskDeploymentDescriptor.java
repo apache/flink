@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
+import java.util.List;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.
@@ -134,10 +134,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final int attemptNumber;
 
 	/** The list of produced intermediate result partition deployment descriptors. */
-	private final Collection<ResultPartitionDeploymentDescriptor> producedPartitions;
+	private final List<ResultPartitionDeploymentDescriptor> producedPartitions;
 
 	/** The list of consumed intermediate result partitions. */
-	private final Collection<InputGateDeploymentDescriptor> inputGates;
+	private final List<InputGateDeploymentDescriptor> inputGates;
 
 	/** Slot number to run the sub task in on the target machine. */
 	private final int targetSlotNumber;
@@ -156,8 +156,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		int attemptNumber,
 		int targetSlotNumber,
 		@Nullable JobManagerTaskRestore taskRestore,
-		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+		List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
+		List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 
 		this.jobId = Preconditions.checkNotNull(jobId);
 
@@ -256,11 +256,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return targetSlotNumber;
 	}
 
-	public Collection<ResultPartitionDeploymentDescriptor> getProducedPartitions() {
+	public List<ResultPartitionDeploymentDescriptor> getProducedPartitions() {
 		return producedPartitions;
 	}
 
-	public Collection<InputGateDeploymentDescriptor> getInputGates() {
+	public List<InputGateDeploymentDescriptor> getInputGates() {
 		return inputGates;
 	}
 

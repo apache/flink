@@ -21,34 +21,53 @@ package org.apache.flink.configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.function.Function;
+
 /**
  * Tests for {@link CoreOptions}.
  */
 public class CoreOptionsTest {
 	@Test
 	public void testGetParentFirstLoaderPatterns() {
+		testParentFirst(
+			CoreOptions::getParentFirstLoaderPatterns,
+			CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS,
+			CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+	}
+
+	@Test
+	public void testGetPluginParentFirstLoaderPatterns() {
+		testParentFirst(
+			CoreOptions::getPluginParentFirstLoaderPatterns,
+			CoreOptions.PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS,
+			CoreOptions.PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+	}
+
+	private void testParentFirst(
+			Function<Configuration, String[]> patternGetter,
+			ConfigOption<String> patternOption,
+			ConfigOption<String> additionalOption) {
 		Configuration config = new Configuration();
+		Assert.assertArrayEquals(patternOption.defaultValue().split(";"),
+			patternGetter.apply(config));
 
-		Assert.assertArrayEquals(
-			CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
-			CoreOptions.getParentFirstLoaderPatterns(config));
-
-		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS, "hello;world");
+		config.setString(patternOption, "hello;world");
 
 		Assert.assertArrayEquals(
 			"hello;world".split(";"),
-			CoreOptions.getParentFirstLoaderPatterns(config));
+			patternGetter.apply(config));
 
-		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL, "how;are;you");
+		config.setString(additionalOption, "how;are;you");
 
 		Assert.assertArrayEquals(
 			"hello;world;how;are;you".split(";"),
-			CoreOptions.getParentFirstLoaderPatterns(config));
+			patternGetter.apply(config));
 
-		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS, "");
+		config.setString(patternOption, "");
 
 		Assert.assertArrayEquals(
 			"how;are;you".split(";"),
-			CoreOptions.getParentFirstLoaderPatterns(config));
+			patternGetter.apply(config));
 	}
+
 }

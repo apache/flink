@@ -92,6 +92,41 @@ public class JsonRowSerializationSchemaTest {
 	}
 
 	@Test
+	public void testMultiRowsWithNullValues() throws IOException {
+		String[] jsons = new String[] {
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\", \"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}, " +
+				"\"ids\":[1, 2, 3]}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
+		};
+
+		String[] expected = new String[] {
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}," +
+				"\"ids\":[1,2,3]}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
+		};
+
+		TypeInformation<Row> schema = Types.ROW_NAMED(
+			new String[]{"svt", "ops", "ids"},
+			Types.STRING,
+			Types.ROW_NAMED(new String[]{"id"}, Types.STRING),
+			Types.PRIMITIVE_ARRAY(Types.INT));
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(schema)
+			.build();
+		JsonRowSerializationSchema serializationSchema = JsonRowSerializationSchema.builder()
+			.withTypeInfo(schema)
+			.build();
+
+		for (int i = 0; i < jsons.length; i++) {
+			String json = jsons[i];
+			Row row = deserializationSchema.deserialize(json.getBytes());
+			String result = new String(serializationSchema.serialize(row));
+			assertEquals(expected[i], result);
+		}
+	}
+
+	@Test
 	public void testNestedSchema() {
 		final TypeInformation<Row> rowSchema = Types.ROW_NAMED(
 			new String[] {"f1", "f2", "f3"},

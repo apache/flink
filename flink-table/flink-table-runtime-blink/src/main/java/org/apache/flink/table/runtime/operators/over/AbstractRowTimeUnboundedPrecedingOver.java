@@ -26,13 +26,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -48,7 +48,7 @@ import java.util.ListIterator;
 /**
  * A basic implementation to support unbounded event-time over-window.
  */
-public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRowTimeUnboundedPrecedingOver.class);
@@ -58,11 +58,11 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 	private final LogicalType[] inputFieldTypes;
 	private final int rowTimeIdx;
 
-	protected transient JoinedRow output;
+	protected transient JoinedRowData output;
 	// state to hold the accumulators of the aggregations
-	private transient ValueState<BaseRow> accState;
+	private transient ValueState<RowData> accState;
 	// state to hold rows until the next watermark arrives
-	private transient MapState<Long, List<BaseRow>> inputState;
+	private transient MapState<Long, List<RowData>> inputState;
 	// list to sort timestamps to access rows in timestamp order
 	private transient LinkedList<Long> sortedTimestamps;
 
@@ -87,20 +87,20 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		output = new JoinedRow();
+		output = new JoinedRowData();
 
 		sortedTimestamps = new LinkedList<Long>();
 
 		// initialize accumulator state
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> accStateDesc =
-			new ValueStateDescriptor<BaseRow>("accState", accTypeInfo);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+		ValueStateDescriptor<RowData> accStateDesc =
+			new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accStateDesc);
 
 		// input element are all binary row as they are came from network
-		BaseRowTypeInfo inputType = new BaseRowTypeInfo(inputFieldTypes);
-		ListTypeInfo<BaseRow> rowListTypeInfo = new ListTypeInfo<BaseRow>(inputType);
-		MapStateDescriptor<Long, List<BaseRow>> inputStateDesc = new MapStateDescriptor<Long, List<BaseRow>>(
+		InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
+		ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
+		MapStateDescriptor<Long, List<RowData>> inputStateDesc = new MapStateDescriptor<Long, List<RowData>>(
 			"inputState",
 			Types.LONG,
 			rowListTypeInfo);
@@ -122,9 +122,9 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 	 */
 	@Override
 	public void processElement(
-			BaseRow input,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.Context ctx,
-			Collector<BaseRow> out) throws Exception {
+			RowData input,
+			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+			Collector<RowData> out) throws Exception {
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
@@ -139,9 +139,9 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			ctx.timerService().registerEventTimeTimer(triggerTs);
 
 			// put row into state
-			List<BaseRow> rowList = inputState.get(timestamp);
+			List<RowData> rowList = inputState.get(timestamp);
 			if (rowList == null) {
-				rowList = new ArrayList<BaseRow>();
+				rowList = new ArrayList<RowData>();
 			}
 			rowList.add(input);
 			inputState.put(timestamp, rowList);
@@ -151,8 +151,8 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 	@Override
 	public void onTimer(
 			long timestamp,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
-			Collector<BaseRow> out) throws Exception {
+			KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+			Collector<RowData> out) throws Exception {
 		if (isProcessingTimeTimer(ctx)) {
 			if (stateCleaningEnabled) {
 
@@ -188,7 +188,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			} while (keyIterator.hasNext());
 
 			// get last accumulator
-			BaseRow lastAccumulator = accState.value();
+			RowData lastAccumulator = accState.value();
 			if (lastAccumulator == null) {
 				// initialize accumulator
 				lastAccumulator = function.createAccumulators();
@@ -199,7 +199,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			// emit the rows in order
 			while (!sortedTimestamps.isEmpty()) {
 				Long curTimestamp = sortedTimestamps.removeFirst();
-				List<BaseRow> curRowList = inputState.get(curTimestamp);
+				List<RowData> curRowList = inputState.get(curTimestamp);
 				if (curRowList != null) {
 					// process the same timestamp datas, the mechanism is different according ROWS or RANGE
 					processElementsWithSameTimestamp(curRowList, out);
@@ -253,8 +253,8 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 	 * rows and range window.
 	 */
 	protected abstract void processElementsWithSameTimestamp(
-		List<BaseRow> curRowList,
-		Collector<BaseRow> out) throws Exception;
+		List<RowData> curRowList,
+		Collector<RowData> out) throws Exception;
 
 	@Override
 	public void close() throws Exception {

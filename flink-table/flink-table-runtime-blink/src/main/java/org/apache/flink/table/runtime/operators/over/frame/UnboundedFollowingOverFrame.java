@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -38,12 +38,12 @@ public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 	private final RowType valueType;
 
 	private AggsHandleFunction processor;
-	private BaseRow accValue;
+	private RowData accValue;
 
 	/** Rows of the partition currently being processed. */
 	ResettableExternalBuffer input;
 
-	private BaseRowSerializer valueSer;
+	private RowDataSerializer valueSer;
 
 	/**
 	 * Index of the first input row with a value equal to or greater than the lower bound of the
@@ -65,7 +65,7 @@ public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
 		this.aggsHandleFunction = null;
-		this.valueSer = new BaseRowSerializer(ctx.getRuntimeContext().getExecutionConfig(), valueType);
+		this.valueSer = new RowDataSerializer(valueType);
 	}
 
 	@Override
@@ -76,9 +76,9 @@ public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 		inputIndex = 0;
 	}
 
-	BaseRow accumulateIterator(
+	RowData accumulateIterator(
 			boolean bufferUpdated,
-			BinaryRow firstRow,
+			BinaryRowData firstRow,
 			ResettableExternalBuffer.BufferIterator iterator) throws Exception {
 		// Only recalculate and update when the buffer changes.
 		if (bufferUpdated) {

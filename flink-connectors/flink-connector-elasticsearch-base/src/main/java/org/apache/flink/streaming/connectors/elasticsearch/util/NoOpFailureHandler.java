@@ -22,6 +22,8 @@ import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureH
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 
 import org.elasticsearch.action.ActionRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An {@link ActionRequestFailureHandler} that simply fails the sink on any failures.
@@ -31,10 +33,22 @@ public class NoOpFailureHandler implements ActionRequestFailureHandler {
 
 	private static final long serialVersionUID = 737941343410827885L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(NoOpFailureHandler.class);
+
 	@Override
 	public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
+		LOG.error("Failed Elasticsearch item request: {}", failure.getMessage(), failure);
 		// simply fail the sink
 		throw failure;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		return o instanceof NoOpFailureHandler;
+	}
+
+	@Override
+	public int hashCode() {
+		return NoOpFailureHandler.class.hashCode();
+	}
 }

@@ -25,7 +25,9 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -87,15 +89,14 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 	private static final String ALL_METHODS_STREAM_OPERATOR = "[" +
 			"close[], " +
 			"dispose[], " +
-			"getChainingStrategy[], " +
 			"getCurrentKey[], " +
 			"getMetricGroup[], " +
 			"getOperatorID[], " +
-			"initializeState[], " +
+			"initializeState[interface org.apache.flink.streaming.api.operators.StreamTaskStateInitializer], " +
+			"notifyCheckpointAborted[long], " +
 			"notifyCheckpointComplete[long], " +
 			"open[], " +
 			"prepareSnapshotPreBarrier[long], " +
-			"setChainingStrategy[class org.apache.flink.streaming.api.operators.ChainingStrategy], " +
 			"setCurrentKey[class java.lang.Object], " +
 			"setKeyContextElement1[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
@@ -141,16 +142,18 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		cfg.setOperatorID(new OperatorID());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		Task task = StreamTaskTest.createTask(SourceStreamTask.class, cfg, taskManagerConfig);
+		try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
+			Task task = StreamTaskTest.createTask(SourceStreamTask.class, shuffleEnvironment, cfg, taskManagerConfig);
 
-		task.startTaskThread();
+			task.startTaskThread();
 
-		LifecycleTrackingStreamSource.runStarted.await();
+			LifecycleTrackingStreamSource.runStarted.await();
 
-		// wait for clean termination
-		task.getExecutingThread().join();
-		assertEquals(ExecutionState.FINISHED, task.getExecutionState());
-		assertEquals(EXPECTED_CALL_ORDER_FULL, ACTUAL_ORDER_TRACKING);
+			// wait for clean termination
+			task.getExecutingThread().join();
+			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
+			assertEquals(EXPECTED_CALL_ORDER_FULL, ACTUAL_ORDER_TRACKING);
+		}
 	}
 
 	@Test
@@ -164,18 +167,20 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		cfg.setOperatorID(new OperatorID());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		Task task = StreamTaskTest.createTask(SourceStreamTask.class, cfg, taskManagerConfig);
+		try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
+			Task task = StreamTaskTest.createTask(SourceStreamTask.class, shuffleEnvironment, cfg, taskManagerConfig);
 
-		task.startTaskThread();
-		LifecycleTrackingStreamSource.runStarted.await();
+			task.startTaskThread();
+			LifecycleTrackingStreamSource.runStarted.await();
 
-		// this should cancel the task even though it is blocked on runFinished
-		task.cancelExecution();
+			// this should cancel the task even though it is blocked on runFinished
+			task.cancelExecution();
 
-		// wait for clean termination
-		task.getExecutingThread().join();
-		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-		assertEquals(EXPECTED_CALL_ORDER_CANCEL_RUNNING, ACTUAL_ORDER_TRACKING);
+			// wait for clean termination
+			task.getExecutingThread().join();
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+			assertEquals(EXPECTED_CALL_ORDER_CANCEL_RUNNING, ACTUAL_ORDER_TRACKING);
+		}
 	}
 
 	private static class MockSourceFunction extends RichSourceFunction<Long> {

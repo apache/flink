@@ -557,24 +557,6 @@ class RocksDBStateBackend(StateBackend):
         """
         return self._j_rocks_db_state_backend.isIncrementalCheckpointsEnabled()
 
-    def is_ttl_compaction_filter_enabled(self):
-        """
-        Gets whether compaction filter to cleanup state with TTL is enabled.
-
-        :return: True if enabled, false otherwise.
-        """
-        return self._j_rocks_db_state_backend.isTtlCompactionFilterEnabled()
-
-    def enable_ttl_compaction_filter(self):
-        """
-        Enable compaction filter to cleanup state with TTL.
-
-        .. note::
-            User can still decide in state TTL configuration in state descriptor
-            whether the filter is active for particular state or not.
-        """
-        self._j_rocks_db_state_backend.enableTtlCompactionFilter()
-
     def set_predefined_options(self, options):
         """
         Sets the predefined options for RocksDB.
@@ -655,11 +637,11 @@ class RocksDBStateBackend(StateBackend):
                                            The options factory must have a default constructor.
         """
         gateway = get_gateway()
-        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.OptionsFactory
+        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.RocksDBOptionsFactory
         j_options_factory_clz = load_java_class(options_factory_class_name)
         if not get_java_class(JOptionsFactory).isAssignableFrom(j_options_factory_clz):
-            raise ValueError("The input class not implements OptionsFactory.")
-        self._j_rocks_db_state_backend.setOptions(j_options_factory_clz.newInstance())
+            raise ValueError("The input class does not implement RocksDBOptionsFactory.")
+        self._j_rocks_db_state_backend.setRocksDBOptions(j_options_factory_clz.newInstance())
 
     def get_options(self):
         """
@@ -668,7 +650,7 @@ class RocksDBStateBackend(StateBackend):
 
         :return: The fully-qualified class name of the options factory in Java.
         """
-        j_options_factory = self._j_rocks_db_state_backend.getOptions()
+        j_options_factory = self._j_rocks_db_state_backend.getRocksDBOptions()
         if j_options_factory is not None:
             return j_options_factory.getClass().getName()
         else:

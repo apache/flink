@@ -21,15 +21,15 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
-import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
+import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
 import org.apache.flink.table.runtime.operators.sort.{ProcTimeSortOperator, RowTimeSortOperator}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
@@ -54,15 +54,7 @@ class StreamExecTemporalSort(
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -99,7 +91,7 @@ class StreamExecTemporalSort(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     // time ordering needs to be ascending
     if (SortUtil.getFirstSortDirection(sortCollation) != Direction.ASCENDING) {
@@ -109,7 +101,7 @@ class StreamExecTemporalSort(
     }
 
     val input = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     val timeType = SortUtil.getFirstSortField(sortCollation, getRowType).getType
     timeType match {
@@ -129,8 +121,8 @@ class StreamExecTemporalSort(
     * Create Sort logic based on processing time
     */
   private def createSortProcTime(
-      input: Transformation[BaseRow],
-      tableConfig: TableConfig): Transformation[BaseRow] = {
+      input: Transformation[RowData],
+      tableConfig: TableConfig): Transformation[RowData] = {
     val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     val fieldCollations = sortCollation.getFieldCollations
     // if the order has secondary sorting fields in addition to the proctime
@@ -141,8 +133,8 @@ class StreamExecTemporalSort(
       val keyTypes = keys.map(inputType.getTypeAt)
       val rowComparator = ComparatorCodeGenerator.gen(tableConfig, "ProcTimeSortComparator",
         keys, keyTypes, orders, nullsIsLast)
-      val sortOperator = new ProcTimeSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
-      val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+      val sortOperator = new ProcTimeSortOperator(InternalTypeInfo.of(inputType), rowComparator)
+      val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
       // as input node is singleton exchange, its parallelism is 1.
       val ret = new OneInputTransformation(
@@ -152,7 +144,7 @@ class StreamExecTemporalSort(
         outputRowTypeInfo,
         input.getParallelism)
 
-      val selector = NullBinaryRowKeySelector.INSTANCE
+      val selector = EmptyRowDataKeySelector.INSTANCE
       ret.setStateKeySelector(selector)
       ret.setStateKeyType(selector.getProducedType)
       ret
@@ -166,8 +158,8 @@ class StreamExecTemporalSort(
     * Create Sort logic based on row time
     */
   private def createSortRowTime(
-      input: Transformation[BaseRow],
-      tableConfig: TableConfig): Transformation[BaseRow] = {
+      input: Transformation[RowData],
+      tableConfig: TableConfig): Transformation[RowData] = {
     val fieldCollations = sortCollation.getFieldCollations
     val rowTimeIdx = fieldCollations.get(0).getFieldIndex
     val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
@@ -182,8 +174,8 @@ class StreamExecTemporalSort(
       null
     }
     val sortOperator = new RowTimeSortOperator(
-      BaseRowTypeInfo.of(inputType), rowTimeIdx, rowComparator)
-    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+      InternalTypeInfo.of(inputType), rowTimeIdx, rowComparator)
+    val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val ret = new OneInputTransformation(
       input,
@@ -197,7 +189,7 @@ class StreamExecTemporalSort(
       ret.setMaxParallelism(1)
     }
 
-    val selector = NullBinaryRowKeySelector.INSTANCE
+    val selector = EmptyRowDataKeySelector.INSTANCE
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret

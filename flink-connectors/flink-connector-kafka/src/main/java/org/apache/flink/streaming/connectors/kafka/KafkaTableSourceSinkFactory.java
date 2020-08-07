@@ -57,7 +57,8 @@ public class KafkaTableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		Map<KafkaTopicPartition, Long> specificStartupOffsets,
+		long startupTimestampMillis) {
 
 		return new KafkaTableSource(
 			schema,
@@ -68,7 +69,8 @@ public class KafkaTableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets);
+			specificStartupOffsets,
+			startupTimestampMillis);
 	}
 
 	@Override

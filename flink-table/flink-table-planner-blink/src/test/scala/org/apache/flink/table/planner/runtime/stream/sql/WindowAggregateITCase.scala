@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -101,6 +101,35 @@ class WindowAggregateITCase(mode: StateBackendMode)
   }
 
   @Test
+  def testCascadingTumbleWindow(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+
+    val sql =
+      """
+        |SELECT SUM(cnt)
+        |FROM (
+        |  SELECT COUNT(1) AS cnt, TUMBLE_ROWTIME(rowtime, INTERVAL '10' SECOND) AS ts
+        |  FROM T1
+        |  GROUP BY `int`, `string`, TUMBLE(rowtime, INTERVAL '10' SECOND)
+        |)
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq("9")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testEventTimeSessionWindow(): Unit = {
     //To verify the "merge" functionality, we create this test with the following characteristics:
     // 1. set the Parallelism to 1, and have the test data out of order
@@ -166,7 +195,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
-    tEnv.registerFunction("weightAvgFun", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val sql =
       """
@@ -201,9 +230,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val fieldNames = fieldTypes.indices.map("f" + _).toArray
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq(
       "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1,1,1,1,1,1,1",
@@ -248,6 +276,74 @@ class WindowAggregateITCase(mode: StateBackendMode)
       "Hello,3,1970-01-01T00:00:00.015"        // window starts at [1L,2L],
       //   merged with [8L,10L], by [4L], till {15L}
     )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testMinMaxWithTumblingWindow(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    tEnv.getConfig.getConfiguration.setBoolean("table.exec.emit.early-fire.enabled", true)
+    tEnv.getConfig.getConfiguration.setString("table.exec.emit.early-fire.delay", "1000 ms")
+
+    val sql =
+      """
+        |SELECT
+        | MAX(max_ts),
+        | MIN(min_ts),
+        | `string`
+        |FROM(
+        | SELECT
+        | `string`,
+        | `int`,
+        | MAX(rowtime) as max_ts,
+        | MIN(rowtime) as min_ts
+        | FROM T1
+        | GROUP BY `string`, `int`, TUMBLE(rowtime, INTERVAL '10' SECOND))
+        |GROUP BY `string`
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "1970-01-01T00:00:00.001,1970-01-01T00:00:00.001,Hi",
+      "1970-01-01T00:00:00.002,1970-01-01T00:00:00.002,Hallo",
+      "1970-01-01T00:00:00.007,1970-01-01T00:00:00.003,Hello",
+      "1970-01-01T00:00:00.016,1970-01-01T00:00:00.008,Hello world",
+      "1970-01-01T00:00:00.032,1970-01-01T00:00:00.032,null")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  // used to verify compile works normally when constants exists in group window key (FLINK-17553)
+  @Test
+  def testWindowAggregateOnConstantValue(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(name)
+        |FROM T1
+        | GROUP BY 'a', TUMBLE(rowtime, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2",
+      "1970-01-01T00:00:00.006,2",
+      "1970-01-01T00:00:00.009,3",
+      "1970-01-01T00:00:00.018,1",
+      "1970-01-01T00:00:00.033,0")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

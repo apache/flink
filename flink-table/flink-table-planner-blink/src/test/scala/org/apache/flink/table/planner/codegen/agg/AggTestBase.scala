@@ -21,18 +21,19 @@ package org.apache.flink.table.planner.codegen.agg
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
-import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, LongAvgAggFunction}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.runtime.context.ExecutionContext
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.powermock.api.mockito.PowerMockito.{mock, when}
@@ -45,12 +46,12 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
   private val tEnv = if (isBatchMode) {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     // use impl class instead of interface class to avoid
     // "Static methods in interface require -target:jvm-1.8"
     TableEnvironmentImpl.create(settings)
   } else {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     StreamTableEnvironment.create(env, settings)
   }
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
@@ -68,6 +69,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "agg").thenReturn(call)
     when(call, "getName").thenReturn("avg1")
     when(aggInfo, "function").thenReturn(new LongAvgAggFunction)
+    when(aggInfo, "externalArgTypes").thenReturn(Array(DataTypes.BIGINT))
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(1))
     when(aggInfo, "aggIndex").thenReturn(0)
@@ -81,6 +83,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "agg").thenReturn(call)
     when(call, "getName").thenReturn("avg2")
     when(aggInfo, "function").thenReturn(new DoubleAvgAggFunction)
+    when(aggInfo, "externalArgTypes").thenReturn(Array(DataTypes.DOUBLE()))
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.DOUBLE, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(2))
     when(aggInfo, "aggIndex").thenReturn(1)
@@ -95,6 +98,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "agg").thenReturn(call)
     when(call, "getName").thenReturn("avg3")
     when(aggInfo, "function").thenReturn(imperativeAggFunc)
+    when(aggInfo, "externalArgTypes").thenReturn(Array(DataTypes.BIGINT()))
     when(aggInfo, "externalAccTypes").thenReturn(
       Array(fromLegacyInfoToDataType(imperativeAggFunc.getAccumulatorType)))
     when(aggInfo, "externalResultType").thenReturn(DataTypes.BIGINT)

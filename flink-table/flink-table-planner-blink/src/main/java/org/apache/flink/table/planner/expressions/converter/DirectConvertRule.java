@@ -40,8 +40,6 @@ public class DirectConvertRule implements CallExpressionConvertRule {
 
 	private static final Map<FunctionDefinition, SqlOperator> DEFINITION_OPERATOR_MAP = new HashMap<>();
 	static {
-		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
-
 		// logic functions
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.AND, FlinkSqlOperatorTable.AND);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.OR, FlinkSqlOperatorTable.OR);
@@ -67,9 +65,11 @@ public class DirectConvertRule implements CallExpressionConvertRule {
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.INIT_CAP, FlinkSqlOperatorTable.INITCAP);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LIKE, FlinkSqlOperatorTable.LIKE);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOWER, FlinkSqlOperatorTable.LOWER);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOWERCASE, FlinkSqlOperatorTable.LOWER);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SIMILAR, FlinkSqlOperatorTable.SIMILAR_TO);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SUBSTRING, FlinkSqlOperatorTable.SUBSTRING);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UPPER, FlinkSqlOperatorTable.UPPER);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UPPERCASE, FlinkSqlOperatorTable.UPPER);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.POSITION, FlinkSqlOperatorTable.POSITION);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.OVERLAY, FlinkSqlOperatorTable.OVERLAY);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CONCAT, FlinkSqlOperatorTable.CONCAT_FUNCTION);
@@ -89,6 +89,8 @@ public class DirectConvertRule implements CallExpressionConvertRule {
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.MINUS, FlinkSqlOperatorTable.MINUS);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.DIVIDE, FlinkSqlOperatorTable.DIVIDE);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.TIMES, FlinkSqlOperatorTable.MULTIPLY);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.FLOOR, FlinkSqlOperatorTable.FLOOR);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CEIL, FlinkSqlOperatorTable.CEIL);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ABS, FlinkSqlOperatorTable.ABS);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.EXP, FlinkSqlOperatorTable.EXP);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOG10, FlinkSqlOperatorTable.LOG10);

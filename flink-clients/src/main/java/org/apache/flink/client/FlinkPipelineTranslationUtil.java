@@ -46,6 +46,23 @@ public final class FlinkPipelineTranslationUtil {
 	}
 
 	/**
+	 * Transmogrifies the given {@link Pipeline} under the userClassloader to a {@link JobGraph}.
+	 */
+	public static JobGraph getJobGraphUnderUserClassLoader(
+		final ClassLoader userClassloader,
+		final Pipeline pipeline,
+		final Configuration configuration,
+		final int defaultParallelism) {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(userClassloader);
+			return FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
+	}
+
+	/**
 	 * Extracts the execution plan (as JSON) from the given {@link Pipeline}.
 	 */
 	public static String translateToJSONExecutionPlan(Pipeline pipeline) {
@@ -54,45 +71,19 @@ public final class FlinkPipelineTranslationUtil {
 	}
 
 	private static FlinkPipelineTranslator getPipelineTranslator(Pipeline pipeline) {
-		PlanTranslator planToJobGraphTransmogrifier = new PlanTranslator();
+		PlanTranslator planTranslator = new PlanTranslator();
 
-		if (planToJobGraphTransmogrifier.canTranslate(pipeline)) {
-			return planToJobGraphTransmogrifier;
+		if (planTranslator.canTranslate(pipeline)) {
+			return planTranslator;
 		}
 
-		FlinkPipelineTranslator streamGraphTranslator = reflectStreamGraphTranslator();
+		StreamGraphTranslator streamGraphTranslator = new StreamGraphTranslator();
 
-		if (!streamGraphTranslator.canTranslate(pipeline)) {
-			throw new RuntimeException("Translator " + streamGraphTranslator + " cannot translate "
-					+ "the given pipeline " + pipeline + ".");
-		}
-		return streamGraphTranslator;
-	}
-
-	private static FlinkPipelineTranslator reflectStreamGraphTranslator() {
-		// Try our luck with StreamGraph translation. We have to load a StreamGraphTranslator
-		// via reflection because the dependencies of flink-streaming-java are inverted compared
-		// to flink-java. For flink-java does not depend on runtime, clients or optimizer and
-		// we have the translation code in clients/optimizer. On the other hand,
-		// flink-streaming-java depends on runtime and clients.
-
-		Class<?> streamGraphTranslatorClass;
-		try {
-			streamGraphTranslatorClass = Class.forName(
-					"org.apache.flink.streaming.api.graph.StreamGraphTranslator",
-					true,
-					FlinkPipelineTranslationUtil.class.getClassLoader());
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not load StreamGraphTranslator.", e);
+		if (streamGraphTranslator.canTranslate(pipeline)) {
+			return streamGraphTranslator;
 		}
 
-		FlinkPipelineTranslator streamGraphTranslator;
-		try {
-			streamGraphTranslator =
-					(FlinkPipelineTranslator) streamGraphTranslatorClass.newInstance();
-		} catch (InstantiationException | IllegalAccessException e) {
-			throw new RuntimeException("Could not instantiate StreamGraphTranslator.", e);
-		}
-		return streamGraphTranslator;
+		throw new RuntimeException("Translator " + streamGraphTranslator + " cannot translate "
+			+ "the given pipeline " + pipeline + ".");
 	}
 }

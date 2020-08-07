@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-connector-kafka_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-kafka</name>
+	<name>Flink : Connectors : SQL : Kafka</name>
 
 	<packaging>jar</packaging>
 

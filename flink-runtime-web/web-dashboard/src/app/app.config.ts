@@ -29,6 +29,7 @@ export const COLOR_MAP = {
   RECONCILING: '#eb2f96',
   IN_PROGRESS: '#faad14',
   SCHEDULED: '#722ed1',
-  COMPLETED  : '#1890ff'
+  COMPLETED: '#1890ff',
+  RESTARTING: '#13c2c2'
 };
 export const LONG_MIN_VALUE = -9223372036854776000;

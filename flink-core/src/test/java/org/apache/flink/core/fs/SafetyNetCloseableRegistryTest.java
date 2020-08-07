@@ -198,4 +198,32 @@ public class SafetyNetCloseableRegistryTest
 		}
 		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
 	}
+
+	/**
+	 * Test whether failure to start thread in {@link SafetyNetCloseableRegistry}
+	 * constructor can lead to failure of subsequent state check.
+	 */
+	@Test
+	public void testReaperThreadStartFailed() throws Exception {
+
+		try {
+			new SafetyNetCloseableRegistry(() -> new OutOfMemoryReaperThread());
+		} catch (java.lang.OutOfMemoryError error) {
+		}
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+
+		// the OOM error will not lead to failure of subsequent constructor call.
+		SafetyNetCloseableRegistry closeableRegistry = new SafetyNetCloseableRegistry();
+		Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+
+		closeableRegistry.close();
+	}
+
+	private static class OutOfMemoryReaperThread extends SafetyNetCloseableRegistry.CloseableReaperThread {
+
+		@Override
+		public synchronized void start() {
+			throw new java.lang.OutOfMemoryError();
+		}
+	}
 }

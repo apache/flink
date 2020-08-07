@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.operators.window.assigners;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
 import org.junit.Test;
@@ -53,7 +53,7 @@ import static org.mockito.Mockito.verify;
  */
 public class SessionWindowAssignerTest {
 
-	private static final BaseRow ELEMENT = GenericRow.of("String");
+	private static final RowData ELEMENT = GenericRowData.of("String");
 
 	@Test
 	public void testWindowAssignment() {

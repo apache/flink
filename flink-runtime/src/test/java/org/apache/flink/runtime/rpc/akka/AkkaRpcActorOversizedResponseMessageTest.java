@@ -67,8 +67,8 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.FRAMESIZE, FRAMESIZE + " b");
 
-		rpcService1 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
-		rpcService2 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
+		rpcService1 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
+		rpcService2 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
 	}
 
 	@AfterClass

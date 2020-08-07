@@ -62,7 +62,7 @@ If the opening of the stream takes longer than `fs.<scheme>.limit.timeout`, the 
 
 To prevent inactive streams from taking up the full pool (preventing new connections to be opened), you can add an inactivity timeout which forcibly closes them if they do not read/write any bytes for at least that amount of time: `fs.<scheme>.limit.stream-timeout`. 
 
-Limit enforcment on a per TaskManager/file system basis.
+Limit enforcement on a per TaskManager/file system basis.
 Because file systems creation occurs per scheme and authority, different
 authorities have independent connection pools. For example `hdfs://myhdfs:50010/` and `hdfs://anotherhdfs:4399/` will have separate pools.
 

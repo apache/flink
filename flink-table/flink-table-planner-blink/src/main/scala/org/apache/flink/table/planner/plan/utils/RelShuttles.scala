@@ -72,6 +72,8 @@ class DefaultRelShuttle extends RelShuttle {
   override def visit(join: LogicalJoin): RelNode = visit(join.asInstanceOf[RelNode])
 
   override def visit(correlate: LogicalCorrelate): RelNode = visit(correlate.asInstanceOf[RelNode])
+
+  override def visit(modify: LogicalTableModify): RelNode = visit(modify.asInstanceOf[RelNode])
 }
 
 /**

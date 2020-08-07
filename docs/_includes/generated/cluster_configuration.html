@@ -15,6 +15,12 @@
             <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <span markdown="span">`TaskExecutors`</span>.</td>
         </tr>
         <tr>
+            <td><h5>cluster.io-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the IO executor pool used by the cluster to execute blocking IO operations (Master as well as TaskManager processes). By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. Increasing the pool size allows to run more IO operations concurrently.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.registration.error-delay</h5></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>

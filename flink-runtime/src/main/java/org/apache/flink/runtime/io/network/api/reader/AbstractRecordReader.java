@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -27,6 +28,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A record-oriented reader.
@@ -37,9 +41,11 @@ import java.io.IOException;
  */
 abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements ReaderBase {
 
-	private final RecordDeserializer<T>[] recordDeserializers;
+	private final Map<InputChannelInfo, RecordDeserializer<T>> recordDeserializers;
 
 	private RecordDeserializer<T> currentRecordDeserializer;
+
+	private boolean requestedPartitions;
 
 	private boolean isFinished;
 
@@ -56,13 +62,21 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 		super(inputGate);
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>(tmpDirectories);
-		}
+		recordDeserializers = inputGate.getChannelInfos().stream()
+			.collect(Collectors.toMap(
+				Function.identity(),
+				channelInfo -> new SpillingAdaptiveSpanningRecordDeserializer<>(tmpDirectories)));
 	}
 
 	protected boolean getNextRecord(T target) throws IOException, InterruptedException {
+		// The action of partition request was removed from InputGate#setup since FLINK-16536, and this is the only
+		// unified way for launching partition request for batch jobs. In order to avoid potential performance concern,
+		// we might consider migrating this action back to the setup based on some condition judgement future.
+		if (!requestedPartitions) {
+			inputGate.requestPartitions();
+			requestedPartitions = true;
+		}
+
 		if (isFinished) {
 			return false;
 		}
@@ -86,15 +100,15 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 			final BufferOrEvent bufferOrEvent = inputGate.getNext().orElseThrow(IllegalStateException::new);
 
 			if (bufferOrEvent.isBuffer()) {
-				currentRecordDeserializer = recordDeserializers[bufferOrEvent.getChannelIndex()];
+				currentRecordDeserializer = recordDeserializers.get(bufferOrEvent.getChannelInfo());
 				currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
 			}
 			else {
 				// sanity check for leftover data in deserializers. events should only come between
 				// records, not in the middle of a fragment
-				if (recordDeserializers[bufferOrEvent.getChannelIndex()].hasUnfinishedData()) {
+				if (recordDeserializers.get(bufferOrEvent.getChannelInfo()).hasUnfinishedData()) {
 					throw new IOException(
-							"Received an event in channel " + bufferOrEvent.getChannelIndex() + " while still having "
+							"Received an event in channel " + bufferOrEvent.getChannelInfo() + " while still having "
 							+ "data from a record. This indicates broken serialization logic. "
 							+ "If you are using custom serialization code (Writable or Value types), check their "
 							+ "serialization routines. In the case of Kryo, check the respective Kryo serializer.");
@@ -115,7 +129,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 	}
 
 	public void clearBuffers() {
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers.values()) {
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();

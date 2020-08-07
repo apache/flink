@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions.validation
 
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.RowTypeTestBase
+
 import org.junit.Test
 
 class RowTypeValidationTest extends RowTypeTestBase {

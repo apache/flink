@@ -18,112 +18,36 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.SqlParserException
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.utils.{TableTestBase, TestLimitableTableSource}
+import org.apache.flink.table.api._
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 
-import org.junit.Test
+/**
+ * The plan of following unit test in LimitTest.xml is a bit diffirent from LegacyLimitTest.xml.
+ * Because the TestValuesTableSource has implemented [[SupportsProjectionPushDown]]
+ * while the TestLegacyLimitableTableSource doesn't.
+ * So the Calc has been pushed down to the scan.
+ * 1.testFetchWithOffsetAndLimitSource
+ * 2.testOrderByWithLimitSource
+ * 3.testLimitWithLimitSource
+ * 4.testLimitWithOffsetAndLimitSource
+ * 5.testFetchWithLimitSource
+ */
+class LimitTest extends LegacyLimitTest {
 
-class LimitTest extends TableTestBase {
-
-  private val util = batchTestUtil()
-  util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-  util.addTableSource("LimitTable", new TestLimitableTableSource(null, new RowTypeInfo(
-    Array[TypeInformation[_]](INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO),
-    Array("a", "b", "c"))))
-
-  @Test
-  def testLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT 5")
+  override def setup(): Unit = {
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val ddl =
+    s"""
+       |CREATE TABLE LimitTable (
+       |  a int,
+       |  b bigint,
+       |  c string
+       |) WITH (
+       |  'connector' = 'values',
+       |  'bounded' = 'true'
+       |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
   }
-
-  @Test
-  def testLimit0WithoutOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT 0")
-  }
-
-  @Test(expected = classOf[SqlParserException])
-  def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT -1")
-  }
-
-  @Test
-  def testLimitWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET 1")
-  }
-
-  @Test
-  def testLimitWithOffset0(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET 0")
-  }
-
-  @Test
-  def testLimit0WithOffset0(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 0")
-  }
-
-  @Test
-  def testLimit0WithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 10")
-  }
-
-  @Test(expected = classOf[SqlParserException])
-  def testLimitWithNegativeOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1")
-  }
-
-  @Test
-  def testFetchWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
-  }
-
-  @Test
-  def testFetchWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable FETCH FIRST 10 ROWS ONLY")
-  }
-
-  @Test
-  def testFetch0WithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable FETCH FIRST 0 ROWS ONLY")
-  }
-
-  @Test
-  def testOnlyOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS")
-  }
-
-  @Test
-  def testFetchWithLimitSource(): Unit = {
-    val sqlQuery = "SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testOrderByWithLimitSource(): Unit = {
-    val sqlQuery = "SELECT a, c FROM LimitTable ORDER BY c LIMIT 10"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testLimitWithLimitSource(): Unit = {
-    val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testLimitWithOffsetAndLimitSource(): Unit = {
-    val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testFetchWithOffsetAndLimitSource(): Unit = {
-    val sqlQuery = "SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY"
-    util.verifyPlan(sqlQuery)
-  }
-
 }

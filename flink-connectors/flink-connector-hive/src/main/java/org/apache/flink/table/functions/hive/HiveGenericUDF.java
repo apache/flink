@@ -27,6 +27,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.serde2.objectinspector.ConstantObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
@@ -83,7 +84,10 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 		}
 
 		try {
-			return HiveInspectors.toFlinkObject(returnInspector, function.evaluate(deferredObjects), hiveShim);
+			Object result = returnInspector instanceof ConstantObjectInspector ?
+					((ConstantObjectInspector) returnInspector).getWritableConstantValue() :
+					function.evaluate(deferredObjects);
+			return HiveInspectors.toFlinkObject(returnInspector, result, hiveShim);
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(e);
 		}

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.MemoryArchitecture;
+import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -64,6 +64,8 @@ public class ResultPartitionFactory {
 
 	private final String compressionCodec;
 
+	private final int maxBuffersPerChannel;
+
 	public ResultPartitionFactory(
 		ResultPartitionManager partitionManager,
 		FileChannelManager channelManager,
@@ -74,7 +76,8 @@ public class ResultPartitionFactory {
 		int networkBufferSize,
 		boolean forcePartitionReleaseOnConsumption,
 		boolean blockingShuffleCompressionEnabled,
-		String compressionCodec) {
+		String compressionCodec,
+		int maxBuffersPerChannel) {
 
 		this.partitionManager = partitionManager;
 		this.channelManager = channelManager;
@@ -86,13 +89,16 @@ public class ResultPartitionFactory {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = compressionCodec;
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 	}
 
 	public ResultPartition create(
 			String taskNameWithSubtaskAndId,
+			int partitionIndex,
 			ResultPartitionDeploymentDescriptor desc) {
 		return create(
 			taskNameWithSubtaskAndId,
+			partitionIndex,
 			desc.getShuffleDescriptor().getResultPartitionID(),
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
@@ -103,6 +109,7 @@ public class ResultPartitionFactory {
 	@VisibleForTesting
 	public ResultPartition create(
 			String taskNameWithSubtaskAndId,
+			int partitionIndex,
 			ResultPartitionID id,
 			ResultPartitionType type,
 			int numberOfSubpartitions,
@@ -117,6 +124,7 @@ public class ResultPartitionFactory {
 		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
 			? new ReleaseOnConsumptionResultPartition(
 				taskNameWithSubtaskAndId,
+				partitionIndex,
 				id,
 				type,
 				subpartitions,
@@ -126,6 +134,7 @@ public class ResultPartitionFactory {
 				bufferPoolFactory)
 			: new ResultPartition(
 				taskNameWithSubtaskAndId,
+				partitionIndex,
 				id,
 				type,
 				subpartitions,
@@ -215,17 +224,18 @@ public class ResultPartitionFactory {
 			return bufferPoolFactory.createBufferPool(
 				numberOfSubpartitions + 1,
 				maxNumberOfMemorySegments,
-				type.hasBackPressure() ? null : bufferPoolOwner);
+				type.hasBackPressure() ? null : bufferPoolOwner,
+				numberOfSubpartitions,
+				maxBuffersPerChannel);
 		};
 	}
 
 	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
-		switch (MemoryArchitecture.get()) {
+		switch (ProcessorArchitecture.getMemoryAddressSize()) {
 			case _64_BIT:
 				return BoundedBlockingSubpartitionType.FILE_MMAP;
 			case _32_BIT:
 				return BoundedBlockingSubpartitionType.FILE;
-			case UNKNOWN:
 			default:
 				LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
 				return BoundedBlockingSubpartitionType.FILE;

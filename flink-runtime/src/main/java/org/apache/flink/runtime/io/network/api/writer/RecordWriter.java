@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.api.writer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -66,7 +68,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
 
-	protected final ResultPartitionWriter targetPartition;
+	private final ResultPartitionWriter targetPartition;
 
 	protected final int numberOfChannels;
 
@@ -78,6 +80,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	private Counter numBuffersOut = new SimpleCounter();
 
+	protected Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
+
 	private final boolean flushAlways;
 
 	/** The thread that periodically flushes the output, to give an upper latency bound. */
@@ -86,6 +90,9 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	/** To avoid synchronization overhead on the critical path, best-effort error tracking is enough here.*/
 	private Throwable flusherException;
+	private volatile Throwable volatileFlusherException;
+	private int volatileFlusherExceptionCheckSkipCount;
+	private static final int VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT = 100;
 
 	RecordWriter(ResultPartitionWriter writer, long timeout, String taskName) {
 		this.targetPartition = writer;
@@ -154,12 +161,16 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
+		broadcastEvent(event, false);
+	}
+
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);
 
 				// Retain the buffer so that it can be recycled by each channel of targetPartition
-				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel);
+				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel, isPriorityEvent);
 			}
 
 			if (flushAlways) {
@@ -182,6 +193,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		numBytesOut = metrics.getNumBytesOutCounter();
 		numBuffersOut = metrics.getNumBuffersOutCounter();
+		idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
 	}
 
 	protected void finishBufferBuilder(BufferBuilder bufferBuilder) {
@@ -214,11 +226,6 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	 * request a new one for this target channel.
 	 */
 	abstract BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
-
-	/**
-	 * Requests a new {@link BufferBuilder} for the target channel and returns it.
-	 */
-	abstract BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException;
 
 	/**
 	 * Marks the current {@link BufferBuilder} as finished if present and clears the state for next one.
@@ -267,13 +274,41 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		if (flusherException == null) {
 			LOG.error("An exception happened while flushing the outputs", t);
 			flusherException = t;
+			volatileFlusherException = t;
 		}
 	}
 
 	protected void checkErroneous() throws IOException {
-		if (flusherException != null) {
-			throw new IOException("An exception happened while flushing the outputs", flusherException);
+		// For performance reasons, we are not checking volatile field every single time.
+		if (flusherException != null ||
+				(volatileFlusherExceptionCheckSkipCount >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT && volatileFlusherException != null)) {
+			throw new IOException("An exception happened while flushing the outputs", volatileFlusherException);
 		}
+		if (++volatileFlusherExceptionCheckSkipCount >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT) {
+			volatileFlusherExceptionCheckSkipCount = 0;
+		}
+	}
+
+	protected void addBufferConsumer(BufferConsumer consumer, int targetChannel) throws IOException {
+		targetPartition.addBufferConsumer(consumer, targetChannel);
+	}
+
+	/**
+	 * Requests a new {@link BufferBuilder} for the target channel and returns it.
+	 */
+	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		BufferBuilder builder = targetPartition.tryGetBufferBuilder(targetChannel);
+		if (builder == null) {
+			long start = System.currentTimeMillis();
+			builder = targetPartition.getBufferBuilder(targetChannel);
+			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
+		}
+		return builder;
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTimeMsPerSecond() {
+		return idleTimeMsPerSecond;
 	}
 
 	// ------------------------------------------------------------------------
@@ -322,5 +357,10 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 				notifyFlusherException(t);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	ResultPartitionWriter getTargetPartition() {
+		return targetPartition;
 	}
 }

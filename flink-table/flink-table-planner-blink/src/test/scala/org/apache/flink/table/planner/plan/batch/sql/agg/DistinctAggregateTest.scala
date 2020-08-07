@@ -18,68 +18,8 @@
 
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.plan.common.DistinctAggregateTestBase
 
-import org.junit.Test
-
-class DistinctAggregateTest extends TableTestBase {
-  private val util = batchTestUtil()
-  util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-  @Test
-  def testSingleDistinctAggregate(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a) FROM MyTable")
-  }
-
-  @Test
-  def testMultiDistinctAggregateOnSameColumn(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT a), MAX(DISTINCT a) FROM MyTable")
-  }
-
-  @Test
-  def testSingleDistinctAggregateAndOneOrMultiNonDistinctAggregate(): Unit = {
-    // case 0x00: DISTINCT on COUNT and Non-DISTINCT on others
-    util.verifyPlan("SELECT COUNT(DISTINCT a), SUM(b) FROM MyTable")
-  }
-
-  @Test
-  def testSingleDistinctAggregateAndOneOrMultiNonDistinctAggregate2(): Unit = {
-    // case 0x01: Non-DISTINCT on COUNT and DISTINCT on others
-    util.verifyPlan("SELECT COUNT(a), SUM(DISTINCT b) FROM MyTable")
-  }
-
-  @Test
-  def testMultiDistinctAggregateOnDifferentColumn(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable")
-  }
-
-  @Test
-  def testMultiDistinctAndNonDistinctAggregateOnDifferentColumn(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b), COUNT(c) FROM MyTable")
-  }
-
-  @Test
-  def testSingleDistinctAggregateWithGrouping(): Unit = {
-    util.verifyPlan("SELECT a, COUNT(a), SUM(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
-  def testSingleDistinctAggregateWithGroupingAndCountStar(): Unit = {
-    util.verifyPlan("SELECT a, COUNT(*), SUM(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
-  def testTwoDistinctAggregateWithGroupingAndCountStar(): Unit = {
-    val sqlQuery = "SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT b) FROM MyTable GROUP BY a"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testTwoDifferentDistinctAggregateWithGroupingAndCountStar(): Unit = {
-    val sqlQuery = "SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT c) FROM MyTable GROUP BY a"
-    util.verifyPlan(sqlQuery)
-  }
+class DistinctAggregateTest extends DistinctAggregateTestBase {
 
 }

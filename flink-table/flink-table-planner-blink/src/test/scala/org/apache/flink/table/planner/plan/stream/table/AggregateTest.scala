@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{CountMinMax, TableTestBase}
 
@@ -49,7 +48,7 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = table
       .groupBy('c)
-      .select(weightedAvg.distinct('a, 'b), weightedAvg('a, 'b))
+      .select(call(weightedAvg, 'a, 'b).distinct(), call(weightedAvg, 'a, 'b))
 
     util.verifyPlan(resultTable)
   }

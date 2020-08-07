@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.CollectionBatchExecTable
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -52,7 +51,7 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
 
@@ -76,7 +75,7 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testMinusAllTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
 
@@ -100,7 +99,7 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testIntersectTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
 

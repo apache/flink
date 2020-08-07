@@ -62,7 +62,11 @@ object StatefulJobSavepointMigrationITCase {
       (MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
@@ -198,7 +202,7 @@ class StatefulJobSavepointMigrationITCase(
     }
 
     override def initializeState(context: FunctionInitializationContext): Unit = {
-      state = context.getOperatorStateStore.getOperatorState(
+      state = context.getOperatorStateStore.getListState(
         new ListStateDescriptor[CustomCaseClass](
           "sourceState", createTypeInformation[CustomCaseClass]))
     }

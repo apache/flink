@@ -22,6 +22,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.Elasticsearch;
@@ -77,10 +79,11 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema(schema.toRowType()),
+			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
-			createTestSinkOptions());
+			createTestSinkOptions(),
+			IndexGeneratorFactory.createIndexGenerator(INDEX, schema));
 
 		// construct table sink using descriptors and table sink factory
 		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
@@ -103,10 +106,11 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema(schema.toRowType()),
+			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
-			createTestSinkOptions());
+			createTestSinkOptions(),
+			IndexGeneratorFactory.createIndexGenerator(INDEX, schema));
 
 		// construct table sink using descriptors and table sink factory
 		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
@@ -143,7 +147,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 		sinkOptions.put(SinkOption.BULK_FLUSH_BACKOFF_RETRIES, "3");
 		sinkOptions.put(SinkOption.BULK_FLUSH_INTERVAL, "100");
 		sinkOptions.put(SinkOption.BULK_FLUSH_MAX_ACTIONS, "1000");
-		sinkOptions.put(SinkOption.BULK_FLUSH_MAX_SIZE, "1048576 bytes");
+		sinkOptions.put(SinkOption.BULK_FLUSH_MAX_SIZE, "1 mb");
 		sinkOptions.put(SinkOption.REST_MAX_RETRY_TIMEOUT, "100");
 		sinkOptions.put(SinkOption.REST_PATH_PREFIX, "/myapp");
 		return sinkOptions;
@@ -197,7 +201,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 		SerializationSchema<Row> serializationSchema,
 		XContentType contentType,
 		ActionRequestFailureHandler failureHandler,
-		Map<SinkOption, String> sinkOptions);
+		Map<SinkOption, String> sinkOptions,
+		IndexGenerator indexGenerator);
 
 	// --------------------------------------------------------------------------------------------
 	// Helper classes

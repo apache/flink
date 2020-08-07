@@ -20,8 +20,9 @@ package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLegacySink
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.utils.TableConfigUtils
@@ -56,7 +57,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     val optimizedTree = optimizeTree(originTree)
 
     optimizedTree match {
-      case _: BatchExecSink[_] => // ignore
+      case _: BatchExecLegacySink[_] => // ignore
       case _ =>
         val name = createUniqueIntermediateRelTableName
         val intermediateRelTable =  new IntermediateRelTable(Collections.singletonList(name),
@@ -80,12 +81,17 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       .getOrElse(FlinkBatchProgram.buildProgram(config.getConfiguration))
     Preconditions.checkNotNull(programs)
 
+    val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+
     programs.optimize(relNode, new BatchOptimizeContext {
       override def getTableConfig: TableConfig = config
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
       override def getCatalogManager: CatalogManager = planner.catalogManager
+
+      override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
+        context.getSqlExprToRexConverterFactory
     })
   }
 

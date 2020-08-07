@@ -264,6 +264,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
 			.setupBufferPoolFactory(network)
 			.build();
+		InputChannel[] inputChannels = new InputChannel[numberOfRemoteChannels + numberOfLocalChannels];
 
 		Tuple2<SingleInputGate, List<RemoteInputChannel>> res = Tuple2.of(inputGate, new ArrayList<>());
 
@@ -273,7 +274,9 @@ public class InputBuffersMetricsTest extends TestLogger {
 			closeableRegistry.registerCloseable(partition::close);
 			partition.setup();
 
-			res.f1.add(buildRemoteChannel(channelIdx, inputGate, network, partition));
+			RemoteInputChannel remoteChannel = buildRemoteChannel(channelIdx, inputGate, network, partition);
+			inputChannels[i] = remoteChannel;
+			res.f1.add(remoteChannel);
 			channelIdx++;
 		}
 
@@ -282,8 +285,9 @@ public class InputBuffersMetricsTest extends TestLogger {
 			closeableRegistry.registerCloseable(partition::close);
 			partition.setup();
 
-			buildLocalChannel(channelIdx, inputGate, network, partition);
+			inputChannels[numberOfRemoteChannels + i] = buildLocalChannel(channelIdx, inputGate, network, partition);
 		}
+		inputGate.setInputChannels(inputChannels);
 		return res;
 	}
 
@@ -297,19 +301,19 @@ public class InputBuffersMetricsTest extends TestLogger {
 			.setChannelIndex(channelIndex)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 
-	private void buildLocalChannel(
+	private LocalInputChannel buildLocalChannel(
 		int channelIndex,
 		SingleInputGate inputGate,
 		NettyShuffleEnvironment network,
 		ResultPartition partition) {
-		new InputChannelBuilder()
+		return new InputChannelBuilder()
 			.setPartitionId(partition.getPartitionId())
 			.setChannelIndex(channelIndex)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())
-			.buildLocalAndSetToGate(inputGate);
+			.buildLocalChannel(inputGate);
 	}
 }

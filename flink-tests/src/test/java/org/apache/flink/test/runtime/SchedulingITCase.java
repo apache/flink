@@ -25,6 +25,7 @@ import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -39,12 +40,10 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nonnull;
 
@@ -59,7 +58,6 @@ import static org.junit.Assert.assertThat;
 /**
  * IT case for testing Flink's scheduling strategies.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class SchedulingITCase extends TestLogger {
 
 	/**
@@ -106,7 +104,7 @@ public class SchedulingITCase extends TestLogger {
 		final long slotIdleTimeout = 50L;
 		configuration.setLong(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
-		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
+		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
 		final int parallelism = 4;
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()

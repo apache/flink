@@ -18,13 +18,36 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
+
 /**
  * A util to instantiate {@link FunctionDefinition} in the default way.
  */
 public class FunctionDefinitionUtil {
 
 	public static FunctionDefinition createFunctionDefinition(String name, String className) {
-		// Currently only handles Java class-based functions
+		return createJavaFunctionDefinition(name, className);
+	}
+
+	public static FunctionDefinition createFunctionDefinition(
+			String name,
+			String className,
+			FunctionLanguage functionLanguage,
+			ReadableConfig config) {
+		if (functionLanguage == FunctionLanguage.PYTHON) {
+			return createFunctionDefinitionInternal(
+				name,
+				(UserDefinedFunction) PythonFunctionUtils.getPythonFunction(className, config));
+		} else {
+			return createJavaFunctionDefinition(name, className);
+		}
+	}
+
+	private static FunctionDefinition createJavaFunctionDefinition(
+			String name,
+			String className) {
 		Object func;
 		try {
 			func = Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
@@ -33,28 +56,23 @@ public class FunctionDefinitionUtil {
 				String.format("Failed instantiating '%s'", className), e);
 		}
 
-		UserDefinedFunction udf = (UserDefinedFunction) func;
+		return createFunctionDefinitionInternal(name, (UserDefinedFunction) func);
+	}
 
-		if (udf instanceof ScalarFunction) {
-			return new ScalarFunctionDefinition(
-				name,
-				(ScalarFunction) udf
-			);
-		} else if (udf instanceof TableFunction) {
-			TableFunction t = (TableFunction) udf;
-			return new TableFunctionDefinition(
-				name,
-				t,
-				t.getResultType()
-			);
+	private static FunctionDefinition createFunctionDefinitionInternal(String name, UserDefinedFunction udf) {
+		if (udf instanceof ScalarFunction || udf instanceof TableFunction) {
+			// table and scalar function use the new type inference
+			// once the other functions have been updated, this entire class will not be necessary
+			// anymore and can be replaced with UserDefinedFunctionHelper.instantiateFunction
+			return udf;
 		} else if (udf instanceof AggregateFunction) {
 			AggregateFunction a = (AggregateFunction) udf;
 
 			return new AggregateFunctionDefinition(
 				name,
 				a,
-				a.getAccumulatorType(),
-				a.getResultType()
+				UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(a),
+				UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(a)
 			);
 		} else if (udf instanceof TableAggregateFunction) {
 			TableAggregateFunction a = (TableAggregateFunction) udf;
@@ -62,12 +80,13 @@ public class FunctionDefinitionUtil {
 			return new TableAggregateFunctionDefinition(
 				name,
 				a,
-				a.getAccumulatorType(),
-				a.getResultType()
+				UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(a),
+				UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(a)
 			);
 		} else {
 			throw new UnsupportedOperationException(
-				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or TableAggregateFunction", className)
+				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or "
+					+ "TableAggregateFunction", udf.getClass().getName())
 			);
 		}
 	}

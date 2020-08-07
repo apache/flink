@@ -29,11 +29,12 @@
       <tr>
         <th></th>
         <th><strong>End to End Duration</strong></th>
-        <th><strong>State Size</strong></th>
-        <th><strong>Checkpoint Duration (Sync)</strong></th>
-        <th><strong>Checkpoint Duration (Async)</strong></th>
+        <th><strong>Checkpointed Data Size</strong></th>
+        <th><strong>Sync Duration</strong></th>
+        <th><strong>Async Duration</strong></th>
         <th><strong>Alignment Buffered</strong></th>
         <th><strong>Alignment Duration</strong></th>
+        <th><strong>Start Delay</strong></th>
       </tr>
     </thead>
     <tbody>
@@ -46,6 +47,7 @@
           <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['min'] | humanizeDuration}}</td>
           <td>{{ subTaskCheckPoint['summary']['alignment']['buffered']['min'] | humanizeBytes }}</td>
           <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['min'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['min'] | humanizeDuration}}</td>
         </tr>
         <tr>
           <td><strong>Average</strong></td>
@@ -55,6 +57,7 @@
           <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['avg'] | humanizeDuration}}</td>
           <td>{{ subTaskCheckPoint['summary']['alignment']['buffered']['avg'] | humanizeBytes }}</td>
           <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['avg'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['avg'] | humanizeDuration}}</td>
         </tr>
         <tr>
           <td><strong>Maximum</strong></td>
@@ -64,6 +67,7 @@
           <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['max'] | humanizeDuration}}</td>
           <td>{{ subTaskCheckPoint['summary']['alignment']['buffered']['max'] | humanizeBytes }}</td>
           <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['max'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['max'] | humanizeDuration}}</td>
         </tr>
       </ng-container>
     </tbody>
@@ -79,13 +83,14 @@
     <thead (nzSortChange)="sort($event)" nzSingleSort>
       <tr>
         <th><strong>ID</strong></th>
-        <th nzSortKey="ack_timestamp" nzShowSort><strong>Acknowledgement Time</strong></th>
-        <th nzSortKey="end_to_end_duration" nzShowSort><strong>E2E Duration</strong></th>
-        <th nzSortKey="state_size" nzShowSort><strong>State Size</strong></th>
-        <th nzSortKey="checkpoint.sync" nzShowSort><strong>Checkpoint Duration (Sync)</strong></th>
-        <th nzSortKey="checkpoint.async" nzShowSort><strong>Checkpoint Duration (Async)</strong></th>
-        <th nzSortKey="alignment.buffered" nzShowSort><strong>Align Buffered</strong></th>
-        <th nzSortKey="alignment.duration" nzShowSort><strong>Align Duration</strong></th>
+        <th nzSortKey="ack_timestamp" nzShowSort><strong>Acknowledged</strong></th>
+        <th nzSortKey="end_to_end_duration" nzShowSort><strong>End to End Duration</strong></th>
+        <th nzSortKey="state_size" nzShowSort><strong>Checkpointed Data Size</strong></th>
+        <th nzSortKey="checkpoint.sync" nzShowSort><strong>Sync Duration</strong></th>
+        <th nzSortKey="checkpoint.async" nzShowSort><strong>Async Duration</strong></th>
+        <th nzSortKey="alignment.buffered" nzShowSort><strong>Alignment Buffered</strong></th>
+        <th nzSortKey="alignment.duration" nzShowSort><strong>Alignment Duration</strong></th>
+        <th nzSortKey="start_delay" nzShowSort><strong>Start Delay</strong></th>
       </tr>
     </thead>
     <tbody>
@@ -99,6 +104,7 @@
           <td>{{ subTask['checkpoint']['async'] | humanizeDuration}}</td>
           <td>{{ subTask['alignment']['buffered'] | humanizeBytes}}</td>
           <td>{{ subTask['alignment']['duration'] | humanizeDuration}}</td>
+          <td>{{ subTask['start_delay'] | humanizeDuration}}</td>
         </ng-container>
         <ng-container *ngIf="subTask['status'] == 'pending_or_failed'">
           <td colspan="7">n/a</td>

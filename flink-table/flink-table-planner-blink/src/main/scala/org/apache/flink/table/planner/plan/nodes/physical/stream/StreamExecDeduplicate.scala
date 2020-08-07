@@ -18,24 +18,26 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.annotation.Experimental
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, KeySelectorUtil}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDeduplicate.TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
+import java.lang.{Boolean => JBoolean}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -52,20 +54,12 @@ class StreamExecDeduplicate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     uniqueKeys: Array[Int],
-    keepLastRow: Boolean)
+    val keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
-
-  override def producesUpdates: Boolean = keepLastRow
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
-
-  override def consumesRetractions: Boolean = true
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -102,43 +96,49 @@ class StreamExecDeduplicate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
-
-    if (inputIsAccRetract) {
-      throw new TableException("Deduplicate doesn't support retraction input stream currently.")
-    }
+      planner: StreamPlanner): Transformation[RowData] = {
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
-    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
+    val generateInsert = tableConfig.getConfiguration
+      .getBoolean(TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE)
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = planner.getExecEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
       val processFunction = if (keepLastRow) {
-        new MiniBatchDeduplicateKeepLastRowFunction(rowTypeInfo, generateRetraction, rowSerializer)
+        new MiniBatchDeduplicateKeepLastRowFunction(
+          rowTypeInfo,
+          generateUpdateBefore,
+          generateInsert,
+          rowSerializer,
+          minRetentionTime)
       } else {
-        new MiniBatchDeduplicateKeepFirstRowFunction(rowSerializer)
+        new MiniBatchDeduplicateKeepFirstRowFunction(
+          rowSerializer,
+          minRetentionTime)
       }
       val trigger = AggregateUtil.createMiniBatchTrigger(tableConfig)
       new KeyedMapBundleOperator(
         processFunction,
         trigger)
     } else {
-      val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
-      val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
       val processFunction = if (keepLastRow) {
-        new DeduplicateKeepLastRowFunction(minRetentionTime, maxRetentionTime, rowTypeInfo,
-          generateRetraction)
+        new DeduplicateKeepLastRowFunction(
+          minRetentionTime,
+          rowTypeInfo,
+          generateUpdateBefore,
+          generateInsert)
       } else {
-        new DeduplicateKeepFirstRowFunction(minRetentionTime, maxRetentionTime)
+        new DeduplicateKeepFirstRowFunction(minRetentionTime)
       }
-      new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
+      new KeyedProcessOperator[RowData, RowData, RowData](processFunction)
     }
     val ret = new OneInputTransformation(
       inputTransform,
@@ -152,9 +152,23 @@ class StreamExecDeduplicate(
       ret.setMaxParallelism(1)
     }
 
-    val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(uniqueKeys, rowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret
   }
+}
+
+object StreamExecDeduplicate {
+
+  @Experimental
+  val TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE: ConfigOption[JBoolean] =
+  key("table.exec.insert-and-updateafter-sensitive")
+    .defaultValue(JBoolean.valueOf(true))
+    .withDescription("Set whether the job (especially the sinks) is sensitive to " +
+      "INSERT messages and UPDATE_AFTER messages. " +
+      "If false, Flink may send UPDATE_AFTER instead of INSERT for the first row " +
+      "at some times (e.g. deduplication for last row). " +
+      "If true, Flink will guarantee to send INSERT for the first row. " +
+      "Default is true.")
 }

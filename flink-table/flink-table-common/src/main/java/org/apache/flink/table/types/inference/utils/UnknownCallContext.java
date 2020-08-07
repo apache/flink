@@ -20,7 +20,7 @@ package org.apache.flink.table.types.inference.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -37,7 +37,7 @@ public final class UnknownCallContext implements CallContext {
 
 	private static final DataType NULL = DataTypes.NULL();
 
-	private final DataTypeLookup lookup;
+	private final DataTypeFactory typeFactory;
 
 	private final String name;
 
@@ -46,11 +46,11 @@ public final class UnknownCallContext implements CallContext {
 	private final List<DataType> argumentDataTypes;
 
 	public UnknownCallContext(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			String name,
 			FunctionDefinition functionDefinition,
 			int argumentCount) {
-		this.lookup = lookup;
+		this.typeFactory = typeFactory;
 		this.name = name;
 		this.functionDefinition = functionDefinition;
 		this.argumentDataTypes = new AbstractList<DataType>() {
@@ -67,8 +67,8 @@ public final class UnknownCallContext implements CallContext {
 	}
 
 	@Override
-	public DataTypeLookup getDataTypeLookup() {
-		return lookup;
+	public DataTypeFactory getDataTypeFactory() {
+		return typeFactory;
 	}
 
 	@Override

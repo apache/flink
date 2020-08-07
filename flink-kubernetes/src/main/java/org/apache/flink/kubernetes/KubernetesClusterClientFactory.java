@@ -19,17 +19,17 @@
 package org.apache.flink.kubernetes;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractClusterClientFactory;
+import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
+import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
+import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
-
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link ClusterClientFactory} for a Kubernetes cluster.
  */
 @Internal
-public class KubernetesClusterClientFactory extends AbstractClusterClientFactory<String> {
+public class KubernetesClusterClientFactory extends AbstractContainerizedClusterClientFactory<String> {
 
 	private static final String CLUSTER_ID_PREFIX = "flink-cluster-";
 
@@ -45,7 +45,7 @@ public class KubernetesClusterClientFactory extends AbstractClusterClientFactory
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
 		final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
-		return KubernetesSessionClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget);
+		return KubernetesDeploymentTarget.isValidKubernetesTarget(deploymentTarget);
 	}
 
 	@Override
@@ -66,6 +66,7 @@ public class KubernetesClusterClientFactory extends AbstractClusterClientFactory
 	}
 
 	private String generateClusterId() {
-		return CLUSTER_ID_PREFIX + UUID.randomUUID();
+		final String randomID = new AbstractID().toString();
+		return (CLUSTER_ID_PREFIX + randomID).substring(0, Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID);
 	}
 }

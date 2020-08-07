@@ -17,3 +17,8 @@
 
 exclude:
   - "*.zh.md"
+  - "build_docs.sh"
+  - "check_links.sh"
+  - "content"
+  - "content_en"
+  - "content_zh"

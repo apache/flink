@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.codegen.CodeGenUtils.BINARY_ROW
@@ -88,12 +88,14 @@ class SortWindowCodeGenerator(
     isMerge,
     isFinal) {
 
-  def genWithoutKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+  // prepare for aggregation
+  aggInfos
+      .map(_.function)
+      .filter(_.isInstanceOf[AggregateFunction[_, _]])
+      .map(ctx.addReusableFunction(_))
 
-    aggCallToAggFunction
-        .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
+  def genWithoutKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val timeWindowType = classOf[TimeWindow].getName
     val currentWindow = CodeGenUtils.newName("currentWindow")
@@ -157,11 +159,7 @@ class SortWindowCodeGenerator(
       ctx, className, baseClass, processCode, endInputCode, inputType)
   }
 
-  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    aggCallToAggFunction
-        .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
-
+  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val currentKey = CodeGenUtils.newName("currentKey")

@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -39,7 +36,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * DROP FUNCTION DDL sql call.
  */
-public class SqlDropFunction extends SqlDrop implements ExtendedSqlNode {
+public class SqlDropFunction extends SqlDrop {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP FUNCTION", SqlKind.DROP_FUNCTION);
 
@@ -57,7 +54,7 @@ public class SqlDropFunction extends SqlDrop implements ExtendedSqlNode {
 			boolean isSystemFunction) {
 		super(OPERATOR, pos, ifExists);
 		this.functionIdentifier = requireNonNull(functionIdentifier);
-		this.isSystemFunction = requireNonNull(isSystemFunction);
+		this.isSystemFunction = isSystemFunction;
 		this.isTemporary = isTemporary;
 	}
 
@@ -81,11 +78,6 @@ public class SqlDropFunction extends SqlDrop implements ExtendedSqlNode {
 			writer.keyword("IF EXISTS");
 		}
 		functionIdentifier.unparse(writer, leftPrec, rightPrec);
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-		// no-op
 	}
 
 	public String[] getFunctionIdentifier() {

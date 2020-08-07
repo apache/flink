@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -52,11 +53,11 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 @PublicEvolving
 public final class RowType extends LogicalType {
 
-	private static final String FORMAT = "ROW<%s>";
+	public static final String FORMAT = "ROW<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Row.class.getName(),
-		"org.apache.flink.table.dataformat.BaseRow");
+		RowData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Row.class;
 
@@ -65,9 +66,9 @@ public final class RowType extends LogicalType {
 	 */
 	public static final class RowField implements Serializable {
 
-		private static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
+		public static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
 
-		private static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
+		public static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
 
 		private final String name;
 
@@ -279,11 +280,15 @@ public final class RowType extends LogicalType {
 	}
 
 	public static RowType of(LogicalType... types) {
-		List<RowField> fields = new ArrayList<>();
+		return of(true, types);
+	}
+
+	public static RowType of(boolean isNullable, LogicalType... types) {
+		final List<RowField> fields = new ArrayList<>();
 		for (int i = 0; i < types.length; i++) {
 			fields.add(new RowField("f" + i, types[i]));
 		}
-		return new RowType(fields);
+		return new RowType(isNullable, fields);
 	}
 
 	public static RowType of(LogicalType[] types, String[] names) {

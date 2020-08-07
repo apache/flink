@@ -52,8 +52,6 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 	private final TableSchema tableSchema;
 	// TODO remove this while TableSchema supports fieldNullables
 	private final boolean[] fieldNullables;
-	private final boolean producesUpdates;
-	private final boolean isAccRetract;
 	private final FlinkStatistic statistic;
 
 	public DataStreamQueryOperation(
@@ -62,16 +60,12 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 			int[] fieldIndices,
 			TableSchema tableSchema,
 			boolean[] fieldNullables,
-			boolean producesUpdates,
-			boolean isAccRetract,
 			FlinkStatistic statistic) {
 		this.identifier = identifier;
 		this.dataStream = dataStream;
 		this.tableSchema = tableSchema;
 		this.fieldNullables = fieldNullables;
 		this.fieldIndices = fieldIndices;
-		this.producesUpdates = producesUpdates;
-		this.isAccRetract = isAccRetract;
 		this.statistic = statistic;
 	}
 
@@ -117,14 +111,6 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 
 	public boolean[] getFieldNullables() {
 		return fieldNullables;
-	}
-
-	public boolean isProducesUpdates() {
-		return producesUpdates;
-	}
-
-	public boolean isAccRetract() {
-		return isAccRetract;
 	}
 
 	public FlinkStatistic getStatistic() {

@@ -36,16 +36,16 @@ public class SubtaskStateStatsTest {
 			Integer.MAX_VALUE + 2L,
 			Integer.MAX_VALUE + 3L,
 			Integer.MAX_VALUE + 4L,
-			Integer.MAX_VALUE + 5L,
-			Integer.MAX_VALUE + 6L);
+			Integer.MAX_VALUE + 6L,
+			Integer.MAX_VALUE + 7L);
 
 		assertEquals(0, stats.getSubtaskIndex());
 		assertEquals(Integer.MAX_VALUE + 1L, stats.getAckTimestamp());
 		assertEquals(Integer.MAX_VALUE + 2L, stats.getStateSize());
 		assertEquals(Integer.MAX_VALUE + 3L, stats.getSyncCheckpointDuration());
 		assertEquals(Integer.MAX_VALUE + 4L, stats.getAsyncCheckpointDuration());
-		assertEquals(Integer.MAX_VALUE + 5L, stats.getAlignmentBuffered());
 		assertEquals(Integer.MAX_VALUE + 6L, stats.getAlignmentDuration());
+		assertEquals(Integer.MAX_VALUE + 7L, stats.getCheckpointStartDelay());
 
 		// Check duration helper
 		long ackTimestamp = stats.getAckTimestamp();
@@ -67,8 +67,9 @@ public class SubtaskStateStatsTest {
 			Integer.MAX_VALUE + 2L,
 			Integer.MAX_VALUE + 3L,
 			Integer.MAX_VALUE + 4L,
-			Integer.MAX_VALUE + 5L,
-			Integer.MAX_VALUE + 6L);
+			Integer.MAX_VALUE + 6L,
+			Integer.MAX_VALUE + 7L);
+
 
 		SubtaskStateStats copy = CommonTestUtils.createCopySerializable(stats);
 
@@ -77,8 +78,8 @@ public class SubtaskStateStatsTest {
 		assertEquals(Integer.MAX_VALUE + 2L, copy.getStateSize());
 		assertEquals(Integer.MAX_VALUE + 3L, copy.getSyncCheckpointDuration());
 		assertEquals(Integer.MAX_VALUE + 4L, copy.getAsyncCheckpointDuration());
-		assertEquals(Integer.MAX_VALUE + 5L, copy.getAlignmentBuffered());
 		assertEquals(Integer.MAX_VALUE + 6L, copy.getAlignmentDuration());
+		assertEquals(Integer.MAX_VALUE + 7L, stats.getCheckpointStartDelay());
 
 		// Check duration helper
 		long ackTimestamp = copy.getAckTimestamp();

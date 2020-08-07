@@ -146,24 +146,22 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 
 		final URI resolved = parentUri.resolve(child.uri);
-		initialize(resolved.getScheme(), resolved.getAuthority(), normalizePath(resolved.getPath()));
+		initialize(resolved.getScheme(), resolved.getAuthority(), resolved.getPath());
 	}
 
 	/**
 	 * Checks if the provided path string is either null or has zero length and throws
 	 * a {@link IllegalArgumentException} if any of the two conditions apply.
-	 * In addition, leading and tailing whitespaces are removed.
 	 *
 	 * @param path
 	 *        the path string to be checked
-	 * @return The checked and trimmed path.
+	 * @return The checked path.
 	 */
-	private String checkAndTrimPathArg(String path) {
+	private String checkPathArg(String path) {
 		// disallow construction of a Path from an empty string
 		if (path == null) {
 			throw new IllegalArgumentException("Can not create a Path from a null string");
 		}
-		path = path.trim();
 		if (path.length() == 0) {
 			throw new IllegalArgumentException("Can not create a Path from an empty string");
 		}
@@ -178,7 +176,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 *        the string to construct a path from
 	 */
 	public Path(String pathString) {
-		pathString = checkAndTrimPathArg(pathString);
+		pathString = checkPathArg(pathString);
 
 		// We can't use 'new URI(String)' directly, since it assumes things are
 		// escaped, which we don't require of Paths.
@@ -228,7 +226,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 *        the path string
 	 */
 	public Path(String scheme, String authority, String path) {
-		path = checkAndTrimPathArg(path);
+		path = checkPathArg(path);
 		initialize(scheme, authority, path);
 	}
 
@@ -258,10 +256,6 @@ public class Path implements IOReadableWritable, Serializable {
 	 * @return the normalized path string
 	 */
 	private String normalizePath(String path) {
-
-		// remove leading and tailing whitespaces
-		path = path.trim();
-
 		// remove consecutive slashes & backslashes
 		path = path.replace("\\", "/");
 		path = path.replaceAll("/+", "/");

@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -41,9 +44,9 @@ import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.getLongBounda
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator
 import org.apache.flink.table.runtime.operators.over.frame.OffsetOverFrame.CalcOffsetFunc
-import org.apache.flink.table.runtime.operators.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
+import org.apache.flink.table.runtime.operators.over.frame._
 import org.apache.flink.table.runtime.operators.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{BIGINT, INTEGER, SMALLINT}
 
 import org.apache.calcite.plan._
@@ -58,8 +61,6 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
-import org.apache.flink.configuration.MemorySize
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 
 import java.util
 
@@ -85,7 +86,7 @@ class BatchExecOverAggregate(
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   private lazy val modeToGroupToAggCallToAggFunction:
     Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] =
@@ -361,10 +362,10 @@ class BatchExecOverAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     //The generated sort is used for generating the comparator among partitions.
@@ -415,13 +416,13 @@ class BatchExecOverAggregate(
       new BufferDataOverWindowOperator(
         windowFrames,
         genComparator,
-        inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))
+        inputType.getChildren.forall(t => BinaryRowData.isInFixedLengthPart(t)))
     }
     ExecNode.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       input.getParallelism,
       managedMemory)
   }
@@ -482,19 +483,19 @@ class BatchExecOverAggregate(
                   val func = inputType.getTypeAt(rowIndex).getTypeRoot match {
                     case BIGINT =>
                       new CalcOffsetFunc {
-                        override def calc(value: BaseRow): Long = {
+                        override def calc(value: RowData): Long = {
                           value.getLong(rowIndex) * flag
                         }
                       }
                     case INTEGER =>
                       new CalcOffsetFunc {
-                        override def calc(value: BaseRow): Long = {
+                        override def calc(value: RowData): Long = {
                           value.getInt(rowIndex).toLong * flag
                         }
                       }
                     case SMALLINT =>
                       new CalcOffsetFunc {
-                        override def calc(value: BaseRow): Long = {
+                        override def calc(value: RowData): Long = {
                           value.getShort(rowIndex).toLong * flag
                         }
                       }

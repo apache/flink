@@ -205,6 +205,10 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 						}
 					}
 				}
+				if (!running) {
+					// Make sure we can exit this loop so the thread can shut down
+					break runLoop;
+				}
 			}
 
 			// wait until ready to emit min or another queue receives elements
@@ -222,6 +226,10 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 						min = null;
 						continue runLoop;
 					}
+				}
+				if (!running) {
+					// Make sure we can exit this loop so the thread can shut down
+					break runLoop;
 				}
 			}
 

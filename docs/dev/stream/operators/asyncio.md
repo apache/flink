@@ -227,7 +227,7 @@ asynchronous I/O operator. That means concretely the following for the two order
     That means that in the presence of watermarks, the *unordered* mode introduces some of the same latency and management
     overhead as the *ordered* mode does. The amount of that overhead depends on the watermark frequency.
 
-  - **Ordered**: Order of watermarks an records is preserved, just like order between records is preserved. There is no
+  - **Ordered**: Order of watermarks and records is preserved, just like order between records is preserved. There is no
     significant change in overhead, compared to working with *processing time*.
 
 Please recall that *Ingestion Time* is a special case of *event time* with automatically generated watermarks that

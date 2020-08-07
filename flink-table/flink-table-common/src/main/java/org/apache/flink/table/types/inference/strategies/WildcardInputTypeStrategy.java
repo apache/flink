@@ -39,10 +39,19 @@ import java.util.Optional;
 public final class WildcardInputTypeStrategy implements InputTypeStrategy {
 
 	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
+	private final ArgumentCount argumentCount;
+
+	public WildcardInputTypeStrategy(ArgumentCount argumentCount) {
+		this.argumentCount = argumentCount;
+	}
+
+	public WildcardInputTypeStrategy() {
+		this(PASSING_ARGUMENT_COUNT);
+	}
 
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return PASSING_ARGUMENT_COUNT;
+		return argumentCount;
 	}
 
 	@Override

@@ -103,7 +103,6 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 	@Override
 	public Void restore() throws Exception {
 
-		final Map<Integer, StateMetaInfoSnapshot> kvStatesById = new HashMap<>();
 		registeredKVStates.clear();
 		registeredPQStates.clear();
 
@@ -147,6 +146,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 
 				List<StateMetaInfoSnapshot> restoredMetaInfos =
 					serializationProxy.getStateMetaInfoSnapshots();
+
+				final Map<Integer, StateMetaInfoSnapshot> kvStatesById = new HashMap<>();
 
 				createOrCheckStateForMetaInfo(restoredMetaInfos, kvStatesById);
 
@@ -198,9 +199,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 						metaInfoSnapshot.getBackendStateType() + ".");
 			}
 
-			if (registeredState == null) {
-				kvStatesById.put(kvStatesById.size(), metaInfoSnapshot);
-			}
+			// always put metaInfo into kvStatesById, because kvStatesById is KeyGroupsStateHandle related
+			kvStatesById.put(kvStatesById.size(), metaInfoSnapshot);
 		}
 	}
 

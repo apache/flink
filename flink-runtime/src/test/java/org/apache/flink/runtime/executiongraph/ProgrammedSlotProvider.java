@@ -118,8 +118,8 @@ class ProgrammedSlotProvider implements Scheduler {
 			ScheduledUnit task,
 			SlotProfile slotProfile,
 			Time allocationTimeout) {
-		JobVertexID vertexId = task.getTaskToExecute().getVertex().getJobvertexId();
-		int subtask = task.getTaskToExecute().getParallelSubtaskIndex();
+		final JobVertexID vertexId = task.getJobVertexId();
+		final int subtask = task.getSubtaskIndex();
 
 		CompletableFuture<LogicalSlot>[] forTask = slotFutures.get(vertexId);
 		if (forTask != null) {

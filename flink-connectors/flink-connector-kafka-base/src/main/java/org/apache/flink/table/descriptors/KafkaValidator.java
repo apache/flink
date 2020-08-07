@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.table.api.ValidationException;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,8 +39,6 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 public class KafkaValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_KAFKA = "kafka";
-	public static final String CONNECTOR_VERSION_VALUE_08 = "0.8";
-	public static final String CONNECTOR_VERSION_VALUE_09 = "0.9";
 	public static final String CONNECTOR_VERSION_VALUE_010 = "0.10";
 	public static final String CONNECTOR_VERSION_VALUE_011 = "0.11";
 	public static final String CONNECTOR_VERSION_VALUE_UNIVERSAL = "universal";
@@ -49,11 +48,12 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_LATEST = "latest-offset";
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS = "group-offsets";
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS = "specific-offsets";
+	public static final String CONNECTOR_STARTUP_MODE_VALUE_TIMESTAMP = "timestamp";
 	public static final String CONNECTOR_SPECIFIC_OFFSETS = "connector.specific-offsets";
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_PARTITION = "partition";
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_OFFSET = "offset";
+	public static final String CONNECTOR_STARTUP_TIMESTAMP_MILLIS = "connector.startup-timestamp-millis";
 	public static final String CONNECTOR_PROPERTIES = "connector.properties";
-	public static final String CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT = "connector.properties.zookeeper.connect";
 	public static final String CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER = "connector.properties.bootstrap.servers";
 	public static final String CONNECTOR_PROPERTIES_GROUP_ID = "connector.properties.group.id";
 	public static final String CONNECTOR_PROPERTIES_KEY = "key";
@@ -110,15 +110,34 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 				key -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
 		}
 
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_TIMESTAMP,
+			key -> {
+				boolean hasStartupTimestampMillis = properties.containsKey(CONNECTOR_STARTUP_TIMESTAMP_MILLIS);
+				if (!hasStartupTimestampMillis) {
+					throw new ValidationException(String.format("`%s` is required in timestamp startup mode but missing.",
+						CONNECTOR_STARTUP_TIMESTAMP_MILLIS
+					));
+				}
+				try {
+					properties.validateEnumValues(
+						CONNECTOR_VERSION,
+						false,
+						Arrays.asList(CONNECTOR_VERSION_VALUE_010, CONNECTOR_VERSION_VALUE_011, CONNECTOR_VERSION_VALUE_UNIVERSAL));
+				} catch (ValidationException e) {
+					throw new ValidationException("Timestamp startup mode requires Kafka 0.10 or above.");
+				}
+			});
+
+		startupModeValidation.put(CONNECTOR_STARTUP_TIMESTAMP_MILLIS,
+			key -> properties.validateLong(key, true, 0L, Long.MAX_VALUE));
+
 		properties.validateEnum(CONNECTOR_STARTUP_MODE, true, startupModeValidation);
 	}
 
 	private void validateKafkaProperties(DescriptorProperties properties) {
-		if (properties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT)
-			|| properties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
+		if (properties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
 			|| properties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID)) {
 
-			properties.validateString(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT, false);
 			properties.validateString(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER, false);
 			properties.validateString(CONNECTOR_PROPERTIES_GROUP_ID, true);
 
@@ -156,6 +175,8 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 				return CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS;
 			case SPECIFIC_OFFSETS:
 				return CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS;
+			case TIMESTAMP:
+				return CONNECTOR_STARTUP_MODE_VALUE_TIMESTAMP;
 		}
 		throw new IllegalArgumentException("Invalid startup mode.");
 	}
@@ -211,8 +232,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	}
 
 	public static boolean hasConciseKafkaProperties(DescriptorProperties descriptorProperties) {
-		return descriptorProperties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT) ||
-			descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER) ||
+		return descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER) ||
 			descriptorProperties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID);
 	}
 }

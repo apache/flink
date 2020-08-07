@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{Session, Slide, Tumble, ValidationException}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -108,9 +109,7 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
-      "(long, int, int, java.lang.String)")
+    expectedException.expectMessage("Invalid function call:\nmyWeightedAvg(STRING, INT)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -120,7 +119,7 @@ class GroupWindowValidationTest extends TableTestBase {
     table
       .window(Tumble over 2.hours on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
+      .select('string, call(weightedAvg, 'string, 'int)) // invalid UDAGG args
   }
 
   @Test
@@ -175,9 +174,7 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testSlideUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
-      "(long, int, int, java.lang.String)")
+    expectedException.expectMessage("Invalid function call:\nmyWeightedAvg(STRING, INT)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -187,7 +184,7 @@ class GroupWindowValidationTest extends TableTestBase {
     table
       .window(Slide over 2.hours every 30.minutes on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
+      .select('string, call(weightedAvg, 'string, 'int)) // invalid UDAGG args
   }
 
   @Test
@@ -259,9 +256,7 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testSessionUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
-      "(long, int, int, java.lang.String)")
+    expectedException.expectMessage("Invalid function call:\nmyWeightedAvg(STRING, INT)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -271,7 +266,7 @@ class GroupWindowValidationTest extends TableTestBase {
     table
       .window(Session withGap 2.hours on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
+      .select('string, call(weightedAvg, 'string, 'int)) // invalid UDAGG args
   }
 
   @Test

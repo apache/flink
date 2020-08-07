@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;
 
@@ -37,5 +37,5 @@ public abstract class WatermarkGenerator extends AbstractRichFunction {
 	 * @return The watermark for this row or null if no watermark should be generated.
 	 */
 	@Nullable
-	public abstract Long currentWatermark(BaseRow row) throws Exception;
+	public abstract Long currentWatermark(RowData row) throws Exception;
 }

@@ -19,13 +19,15 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, ImperativeAggregateFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -46,18 +48,20 @@ import java.util
   * @param externalResultType the type information of returned value
   * @param externalAccType the type information of the accumulator
   * @param typeFactory type factory for converting Flink's between Calcite's types
+  * @deprecated This uses the old type inference stack. Use [[BridgingSqlAggFunction]] instead.
   */
+@deprecated
 class AggSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,
-    val aggregateFunction: UserDefinedAggregateFunction[_, _],
+    val aggregateFunction: ImperativeAggregateFunction[_, _],
     val externalResultType: DataType,
     val externalAccType: DataType,
     typeFactory: FlinkTypeFactory,
     requiresOver: Boolean,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
-    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
+    new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
     createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
@@ -77,7 +81,7 @@ class AggSqlFunction(
     */
   def makeFunction(
       constants: Array[AnyRef],
-      argTypes: Array[LogicalType]): UserDefinedAggregateFunction[_, _] = aggregateFunction
+      argTypes: Array[LogicalType]): ImperativeAggregateFunction[_, _] = aggregateFunction
 
   override def isDeterministic: Boolean = aggregateFunction.isDeterministic
 
@@ -91,11 +95,12 @@ object AggSqlFunction {
   def apply(
       identifier: FunctionIdentifier,
       displayName: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
+      aggregateFunction: ImperativeAggregateFunction[_, _],
       externalResultType: DataType,
       externalAccType: DataType,
       typeFactory: FlinkTypeFactory,
-      requiresOver: Boolean): AggSqlFunction = {
+      requiresOver: Boolean)
+    : AggSqlFunction = {
 
     new AggSqlFunction(
       identifier,
@@ -109,9 +114,10 @@ object AggSqlFunction {
 
   private[flink] def createOperandTypeInference(
       name: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
+      aggregateFunction: ImperativeAggregateFunction[_, _],
       typeFactory: FlinkTypeFactory,
-      externalAccType: DataType): SqlOperandTypeInference = {
+      externalAccType: DataType)
+    : SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[AggregateFunction]] given information.
       */
@@ -161,8 +167,9 @@ object AggSqlFunction {
 
   private[flink] def createOperandTypeChecker(
       name: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      externalAccType: DataType): SqlOperandTypeChecker = {
+      aggregateFunction: ImperativeAggregateFunction[_, _],
+      externalAccType: DataType)
+    : SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 

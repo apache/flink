@@ -30,12 +30,13 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -79,8 +80,8 @@ public class TemporalRowTimeJoinOperator
 	private static final String REGISTERED_TIMER_STATE_NAME = "timer";
 	private static final String TIMERS_STATE_NAME = "timers";
 
-	private final BaseRowTypeInfo leftType;
-	private final BaseRowTypeInfo rightType;
+	private final InternalTypeInfo<RowData> leftType;
+	private final InternalTypeInfo<RowData> rightType;
 	private final GeneratedJoinCondition generatedJoinCondition;
 	private final int leftTimeAttribute;
 	private final int rightTimeAttribute;
@@ -99,7 +100,7 @@ public class TemporalRowTimeJoinOperator
 	 * <p>TODO: this could be OrderedMultiMap[Jlong, Row] indexed by row's timestamp, to avoid
 	 * full map traversals (if we have lots of rows on the state that exceed `currentWatermark`).
 	 */
-	private transient MapState<Long, BaseRow> leftState;
+	private transient MapState<Long, RowData> leftState;
 
 	/**
 	 * Mapping from timestamp to right side `Row`.
@@ -107,19 +108,19 @@ public class TemporalRowTimeJoinOperator
 	 * <p>TODO: having `rightState` as an OrderedMapState would allow us to avoid sorting cost
 	 * once per watermark
 	 */
-	private transient MapState<Long, BaseRow> rightState;
+	private transient MapState<Long, RowData> rightState;
 
 	// Long for correct handling of default null
 	private transient ValueState<Long> registeredTimer;
-	private transient TimestampedCollector<BaseRow> collector;
+	private transient TimestampedCollector<RowData> collector;
 	private transient InternalTimerService<VoidNamespace> timerService;
 
 	private transient JoinCondition joinCondition;
-	private transient JoinedRow outRow;
+	private transient JoinedRowData outRow;
 
 	public TemporalRowTimeJoinOperator(
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			int leftTimeAttribute,
 			int rightTimeAttribute,
@@ -152,13 +153,15 @@ public class TemporalRowTimeJoinOperator
 		timerService = getInternalTimerService(
 			TIMERS_STATE_NAME, VoidNamespaceSerializer.INSTANCE, this);
 		collector = new TimestampedCollector<>(output);
-		outRow = new JoinedRow();
-		outRow.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+		outRow = new JoinedRowData();
+		// all the output records should be INSERT only,
+		// because current temporal join only supports INSERT only left stream
+		outRow.setRowKind(RowKind.INSERT);
 	}
 
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow row = element.getValue();
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
+		RowData row = element.getValue();
 		checkNotRetraction(row);
 
 		leftState.put(getNextLeftIndex(), row);
@@ -168,8 +171,8 @@ public class TemporalRowTimeJoinOperator
 	}
 
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow row = element.getValue();
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
+		RowData row = element.getValue();
 		checkNotRetraction(row);
 
 		long rowTime = getRightTime(row);
@@ -209,17 +212,17 @@ public class TemporalRowTimeJoinOperator
 	 *         have been processed.
 	 */
 	private long emitResultAndCleanUpState(long timerTimestamp) throws Exception {
-		List<BaseRow> rightRowsSorted = getRightRowSorted(rightRowtimeComparator);
+		List<RowData> rightRowsSorted = getRightRowSorted(rightRowtimeComparator);
 		long lastUnprocessedTime = Long.MAX_VALUE;
 
-		Iterator<Map.Entry<Long, BaseRow>> leftIterator = leftState.entries().iterator();
+		Iterator<Map.Entry<Long, RowData>> leftIterator = leftState.entries().iterator();
 		while (leftIterator.hasNext()) {
-			Map.Entry<Long, BaseRow> entry = leftIterator.next();
-			BaseRow leftRow = entry.getValue();
+			Map.Entry<Long, RowData> entry = leftIterator.next();
+			RowData leftRow = entry.getValue();
 			long leftTime = getLeftTime(leftRow);
 
 			if (leftTime <= timerTimestamp) {
-				Optional<BaseRow> rightRow = latestRightRowToJoin(rightRowsSorted, leftTime);
+				Optional<RowData> rightRow = latestRightRowToJoin(rightRowsSorted, leftTime);
 				if (rightRow.isPresent()) {
 					if (joinCondition.apply(leftRow, rightRow.get())) {
 						outRow.replace(leftRow, rightRow.get());
@@ -244,7 +247,7 @@ public class TemporalRowTimeJoinOperator
 	 * we can not remove "5" from rightState, because left elements with rowtime of 7 or 8 could
 	 * be joined with it later
 	 */
-	private void cleanupState(long timerTimestamp, List<BaseRow> rightRowsSorted) throws Exception {
+	private void cleanupState(long timerTimestamp, List<RowData> rightRowsSorted) throws Exception {
 		int i = 0;
 		int indexToKeep = firstIndexToKeep(timerTimestamp, rightRowsSorted);
 		while (i < indexToKeep) {
@@ -265,7 +268,7 @@ public class TemporalRowTimeJoinOperator
 		rightState.clear();
 	}
 
-	private int firstIndexToKeep(long timerTimestamp, List<BaseRow> rightRowsSorted) {
+	private int firstIndexToKeep(long timerTimestamp, List<RowData> rightRowsSorted) {
 		int firstIndexNewerThenTimer =
 			indexOfFirstElementNewerThanTimer(timerTimestamp, rightRowsSorted);
 
@@ -277,8 +280,8 @@ public class TemporalRowTimeJoinOperator
 		}
 	}
 
-	private int indexOfFirstElementNewerThanTimer(long timerTimestamp, List<BaseRow> list) {
-		ListIterator<BaseRow> iter = list.listIterator();
+	private int indexOfFirstElementNewerThanTimer(long timerTimestamp, List<RowData> list) {
+		ListIterator<RowData> iter = list.listIterator();
 		while (iter.hasNext()) {
 			if (getRightTime(iter.next()) > timerTimestamp) {
 				return iter.previousIndex();
@@ -294,12 +297,12 @@ public class TemporalRowTimeJoinOperator
 	 * @return found element or {@code Optional.empty} If such row was not found (either {@code rightRowsSorted}
 	 *         is empty or all {@code rightRowsSorted} are are newer).
 	 */
-	private Optional<BaseRow> latestRightRowToJoin(List<BaseRow> rightRowsSorted, long leftTime) {
+	private Optional<RowData> latestRightRowToJoin(List<RowData> rightRowsSorted, long leftTime) {
 		return latestRightRowToJoin(rightRowsSorted, 0, rightRowsSorted.size() - 1, leftTime);
 	}
 
-	private Optional<BaseRow> latestRightRowToJoin(
-			List<BaseRow> rightRowsSorted,
+	private Optional<RowData> latestRightRowToJoin(
+			List<RowData> rightRowsSorted,
 			int low,
 			int high,
 			long leftTime) {
@@ -313,7 +316,7 @@ public class TemporalRowTimeJoinOperator
 			}
 		} else {
 			int mid = (low + high) >>> 1;
-			BaseRow midRow = rightRowsSorted.get(mid);
+			RowData midRow = rightRowsSorted.get(mid);
 			long midTime = getRightTime(midRow);
 			int cmp = Long.compare(midTime, leftTime);
 			if (cmp < 0) {
@@ -343,9 +346,9 @@ public class TemporalRowTimeJoinOperator
 		timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
 	}
 
-	private List<BaseRow> getRightRowSorted(RowtimeComparator rowtimeComparator) throws Exception {
-		List<BaseRow> rightRows = new ArrayList<>();
-		for (BaseRow row : rightState.values()) {
+	private List<RowData> getRightRowSorted(RowtimeComparator rowtimeComparator) throws Exception {
+		List<RowData> rightRows = new ArrayList<>();
+		for (RowData row : rightState.values()) {
 			rightRows.add(row);
 		}
 		rightRows.sort(rowtimeComparator);
@@ -361,16 +364,16 @@ public class TemporalRowTimeJoinOperator
 		return index;
 	}
 
-	private long getLeftTime(BaseRow leftRow) {
+	private long getLeftTime(RowData leftRow) {
 		return leftRow.getLong(leftTimeAttribute);
 	}
 
-	private long getRightTime(BaseRow rightRow) {
+	private long getRightTime(RowData rightRow) {
 		return rightRow.getLong(rightTimeAttribute);
 	}
 
-	private void checkNotRetraction(BaseRow row) {
-		if (BaseRowUtil.isRetractMsg(row)) {
+	private void checkNotRetraction(RowData row) {
+		if (RowDataUtil.isRetractMsg(row)) {
 			String className = getClass().getSimpleName();
 			throw new IllegalStateException(
 				"Retractions are not supported by " + className +
@@ -380,7 +383,7 @@ public class TemporalRowTimeJoinOperator
 
 	// ------------------------------------------------------------------------------------------
 
-	private static class RowtimeComparator implements Comparator<BaseRow>, Serializable {
+	private static class RowtimeComparator implements Comparator<RowData>, Serializable {
 
 		private static final long serialVersionUID = 8160134014590716914L;
 
@@ -391,7 +394,7 @@ public class TemporalRowTimeJoinOperator
 		}
 
 		@Override
-		public int compare(BaseRow o1, BaseRow o2) {
+		public int compare(RowData o1, RowData o2) {
 			long o1Time = o1.getLong(timeAttribute);
 			long o2Time = o2.getLong(timeAttribute);
 			return Long.compare(o1Time, o2Time);

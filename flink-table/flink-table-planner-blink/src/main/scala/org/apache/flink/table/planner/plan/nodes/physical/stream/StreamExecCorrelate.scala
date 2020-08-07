@@ -18,62 +18,40 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
-
-import java.util
-
-import scala.collection.JavaConversions._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.{RexNode, RexProgram}
 
 /**
-  * Flink RelNode which matches along with join a user defined table function.
+  * Flink RelNode which matches along with join a Java/Scala user defined table function.
   */
 class StreamExecCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    val projectProgram: Option[RexProgram],
+    projectProgram: Option[RexProgram],
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     outputRowType: RelDataType,
     joinType: JoinRelType)
-  extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  extends StreamExecCorrelateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    projectProgram,
+    scan,
+    condition,
+    outputRowType,
+    joinType) {
 
-  require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
-
-  override def requireWatermark: Boolean = false
-
-  override def deriveRowType(): RelDataType = outputRowType
-
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    copy(traitSet, inputs.get(0), projectProgram, outputRowType)
-  }
-
-  /**
-    * Note: do not passing member 'child' because singleRel.replaceInput may update 'input' rel.
-    */
   def copy(
       traitSet: RelTraitSet,
       newChild: RelNode,
@@ -90,35 +68,11 @@ class StreamExecCorrelate(
       joinType)
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    super.explainTerms(pw)
-      .item("invocation", scan.getCall)
-      .item("correlate", RelExplainUtil.correlateToString(
-        inputRel.getRowType, rexCall, sqlFunction, getExpressionString))
-      .item("select", outputRowType.getFieldNames.mkString(","))
-      .item("rowType", outputRowType)
-      .item("joinType", joinType)
-      .itemIf("condition", condition.orNull, condition.isDefined)
-  }
-
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val operatorCtx = CodeGeneratorContext(tableConfig)
       .setOperatorBaseClass(classOf[AbstractProcessStreamOperator[_]])
     val transform = CorrelateCodeGenerator.generateCorrelateTransformation(

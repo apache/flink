@@ -32,7 +32,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -85,13 +84,12 @@ public class ClusterClientServiceLoaderTest {
 		fail();
 	}
 
-	@Test
+	@Test(expected = IllegalStateException.class)
 	public void testNoFactoriesFound() {
 		final Configuration config = new Configuration();
 		config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
 
 		final ClusterClientFactory<Integer> factory = serviceLoaderUnderTest.getClusterClientFactory(config);
-		assertNull(factory);
 	}
 
 	/**
