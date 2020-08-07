@@ -17,13 +17,14 @@
 ################################################################################
 
 """Tests common to all coder implementations."""
+import decimal
 import logging
 import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder, BasicDecimalCoder, TupleCoder
+    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder
 
 try:
     from pyflink.fn_execution import coder_impl_fast  # noqa # pylint: disable=unused-import
@@ -155,8 +156,8 @@ class CodersTest(unittest.TestCase):
         self.check_coder(coder, v)
 
     def test_basic_decimal_coder(self):
-        basic_dec_coder = BasicDecimalCoder()
-        value = 1.200
+        basic_dec_coder = BigDecimalCoder()
+        value = decimal.Decimal(1.200)
         self.check_coder(basic_dec_coder, value)
 
     def test_tuple_coder(self):

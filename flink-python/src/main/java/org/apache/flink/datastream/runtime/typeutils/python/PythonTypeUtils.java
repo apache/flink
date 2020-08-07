@@ -27,11 +27,9 @@ import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.CharSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.InstantSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -41,7 +39,6 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 
 import java.util.Arrays;
@@ -129,24 +126,12 @@ public class PythonTypeUtils {
 				typeName = FlinkFnApi.TypeInfo.TypeName.CHAR;
 			}
 
-			if (basicTypeInfo.equals(BasicTypeInfo.DATE_TYPE_INFO)) {
-				typeName = FlinkFnApi.TypeInfo.TypeName.LOCAL_DATE;
-			}
-
-			if (basicTypeInfo.equals(BasicTypeInfo.VOID_TYPE_INFO)) {
-				typeName = FlinkFnApi.TypeInfo.TypeName.VOID;
-			}
-
 			if (basicTypeInfo.equals(BasicTypeInfo.BIG_INT_TYPE_INFO)) {
 				typeName = FlinkFnApi.TypeInfo.TypeName.BIG_INT;
 			}
 
 			if (basicTypeInfo.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
 				typeName = FlinkFnApi.TypeInfo.TypeName.BIG_DEC;
-			}
-
-			if (basicTypeInfo.equals(BasicTypeInfo.INSTANT_TYPE_INFO)) {
-				typeName = FlinkFnApi.TypeInfo.TypeName.INSTANT;
 			}
 
 			if (typeName == null) {
@@ -265,11 +250,8 @@ public class PythonTypeUtils {
 			typeInfoToSerialzerMap.put(BasicTypeInfo.FLOAT_TYPE_INFO.getTypeClass(), FloatSerializer.INSTANCE);
 			typeInfoToSerialzerMap.put(BasicTypeInfo.DOUBLE_TYPE_INFO.getTypeClass(), DoubleSerializer.INSTANCE);
 			typeInfoToSerialzerMap.put(BasicTypeInfo.CHAR_TYPE_INFO.getTypeClass(), CharSerializer.INSTANCE);
-			typeInfoToSerialzerMap.put(BasicTypeInfo.DATE_TYPE_INFO.getTypeClass(), DateSerializer.INSTANCE);
-			typeInfoToSerialzerMap.put(BasicTypeInfo.VOID_TYPE_INFO.getTypeClass(), VoidSerializer.INSTANCE);
 			typeInfoToSerialzerMap.put(BasicTypeInfo.BIG_INT_TYPE_INFO.getTypeClass(), BigIntSerializer.INSTANCE);
 			typeInfoToSerialzerMap.put(BasicTypeInfo.BIG_DEC_TYPE_INFO.getTypeClass(), BigDecSerializer.INSTANCE);
-			typeInfoToSerialzerMap.put(BasicTypeInfo.INSTANT_TYPE_INFO.getTypeClass(), InstantSerializer.INSTANCE);
 		}
 
 		public static TypeSerializer typeInfoSerializerConverter(TypeInformation typeInformation) {

@@ -24,7 +24,6 @@ from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
-from pyflink.fn_execution.operation_utils import DATA_STREAM_FUNCTION_URN
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext
 
@@ -168,7 +167,8 @@ def create_table_function(factory, transform_id, transform_proto, parameter, con
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    DATA_STREAM_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedDataStreamFunctions)
+    operation_utils.DATA_STREAM_STATELESS_FUNCTION_URN,
+    flink_fn_execution_pb2.UserDefinedDataStreamFunctions)
 def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, DataStreamStatelessFunctionOperation)

@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A BeamTablePythonStatelessFunctionRunner runner that just return the input elements as the execution results.
+ * A {@link PassThroughPythonScalarFunctionRunner} runner that just return the input elements as the execution results.
  */
 public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonStatelessFunctionRunner {
 

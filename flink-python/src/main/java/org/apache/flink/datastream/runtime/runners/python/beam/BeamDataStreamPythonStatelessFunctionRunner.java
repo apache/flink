@@ -32,10 +32,11 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * DataStreamPythonFunctionRunner is responsible for starting a beam python harness to execute user defined python
- * function.
+ * {@link BeamDataStreamPythonStatelessFunctionRunner} is responsible for starting a beam python harness to execute user
+ * defined python function.
  */
 public class BeamDataStreamPythonStatelessFunctionRunner extends BeamPythonStatelessFunctionRunner {
+	private static final long serialVersionUID = 1L;
 
 	private final TypeInformation inputType;
 	private final TypeInformation outputTupe;

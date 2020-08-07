@@ -21,17 +21,17 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import com.google.protobuf.ByteString;
 
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * DataStreamPythonFunctionOperator is responsible for launching beam runner which will start a python harness to
- * execute user defined python function.
+ * {@link DataStreamPythonStatelessFunctionOperator} is responsible for launching beam runner which will start a python
+ * harness to execute user defined python function.
  */
 public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends AbstractPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1";
+	private static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
+		"flink:transform:datastream_stateless_function:v1";
 	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
 	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
 
@@ -47,8 +47,6 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 	private transient TypeSerializer<IN> inputTypeSerializer;
 
 	private transient TypeSerializer<OUT> outputTypeSerializer;
-
-	protected transient LinkedBlockingQueue<byte[]> userDefinedFunctionResultQueue;
 
 	protected transient ByteArrayInputStreamWithPos bais;
 

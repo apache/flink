@@ -52,7 +52,7 @@ message UserDefinedFunctions {
   bool metric_enabled = 2;
 }
 
-// User defined data stream function definition.
+// User defined DataStream function definition.
 message UserDefinedDataStreamFunction {
   enum FunctionType {
     MAP = 0;
@@ -62,13 +62,13 @@ message UserDefinedDataStreamFunction {
   bytes payload = 2;
 }
 
-// A list of user-defined data stream functions to be executed in a batch.
+// A list of user-defined DataStream functions to be executed in a batch.
 message UserDefinedDataStreamFunctions {
   repeated UserDefinedDataStreamFunction udfs = 1;
   bool metric_enabled = 2;
 }
 
-// A representation of the data schema.
+// A representation of the DataStream.
 message Schema {
   enum TypeName {
     ROW = 0;
@@ -164,32 +164,28 @@ message Schema {
   repeated Field fields = 1;
 }
 
-// A representation of the data type information of a data stream.
+// A representation of the data type information of a DataStream.
 message TypeInfo {
   enum TypeName {
     ROW = 0;
-    VOID = 1;
-    STRING = 2;
-    BYTE = 3;
-    BOOLEAN = 4;
-    SHORT = 5;
-    INT = 6;
-    LONG = 7;
-    FLOAT = 8;
-    DOUBLE = 9;
-    CHAR = 10;
-    BIG_INT = 11;
-    BIG_DEC = 12;
-    SQL_DATE = 13;
-    SQL_TIME = 14;
-    SQL_TIMESTAMP = 15;
-    LOCAL_DATE = 16;
-    LOCAL_TIME = 17;
-    LOCAL_DATE_TIME = 18;
-    INSTANT = 19;
-    ARRAY = 20;
-    PICKLED_BYTES = 21;
-    TUPLE = 22;
+    STRING = 1;
+    BYTE = 2;
+    BOOLEAN = 3;
+    SHORT = 4;
+    INT = 5;
+    LONG = 6;
+    FLOAT = 7;
+    DOUBLE = 8;
+    CHAR = 9;
+    BIG_INT = 10;
+    BIG_DEC = 11;
+    SQL_DATE = 12;
+    SQL_TIME = 13;
+    SQL_TIMESTAMP = 14;
+    INSTANT = 15;
+    ARRAY = 16;
+    PICKLED_BYTES = 17;
+    TUPLE = 18;
   }
 
 

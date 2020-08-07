@@ -17,6 +17,10 @@
 ################################################################################
 import uuid
 
+from typing import Callable, Union
+
+from pyflink.datastream.data_stream import DataStream
+
 from pyflink.common import typeinfo, ExecutionConfig
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo
 from pyflink.common.typeinfo import TypeInformation
@@ -168,7 +172,8 @@ class DataStream(object):
         self._j_data_stream.setBufferTimeout(timeout_millis)
         return self
 
-    def map(self, func, type_info=None):
+    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
+            -> DataStream:
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element. The user
@@ -186,7 +191,7 @@ class DataStream(object):
             if callable(func):
                 func = MapFunctionWrapper(func)
             else:
-                raise TypeError("The input muster be MapFunction or a callable function")
+                raise TypeError("The input must be MapFunction or a callable function")
         func_name = "m_map_" + str(uuid.uuid1())
         j_python_data_stream_scalar_function_operator, output_type_info = \
             self._get_java_python_function_operator(func,
@@ -200,7 +205,8 @@ class DataStream(object):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def flat_map(self, func, type_info=None):
+    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None)\
+            -> DataStream:
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
         for each element of the DataStream. Each FlatMapFunction call can return any number of
@@ -215,7 +221,7 @@ class DataStream(object):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)
             else:
-                raise TypeError("The input muster be FlatMapFunction or a callable function")
+                raise TypeError("The input must be FlatMapFunction or a callable function")
         func_name = "m_flat_map" + str(uuid.uuid1())
         j_python_data_stream_scalar_function_operator, output_type_info = \
             self._get_java_python_function_operator(func,
@@ -256,7 +262,7 @@ class DataStream(object):
             else:
                 output_type_info = type_info
 
-        DataStreamPythonFunction = gateway.jvm.org.apache.flink.datastream.runtime.functions\
+        DataStreamPythonFunction = gateway.jvm.org.apache.flink.datastream.runtime.functions \
             .python.DataStreamPythonFunction
         j_python_data_stream_scalar_function = DataStreamPythonFunction(
             func_name,
@@ -275,7 +281,7 @@ class DataStream(object):
         PythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
         j_conf = PythonConfigUtil.getMergedConfig(j_env)
 
-        DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime\
+        DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
             .operators.python.DataStreamPythonStatelessFunctionOperator
 
         j_python_data_stream_scalar_function_operator = DataStreamPythonFunctionOperator(

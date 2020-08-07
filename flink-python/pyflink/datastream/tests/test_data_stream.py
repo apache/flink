@@ -64,6 +64,7 @@ class DataStreamTests(PyFlinkTestCase):
         self.assertEqual(1, plan['nodes'][0]['parallelism'])
 
     def test_map_function_without_data_types(self):
+        self.env.set_parallelism(1)
         ds = self.env.from_collection([('ab', decimal.Decimal(1)),
                                        ('bdc', decimal.Decimal(2)),
                                        ('cfgs', decimal.Decimal(3)),
@@ -82,7 +83,7 @@ class DataStreamTests(PyFlinkTestCase):
 
     def test_map_function_with_data_types(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+                                      type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
 
         def map_func(value):
             result = (value[0], len(value[0]), value[1])

@@ -20,14 +20,14 @@ import os
 from abc import ABC
 
 import pytz
+from typing import Tuple
 
 from pyflink.fn_execution import flink_fn_execution_pb2
-from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl_slow
 
 try:
     from pyflink.fn_execution import coder_impl_fast as coder_impl
 except:
-    coder_impl = coder_impl_slow
+    from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
 
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
@@ -111,10 +111,70 @@ class FlattenRowCoder(BaseCoder):
         return hash(self._field_coders)
 
 
-class FieldCoder(ABC):
+class DataStreamStatelessMapCoder(BaseCoder):
+    """
+    Coder for a DataStream Map Function input/output data.
+    """
 
-    def get_slow_impl(self):
-        pass
+    def __init__(self, field_coders):
+        self._field_coders = field_coders
+
+    def get_impl(self):
+        return coder_impl.DataStreamStatelessMapCoderImpl(self._field_coders.get_impl())
+
+    @staticmethod
+    def from_type_info_proto(type_info_proto):
+        return DataStreamStatelessMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+
+    def __repr__(self):
+        return 'DataStreamStatelessMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
+
+
+class DataStreamStatelessFlatMapCoder(BaseCoder):
+    """
+    Coder for a DataStream FlatMap Function input/output data.
+    """
+
+    def __init__(self, field_codes):
+        self._field_coders = field_codes
+
+    def get_impl(self):
+        return coder_impl.DataStreamStatelessFlatMapCoderImpl(
+            DataStreamStatelessMapCoder(self._field_coders).get_impl())
+
+    @staticmethod
+    def from_type_info_proto(type_info_proto):
+        return DataStreamStatelessFlatMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+
+    def __repr__(self):
+        return 'DataStreamStatelessFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
+
+
+class FieldCoder(ABC):
 
     def get_impl(self):
         pass
@@ -127,9 +187,6 @@ class RowCoder(FieldCoder):
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
-
-    def get_slow_impl(self):
-        return coder_impl_slow.RowCoderImpl([c.get_slow_impl() for c in self._field_coders])
 
     def get_impl(self):
         return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders])
@@ -175,9 +232,6 @@ class ArrayCoder(CollectionCoder):
     def get_impl(self):
         return coder_impl.ArrayCoderImpl(self._elem_coder.get_impl())
 
-    def get_slow_impl(self):
-        return coder_impl_slow.ArrayCoderImpl(self._elem_coder.get_slow_impl())
-
 
 class MapCoder(FieldCoder):
     """
@@ -190,10 +244,6 @@ class MapCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.MapCoderImpl(self._key_coder.get_impl(), self._value_coder.get_impl())
-
-    def get_slow_impl(self):
-        return coder_impl_slow.MapCoderImpl(self._key_coder.get_slow_impl(),
-                                            self._value_coder.get_slow_impl())
 
     def is_deterministic(self):
         return self._key_coder.is_deterministic() and self._value_coder.is_deterministic()
@@ -221,9 +271,6 @@ class BigIntCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.BigIntCoderImpl()
 
-    def get_slow_impl(self):
-        return coder_impl_slow.BigIntCoderImpl()
-
 
 class TinyIntCoder(FieldCoder):
     """
@@ -232,9 +279,6 @@ class TinyIntCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.TinyIntCoderImpl()
-
-    def get_slow_impl(self):
-        return coder_impl_slow.TinyIntCoderImpl()
 
 
 class BooleanCoder(FieldCoder):
@@ -245,9 +289,6 @@ class BooleanCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.BooleanCoderImpl()
 
-    def get_slow_impl(self):
-        return coder_impl_slow.BooleanCoderImpl()
-
 
 class SmallIntCoder(FieldCoder):
     """
@@ -256,9 +297,6 @@ class SmallIntCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.SmallIntCoderImpl()
-
-    def get_slow_impl(self):
-        return coder_impl_slow.SmallIntCoderImpl()
 
 
 class IntCoder(FieldCoder):
@@ -269,9 +307,6 @@ class IntCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.IntCoderImpl()
 
-    def get_slow_impl(self):
-        return coder_impl_slow.IntCoderImpl()
-
 
 class FloatCoder(FieldCoder):
     """
@@ -281,9 +316,6 @@ class FloatCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.FloatCoderImpl()
 
-    def get_slow_impl(self):
-        return coder_impl_slow.FloatCoderImpl()
-
 
 class DoubleCoder(FieldCoder):
     """
@@ -292,9 +324,6 @@ class DoubleCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.DoubleCoderImpl()
-
-    def get_slow_impl(self):
-        return coder_impl_slow.DoubleCoderImpl()
 
 
 class DecimalCoder(FieldCoder):
@@ -309,20 +338,14 @@ class DecimalCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.DecimalCoderImpl(self.precision, self.scale)
 
-    def get_slow_impl(self):
-        return coder_impl_slow.DecimalCoderImpl(self.precision, self.scale)
 
-
-class BasicDecimalCoder(FieldCoder):
+class BigDecimalCoder(FieldCoder):
     """
     Coder for Basic Decimal that no need to have precision and scale specified.
     """
 
     def get_impl(self):
-        pass
-
-    def get_slow_impl(self):
-        return coder_impl_slow.BasicDecimalCoderImpl()
+        return coder_impl.BigDecimalCoderImpl()
 
 
 class BinaryCoder(FieldCoder):
@@ -333,9 +356,6 @@ class BinaryCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.BinaryCoderImpl()
 
-    def get_slow_impl(self):
-        return coder_impl_slow.BinaryCoderImpl()
-
 
 class CharCoder(FieldCoder):
     """
@@ -344,9 +364,6 @@ class CharCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.CharCoderImpl()
-
-    def get_slow_impl(self):
-        return coder_impl_slow.CharCoderImpl()
 
 
 class DateCoder(FieldCoder):
@@ -357,9 +374,6 @@ class DateCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.DateCoderImpl()
 
-    def get_slow_impl(self):
-        return coder_impl_slow.DateCoderImpl()
-
 
 class TimeCoder(FieldCoder):
     """
@@ -368,9 +382,6 @@ class TimeCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.TimeCoderImpl()
-
-    def get_slow_impl(self):
-        return coder_impl_slow.TimeCoderImpl()
 
 
 class TimestampCoder(FieldCoder):
@@ -383,9 +394,6 @@ class TimestampCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.TimestampCoderImpl(self.precision)
-
-    def get_slow_impl(self):
-        return coder_impl_slow.TimestampCoderImpl(self.precision)
 
 
 class LocalZonedTimestampCoder(FieldCoder):
@@ -400,17 +408,11 @@ class LocalZonedTimestampCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
 
-    def get_slow_impl(self):
-        return coder_impl_slow.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
-
 
 class PickledBytesCoder(FieldCoder):
 
     def get_impl(self):
-        return None
-
-    def get_slow_impl(self):
-        return coder_impl_slow.PickledBytesCoderImpl()
+        return coder_impl.PickledBytesCoderImpl()
 
 
 class TupleCoder(FieldCoder):
@@ -418,17 +420,11 @@ class TupleCoder(FieldCoder):
     def __init__(self, field_coders):
         self._field_coders = field_coders
 
-    def get_slow_impl(self):
-        return self._create_impl()
-
     def get_impl(self):
-        return None
-
-    def _create_impl(self):
-        return coder_impl_slow.TupleCoderImpl([c.get_impl() for c in self._field_coders])
+        return coder_impl.TupleCoderImpl([c.get_impl() for c in self._field_coders])
 
     def to_type_hint(self):
-        return tuple
+        return Tuple
 
     def __repr__(self):
         return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -495,28 +491,27 @@ _type_info_name_mappings = {
     type_info_name.DOUBLE: DoubleCoder(),
     type_info_name.CHAR: CharCoder(),
     type_info_name.BIG_INT: BigIntCoder(),
-    type_info_name.BIG_DEC: BasicDecimalCoder(),
+    type_info_name.BIG_DEC: BigDecimalCoder(),
     type_info_name.SQL_DATE: DateCoder(),
     type_info_name.SQL_TIME: TimeCoder(),
     type_info_name.SQL_TIMESTAMP: TimeCoder(),
-    type_info_name.LOCAL_DATE: DateCoder(),
     type_info_name.PICKLED_BYTES: PickledBytesCoder()
 }
 
 
 def from_type_info_proto(field_type):
     field_type_name = field_type.type_name
-    coder = _type_info_name_mappings.get(field_type_name)
-    if coder is not None:
-        return coder
+    try:
+        return _type_info_name_mappings.get(field_type_name)
+    except KeyError:
+        if field_type_name == type_info_name.ROW:
+            return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field])
 
-    if field_type_name == type_info_name.ROW:
-        return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field])
+        if field_type_name == type_info_name.ARRAY:
+            return ArrayCoder([from_type_info_proto(field_type.collection_element_type)])
 
-    if field_type_name == type_info_name.ARRAY:
-        return ArrayCoder([from_type_info_proto(field_type.collection_element_type)])
+        if field_type_name == type_info_name.TUPLE:
+            return TupleCoder([from_type_info_proto(f.type)
+                               for f in field_type.tuple_type_info.field])
 
-    if field_type_name == type_info_name.TUPLE:
-        return TupleCoder([from_type_info_proto(f.type) for f in field_type.tuple_type_info.field])
-
-    raise ValueError("field_type %s is not supported." % field_type)
+        raise ValueError("field_type %s is not supported." % field_type)

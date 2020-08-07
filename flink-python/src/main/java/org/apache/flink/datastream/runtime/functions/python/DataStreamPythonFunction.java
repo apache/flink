@@ -22,11 +22,11 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
 
 /**
- * DataStreamPythonFunction maintain the serialized python function and its function type, which will be used in
- * DataStreamPythonFunctionRunner.
+ * {@link DataStreamPythonFunction} maintains the serialized python function and its function type, which will be used in
+ * BeamDataStreamPythonStatelessFunctionRunner.
  */
 public class DataStreamPythonFunction implements PythonFunction {
-
+	private static final long serialVersionUID = 1L;
 	private final byte[] serializedPythonFunction;
 	private final PythonEnv pythonEnv;
 

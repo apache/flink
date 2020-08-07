@@ -24,13 +24,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * A Util class to get the StreamExecutionEnvironment configuration and merged configuration with environment settings.
+ * A Util class to get the {@link StreamExecutionEnvironment} configuration and merged configuration with environment
+ * settings.
  */
 public class PythonConfigUtil {
 
 	/**
-	 * A static method to get the StreamExecutionEnvironment configuration merged with python dependency management
-	 * configurations.
+	 * A static method to get the {@link StreamExecutionEnvironment} configuration merged with python dependency
+	 * management configurations.
 	 */
 	public static Configuration getMergedConfig(StreamExecutionEnvironment env) throws InvocationTargetException,
 		IllegalAccessException, NoSuchMethodException {
@@ -40,8 +41,8 @@ public class PythonConfigUtil {
 	}
 
 	/**
-	 * Get the private method StreamExecutionEnvironment.getConfiguration() by reflection recursively. Then access the
-	 * method to get the configuration of the given StreamExecutionEnvironment.
+	 * Get the private method {@link StreamExecutionEnvironment#getConfiguration()} by reflection recursively. Then
+	 * access the method to get the configuration of the given StreamExecutionEnvironment.
 	 */
 	public static Configuration getEnvironmentConfig(StreamExecutionEnvironment env) throws InvocationTargetException,
 		IllegalAccessException, NoSuchMethodException {

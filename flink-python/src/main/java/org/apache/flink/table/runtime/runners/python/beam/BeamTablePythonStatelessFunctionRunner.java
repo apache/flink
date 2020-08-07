@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonStatelessFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -34,7 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import java.util.Map;
 
 /**
- * A {@link BeamPythonFunctionRunner} used to execute Python stateless functions.
+ * A {@link BeamTablePythonStatelessFunctionRunner} used to execute Python stateless functions.
  */
 @Internal
 public class BeamTablePythonStatelessFunctionRunner extends BeamPythonStatelessFunctionRunner {

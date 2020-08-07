@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A BeamTablePythonStatelessFunctionRunner that emit each input element in inner join and emit null in
+ * A {@link BeamTablePythonStatelessFunctionRunner} that emit each input element in inner join and emit null in
  * left join when certain test conditions are met.
  */
 public class PassThroughPythonTableFunctionRunner extends BeamTablePythonStatelessFunctionRunner {

@@ -368,7 +368,7 @@ class DecimalCoderImpl(StreamCoderImpl):
         return value
 
 
-class BasicDecimalCoderImpl(StreamCoderImpl):
+class BigDecimalCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, stream, nested):
         bytes_value = str(value).encode("utf-8")

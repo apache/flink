@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.runners.python.beam;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.util.Preconditions;
@@ -48,8 +49,9 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 /**
  * A {@link BeamPythonFunctionRunner} used to execute Python stateless functions.
  */
+@Internal
 public abstract class BeamPythonStatelessFunctionRunner  extends BeamPythonFunctionRunner{
-
+	private static final long serialVersionUID = 1L;
 	private static final String INPUT_ID = "input";
 	private static final String OUTPUT_ID = "output";
 	private static final String TRANSFORM_ID = "transform";
