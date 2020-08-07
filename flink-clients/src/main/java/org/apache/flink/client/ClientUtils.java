@@ -72,7 +72,14 @@ public enum ClientUtils {
 			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
 			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, alwaysParentFirstLoaderPatterns, NOOP_EXCEPTION_HANDLER);
+		final boolean checkClassloaderLeak = configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+		return FlinkUserCodeClassLoaders.create(
+			resolveOrder,
+			urls,
+			parent,
+			alwaysParentFirstLoaderPatterns,
+			NOOP_EXCEPTION_HANDLER,
+			checkClassloaderLeak);
 	}
 
 	public static JobExecutionResult submitJob(
