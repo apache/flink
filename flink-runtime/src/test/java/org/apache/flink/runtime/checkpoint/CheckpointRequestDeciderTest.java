@@ -66,7 +66,6 @@ public class CheckpointRequestDeciderTest {
 		assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
 	}
 
-
 	@Test
 	public void testNonForcedEnqueueOnTooManyPending() {
 		final int maxPending = 1;
@@ -99,7 +98,6 @@ public class CheckpointRequestDeciderTest {
 				new CheckpointTriggerRequest[]{savepoint, checkpoint});
 	}
 
-
 	@Test
 	public void testNonForcedUserSubmittedPrioritized() {
 		CheckpointTriggerRequest userSubmitted = nonForcedSavepoint();
@@ -117,8 +115,6 @@ public class CheckpointRequestDeciderTest {
 			new CheckpointTriggerRequest[]{checkpoint, savepoint},
 			new CheckpointTriggerRequest[]{savepoint, checkpoint});
 	}
-
-
 
 	@Test
 	public void testQueueSizeLimit() {
