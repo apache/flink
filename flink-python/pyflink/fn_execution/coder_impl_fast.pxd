@@ -88,6 +88,17 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message
 
+cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
+    cdef readonly FieldCoder _single_field_coder
+    cdef object _decode_data_stream_field_simple(self, TypeName field_type)
+    cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder)
+    cdef void _encode_data_stream_field_simple(self, TypeName field_type, item)
+    cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
+                                                item)
+
+cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
+    cdef readonly object _single_field_coder
+
 cdef enum CoderType:
     UNDEFINED = -1
     SIMPLE = 0
@@ -112,6 +123,9 @@ cdef enum TypeName:
     ARRAY = 14
     MAP = 15
     LOCAL_ZONED_TIMESTAMP = 16
+    PICKLED_BYTES = 17
+    BIG_DEC = 18
+    TUPLE = 19
 
 cdef class FieldCoder:
     cpdef CoderType coder_type(self)
@@ -150,6 +164,12 @@ cdef class DateCoderImpl(FieldCoder):
 cdef class TimeCoderImpl(FieldCoder):
     pass
 
+cdef class PickledBytesCoderImpl(FieldCoder):
+    pass
+
+cdef class BigDecimalCoderImpl(FieldCoder):
+    pass
+
 cdef class DecimalCoderImpl(FieldCoder):
     cdef readonly object context
     cdef readonly object scale_format
@@ -168,4 +188,7 @@ cdef class MapCoderImpl(FieldCoder):
     cdef readonly FieldCoder value_coder
 
 cdef class RowCoderImpl(FieldCoder):
+    cdef readonly list field_coders
+
+cdef class TupleCoderImpl(FieldCoder):
     cdef readonly list field_coders

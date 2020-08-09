@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.runners.python.beam;
+package org.apache.flink.streaming.api.runners.python.beam;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
@@ -57,7 +56,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * An base class for {@link PythonFunctionRunner} based on beam.
  */
-@Internal
 public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
 
@@ -209,7 +207,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * Creates a specification which specifies the portability Python execution environment.
 	 * It's used by Beam's portability framework to creates the actual Python execution environment.
 	 */
-	RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
+	protected RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
 		PythonEnvironment environment = environmentManager.createEnvironment();
 		if (environment instanceof ProcessPythonEnvironment) {
 			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
