@@ -18,14 +18,14 @@
 from functools import reduce
 from itertools import chain
 
-from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
+from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
-from pyflink.table import FunctionContext
 from pyflink.metrics.metricbase import GenericMetricGroup
+from pyflink.table import FunctionContext
 
 
 class StatelessFunctionOperation(Operation):
@@ -140,6 +140,18 @@ class TableFunctionOperation(StatelessFunctionOperation):
         mapper = eval('lambda value: %s' % table_function, variable_dict)
         return lambda it: map(mapper, it), user_defined_funcs
 
+
+class DataStreamStatelessFunctionOperation(StatelessFunctionOperation):
+
+    def __init__(self, name, spec, counter_factory, sampler, consumers):
+        super(DataStreamStatelessFunctionOperation, self).__init__(name, spec, counter_factory,
+                                                                   sampler, consumers)
+
+    def generate_func(self, udfs):
+        func = operation_utils.extract_data_stream_stateless_funcs(udfs=udfs)
+        return lambda it: map(func, it), []
+
+
 @bundle_processor.BeamTransformFactory.register_urn(
     operation_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
@@ -152,6 +164,14 @@ def create_scalar_function(factory, transform_id, transform_proto, parameter, co
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, TableFunctionOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    operation_utils.DATA_STREAM_STATELESS_FUNCTION_URN,
+    flink_fn_execution_pb2.UserDefinedDataStreamFunctions)
+def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter, DataStreamStatelessFunctionOperation)
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,

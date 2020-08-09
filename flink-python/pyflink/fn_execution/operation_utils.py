@@ -20,11 +20,13 @@ import datetime
 import cloudpickle
 from typing import Any, Tuple, Dict, List
 
+from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
 
 _func_num = 0
 _constant_num = 0
@@ -83,6 +85,24 @@ def _extract_input(args) -> Tuple[str, Dict, List]:
             args_str.append(constant_value_name)
             local_variable_dict[constant_value_name] = parsed_constant_value
     return ",".join(args_str), local_variable_dict, local_funcs
+
+
+def extract_data_stream_stateless_funcs(udfs):
+    """
+    Extracts user-defined-function from the proto representation of a
+    :class:`Function`.
+
+    :param udfs: the proto representation of the Python
+    :class:`Function`
+    """
+    func_type = udfs[0].functionType
+    udf = flink_fn_execution_pb2.UserDefinedDataStreamFunction
+    func = None
+    if func_type == udf.MAP:
+        func = cloudpickle.loads(udfs[0].payload).map
+    elif func_type == udf.FLAT_MAP:
+        func = cloudpickle.loads(udfs[0].payload).flat_map
+    return func
 
 
 def _parse_constant_value(constant_value) -> Tuple[str, Any]:

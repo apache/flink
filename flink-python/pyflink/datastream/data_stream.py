@@ -15,8 +15,15 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+from typing import Callable, Union
+
 from pyflink.common import typeinfo, ExecutionConfig
+from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo
 from pyflink.common.typeinfo import TypeInformation
+from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper
+from pyflink.java_gateway import get_gateway
 
 
 class DataStream(object):
@@ -160,3 +167,126 @@ class DataStream(object):
         """
         self._j_data_stream.setBufferTimeout(timeout_millis)
         return self
+
+    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
+            -> 'DataStream':
+        """
+        Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
+        each element of the DataStream. Each MapFunction call returns exactly one element. The user
+        can also extend RichMapFunction to gain access to other features provided by the
+        RichFunction interface.
+
+        Note that If user does not specify the output data type, the output data will be serialized
+        as pickle primitive byte array.
+
+        :param func: The MapFunction that is called for each element of the DataStream.
+        :param type_info: The type information of the MapFunction output data.
+        :return: The transformed DataStream.
+        """
+        if not isinstance(func, MapFunction):
+            if callable(func):
+                func = MapFunctionWrapper(func)
+            else:
+                raise TypeError("The input must be a MapFunction or a callable function")
+        func_name = str(func)
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_python_data_stream_scalar_function_operator, output_type_info = \
+            self._get_java_python_function_operator(func,
+                                                    type_info,
+                                                    func_name,
+                                                    flink_fn_execution_pb2
+                                                    .UserDefinedDataStreamFunction.MAP)
+        return DataStream(self._j_data_stream.transform(
+            "Map",
+            output_type_info.get_java_type_info(),
+            j_python_data_stream_scalar_function_operator
+        ))
+
+    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None) \
+            -> 'DataStream':
+        """
+        Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
+        for each element of the DataStream. Each FlatMapFunction call can return any number of
+        elements including none. The user can also extend RichFlatMapFunction to gain access to
+        other features provided by the RichFUnction.
+
+        :param func: The FlatMapFunction that is called for each element of the DataStream.
+        :param type_info: The type information of output data.
+        :return: The transformed DataStream.
+        """
+        if not isinstance(func, FlatMapFunction):
+            if callable(func):
+                func = FlatMapFunctionWrapper(func)
+            else:
+                raise TypeError("The input must be a FlatMapFunction or a callable function")
+        func_name = str(func)
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_python_data_stream_scalar_function_operator, output_type_info = \
+            self._get_java_python_function_operator(func,
+                                                    type_info,
+                                                    func_name,
+                                                    flink_fn_execution_pb2
+                                                    .UserDefinedDataStreamFunction.FLAT_MAP)
+        return DataStream(self._j_data_stream.transform(
+            "FLAT_MAP",
+            output_type_info.get_java_type_info(),
+            j_python_data_stream_scalar_function_operator
+        ))
+
+    def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
+                                           type_info: TypeInformation, func_name: str,
+                                           func_type: int):
+        """
+        Create a flink operator according to user provided function object, data types,
+        function name and function type.
+
+        :param func: a function object that implements the Function interface.
+        :param type_info: the data type of the function output data.
+        :param func_name: function name.
+        :param func_type: function type, supports MAP, FLAT_MAP, etc.
+        :return: A flink java operator which is responsible for execution user defined python
+                 function.
+        """
+
+        gateway = get_gateway()
+        import cloudpickle
+        serialized_func = cloudpickle.dumps(func)
+
+        j_input_types = self._j_data_stream.getTransformation().getOutputType()
+
+        if type_info is None:
+            output_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+        else:
+            if isinstance(type_info, list):
+                output_type_info = RowTypeInfo(type_info)
+            else:
+                output_type_info = type_info
+
+        DataStreamPythonFunction = gateway.jvm.org.apache.flink.datastream.runtime.functions \
+            .python.DataStreamPythonFunction
+        j_python_data_stream_scalar_function = DataStreamPythonFunction(
+            func_name,
+            bytearray(serialized_func),
+            _get_python_env())
+
+        DataStreamPythonFunctionInfo = gateway.jvm. \
+            org.apache.flink.datastream.runtime.functions.python \
+            .DataStreamPythonFunctionInfo
+
+        j_python_data_stream_function_info = DataStreamPythonFunctionInfo(
+            j_python_data_stream_scalar_function,
+            func_type)
+
+        j_env = self._j_data_stream.getExecutionEnvironment()
+        PythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+        j_conf = PythonConfigUtil.getMergedConfig(j_env)
+
+        DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+            .operators.python.DataStreamPythonStatelessFunctionOperator
+
+        j_python_data_stream_scalar_function_operator = DataStreamPythonFunctionOperator(
+            j_conf,
+            j_input_types,
+            output_type_info.get_java_type_info(),
+            j_python_data_stream_function_info)
+        return j_python_data_stream_scalar_function_operator, output_type_info

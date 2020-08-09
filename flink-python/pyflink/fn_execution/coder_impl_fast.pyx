@@ -53,6 +53,104 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
         if self._end_message:
             free(self._end_message)
 
+cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
+
+    def __init__(self, field_coder):
+        self._single_field_coder = field_coder
+
+    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+        if iter_value:
+            for value in iter_value:
+                self._single_field_coder.encode_to_stream(value, output_stream)
+
+    cpdef object decode_from_stream(self, LengthPrefixInputStream input_stream):
+        return self._single_field_coder.decode_from_stream(input_stream)
+
+cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
+
+    def __init__(self, field_coder):
+        super(DataStreamStatelessMapCoderImpl, self).__init__([field_coder])
+        self._single_field_coder = self._field_coders[0]
+
+    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+        coder_type = self._single_field_coder.coder_type()
+        type_name = self._single_field_coder.type_name()
+        self._encode_field(coder_type, type_name, self._single_field_coder, value)
+        output_stream.write(self._tmp_output_data, self._tmp_output_pos)
+        self._tmp_output_pos = 0
+
+    cpdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
+                        item):
+        if coder_type == SIMPLE:
+            self._encode_field_simple(field_type, item)
+            self._encode_data_stream_field_simple(field_type, item)
+        else:
+            self._encode_field_complex(field_type, field_coder, item)
+            self._encode_data_stream_field_complex(field_type, field_coder, item)
+
+    cpdef object _decode_field(self, CoderType coder_type, TypeName field_type,
+                        FieldCoder field_coder):
+        if coder_type == SIMPLE:
+            decoded_obj = self._decode_field_simple(field_type)
+            return decoded_obj if decoded_obj is not None \
+                else self._decode_data_stream_field_simple(field_type)
+        else:
+            decoded_obj = self._decode_field_complex(field_type, field_coder)
+            return decoded_obj if decoded_obj is not None \
+                else self._decode_data_stream_field_complex(field_type, field_coder)
+
+    cpdef object decode_from_stream(self, LengthPrefixInputStream input_stream):
+        input_stream.read(&self._input_data)
+        self._input_pos = 0
+        coder_type = self._single_field_coder.coder_type()
+        type_name = self._single_field_coder.type_name()
+        decoded_obj = self._decode_field(coder_type, type_name, self._single_field_coder)
+        return decoded_obj
+
+    cdef void _encode_data_stream_field_simple(self, TypeName field_type, item):
+        if field_type == PICKLED_BYTES:
+            import pickle
+            pickled_bytes = pickle.dumps(item)
+            self._encode_bytes(pickled_bytes, len(pickled_bytes))
+        elif field_type == BIG_DEC:
+            item_bytes = str(item).encode('utf-8')
+            self._encode_bytes(item_bytes, len(item_bytes))
+
+    cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
+                                           item):
+        if field_type == TUPLE:
+            tuple_field_coders = (<TupleCoderImpl> field_coder).field_coders
+            tuple_field_count = len(tuple_field_coders)
+            tuple_value = list(item)
+            for i in range(tuple_field_count):
+                field_item = tuple_value[i]
+                tuple_field_coder = tuple_field_coders[i]
+                if field_item is not None:
+                    self._encode_field(tuple_field_coder.coder_type(),
+                                       tuple_field_coder.type_name(),
+                                       tuple_field_coder,
+                                       field_item)
+    cdef object _decode_data_stream_field_simple(self, TypeName field_type):
+        if field_type == PICKLED_BYTES:
+            decoded_bytes = self._decode_bytes()
+            import pickle
+            return pickle.loads(decoded_bytes)
+        elif field_type == BIG_DEC:
+            return decimal.Decimal(self._decode_bytes().decode("utf-8"))
+
+    cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder):
+        if field_type == TUPLE:
+            tuple_field_coders = (<TupleCoderImpl> field_coder).field_coders
+            tuple_field_count = len(tuple_field_coders)
+            decoded_list = []
+            for i in range(tuple_field_count):
+                decoded_list.append(self._decode_field(
+                    tuple_field_coders[i].coder_type(),
+                    tuple_field_coders[i].type_name(),
+                    tuple_field_coders[i]
+                ))
+            return (*decoded_list,)
+
 cdef class FlattenRowCoderImpl(BaseCoderImpl):
     def __init__(self, field_coders):
         self._field_coders = field_coders
@@ -682,3 +780,27 @@ cdef class RowCoderImpl(FieldCoder):
 
     cpdef TypeName type_name(self):
         return ROW
+
+cdef class BigDecimalCoderImpl(FieldCoder):
+    cpdef CoderType coder_type(self):
+        return SIMPLE
+
+    cpdef TypeName type_name(self):
+        return BIG_DEC
+
+cdef class PickledBytesCoderImpl(FieldCoder):
+    cpdef CoderType coder_type(self):
+        return SIMPLE
+
+    cpdef TypeName type_name(self):
+        return PICKLED_BYTES
+
+cdef class TupleCoderImpl(FieldCoder):
+    def __cinit__(self, field_coders):
+        self.field_coders = field_coders
+
+    cpdef CoderType coder_type(self):
+        return COMPLEX
+
+    cpdef TypeName type_name(self):
+        return TUPLE

@@ -15,8 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import decimal
 
+from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamCollectUtil
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -59,3 +62,103 @@ class DataStreamTests(PyFlinkTestCase):
         collect_util.collect(ds)
         plan = eval(str(self.env.get_execution_plan()))
         self.assertEqual(1, plan['nodes'][0]['parallelism'])
+
+    def test_map_function_without_data_types(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection([('ab', decimal.Decimal(1)),
+                                       ('bdc', decimal.Decimal(2)),
+                                       ('cfgs', decimal.Decimal(3)),
+                                       ('deeefg', decimal.Decimal(4))],
+                                      type_info=Types.ROW([Types.STRING(), Types.BIG_DEC()]))
+        mapped_stream = ds.map(MyMapFunction())
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(mapped_stream)
+        self.env.execute('map_function_test')
+        results = collect_util.results()
+        expected = ["('ab', 2, Decimal('1'))", "('bdc', 3, Decimal('2'))",
+                    "('cfgs', 4, Decimal('3'))", "('deeefg', 6, Decimal('4'))"]
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_map_function_with_data_types(self):
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
+
+        def map_func(value):
+            result = (value[0], len(value[0]), value[1])
+            return result
+
+        mapped_stream = ds.map(map_func, type_info=Types.ROW([Types.STRING(), Types.INT(),
+                                                              Types.INT()]))
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(mapped_stream)
+        self.env.execute('map_function_test')
+        results = collect_util.results()
+        expected = ['ab,2,1', 'bdc,3,2', 'cfgs,4,3', 'deeefg,6,4']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_map_function_with_data_types_and_function_object(self):
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        mapped_stream = ds.map(MyMapFunction(), type_info=Types.ROW([Types.STRING(), Types.INT(),
+                                                                     Types.INT()]))
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(mapped_stream)
+        self.env.execute('map_function_test')
+        results = collect_util.results()
+        expected = ['ab,2,1', 'bdc,3,2', 'cfgs,4,3', 'deeefg,6,4']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_flat_map_function(self):
+        ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        flat_mapped_stream = ds.flat_map(MyFlatMapFunction(), type_info=Types.ROW([Types.STRING(),
+                                                                                   Types.INT()]))
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(flat_mapped_stream)
+        self.env.execute('flat_map_test')
+        results = collect_util.results()
+        expected = ['a,0', 'bdc,2', 'deeefg,4']
+        results.sort()
+        expected.sort()
+
+        self.assertEqual(expected, results)
+
+    def test_flat_map_function_with_function_object(self):
+        ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        def flat_map(value):
+            if value[1] % 2 == 0:
+                yield value
+
+        flat_mapped_stream = ds.flat_map(flat_map, type_info=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(flat_mapped_stream)
+        self.env.execute('flat_map_test')
+        results = collect_util.results()
+        expected = ['a,0', 'bdc,2', 'deeefg,4']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+
+class MyMapFunction(MapFunction):
+
+    def map(self, value):
+        result = (value[0], len(value[0]), value[1])
+        return result
+
+
+class MyFlatMapFunction(FlatMapFunction):
+
+    def flat_map(self, value):
+        if value[1] % 2 == 0:
+            yield value
