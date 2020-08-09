@@ -543,7 +543,6 @@ public class ExecutionContext<ClusterID> {
 		final TableConfig config = new TableConfig();
 		config.addConfiguration(flinkConfig);
 		Configuration conf = config.getConfiguration();
-		environment.getConfiguration().asMap().forEach(conf::setString);
 		ExecutionEntry execution = environment.getExecution();
 		config.setIdleStateRetentionTime(
 				Time.milliseconds(execution.getMinStateRetention()),
@@ -560,6 +559,7 @@ public class ExecutionContext<ClusterID> {
 		}
 
 		setRestartStrategy(conf);
+		environment.getConfiguration().asMap().forEach(conf::setString);
 		return config;
 	}
 

@@ -46,9 +46,9 @@ tables:
 
 execution:
   type: streaming
-  parallelism: 1
 
 configuration:
+  parallelism.default: 1
   table.optimizer.join-reorder-enabled: true
 
 deployment:

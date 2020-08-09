@@ -22,12 +22,15 @@ import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
-
-import static org.apache.flink.table.client.config.Environment.CONFIGURATION_ENTRY;
 
 /**
  * Configuration for configuring {@link org.apache.flink.table.api.TableConfig}.
+ * This class parses the `configuring` section in an environment file.
+ *
+ * <p>The configuration describes properties that would usually be defined in
+ * the flink-conf.yaml file or user defined properties.
  */
 public class ConfigurationEntry extends ConfigEntry {
 
@@ -63,15 +66,17 @@ public class ConfigurationEntry extends ConfigEntry {
 		return new ConfigurationEntry(properties);
 	}
 
-	public static ConfigurationEntry enrich(ConfigurationEntry configuration, Map<String, String> prefixedProperties) {
+	public static ConfigurationEntry enrich(
+			ConfigurationEntry configuration,
+			Map<String, String> remainingPrefixedProperties) {
 		final Map<String, String> enrichedProperties = new HashMap<>(configuration.asMap());
 
-		prefixedProperties.forEach((k, v) -> {
-			final String normalizedKey = k.toLowerCase();
-			if (k.startsWith(CONFIGURATION_ENTRY + ".")) {
-				enrichedProperties.put(normalizedKey, v);
-			}
-		});
+		Iterator<Map.Entry<String, String>> it = remainingPrefixedProperties.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry<String, String> entry = it.next();
+			enrichedProperties.put(entry.getKey().toLowerCase(), entry.getValue());
+			it.remove();
+		}
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
 		properties.putProperties(enrichedProperties);

@@ -100,18 +100,10 @@ execution:
   planner: blink
   # 'batch' or 'streaming' execution
   type: streaming
-  # allow 'event-time' or only 'processing-time' in sources
-  time-characteristic: event-time
-  # interval in ms for emitting periodic watermarks
-  periodic-watermarks-interval: 200
   # 'changelog', 'table' or 'tableau' presentation of results
   result-mode: table
   # maximum number of maintained rows in 'table' presentation of results
   max-table-result-rows: 1000000
-  # parallelism of the program
-  # parallelism: 1
-  # maximum parallelism
-  max-parallelism: 128
   # minimum idle state retention in ms
   min-idle-state-retention: 0
   # maximum idle state retention in ms
@@ -120,11 +112,6 @@ execution:
   current-catalog: default_catalog
   # current database of the current catalog (default database of the catalog by default)
   current-database: default_database
-  # controls how table programs are restarted in case of a failures
-  # restart-strategy:
-    # strategy type
-    # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
-    # type: fallback
 
 #==============================================================================
 # Configuration options
@@ -137,6 +124,18 @@ execution:
 
 # A configuration can look like:
 # configuration:
+    # parallelism of the program
+    parallelism.default: 1
+    # maximum parallelism
+    pipeline.max-parallelism: 128
+    # possible values are "EventTime", "ProcessingTime" or "IngestionTime"
+    pipeline.time-characteristic: EventTime
+    # interval in ms for emitting periodic watermarks
+    pipeline.auto-watermark-interval: 200
+    # controls how table programs are restarted in case of a failures, default is fallback strategy
+    # possible values are "fixed-delay", "failure-rate", "none"
+    # restart-strategy: failure-rate
+
 #   table.exec.spill-compression.enabled: true
 #   table.exec.spill-compression.block-size: 128kb
 #   table.optimizer.join-reorder-enabled: true

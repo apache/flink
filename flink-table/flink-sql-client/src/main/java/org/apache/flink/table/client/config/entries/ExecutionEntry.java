@@ -20,19 +20,27 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ConfigUtil;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.table.client.config.Environment.EXECUTION_ENTRY;
 
@@ -62,20 +70,28 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_TYPE_VALUE_BATCH = "batch";
 
+	@Deprecated
+	// use StreamPipelineOptions.TIME_CHARACTERISTIC instead
 	private static final String EXECUTION_TIME_CHARACTERISTIC = "time-characteristic";
 
 	private static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME = "event-time";
 
 	private static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME = "processing-time";
 
+	@Deprecated
+	// use PipelineOptions.AUTO_WATERMARK_INTERVAL instead
 	private static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL = "periodic-watermarks-interval";
 
 	private static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
 
 	private static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
 
+	@Deprecated
+	// use CoreOptions.DEFAULT_PARALLELISM instead
 	private static final String EXECUTION_PARALLELISM = "parallelism";
 
+	@Deprecated
+	// use PipelineOptions.MAX_PARALLELISM instead
 	private static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
 
 	private static final String EXECUTION_RESULT_MODE = "result-mode";
@@ -88,6 +104,8 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 
+	@Deprecated
+	// use RestartStrategyOptions.RESTART_STRATEGY instead
 	private static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
 
 	private static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK = "fallback";
@@ -98,12 +116,21 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FAILURE_RATE = "failure-rate";
 
+	@Deprecated
+	// use RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS instead
 	private static final String EXECUTION_RESTART_STRATEGY_ATTEMPTS = "restart-strategy.attempts";
 
+	@Deprecated
+	// use RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY for "failure-rate" strategy
+	// or RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY for "fixed-delay" strategy instead
 	private static final String EXECUTION_RESTART_STRATEGY_DELAY = "restart-strategy.delay";
 
+	@Deprecated
+	// use RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL instead
 	private static final String EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL = "restart-strategy.failure-rate-interval";
 
+	@Deprecated
+	// use RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL instead
 	private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL = "restart-strategy.max-failures-per-interval";
 
 	public static final String EXECUTION_CURRENT_CATALOG = "current-catalog";
@@ -112,6 +139,61 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
+	}
+
+	private static final Set<String> ACCEPTED_KEY_LISTS = Sets.newHashSet(
+			getFullKey(EXECUTION_PLANNER),
+			getFullKey(EXECUTION_TYPE),
+			getFullKey(EXECUTION_TIME_CHARACTERISTIC),
+			getFullKey(EXECUTION_PERIODIC_WATERMARKS_INTERVAL),
+			getFullKey(EXECUTION_MIN_STATE_RETENTION),
+			getFullKey(EXECUTION_MAX_STATE_RETENTION),
+			getFullKey(EXECUTION_PARALLELISM),
+			getFullKey(EXECUTION_MAX_PARALLELISM),
+			getFullKey(EXECUTION_RESULT_MODE),
+			getFullKey(EXECUTION_MAX_TABLE_RESULT_ROWS),
+			getFullKey(EXECUTION_RESTART_STRATEGY_TYPE),
+			getFullKey(EXECUTION_RESTART_STRATEGY_ATTEMPTS),
+			getFullKey(EXECUTION_RESTART_STRATEGY_DELAY),
+			getFullKey(EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL),
+			getFullKey(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL),
+			getFullKey(EXECUTION_CURRENT_CATALOG),
+			getFullKey(EXECUTION_CURRENT_DATABASE)
+	);
+
+	public static Map<String, String> getDeprecatedKeyToNewKeyMap() {
+		Map<String, String> map = new HashMap<>();
+		map.put(getFullKey(EXECUTION_TIME_CHARACTERISTIC), StreamPipelineOptions.TIME_CHARACTERISTIC.key());
+		map.put(getFullKey(EXECUTION_PERIODIC_WATERMARKS_INTERVAL), PipelineOptions.AUTO_WATERMARK_INTERVAL.key());
+		map.put(getFullKey(EXECUTION_PARALLELISM), CoreOptions.DEFAULT_PARALLELISM.key());
+		map.put(getFullKey(EXECUTION_MAX_PARALLELISM), PipelineOptions.MAX_PARALLELISM.key());
+		map.put(getFullKey(EXECUTION_RESTART_STRATEGY_TYPE), RestartStrategyOptions.RESTART_STRATEGY.key());
+		map.put(getFullKey(EXECUTION_RESTART_STRATEGY_ATTEMPTS),
+				RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS.key());
+		map.put(getFullKey(EXECUTION_RESTART_STRATEGY_DELAY),
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY.key() + ", " +
+						RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key());
+		map.put(getFullKey(EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL),
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL.key());
+		map.put(getFullKey(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL),
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL.key());
+		return map;
+	}
+
+	public static Map<String, String> getNewKeyToDeprecatedKeyMap() {
+		Map<String, String> map = new HashMap<>();
+		for (Map.Entry<String, String> entry : getDeprecatedKeyToNewKeyMap().entrySet()) {
+			for (String value : entry.getValue().split(",")) {
+				if (map.put(value.trim(), entry.getKey()) != null) {
+					throw new SqlClientException("This should not happen.");
+				}
+			}
+		}
+		return map;
+	}
+
+	private static String getFullKey(String key) {
+		return EXECUTION_ENTRY + "." + key;
 	}
 
 	@Override
@@ -372,18 +454,21 @@ public class ExecutionEntry extends ConfigEntry {
 	}
 
 	/**
-	 * Creates a new execution entry enriched with additional properties that are prefixed with
-	 * {@link Environment#EXECUTION_ENTRY}.
+	 * Creates a new execution entry enriched with additional properties that are defined in
+	 * {@link ExecutionEntry#ACCEPTED_KEY_LISTS}.
 	 */
-	public static ExecutionEntry enrich(ExecutionEntry execution, Map<String, String> prefixedProperties) {
+	public static ExecutionEntry enrich(ExecutionEntry execution, Map<String, String> remainingPrefixedProperties) {
 		final Map<String, String> enrichedProperties = new HashMap<>(execution.asMap());
 
-		prefixedProperties.forEach((k, v) -> {
-			final String normalizedKey = k.toLowerCase();
-			if (k.startsWith(EXECUTION_ENTRY + '.')) {
-				enrichedProperties.put(normalizedKey.substring(EXECUTION_ENTRY.length() + 1), v);
+		Iterator<Map.Entry<String, String>> it = remainingPrefixedProperties.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry<String, String> entry = it.next();
+			final String normalizedKey = entry.getKey().toLowerCase();
+			if (ACCEPTED_KEY_LISTS.contains(normalizedKey)) {
+				enrichedProperties.put(normalizedKey.substring(EXECUTION_ENTRY.length() + 1), entry.getValue());
+				it.remove();
 			}
-		});
+		}
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
 		properties.putProperties(enrichedProperties);

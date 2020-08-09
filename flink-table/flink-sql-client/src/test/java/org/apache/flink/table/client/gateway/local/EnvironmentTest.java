@@ -26,6 +26,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -39,6 +40,7 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link Environment}.
@@ -82,12 +84,84 @@ public class EnvironmentTest {
 
 		assertEquals(tables, merged.getTables().keySet());
 		assertTrue(merged.getExecution().inStreamingMode());
-		assertEquals(16, merged.getExecution().getMaxParallelism());
+		// default value is 128, will be overwritten by pipeline.max-parallelism
+		assertEquals(128, merged.getExecution().getMaxParallelism());
 
 		final Map<String, String> configuration = new HashMap<>();
 		configuration.put("table.optimizer.join-reorder-enabled", "true");
+		configuration.put("parallelism.default", "1");
+		configuration.put("pipeline.max-parallelism", "16");
+		configuration.put("pipeline.time-characteristic", "EventTime");
+		configuration.put("restart-strategy.failure-rate.delay", "1000");
+		configuration.put("restart-strategy.failure-rate.max-failures-per-interval", "10");
+		configuration.put("pipeline.auto-watermark-interval", "99");
+		configuration.put("restart-strategy", "failure-rate");
+		configuration.put("restart-strategy.failure-rate.failure-rate-interval", "99000");
 
 		assertEquals(configuration, merged.getConfiguration().asMap());
+	}
+
+	@Test
+	public void testConflictInYamlFile() throws IOException {
+		testConflictInYamlFile("parallelism", "parallelism.default", "1");
+		testConflictInYamlFile("max-parallelism", "pipeline.max-parallelism", "2");
+		testConflictInYamlFile("time-characteristic", "pipeline.time-characteristic", "event-time");
+		testConflictInYamlFile("periodic-watermarks-interval", "pipeline.auto-watermark-interval", "200");
+		testConflictInYamlFile("restart-strategy.type", "restart-strategy", "fixed-delay");
+		testConflictInYamlFile("restart-strategy.attempts", "restart-strategy.fixed-delay.attempts", "2");
+		testConflictInYamlFile("restart-strategy.delay", "restart-strategy.fixed-delay.delay", "5");
+		testConflictInYamlFile("restart-strategy.delay", "restart-strategy.failure-rate.delay", "5");
+		testConflictInYamlFile("restart-strategy.failure-rate-interval",
+				"restart-strategy.failure-rate.failure-rate-interval", "600");
+		testConflictInYamlFile("restart-strategy.max-failures-per-interval",
+				"restart-strategy.failure-rate.max-failures-per-interval", "1000");
+	}
+
+	private void testConflictInYamlFile(
+			String deprecatedKeyWithoutPrefix,
+			String newKey,
+			String value) throws IOException {
+		try {
+			Environment.parse(String.format(
+					"execution:\n  %s: %s\n" +
+							"configuration:\n  %s: %s",
+					deprecatedKeyWithoutPrefix, value, newKey, value));
+			fail();
+		} catch (SqlClientException e) {
+			assertTrue(e.getMessage().contains(
+					String.format("'%s' and '%s' can not be set both", newKey, "execution." + deprecatedKeyWithoutPrefix)));
+		}
+	}
+
+	@Test
+	public void testMergingWithConflict() throws IOException {
+		testMergingWithConflict("parallelism", "parallelism.default", "1");
+		testMergingWithConflict("max-parallelism", "pipeline.max-parallelism", "2");
+		testMergingWithConflict("time-characteristic", "pipeline.time-characteristic", "event-time");
+		testMergingWithConflict("periodic-watermarks-interval", "pipeline.auto-watermark-interval", "200");
+		testMergingWithConflict("restart-strategy.type", "restart-strategy", "fixed-delay");
+		testMergingWithConflict("restart-strategy.attempts", "restart-strategy.fixed-delay.attempts", "2");
+		testMergingWithConflict("restart-strategy.delay", "restart-strategy.fixed-delay.delay", "5");
+		testMergingWithConflict("restart-strategy.delay", "restart-strategy.failure-rate.delay", "5");
+		testMergingWithConflict("restart-strategy.failure-rate-interval",
+				"restart-strategy.failure-rate.failure-rate-interval", "600");
+		testMergingWithConflict("restart-strategy.max-failures-per-interval",
+				"restart-strategy.failure-rate.max-failures-per-interval", "1000");
+	}
+
+	private void testMergingWithConflict(
+			String deprecatedKeyWithoutPrefix,
+			String newKey,
+			String value) throws IOException {
+		final Environment env1 = Environment.parse(String.format("execution:\n  %s: %s", deprecatedKeyWithoutPrefix, value));
+		final Environment env2 = Environment.parse(String.format("configuration:\n  %s: %s", newKey, value));
+		try {
+			Environment.merge(env1, env2);
+			fail();
+		} catch (SqlClientException e) {
+			assertTrue(e.getMessage().contains(
+					String.format("'%s' and '%s' can not be set both", newKey, "execution." + deprecatedKeyWithoutPrefix)));
+		}
 	}
 
 	@Test

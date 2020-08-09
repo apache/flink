@@ -113,6 +113,7 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String DEPRECATED_KEY_ENVIRONMENT_FILE = "test-sql-client-defaults-with-deprecated-key.yaml";
 	private static final String DIALECT_ENVIRONMENT_FILE = "test-sql-client-dialect.yaml";
 
 	private static final int NUM_TMS = 2;
@@ -375,8 +376,8 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGetSessionProperties() throws Exception {
-		final Executor executor = createDefaultExecutor(clusterClient);
+	public void testGetSessionPropertiesWithDeprecatedKey() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient, DEPRECATED_KEY_ENVIRONMENT_FILE);
 
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		session.getSessionEnv().setExecution(ImmutableMap.of("result-mode", "changelog"));
@@ -406,6 +407,51 @@ public class LocalExecutorITCase extends TestLogger {
 			expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
 			expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
 			expectedProperties.put("execution.restart-strategy.delay", "1000");
+			expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
+			expectedProperties.put("deployment.response-timeout", "5000");
+
+			assertEquals(expectedProperties, actualProperties);
+
+			// Reset session properties
+			executor.resetSessionProperties(sessionId);
+			assertEquals(executor.getSessionProperties(sessionId).get("execution.result-mode"), "changelog");
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
+	public void testGetSessionProperties() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		session.getSessionEnv().setExecution(ImmutableMap.of("result-mode", "changelog"));
+		// Open the session and get the sessionId.
+		String sessionId = executor.openSession(session);
+		try {
+			assertEquals("test-session", sessionId);
+			assertEquals(executor.getSessionProperties(sessionId).get("execution.result-mode"), "changelog");
+
+			// modify defaults
+			executor.setSessionProperty(sessionId, "execution.result-mode", "table");
+
+			final Map<String, String> actualProperties = executor.getSessionProperties(sessionId);
+
+			final Map<String, String> expectedProperties = new HashMap<>();
+			expectedProperties.put("execution.planner", planner);
+			expectedProperties.put("execution.type", "batch");
+			expectedProperties.put("pipeline.time-characteristic", "EventTime");
+			expectedProperties.put("pipeline.auto-watermark-interval", "99");
+			expectedProperties.put("parallelism.default", "1");
+			expectedProperties.put("pipeline.max-parallelism", "16");
+			expectedProperties.put("execution.max-idle-state-retention", "600000");
+			expectedProperties.put("execution.min-idle-state-retention", "1000");
+			expectedProperties.put("execution.result-mode", "table");
+			expectedProperties.put("execution.max-table-result-rows", "100");
+			expectedProperties.put("restart-strategy", "failure-rate");
+			expectedProperties.put("restart-strategy.failure-rate.max-failures-per-interval", "10");
+			expectedProperties.put("restart-strategy.failure-rate.failure-rate-interval", "99000");
+			expectedProperties.put("restart-strategy.failure-rate.delay", "1000");
 			expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
 			expectedProperties.put("deployment.response-timeout", "5000");
 
@@ -1143,7 +1189,7 @@ public class LocalExecutorITCase extends TestLogger {
 					")\n";
 			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
 			// Change the session property to trigger `new ExecutionContext`.
-			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
+			executor.setSessionProperty(sessionId, "restart-strategy.failure-rate.failure-rate-interval", "12345");
 			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 
@@ -1210,7 +1256,7 @@ public class LocalExecutorITCase extends TestLogger {
 			// Test drop table with properties changed.
 			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
 			// Change the session property to trigger `new ExecutionContext`.
-			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
+			executor.setSessionProperty(sessionId, "restart-strategy.failure-rate.failure-rate-interval", "12345");
 			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 			executor.executeSql(sessionId, "DROP TABLE MyTable1");
@@ -1321,7 +1367,7 @@ public class LocalExecutorITCase extends TestLogger {
 			// Test drop function with properties changed.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			// Change the session property to trigger `new ExecutionContext`.
-			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
+			executor.setSessionProperty(sessionId, "restart-strategy.failure-rate.failure-rate-interval", "12345");
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func2"));
 			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1", "func2"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
@@ -1483,6 +1529,10 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
+		return createDefaultExecutor(clusterClient, DEFAULTS_ENVIRONMENT_FILE);
+	}
+
+	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient, String envFile) throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
@@ -1490,7 +1540,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		return new LocalExecutor(
-				EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+				EnvironmentFileUtil.parseModified(envFile, replaceVars),
 				Collections.emptyList(),
 				clusterClient.getFlinkConfiguration(),
 				new DefaultCLI(),

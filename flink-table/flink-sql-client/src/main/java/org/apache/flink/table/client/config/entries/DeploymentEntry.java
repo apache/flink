@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -150,15 +151,18 @@ public class DeploymentEntry extends ConfigEntry {
 	 * Creates a new deployment entry enriched with additional properties that are prefixed with
 	 * {@link Environment#DEPLOYMENT_ENTRY}.
 	 */
-	public static DeploymentEntry enrich(DeploymentEntry deployment, Map<String, String> prefixedProperties) {
+	public static DeploymentEntry enrich(DeploymentEntry deployment, Map<String, String> remainingPrefixedProperties) {
 		final Map<String, String> enrichedProperties = new HashMap<>(deployment.asMap());
 
-		prefixedProperties.forEach((k, v) -> {
-			final String normalizedKey = k.toLowerCase();
-			if (k.startsWith(DEPLOYMENT_ENTRY + '.')) {
-				enrichedProperties.put(normalizedKey.substring(DEPLOYMENT_ENTRY.length() + 1), v);
+		Iterator<Map.Entry<String, String>> it = remainingPrefixedProperties.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry<String, String> entry = it.next();
+			final String normalizedKey = entry.getKey().toLowerCase();
+			if (normalizedKey.startsWith(DEPLOYMENT_ENTRY + '.')) {
+				enrichedProperties.put(normalizedKey.substring(DEPLOYMENT_ENTRY.length() + 1), entry.getValue());
+				it.remove();
 			}
-		});
+		}
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
 		properties.putProperties(enrichedProperties);

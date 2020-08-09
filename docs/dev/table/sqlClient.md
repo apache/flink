@@ -333,23 +333,27 @@ execution:
   result-mode: table                # required: either 'table' or 'changelog'
   max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
                                     #   'table' mode (1000000 by default, smaller 1 means unlimited)
-  time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
-  parallelism: 1                    # optional: Flink's parallelism (1 by default)
-  periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
-  max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
   current-catalog: catalog_1        # optional: name of the current catalog of the session ('default_catalog' by default)
   current-database: mydb1           # optional: name of the current database of the current catalog
                                     #   (default database of the current catalog by default)
-  restart-strategy:                 # optional: restart strategy
-    type: fallback                  #   "fallback" to global restart strategy by default
 
 # Configuration options for adjusting and tuning table programs.
 
 # A full list of options and their default values can be found
 # on the dedicated "Configuration" page.
 configuration:
+  # Flink's parallelism (1 by default)
+  parallelism.default: 1
+  # Flink's maximum parallelism (128 by default)
+  pipeline.max-parallelism: 16
+  # possible values are "EventTime", "ProcessingTime" or "IngestionTime"
+  pipeline.time-characteristic: EventTime
+  # interval for periodic watermarks (200 ms by default)
+  pipeline.auto-watermark-interval: 200
+  # possible values are "fixed-delay", "failure-rate", "none" (default is fallback strategy)
+  # restart-strategy: failure-rate
   table.optimizer.join-reorder-enabled: true
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
@@ -378,37 +382,20 @@ Depending on the use case, a configuration can be split into multiple files. The
 CLI commands > session environment file > defaults environment file
 {% endhighlight %}
 
-#### Restart Strategies
-
-Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({{ site.baseurl }}/dev/restart_strategies.html) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
-
-The following strategies are supported:
-
+Since `configuration` section accepts all kinds of Flink properties which can be defined in `flink-conf.yaml`, the following sql-client specific properties in `execution` section are deprecated:
 {% highlight yaml %}
+
 execution:
-  # falls back to the global strategy defined in flink-conf.yaml
-  restart-strategy:
-    type: fallback
+  parallelism: 1                    # optional: Flink's parallelism (1 by default), use `parallelism.default` instead.
+  max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default), use `pipeline.max-parallelism` instead.
+  time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default), use `pipeline.time-characteristic` instead.
+  periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default), use `pipeline.auto-watermark-interval` instead.
+  restart-strategy:                 # optional: restart strategy, use global restart strategy properties instead.
+    type: fallback                  #   "fallback" to global restart strategy by default
 
-  # job fails directly and no restart is attempted
-  restart-strategy:
-    type: none
-
-  # attempts a given number of times to restart the job
-  restart-strategy:
-    type: fixed-delay
-    attempts: 3      # retries before job is declared as failed (default: Integer.MAX_VALUE)
-    delay: 10000     # delay in ms between retries (default: 10 s)
-
-  # attempts as long as the maximum number of failures per time interval is not exceeded
-  restart-strategy:
-    type: failure-rate
-    max-failures-per-interval: 1   # retries in interval until failing (default: 1)
-    failure-rate-interval: 60000   # measuring interval in ms for failure rate
-    delay: 10000                   # delay in ms between retries (default: 10 s)
 {% endhighlight %}
 
-{% top %}
+<span class="label label-danger">Attention</span> We strongly do not recommend using deprecated properties again. So a deprecated property and its alternative property can't be used both in the environment files and SET command. Such as, if we define `execution.parallelism` in environment file, we can't use `parallelism.default` in environment file and CLI.
 
 ### Dependencies
 

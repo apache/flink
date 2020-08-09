@@ -84,5 +84,7 @@ tables:
 
 execution:
   type: streaming
-  time-characteristic: event-time
-  parallelism: 1
+
+configuration:
+  parallelism.default: 1
+  pipeline.time-characteristic: EventTime

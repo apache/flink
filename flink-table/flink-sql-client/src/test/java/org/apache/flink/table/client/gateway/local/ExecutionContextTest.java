@@ -76,6 +76,7 @@ import static org.junit.Assert.assertTrue;
 public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String DEPRECATED_KEY_ENVIRONMENT_FILE = "test-sql-client-defaults-with-deprecated-key.yaml";
 	private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
 	public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
@@ -84,8 +85,18 @@ public class ExecutionContextTest {
 	private static final String EXECUTION_ENVIRONMENT_FILE = "test-sql-client-execution.yaml";
 
 	@Test
+	public void testExecutionConfigWithDeprecatedKey() throws Exception {
+		final Map<String, String> replaceVars = createDefaultReplaceVars();
+		final ExecutionContext<?> context = createExecutionContext(DEPRECATED_KEY_ENVIRONMENT_FILE, replaceVars);
+		testExecutionConfig(context);
+	}
+
+	@Test
 	public void testExecutionConfig() throws Exception {
-		final ExecutionContext<?> context = createDefaultExecutionContext();
+		testExecutionConfig(createDefaultExecutionContext());
+	}
+
+	private void testExecutionConfig(ExecutionContext<?> context) throws Exception {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		final TableConfig tableConfig = tableEnv.getConfig();
 
@@ -358,6 +369,7 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
+
 		return replaceVars;
 	}
 

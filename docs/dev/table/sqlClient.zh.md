@@ -335,22 +335,26 @@ execution:
   type: streaming                   # 必选：执行模式为 'batch' 或 'streaming'
   result-mode: table                # 必选：'table' 或 'changelog'
   max-table-result-rows: 1000000    # 可选：'table' 模式下可维护的最大行数（默认为 1000000，小于 1 则表示无限制）
-  time-characteristic: event-time   # 可选： 'processing-time' 或 'event-time' （默认）
-  parallelism: 1                    # 可选：Flink 的并行数量（默认为 1）
-  periodic-watermarks-interval: 200 # 可选：周期性 watermarks 的间隔时间（默认 200 ms）
-  max-parallelism: 16               # 可选：Flink 的最大并行数量（默认 128）
   min-idle-state-retention: 0       # 可选：表程序的最小空闲状态时间
   max-idle-state-retention: 0       # 可选：表程序的最大空闲状态时间
   current-catalog: catalog_1        # 可选：当前会话 catalog 的名称（默认为 'default_catalog'）
   current-database: mydb1           # 可选：当前 catalog 的当前数据库名称
                                     #   （默认为当前 catalog 的默认数据库）
-  restart-strategy:                 # 可选：重启策略（restart-strategy）
-    type: fallback                  #   默认情况下“回退”到全局重启策略
 
 # 用于调整和调优表程序的配置选项。
 
 # 在专用的”配置”页面上可以找到完整的选项列表及其默认值。
 configuration:
+  # Flink 的并行数量（默认为 1）
+  parallelism.default: 1
+  # Flink 的最大并行数量（默认 128）
+  pipeline.max-parallelism: 16
+  # 可能的值为 "EventTime" (默认), "ProcessingTime" 或 "IngestionTime"å
+  pipeline.time-characteristic: EventTime
+  # 周期性 watermarks 的间隔时间（默认 200 ms）
+  pipeline.auto-watermark-interval: 200
+  # 可能的值为 "fixed-delay", "failure-rate", "none" (默认情况下“回退”到全局重启策略)
+  # restart-strategy: failure-rate
   table.optimizer.join-reorder-enabled: true
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
@@ -379,37 +383,21 @@ deployment:
 CLI commands > session environment file > defaults environment file
 {% endhighlight %}
 
-#### 重启策略（Restart Strategies）
-
-重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({{ site.baseurl }}/zh/dev/task_failure_recovery.html)相似，更细精度的重启配置可以在环境配置文件中声明。
-
-Flink 支持以下策略：
-
+因为配置文件中 `configuration` 可以接受可定义在 `flink-conf.yaml` 中的所有配置，`execution` 部分一些 SQL client 特有的配置将会被废弃：
 {% highlight yaml %}
+
 execution:
-  # 退回到 flink-conf.yaml 中定义的全局策略
-  restart-strategy:
-    type: fallback
+  parallelism: 1                    # 可选：Flink 的并行数量（默认为 1），使用 `parallelism.default` 代替。
+  max-parallelism: 16               # Flink 的最大并行数量（默认 128），使用 `pipeline.max-parallelism` 代替。
+  time-characteristic: event-time   # 可选： 'processing-time' 或 'event-time' （默认），使用 `pipeline.time-characteristic` 代替。
+  periodic-watermarks-interval: 200 #可选：周期性 watermarks 的间隔时间（默认 200 ms），使用 `pipeline.auto-watermark-interval` 代替。
+  restart-strategy:                 # 可选：重启策略（restart-strategy），使用全局的重启策略代替。
+    type: fallback                  #  默认情况下“回退”到全局重启策略
 
-  # 作业直接失败并且不尝试重启
-  restart-strategy:
-    type: none
-
-  # 最多重启作业的给定次数
-  restart-strategy:
-    type: fixed-delay
-    attempts: 3      # 作业被宣告失败前的重试次数（默认：Integer.MAX_VALUE）
-    delay: 10000     # 重试之间的间隔时间，以毫秒为单位（默认：10 秒）
-
-  # 只要不超过每个时间间隔的最大故障数就继续尝试
-  restart-strategy:
-    type: failure-rate
-    max-failures-per-interval: 1   # 每个间隔重试的最大次数（默认：1）
-    failure-rate-interval: 60000   # 监测失败率的间隔时间，以毫秒为单位
-    delay: 10000                   # 重试之间的间隔时间，以毫秒为单位（默认：10 秒）
 {% endhighlight %}
 
-{% top %}
+<span class="label label-danger">注意</span> 我们强烈推荐不再使用被废弃的属性。因此一个废弃的属性和它的替代属性不能同时在配置文件和命令行里使用。例如，我们在配置文件中设置了 `execution.parallelism` 属性，我们就不能在配置文件和命令行里使用 `parallelism.default` 属性了。
+
 
 ### 依赖
 

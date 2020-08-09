@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Environment configuration that represents the content of an environment file. Environment files
@@ -48,8 +49,6 @@ import java.util.Map;
 public class Environment {
 
 	public static final String EXECUTION_ENTRY = "execution";
-
-	public static final String CONFIGURATION_ENTRY = "table";
 
 	public static final String DEPLOYMENT_ENTRY = "deployment";
 
@@ -210,7 +209,9 @@ public class Environment {
 	 */
 	public static Environment parse(URL url) throws IOException {
 		try {
-			return new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+			final Environment env = new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+			validateConflictBetweenDeprecatedKeyAndNewKey(env);
+			return env;
 		} catch (JsonMappingException e) {
 			throw new SqlClientException("Could not parse environment file. Cause: " + e.getMessage());
 		}
@@ -221,7 +222,9 @@ public class Environment {
 	 */
 	public static Environment parse(String content) throws IOException {
 		try {
-			return new ConfigUtil.LowerCaseYamlMapper().readValue(content, Environment.class);
+			final Environment env = new ConfigUtil.LowerCaseYamlMapper().readValue(content, Environment.class);
+			validateConflictBetweenDeprecatedKeyAndNewKey(env);
+			return env;
 		} catch (JsonMappingException e) {
 			throw new SqlClientException("Could not parse environment file. Cause: " + e.getMessage());
 		}
@@ -262,6 +265,7 @@ public class Environment {
 		// merge deployment properties
 		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
 
+		validateConflictBetweenDeprecatedKeyAndNewKey(mergedEnv);
 		return mergedEnv;
 	}
 
@@ -287,15 +291,35 @@ public class Environment {
 		// copy functions
 		enrichedEnv.functions = new HashMap<>(env.getFunctions());
 
-		// enrich execution properties
-		enrichedEnv.execution = ExecutionEntry.enrich(env.execution, properties);
+		Map<String, String> remainingProperties = new HashMap<>(properties);
 
-		// enrich configuration properties
-		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, properties);
+		// enrich execution properties
+		enrichedEnv.execution = ExecutionEntry.enrich(env.execution, remainingProperties);
 
 		// enrich deployment properties
-		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
+		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, remainingProperties);
+
+		// enrich configuration execution properties
+		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, remainingProperties);
+
+		assert remainingProperties.isEmpty();
+		validateConflictBetweenDeprecatedKeyAndNewKey(enrichedEnv);
 
 		return enrichedEnv;
+	}
+
+	private static void validateConflictBetweenDeprecatedKeyAndNewKey(Environment environment) {
+		Map<String, String> newKeyToDeprecatedKeyMap = ExecutionEntry.getNewKeyToDeprecatedKeyMap();
+		Set<String> executionKeys = environment.getExecution().asTopLevelMap().keySet();
+		for (String configurationKey : environment.getConfiguration().asMap().keySet()) {
+			String deprecatedKey = newKeyToDeprecatedKeyMap.get(configurationKey);
+			if (executionKeys.contains(deprecatedKey)) {
+				throw new SqlClientException(
+						String.format("'%s' and '%s' can not be set both, " +
+										"please check the properties from sql-client config file and SET command.\n" +
+										"Note: '%s' is deprecated, use '%s' instead.",
+								configurationKey, deprecatedKey, deprecatedKey, configurationKey));
+			}
+		}
 	}
 }
