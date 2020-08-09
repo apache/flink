@@ -17,7 +17,6 @@
 ################################################################################
 import os
 import tempfile
-
 from typing import List, Any
 
 from pyflink.common.execution_config import ExecutionConfig
@@ -26,6 +25,7 @@ from pyflink.common.restart_strategy import RestartStrategies
 from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
+from pyflink.datastream.connectors import SourceFunction
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.state_backend import _from_j_state_backend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
@@ -446,6 +446,23 @@ class StreamExecutionEnvironment(object):
         j_stream_exection_environment = gateway.jvm.org.apache.flink.streaming.api.environment\
             .StreamExecutionEnvironment.getExecutionEnvironment()
         return StreamExecutionEnvironment(j_stream_exection_environment)
+
+    def add_source(self, source_func: SourceFunction, source_name: str = 'Custom Source',
+                   type_info: TypeInformation = None) -> 'DataStream':
+        """
+        Adds a data source to the streaming topology.
+
+        :param source_func: the user defined function.
+        :param source_name: name of the data source. Optional.
+        :param type_info: type of the returned stream. Optional.
+        :return: the data stream constructed.
+        """
+        j_type_info = type_info.get_java_type_info() if type_info is not None else None
+        j_data_stream = self._j_stream_execution_environment.addSource(source_func
+                                                                       .get_java_source_function(),
+                                                                       source_name,
+                                                                       j_type_info)
+        return DataStream(j_data_stream=j_data_stream)
 
     def from_collection(self, collection: List[Any],
                         type_info: TypeInformation = None) -> DataStream:
